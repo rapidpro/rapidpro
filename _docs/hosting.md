@@ -19,4 +19,4 @@ For a highly available installation, you will require:
  * A Redis server with a hot standby
  * n+1 Celery instances for each of the RapidPro queues. (celery, msgs, flows, handler)
 
-<img src="/images/hosting.png" widht="100%">
+<img src="{{site.baseurl}}/images/hosting.png" widht="100%">
