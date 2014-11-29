@@ -1,0 +1,34 @@
+
+#big-logo {
+    color: white;
+    font-size: 64px;
+    line-height: 64px;
+    margin-left: -40px;
+}
+
+header h2 {
+    color: white;
+}
+
+#navbar {
+    display: table;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    float: right;
+    color: white;
+    font-size: 14pt;
+}
+
+#navbar > li {
+    float: left;
+    padding: 10px;
+}
+
+#navbar > li > a, #navbar > li > a:visited {
+    color: white;
+}
+
+#navbar > li > a:hover {
+    color: #ccc;
+}

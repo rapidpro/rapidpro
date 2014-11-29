@@ -1,0 +1,29 @@
+{% include top.html %}
+
+<body class="wrap">
+  {% include header.html %}
+
+  <div id="content-wrapper">
+    <div class="inner clearfix">
+      <section id="main-content">
+        {{ content }}
+      </section>
+
+      <aside id="sidebar">
+        <h3>RapidPro Mailing Lists</h2>
+        <ul>
+          <li><a href="https://groups.google.com/forum/#!forum/rapidpro">RapidPro Users</a></li>
+          <li><a href="https://groups.google.com/forum/#!forum/rapidpro-dev">RapidPro Developers</a></li>
+        </ul>
+        <h3>RapidPro Providers</h2>
+        <ul>
+          <li><a href="https://rapidpro.io">RapidPro.io (UNICEF)</a></li>
+          <li><a href="https://textit.in">TextIt.in (Nyaruka)</a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</body>
+
+{% include analytics.html %}
+{% include footer.html %}
