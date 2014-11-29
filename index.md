@@ -13,7 +13,7 @@ how you can [contribute](/contribute/) to RapidPro yourself.
 
 ## What is RapidPro?
 
-RapidPro is a hosted service that allows anyone to build interactive messaging
+RapidPro is an Open Source platform that allows anyone to build interactive messaging
 systems using an easy visual interface. A video is worth a thousand words and
 this brief video introduction of [TextIt](https://textit.in/) (a service
  powered by RapidPro) will give you an idea of what is possible.
