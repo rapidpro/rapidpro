@@ -4,6 +4,7 @@ relative_permalinks: false
 permalink: /news/:year/:month/:day/:title/
 excerpt_separator: ""
 
+baseurl: /rapidpro
 repository: https://github.com/rapidpro/rapidpro
 
 collections:
