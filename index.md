@@ -7,9 +7,9 @@ permalink: /
 # Welcome
 
 This site aims to act as a landing page for all things RapidPro. It provides
-[documentation](/docs/) for developers to get started on the platform, ways of
-[connecting](/contact/) with others in the community and guidelines on
-how you can [contribute](/contribute/) to RapidPro yourself.
+[documentation]({{site.baseurl}}/docs/) for developers to get started on the platform, ways of
+[connecting]({{site.baseurl}}/contact/) with others in the community and guidelines on
+how you can [contribute]({{site.baseurl}}/contribute/) to RapidPro yourself.
 
 ## What is RapidPro?
 

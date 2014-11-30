@@ -2,17 +2,22 @@
   docs:
     - coding-conventions
     - technologies
-
-- title: QuickStart
-  docs:
     - components
+
+- title: Deployment
+  docs:
     - hosting
 
-- title: Architecture
+- title: Packages
   docs:
     - orgs
     - channels
     - contacts
     - msgs
+    - flows
     - triggers
     - campaigns
+    - values
+    - locations
+    - ivr
+    - schedules
