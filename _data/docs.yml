@@ -4,8 +4,9 @@
     - technologies
     - components
 
-- title: Deployment
+- title: Running
   docs:
+    - development
     - hosting
 
 - title: Packages

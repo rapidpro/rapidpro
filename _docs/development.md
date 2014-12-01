@@ -1,0 +1,90 @@
+---
+layout: docs
+title: Development
+permalink: /docs/development/
+---
+
+# RapidPro Development Server
+
+RapidPro comes with everything you need to quickly get started with
+development. Note that development and deployment has only been tested on OSX
+and Ubuntu, you'll likely need to modify the directions below if using Windows.
+
+## Prerequisites
+
+You'll need the following to get started:
+
+ * PostgreSQL 9.3 or later along with the PostGIS extensions. You probably want
+   to refer to Django's [installation instructions](https://docs.djangoproject.com/en/dev/ref/contrib/gis/install/postgis/)
+   to help get this working.
+ * [Redis](https://redis.io) 2.8 or later installed and listening on localhost.
+   By default the development server uses database 15.
+
+## Create temba user for PostgreSQL
+
+{% highlight bash %}
+$ createuser temba --pwprompt -d
+Enter password for new role:
+Enter it again:
+{% endhighlight %}
+
+## Create temba database, add PostGIS
+
+Create the database as temba user:
+{% highlight bash %}
+$ psql --user=temba postgres
+postgres=> create database temba;
+CREATE DATABASE
+{% endhighlight %}
+
+Now connect as a superuser that can install extensions:
+{% highlight bash %}
+$ psql
+postgres=# \c temba
+You are now connected to database "temba" as user "psql".
+temba=# create extension postgis;
+CREATE EXTENSION
+temba=# create extension postgis_topology;
+CREATE EXTENSION
+{% endhighlight %}
+
+## Clone RapidPro
+
+Now clone the RapidPro repository and link up the development settings:
+
+{% highlight bash %}
+$ git clone git@github.com:rapidpro/rapidpro.git
+$ cd rapidpro
+$ ln -s rapidpro/settings.py.dev rapidpro/settings.py
+{% endhighlight %}
+
+## Build virtual environment
+
+You should always use a virtual environment to run your RapidPro installation. The
+pinned dependencies for RapidPro can be found in ```pip-freeze.txt```. You can
+build the needed environment as follows (from the root rapidpro directory):
+
+{% highlight bash %}
+$ virtualenv env
+$ source env/bin/activate
+(env) $ pip install -r pip-freeze.txt
+{% endhighlight %}
+
+## Sync your database
+
+You should now be able to run all the migrations and initialize your development
+server. This takes a little while on RapidPro as syncdb also creates and
+initializes all the user groups and permissions.
+
+{% highlight bash %}
+$ python manage.py syncdb
+{% endhighlight %}
+
+## Run development server
+
+At this point you'll be able to run the development server and run RapidPro. It
+will be available at ```http://localhost:8000```
+
+{% highlight bash %}
+$ python manage.py runserver
+{% endhighlight %}
