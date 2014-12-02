@@ -1,0 +1,126 @@
+-extends "smartmin/list.html"
+
+-load humanize
+-load smartmin
+-load i18n
+
+-block table-buttons
+
+-block extra-style
+  :css
+    #btn-save {
+      padding: 3px 10px;
+      margin-bottom: 10px;
+    }
+
+    label h3 {
+      margin-top: 0px;
+      margin-bottom: 0px;
+    }
+
+    .topup {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .topup-price {
+      float: right;
+      font-size: 20px;
+    }
+
+    .topup-credits {
+      font-size: 20px;
+    }
+
+    .topup-history {
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    .topup-expires {
+      margin-top: 5px;
+      float: right;
+      font-style: italic;
+    }
+
+    .title-icon + .title-text {
+      margin-left: 65px;
+    }
+
+    .topup-status {
+      padding: 10px;
+      margin-bottom: 30px;
+      border: 1px solid #ccc;
+    }
+
+    .topup-status.interrupted {
+      border: 1px solid rgb(178, 23, 26);
+      color: rgb(178, 23, 26);
+    }
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-coins
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Top Ups"
+
+-block paginator
+
+-block table
+  -with user_org.get_credits_remaining as credits
+    -if credits < 0
+      .topup-status.interrupted
+        -trans "Your service is interrupted. You have"
+        {{ credits|intcomma }}
+        -trans "credits and must add more to resume your service."
+
+    -else
+      -if credits < 500
+        .topup-status.interrupted
+          -trans "You have"
+          {{ credits|intcomma }}
+          -trans "credits remaining. Top up early to prevent any disruption in your service."
+      -else
+        .topup-status
+          -trans "You have"
+          {{ credits|intcomma }}
+          -trans "credits remaining. Top up early to prevent any disruption in your service."
+
+  -for topup in object_list
+    .topup
+      .topup-price
+        -if not topup.price
+          -trans "FREE"
+        -else
+          ${{ topup.dollars }}
+
+      .topup-credits
+        {{ topup.used|intcomma }}
+        -trans "of"
+        {{ topup.credits|intcomma }}
+        -trans " Credits Used"
+
+      .topup-expires
+        -trans "Expires on "
+        {{ topup.expires_on }}
+
+      .topup-history
+        -if topup.comment
+          {{ topup.comment }}
+
+        -else
+          -if not topup.price
+            -blocktrans with brand.name as brand
+              Complementary credits, thanks for trying {{ brand }}.
+
+          -else
+            %a{ href:"{% url 'orgs.topup_read' topup.id %}" }
+              -trans "Added on"
+              {{ topup.created_on }}
+              -trans " by "
+              {{ topup.created_by.first_name }} {{ topup.created_by.last_name }}
+

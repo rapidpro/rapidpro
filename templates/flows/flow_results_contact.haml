@@ -1,0 +1,294 @@
+-extends "smartmin/read.html"
+-load smartmin sms compress temba contacts
+
+-block post-header
+  -include "flows/simulator.html"
+
+-block page-top
+
+  .row
+    .span8
+      .medium-help.icon-user.float-left
+      %h2.font_normalize.header-margin
+        {{ contact|name_or_urn:user_org|truncatechars:40 }}
+        .flow-name
+          {{ flow.name }}
+
+
+    .span4
+      .pull-right
+        %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" } Export Flow Results
+        %a.btn{ href: "{% url 'flows.flow_editor' object.pk %}" } View Flow
+
+-block buttons
+
+-block extra-less
+  <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}css/datatables/jquery.dataTables.css">
+  -load compress
+  -compress css
+    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}
+
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .flow-name {
+          font-size:18px;
+          margin-top:-3px;
+        }
+
+        .run-title {
+          margin-top:20px;
+          border-bottom: 1px solid #ccc;
+          .date {
+            display: inline-block;
+          }
+        }
+
+        .message {
+          font-style: italic;
+        }
+
+        .run {
+          width:300px;
+        }
+
+
+        #simulator {
+          display:inline-block;
+          position:absolute;
+          top:250px;
+          right:40px;
+
+          padding:0;
+          margin:0;
+
+          .simulator-body {
+            height: 372px;
+            margin-top:0px;
+            margin-bottom:15px;
+          }
+
+          .simulator-footer, .simulator-close, .simulator-refresh  {
+            display:none;
+          }
+
+          &.pinned-sim {
+            position:fixed;
+            top:70px;
+            right:40px;
+          }
+        }
+
+        .run-summaries {
+          margin-top:25px;
+
+          .run-summary {
+
+            .remove {
+              position:relative;
+              margin-left:-25px;
+              margin-top:-5px;
+              float:left;
+            }
+
+            border: 1px solid #fff;
+            cursor: pointer;
+            margin-top:5px;
+            padding:20px;
+            padding-left:40px;
+            padding-right:40px;
+            color: #888;
+
+            &.selected {
+              border: 1px solid @flat-mutedblue - #111;
+              color: @flat-mutedblue - #111;
+              .remove {
+                display:inline-block;
+              }
+            }
+
+            &:hover {
+              color: @flat-mutedblue - #111;
+
+            }
+
+            .started {
+              display:inline-block;
+            }
+
+            .ended {
+              display:inline-block;
+            }
+
+            .messages {
+              display:inline-block;
+              float:right;
+              margin-top:-6px;
+            }
+
+            .active {
+              display:inline-block;
+            }
+
+            .most-recent {
+              font-style: italic;
+              font-size:12px;
+              line-height:15px;
+              margin-top:5px;
+
+              .title {
+                font-style: normal;
+                margin-right:5px;
+              }
+            }
+          }
+        }
+
+        .run-messages {
+          padding-bottom:400px;
+
+          .empty {
+            font-style: italic;
+          }
+        }
+
+        .attn {
+          font-weight:bold;
+        }
+
+
+
+    {% endlessblock %}
+
+-block extra-script
+  {{block.super}}
+  :javascript
+
+    $(window).scroll(function() {
+      var top = $(this).scrollTop();
+      var sim = $("#simulator");
+      if (top > 180 && !sim.hasClass('pinned-sim')) {
+        sim.addClass('pinned-sim');
+      } else {
+        if (top <= 180 && sim.hasClass('pinned-sim')) {
+          sim.removeClass('pinned-sim');
+        }
+      }
+    });
+
+    $(document).ready(function() {
+      $('.run-summary').click(function() {
+        $('.run-summary').removeClass('selected');
+        $(this).addClass('selected');
+        var run = $(this).data('run');
+        var run = $('.run_' + run).clone();
+        $('.simulator-body').append(run.html());
+        var children = $('.simulator-body').children('.run-messages');
+        if (children.length > 1) {
+          $(children[0]).slideUp('fast', function(){
+            $(this).remove()
+          });
+        }
+        $('.simulator-body').scrollTop(0);
+      });
+
+      $('.run-summary:first').click();
+    });
+
+    {% if org_perms.flows.flow_update %}
+      $(".remove").on("click", function(e){
+        e.stopPropagation();
+
+        var clicked = $(this);
+        var runId = $(this).data('run');
+
+        var modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+        modal.addClass('alert');
+        modal.setListeners({ onPrimary: function(){
+          $.post('{% url 'flows.flow_results' object.id %}', {run: runId}, function() {
+            clicked.parents('.run-summary').remove();
+            modal.dismiss()
+            // fetchData($("#id-broadcast"));
+          });
+        }}, false);
+
+        modal.setPrimaryButton('Remove');
+        modal.show();
+      });
+    {% endif %}
+
+
+
+-block fields
+
+
+  .row
+    .span8
+      .run-summaries
+        -for run in runs
+          -with run.messages|last as last
+
+            -if run.messages|length > 0
+              .run-summary{data-run:'{{run.pk}}'}
+                - if org_perms.flows.flow_update
+                  .icon-cancel-circle.remove.hide{data-run:'{{run.pk}}'}
+                .started
+                  Started
+                  %span.attn
+                    {{run.created_on}}
+                  -if last.created_on|date:"jS F Y H:i" != run.created_on|date:"jS F Y H:i"
+                    to
+                    %span.attn
+                      {{ last.created_on }}
+                .messages
+                  {{ run.messages|length }}
+                  .glyph.icon-bubbles-2
+
+                .active
+                  -if run.is_active or run.pk == 12461
+                .most-recent
+                  .title
+                    Last message sent {{last.created_on}}
+                  {{last}}
+
+
+  -for run in runs
+    -with run.messages as messages
+      .run.hide{class:'run_{{run.pk}}'}
+        .run-messages
+          .ilog.from
+            Started {{run.created_on}}
+            %br
+            {{messages|length}} message{{messages|pluralize:"s"}}
+
+          -for msg in messages
+            -if msg.direction == 'O'
+              .imsg.from= msg.text
+            -if msg.direction == 'I'
+              -if msg.text == ''
+                .imsg.to.empty
+                  Empty message
+              -else
+                .imsg.to= msg.text
+            -with msg.get_flow_step as step
+              -if step and step.rule_category
+                .ilog.from
+                  Categorized as {{step.rule_category}}
+          -if not run.is_active
+            .ilog.from
+              -if run.expired_on
+                This run expired {{ run.expired_on }}
+              -else
+                {{contact|name_or_urn:user_org}} exited from this flow
+
+
+-block post-fields
+  - if org_perms.flows.flow_update
+    .deletion.hide
+      .title
+        Remove Contact Results
+
+      .body
+        %p Are you sure you want to remove the results for this contact?
+
+      %a#delete-form.posterize{}

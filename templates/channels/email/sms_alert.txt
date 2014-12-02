@@ -1,0 +1,20 @@
+{% load i18n %}
+
+{% blocktrans with org_name=org.name %}
+Hi {{ org_name }},
+
+We've noticed that the Android phone for {{ org_name }} is having trouble sending text messages.  This might be a temporary problem due to your cellular network, or could be an indication that your phone is out of credit.
+{% endblocktrans %}
+
+{% blocktrans %}
+Please check on your phone to make sure it has sufficient credit and can send text messages.  If problems persist you may want to try turning the phone off then back on.  Currently your Android phone has {{ unsent_count }} messages which haven't sent in over an hour.
+{% endblocktrans %}
+
+{% blocktrans with channel_name=channel.get_name %}
+   You can check the current status of {{ channel_name }} by visiting its status page at:
+{% endblocktrans %}
+   https://{{ branding.host }}/channels/channel/read/{{ channel.id }}/
+
+{% trans "Thanks," %}
+
+{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}

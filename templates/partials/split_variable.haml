@@ -1,0 +1,29 @@
+-load i18n
+
+%html
+  %body
+    .modal{class:'[[type]]', data-dismiss:"modal"}
+      .modal-header
+        %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
+        %h3
+          .icon
+          %span{id:"modal-title"}><
+            -trans "Rule Variable"
+      .modal-body
+        %p{class:"message"}
+          -blocktrans
+            Rules are normally evaluated against the incoming message.
+            However, rules can instead be
+            applied against any variable in your flow.
+        %p
+          -blocktrans
+            Enter the variable you would like your rules to be applied to.
+
+        %input{ng-model:"ruleset.operand",type:"text", auto-complete:"true", class:"split-operand", maxlength:"128"}
+        .help-text
+          -trans "For example, you might use @contact.tel or @extra.product_sku."
+      .modal-footer
+        %button{ng-click:"cancel()",class:"btn btn-secondary"}
+          -trans "Cancel"
+        %button{ng-click:"ok()",class:"btn btn-primary"}
+          -trans "Ok"

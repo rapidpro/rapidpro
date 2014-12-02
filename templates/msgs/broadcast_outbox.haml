@@ -1,0 +1,70 @@
+-extends "msgs/message_box.html"
+-load smartmin sms
+-load i18n humanize
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-upload
+
+-block message-list
+  %table.list-table.sms_list.list_rsms_message.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}'}
+    %tbody
+      -for object in object_list
+        %tr.select-row{class:'{% cycle row1 row2 %}', onClick:'document.location="{% url "msgs.broadcast_read" object.id %}"'}
+
+          %td.value-icon
+            // .glyph.icon-megaphone
+
+          %td.value-phone.field_phone
+            -if object.recipient_count
+              {% blocktrans with count_comma=object.recipient_count|intcomma count cc=object.recipient_count %}
+                {{ count_comma }} recipient
+              {% plural %}
+                {{ count_comma }} recipients
+              {% endblocktrans %}
+
+          %td.value-text.field_text
+            -if object.recipient_count == 1
+              {{ object.get_first_message }}
+            -else
+              -get_value object 'text'
+
+          %td.value-icon.field_icon
+            {{ object|as_icon }}
+
+          %td.value-received.field_received
+            %nobr
+              {{ object.created_on|gmail_time }}
+
+        -empty
+          %tr
+            %td{colspan:3}
+              -trans "No Matching messages"
+
+  -block paginator
+    = block.super
+
+-block extra-style
+  {{ block.super }}
+  :css
+    td.value-icon {
+      width: 20px;
+      color: #666;
+    }
+    td.clickable a:hover {
+      text-decoration: none;
+    }
+
+    td.value-phone ul {
+      list-style: none;
+      margin: 0px;
+    }
+    .direction{
+    width: 52px;
+    }
+    .status{
+    width: 15px;
+    }
+    .created{
+    width: 150px;
+    }

@@ -1,0 +1,95 @@
+-load i18n
+
+%html
+  %body
+    .translation.rule-editor.modal.wide-dialog{data-dismiss:"modal"}
+      .modal-header
+        %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
+        %h3
+          .icon
+          %span{id:"modal-title"}><
+            -trans "Save Response"
+      .modal-body
+        #tab-container.btn-group{data-toggle:"buttons-radio",style:"display: block;"}
+          %button{ng-click:"clickMenu()",type:"button",id:"menu",ng-class:'{active : ruleset.response_type=="M"}',class:"btn btn-secondary tab-title"}
+            .glyph.icon-list
+            .title
+              -trans "Menu"
+          %button{ng-click:"clickKeypad()",type:"button",id:"keypad",ng-class:'{active : ruleset.response_type=="K"}',class:"btn btn-secondary tab-title"}
+            .glyph.icon-grid
+            .title
+              -trans "Keypad"
+          %button{ng-click:"clickRecording()",type:"button",id:"recording",ng-class:'{active : ruleset.response_type=="R"}',class:"btn btn-secondary tab-title"}
+            .glyph.icon-mic
+            .title
+              -trans "Recording"
+        %form{name:"variable"}
+          #variable-name
+            .message
+              -blocktrans
+                Save response as a variable named
+            %input{ng-model:"ruleset.label",name:"label",alphanum:"",ng-required:"true",type:"text",id:"label-name"}
+            .error{ng-show:"variable.$error.alphanum"}
+              -blocktrans
+                The response name must consist of only letters and numbers.
+        %form{name:"menu",ng-show:'ruleset.response_type=="M"',class:"ivr-menu"}
+          .option{class:'option-[[option.number]]', ng-repeat:"option in numbers"}
+            .number
+              [[option.number]]
+            %input{ng-model:"option.category.base",type:"text"}
+        %form{name:"editor",ng-show:'ruleset.response_type=="K"'}
+          #split-help.help-text
+            -blocktrans
+              Run these rules against a
+              %a{ng-click:"updateSplitVariable()",href:"#"}<
+                different variable
+                instead.
+          #split-on
+            .message
+                .split-variable{ng-show:'ruleset.operand == "@step.value"'}
+                  -blocktrans
+                    If the keypad entry before the # symbol..
+                .split-variable{ng-show:'ruleset.operand != "@step.value"'}
+                  -blocktrans
+                    the variable [[ruleset.operand]]
+
+          %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
+            .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule.config.type != "true"'}
+              %form{name:"inner"}
+                .icon.icon-menu
+                %select{ng-model:"rule.config",ng-options:"operator as operator.verbose_name for operator in $parent.operators|filter:operator.voice=true",class:"operator-select",ng-change:"updateCategory(rule)"}
+
+                // between is the only one with two operands
+                .operation{ng-if:"rule.config.operands == 2"}
+                  %input{ng-model:"rule.test.min",name:"min",number:"",ng-required:"rule.test.min.length > 0 || rule.test.max.length > 0 || rule.category.base.length > 0",ng-change:"updateCategory(rule)",lower-than:"[[rule.test.max]]",type:"text",class:"operand-small"}
+                  -trans "and"
+                  %input{ng-model:"rule.test.max",name:"max",number:"",ng-required:"rule.test.min.length > 0 || rule.test.max.length > 0 || rule.category.base.length > 0",ng-change:"updateCategory(rule)",type:"text",class:"operand-small"}
+
+                // single operand based rules that aren't dates
+                .operation{ng-if:'rule.config.operands == 1 && rule.config.validate != "date"'}
+                  %input{ng-model:"rule.test.base",name:"operand",placeholder:"[[rule.config.placeholder]]",auto-complete:"rule.config.auto_complete",flow:"[[flowId]]",ng-required:"rule.category.base",ng-change:"updateCategory(rule)",type:"text",class:"operand",validate-type:"[[rule.config.type]]",uuid:"[[ruleset.uuid]]"}
+
+                // single operand rules with relative dates
+                .operation{ng-if:'rule.config.operands == 1 && rule.config.validate == "date"'}
+                  -trans "today +"
+                  %input{ng-model:"rule.test.base",name:"days",number:"",ng-required:"rule.category.base",type:"text",class:"operand-small"}
+                  -trans "days"
+                                          
+                .operation{ng-if:"rule.config.operands == 0"}
+                .categorize
+                  -trans "categorize as"
+                  %input{ng-model:"rule.category.base",name:"category",ng-required:"rule.config.operands==0 || (rule.config.operands==1 && rule.test.base) || (rule.config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"rule.category._autoName = false",type:"text",class:"category"}
+                .icon.icon-close{ng-click:"remove(rule)"}
+                .error{ng-show:"inner.min.$error.lowerThan"}
+                  -blocktrans
+                    Invalid range, [[inner.min.$viewValue]] is larger than [[rule.test.max]]
+                .error{ng-show:"inner.days.$error.number || inner.min.$error.number || inner.max.$error.number || inner.operand.$error.validateType"}
+                  -trans "Enter a number"
+      .modal-footer
+        .pull-left
+          %button{ng-click:"updateWebhook()",class:"btn btn-secondary"}
+            -trans "Webhook"
+        %button{ng-click:"cancel()",class:"btn btn-secondary"}
+          -trans "Cancel"
+        %button{ng-disabled:'variable.$invalid || (tab=="multiple" && editor.$invalid) || (tab=="numeric" && numeric.$invalid)', ng-click:"ok()",class:"btn btn-primary"}
+          -trans "Ok"

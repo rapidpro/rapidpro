@@ -1,0 +1,28 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+-load humanize
+
+-block content
+  -block pjax
+    .row#pjax
+
+-block summary
+  %a.btn.btn-primary.org-button.pull-right{ href:"{% url 'internal.internal_purchase' %}" }
+    -trans "Add Credits"
+
+  -trans "You have"
+  %span.attn {{ user_org.get_credits_remaining|intcomma }}
+  -trans "credits remaining."
+
+  .extra
+    -trans "You have used"
+    {{ user_org.get_credits_used|intcomma }}
+    -trans "credits since signing up."
+
+-block extra-style
+  :css
+    .form-horizontal .form-actions {
+      padding-left: 0px;
+    }
+

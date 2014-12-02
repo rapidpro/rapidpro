@@ -1,0 +1,529 @@
+-extends "smartmin/base.html"
+-load i18n compress temba
+
+-block page-top
+  .row
+    .span12
+      %h2
+        -trans "Add a Channel"
+      .instructions
+        %p
+          -if perms.channels.channel_claim_twitter
+            -blocktrans with name=brand.name
+              To get started you need to add a channel to your account. A channel is a phone number or social network
+              account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+              Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+              directly.
+          -else
+            -blocktrans with name=brand.name
+              To get started you need to add a channel to your account. A channel is a phone number  which {{ name }}
+              can use to send and receive messages on your behalf. You can choose to use an
+              Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+              directly.
+
+-block content
+  .checking-recommendations
+    -trans "Looking for recommendations"
+    %img{ style:"margin-left:10px;", src: "{{ STATIC_URL }}/images/loader-circles.gif" }
+
+  .channel-options
+    %h3
+      -trans "Phone Channels"
+
+    .claim-row.android-channel
+      .recommendation.hide
+        %h3
+          -trans "Recommendation"
+        -blocktrans
+          We recommend using an Android phone with a local sim card for your country. This phone
+          will send and receive messages for you. You will only need one phone per country depending on
+          message volume. Don't worry! The people you are texting with can still use basic phones.
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
+            .claim-glyph.icon-channel-android
+            %p.claim-text
+              -trans "Android Phone"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Works in any country and uses the cell phone plan
+                you already have. You just need an Android phone
+                to get started.
+
+    -if user_org.timezone == 'America/Sao_Paulo'
+      .claim-row.zenvia-channel
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_zenvia' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Zenvia Short Code"
+          .span9.no-margin
+            .claim-description
+              %div
+                -blocktrans
+                  If you are based in Brazil, you can purchase a short
+                  code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
+                  in a few simple steps.
+
+    -if user_org.timezone == 'Africa/Nairobi'
+      .claim-row.africastalking-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
+            We recommend using an Africa's Talking shortcode in Kenya. Visit {{link_start}}their website{{link_end}} for details.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_africas_talking' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Africa's Talking Short Code"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
+                  If you are based in Kenya, you can purchase a short
+                  code from {{link_start}}Africa's Talking{{link_end}} and connect it
+                  in a few simple steps.
+
+    -if user_org.timezone == 'Africa/Mogadishu'
+      .claim-row.shaqodoon-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://www.shaqodoon.org/'>" as link_start and "</a>" as link_end
+            We recommend using Shaqodoon in Somalia. Visit {{link_start}}their website{{link_end}} for details.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_shaqodoon' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Shaqodoon Short Code"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans with brand.name as brand
+                  If you are based in Somalia, you can integrate {{ brand }} with Shaqodoon to send
+                  and receive messages on your shortcode.
+
+    -if user_org.timezone == 'Asia/Jakarta'
+      .claim-row.hub9-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://www.hub9.biz'>" as link_start and "</a>" as link_end
+            We recommend using a Hub9 phone number in Indonesia, please visit {{link_start}}http://www.hub9.biz{{link_end}} for details.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_hub9' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Hub9 Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with Hub9 in Indonesia.
+
+    -if not user_org.is_connected_to_twilio
+      .claim-row.twilio-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://twilio.com'>" as link_start and "</a>" as link_end
+            We recommend using a Twilio phone number for SMS in your country. Sign up for a {{link_start}}Twilio Account{{link_end}} if you don't already have one.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twilio{href:"#"}
+              .claim-glyph.icon-channel-twilio
+              %p.claim-text
+                -trans "Connect Twilio"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  The easiest way to get started if you are in
+                  {{ twilio_countries }}, connect a Twilio account
+                  and get a dedicated phone number.
+
+
+
+    -else
+      .claim-row.twilio-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using a Twilio phone number for SMS in your country, select this option to purchase a number or use one you already have.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_number' %}"}
+              .claim-glyph.icon-channel-twilio
+              %p.claim-text
+                -trans "Twilio Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Instantly add a dedicated phone number in the area code of your
+                  choice from your connected
+                %a.twilio-account{href:"#"}
+                  -trans "Twilio Account."
+
+    -if not user_org.is_connected_to_nexmo
+      .claim-row.nexmo-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using a Nexmo number in your country, select this option to purchase a number or use one you already have.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
+              .claim-glyph.icon-channel-nexmo
+              %p.claim-text
+                -trans "Connect Nexmo"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Another great option is to connect
+                  a Nexmo Account and get a dedicated number in a few minutes.
+
+    -else
+      .claim-row.nexmo-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using a Nexmo number in your country, select this option to purchase a number or use one you already have.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_nexmo' %}"}
+              .claim-glyph.icon-channel-nexmo
+              %p.claim-text
+                -trans "Nexmo Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Instantly add a dedicated phone number in the area code of your
+                  choice from your connected
+                %a.nexmo-account{href:"#"}
+                  -trans "Nexmo Account."
+
+    .claim-row.infobip-channel
+      .recommendation.hide
+        %h3
+          -trans "Recommendation"
+        -blocktrans
+          We recommend using an Infobip phone number for SMS in your country, select this option to configure your number.
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_infobip' %}"}
+            .claim-glyph.icon-channel-external
+            %p.claim-text
+              -trans "Infobip Number"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
+
+    .claim-row.verboice-channel
+      .recommendation.hide
+        %h3
+          -trans "Recommendation"
+        -blocktrans
+          We recommend using Verboice for voice calling in your country
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_verboice' %}"}
+            .claim-glyph.icon-channel-external
+            %p.claim-text
+              -trans "Verboice"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
+
+    -if False
+      .claim-row.vumi-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using Vumi to connect a short code in your country, select this option to configure your number.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Vumi Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
+
+    .claim-row.kannel-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_kannel' %}"}
+            .claim-glyph.icon-channel-kannel
+            %p.claim-text
+              -trans "Kannel"
+
+        .span9
+          .claim-description
+            %div
+              -trans "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
+
+    .claim-row.external-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_external' %}"}
+            .claim-glyph.icon-power-cord
+            %p.claim-text
+              -trans "External API"
+
+        .span9
+          .claim-description
+            %div
+              -trans "Use our pluggable API to connect an external service you already have."
+
+    -if perms.channels.channel_claim_twitter
+      %h3
+        -trans "Social Network Channels"
+
+      .claim-row.twitter-channel
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter' %}"}
+              .claim-glyph.icon-twitter
+              %p.claim-text
+                -trans "Twitter"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.
+
+-block form-buttons
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    $(document).ready(function() {
+      $.get("http://ipinfo.io", function (response) {
+        $('.checking-recommendations').hide()
+        $('.recommended').removeClass('recommended');
+        if ("US|CA|GB|NL|SE|BE".indexOf(response.country) != -1) {
+          recommend('twililo');
+        } else if ("US|CA|GB|AU|AT|FI|DE|HK|HU|LT|NL|NO|PL|SE|CH|BE|ES|ZA".indexOf(response.country) != -1) {
+          recommend('nexmo');
+        } else if ("ID"==response.country) {
+          recommend('hub9');
+        } else if ("KE"==response.country) {
+          recommend("africastalking");
+        } else if ("SO"==response.country) {
+          recommend("shaqodoon");
+        } else {
+          recommend('android');
+        }
+      }, "jsonp");
+    });
+
+    function recommend(channel) {
+       var channel = $('.' + channel + '-channel').addClass('recommended');
+       $('.channel-options').prepend(channel);
+    }
+
+    {% if not user_org.is_connected_to_twilio %}
+      $(".connect-twilio").live('click', function() {
+        var modal = new Modax('{% trans "Connect Twilio" %}', '{% url "orgs.org_twilio_connect" %}');
+        modal.setIcon("icon-channel-twilio");
+        modal.setListeners({onCompleted: function() {
+        },
+        onFormLoaded: function() {
+          form = modal.ele.find("form");
+          form.attr('autocomplete', 'off');
+        }});
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+    {% else %}
+      $(".twilio-account").live('click', function() {
+        var modal = new Modax('{% trans "Disconnect Twilio" %}', '{% url "orgs.org_twilio_account" %}');
+        modal.setIcon("icon-channel-twilio");
+        modal.addClass("alert");
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+    {% endif %}
+
+    {% if not user_org.is_connected_to_nexmo %}
+      $(".connect-nexmo").live('click', function() {
+        var modal = new Modax('{% trans "Connect Nexmo" %}', '{% url "orgs.org_nexmo_connect" %}');
+        modal.setIcon("icon-nexmo");
+        modal.setListeners({onCompleted: function() {
+        },
+        onFormLoaded: function() {
+          form = modal.ele.find("form");
+          form.attr('autocomplete', 'off');
+        }})
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+    {% else %}
+      $(".nexmo-account").live('click', function() {
+        var modal = new Modax('{% trans "Disconnect Nexmo" %}', '{% url "orgs.org_nexmo_account" %}');
+        modal.setIcon("icon-nexmo");
+        modal.addClass("alert");
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+    {% endif %}
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+
+        .channel-options {
+          h3 {
+            margin-top: 30px;
+          }
+        }
+
+        .checking-recommendations {
+          margin-bottom:10px;
+        }
+
+        .recommended {
+          .btn-primary {
+            background: @flat-mutedgreen;
+            border-color: @flat-mutedgreen - #111;
+          }
+
+          .claim-description {
+
+          }
+
+          .recommendation {
+            h3 {
+              margin-top: 0px;
+            }
+
+            display:inline-block;
+            padding:5px;
+            margin-top: 5px;
+            margin-bottom:10px;
+            display:inline-block;
+            .icon-star-2 {
+              color: @flat-darkwhite - #222;
+              font-size:22px;
+              float:left;
+              position:relative;
+              top: -3px;
+              margin-right:16px;
+
+
+            }
+          }
+
+        }
+    {% endlessblock %}
+
+
+-block extra-style
+  :css
+
+
+    .horizontal-channel {
+      margin-top: 30px;
+    }
+
+    .claim-description {
+      padding: 25px 40px;
+      height: 50px;
+      width:95%;
+      background: #f5f5f5;
+      font-size: 16px;
+    }
+
+    .align-text-center {
+      text-align: center;
+    }
+
+    .claim-text {
+      margin-top: 10px;
+      margin-right:10px;
+    }
+
+    .external {
+      text-align: center;
+    }
+
+    .claim-glyph {
+      line-height: 40px;
+      text-decoration: none;
+      font-size: 40px;
+      display: inline;
+      padding-bottom: 10px;
+    }
+
+    .btn-claim {
+      padding: 10px 10px;
+      width: 95%;
+      height: 78px;
+    }
+
+    .claim-row {
+      clear: both;
+      margin-bottom: 10px;
+    }
+
+    .icon-everywhere {
+      font-size: 68px;
+    }
+
+    .icon-channel-kannel {
+      font-size: 55px;
+      margin-top: -5px;
+    }
+
+    ul {
+      list-style-type: none;
+    }
+
+    a:hover {
+      text-decoration: none;
+    }
+
+    .claim-row .span9 {
+      margin-left: 0px;
+    }

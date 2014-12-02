@@ -1,0 +1,204 @@
+-extends 'smartmin/create.html'
+-load smartmin temba compress
+-load i18n
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        #sign-up {
+
+          min-height:500px;
+
+          #form-two {
+            opacity: 0;
+            position: absolute;
+            display:none;
+            left: 1000px;
+          }
+
+          #form-one, #form-two {
+
+            width: 100%;
+            float:left;
+            position:absolute;
+            left: 5px;
+            top: 70px;
+
+            input[type=text], input[type=password], input[type=email] {
+              font-size:18px;
+              padding:12px;
+              display:block;
+              width: 50%;
+            }
+
+            .select2-container {
+              width: 53%;
+              .select2-choice {
+                padding: 10px;
+                font-size:16px;
+                .select2-arrow b {
+                  margin-top:8px;
+                }
+              }
+            }
+
+            label {
+              margin-top: 25px;
+              font-weight:200;
+              font-size:19px;
+              color: @flat-darkwhite - #222;
+            }
+
+            input[type=submit], a.btn.btn-primary {
+              margin-top:20px;
+              font-size:22px;
+              padding:10px 20px;
+            }
+          }
+
+          &.failed {
+            #form-one, #form-two {
+              opacity:1;
+              position: relative;
+              display: inline-block;
+              left: 0;
+              float:none;
+              top:0;
+            }
+
+            #form-one-submit {
+              display: none;
+            }
+
+            .instructions {
+              display: none;
+
+              &.failure {
+                display: inline-block;
+              }
+            }
+          }
+        }
+    {% endlessblock %}
+
+-block page-top
+
+-block content
+
+  #page-top
+    %h1
+      -trans "Let's get started"
+
+
+  %form#sign-up.smartmin-form.form-horizontal{method:"post", enctype:"multipart/form-data", action:"#"}
+    -csrf_token
+
+    #form-one
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-error form-errors">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+      %p.instructions.failure.hide
+        -trans "We found some problems, please correct them before continuing."
+
+      %p.instructions
+        -trans "Start by telling us a little about yourself. This will only take a minute."
+
+      %label
+        -trans "First Name"
+      -with form|field:'first_name' as form_field
+        {{form_field}}
+        -if form_field.errors
+          %span.help-block.field-errors= form_field.errors
+
+      %label
+        -trans "Last Name"
+      -with form|field:'last_name' as form_field
+        {{form_field}}
+        -if form_field.errors
+          %span.help-block.field-errors= form_field.errors
+
+      %label
+        -trans "E-mail address"
+      -with form|field:'email' as form_field
+        {{form_field}}
+        -if form_field.errors
+          %span.help-block.field-errors= form_field.errors
+
+      %label
+        -trans "Password"
+      -with form|field:'password' as form_field
+        {{form_field}}
+        -if form_field.errors
+          %span.help-block.field-errors= form_field.errors
+
+      %a#form-one-submit.btn.btn-primary{href:'#page-two'}
+        -trans "Continue"
+
+    #form-two
+
+      %p.instructions
+        -trans "Great, just a couple more questions and we are ready to roll."
+
+      %label
+        -trans "Organization"
+      -with form|field:'name' as form_field
+        {{form_field}}
+        -if form_field.errors
+          %span.help-block.field-errors= form_field.errors
+
+      %label
+        -trans "Timezone"
+      -with form|field:'timezone' as form_field
+        {{form_field}}
+        -if form_field.errors
+          %span.help-block.field-errors= form_field.errors
+
+      %br
+      %input#form-two-submit.btn.btn-primary{type:'submit', value:'Save'}
+
+  %br.clearfix{clear:'both'}
+
+-block extra-script
+  %script{src:"{{ STATIC_URL }}js/jstz.min.js"}
+  {{ block.super }}
+
+  :javascript
+
+    (function($){
+
+      $("#id_first_name").focus()
+
+      $.History.bind('page-two',function(state){
+        $("#form-one").animate({'left':'-400', 'opacity':0}, { queue:false, complete:function(){}});
+        $("#form-two").css('left', 400).show().animate({'left':'0', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_name').focus();
+      });
+
+      $.History.bind('',function(state){
+        $("#form-one").animate({'left':'0', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_first_name').focus();
+        $("#form-two").show().animate({'left':'400', 'opacity':0}, { queue:false, complete:function(){ $(this).css('left', 1000)}});
+      });
+
+      if ($('.field-errors').length > 0) {
+        $("#sign-up").addClass('failed');
+      }
+
+      $("#id_first_name").attr('placeholder','{% trans "Ben" %}');
+      $("#id_last_name").attr('placeholder','{% trans "Haggerty" %}');
+      $("#id_name").attr('placeholder','{% trans "What organization is this account for?" %}');
+      $("#id_email").attr('placeholder','{% trans "name@domain.com" %}');
+      $("#id_password").attr('placeholder','{% trans "Please enter at least 8 characters" %}');
+
+      // Make the timezone select2
+      $('#id_timezone').select2({
+        containerCssClass: 'select2-temba-field',
+      });
+
+      // Preselect based on the user time
+      var timezone = jstz.determine().name();
+      $('#id_timezone').select2("val", timezone);
+
+    })(jQuery);

@@ -1,0 +1,51 @@
+<!DOCTYPE HTML>
+-load humanize
+{% block html-tag %}
+<!--[if lte IE 8]><html class="ie" lang="en">    <![endif]-->
+<!--[if !IE]><!--><html lang="en">              <!--<![endif]-->
+{% endblock %}
+  %head
+    %title {% block page-title %}Visually build interactive SMS Applications{% endblock %}
+
+-load smartmin
+
+%body#pageBody{style:'width:100%'}
+
+  -block post-header
+  -block page-container
+    #page-container.container
+      .divPanel.page-content
+        -block page-top
+          .row
+            .span9
+              -block title
+                -block title-icon
+                -block title-text
+                  .title-text
+                    %h1
+                      {{title}}
+
+            .span3.top-form
+              .pull-right
+
+                -block above-bar
+                  -block gear-menu
+                    -include "gear_links_include.haml"
+                  -block top-form
+
+          %hr.top-bar
+
+        - if messages
+          .row
+            .span12
+              - block messages
+                - if messages
+                  -for msg in messages
+                    %div{class:"alert alert-{{ message.tags }}"}
+                      %a.close{data-dismiss:"alert"} x
+                      {{ msg }}
+
+        -block content
+        -block post-content
+
+  </html>

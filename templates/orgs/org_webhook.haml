@@ -1,0 +1,145 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block form-span
+  span8
+
+-block fields
+  .field.webhook-url
+    {% render_field 'webhook' %}
+
+  API Token: {{user.api_token}}
+
+  .field.subscribed-events
+    .field-label
+      -trans "Subscribed Events"
+    .field-input
+      .hidden-input.hide
+        <input type="checkbox" id="mo_sms" name="mo_sms" {% if org.is_notified_of_mo_sms %}checked{% endif %}>
+      .glyph.notif-checkbox
+      %label{ for:'mo_sms' }
+        -trans "Incoming Messages"
+    .field-input
+      .hidden-input.hide
+        <input type="checkbox" id="mt_sms" name="mt_sms" {% if org.is_notified_of_mt_sms %}checked{% endif %}>
+      .glyph.notif-checkbox
+      %label{ for:'mt_sms' }
+        -trans "Outgoing Messages"
+    .field-input
+      .hidden-input.hide
+        <input type="checkbox" id="mo_call" name="mo_call" {% if org.is_notified_of_mo_call %}checked{% endif %}>
+      .glyph.notif-checkbox
+      %label{ for:'mo_call' }
+        -trans "Incoming Calls"
+    .field-input
+      .hidden-input.hide
+        <input type="checkbox" id="mt_call" name="mt_call" {% if org.is_notified_of_mt_call %}checked{% endif %}>
+      .glyph.notif-checkbox
+      %label{ for:'mt_call' }
+        -trans "Outgoing Calls"
+    .field-input
+      .hidden-input.hide
+        <input type="checkbox" id="alarm" name="alarm" {% if org.is_notified_of_alarms %}checked{% endif %}>
+      .glyph.notif-checkbox
+      %label{ for:'alarm' }
+        -trans "Channel Alarms (low battery, loss of connectivity)"
+
+-block post-fields
+  .extra-formax-buttons
+    %a.btn{ href: '{% url "api" %}', style:'width: 60px;'}
+      -trans "API Docs"
+    %a.btn{ href: '{% url "api.log" %}', style:'width: 60px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
+      -trans "API Log"
+
+-block summary
+  -if org.webhook
+    -trans "WebHook events are being forwarded to"
+    %span.attn= org.webhook
+    %div
+      -trans "Your API Token is"
+      {{user.api_token}}
+    -if webhook_errors_count
+      %div.text-error
+        -trans "There have been"
+        {{ webhook_errors_count }}
+        -trans "webhook errors in the past hour."
+
+  -else
+    %div
+      -trans "You have"
+      %span.attn
+        -trans "no webhook"
+      -trans "configured."
+    -if webhook_errors_count
+      %div.text-error
+        -trans "There have been"
+        {{ webhook_errors_count }}
+        -trans "webhook errors in the past hour."
+-block extra-script
+  {{block.super}}
+    :javascript
+      $(function() {
+        var boxes = $(".field-input");
+        boxes.each(function() {
+          var list_input = $(this).children().children("input[type='checkbox']");
+          if (list_input[0].checked) {
+            $(this).addClass("checked");
+          } else {
+            $(this).removeClass("checked");
+          }
+        });
+      });
+
+      $(function() {
+        $(".field-input .glyph").on('click', function(){
+          var cell = $(this).parent(".field-input");
+          var ipt = cell.children().children("input[type='checkbox']");
+
+          if (cell.hasClass("checked")) {
+            cell.removeClass("checked");
+            ipt.attr('checked', false);
+          } else {
+            cell.addClass("checked");
+            ipt.attr('checked', true);
+          }
+        });
+      });
+
+
+-block extra-style
+  :css
+
+    .field.webhook-url .control-label {
+       display: block;
+       float: none;
+       text-align: left;
+    }
+
+    .field.webhook-url .controls {
+      margin-left: 0px;
+    }
+
+    .subscribed-events {
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .subscribed-events .field-label {
+      font-weight: normal;
+      margin-bottom: 3px;
+    }
+
+    .subscribed-events .field-input label {
+      display: inline;
+      height: 22x;
+      font-weight: 200;
+      line-height:25px;
+    }
+
+    .subscribed-events .field-input input[type="checkbox"] {
+      height: 22px;
+      margin-top: 0px;
+    }
+
+    

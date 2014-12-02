@@ -1,0 +1,142 @@
+from __future__ import unicode_literals
+
+from django.test import TestCase
+from django.contrib.auth.models import User
+from django.core.urlresolvers import reverse
+from temba.orgs.models import Org
+from smartmin.tests import SmartminTest, _CRUDLTest
+from .models import *
+from .views import VideoCRUDL
+
+class PublicTest(SmartminTest):
+
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+        self.user = self.create_user("tito")
+
+    def test_index(self):
+        home_url = reverse('public.public_index');
+        response = self.client.get(home_url, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], '/')
+
+        # try to create a lead from the homepage
+        lead_create_url = reverse('public.lead_create')
+        post_data = dict()
+        response = self.client.post(lead_create_url, post_data, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], '/')
+        self.assertTrue(response.context['errors']);
+        self.assertEquals(response.context['error_msg'], 'This field is required.')
+
+        post_data['email'] = 'wrong_email_format'
+        response = self.client.post(lead_create_url, post_data, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], '/')
+        self.assertTrue(response.context['errors'])
+        self.assertEquals(response.context['error_msg'], 'Enter a valid email address.')
+
+        post_data['email'] = 'immortal@temba.com'
+        response = self.client.post(lead_create_url, post_data, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], reverse('orgs.org_signup'))
+
+    def test_privacy(self):
+        response = self.client.get(reverse('public.public_privacy'))
+        self.assertContains(response, "Privacy")
+
+
+
+    def test_welcome(self):
+        welcome_url = reverse('public.public_welcome')
+        response = self.client.get(welcome_url, follow=True)
+        self.assertTrue('next' in response.request['QUERY_STRING'])
+        self.assertEquals(response.request['PATH_INFO'], reverse('users.user_login'))
+
+        self.login(self.user)
+        response = self.client.get(welcome_url, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], reverse('public.public_welcome'))
+
+    def test_leads(self):
+        create_url = reverse('public.lead_create')
+
+        post_data = dict()
+        post_data['email'] = 'eugene@temba.com'
+        response = self.client.post(create_url, post_data, follow=True)
+        self.assertEquals(len(Lead.objects.all()), 1)
+
+        # create mailing list with the same email again, we actually allow dupes now
+        post_data['email'] = 'eugene@temba.com'
+        response = self.client.post(create_url, post_data, follow=True)
+        self.assertEquals(len(Lead.objects.all()), 2)
+
+        # invalid email
+        post_data['email'] = 'asdfasdf'
+        response = self.client.post(create_url, post_data, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], '/')
+        self.assertEquals(len(Lead.objects.all()), 2)
+
+    def test_demo_coupon(self):
+        coupon_url = reverse('demo.generate_coupon')
+        response = self.client.get(coupon_url, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], coupon_url)
+        self.assertIn('coupon', response.content)
+
+    def test_demo_status(self):
+        status_url = reverse('demo.order_status')
+        response = self.client.get(status_url, follow=True)
+        self.assertEquals(response.request['PATH_INFO'], status_url)
+        self.assertIn('Invalid', response.content)
+
+        response = self.client.get("%s?text=somethinginvalid" % status_url)
+        self.assertEquals(response.request['PATH_INFO'], status_url)
+        self.assertIn('Invalid', response.content)
+
+        response = self.client.get("%s?text=cu001" % status_url)
+        self.assertEquals(response.request['PATH_INFO'], status_url)
+        self.assertIn('Shipped', response.content)
+
+        response = self.client.get("%s?text=cu002" % status_url)
+        self.assertEquals(response.request['PATH_INFO'], status_url)
+        self.assertIn('Pending', response.content)
+
+        response = self.client.get("%s?text=cu003" % status_url)
+        self.assertEquals(response.request['PATH_INFO'], status_url)
+        self.assertIn('Cancelled', response.content)
+
+    def test_templatetags(self):
+        from .templatetags.public import gear_link_classes
+        link = dict()
+        link['posterize'] = True
+        self.assertTrue("posterize", gear_link_classes(link))
+        link['js_class'] = 'alright'
+        self.assertTrue("posterize alright", gear_link_classes(link))
+        link['style'] = "pull-right"
+        self.assertTrue("posterize alright pull-right", gear_link_classes(link, True))
+        link['modal'] = True
+        self.assertTrue("posterize alright pull-right gear-modal", gear_link_classes(link, True))
+        link['delete'] = True
+        self.assertTrue("posterize alright pull-right gear-modal gear-delete", gear_link_classes(link, True))
+
+    def test_sitemaps(self):
+        sitemap_url = reverse('public.sitemaps')
+
+        # get the count of items, we are expecting only 13 items for now. We have no video item yet.
+        response = self.client.get(sitemap_url)
+        self.assertEquals(len(response.context['urlset']), 12)
+
+        # add a video on the item, we will now have 14 items
+        Video.objects.create(name="Item14", summary="Unicorn", description="Video of unicorns", vimeo_id="1234",
+                             order=0, created_by=self.superuser, modified_by=self.superuser)
+
+        response = self.client.get(sitemap_url)
+        self.assertEquals(len(response.context['urlset']), 13)
+
+class VideoCRUDLTest(_CRUDLTest):
+
+    def setUp(self):
+        super(VideoCRUDLTest, self).setUp()
+        self.crudl = VideoCRUDL
+        self.user = User.objects.create_superuser('admin', 'a@b.com', 'admin')
+
+    def getCreatePostData(self):
+        return dict(name="Video One", description="My description", summary="My Summary", vimeo_id="1234", order=0)
+
+    def getUpdatePostData(self):
+        return dict(name="Video Updated", description="My description", summary="My Summary", vimeo_id="1234", order=0)

@@ -1,0 +1,65 @@
+{% extends "smartmin/read.html" %}
+-load i18n
+
+-block page-title
+  -trans "Channel Event"
+
+-block title
+  .medium-help.icon-cloud-upload{ style:'float:left;' }
+  %h2.header-margin
+    -if object.is_error
+      -trans "Channel Error"
+    -else
+      -trans "Channel Event"
+  %h5.header-margin
+    {{ object.description }} - {{ object.created_on }}
+
+-block above-bar
+  %a.btn.btn-primary{ href: '{% url "channels.channellog_list" %}?channel={{ object.msg.channel.pk }}' } Back
+
+-block post-fields
+  -if object.url
+    .result
+      .result-status=
+        -if object.response_status
+          {{ object.response_status }}
+      .result-summary
+          %pre.result-request.prettyprint{ style:'margin-top:10px;' }<
+            :plain
+              {{ object.method }} {{ object.url }}
+
+              {% if object.method == 'POST' or object.method == 'PUT' %}{{ object.request|default:"" }}{% endif %}
+          .result-body
+            -if object.response
+              %pre.prettyprint= object.response
+            -else
+              %pre.prettyprint<
+                -trans "No Response Body"
+
+-block extra-script
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+  :javascript
+    $(function(){
+      prettyPrint();
+    });
+
+-block extra-style
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+  :css
+    .result {
+      clear: both;
+      margin-bottom: 10px;
+    }
+
+    .result-status {
+      float: left;
+      margin-top: 10px;
+      font-size: 32px;
+      color: #666;
+    }
+
+    .result .result-summary {
+      margin-left: 70px;
+    }

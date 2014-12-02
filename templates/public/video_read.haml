@@ -1,0 +1,87 @@
+-extends "smartmin/read.html"
+-load i18n
+
+-block page-title
+  -blocktrans with video_name=video.name
+    Learn - {{ video_name }}
+
+-block page-description
+  {{ video.description|truncatechars:155 }}
+
+-block extra-style
+  {{block.super}}
+  :css
+    .fb-comments {
+      border: 0px solid green;
+    }
+
+    .vimeo {
+      border: 1px solid #ddd;
+    }
+
+    .description {
+      margin-top:30px;
+      font-size:19px;
+      line-height:25px;
+      color: #666;
+      white-space:pre-line;
+      margin-bottom:30px;
+    }
+
+    .manage {
+      position: absolute;
+      right:10px;
+      margin-top:20px;
+    }
+
+    .other-vids {
+      width: 300px;
+      float:right;
+      padding-left:20px;
+      min-height:200px;
+
+      .link {
+        display:block;
+        margin-top:8px;
+      }
+
+    }
+
+    .fb {
+      border-right: 1px solid #f3f3f3;
+
+      padding-right:20px;
+
+      width:600px;
+      min-height:200px;
+
+      .fb-comments {
+        background: #ffffff;
+      }
+    }
+
+
+-block extra-script
+  {{block.super}}
+
+-block title
+  -if perms.public.video_update or request.user.is_superuser
+    .manage
+      %a.btn.btn-primary{href:'{% url "public.video_update" object.pk%}'}
+        -trans "Edit"
+  %h1
+    {{object.name}}
+
+-block content
+
+  <iframe class='vimeo' src="//player.vimeo.com/video/{{object.vimeo_id}}" width=950 height=535 frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+  <div class='description'>{{ object.description }}</div>
+  -if perms.public.video_update or request.user.is_superuser
+
+  .other-vids
+    %h4
+      -trans "More Videos"
+    -for video in videos
+      .link
+        %a{href:'{% url "public.video_read" video.pk %}'}
+          {{video.name}}

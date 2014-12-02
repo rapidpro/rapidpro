@@ -1,0 +1,224 @@
+-load i18n
+
+#send-message.send-message.modal.hide.notice{data-dismiss:'modal'}
+  .modal-header
+    %button.pull-right.close{type:'button', data-dismiss:'modal', aria-hidden:'true'}
+      &times;
+    %h3
+      .glyph.icon-bubble-3
+      %span.title
+        -trans "Send Message"
+  .modal-body
+    -if send_channel
+      #send-form
+        {% csrf_token %}
+        %label{for:"id_text"}
+          -trans "Message"
+        %textarea#id_text{tabindex:1}
+        #counter
+
+        #omni
+          #omni-select2
+            #omnibox.placeholder.populate{style:"width:100%"}
+          #loading
+        #errors
+    -else
+      -blocktrans with name=brand.name
+        To get started you need to add a channel to your account. A channel is a phone number or social network
+        account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+        Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+        directly.
+
+  .modal-footer
+    -if send_channel
+      %a.btn.schedule.pull-left
+        -trans "Schedule"
+      %a.btn.cancel{tabindex:4}
+        -trans "Cancel"
+      %a.btn.btn-primary.ok{tabindex:3}
+        -trans "Send Message"
+    -else
+      %a.btn.cancel{tabindex:4}
+        -trans "Cancel"
+      %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
+        -trans "Add Channel"
+
+  %script{src:"{{ STATIC_URL }}scripts/at/xregexp-min.js"}
+
+  -load compress
+  -compress js
+    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
+    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
+
+  %link{href:'{{ STATIC_URL }}scripts/at/jquery.atwho.css', rel:'stylesheet', type:'text/css'}
+
+  :javascript
+    $(document).ready(function() {
+      window.message_completions = {{completions|safe}};
+      initAtMessageText($('#id_text'));
+      $("textarea").keyup(messageTextareaLengthCheck);
+    });
+
+    function formatResult(item) {
+        return '<div>' + item.text + '</div>';
+    };
+
+    function formatSelection(item) {
+        return item.text;
+    };
+
+    // show the compose dialog with some contacts prepopulated
+    function showComposeInitialized(queryString, url) {
+      showCompose(true, url);
+      $.get("{% url 'contacts.contact_omnibox' %}?" + queryString, function(data, textStatus){
+        initializeOmnibox(data.results);
+        $('.select2-input').attr('tabindex', 2);
+      });
+    }
+
+    
+    function showCompose(loading, url) {
+      // make sure any previous errors are removed
+      $("#send-message .error").remove();
+
+      // clear the previous text
+      $("#id_text").val("");
+
+      // show us as loading or initialize and empty select2
+      if (loading) {
+        $("#omnibox").val("");
+        $("#omni-select2").hide();
+        $("#loading").show();
+        $("#send-message .ok").text('{% trans "Loading recipients.." %}').addClass("disabled");
+      } else {
+        $("#omni-select2").show();
+        $("#loading").hide();
+      }
+
+      // show the modal
+      var modal = $("#send-message").modal({keyboard:false}).show();
+
+      initializeOmnibox(null);
+
+      // focus the text field on show
+      $("#send-message #id_text").focus();
+
+      // handle the ordering on the select2
+      $('.select2-input').attr('tabindex', 2);
+
+      modal.find('.cancel').unbind('click').unbind('keypress').click(hideCompose).keypress(function(e) {
+        if(e.which == 13){
+          hideCompose();
+        }
+      });
+
+      // close the compose when clicked escape
+      $(document).keyup(function(e) {
+        if(e.keyCode === 27) {
+          hideCompose();
+        }
+      });
+
+      // store our post location in the form
+      $('#send-form').attr("action", url);
+
+      $("#send-message .ok").unbind('click').unbind('keypress').click(function(e) {sendMessage(e) }).keypress(function(e) {
+        if(e.which == 13){
+          sendMessage(e);
+        }
+      });
+
+      return modal;
+    }
+
+    function hideCompose() {
+      $("#send-message").modal('hide');
+      $("#send-message .ok").text('{% trans "Send Message" %}').removeClass("disabled");
+      if(window.simulation){
+
+        window.refreshSimulator();
+      }
+    }
+
+    $("#send-message .schedule").on('click', function() {
+      sendMessage(this, true);
+    });
+
+    function sendMessage(e, scheduled) {
+      if ($("#send-message .ok").hasClass("disabled")) {
+        e.preventDefault();
+        return;
+      }
+
+      $("#send-message .ok").text('{% trans "Sending.." %}').addClass("disabled");
+
+      // its possible we might send to a different end point such as
+      // when doing a normal compose
+      var form = $('#send-form');
+      var url = form.attr("action");
+      var post = "{% url 'msgs.broadcast_send' %}?_format=json";
+      if (url) {
+        post = url;
+      }
+
+      if (window.simulation) {
+        post = post + "&simulation=true"
+      }
+
+
+      // our post data
+      var data = {
+        schedule: scheduled,
+        text: form.find("#id_text").val(),
+        csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val()
+      };
+
+      // add the omnibox value, but only if there actually is something
+      var omnibox = form.find("#omnibox").val().trim();
+      if (omnibox.length > 0) {
+        data['omnibox'] = omnibox;
+      }
+
+      $.post(post, data, function(data, textStatus, b, c) {
+
+        // we are victorious, hide our modal
+        if (scheduled) {
+          document.location.href = data['redirect'];
+        } else {
+          hideCompose();
+        }
+        fetchPJAXContent(".", "#pjax", { forceReload:true });
+
+
+      }).fail(function(data, textStatus) {
+
+        // uh oh, we couldnt post, check for errors to show the user
+        response = $.parseJSON(data.responseText);
+
+        // make sure we arent showing any previous errors
+        $("#send-message .error").remove();
+
+        // show the non-field errors first
+        for (msg in response.errors['__all__']) {
+          $("#send-message #errors").after("<div class=error>" + response.errors['__all__'][msg] + "</div>");
+        }
+
+        // look through our fielded errors and show them in the form
+        for (var error in response.errors) {
+          var msgs = response.errors[error];
+          for (var msg in msgs) {
+
+            var id = "#id_" + error;
+            if (error == "text") {
+              id = "#counter";
+            }
+
+            $(id).after("<div class=error id=" + error + "_error>" + msgs[msg] + "</div>");
+          }
+        }
+
+        // re-enable our send button, so they can try again
+        $("#send-message .ok").text('{% trans "Send Message" %}').removeClass("disabled");
+
+      });
+    }

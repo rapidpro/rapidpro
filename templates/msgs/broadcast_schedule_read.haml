@@ -1,0 +1,72 @@
+-extends "msgs/broadcast_outbox.haml"
+-load smartmin sms temba compress
+-load i18n
+
+-block page-top
+  %h2
+    {{ title }}
+
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-clock
+
+-block top-form
+
+-block extra-script
+  {{block.super}}
+
+-block content
+
+  -include "formax.haml"
+
+  -if object_list
+    %br
+    %br
+    .row
+      .span12
+        %h3
+          -trans "Message History"
+
+      .span12
+        -block message-list
+          {{block.super}}
+
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        h2 {
+          margin-bottom:30px;
+        }
+
+        .list-table {
+          margin-top:0;
+        }
+
+        ul {
+          list-style: none;
+        }
+
+        li {
+          padding: 5px 0px;
+        }
+
+        .schedule-detail {
+          font-size: 16px;
+
+          a {
+            text-decoration: none;
+          }
+        }
+
+        .sends-to {
+          margin-left: 20px;
+        }
+
+        .value-icon {
+          display:none;
+        }
+    {% endlessblock %}

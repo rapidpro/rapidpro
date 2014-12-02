@@ -1,0 +1,55 @@
+-extends "msgs/message_box.html"
+-load smartmin sms temba compress
+-load i18n humanize
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-clock
+
+-block message-list
+  %table.list-table.sms_list.list_rsms_message.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}'}
+    %tbody
+      -for object in object_list
+        %tr.select-row{class:'{% cycle row1 row1 %}', onClick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
+
+          %td.value-contacts.field_phone
+            -if object.recipient_count
+              {% blocktrans with count_comma=object.recipient_count|intcomma count cc=object.recipient_count %}
+                {{ count_comma }} recipient
+              {% plural %}
+                {{ count_comma }} recipients
+              {% endblocktrans %}
+
+          %td.value-text.field_text
+            -get_value object 'text'
+          %td.value-next
+            -if object.schedule.status == 'S'
+              .glyph.icon-clock
+              {{object.schedule.next_fire|timeuntil}}
+
+        -empty
+          %tr
+            %td{colspan:3}
+              -trans "No Matching schedules"
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        td.value-next {
+          color: @color-font-grey;
+          .glyph {
+            font-size:14px;
+            margin-top:2px;
+            margin-right:2px;
+          }
+          font-size: 14px;
+        }
+
+        td.clickable a:hover {
+          text-decoration: none;
+        }
+        .list-table {
+        margin-top:48px;
+        }
+    {% endlessblock %}

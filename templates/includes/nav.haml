@@ -1,0 +1,96 @@
+-load smartmin i18n
+
+%ul#top-menu
+
+  -if org_perms.msgs.msg_inbox and not request.user.is_superuser
+    %li.nav-messages
+      %a.icon-nav-messages{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|sms/filter|sms/flow|sms/archived|failed' %}"}
+        .title
+          -trans "messages"
+      -if unread_msg_count
+        .notification
+          {{unread_msg_count}}
+
+  -if org_perms.contacts.contact_list and not request.user.is_superuser
+    %li.nav-contacts
+      %a.icon-nav-contacts{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
+        .title
+          -trans "contacts"
+
+  -if org_perms.flows.flow_list and not request.user.is_superuser
+    %li.nav-flows
+      %a.icon-nav-flows{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!sms)/flow' %}"}
+        .title
+          -trans "flows"
+      -if flows_unread_count
+        .notification
+          {{ flows_unread_count }}
+
+  -if org_perms.flows.ruleset_analytics and not request.user.is_superuser
+    %li.nav-analytics
+      %a.icon-nav-analytics{href:"{% url 'flows.ruleset_analytics' %}", class:"{% active request 'analytics' %}"}
+        .title
+          -trans "analytics"
+
+  -if org_perms.campaigns.campaign_list and not request.user.is_superuser
+    %li.nav-campaigns
+      %a.icon-nav-campaigns{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
+        .title
+          -trans "campaigns"
+
+  -if org_perms.triggers.trigger_list and not request.user.is_superuser
+    %li.nav-triggers
+      %a.icon-nav-triggers{href:"{% url 'triggers.trigger_list' %}", class:"{% active request 'trigger' %}"}
+        .title
+          -trans "triggers"
+
+  -if org_perms.channels.channel_list or request.user.is_superuser
+    -if not has_outgoing_channel and org_perms.channels.channel_claim
+      %li.nav-channels
+        %a.icon-nav-channels{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
+          .title
+            -trans "channels"
+
+  -if org_perms.users.user_list or request.user.is_superuser
+    %li.nav-groups
+      %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
+        .title
+          -trans "users"
+
+  -if request.user.is_superuser
+    %li.nav-orgs
+      %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
+        .title
+          -trans "orgs"
+
+  -if not request.user.is_anonymous
+    %li.more
+      %a.icon-menu-4{href:""}
+
+      .submenu-container.hide
+        .submenu
+
+          %a.icon-nav-logout{href:"{% url 'users.user_logout' %}"}
+            .title
+              -trans "logout"
+
+  -else
+    -block temba-login
+
+      %li.nav-login
+        %a.icon-nav-login{href:"{% ssl_url 'users.user_check_login' %}"}
+          .title
+            -trans "sign in"
+
+-if user_org and user_org.has_low_credits and not user.is_superuser
+  -if user_org.get_credits_remaining < 0
+    .nav-alert.interrupted
+      {% blocktrans %}You are out of credits, add more to resume your service{% endblocktrans %}
+  -else
+    .nav-alert
+      {% blocktrans count credits=user_org.get_credits_remaining %}You have {{ credits }} credit remaining, add credits to prevent interruption{%plural%}You have {{ credits }} credits remaining, add credits to prevent interruption{% endblocktrans %}</a>
+-elif unsent_msgs or delayed_syncevents
+  .nav-alert
+    %a{href:'{% url "orgs.org_home" %}'}
+      .icon-warning
+      -trans "Your phone is having difficulty relaying messages"            

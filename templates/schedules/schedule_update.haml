@@ -1,0 +1,122 @@
+-extends 'smartmin/form.html'
+
+-block form-span
+
+
+-block extra-script
+  {{ block.super }}
+  %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=2"}
+
+  :javascript
+    var user_tz = "{{ user_tz }}";
+    var user_tz_offset = {{ user_tz_offset }};
+
+    $(document).ready(function() {
+        var minDate = new Date();
+        var minutes = minDate.getMinutes();
+        if (minutes > 0) {
+            minDate.setMinutes(0);
+            minDate.setHours(minDate.getHours() + 1);
+        }
+
+        {% if object.next_fire and object.next_fire|timeuntil != "0 minutes" %}
+          initializeDatetimePicker(minDate, new Date({{object.next_fire|date:"U"}} * 1000));
+        {% else %}
+          initializeDatetimePicker(minDate);
+        {% endif %}
+
+        {% if object.next_fire %}
+        setNextFireText({{ object.next_fire|date:"U" }})
+        {% endif %}
+    });
+    
+
+
+
+-block fields
+  -load smartmin
+
+  %p.instructions
+    Choose when you would like the message to be sent out.
+
+  #schedule-options
+    -if object.get_broadcast
+      -if object.get_broadcast.schedule.status == 'U'
+        <input id='stop-option' name='start' class='unchanged' type='radio' value='stop' checked> Leave unscheduled<br/>
+      -else
+        <input id='stop-option' name='start' type='radio' value='stop'> Cancel schedule<br/>
+
+    <input id='later-option' name='start' type='radio' value='later' {% if object.status == 'S' %} checked {%endif%}>
+    %input#start-datetime{ disabled:'true', name:'start_datetime', value:'Schedule for later'}
+    %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:'{{ object.next_fire|date:"U" }}'}
+
+  #recurrence{class:'{% if object.status != "S" %}hide{%endif%}'}
+    .repeat-period
+      %p.instructions
+        -render_field 'repeat_period'
+    .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
+      .btn-group{'data-toggle':'buttons-checkbox'}
+        #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+          Mon
+        #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+          Tue
+        #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+          Wed
+        #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+          Thu
+        #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+          Fri
+        #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+          Sat
+        #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+          Sun
+
+      %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+
+-load humanize
+
+-block summary
+  -if object.next_fire
+    -spaceless
+
+      -if object.get_broadcast
+
+        The next message will be sent <span class='attn next-fire'/>.
+
+    -if not object.repeat_period == 'O'
+      -if object.repeat_period == 'W' and object.repeat_days
+        It will repeat every
+        -with object.get_repeat_days_display|length as day_count
+          -for day in object.get_repeat_days_display
+            {% if forloop.last and day_count > 1 %} and {%endif%}
+            %span.attn
+              {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
+
+        at around the same time.
+      -elif object.repeat_period == 'M'
+        It will repeat every
+        %span.attn
+          month
+        on the {{ object.repeat_day_of_month|ordinal }}.
+
+      -else
+        It will repeat
+        <span class='attn'>{{object.get_repeat_period_display|lower}}</span> at around the same time.
+    -else
+      It will <span class='attn'>not repeat</span>.
+
+  -else
+    Not scheduled
+
+-block form-buttons
+  #form-buttons
+    %br
+    -if object.status = 'U'
+      %input.btn.start-button{type:'submit',value:'Done'}
+
+    -elif object.status = 'S'
+      %input.btn.btn-primary.start-button{type:'submit',value:'Schedule'}
+
+    -else
+      %input.btn.btn-success.start-button{type:'submit',value:'Start'}
+

@@ -1,0 +1,70 @@
+h1. jQuery Anystretch
+
+Anystretch is a jQuery plugin that allows you to add a dynamically-resized background image to any page or block level element.
+The image will stretch to fit the page/element, and will automatically resize as the window size changes.
+
+h2. Demo
+
+An example is provided within this package. To see it in action go to: "http://wearyoubelong.com":http://wearyoubelong.com
+
+h2. Options
+
+h3. positionX
+
+This parameter controls how we position the image on the X axis. (type=String, options=left|center|right, default=center)
+
+h3. positionY
+
+This parameter controls how we position the image on the Y axis. (type=String, options=top|center|bottom, default=center)
+
+h3. speed
+
+This is the speed at which the image will fade in, after downloading is complete. Integers are accepted, as well as standard jQuery speed strings (slow, normal, fast). (type=Integer, default=0)
+
+h3. elPosition (only when not used on the body)
+
+This is the css position given to the containing element when used on anything except the body. (type=String, default=relative)
+
+h2. Setup
+
+Include the jQuery library and Anystretch plugin files in your webpage (preferably at the bottom of the page, before the closing BODY tag):
+
+<pre><code><script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script type="text/javascript" src="/jquery.anystretch.min.js"></script>
+</code></pre>
+
+Note: The example above uses the Google hosted version of jQuery; there is also a jQuery source file included with this distribution, if you would like to host it yourself.
+
+<pre><code><script type="text/javascript">
+  $.anystretch("/path/to/image.jpg", {speed: 150});
+</script>
+</code></pre>
+
+Want to change the image after Anystretch has been loaded? No problem, just call it again!
+
+<pre><code><script type="text/javascript">
+  $.anystretch("/path/to/image.jpg", {speed: 150});
+  
+  // Perhaps you'd like to change the image on a button click
+  $(".button").click(function() {
+      $.anystretch("/path/to/next_image.jpg");
+  });
+</script>
+</code></pre>
+
+If you require Anystretch to work on one or more elements inside the page, rather than the page itself, simply call it on the element:
+
+<pre><code><script type="text/javascript">
+  $('#myDiv').anystretch("/path/to/image.jpg", {speed: 150});
+</script>
+</code></pre>
+
+h2. Changelog
+
+h3. Version 1.1
+
+* Changed options from centeredX/centeredY to positionX/positionY to allow for greater control
+
+h3. Version 1.0
+
+* This was forked from Backstretch (version 1.2)

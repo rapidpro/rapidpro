@@ -1,0 +1,17 @@
+-extends 'smartmin/update.html'
+
+-block modal-script
+  {{block.super}}
+
+  :javascript
+    $(document).ready(function() {
+      //add select2 to contact group
+      $('#id_groups').select2({
+        containerCssClass: "select2-temba-field"
+      });
+
+      select2div('#id_language', '520px', 'No preference')
+    });
+
+-block summary
+  {{ contact }}

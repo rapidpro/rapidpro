@@ -1,0 +1,32 @@
+{% extends "channels/email/base.html" %}
+{% load i18n %}
+
+{% block body %}
+    <p>
+      {% blocktrans with org_name=org.name %}
+        We've noticed that the Android phone for {{ org_name }} is having trouble sending text messages.  This might be
+        a temporary problem due to your cellular network, or could be an indication that your phone is out of credit.
+      {% endblocktrans %}
+    </p>
+
+    <p>
+      {% blocktrans %}
+        Please check on your phone to make sure it has sufficient credit and can send text messages.  If problems persist
+        you may want to try turning the phone off then back on.  Currently your Android phone has <strong>{{ unsent_count }}</strong>
+        messages which haven't sent in over an hour.
+      {% endblocktrans %}
+    </p>
+
+    <p>
+      {% blocktrans with channel_name=channel.get_name %}
+        You can check the current status of your {{ channel_name }} by visiting its
+      {% endblocktrans %}
+      <a href="https://{{ branding.host }}/channels/channel/read/{{ channel.id }}/">
+        {% trans "status page." %}
+      </a>
+    </p>
+
+    <p>{% trans "Thanks!" %}</p>
+
+    <p>{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}</p>
+{% endblock %}

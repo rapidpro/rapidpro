@@ -1,0 +1,56 @@
+-extends "smartmin/form.html"
+
+-load compress temba
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-channel-twilio
+
+-block title-text
+  .title-text
+    %h1 Connect Twilio
+
+-block pre-form
+  .connect-help
+    %p
+      To connect your Twilio Account you will need to provide us your Twilio account SID and auth token.
+
+    %p
+      Both values can be found on your <a target="twilio" href="https://www.twilio.com/user/account">Twilio account page</a>.
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    $(document).ready(function() {
+      $("form.smartmin-form").attr('autocomplete', 'off');
+    });
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .connect-help {
+          margin-bottom: 25px;
+          width: 600;
+        }
+
+        .form-horizontal {
+
+          .control-label {
+            display:none;
+          }
+
+          .controls {
+            margin-left: 0px;
+          }
+
+          .form-actions {
+            padding-left: 0px
+          }
+        }
+
+        a:hover {
+          text-decoration: none;
+        }
+
+    {% endlessblock %}

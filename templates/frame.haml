@@ -1,0 +1,348 @@
+<!DOCTYPE HTML>
+-load humanize
+{% block html-tag %}
+<!--[if lte IE 8]><html class="ie" lang="en">    <![endif]-->
+<!--[if !IE]><!--><html lang="en">              <!--<![endif]-->
+{% endblock %}
+  %head
+    %title
+      {% block page-title %}
+        {{ brand.name }} - Visually build interactive SMS Applications
+      {% endblock %}
+
+    %link{href:'{{STATIC_URL}}fonts/roboto/stylesheet.css', rel:'stylesheet', type:'text/css'}
+    %meta{charset:"utf-8"}
+    %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
+    %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
+    %meta{name:"author", content:"Nyaruka Ltd"}
+    %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
+
+    -load compress
+
+    :javascript
+
+      function conditionalLoad(local, remote) {
+        if (local != null && (window.location.hostname == "localhost" || remote == null)) {
+          loadResource("{{ STATIC_URL }}" + local);
+        } else if (remote != null) {
+          loadResource(remote);
+        }
+      }
+
+      function loadResource(src) {
+        (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
+      }
+
+    // ==== JQUERY ====
+    :javascript
+      conditionalLoad('js/jquery-2.0.3.min.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js');
+      conditionalLoad('js/jquery-migrate-1.2.1.min.js', null);
+
+    // ==== ANGULAR ====
+    :javascript
+
+      // this has to be loaded before angular
+      conditionalLoad('scripts/angular-file-upload-1.6.12/angular-file-upload-shim.js', null);
+
+      // our angular scripts
+      conditionalLoad('angular-1.3.0-beta.17/angular.js', null);
+      conditionalLoad('angular-1.3.0-beta.17/angular-animate.js', null);
+
+      // TODO: Migrate to released version of 1.3 (issues with analytics)
+      // conditionalLoad('angular-1.3.0/angular.js', null);
+      // conditionalLoad('angular-1.3.0/angular-animate.js', null);
+
+      // this must be loaded after angular
+      conditionalLoad('scripts/angular-file-upload-1.6.12/angular-file-upload.js', null)
+
+    -include "includes/frame_top.html"
+
+    -# this view make it possible to process translations from javascript land
+    <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+
+    -compress js
+      :javascript
+         var static_url = '{{STATIC_URL}}';
+
+      %script{src:"{{ STATIC_URL }}js/select2.js"}
+      %script{src:"{{ STATIC_URL }}scripts/bootstrap/js/bootstrap.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery.pjax.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery-ui-1.10.2.custom.min.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery.sparkline.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery.history.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery.easing.1.3.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery.hoverIntent.js"}
+      %script{src:"{{ STATIC_URL }}js/bootstrap-limit.js"}
+      %script{src:"{{ STATIC_URL }}js/heavy_data.js"}
+      %script{src:"{{ STATIC_URL }}js/moment.js"}
+      %script{src:"{{ STATIC_URL }}js/moment-timezone.js"}
+      %script{src:"{{ STATIC_URL }}js/jquery-ui-timepicker-addon.js"}
+      %script{src:"{{ STATIC_URL }}js/uuid.js"}
+
+      -if not debug and not testing
+        %script{src:"{{ STATIC_URL }}js/raven.min.js"}
+
+    -compress js
+      %script{src:"{{ STATIC_URL }}js/omnibox.js"}
+      %script{src:"{{ STATIC_URL }}js/temba.js"}
+      %script{src:"{{ STATIC_URL }}coffee/temba.coffee", type:'text/coffeescript'}
+      %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:'text/coffeescript'}
+      %script{src:"{{ STATIC_URL }}js/labels.js"}
+
+
+    -if brand.favico
+      %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
+    -else
+      %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}images/favicon.ico"}
+
+    -load smartmin sms
+    -load i18n
+
+    -block styles
+      -compress css
+        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}css/bootstrap.css',  media:'all' }
+        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}css/animate.css',  media:'all' }
+
+      -compress css
+        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}css/bootstrap-responsive.css',
+              media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
+
+      -compress css
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/select2.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}css/jquery.atwho.css', media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/redmond/jquery-ui-1.10.2.custom.min.css", media:'all'}
+
+      -compress css
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/style.less', media:'all'}
+        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/formax.less', media:'all'}
+        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
+        // custom branding
+        -for style in brand.styles
+          -if 'less' in style
+            %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
+          -else
+            %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
+
+
+      -block extra-less
+      -block extra-style
+
+  <!--[if lt IE 9]>
+    %script{src:"//html5shim.googlecode.com/svn/trunk/html5.js"}
+  <![endif]-->
+
+-load smartmin
+%body#pageBody{style:'width:100%'}
+  <!-- Header -->
+  #print-header
+    %span.logo.icon-logo
+
+  #header
+    &nbsp;
+
+  %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+
+  -include 'includes/nav.html'
+
+  -if user_org
+    .org-header
+      .org
+        %a{href:'javascript:void(0);'}
+          {{ user_org.name }}
+
+      .other-orgs.hide
+
+        .account-details
+          .org
+            %a{href:'{% url "orgs.org_home" %}'}
+              .icon-home
+              Account Details
+
+        -for org in user.get_user_orgs
+          -if org != user_org
+            .org
+              %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                {{ org.name }}
+
+
+
+
+  -block post-header
+  <!-- Content -->
+  -block page-container
+    #page-container.container
+      .divPanel.page-content
+        -block page-top
+          .row
+            .span9
+              -block title
+                -block title-icon
+                -block title-text
+                  .title-text
+                    %h1
+                      {{title}}
+
+            .span3.top-form
+              .pull-right
+
+                -block above-bar
+                  -block gear-menu
+                    -include "gear_links_include.haml"
+                  -block top-form
+
+          -block top-bar
+            %hr.top-bar
+
+        - if messages
+          .row
+            .span12
+              - block messages
+                - if messages
+                  -for msg in messages
+                    %div{class:"alert alert-{{ message.tags }}"}
+                      %a.close{data-dismiss:"alert"} x
+                      {{ msg }}
+
+        -block content
+        -block post-content
+
+  #footerInnerSeperator
+  #footerOuterSeparator
+
+  -include "includes/frame_bottom.html"
+
+    {# media associated with any form we are displaying #}
+    -if form
+    {{ form.media }}
+
+  -block script
+
+    {{block.super}}
+
+    :javascript
+
+      function formatContact(item) {
+        if (item.text.indexOf(" (") > -1) {
+         var name = item.text.split("(")[0];
+         if (name.indexOf(")") == name.length - 1) {
+           name = name.substring(0, name.length - 1);
+         }
+         return name;
+       }
+       return item.text;
+      }
+
+      function createContactChoice(term, data) {
+        if ($(data).filter(function() { return this.text.localeCompare(term)===0; }).length===0) {
+          if (!isNaN(parseFloat(term)) && isFinite(term)) {
+            return {id:"number-" + term, text:term};
+          }
+        }
+      }
+
+      function initSelect2Fields() {
+        $('.select2tag').select2({
+          containerCssClass: 'select2-container',
+          tags:[], tokenSeparators: [","], formatNoMatches:function(term){return '';}
+        });
+
+        $('.select2tag').find("ul.select2-choices").sortable({
+          start: function() { $(".select2tag").select2("onSortStart"); },
+          update: function() { $(".select2tag").select2("onSortEnd"); }
+        });
+      }
+
+
+    -block modals
+
+      #modal-template.modal.hide{data-dismiss:'modal'}
+
+        #onConfirm.hide
+
+        .modal-header
+          %button.pull-right.close{type:'button', aria-hidden:'true'}
+            &times;
+          %h3
+            .icon
+            %span#modal-title
+              Uh oh!
+
+        .modal-body
+          .fetched-content
+            #modal-message
+            .form
+          .loader
+            %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
+
+        .modal-footer
+          %button.btn.tertiary.pull-left.hide
+            Tertiary
+          %button.btn.btn-primary.primary
+            Ok
+          %button.btn.secondary.hide
+            Cancel
+
+    -block extra-script
+
+    <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
+    <form id="posterizer" method="post">
+      {% csrf_token %}
+    </form>
+
+    :javascript
+      $(document).ready(function() {
+        if (navigator.appVersion.indexOf("Win")!=-1) {
+          $("html").addClass("windows");
+        }
+
+        initSelect2Fields();
+
+        $(".btn").tooltip();
+
+        {% if request.user.get_user_orgs.count > 1 %}
+          $('.org-header > .org > a').on('click', function() {
+            var header = $('.org-header');
+            if (header.hasClass('expanded')) {
+              header.removeClass('expanded');
+            } else {
+              header.addClass('expanded');
+            }
+          });
+        {% else %}
+          $('.org-header > .org > a').on('click', function() {
+            document.location.href = '{% url "orgs.org_home" %}';
+          });
+        {% endif %}
+
+        $('#top-menu li').hoverIntent({
+          over:function() {
+            // $('.submenu').hide();
+            $(this).find('.submenu-container').slideDown(250);
+            // $(this).find('.submenu').show();
+          },
+          out:function() {
+          $(this).find('.submenu-container').slideUp(200);
+            //$(this).find('.submenu').hide();
+          },
+          timeout:300
+        });
+
+
+        $("a.posterize").click(function(event){
+          event.preventDefault();
+          event.stopPropagation();
+
+          var href = $(this).attr("href");
+          var url = $.url(href);
+
+          $("#posterizer").attr("action", url.attr("path"));
+
+          for (var key in url.param()){
+            $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
+          }
+
+          $("#posterizer").submit();
+        });
+      });
+</html>

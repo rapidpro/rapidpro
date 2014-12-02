@@ -1,0 +1,55 @@
+# General
+.DS_Store
+.idea
+.ipynb_checkpoints
+*.pyc
+*~
+
+# temba
+.coverage
+env
+build
+config/gen
+config/settings.py
+coverage-report
+celerybeat-schedule.db
+db
+node_modules
+parser.out
+screenshots
+sitestatic
+static/coffee/analytics.js
+static/coffee/flows.js
+static/coffee/simulator.js
+static/coffee/temba.js
+static/coffee/formax.js
+static/javascripts/
+temba/settings.py
+temba/smartmin
+temba.db
+
+# Exclude media folder except files used for import testing
+media/*
+!media/test_imports
+!media/test_imports/*
+media/test_imports/.DS_Store
+
+# Android
+*.class
+android/.idea
+android/bin
+android/gen
+android/out
+android/Android.apk
+packs/AndroidManifest.xml
+packs/secure.properties
+packs/store
+packs/gen
+packs/bin
+
+# External projects
+fabconfig.py
+fabfile.py
+deploy
+smartmin
+config

@@ -1,0 +1,131 @@
+-extends "smartmin/list.html"
+
+-load smartmin compress temba
+-load i18n
+
+-block page-title
+  -blocktrans with brand=brand.name
+    Learn {{ brand }} - SMS Application Videos and Tutorials
+
+-block page-description
+  -blocktrans with brand=brand.name
+    Start building SMS applications by watching these short two minutes videos on various {{ brand }} features.
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+
+        .manage {
+          position: absolute;
+          right:10px;
+          margin-top:-40px;
+        }
+
+
+        p.instructions {
+          margin-bottom:0px;
+          width:100%;
+          margin-top:15px;
+          font-size:19px;
+          line-height:24px;
+
+        }
+
+        .video {
+
+          h3 {
+            border-bottom: 1px solid #ddd;
+            margin-top:40px;
+          }
+
+          vertical-align:top;
+
+          iframe {
+            display: inline-block;
+            width:600;
+            vertical-align:top;
+            border: 1px solid #f3f3f3;
+            margin-top:15px;
+          }
+
+          .description {
+            display: inline-block;
+            width:340px;
+            vertical-align:top;
+            font-size:20px;
+            line-height:24px;
+            margin-left:25px;
+            color: #999;
+          }
+
+          .summary {
+            padding-top:15px;
+            white-space:pre-line;
+          }
+
+          .more {
+            font-size:14px;
+          }
+
+        }
+
+        .start-link {
+           font-size: 30px;
+           line-height: 40px;
+           padding: 10px;
+           display: block;
+           background-color: blue;
+           color: #fff;
+           text-decoration:none;
+        }
+
+        .start-cell {
+          margin: 20px 0px 30px 0px;
+          text-align: center;
+
+        }
+
+    {% endlessblock %}
+
+-block title
+
+
+-block content
+  %h1#watch_videos
+    -trans "Mastering Flows"
+
+  -if perms.public.video_create or request.user.is_superuser
+    .manage
+      %a.btn.btn-primary{href:'{% url "public.video_create"%}'}
+        -trans "Add Video"
+
+  %p.instructions
+    -blocktrans with brand=brand.name
+      To make sure you get the most out of {{brand}}, we've put together a bunch of short videos to guide you through
+      some of the most powerful features. Each of these videos are only a couple minutes, but they will help you
+      build complex flows without a lot of effort.
+
+  %p.instructions
+    -blocktrans
+      You don't have to, but it's best if these are watched in order since they build on each other as you go.
+
+  -for video in object_list
+
+    .video
+
+      %h3
+        {{video.name}}
+
+      -if perms.public.video_update or request.user.is_superuser
+        .manage
+          %a{href:'{% url "public.video_update" video.pk%}'}
+            -trans "Edit"
+
+      <iframe src="//player.vimeo.com/video/{{video.vimeo_id}}" width=550 height=309 frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+        //.number
+        //  {{video.order}}
+      .description
+        <div class='summary'>{{video.summary}}</div>
+        %a.more{href:'{% url "public.video_read" video.pk %}'}
+          -trans "More"

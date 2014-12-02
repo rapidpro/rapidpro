@@ -1,0 +1,33 @@
+-extends "smartmin/update.html"
+-load i18n
+
+-block title
+  .title-icon
+    .glyph.icon-users{style:"float:left;"}
+  .title-text
+    %h1
+      {{title}}
+
+-block content
+  .span7.offset2
+    %p.join-message
+      -trans "You have been invited to join"
+      {{org.name}}.
+      %br
+      -trans "Please click Join to accept the invitation."
+    %form.smartmin-form{method:"post", encrypt:"multipart/form-data"}
+      -csrf_token
+      -block form-buttons
+        .form-actions
+          %input.btn.btn-primary{type:"submit", value:"{{submit_button_name}}"}
+
+-block extra-style
+  :css
+    .join-message {
+      font-size: 26px;
+      line-height: normal;
+      color: #333333;
+    }
+    .form-actions > input {
+      margin-left: -20px;
+    }

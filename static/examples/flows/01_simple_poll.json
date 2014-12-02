@@ -1,0 +1,102 @@
+{
+  "entry": "fa616473-5853-4097-a955-504d1c0630bc", 
+  "rule_sets": [
+    {
+      "uuid": "222a16a9-c7d4-420f-b687-d5c1efec96e5",
+      "response_type": "C",
+      "rules": [
+        {
+          "test": {
+            "test": "Yes Yep Y Ya", 
+            "type": "contains_any"
+          }, 
+          "category": "Yes", 
+          "destination": "607c1b1c-d6b3-4f55-add5-6e894e04d0db", 
+          "uuid": "670d15e3-762e-45a5-8fdc-5e3b99a0dc2d"
+        }, 
+        {
+          "test": {
+            "test": "No Nope N Nay", 
+            "type": "contains_any"
+          }, 
+          "category": "No", 
+          "destination": "3a2df235-b751-402f-a0e5-0c4f0f6923ce", 
+          "uuid": "d260e37e-a53e-4759-9846-b07c35d88fd4"
+        }, 
+        {
+          "test": {
+            "test": "true", 
+            "type": "true"
+          }, 
+          "category": "Other", 
+          "destination": "0c8fffa7-2667-432c-adca-2c13acad93a1", 
+          "uuid": "7049489c-189d-4f74-8efc-765ec682e6b6"
+        }
+      ], 
+      "label": "Filter Working", 
+      "operand": "@step.value",
+      "y": 181, 
+      "x": 436
+    }
+  ], 
+  "action_sets": [
+    {
+      "y": 0, 
+      "x": 469, 
+      "destination": "222a16a9-c7d4-420f-b687-d5c1efec96e5", 
+      "uuid": "fa616473-5853-4097-a955-504d1c0630bc", 
+      "actions": [
+        {
+          "msg": "Hi @contact.name, is your water filter working?  Answer with Yes or No.", 
+          "type": "reply"
+        }
+      ]
+    }, 
+    {
+      "y": 60, 
+      "x": 790, 
+      "destination": "222a16a9-c7d4-420f-b687-d5c1efec96e5", 
+      "uuid": "0c8fffa7-2667-432c-adca-2c13acad93a1", 
+      "actions": [
+        {
+          "msg": "I'm sorry, I didn't understand that. Is your water filter still working?  Answer with Yes or No.", 
+          "type": "reply"
+        }
+      ]
+    }, 
+    {
+      "y": 346, 
+      "x": 303, 
+      "destination": null, 
+      "uuid": "607c1b1c-d6b3-4f55-add5-6e894e04d0db", 
+      "actions": [
+        {
+          "msg": "Great to hear, Thanks for your time!", 
+          "type": "reply"
+        }
+      ]
+    }, 
+    {
+      "y": 346, 
+      "x": 543, 
+      "destination": null, 
+      "uuid": "3a2df235-b751-402f-a0e5-0c4f0f6923ce", 
+      "actions": [
+        {
+          "msg": "Sorry to hear that, someone will be in touch to help you with your filter.", 
+          "type": "reply"
+        }
+      ]
+    }
+  ], 
+  "metadata": {
+    "notes": [
+      {
+        "body": "This single question poll demonstrates how flows can easily help measure what is happening in the field.",
+        "x": 93, 
+        "y": 59, 
+        "title": "Simple Poll"
+      }
+    ]
+  }
+}

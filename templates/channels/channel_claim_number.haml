@@ -1,0 +1,229 @@
+-extends "smartmin/form.html"
+
+-load compress temba
+-load i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-channel-twilio
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Claim phone number"
+
+-block content
+  .row
+    .span9
+      -blocktrans
+        Once you claim a number you will immediately be able to send and receive messages. Users who send messages
+        to your number will be charged according to their plan.
+
+      %form#search-form
+        .country
+          .country-label
+            -trans "Country"
+          -block country-select
+            %select#country{ name:"country" }
+              - for country in search_countries
+                %option{ value:"={country.key}" }
+                  {{country.label}}
+
+        .area-code
+          .area-label
+            -trans "Pattern"
+          %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
+          %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
+
+      .twilio-numbers-title
+
+      #throbber{ style: "display:none;" }
+        %img{ src: "{{ STATIC_URL }}/images/loader-circles.gif" }
+      #results
+
+
+      -if form.errors
+        -if form.errors.upgrade
+          :javascript
+            document.location.href = '{% url 'orgs.org_upgrade_plan' %}?from=twilio'
+        -else
+          .error{ style: "padding: 5px" }
+            {{ form.errors.phone_number }}
+
+      .error{ style: "display:none;margin-top:10px;" }
+        -if error
+          {{ error }}
+
+      -if account_numbers
+        #account-numbers
+          .numbers-title
+            Add an existing supported number to your account
+          -for number in account_numbers
+            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}"}
+              %span.number
+                {{ number.number }}
+              (<span class="country">{{ number.country }}</span>)
+              .support-status
+                - if number.country in supported_country_iso_codes or number.number|length <= 6
+                  - trans "Supported"
+                - else
+                  - trans "Unsupported"
+
+      %form#claim-form{ style: "display:none;", method:"POST", action:"{{ claim_url }}" }
+        {% csrf_token %}
+        %input#claim-country{ type:"text", name:"country" }
+        %input#phone-number{ type:"text", name:"phone_number" }
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $("#results").on('click', ".phone-number", function(e){
+        $("#phone-number").val($(this).text());
+        $("#claim-country").val($("#country").val());
+        $("#claim-form").submit();
+    });
+
+    $("#account-numbers").on('click', ".phone-number", function(e){
+        $("#phone-number").val($(this).find(".number").text());
+        $("#claim-country").val($(this).find(".country").text());
+        $("#claim-form").submit();
+    });
+
+    function searchNumbers(e){
+      var area_code = $("#area-code").val();
+      var country = $("#country").val();
+
+      $(".error").hide();
+      $("#results").empty();
+      $("#throbber").show();
+
+      $.ajax({
+        type: "POST",
+        url: "{{ search_url }}",
+        data: { area_code: area_code, country: country },
+        dataType: "json",
+        success: function(data, status, xhr){
+          $("#throbber").hide();
+          if (data.length > 0){
+            $("#claim-country").val(country);
+            for (var i=0; i < data.length; i++){
+              $("#results").append("<div class='phone-number'>" + data[i] + "</div>");
+            }
+            $("#results").show();
+          } else if ('error' in data) {
+            $(".error").text(data['error']);
+            $(".error").show();
+          } else {
+            $(".error").text("{% trans 'Sorry, no numbers found, please enter another area code and try again.' %}");
+            $(".error").show();
+          }
+        },
+        failure: function(req){
+           $("#throbber").hide();
+           $(".error").show();
+        }
+      });
+
+      e.preventDefault();
+      return false;
+    }
+
+    $(function(){
+      $("#area-code").focus();
+      $("#search-form").on('submit', searchNumbers);
+      select2div('#country')
+    });
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .numbers-title {
+          font-weight: 600;
+        }
+
+        #account-numbers {
+          margin-top: 20px;
+        }
+
+        .country {
+          display:inline-block;
+        }
+
+        .area-code {
+          display:inline-block;
+          margin-left:15px;
+        }
+
+
+        .country-label {
+         display:block;
+         margin-bottom:7px;
+        }
+
+        .area-label {
+          margin-bottom:7px;
+        }
+
+        #area-code {
+          width: 50px;
+          margin-bottom: 0px;
+          text-align: center;
+          margin-right:15px;
+        }
+
+        .phone-number,
+        .unsupported-phone-number {
+          display: inline-block;
+          font-size: 16px;
+          padding: 8px;
+          border: 1px solid #ccc;
+          margin: 5px;
+        }
+
+        .unsupported-phone-number {
+          background: #ccc;
+        }
+
+        .support-status {
+          font-size: 10px;
+          line-height: 10px;
+        }
+
+        .error {
+          padding: 5px;
+        }
+
+        .phone-number:hover {
+          border: 1px solid #237ab3;
+          background-color: #2980b9;
+          background-image: -webkit-linear-gradient(top, #2980b9, #1970a9);
+          background: -moz-linear-gradient(top, #2980b9, #1970a9);
+          color: #ffffff;
+          cursor: pointer;
+        }
+
+        .unsupported-phone-number:hover {
+          cursor: default;
+        }
+
+        .unsupported-phone-number:hover > .support-status {
+          color: red;
+        }
+
+        #search-form {
+          display: block;
+          margin-top:20px;
+          padding-bottom:10px;
+        }
+
+        .title-icon .glyph {
+          font-size: 45px;
+          margin-top: 25px;
+        }
+
+        .title-icon + .title-text {
+          margin-left: 55px;
+        }
+    {% endlessblock %}

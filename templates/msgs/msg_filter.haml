@@ -1,0 +1,62 @@
+-extends "msgs/message_box.html"
+-load smartmin sms
+-load i18n
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-tag
+
+-block buttons-right
+  -block gear-menu
+    -include "gear_links_include.haml"
+
+-block post-content
+  {{ block.super }}
+  - if org_perms.msgs.label_delete
+    .deletion.hide
+      .title
+        -trans "Remove Label"
+
+      .body
+        %p
+          -trans "Are you sure you want to remove this label?"
+        %p
+          %b {{ current_label }}
+          %p
+            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+
+      %a#delete-form.posterize{href:'{% url "msgs.label_delete" current_label.pk %}'}
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    {% if org_perms.msgs.label_delete %}
+    $(".remove-label").live('click', function(){
+      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){
+        $('#delete-form').click();
+      }}, false);
+      modal.setPrimaryButton('{% trans "Remove" %}');
+      modal.show();
+    });
+    {% endif %}
+
+    {% if org_perms.msgs.broadcast_send %}
+    $(".page-content").on('click', ".filter-send-all-send-button", function() {
+      showComposeInitialized("l=" + {{current_label.pk}}{% if current_run %} + "&run=" + {{current_run.pk}}{% endif %});
+    });
+    {% endif %}
+
+    {% if org_perms.msgs.label_update %}
+    $(".page-content").on('click', ".label-update-btn", function() {
+      var modal = new Modax('{% trans "Update Label" %}', '{% url "msgs.label_update" current_label.pk %}')
+      modal.setIcon('icon-tag');
+      modal.setListeners({
+        onSuccess: function() { location.reload(); }
+      })
+      modal.show();
+      return false;
+    });
+    {% endif %}

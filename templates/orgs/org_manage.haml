@@ -1,0 +1,112 @@
+-extends "smartmin/list.html"
+
+-load compress temba smartmin humanize
+-load i18n
+
+-block extra-less
+  {{block.super}}
+  -compress css
+    {% lessblock %}
+      :plain
+        .login {
+          margin-top:5px;
+        }
+
+        .num-credits {
+          text-align:right;
+          font-size:22px;
+          font-weight:100;
+        }
+
+        .used-pct {
+          text-align:right;
+          font-size:18px;
+          color: #aaa;
+          &.used-warning {
+            color: @flat-mutedorange;
+          }
+
+          &.used-alert {
+            color: @flat-mutedred;
+          }
+        }
+
+        .table td {
+          vertical-align:middle
+        }
+
+        .value-owner {
+          width:280px;
+        }
+
+        .owner {
+          display:inline;
+        }
+
+        .login {
+          float:right;
+          width: 50px;
+          margin-right:20px;
+        }
+
+        .owner-email {
+          font-size:11px;
+          line-height:11px;
+
+        }
+
+        .owner-name {
+        }
+
+        .org-timezone {
+          font-size: 11px;
+          line-height:11px;
+        }
+
+        .quick {
+          padding: 5px;
+        }
+
+        .quick-searches {
+          margin-bottom: 20px;
+          background: @flat-white + #090909;
+          padding:10px;
+          .rounded-corners(5px);
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    $(document).ready(function() {
+      $('.num-credits').each(function() {
+        $(this).text(parseInt($(this).text().strip()).toLocaleString());
+      });
+    });
+
+
+-block pre-table
+  .quick-searches
+    -if search == ""
+      %span{class:'quick'}
+        All
+    -else
+      %a{class:'quick', href:'?search='} All
+
+    -for s in searches
+      |
+      -if search == s
+        %span{class:'quick'}
+          {{ s }}
+      -else
+        %a{class:'quick', href:'?search={{s}}'}= s
+
+/*-block content
+  .quick
+    -for org in quick
+      %a.login.btn.btn-tiny.posterize{href:"{% url 'users.user_mimic' org.administrators.all.0.pk %}", class:"{{org.plan}}"}
+        {{org.name|slice:":14"}} - {{ org.administrators.all.0.first_name }}
+
+  {{block.super}}

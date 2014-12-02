@@ -1,0 +1,457 @@
+{% extends "smartmin/base.html" %}
+
+-load compress temba i18n
+
+-block html-tag
+  <html lang="en" ng-app="app">
+
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+        .empty {
+          margin-left: 30px;
+
+          .option {
+            border: 0px solid green;
+            width: 350px;
+            padding: 5px;
+            padding-top:0px;
+
+            .button {
+              margin-top: 12px;
+            }
+
+          }
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{ block.super }}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.jsPlumb-1.6.3.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}angular/sortable.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}angular/ui-bootstrap-tpls-0.11.0.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.caret.min.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.atwho.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}scripts/autosize/jquery.autosize-min.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}scripts/angular-elastic-2.4.0/angular-elastic.js'}
+
+
+  :javascript
+    window.flowId = {{ object.pk }};
+    window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
+    window.activityURL = '{% url "flows.flow_activity" object.pk %}';
+    window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
+    window.mutable = {{mutable|lower}};
+    window.ivr = '{{object.flow_type}}' == 'V';
+    window.recordingURL = '{{recording_url}}';
+    // TODO: All inline javascript below should be replaced with corresponding angular implementations
+
+    // Editing the flow
+    {% if org_perms.flows.flow_update %}
+    $(".update-rulesflow").live('click', function(){
+      var modal = new Modax('Update Flow', '{% url "flows.flow_update" object.pk %}');
+      modal.setIcon('icon-users-2');
+      modal.setListeners({
+        onSuccess: function(data) {location.reload(); },
+        onFormLoaded: function() {
+          $('#id_label').children("option:first-child").before("<option></option>");
+          $('#id_label').select2({minimumResultsForSearch: -1, placeholder: "No Label Selected"});}
+      });
+      modal.show();
+    });
+    {% endif %}
+
+    // Starting the flow
+    {% if org_perms.msgs.broadcast_send %}
+      $(".broadcast-rulesflow").live('click', function(){
+        var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
+        var onActions = {
+          onSuccess: function(data) {
+            $('html').scope().pending = 'P';
+          },
+          onFormLoaded: function() { }
+        }
+        // check if there is no channel, change the primary button behavior to redirect to channel creation
+        if('{{has_outgoing_channel}}' == 'False') {
+          modal.setPrimaryButton(gettext("Add Channel"));
+          onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
+        }
+        modal.setListeners(onActions);
+        modal.show();
+      });
+    {% endif %}
+
+    $(function(){
+      // where is our status box now?
+      var statusTop = $("#status").offset().top;
+
+      // when the window scrolls check to see whether it is about to go off screen. If so then switch to fixed.
+      $(window).scroll(function() {
+        var topOfWindow = $(window).scrollTop();
+        if (statusTop < topOfWindow) {
+          $("#status").addClass("fixed");
+        } else {
+          $("#status").removeClass("fixed");
+        }
+      });
+    });
+
+    function broadcastToNode(nodeUUID) {
+      var queryString = "s=" + nodeUUID;
+
+      if (window.simulation) {
+        queryString += "&simulation=true";
+      }
+
+      showComposeInitialized(queryString);
+      return false;
+    }
+
+    $(document).ready(function() {
+      {% if starting %}
+        $("html").scope().pending = 'P';
+      {% endif %}
+    })
+
+
+  -compress js
+    %script{src:"{{ STATIC_URL }}coffee/flows/app.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/flows/validation.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/flows/widgets.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/flows/services.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/flows/controllers.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/flows/directives.coffee", type:'text/coffeescript'}
+    %script{src:"{{ STATIC_URL }}coffee/simulator.coffee", type:'text/coffeescript'}
+
+
+  :javascript
+    $(document).ready(function(){
+      window.setTimeout(function(){
+        window.wsOffset = $("#flow").offset();
+      }, 100)
+    });
+
+-block page-top
+
+-block page-container
+
+  -include "msgs/msg_send_modal.html"
+  -include "delete_modal_include.html"
+
+  #drag-helper.hide
+    .tail
+    .arrow.icon-arrow-down-2
+    .help-text
+      -trans "To make your next connection,"
+      %span.attn
+        -trans "drag"
+      -trans "the red box."
+
+  #status
+    .throbber{ng-show:'saving'}
+      %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+    .error{ng-show:'error'}
+      [[error]]
+
+
+  -if user_org
+    #show-simulator.btn.btn-primary
+      .icon-mobile
+      .message.hide
+        -trans "Run in"
+        %br
+        -trans "Simulator"
+
+  #version-mask{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
+    .buttons.pull-right
+      .btn.btn-danger{ng-click:'apply()'}
+        Revert
+      .btn.btn-secondary{ng-click:'cancel()'}
+        Cancel
+
+  #versions{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
+    %h4
+      Revision History
+    .version{ng-repeat:'version in versions', ng-class:'{selected:version.selected}'}
+
+
+      <a ng-click='showVersion(version)' href='#'>[[version.created_on|date:'medium']]</a>
+      .author
+        .name
+          [[version.user.name]]
+        .email
+          [[version.user.email]]
+
+
+  #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:''}
+    -include "flows/simulator.html"
+
+    #toolbar
+      .actions.pull-right
+        -include "gear_links_include.haml"
+
+      %h2
+        -if flow.flow_type == 'V'
+          .icon-phone
+        {{ flow.name }}
+
+      #pending{ng-show:'pending == "S" || pending == "P"'}
+        %div{class:"alert alert-info"}
+          -blocktrans
+            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+
+      .languages{ng-show:'flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
+        <span ng-repeat="lang in languages">
+          <a href="javascript:void(0);" class='language' ng-class='{active:lang == $root.language}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <span ng-hide='$last'>|</span>
+        </span>
+
+    #status.hide
+      #error
+        .glyph.icon-warning
+        -trans "Error Contacting Server. Changes may not be saved."
+
+      #saving
+        .throbber
+          %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+
+    #workspace{ng-dblclick:'addNote($event); $event.stopPropagation();'}
+
+      #flow{ class:'{% if not mutable %}readonly{%endif%}'}
+
+        .empty{ng-show:'flow.action_sets.length + flow.rule_sets.length == 0'}
+
+          .option
+            %h4
+              -trans "Let's get started"
+            -if flow.flow_type == 'V'
+              -blocktrans
+                It's a good idea to start your call off by saying something first. You'll probably want to
+                introduce yourself and ask them a question. Just type the message for now, you'll be able to
+                add a voice recording of your message later.
+            -else
+              -blocktrans
+                We recommend starting your flow by sending a message. This message will be sent to anybody right
+                after they join the flow. This is your chance to send a single message or ask them a question.
+
+            .button
+              %a.btn.btn-primary{ng-click:'createFirstAction()'}
+                Create Message
+
+
+          .option.hide
+            %h4
+              -trans "Receive a Message First"
+            -blocktrans
+              A more advanced flow might start by receiving a message first. This lets you do different things
+              based on how the flow was triggered.
+            .button
+              %a.btn.btn-primary
+                Receive Message First
+
+
+        // Our empty action node shown while dragging
+        -if object.flow_type == 'V'
+          .ghost.actions.node.action-node.hide
+            .actions
+              .action.say
+                .title
+                  Play Message
+                .summary
+                  %span.translation
+                    Click here to play a message
+        -else
+          .ghost.actions.node.action-node.hide
+            .actions
+              .action.reply
+                .title
+                  Send Message
+                .summary
+                  %span.translation
+                    Click here to send a message
+
+        // Empty rule node shown while dragging
+        .ghost.rules.node.rule-node.hide
+          .rule-header
+            .title
+              Save Response
+          %table
+            %tr.rules
+              %td.rule
+                .category
+                  All Responses
+
+        .node{ng-repeat:'action_set in flow.action_sets', drop-scope:'actions', node:'action_set', ng-dblclick:'$event.stopPropagation()',
+              id:'[[action_set.uuid]]', class:'action-node', ng-class:'{translate:lastActionMissingTranslation(action_set)}'}
+
+          .active{ng-show:'action_set._active > 0', ng-click:'broadcastToStep(action_set.uuid)'}
+            [[action_set._active|number]]
+
+          .flow-start{ng-show:'action_set.uuid == flow.entry'}
+            -trans "Flow Start"
+
+          .actions{ actionset:'action_set', ng-animate:'"animate"'}
+            .action{ng-repeat:'action in action_set.actions', action:'action', language:'language',
+                    ng-file-drop:"onFileSelect($files, action_set, action)", ng-file-drag-over-class:"upload-hover",
+                    ng-click:'clickAction(action_set, action); $event.stopPropagation()',
+                    class:'[[action.type]]', ng-class:'{ disabled:!action._translation, missing: action._missingTranslation }'}
+              .drop-overlay.hide
+                %p
+                  Drop to upload new sound file
+
+              .title.action-name{ ng-model: 'action' }
+
+              .remove-warning
+                Remove Action?
+
+              .move-up.icon-arrow-down{ ng-click: 'moveActionUp(action_set, action); $event.stopPropagation()' }
+
+              .remove.icon-close{ ng-click: 'confirmRemoveAction($event, action_set, action); $event.stopPropagation()' }
+
+
+              .address{ng-show:'action.type == "send" || action.type == "trigger-flow"'}
+                .to-label{ ng-if:'action.type == "send"' }
+                  To:
+                .to-label{ ng-if:'action.type == "trigger-flow"' }
+                  Who:
+                .recipients
+                  .recipient.omni-option.omni-group{ng-repeat:'group in action.groups'}
+                    [[group.name]]
+                  .recipient.omni-option.omni-contact{ng-repeat:'contact in action.contacts'}
+                    [[contact.name]]
+                  .recipient{ng-repeat:'variable in action.variables'}
+                    [[variable.id]]
+
+              .address{ng-show:'action.type == "email"'}
+                .to-label
+                  To:
+                .recipients
+                  .recipient{ng-repeat:'email in action.emails'}
+                    [[email]]
+
+              .summary
+
+                %span.language{ng-show:'action.type == "lang"'}
+
+                  [[action.name]]
+
+                // messages with translations
+                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
+
+                  [[action._translation]]
+
+                  %span.recording{ng-show:'action.type=="say"'}
+
+                    .upload-button.icon-mic{ng-hide:'action._translation_recording || action.uploading', ng-file-select:'onFileSelect($files, action_set, action);', ng-click:'$event.stopPropagation();' }
+
+                    .play-button.icon-arrow-right-8{ng-show:'action._translation_recording', ng-click:'playRecording(action.uuid); $event.stopPropagation();'}
+                    %audio.player{id:'[[action.uuid]]_audio', type:"audio/wav", preload:'none', ng-show:'action._translation_recording', src:'[[action._translation_recording]]'}
+
+                    .uploading{ng-show:'action.uploading'}
+                      %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+                      .cancel.icon-cancel-circle{ng-click:"upload.abort(); action.uploading=false; action.dirty=true; $event.stopPropagation();"}
+
+                // updating contacts
+                %span{ng-show:'action.type == "play"'}
+                  Play recording
+                  %span.attn
+                    [[action.url]]
+
+                // adding labels to SMS
+                .msg-label{ng-repeat:"label in action.labels", ng-show:'action.type == "add_label"'}
+                  .msg-label-name.force-wrap{ng-show:'label.name'}
+                    [[label.name]]
+                  .msg-label-name.force-wrap{ng-hide:'label.name'}
+                    [[label]]
+
+                // adding or removing groups
+                .group.omni-group{ng-repeat:"group in action.groups", ng-show:'action.type == "add_group" || action.type == "del_group"'}
+                  .group-name.force-wrap{ng-show:'group.name'}
+                    [[group.name]]
+                  .group-name.force-wrap{ng-hide:'group.name'}
+                    [[group]]
+
+                // updating contacts
+                %span{ng-show:'action.type == "save"'}
+                  Update value for
+                  %span.attn
+                    [[action.label]]
+
+                // sending emails
+                %span{ng-show:'action.type == "email"'}
+                  .subject
+                    [[action.subject]]
+
+                // starting flows
+                %span{ng-show:'action.type == "flow" || action.type == "trigger-flow"'}
+                  .start-flow
+                    [[action.name]]
+
+                // webhooks
+                %span{ng-show:'action.type == "api"'}
+                  .webhook
+                    [[action.webhook]]
+
+          .add.icon-plus-circle2{ng-click:'addAction(action_set);'}
+          .source{drop-scope:'rules', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
+          .visited{ng-show:'action_set._visited && action_set.destination'}
+            .count
+              [[action_set._visited|number]]
+
+
+        .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid', node:'ruleset', drop-scope:'rules', ng-dblclick:'$event.stopPropagation()',
+              id:'[[ruleset.uuid]]', class:'rule-node'}
+
+          .active{ng-show:'ruleset._active > 0', ng-click:'broadcastToStep(ruleset.uuid)'}
+            [[ruleset._active|number]]
+
+          .flow-start{ng-show:'ruleset.uuid == flow.entry'}
+            -trans "Flow Start"
+
+          .webhook-header{ng-show:'ruleset.webhook != null', ng-click:'clickWebhook(ruleset)'}
+            .title
+              -trans "Webhook"
+
+            .remove-warning
+              Remove Webhook?
+
+            .remove.icon-close{ ng-click: 'confirmRemoveWebhook($event, ruleset); $event.stopPropagation()' }
+
+            .url
+              [[ruleset.webhook]]
+
+
+          .rule-header{ng-click:'clickRuleset(ruleset)'}
+            .title
+              [[ruleset.label]]
+
+            .remove-warning
+              Remove Rules?
+
+            .remove.icon-close{ ng-click: 'confirmRemoveRuleset($event, ruleset); $event.stopPropagation()' }
+
+          %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
+            %tr.rules
+              %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', id:'[[getSource(category)]]',
+                       ng-class:'{ missing: category._missingTranslation }'}
+                .category
+                  [[category._translation]]
+                .source{drop-scope:'actions', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
+
+                .visited{ng-show:'category._visited && category.target'}
+                  .count
+                    [[category._visited|number]]
+
+        .note{ng-repeat:'note in flow.metadata.notes', note:'note'}
+          %a.close{ng-click:'removeNote(note);'}
+            .glyph.icon-close
+          %textarea.msd-elastic.title.note-input{ng-model:'note.title'}
+          %textarea.msd-elastic.body.note-input{ng-model:'note.body'}
+
+-block extra-style
+  -compress css
+    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/flow_editor.less', media:'all'}
+    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}

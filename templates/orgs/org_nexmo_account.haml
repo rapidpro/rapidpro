@@ -1,0 +1,40 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-nexmo
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Disconnect Nexmo"
+
+-block pre-form
+  .row
+    .span6.disconnect-help
+      -if config.NEXMO_KEY and config.NEXMO_SECRET
+        -trans "This account is connected to a Nexmo account."
+        .account_details
+          .account_key
+            -trans "API Key:"
+          .account_value
+            {{ config.NEXMO_KEY }}
+
+          .account_key
+            -trans "API Secret:"
+          .account_value
+            {{ config.NEXMO_SECRET }}
+      -else
+        -trans "This account is not connected to a Nexmo account."
+
+
+-block form-buttons
+  .form-actions
+    -if config.NEXMO_KEY and config.NEXMO_SECRET
+      %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
+    -else
+      %a.btn.btn-primary{href:"{% url 'orgs.org_nexmo_connect'%}"}
+        -trans "Connect Nexmo"
+

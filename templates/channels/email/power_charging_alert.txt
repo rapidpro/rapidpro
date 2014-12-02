@@ -1,0 +1,19 @@
+{% load i18n %}
+
+{% blocktrans with org_name=org.name %}
+Hi {{ org_name }},
+
+We've noticed that the Android phone for {{ org.name }} is now charging the battery.
+This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.
+{% endblocktrans %}
+
+{% blocktrans with channel_name=channel.get_name %}
+   You can check the current status of your {{ channel_name }} by visiting its
+{% endblocktrans %}
+   https://{{ branding.host }}/channels/channel/read/{{ channel.id }}/
+                                                                                                    
+{% trans "Thanks!" %}
+
+
+{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}
+                 

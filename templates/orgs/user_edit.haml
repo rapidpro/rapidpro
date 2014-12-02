@@ -1,0 +1,37 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block form-span
+  span8
+
+-block fields
+  .field.formax-vertical
+    {% render_field 'first_name' %}
+
+  .field.formax-vertical
+    {% render_field 'last_name' %}
+
+  .field.formax-vertical
+    {% render_field 'email' %}
+
+  .field.formax-vertical
+    {% render_field 'current_password' %}
+
+  .field.formax-vertical
+    {% render_field 'new_password' %}
+
+  .field.formax-vertical
+    {% render_field 'language' %}
+
+  %br
+
+-block summary
+  -blocktrans with email=user.username
+    Your email address is <span class='attn'>{{email}}</span>.
+
+-block extra-script
+  :javascript
+    $(document).ready(function() {
+      select2div('#id_language');
+    });

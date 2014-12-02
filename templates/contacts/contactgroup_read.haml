@@ -1,0 +1,86 @@
+-extends "smartmin/read.html"
+
+-load smartmin
+-load i18n
+
+-block fields
+  .row
+    .span3
+      -for contact in object.contacts.all
+        %a{'href':'{% url "contacts.contact_read" contact.uuid %}'}
+          {{contact.first_name}} {{contact.last_name}}
+    .span9
+      %table.table.table-condensed.table-striped
+        %tbody
+          -for broadcast in broadcasts
+            %tr
+              %td.direction
+                .glyph.icon-mobile-2
+                .glyph.icon-arrow-left-7
+                .glyph.icon-cloud
+              %td
+                {{ broadcast.text }}
+
+              %td.status
+                -ifequal broadcast.status 'P'
+                  -if broadcast.created|timesince >= "0 hour, 5 minutes"
+                    .glyph.icon-bubble-dots-2.queued
+                  -else
+                    .glyph.icon-bubble-dots-2.queued_instantly
+                -ifequal broadcast.status 'Q'
+                  -if broadcast.created_on|timesince >= "0 hour, 5 minutes"
+                    .glyph.icon-bubble-dots-2.queued
+                  -else
+                    .glyph.icon-bubble-dots-2.queued_instantly
+                -ifequal broadcast.status 'S'
+                  .glyph.icon-bubble-3.sent
+                -ifequal broadcast.status 'D'
+                  .glyph.icon-bubble-check.delivered
+                -ifequal boadcast.status 'H'
+                  .glyph.icon-bubble-3.handled
+                -ifequal broadcast.status 'E'
+                  .glyph.icon-bubble-notification.errored
+                -ifequal broadcast.status 'F'
+                  .glyph.icon-bubble-notification.failed
+              %td.created
+                {{ broadcast.created_on|gmail_time }}
+
+{% block extra-style %}
+:css
+  .direction{
+  width: 52px;
+  }
+  .status{
+  width: 15px;
+  }
+  .created{
+  width: 100px;
+  }
+ .queued{
+  color: #faa732;
+  }
+ .queued_instantly{
+  color: #49afcd;
+  }
+ .pending{
+  color: #faa732;
+  }
+ .pending_instantly{
+  color: #51a351;
+  }
+ .sent{
+  color: #5bb75b;
+  }
+  .delivered{
+  color: #51a351;
+  }
+ .handled{
+  color: #5bb75b;
+  }
+ .errored{
+  color: #da4f49;
+  }
+ .failed{
+  color: #da4f49;
+  }
+{% endblock %}

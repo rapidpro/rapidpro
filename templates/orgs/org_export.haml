@@ -1,0 +1,196 @@
+-extends "smartmin/read.haml"
+
+-load temba compress i18n humanize
+
+-block title
+  %h1
+    Create Export
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $('.toggle-all').on('change', function() {
+      var checked = 'checked' == $(this).attr('checked');
+      var id = $(this).attr('id');
+      $(this).parents('.exportables').find('.exportable.' + id + ' input').each(function(){
+         $(this).attr('checked', checked);
+      });
+    })
+
+    $('.select-all').on('click', function(){
+      $('.toggle-all').each(function(){
+        $(this).attr('checked', true).trigger('change');
+      });
+    });
+
+    $('.select-section').on('click', function() {
+      $(this).parents('.exportables').find('.toggle-all').each(function(){
+         $(this).attr('checked', true).trigger('change');
+      });
+    });
+
+    $('.submit').on('click', function() {
+      $('form.export').submit();
+    });
+
+
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+
+        .select-section {
+          margin-top: -80px;
+          margin-right: -20px;
+        }
+
+        h3 {
+          margin-top:30px;
+        }
+
+        .exportables {
+          border-top: 1px solid #ccc;
+          padding:0px 20px;
+          .exportable {
+            vertical-align:top;
+            width: 350px;
+            display:inline-block;
+            padding-left:23px;
+            margin-bottom:10px;
+          }
+
+          h4 {
+            font-size:13px;
+            font-weight:500;
+            color: #999;
+            padding-top:10px;
+          }
+
+          input[type=checkbox] {
+            display: inline-block;
+            margin-top:3px;
+            margin-right: 5px;
+            vertical-align:top;
+
+          }
+
+          label {
+            display: inline-block;
+            width: 290px;
+          }
+
+          .icon {
+
+          }
+        }
+
+
+
+        .dependencies {
+          color: @flat-darkwhite - #222;
+          margin-left: 25px;
+          font-size:12px;
+
+          p {
+            display: inline;
+            font-weight: 500;
+            margin: 0;
+            padding: 0;
+          }
+
+          .icon {
+
+          }
+
+          .list {
+            display: inline;
+            margin-right: 2px;
+            margin-left: 2px;
+          }
+
+        }
+    {% endlessblock %}
+
+-block page-top
+  -if not archived
+    .pull-right
+      %a.btn.btn-secondary{href:'?archived=1'}
+        -trans "Show Archived"
+  -else
+    .pull-right
+      %a.btn.btn-secondary{href:'?'}
+        -trans "Hide Archived"
+
+
+  {{ block.super }}
+
+-block content
+
+
+  -blocktrans
+    Select all of the items below that you would like to include in your export. We've grouped them
+    together based on which flows and campaigns work with each other. Any related triggers will automatically
+    be included in the export.
+
+  %form.export{method:'POST'}
+    {%csrf_token%}
+    -for bucket in buckets
+      %h3
+        -trans "Group"
+        {{ forloop.counter|apnumber|capfirst }}
+
+      .exportables
+        .pull-right
+          %a.btn.btn-tiny.select-section
+            -trans "Select Group"
+            {{ forloop.counter|apnumber|capfirst }}
+
+        -for exportable in bucket
+          -ifchanged
+            %h4
+              %input.toggle-all{type:'checkbox', id:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}'}
+              %label{for:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}'}
+                .icon{class:"{{ exportable|icon }}"}
+                {{ exportable|verbose_name_plural|capfirst }}
+          .exportable{class:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}'}
+            %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}-{{exportable.pk}}', type:'checkbox'}
+            %label{for: '{{exportable|verbose_name_plural}}-{{exportable.pk}}'}
+              {{ exportable }}
+
+    -if singles
+
+      -if buckets
+        %h3
+          -trans "Everything Else"
+      -else
+        %h3
+          -trans "Flows and Campaigns"
+
+      .exportables
+        -if buckets
+          .pull-right
+            %a.btn.btn-tiny.select-section
+              -if buckets
+                -trans "Select Everthing Else"
+
+        -for exportable in singles
+          -ifchanged
+            %h4
+              %input.toggle-all{type:'checkbox', id:'{{ exportable|verbose_name_plural}}'}
+              %label{for:'{{ exportable|verbose_name_plural}}'}
+                .icon{class:"{{ exportable|icon }}"}
+                {{ exportable|verbose_name_plural|capfirst }}
+          .exportable{class:'{{ exportable|verbose_name_plural }}'}
+            %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
+            %label{for: '{{exportable|verbose_name_plural}}_{{exportable.pk}}'}
+              {{ exportable }}
+
+    %hr
+    %a.btn.select-all
+      -trans "Select All"
+
+    %a.btn.btn-success.submit
+      -trans "Export"
+

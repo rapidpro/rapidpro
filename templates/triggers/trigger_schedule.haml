@@ -1,0 +1,93 @@
+-extends 'smartmin/form.html'
+-load i18n
+
+-block form-span
+
+
+-block extra-style
+  :css
+    #trigger_flow .control-group .control-label, 
+    #trigger_omnibox .control-group .control-label {
+      float: none;
+      text-align: left;
+      width: 160px;
+    }
+
+    #trigger_flow .control-group .controls, 
+    #trigger_omnibox .control-group .controls {
+      margin-left: 0px;
+    }
+
+    #trigger_omnibox {
+      width: 430px;
+    }
+
+    #start-datetime {
+
+    }
+
+
+-block extra-script
+  {{ block.super }}
+  %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=3"}
+
+  <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+  :javascript
+    var user_tz = "{{ user_tz }}";
+    var user_tz_offset = {{ user_tz_offset }};
+
+    $(document).ready(function() {
+        select2div("#id_schedule_flow", "520px", '{% trans "Flow to start" %}');
+        var minDate = new Date();
+        var minutes = minDate.getMinutes();
+        if (minutes > 0) {
+            minDate.setMinutes(0);
+            minDate.setHours(minDate.getHours() + 1);
+        }
+
+        initializeDatetimePicker(minDate, undefined, false);
+    });
+
+
+-block fields
+  -load smartmin
+
+  #trigger_flow
+    - render_field 'flow'
+  #trigger_omnibox
+    - render_field 'omnibox'
+    
+  #schedule-options
+    %label.schedule-options-label{for:"later-option"}
+      #start-datetime{ name:'start_datetime', disabled:'true', value:'{% trans "Select a date" %}'}
+    %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
+    %input#later-option{name:'start',type:'hidden',value:'later'}
+
+
+  #recurrence
+    .repeat-period
+      %p.instructions
+        -render_field 'repeat_period'
+    .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
+      .btn-group{'data-toggle':'buttons-checkbox'}
+        #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+          -trans "Mon"
+        #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+          -trans "Tue"
+        #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+          -trans "Wed"
+        #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+          -trans "Thu"
+        #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+          -trans "Fri"
+        #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+          -trans "Sat"
+        #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+          -trans "Sun"
+
+      %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+
+-load humanize
+
+-block summary
+  -trans "Start a flow in the future or on a schedule."

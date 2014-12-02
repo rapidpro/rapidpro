@@ -1,0 +1,204 @@
+-extends "smartmin/list.html"
+-load smartmin rules sms temba compress
+-load i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-feed
+
+-block page-top
+  {% render as page_top %}
+    {{block.super}}
+  {% endrender %}
+  -if org_has_triggers
+    {{page_top}}
+
+-block top-form
+  - if view.search_fields
+    - block search-form
+      %form
+        %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+        -if request.REQUEST.status
+          %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
+
+-block content
+  -if not org_has_triggers
+    -include "triggers/empty_include.html"
+  -else
+
+    #pjax
+      -block pjax
+        .row-fluid
+          .span3.sidebox
+            %div{style:"margin-bottom: 10px"}
+              - if org_perms.triggers.trigger_create
+                %a.btn.btn-primary.btn-block.create_trigger.new-trigger{href:"{% url 'triggers.trigger_create' %}"}
+                  -trans "Create Trigger"
+
+            #sidebar-nav
+              %ul.nav.nav-list.level1
+                %li.nav-header
+                  -trans "Triggers"
+                - for folder in folders
+                  %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
+                    %a{'href':'={folder.url}'}
+                      {{ folder.label }} ({{ folder.count }})
+
+          -block trigger-list
+            .span9
+              - block buttons
+                .pull-right
+                  -block buttons-right
+
+                - if org_perms.triggers.trigger_update
+                  .list-buttons-container
+                    .list-buttons.hide
+                      -if 'restore' in actions
+                        %span.btn-group
+                          %a.object-btn-restore{'href':'#'}
+                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
+                              .glyph.icon-feed
+
+                      -if 'archive' in actions
+                        %span.btn-group
+                          %a.object-btn-archive{'href':'#'}
+                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
+                              .glyph.icon-box
+
+              %table.list-table.trigger-list.object-list.table.table-condensed{style: '{% if not org_perms.triggers.trigger_update %}margin-top:10px{% endif %}'}
+                %tbody
+                  -for obj in object_list
+                    %tr.trigger.object-row{ data-object-id: "{{ obj.id }}" }
+                      - if org_perms.triggers.trigger_update
+                        %td.trigger.checkbox.object-row-checkbox
+                          -if obj.flow.flow_type != 'V' or obj.org.supports_ivr
+                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
+                      %td
+                        -if obj.trigger_type == 'R' or obj.trigger_type == 'K'
+                          -trans "The keyword"
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}= obj.keyword
+                            - else
+                              =obj.keyword
+                        -if obj.trigger_type == 'M'
+                          A
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "missed call"
+                            - else
+                              -trans "missed call"
+
+                        -if obj.trigger_type == 'C'
+                          An
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "uncaught message"
+                            - else
+                              -trans "uncaught message"
+
+                        -if obj.trigger_type == 'V'
+                          An
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "inbound call"
+                            - else
+                                -trans "inbound call"
+
+                        -if obj.trigger_type == 'F'
+                          A new
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "follow"
+                            - else
+                              -trans "follow"
+                          -if obj.channel
+                            on
+                            %span.attn
+                              %a{href:'{%url "channels.channel_read" obj.channel.pk%}'}= obj.channel
+
+                        -if obj.schedule
+                          -trans "The"
+                        -else
+                          -trans "starts the"
+                        %span.attn
+                          %a{href:'{%url "flows.flow_editor" obj.flow.pk%}'}= obj.flow
+                        -trans "flow"
+                      
+                        -if obj.schedule
+                          -if obj.schedule.next_fire
+                            -trans "will start in"
+                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                              - if org_perms.triggers.trigger_update
+                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                  {{ obj.schedule.next_fire|timeuntil}}
+                              - else
+                                {{ obj.schedule.next_fire|timeuntil}}
+                          -else
+                            -trans "is"
+                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                              - if org_perms.triggers.trigger_update
+                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}
+                                  -trans "not scheduled"
+                              - else
+                                -trans "not scheduled"
+
+                        -if obj.last_triggered
+                          %span.count
+                            %nobr
+                              ({{obj.trigger_count}} use{{obj.trigger_count|pluralize}})
+
+
+                      %td{ width: "250px" }
+                        .groups
+                          -for group in obj.groups.all
+                            %nobr
+                              .icon.icon-users-2
+                              .name
+                                {{ group.name }}
+
+                    - empty
+                      %tr.empty_list
+                        %td{colspan:3}
+                          -trans "No matching triggers."
+
+                - block extra-rows
+
+              - block paginator
+                - if object_list.count
+                  .paginator
+                    - include "smartmin/sidebar_pagination.haml"
+
+-block extra-style
+  :css
+    .groups {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .groups .icon {
+      display:inline-block;
+      margin-right: -3px;
+
+    }
+
+    .groups .name {
+      display: inline-block;
+      margin-right:6px;
+    }
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(document).on('click', '.update-trigger', function(e){
+       var modal = new Modax('{% trans "Update Trigger" %}', '/trigger/update/' + $(this).data("object-id") + '/');
+       modal.setIcon('icon-feed');
+       modal.setRedirectOnSuccess(true);
+       modal.show();
+    });
+    

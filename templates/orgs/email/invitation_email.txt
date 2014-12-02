@@ -1,0 +1,7 @@
+{% load i18n %}
+
+{% trans "You've been invited to join {{org.name}} on {{ branding.name }}." %}
+
+{% trans "Click this link to join" %}
+{{org.name}}
+      https://{{ branding.host }}/org/join/{{invitation.secret}}/

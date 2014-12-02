@@ -1,0 +1,18 @@
+-extends "smartmin/base.html"
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-users
+
+-block content
+  -for org in orgs
+    %a.org-choose.posterize{ href: "?organization={{ org.id }}" }
+      .icon-home
+      .name
+        {{ org.name }}
+
+-block extra-style
+  :css
+    .glyph.icon-users {
+      margin-top: 30px;
+    }

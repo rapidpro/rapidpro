@@ -1,0 +1,181 @@
+-extends "smartmin/form.html"
+
+-load smartmin
+-load i18n
+
+- block pjax
+  #pjax
+    .row{style:"height:250px;"}
+      .span3
+        #big-help.glyph.icon-address-book
+
+      .span9
+        %p
+          -trans "You can import your contacts from an XLS file you create in Excel."
+
+        %p
+          -trans "Each row should have the phone number (including country code) and the name of the contact if available."
+
+        %table#example.table
+          %tr
+            %th
+              -trans "Phone"
+            %th
+              -trans "Name"
+          %tr
+            %td 
+              -trans "+250788123123"
+            %td 
+              -trans "John Doe"
+          %tr
+            %td
+              -trans "+250788111222"
+            %td
+              -trans "Jane Doe"
+
+        - block import-status
+          #import-status
+            #import-message
+              - if task
+                - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"
+                  %p
+                    Importing..
+                    %img{src:"{{ STATIC_URL }}images/loader-circles.gif"}
+                
+
+                - else 
+                  - if task.status == "SUCCESS" and group.contacts.all
+                    - if results.creates
+                      .import-result
+                        .glyph.icon-checkmark.success
+                        -blocktrans count results.creates as create_count
+                          Created {{ create_count }} new contact
+                          -plural
+                            Created {{ create_count }} new contacts
+
+                    - if results.updates
+                      .import-result
+                        .glyph.icon-checkmark.success
+                        -blocktrans count results.updates as update_count
+                          Updated {{ update_count }} contact with an existing phone number
+                          -plural
+                            Updated {{ update_count }} contacts with existing phone numbers
+
+                    .import-result
+                      .glyph.icon-checkmark.success
+                      -blocktrans with contacts_count=results.records
+                        Added all contacts to the new
+                      %a{href:"{% url 'contacts.contact_filter' group.pk %}"}= group.name
+                      group
+
+                    - if results.errors
+                      .import-result
+                        .glyph.icon-warning.warning
+                        -blocktrans count results.errors as error_count
+                          Failed to import {{ error_count }} contact due to missing or invalid phone number
+                          -plural
+                            Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
+                  - else
+                    %p
+                      -blocktrans
+                        No contacts imported, please make sure your file contains "Name" and "Phone" columns.
+
+            - if show_form
+              %p
+                -blocktrans
+                  You can download
+                  %a{href:"{{STATIC_URL}}examples/contacts.xls"} this Excel template
+                  as a sample.
+              %p
+
+                %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
+                  - if form.non_field_errors
+                    %div.alert.alert-error.form-errors
+                      {{ form.non_field_errors }}
+                  
+                  -csrf_token
+                  -if form.non_field_errors
+                    %div.alert.alert-error.form-errors
+                      {{ form.non_field_errors }}
+
+                  -block fields
+                    %div#csv_file_errors
+                      {{ form.csv_file.errors }}
+                    #file-upload
+                      %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
+                    #real_button
+                      %input{type:"text", id:"file-field"}
+                      %a.btn.btn-primary
+                        -trans "Choose File"
+                    
+                  .form-buttons
+                    %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
+                    %a.btn{onclick:"javascript:history.go(-1)"}
+                      -trans "Cancel"
+ 
+
+{% block extra-style %}
+:css
+  .form-buttons {
+    margin-top: 10px;
+  }
+
+  #example {
+    margin-top: 20px;
+    background: #f8f8f8;
+  }
+
+  #file-upload {
+    position:relative;
+  }
+
+  #csv_file_errors {
+    font-size: 20px;
+  }
+
+  #real-button {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 1;
+    height:35px;
+    width:340px;
+  }
+
+  #file-field {
+    width:255px;
+    height:25px;
+    font-size:16px;
+    border:solid 1px #000;
+    margin-bottom: 0px;
+  }
+
+  #csv_file {
+    position:absolute;
+    width:340px;
+    height:35px;
+    top: 0px;
+    left: 0px;
+    text-align: right;
+    -moz-opacity:0 ;
+    filter:alpha(opacity: 0);
+    opacity: 0;
+    z-index: 2;
+  }
+
+  #import-message .import-result {
+    padding-bottom: 10px;
+    font-size: 20px;
+  }
+
+  #import-message .import-result .glyph {
+    font-size: 28px;
+    margin: 0px 20px;
+    line-height: 22px;
+  }
+
+  #import-message .import-result a {
+    text-decoration :none;
+  }
+
+{% endblock %}

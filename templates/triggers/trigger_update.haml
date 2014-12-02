@@ -1,0 +1,174 @@
+-extends 'smartmin/form.html'
+-load i18n
+-load humanize
+
+-block summary
+
+  -if object.trigger_type == 'M'
+    -trans "Missed call trigger activated. Change flow that starts on missed call."
+
+  -if object.trigger_type == 'C'
+    -trans "Catch all trigger activated. Change flow that catches all messages."
+
+  -if object.schedule.next_fire
+    -spaceless
+
+      -if object.schedule
+        -blocktrans
+          The next message will be sent <span class='attn next-fire'/>.
+
+    -if not object.schedule.repeat_period == 'O'
+      -if object.schedule.repeat_period == 'W' and object.schedule.repeat_days
+        -trans "It will repeat every"
+        -with object.schedule.get_repeat_days_display|length as day_count
+          -for day in object.schedule.get_repeat_days_display
+            {% if forloop.last and day_count > 1 %} {% trans "and" %} {%endif%}
+            %span.attn
+              {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
+
+        -trans "at around the same time."
+      -elif object.schedule.repeat_period == 'M'
+        -trans "It will repeat every"
+        %span.attn
+          -trans "month"
+        -blocktrans with repeat_day_of_month=object.schedule.repeat_day_of_month|ordinal
+          on the {{ repeat_day_of_month }}
+
+      -else
+        -blocktrans  with repeat_period_display=get_repeat_period_display|lower
+          It will repeat <span class='attn'>{{repeat_period_display}}</span> at around the same time.
+
+    -else
+      -blocktrans
+        It will <span class='attn'>not repeat</span>.
+
+  -else
+    -if object.trigger_type == 'K'
+      -trans "Create a message keyword that allows people to join a group."
+
+-block fields
+
+  -load smartmin
+  -if object.schedule
+
+    :css
+      #schedule-options #start-datetime {
+        margin-top:10px;
+        color: #2980b9;
+        cursor:pointer;
+      }
+
+
+    %p.instructions
+      -trans "Choose when you would like the flow to start."
+
+    #trigger_flow  
+      - render_field 'flow'
+    #trigger_omnibox
+      - render_field 'omnibox'
+
+    #schedule-options
+      -if object.schedule
+        %label.schedule-options-label{for:"later-option"}
+        %input#start-datetime{ name:'start_datetime', value:'{% trans "Select a date" %}'}
+        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
+        %input#later-option{name:'start',type:'hidden',value:'later'}
+
+    #recurrence{class:'{% if object.schedule.status != "S" %}hide{%endif%}'}
+      .repeat-period
+        %p.instructions
+          -render_field 'repeat_period'
+      .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
+        .btn-group{'data-toggle':'buttons-checkbox'}
+          #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+            -trans "Mon"
+          #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+            -trans "Tue"
+          #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+            -trans "Wed"
+          #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+            -trans "Thu"
+          #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+            -trans "Fri"
+          #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+            -trans "Sat"
+          #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+            -trans "Sun"
+
+        %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+
+    -else
+      {{block.super}}
+
+
+-block extra-style
+  {{block.super}}
+  :css
+    #id_action_join_group {
+      width: 100%;
+    }
+
+    #schedule-options {
+      margin-top: 10px;
+    }
+
+-block modal-script
+  {{block.super}}
+  -load compress
+  -compress js
+    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
+    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
+
+  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
+
+  :javascript
+    var user_tz = "{{ user_tz }}";
+    var user_tz_offset = {{ user_tz_offset }};
+
+    $(document).ready(function() {
+      window.message_completions = {{completions|safe}};
+
+      {% if object.trigger_type == 'C' %}
+        select2div("#id_catchall_flow", "520px", '{% trans "Flow to start" %}');
+      {% endif %}
+
+      {% if object.trigger_type == 'M' %}
+        select2div("#id_missedcall_flow", "520px", '{% trans "Flow to start" %}');
+      {% endif %}
+
+      {% if object.trigger_type == 'F' %}
+        select2div("#id_channel", "520px", '{% trans "Social media channel" %}');
+      {% endif %}
+
+      {% if object.trigger_type == 'K' or object.trigger_type == 'V' %}
+        $('#id_groups').select2({
+          containerCssClass: "select2-temba-field"
+        });
+      {% endif %}
+
+      initAtMessageText("#id_response");
+      
+      $('#id_flow').select2({
+        minimumResultsForSearch: -1
+      });
+
+      // this initialize day in the modal
+      day = getStartTime().day();
+
+      var minDate = new Date();
+      var minutes = minDate.getMinutes();
+      if (minutes > 0) {
+        minDate.setMinutes(0);
+        minDate.setHours(minDate.getHours() + 1);
+      }
+
+      {% if object.schedule.next_fire and object.schedule.next_fire|timeuntil != "0 minutes" %}
+        initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+      {% else %}
+        initializeDatetimePicker(minDate);
+      {% endif %}
+      {% if object.schedule.next_fire %}
+      setNextFireText({{ object.schedule.next_fire|date:"U" }})
+      {% endif %}
+    });
+

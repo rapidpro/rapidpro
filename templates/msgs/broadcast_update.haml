@@ -1,0 +1,65 @@
+-extends 'smartmin/form.html'
+
+-load smartmin
+-load i18n humanize
+
+-block form-span
+  span8
+-block fields
+  .instructions
+    -trans "Write the message that will get sent when the scheduled time arrives"
+    %fieldset
+      -render_field 'message'
+      #counter
+      -render_field 'omnibox'
+
+-block extra-script
+  :javascript
+    prepareOmnibox();
+    $("#id_message").keyup(messageTextareaLengthCheck);
+    $("#id_message").trigger('keyup');
+
+-block extra-style
+  :css
+    #broadcast_preview {
+      font-style:italic;
+      font-size:14px;
+    }
+
+    #counter {
+      display:block;
+      padding-top:10px;
+      height:20px;
+      font-size: 12px;
+      float:left;
+      width:84%;
+      text-align:right;
+      margin-top:-10px;
+    }
+
+    #id_message {
+      width:83%;
+      height:100px;
+    }
+
+
+-block summary
+
+  -if broadcast.recipient_count
+    -blocktrans with count_comma=broadcast.recipient_count|intcomma count cc=broadcast.recipient_count
+      The message will be sent to
+      %span.attn
+        {{ count_comma }} recipients
+      -plural
+        The message will be sent to
+        %span.attn
+          {{ count_comma }} recipients
+
+    #broadcast_preview
+      "{{ object.text }}"
+
+  -else
+    -blocktrans
+      %span.attn
+        Nobody
+      will be notified about this broadcast.

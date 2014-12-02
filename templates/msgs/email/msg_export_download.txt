@@ -1,0 +1,13 @@
+{% load tz %}
+{% load i18n %}
+
+{% blocktrans with brand=branding.name %}
+Hi there!
+
+You can download your {{ brand }} message export by clicking on the following link:
+{% endblocktrans %}
+{{ link }}
+
+{% trans "Thanks," %}
+
+{% blocktrans with brand=branding.name %}The {{ brand }} Team {% endblocktrans %}

@@ -1,0 +1,23 @@
+-load i18n
+
+%html
+  %body
+    .translation.modal{data-dismiss:"modal"}
+      .modal-header
+        %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
+        %h3
+          .icon
+          %span{id:"modal-title"}><
+            -trans "Translation"
+      .modal-body
+        .translate-text.translate-from{ng-show:"translation.from"}
+          [[translation.from]]
+        %h5
+          -trans "[[language.name]] Translation"
+        %label
+          %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
+      .modal-footer
+        %button{ng-click:"cancel()",class:"btn btn-secondary"}
+          -trans "Cancel"
+        %button{ng-click:"ok(translation.to)",class:"btn btn-primary"}
+          -trans "Ok"

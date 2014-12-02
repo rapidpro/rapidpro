@@ -1,0 +1,68 @@
+- extends "contacts/contact_import.html"
+
+- load smartmin
+-load i18n
+
+- block import-status
+  %p#customize-info
+    -trans "Hold up!"
+  %p 
+    -blocktrans 
+      We noticed your file contains some extra columns, you can add these as custom fields on
+      your contact by selecting them below.
+  %p
+    %form.smartmin-form.horizontal-form{method:"post", action:"{% url 'contacts.contact_customize' object.pk %}", enctype:"multipart/form-data"}
+      -csrf_token
+      -if form.non_field_errors
+        %div.alert.alert-error.form-errors
+          {{ form.non_field_errors }}
+
+      -block fields
+        %fieldset
+          %table
+            -for column_control in column_controls
+              %tr.custom-field
+                %td.field-include-checkbox
+                  {% render_field column_control.include_field %}
+                %td.field-form-label
+                  %div
+                    %i {{ column_control.header|title }}
+                    -trans "column as"
+                %td.field-as-name
+                  {% render_field column_control.label_field %}
+                %td.field-form-label
+                  %div
+                    -blocktrans
+                      of type
+                %td.field-as-type
+                  {% render_field column_control.type_field %}
+                
+      .form-buttons
+        %input.btn.btn-primary{type:"submit", value:"Add Fields"}
+        %a.btn{onclick:"javascript:history.go(-1)"}
+          -trans "Cancel"
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    $(".smartmin-form select").select2({minimumResultsForSearch: -1, width: 'element'});
+
+-block extra-style
+  :css
+    #customize-info {
+      font-weight: bold;
+    }
+    .field-include-checkbox input {
+      margin-bottom: 12px;
+    }
+    .field-form-label div {
+      margin-bottom: 7px;
+      padding: 0 5px;
+    }
+    .field-as-name input {
+      width: 200px;
+    }
+    .field-as-type {
+      vertical-align: top;
+    }
+      

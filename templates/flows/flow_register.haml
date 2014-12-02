@@ -1,0 +1,19 @@
+-extends 'smartmin/form.html'
+-load i18n
+
+-block extra-style
+  {{block.super}}
+  :css
+    #id_group {
+
+    }
+
+-block extra-script
+  {{block.super}}
+  %script
+    $(document).ready(function() {
+      $("#id_group").select2({ placeholder:'{% trans "Group to Join" %}', width:'520px'});
+    });
+
+-block summary
+  -trans "Create a message keyword to allow people to join a group."

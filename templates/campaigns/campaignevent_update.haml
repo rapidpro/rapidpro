@@ -1,0 +1,174 @@
+-extends "smartmin/form.html"
+
+-load smartmin
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+
+
+-block modal-script
+  {{ block.super }}
+  -load compress
+  -compress js
+    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
+    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
+
+  :javascript
+    $(document).ready(function() {
+
+      select2div("#id_flow_to_start", "515px", "Flow to Start");
+      select2div("#id_relative_to", "245px", "Select a date");
+      select2div("#id_direction", "85px");
+      select2div("#id_unit", "100px");
+      select2div("#id_event_type", "515px");
+      select2div("#id_delivery_hour", "440px");
+
+      $('#id_unit').on('change', toggleDeliveryHour);
+
+      window.message_completions = {{completions|safe}};
+      $("#id_message").attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
+      initAtMessageText("#id_message");
+
+      // Add the message length counter and initialize it
+      $("#id_message").parent().append('<div id="counter">0</div>');
+      initMessageLengthCounter($("#id_message"), $("#id_message").parent().find("#counter"));
+
+      $("#id_event_type").on('change', function() {
+        if ($("#id_event_type").data('select2').val() == 'F') {
+          $("#flow-section").show();
+          $("#message-section").hide();
+          $(".modal-body").css('min-height', '150px');
+        } else {
+          $("#flow-section").hide();
+          $("#message-section").show();
+          $(".modal-body").css('min-height', '220px');
+        }
+      });
+
+      $(".btn-primary").on('click', function(){
+          $(".modal-body").css('min-height', '0');
+      });
+
+      {% if form.event_type.value == 'F' %}
+        $("#flow-section").show();
+        $("#message-section").hide();
+        $(".modal-body").css('min-height', '150px');
+      {% endif %}
+
+      toggleDeliveryHour();
+    });
+
+    function toggleDeliveryHour() {
+      var unit = $("#id_unit").val();
+      if (unit == 'D' || unit == 'W') {
+        $("#send-at").show();
+      } else {
+        $("#send-at").hide();
+      }
+    }
+
+-block modal-extra-style
+  {{ block.super }}
+
+  :css
+
+    .help-block {
+      display:none;
+    }
+
+    .modal .control-group label.control-label, .modal .form-group label.control-label  {
+      display:none;
+    }
+
+    .modal-body {
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+
+    #active-modal .fetched-content {
+      // min-height:185px;
+    }
+
+    #id_offset {
+      width:55px;
+      display:inline-block;
+      text-align:center;
+      font-size:15px;
+      line-height:15px;
+      height:24px;
+      color: #666;
+    }
+
+    .error {
+      display:inline-block;
+      width:inherit;
+    }
+
+    .control-group, .form-group {
+      display:inline-block;
+    }
+
+    .error .select2-choice {
+      border: 1px solid #b94a48;
+    }
+
+    #id_message {
+      height:100px;
+      width:500px;
+      margin-top: 5px;
+      margin-bottom:10px;
+    }
+
+    #counter {
+      font-size: 12px;
+      float: right;
+      margin-right: 5px;
+      margin-top: -10px;g
+    }
+
+    #flow-section {
+      display:none;
+      margin-top:8px;
+      margin-bottom:10px;
+    }
+
+    .schedule-label {
+      display: inline-block;
+      margin-right:5px;
+    }
+
+    #send-at {
+      padding-top:5px;
+
+    }
+
+    .delivered {
+      display: inline-block;
+      width:69px;
+      color: #666;
+      font-size:16px;
+    }
+
+-block fields
+  //{{ block.super }}
+
+  -render_field 'event_type'
+
+  #message-section
+    -render_field 'message'
+
+  #flow-section
+    -render_field 'flow_to_start'
+
+  #schedule-section
+    -render_field 'offset'
+    -render_field 'unit'
+    -render_field 'direction'
+    -render_field 'relative_to'
+
+  #send-at.hide
+    .delivered
+      Delivered
+    -render_field 'delivery_hour'
+

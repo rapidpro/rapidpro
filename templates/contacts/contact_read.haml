@@ -1,0 +1,355 @@
+-extends "smartmin/read.html" 
+
+-load smartmin sms contacts compress temba channels
+-load i18n
+
+-block buttons
+
+-block title
+  -if contact.is_archived
+    .medium-help.icon-user-block{style:"float:left"}
+  -else
+    .medium-help.icon-user{style:"float:left"}
+  %h2.header-margin
+    {{contact|name_or_urn:user_org}}
+
+  %h5.header-margin{style:"margin-bottom: 10px"}
+    -if user_org.is_anon
+      .contact-urn
+        .glyph.icon-vcard
+        {{contact.anon_identifier}}
+
+    -for urn in contact_sendable_urns
+      .contact-urn
+        .{class:"glyph {{urn|urn_icon}}"}
+        -if not user_org.is_anon
+          %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\")"}><
+            {{urn|format_urn:user_org}}
+        -else
+          %span.contact-urn-path
+            {{urn|format_urn:user_org}}
+
+    -for urn in contact_unsendable_urns
+      .contact-urn
+        .{class:"glyph {{urn|urn_icon}}"}
+        %i.contact-urn-path
+          {{urn|format_urn:user_org}}
+
+  %div.header-margin
+    %nobr
+      -for group in contact_groups
+        %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
+          -if org_perms.contacts.contact_update and not group.is_dynamic
+            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+              = group.name
+              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})', style:"margin-right: 5px"} x
+          -else
+            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}", style:"margin-right: 5px"}
+              = group.name
+
+-block read-buttons
+
+-block content
+  #pjax
+    -block pjax
+
+      .row
+        .span9
+          -for msg in all_messages
+            .message.span9
+              .avatar{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%}'}
+                -if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss"
+                  .glyph.icon-user
+                -else
+                  -if msg.direction == 'O' and msg.channel.get_parent_channel.pk
+                    %a{href:'{% url "channels.channel_read" msg.channel.get_parent_channel.pk %}'}
+                      .glyph{class:'{{ msg.channel|channel_icon}}', title:'From: {{ msg.channel.get_address_display }}'}
+                  -elif msg.direction == 'O'
+                    %a{href:'#'}
+                      .glyph{class:'icon-circle-2', title:'Failed - No channel'}
+
+              .text{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%} {% if msg.visibility == "A" %}A{%endif%}'}
+
+                {{msg.text}}
+
+                -if msg.call_type == 'mo_call'
+                  -blocktrans with duration=msg.duration
+                    Incoming Call ({{duration}} seconds)
+                -if msg.call_type == 'mo_miss'
+                  -trans "Missed Incoming Call"
+                -if msg.call_type == 'mt_call'
+                  -blocktrans with duration=msg.duration                  
+                    Outgoing Call ({{duration}} seconds)
+                -if msg.call_type == 'mt_miss'
+                  -trans "Missed Outgoing Call"
+                .sent-at{title:'{{ msg.created_on }}'}
+                  {{ msg|as_icon }}
+                  {{ msg.created_on|gmail_time }}
+                  -if msg.visibility == 'A'
+                    (Archived)
+            .clearfix
+        .span3
+          .contact_fields
+            -if contact_fields
+              .contact_fields_title
+                -trans "Contact Fields"
+            -for field in contact_fields
+              .contact_field
+                .contact_field_label
+                  {{field.label|title}}
+                .contact_field_value
+                  {{ object|contact_field:field.key }}
+              .clearfix
+
+          .contact_fields
+            -if contact_fields
+              .contact_fields_title
+                -trans "Scheduled Messages"
+
+              -for evt in upcoming_events
+                .upcoming_event
+                  .upcoming_event_label
+                    {{evt.scheduled}}
+                  .upcoming_event_value
+                    -if evt.event.event_type == 'M'
+                      {{evt.event.message}}
+                    -elif evt.event.event_type == 'F'
+                      %a.href{ href: "{% url 'campaigns.campaignevent_read' evt.event.pk %}" }= evt.event.flow.name
+                      flow
+                .clearfix
+
+-block post-content
+  -include "msgs/msg_send_modal.haml"
+
+  -if org_perms.contacts.contact_delete
+    .deletion.hide
+      .title
+        -trans "Delete Contact"
+
+      .body
+        %p
+          -trans "Are you sure you want to delete this contact?"
+        %p
+          %b
+            -if contact.name
+              {{contact.name}}
+            -else
+              {{contact|format_urn:user_org}}
+          %p
+            -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+
+      %a#delete-form.posterize{href:'{% url "contacts.contact_delete" contact.pk %}'}
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+        .contact-urn {
+          display: inline-block;
+          margin-right: 10px;
+
+          &:first-of-type {
+            .contact-urn-path {
+              font-weight: bold;
+            }
+          }
+
+          .glyph {
+            margin-right: 3px;
+          }
+        }
+
+        .contact_fields {
+          font-size: 14px;
+          color: @color-font-grey;
+
+          .contact_fields_title {
+            padding: 10px 40px;
+            font-weight: 400;
+            font-size: 18px;
+          }
+
+          .upcoming_event {
+            padding: 10px 5px 10px 60px;
+
+            .upcoming_event_label {
+              font-weight: 400;
+              color: @color-font-black;
+            }
+
+            .upcoming_event_value {
+              font-weight: 200;
+              color: @color-font-grey;
+              font-size: 14px;
+            }
+
+          }
+
+          .contact_field,  {
+            padding: 10px 60px;
+
+            .contact_field_label {
+              font-weight: 400;
+              color: @color-font-black;
+            }
+
+            .contact_field_value {
+              font-weight: 200;
+              color: @color-font-grey;
+            }
+
+          }
+
+        }
+
+        .message {
+
+          border-top:1px solid @flat-darkwhite;
+
+          .avatar {
+            border: 0px solid red;
+            float:left;
+            width:67px;
+            height:67px;
+            background: @flat-white;
+
+
+            .glyph {
+              margin-left:8px;
+              margin-top:5px;
+              color: @flat-darkwhite;
+              font-size:50px;
+            }
+
+            &.O {
+              float:right;
+              .glyph {
+                font-size:30px;
+                padding-left:12px;
+                padding-top: 10px;
+
+                &.icon-everywhere {
+                  padding-left: 4px;
+                  padding-top: 4px;
+                  font-size:45px;
+                }
+              }
+
+            }
+          }
+
+          .text {
+            border: 0px solid green;
+            padding-top:5px;
+            padding-left:10px;
+
+            &.I {
+              margin-left:67px;
+            }
+
+            &.O {
+              padding-right:-77px;
+              text-align:right;
+              margin-right:77px;
+            }
+
+            &.A {
+              color:#999;
+              font-style:italic;
+            }
+
+            .from-number {
+              color:#999;
+              font-size:11px;
+              margin-top:-3px;
+            }
+
+            .sent-at {
+              color:#999;
+              font-size:11px;
+              font-style:normal;
+              padding-bottom:5px;
+              margin-top:-3px;
+
+              .glyph {
+                margin-right:2px;
+                font-size:12px;
+                margin-top:2px;
+              }
+            }
+          }
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{ block.super }}
+
+  %script
+
+    {% if org_perms.contacts.contact_update %}
+    $(".update-contact").live('click', function(){
+      var modal = new Modax('{% trans "Update Contact" %}','{% url "contacts.contact_update" object.pk %}');
+      modal.setIcon('icon-user');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+    {% endif %}
+
+    {% if org_perms.msgs.broadcast_send %}
+    $('#send').submit(function(){
+      var $textarea = $('#id_text');
+
+      if(!$textarea.val()) {
+        $textarea.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
+        $('.failed').remove();
+        $('{% trans "<p>This field is required, please fill in the message to send out</p>" %}').insertAfter("#id_send").addClass('failed');
+        return false;
+      } else if($textarea.val().length > 160) {
+        $('.failed').remove();
+        $textarea.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
+        $('{%trans "<p>Ensure this value has at most 160 characters (it has " %}' + $textarea.val().length + ') </p> ').insertAfter("#id_send").addClass('failed');
+        return false;
+      } else {
+        return true;
+      }
+    });
+    {% endif %}
+
+    {% if org_perms.contacts.contact_update %}
+    function removeContactFromGroup(groupId, contactId){
+      id = '#group_' + groupId + '_' + contactId;
+      $.post('{% url 'contacts.contact_read' contact.uuid %}', {contact: contactId, group: groupId}, function(groupId, contactId) {
+        $(id).remove();
+      });
+    }
+    {% endif %}
+
+    {% if org_perms.contacts.contact_delete %}
+    $(".contact-delete-button").live('click', function() {
+      $(".gear-menu").removeClass("open");
+      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){
+        $('#delete-form').click();
+      }}, false);
+      modal.setPrimaryButton('{% trans "Delete" %}');
+      modal.show();
+    });
+    {% endif %}
+
+    {% if org_perms.msgs.broadcast_send %}
+    $(".contact-send-button").on('click', function() {
+      {% if contact_sendable_urns %}
+      $(".gear-menu").removeClass("open");
+      showComposeInitialized("c={{object.id}}");
+      {% else %}
+      modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){ modal.dismiss(); }}, false);
+      modal.show();
+      {% endif %}
+
+      return false;
+    });
+    {% endif %}

@@ -1,0 +1,38 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-twilio
+
+-block title-text
+  .title-text
+    %h1 Disconnect Twilio
+
+-block pre-form
+  .row
+    .span6.disconnect-help
+      -if config.ACCOUNT_SID and config.ACCOUNT_TOKEN
+        This account is connected to a Twilio account.
+        .account_details
+          .account_key
+            Account SID:
+          .account_value
+            {{ config.ACCOUNT_SID }}
+
+          .account_key
+            Application SID:
+          .account_value
+            {{ config.APPLICATION_SID }}
+      -else
+        This account is not connected to a Twilio account.
+
+
+-block form-buttons
+  .form-actions
+    -if config.ACCOUNT_SID and config.ACCOUNT_TOKEN
+      %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
+    -else
+      %a.btn.btn-primary{href:"{% url 'orgs.org_twilio_connect'%}"}
+        Connect Twilio

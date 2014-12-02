@@ -1,0 +1,41 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block form-span
+  span8
+
+-block fields
+  .field.formax-vertical
+    {% render_field 'name' %}
+
+  .field.formax-vertical
+    {% render_field 'slug' %}
+
+  .field.formax-vertical
+    {% render_field 'timezone' %}
+
+  .field.formax-vertical
+    {% render_field 'date_format' %}
+
+-block summary
+
+  -blocktrans with org=object.name
+    Your organization is <span class='attn'>{{org}}</span>
+
+  -blocktrans with timezone=object.timezone
+    which is in the <span class='attn'>{{timezone}}</span> timezone.
+
+-block extra-script
+  :javascript
+    $(document).ready(function() {
+
+      $('#id_timezone').select2({
+        containerCssClass: 'select2-temba-field',
+      });
+
+      $('#id_date_format').select2({
+        containerCssClass: 'select2-temba-field',
+        minimumResultsForSearch: '-1',
+      });
+    });

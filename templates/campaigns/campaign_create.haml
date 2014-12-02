@@ -1,0 +1,15 @@
+-extends "smartmin/form.html"
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    $(document).ready(function() {
+      select2div("#id_group", "365px", "Campaign Participants");
+    });
+
+-block modal-script
+  {{ block.super }}
+  :javascript
+    $(document).ready(function() {
+      select2div("#id_group", "365px", "Campaign Participants");
+    });

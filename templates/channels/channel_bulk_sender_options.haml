@@ -1,0 +1,150 @@
+-extends "smartmin/base.html"
+-load i18n
+
+-block page-top
+  .row
+    .span12
+      %h2
+        -trans "Add Bulk Sender"
+      .instructions
+        %p
+          -blocktrans
+            Bulk senders typically can send a higher volume of messages and in some cases are even cheaper than
+            local messaging rates. If you have an account with a bulk sender, you can use your local Android phone
+            number to receive messages, and use a bulk sender for your outgoing messages.
+
+-block content
+
+  -if not user_org.is_connected_to_nexmo
+    .row.claim-row
+      .span3
+        %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
+          .claim-glyph.icon-channel-nexmo
+          %p.claim-text Connect Nexmo
+
+      .span9
+        .claim-description
+          %div
+            -blocktrans
+              A great way to connect
+              if you are outside the United States or UK. Connect
+              a Nexmo Account to send messages to over 200 countries worldwide.
+
+
+  .row.claim-row{class:'{% if not user_org.is_connected_to_nexmo %}hide{%endif%}'}
+    .span3
+      %a.btn.btn-primary.btn-primary-muted.btn-claim.btn-create-sender.posterize{href:"{% url 'channels.channel_create_bulk_sender' %}?connection=NX&channel={{request.REQUEST.channel}}"}
+        .claim-glyph.icon-channel-nexmo
+        %p.claim-text
+          -trans "Send with Nexmo"
+
+    .span9
+      .claim-description
+        %div
+          -blocktrans
+            Instead of using your Android phone to send messages, you can use your
+            %a.nexmo-account{href:"#"}
+              Nexmo Account
+            to send messages to over 200 countries.
+
+  .row.claim-row
+    .span3
+      %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-external{href:"{% url 'channels.channel_claim_external' %}?role=S&channel={{request.REQUEST.channel}}"}
+        .claim-glyph.icon-channel-external
+        %p.claim-text Connect External API
+
+    .span9
+      .claim-description
+        %div
+          -blocktrans
+            If you have an external provider you want to use to send messages, you can connect it
+            using our External API.
+
+
+-block form-buttons
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    $(".connect-nexmo").live('click', function() {
+      var modal = new Modax('{% trans "Connect Nexmo" %}', '{% url "orgs.org_nexmo_connect" %}');
+      modal.setIcon("icon-nexmo");
+      modal.setListeners({onCompleted: function() {
+        $('.btn-create-sender').click();
+      },
+      onFormLoaded: function() {
+        form = modal.ele.find("form");
+        form.attr('autocomplete', 'off');
+      }})
+      modal.show();
+    });
+
+    $(".nexmo-account").live('click', function() {
+      var modal = new Modax('{% trans "Disconnect Nexmo" %}', '{% url "orgs.org_nexmo_account" %}');
+      modal.setIcon("icon-nexmo");
+      modal.addClass("alert");
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+
+-block extra-style
+  :css
+    .horizontal-channel {
+      margin-top: 30px;
+    }
+
+    .claim-description {
+      padding: 25px 40px;
+      height: 50px;
+      width:95%;
+      background: #f5f5f5;
+      font-size: 16px;
+    }
+
+    .align-text-center {
+      text-align: center;
+    }
+
+    .claim-text {
+      margin-top: 10px;
+      margin-right:10px;
+    }
+
+    .external {
+      text-align: center;
+    }
+
+    .claim-glyph {
+      line-height: 40px;
+      text-decoration: none;
+      font-size: 40px;
+      display: inline;
+      padding-bottom: 10px;
+    }
+
+    .btn-claim {
+      padding: 10px 10px;
+      width: 95%;
+      height: 78px;
+    }
+
+    .claim-row {
+      clear: both;
+      margin-bottom: 10px;
+    }
+
+    .icon-everywhere {
+      font-size: 68px;
+    }
+
+    ul {
+      list-style-type: none;
+    }
+
+    a:hover {
+      text-decoration: none;
+    }
+
+    .claim-row .span9 {
+      margin-left: 0px;
+    }

@@ -1,0 +1,38 @@
+{% extends "smartmin/list.html" %}
+-load i18n contacts
+
+-block page-title
+  -trans "Channel Events"
+
+-block title
+  .medium-help.icon-cloud-upload{ style:'float:left;' }
+  %h2.header-margin
+    -trans "Recent Channel Events"
+  %h5.header-margin
+    -trans "Channel:"
+      %a{ href:"{% url 'channels.channel_read' channel.id %}" }
+        {{ channel }}
+
+-block table
+  %table.list-table.table.table-condensed
+    %thead
+      %tr
+        %th{ style:'width:120px' }
+          -trans "Destination"
+        %th
+          -trans "Description"
+        %th{ style:'width:100px;text-align:right;a'}
+          -trans "Time"
+
+      -for obj in object_list
+        %tr{ class:"{% if obj.is_error %}channel-error{% endif %}" }
+          -if user_org.is_anon
+            %td= obj.msg.contact|tel:user_org
+            %td= obj.description
+            %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
+          -else
+            %td.clickable
+              %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.msg.contact|tel:user_org
+            %td.clickable
+              %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
+            %td{ style:'text-align: right', nowrap:'true' }= obj.created_on

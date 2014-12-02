@@ -1,0 +1,58 @@
+@import "../../style.less";
+@import "../../../less/variables.less";
+
+// UNICEF blue
+// @primary-color: #0099FF;
+
+// RapidPro blue
+@primary-color: #0c6596;
+@selection-color: #f3f3f3;
+
+// unicef will manage signups
+.hide-signups();
+
+// remove pricing, blog, etc
+.limited-menu();
+
+// remove footer
+.hide-footer();
+
+#splash {
+  margin-top: -30px;
+  background-image: url('/sitestatic/brands/rapidpro/splash.jpg') !important;
+  background-position: 0px 0px !important;
+  background-size: cover !important;
+  width: 100%;
+  height: 0px;
+  padding-bottom: 40%;
+
+  h1.description {
+    color: #fff;
+    font-weight: 200;
+    font-style: italic;
+    position: absolute;
+    bottom: 10px;
+    left: 20px;
+    width: 300px;
+    font-size: 32px;
+    line-height: 110%;
+  }
+
+  h5.contact-signup {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    color: #fff;
+    text-shadow: 1px 1px #000;
+
+    a {
+      color: #eee;
+    }
+  }
+}
+
+a.logo {
+  margin-left: -45px;
+  margin-top: 15px;
+  font-size: 65px;
+}

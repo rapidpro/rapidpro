@@ -1,0 +1,37 @@
+<!doctype html>
+%html
+  %head
+    %title {{brand.name}} Documentation
+    %style
+      {{ css|safe }}
+
+  %body
+    #container
+      %img.logo{ src:"http://docs.{{hostname}}/logo.png" }
+
+      %h1.section-header Table of Contents
+      %ol.topics
+        -for topic in topics
+          %li.topic
+            %a{ href:"#topic_{{forloop.counter}}" }= topic.name
+
+            %ol.articles
+              -for article in topic.articles
+                %li.article
+                  %a{ href:"#article_{{article.id}}" }= article.title
+
+      -for topic in topics
+        %h1.docs{ id:"topic_{{forloop.counter}}"}
+          {{ topic.name }}
+          %span.left= forloop.counter
+
+          -for article in topic.articles
+            %h2.docs{ id:"article_{{article.id}}" }
+              %span.right
+                {{ forloop.parentloop.counter }}.{{ forloop.counter }}
+              {{ article.title }}
+
+            {{ article.formatted_text|safe }}
+
+      #footer
+        Generated on {{ now }}

@@ -1,0 +1,78 @@
+{% extends "frame.html" %}
+{% load smartmin compress temba i18n %}
+-block page-top
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+        #lead-form {
+          display: block;
+          text-align: center;
+          background-color: #0c6596;
+          padding-top: 15px;
+        }
+
+        .text-error {
+          text-shadow: 0px 0px 12px #fff;
+          letter-spacing:1px;
+          color: @flat-red;
+          width: 350px;
+          padding-left:5px;
+          margin-top: -5px;
+          font-weight:500;
+        }
+
+        #pageBody {
+          min-width:1000px;
+        }
+
+        #splash {
+          h1.description {
+            padding-top: 15px;
+            position: relative;
+          }
+        }
+    {% endlessblock %}
+
+-block post-header
+  #marketing
+    .container
+      #splash
+        .row
+          .span12
+            %h1.description
+              {{ brand.description }}
+
+      .row
+        .span12
+          #lead-form
+            %form{action:'{% ssl_url "public.lead_create" %}', method:'POST'}
+              -csrf_token
+
+              %fieldset
+                .control-group
+                  .controls
+                    %nobr
+                      %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
+                      %button.btn.btn-success{type:"submit"}
+                        -trans "Create Account"
+            -if errors
+              %p.text-error {{error_msg}}
+
+    -if not thanks
+      %br{clear:"both"}.clearfix
+      #bottom.bottom-call
+        #jumbotron
+          %form{action:'{% ssl_url "public.lead_create" %}#bottom', method:'POST'}
+            -csrf_token
+
+            %fieldset
+              .control-group
+                .controls
+                  %nobr
+                    %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
+                    %button.btn.btn-success{type:"submit"}
+                      -trans "Try it for Free"
+              -if errors
+                %p.text-error {{error_msg}}

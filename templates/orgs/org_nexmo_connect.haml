@@ -1,0 +1,61 @@
+-extends "smartmin/form.html"
+
+-load compress temba i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-nexmo
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Connect Nexmo"
+
+-block pre-form
+  .connect-help
+    %p
+      -trans "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
+
+    %p
+      -trans "Both values can be found on your"
+      <a target="nexmo" href="https://dashboard.nexmo.com/private/dashboard">
+      -trans "Nexmo Dashboard"
+      </a>
+      -trans "by clicking on the API Settings dropdown."
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    $(document).ready(function() {
+      $("form.smartmin-form").attr('autocomplete', 'off');
+    });
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .connect-help {
+          margin-bottom: 25px;
+          width: 600;
+        }
+
+        .form-horizontal {
+
+          .control-label {
+            display:none;
+          }
+
+          .controls {
+            margin-left: 0px;
+          }
+
+          .form-actions {
+            padding-left: 0px
+          }
+        }
+
+        a:hover {
+          text-decoration: none;
+        }
+
+    {% endlessblock %}

@@ -1,0 +1,173 @@
+- extends 'smartmin/form.html'
+- load smartmin temba compress
+- load i18n
+
+- block form-span
+  span8
+
+- block fields
+  %table.table.table-condensed{style:"margin-bottom:0px;"}
+    %thead
+      %tr
+        %th
+          -trans "Accounts"
+        %th.permission
+          -trans "Admins"
+        %th.permission
+          -trans "Editors"
+        %th.permission
+          -trans "Viewers"
+        %th.permission
+          -trans "Remove"
+    %tbody
+      %tr#admin-error.hide
+        %td.alert.alert-error{colspan: 5}
+          -trans "You must have at least one administator"
+      - for user in org_users
+        %tr
+          %td
+            {{user.email}}
+            - if user.first_name or user.last_name
+              ({{user.first_name}} {{ user.last_name}})
+          - with group_fields|get:user as row_fields
+            - for check_name in row_fields
+              %td.check.permission
+                .hidden-input.hide
+                  {{form|field:check_name}}
+                .glyph.level-checkbox
+          %td.check.permission
+            .hidden-input.hide
+              %input{type: 'checkbox'}
+            .glyph.level-checkbox
+
+      // pending invites
+      -for invite in invites
+        %tr.invite
+          %td
+            {{invite.email}} (Invite Sent)
+          %td.permission
+            .glyph.level-checkbox{class:'{% if invite.user_group == "A"%}checked{%endif%}'}
+          %td.permission
+            .glyph.level-checkbox{class:'{% if invite.user_group == "E"%}checked{%endif%}'}
+          %td.check.permission
+            .hidden-input.hide
+              %input{type: 'checkbox'}
+            .glyph.level-checkbox
+      %tr
+        %td{height:'3px'}
+
+      // add a new user
+      %tr
+        %td.form{colspan: 1}
+          .field.formax-vertical
+            {% render_field 'emails' %}
+        %td.form{colspan: 3}
+          .field.formax-vertical
+            {% render_field 'user_group' %}
+
+
+- block summary
+  %span.attn= object.name
+  -trans "has"
+  -if org.administrators.all|length == 1
+    %span.attn= org.administrators.all|length
+      -trans "Administrator"
+    -trans ","
+  -elif org.admnistrators.all|length == 0
+    %span.attn
+      -trans "No Administrator"
+    -trans ","
+  -else
+    %span.attn= org.administrators.all|length
+      -trans "Administrators"
+    -trans ","
+  -if org.editors.all|length == 1
+    %span.attn= org.editors.all|length
+      -trans "Editor"
+    -trans "and"
+  -elif org.editors.all|length == 0
+    %span.attn
+      -trans "No Editors"
+    -trans "and"
+  -else
+    %span.attn= org.editors.all|length
+      -trans "Editors"
+    -trans "and"
+  -if org.viewers.all|length == 1
+    %span.attn= org.viewers.all|length
+      -trans "Viewer."
+  -elif org.viewers.all|length == 0
+    %span.attn
+      -trans "No Viewers."
+  -else
+    %span.attn= org.viewers.all|length
+      -trans "Viewers."
+
+
+- block extra-script
+  {{block.super}}
+  :javascript
+    $(function() {
+      // initialize the glyph checkboxes
+      var boxes = $("td.check");
+      boxes.each(function() {
+        var list_input = $(this).children().children("input[type='checkbox']");
+        if (list_input[0].checked) {
+          $(this).addClass("checked");
+        } else {
+          $(this).removeClass("checked");
+        }
+      });
+    });
+
+    $(function() {
+      // update the glyph checkbox on click
+
+      $("td.check .glyph").on('click', function(){
+        var cell = $(this).parent("td.check");
+        var ipt = cell.find("input[type='checkbox']");
+
+        if (!cell.hasClass("checked")) {
+          allCells = cell.parent().children('td.check');
+          allHiddenInputs = allCells.find("input[type='checkbox']");
+
+          // Uncheck everything First
+          allCells.removeClass('checked');
+          allHiddenInputs.prop('checked', false);
+
+          // Check the clicked cell
+          cell.addClass('checked');
+          ipt.prop('checked', true);
+
+        }
+
+        hasAdmin = false;
+        // validate that we always have an admin first
+        // to show error if no admin is remaining
+        $("td.check").parent().find("input[id*='administrators']").each(function() {
+           hasAdmin = hasAdmin || $(this).prop('checked')
+        })
+
+        if (!hasAdmin) {
+          $('#admin-error').show();
+        } else {
+          $('#admin-error').hide();
+        }
+
+      });
+    });
+
+    $(document).ready(function() {
+      $("#did_emails").select2({
+        containerCssClass: 'select2-temba-field',
+        tags: [],
+        selectOnBlur: true,
+        placeholder: '{% trans "Enter emails of people to invite" %}',
+      });
+
+      $("#id_user_group").select2({
+        containerCssClass: 'select2-temba-user-group-field',
+        minimumResultsForSearch: -1,
+        width:'300px',
+      });
+    });
