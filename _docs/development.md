@@ -46,6 +46,8 @@ temba=# create extension postgis;
 CREATE EXTENSION
 temba=# create extension postgis_topology;
 CREATE EXTENSION
+temba=# create extension hstore;
+CREATE EXTENSION
 {% endhighlight %}
 
 ## Clone RapidPro
