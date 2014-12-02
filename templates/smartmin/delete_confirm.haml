@@ -1,0 +1,38 @@
+{% extends "smartmin/base.html" %}
+
+{% load smartmin %}
+
+-block page-top
+
+-block content
+  -block pjax
+
+    :css
+      .icon-warning.confirm {
+       font-size:150px;
+       color:#888;
+      }
+
+    .row
+      .span2
+        .glyph.icon-warning.confirm
+      .span9
+        <div class="confirmation">
+
+
+          <h2>Remove {{ object }}?</h2>
+          <p>Are you sure you want to remove <b>{{object}}</b> from your account?</p>
+          <p>This cannot be undone.</p>
+
+          <form method="POST">
+
+            {% block delete_form %}{% endblock %}
+
+            <div class="buttons">
+              <a class="btn" href="{{ cancel_url }}">Cancel</a>
+              {% csrf_token %}
+                <input type="submit" class="btn btn-danger" value="Remove"/>
+            </div>
+          </form>
+
+        </div>
