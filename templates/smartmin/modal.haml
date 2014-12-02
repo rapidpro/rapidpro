@@ -1,0 +1,20 @@
+-if success_url
+  .success-script
+    -block success-script
+      -if success_script
+        -include success_script
+      -else
+        :javascript
+          console.log('loading: {{success_url}}');
+          document.location.href = '{{ success_url }}';
+
+-else
+  -block modal
+
+  -block modal-script
+
+  -block modal-extra-style
+    :css
+      .select2-container {
+        width: 300px;
+      }
