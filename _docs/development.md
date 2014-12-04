@@ -46,6 +46,8 @@ temba=# create extension postgis;
 CREATE EXTENSION
 temba=# create extension postgis_topology;
 CREATE EXTENSION
+temba=# create extension hstore;
+CREATE EXTENSION
 {% endhighlight %}
 
 ## Clone RapidPro
@@ -55,7 +57,7 @@ Now clone the RapidPro repository and link up the development settings:
 {% highlight bash %}
 $ git clone git@github.com:rapidpro/rapidpro.git
 $ cd rapidpro
-$ ln -s rapidpro/settings.py.dev rapidpro/settings.py
+$ ln -s temba/settings.py.dev temba/settings.py
 {% endhighlight %}
 
 ## Build virtual environment
