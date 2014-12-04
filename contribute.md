@@ -47,3 +47,10 @@ looks good, roll your changes into the codebase. Thanks!
 To contribute enhancements to this site, please fork the RapidPro repository
 and make your changes on the gh-pages branch where the source can be found. All
 helpful additions are encouraged, just open a pull-request to get them accepted.
+
+# Contributing Translations
+
+Currently RapidPro's interface is translated in English, French, Spanish and
+Portugese, but we'd love to support more. If you'd like to provide translations
+in a new language or provide fixes, then head over to  
+[Transifex](https://www.transifex.com/organization/rapidpro) to supply them.
