@@ -19,6 +19,8 @@ You'll need the following to get started:
    to help get this working.
  * [Redis](https://redis.io) 2.8 or later installed and listening on localhost.
    By default the development server uses database 15.
+ * [lessc](http://lesscss.org), the Less compiler.
+ * [coffee](http://coffeescript.org), the Coffee script compiler.
 
 ## Create temba user for PostgreSQL
 
