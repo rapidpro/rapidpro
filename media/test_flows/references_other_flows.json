@@ -1,0 +1,34 @@
+{
+  "rule_sets": [],
+  "entr": "0ca7da46-7b65-4536-a6ce-49da16bdbc91",
+  "action_sets": [
+    {
+      "y": 0,
+      "x": 100,
+      "destination": null,
+      "uuid": "0ca7da46-7b65-4536-a6ce-49da16bdbc91",
+      "actions": [
+        {
+          "type": "flow",
+          "id": "START_FLOW",
+          "name": "Start Contact in Flow"
+        },
+        {
+          "name": "Start Group in Flow",
+          "contacts": [],
+          "variables": [],
+          "groups": [
+            {
+              "name": "Some Group"
+            }
+          ],
+          "type": "trigger-flow",
+          "id": "TRIGGER_FLOW"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "notes": []
+  }
+}
