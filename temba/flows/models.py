@@ -437,7 +437,7 @@ class Flow(TembaModel, SmartModel):
 
                 # recording is more important than digits (we shouldnt ever get both)
                 if recording_url:
-                    recording = requests.get(recording_url, stream=True, auth=('nicpottier@gmail.com', '9l41ar$ddL!FDPH@5ju388a^'))
+                    recording = requests.get(recording_url, stream=True)
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(recording.content)
                     temp.flush()
