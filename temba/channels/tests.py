@@ -102,6 +102,12 @@ class ChannelTest(TembaTest):
         self.assertIn('A', Channel.types_for_scheme(TEL_SCHEME))
         self.assertIn('TT', Channel.types_for_scheme(TWITTER_SCHEME))
 
+    def test_get_channel_type_name(self):
+        self.assertEquals(self.tel_channel.get_channel_type_name(), "Android Phone")
+        self.assertEquals(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
+        self.assertEquals(self.released_channel.get_channel_type_name(), "Nexmo Channel")
+
+
     def test_channel_selection(self):
         # make our default tel channel MTN
         mtn = self.tel_channel
