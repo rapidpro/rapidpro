@@ -109,7 +109,8 @@ class MsgReadSerializer(serializers.ModelSerializer):
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):
-    group = serializers.Field(source='id')
+    group = serializers.Field(source='id')  # deprecated, use uuid
+    uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
     size = serializers.SerializerMethodField('get_size')
 
@@ -118,21 +119,24 @@ class ContactGroupReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ('group', 'name', 'size')
-        read_only_fields = ('name',)
+        fields = ('group', 'uuid', 'name', 'size')
 
 
 class ContactReadSerializer(serializers.ModelSerializer):
     name = serializers.Field(source='name')
     uuid = serializers.Field(source='uuid')
     language = serializers.Field(source='language')
-    groups = serializers.SerializerMethodField('get_groups')
+    group_uuids = serializers.SerializerMethodField('get_group_uuids')
     urns = serializers.SerializerMethodField('get_urns')
     fields = serializers.SerializerMethodField('get_contact_fields')
-    phone = serializers.SerializerMethodField('get_tel')  # deprecated
+    phone = serializers.SerializerMethodField('get_tel')  # deprecated, use urns
+    groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
 
     def get_groups(self, obj):
         return [_.name for _ in obj.groups.all()]
+
+    def get_group_uuids(self, obj):
+        return [_.uuid for _ in obj.groups.all()]
 
     def get_urns(self, obj):
         if obj.org.is_anon:
@@ -151,22 +155,26 @@ class ContactReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Contact
-        fields = ('name', 'uuid', 'language', 'groups', 'urns', 'fields', 'modified_on', 'phone')
+        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'modified_on', 'phone', 'groups')
 
 
 class ContactWriteSerializer(serializers.Serializer):
+    uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=False, max_length=64)
     language = serializers.CharField(required=False, max_length=4)
-    groups = StringArrayField(required=False)
     urns = StringArrayField(required=False)
+    group_uuids = StringArrayField(required=False)
     fields = DictionaryField(required=False)
-    phone = serializers.CharField(required=False, max_length=16)  # deprecated
-    uuid = serializers.CharField(required=False, max_length=36)
+    phone = serializers.CharField(required=False, max_length=16)  # deprecated, use urns
+    groups = StringArrayField(required=False)  # deprecated, use group_uuids
 
     def __init__(self, *args, **kwargs):
         if 'user' in kwargs:
             self.user = kwargs['user']
+            self.org = kwargs.get('org', self.user.get_org())
             del kwargs['user']
+            if 'org' in kwargs:
+                del kwargs['org']
 
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
 
@@ -177,6 +185,10 @@ class ContactWriteSerializer(serializers.Serializer):
 
         if (not urns and not phone and not uuid) or (urns and phone):
             raise ValidationError("Must provide either urns, phone or uuid but only one of each")
+
+        if attrs.get('group_uuids', []) and attrs.get('groups', []):
+            raise ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
+
         return attrs
 
     def validate_language(self, attrs, source):
@@ -260,6 +272,20 @@ class ContactWriteSerializer(serializers.Serializer):
 
         return attrs
 
+    def validate_group_uuids(self, attrs, source):
+        group_uuids = attrs.get(source, None)
+        if group_uuids is not None:
+            groups = []
+            for uuid in group_uuids:
+                group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+                if not group:
+                    raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
+
+                groups.append(group)
+
+            attrs['group_uuids'] = groups
+        return attrs
+
     def restore_object(self, attrs, instance=None):
         """
         Update our contact
@@ -320,14 +346,17 @@ class ContactWriteSerializer(serializers.Serializer):
                 if existing_by_label:
                     contact.set_field(existing_by_label.key, value)
 
-        # handle our groups
-        groups = attrs.get('groups', None)
-        if not groups is None:
-            contact.groups.clear()
+        # update our groups by UUID or name (deprecated)
+        group_uuids = attrs.get('group_uuids', None)
+        group_names = attrs.get('groups', None)
 
-            # add the groups they specified
-            for label in groups:
-                contact.groups.add(ContactGroup.get_or_create(label, self.user))
+        if not group_uuids is None:
+            contact.update_groups(group_uuids)
+
+        elif not group_names is None:
+            # by name creates groups if necessary
+            groups = [ContactGroup.get_or_create(self.user.get_org(), self.user, name) for name in group_names]
+            contact.update_groups(groups)
 
         return contact
 
@@ -569,7 +598,7 @@ class CampaignEventWriteSerializer(serializers.Serializer):
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if event.event_type != MESSAGE_EVENT:
-                    event.flow = CampaignEvent.create_single_message_flow(org, self.user, event.message)
+                    event.flow = Flow.create_single_message(org, self.user, event.message)
                     event.event_type = MESSAGE_EVENT
 
                 # otherwise, we can just update that flow
@@ -593,7 +622,7 @@ class CampaignEventWriteSerializer(serializers.Serializer):
                 flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=org)
                 event_type = FLOW_EVENT
             else:
-                flow = CampaignEvent.create_single_message_flow(org, self.user, message)
+                flow = Flow.create_single_message(org, self.user, message)
 
             event = CampaignEvent.objects.create(campaign=campaign, relative_to=relative_to_field, offset=offset,
                                                  unit=unit, event_type=event_type, flow=flow, message=message,
@@ -654,42 +683,38 @@ class CampaignWriteSerializer(serializers.Serializer):
         if 'campaign' in attrs:
             campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, is_archived=False, org=org)
             campaign.name = attrs['name']
-            campaign.group = ContactGroup.get_or_create(attrs['group'], self.user)
+            campaign.group = ContactGroup.get_or_create(org, self.user, attrs['group'])
             campaign.save()
 
         else:
-            group = ContactGroup.get_or_create(attrs['group'], self.user)
+            group = ContactGroup.get_or_create(org, self.user, attrs['group'])
             campaign = Campaign.objects.create(name=attrs['name'], group=group, org=org,
                                                created_by=self.user, modified_by=self.user)
 
         return campaign
 
-class FlowSerializer(serializers.ModelSerializer):
-    flow = serializers.SerializerMethodField('get_flow')
-    archived = serializers.SerializerMethodField('get_archived')
+
+class FlowReadSerializer(serializers.ModelSerializer):
+    uuid = serializers.Field(source='uuid')
+    archived = serializers.Field(source='is_archived')
     labels = serializers.SerializerMethodField('get_labels')
     rulesets = serializers.SerializerMethodField('get_rulesets')
     runs = serializers.SerializerMethodField('get_runs')
     completed_runs = serializers.SerializerMethodField('get_completed_runs')
     participants = serializers.SerializerMethodField('get_participants')
+    flow = serializers.Field(source='id')  # deprecated, use uuid
 
     def get_runs(self, obj):
-        return obj.started_count()
+        return obj.get_total_runs()
 
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
 
-    def get_archived(self, obj):
-        return obj.is_archived
-
     def get_completed_runs(self, obj):
-        return obj.completed_count()
+        return obj.get_completed_runs()
 
     def get_participants(self, obj):
-        return obj.participant_count()
-
-    def get_flow(self, obj):
-        return obj.pk
+        return obj.get_total_contacts()
 
     def get_rulesets(self, obj):
         rulesets = list()
@@ -700,8 +725,8 @@ class FlowSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Flow
-        fields = ('flow', 'archived', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets', 'created_on')
-        read_only_fields = ('name', 'created_on')
+        fields = ('uuid', 'archived', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
+                  'created_on', 'flow')
 
 
 class FlowField(serializers.PrimaryKeyRelatedField):
@@ -737,10 +762,12 @@ class ResultSerializer(serializers.Serializer):
 
 
 class FlowRunStartSerializer(serializers.Serializer):
-    flow = FlowField(queryset=Flow.objects.filter(pk=-1))
-    urns = StringArrayField(required=False)
-    contact = StringArrayField(required=False)
+    flow_uuid = serializers.CharField(required=False, max_length=36)
+    groups = StringArrayField(required=False)
+    contacts = StringArrayField(required=False)
     extra = DictionaryField(required=False)
+    flow = FlowField(required=False, queryset=Flow.objects.filter(pk=-1))  # deprecated, use flow_uuid
+    contact = StringArrayField(required=False)  # deprecated, use contacts
     phone = PhoneField(required=False)  # deprecated
 
     def __init__(self, *args, **kwargs):
@@ -752,51 +779,80 @@ class FlowRunStartSerializer(serializers.Serializer):
 
         super(FlowRunStartSerializer, self).__init__(*args, **kwargs)
 
+    def validate(self, attrs):
+        if not (attrs.get('flow', None) or attrs.get('flow_uuid', None)):
+            raise ValidationError("Use flow_uuid to specify which flow to start")
+        return attrs
+
+    def validate_flow_uuid(self, attrs, source):
+        org = self.org
+        flow_uuid = attrs.get(source, None)
+        if flow_uuid:
+            flow = Flow.objects.get(uuid=flow_uuid)
+            if flow.is_archived:
+                raise ValidationError("You cannot start an archived flow.")
+
+            # do they have permission to use this flow?
+            if org != flow.org:
+                raise ValidationError("Invalid UUID '%s' - flow does not exist." % flow.uuid)
+
+            attrs['flow'] = flow
+        return attrs
+
     def validate_flow(self, attrs, source):
         org = self.org
-        flow = attrs[source]
+        flow = attrs.get(source, None)
+        if flow:
+            if flow.is_archived:
+                raise ValidationError("You cannot start an archived flow.")
 
-        if flow.is_archived:
-            raise ValidationError("You cannot start an archived flow.")
-
-        # do they have permission to use this flow?
-        if org != flow.org:
-            raise ValidationError("Invalid pk '%d' - flow does not exist." % flow.id)
+            # do they have permission to use this flow?
+            if org != flow.org:
+                raise ValidationError("Invalid pk '%d' - flow does not exist." % flow.id)
 
         return attrs
 
-    def validate_urns(self, attrs, source):
-        urns = []
-
-        # get a channel
-        channel = self.org.get_send_channel(TEL_SCHEME)
-
-        if channel:
-            for urn in attrs.get(source, []):
-                parsed = ContactURN.parse_urn(urn)
-                norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, channel.country)
-                if not ContactURN.validate_urn(norm_scheme, norm_path):
-                    raise ValidationError("Invalid URN: '%s'" % urn)
-                urns.append((norm_scheme, norm_path))
-        else:
-            raise ValidationError("You cannot start flows without at least one phone number configured")
-
-        attrs['urns'] = urns
-        return attrs
-
-    def validate_contact(self, attrs, source):
-        contacts = []
+    def validate_groups(self, attrs, source):
+        groups = []
         for uuid in attrs.get(source, []):
-            contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
-            if not contact:
-                raise ValidationError(_("Unable to find contact with uuid: %s") % uuid)
+            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            if not group:
+                raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
-            contacts.append(contact)
+            groups.append(group)
 
-        attrs['contact'] = contacts
+        attrs['groups'] = groups
         return attrs
 
-    def validate_phone(self, attrs, source):
+    def validate_contacts(self, attrs, source):
+        contacts = []
+        uuids = attrs.get(source, [])
+        if uuids:
+            for uuid in uuids:
+                contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+                if not contact:
+                    raise ValidationError(_("Unable to find contact with uuid: %s") % uuid)
+
+                contacts.append(contact)
+
+            attrs['contacts'] = contacts
+        return attrs
+
+    def validate_contact(self, attrs, source):  # deprecated, use contacts
+        contacts = []
+        uuids = attrs.get(source, [])
+        if uuids:
+            for uuid in attrs.get(source, []):
+                contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+                if not contact:
+                    raise ValidationError(_("Unable to find contact with uuid: %s") % uuid)
+
+                contacts.append(contact)
+
+            attrs['contacts'] = contacts
+        return attrs
+
+    def validate_phone(self, attrs, source):  # deprecated, use contacts
         org = self.org
         if org.is_anon:
             raise ValidationError("Cannot start flows for anonymous organizations")
@@ -814,7 +870,7 @@ class FlowRunStartSerializer(serializers.Serializer):
                 except:
                     raise ValidationError("Invalid phone number: '%s'" % phone)
         else:
-            raise ValidationError("You cannot start flows without at least one phone number configured")
+            raise ValidationError("You cannot start flows without at least one channel configured")
 
         return attrs
 
@@ -829,29 +885,23 @@ class FlowRunStartSerializer(serializers.Serializer):
             raise ValidationError("Invalid operation")
 
         flow = attrs['flow']
-        channel = self.org.get_send_channel(TEL_SCHEME)
+        groups = attrs.get('groups', [])
+        contacts = attrs.get('contacts', [])
+        extra = attrs.get('extra', None)
 
-        if 'urn' in attrs and attrs['urn']:
-            urns = attrs.get('urn', [])
+        # include contacts created/matched via deprecated phone field
+        phone_urns = attrs.get('phone', [])
+        if phone_urns:
+            channel = self.org.get_send_channel(TEL_SCHEME)
+            for urn in phone_urns:
+                # treat each URN as separate contact
+                contact = Contact.get_or_create(self.user, channel.org, urns=[urn], channel=channel)
+                contacts.append(contact)
+
+        if contacts or groups:
+            return flow.start(groups, contacts, restart_participants=True, extra=extra)
         else:
-            urns = attrs.get('phone', [])
-
-        contacts = []
-        for urn in urns:
-            # treat each URN as separate contact
-            contact = Contact.get_or_create(self.user, channel.org, urns=[urn], channel=channel)
-            contacts.append(contact)
-
-        # also add in any contacts specified by uuid
-        uuid_contacts = attrs.get('contact', [])
-        contacts += uuid_contacts
-
-        if contacts:
-            runs = flow.start([], contacts, restart_participants=True, extra=attrs.get('extra', None))
-        else:
-            runs = []
-
-        return runs
+            return []
 
 
 class BoundarySerializer(serializers.ModelSerializer):
@@ -875,21 +925,22 @@ class BoundarySerializer(serializers.ModelSerializer):
 
 
 class FlowRunReadSerializer(serializers.ModelSerializer):
-    flow = serializers.SerializerMethodField('get_flow')
-    run = serializers.SerializerMethodField('get_run')
+    run = serializers.Field(source='id')
+    flow_uuid = serializers.SerializerMethodField('get_flow_uuid')
     values = serializers.SerializerMethodField('get_values')
     steps = serializers.SerializerMethodField('get_steps')
     contact = serializers.SerializerMethodField('get_contact_uuid')
-    phone = serializers.SerializerMethodField('get_phone')  # deprecated
+    flow = serializers.SerializerMethodField('get_flow')  # deprecated, use flow_uuid
+    phone = serializers.SerializerMethodField('get_phone')  # deprecated, use contact
 
     def get_flow(self, obj):
         return obj.flow_id
 
-    def get_run(self, obj):
-        return obj.pk
-
     def get_phone(self, obj):
         return obj.contact.get_urn_display(org=obj.flow.org, scheme=TEL_SCHEME, full=True)
+
+    def get_flow_uuid(self, obj):
+        return obj.flow.uuid
 
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
@@ -915,7 +966,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('flow', 'run', 'contact', 'phone', 'values', 'steps', 'created_on')
+        fields = ('flow_uuid', 'flow', 'run', 'contact', 'phone', 'values', 'steps', 'created_on')
         read_only_fields = ('created_on',)
 
 
@@ -1046,9 +1097,6 @@ class MsgCreateSerializer(serializers.Serializer):
             urns = attrs.get('urn', [])
         else:
             urns = attrs.get('phone', [])
-        
-        # create the broadcast
-        broadcast = Broadcast.create(user, attrs['text'], org=org)
 
         channel = attrs['channel']
         contacts = list()
@@ -1061,7 +1109,8 @@ class MsgCreateSerializer(serializers.Serializer):
         for contact in uuid_contacts:
             contacts.append(contact)
 
-        broadcast.set_recipients(*contacts)
+        # create the broadcast
+        broadcast = Broadcast.create(org, user, attrs['text'], recipients=contacts)
 
         # send it
         broadcast.send()

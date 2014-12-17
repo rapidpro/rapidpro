@@ -1,3 +1,4 @@
+from collections import Counter, defaultdict
 import json
 from django.db import models, connection
 from django.db.models import Count
@@ -7,6 +8,7 @@ from temba.locations.models import AdminBoundary
 from django.utils.translation import ugettext_lazy as _
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
 from stop_words import get_stop_words
+import time
 
 TEXT = 'T'
 DECIMAL = 'N'
@@ -46,7 +48,7 @@ class Value(models.Model):
     run = models.ForeignKey('flows.FlowRun', null=True, on_delete=models.SET_NULL, related_name='values',
                             help_text="The FlowRun this value is for, if any")
 
-    rule_uuid = models.CharField(max_length=255, null=True,
+    rule_uuid = models.CharField(max_length=255, null=True, db_index=True,
                                  help_text="The rule that matched, only appropriate for RuleSet values")
 
     category = models.CharField(max_length=36, null=True,
@@ -63,7 +65,7 @@ class Value(models.Model):
                                        help_text="The location value of this value if any.")
 
     recording_value = models.TextField(max_length=640, null=True,
-                                 help_text="The recording url if any.")
+                                       help_text="The recording url if any.")
 
     org = models.ForeignKey(Org)
 
@@ -72,7 +74,30 @@ class Value(models.Model):
 
 
     @classmethod
-    def get_filtered_value_summary(self, ruleset=None, contact_field=None, filters=None, latest_only=True):
+    def _filtered_values_to_categories(cls, contacts, values, label_field, formatter=None, return_contacts=False):
+        value_contacts = defaultdict(list)
+        for value in values:
+            if value['contact'] in contacts:
+                if formatter:
+                    label = formatter(value[label_field])
+                else:
+                    label = value[label_field]
+
+                value_contacts[label].append(value['contact'])
+
+        categories = []
+        for value, contacts in value_contacts.items():
+            category = dict(label=value, count=len(contacts))
+            if return_contacts:
+                category['contacts'] = contacts
+
+            categories.append(category)
+
+        # sort our categories by our count decreasing
+        return sorted(categories, key=lambda c: c['count'], reverse=True)
+
+    @classmethod
+    def get_filtered_value_summary(cls, ruleset=None, contact_field=None, filters=None, return_contacts=False, filter_contacts=None):
         """
         Return summary results for the passed in values, optionally filtering by a passed in filter on the contact.
 
@@ -86,7 +111,9 @@ class Value(models.Model):
         from temba.flows.models import RuleSet, FlowRun, FlowStep
         from temba.contacts.models import Contact
 
-        # caller my identify either a ruleset or contact field to summarize
+        start = time.time()
+
+        # caller may identify either a ruleset or contact field to summarize
         if (not ruleset and not contact_field) or (ruleset and contact_field):
             raise Exception("Must define either a RuleSet or ContactField to summarize values for")
 
@@ -99,10 +126,19 @@ class Value(models.Model):
         # pay attention then filter before we grab the actual values
         self_filter_uuids = []
 
-        # the contacts we are looking at
-        contacts = Contact.objects.filter(org=org, is_test=False, is_active=True)
+        org_contacts = Contact.objects.filter(org=org, is_test=False, is_active=True)
+
         if filters:
+            if filter_contacts is None:
+                contacts = org_contacts
+            else:
+                contacts = Contact.objects.filter(pk__in=filter_contacts)
+
             for filter in filters:
+                # empty filters are no-ops
+                if not filter:
+                    continue
+
                 # we are filtering by another rule
                 if 'ruleset' in filter:
                     # load the ruleset for this filter
@@ -128,23 +164,31 @@ class Value(models.Model):
 
 
                 # we are filtering by one or more admin boundaries
-                elif 'boundary' in filter:
+                elif 'boundary':
+                    boundaries = filter['boundary']
+                    if not isinstance(boundaries, list):
+                        boundaries = [boundaries]
+
                     # filter our contacts by those that are in that location boundary
                     contacts = contacts.filter(values__contact_field__id=filter['location'],
-                                               values__location_value__osm_id=filter['boundary'])
+                                               values__location_value__osm_id__in=boundaries)
 
                 else:
-                    raise Exception("Invalid filter definition, must include 'group' or 'ruleset'")
+                    raise Exception("Invalid filter definition, must include 'group', 'ruleset' or 'boundary'")
+
+            contacts = set([c['id'] for c in contacts.values('id')])
+
+        else:
+            # no filter, default either to all contacts or our filter contacts
+            if filter_contacts:
+                contacts = filter_contacts
+            else:
+                contacts = set([c['id'] for c in org_contacts.values('id')])
 
         # we are summarizing a flow ruleset
         if ruleset:
-            if latest_only:
-                runs = FlowRun.objects.filter(flow=ruleset.flow,
-                                              contact__in=contacts).order_by('contact', '-created_on', '-pk').distinct('contact')
-            else:
-                runs = FlowRun.objects.filter(flow=ruleset.flow, contact__in=contacts)
-
-            runs = [r.id for r in runs]
+            runs = FlowRun.objects.filter(flow=ruleset.flow).order_by('contact', '-created_on', '-pk').distinct('contact')
+            runs = [r['id'] for r in runs.values('id', 'contact') if r['contact'] in contacts]
 
             # our dict will contain category name to count
             results = dict()
@@ -153,70 +197,82 @@ class Value(models.Model):
             # see: https://code.djangoproject.com/ticket/22434
             value_counts = Value.objects.filter(org=org, ruleset=ruleset, rule_uuid__in=uuid_to_category.keys())
 
-            # filter by our runs
-            value_counts = value_counts.filter(run__in=runs)
+            # restrict our runs, using ANY is way quicker than IN
+            if runs:
+                value_counts = value_counts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
 
-            # of steps that are unset
-            total = FlowStep.objects.filter(step_uuid=ruleset.uuid, run__in=runs).count()
+            # no matching runs, exclude any values
+            else:
+                value_counts = value_counts.extra(where=["1=0"])
 
-            # how many runs actually entered a response?
-            set_count = FlowStep.objects.filter(step_uuid=ruleset.uuid, run__in=runs, rule_uuid__in=uuid_to_category.keys()).count()
-            unset_count = total - set_count
+            # contacts that have gotten to this step
+            step_contacts = set([s['run__contact'] for s in FlowStep.objects.filter(step_uuid=ruleset.uuid, run__in=runs).values('run__contact')])
+            total = len(step_contacts)
 
             # restrict to our filter uuids if we are self filtering
             if self_filter_uuids:
                 value_counts = value_counts.filter(rule_uuid__in=self_filter_uuids)
 
-            value_counts = value_counts.values('rule_uuid').annotate(rule_count=Count('rule_uuid'))
+            values = value_counts.values('rule_uuid', 'contact')
+            value_contacts = defaultdict(set)
+            for value in values:
+                value_contacts[value['rule_uuid']].add(value['contact'])
 
-            for uuid_count in value_counts:
-                category = uuid_to_category[uuid_count['rule_uuid']]
-                count = results.get(category, 0)
-
-                results[category] = count+uuid_count['rule_count']
+            results = defaultdict(set)
+            for uuid, contacts in value_contacts.items():
+                category = uuid_to_category[uuid]
+                results[category] |= contacts
 
             # now create an ordered array of our results
+            set_contacts = set()
             for category in categories:
-                category['count'] = results.get(category['label'], 0)
+                contacts = results.get(category['label'], set())
+                if return_contacts:
+                    category['contacts'] = contacts
+
+                category['count'] = len(contacts)
+                set_contacts |= contacts
+
+            # how many runs actually entered a response?
+            set_contacts = set_contacts
+            unset_contacts = step_contacts - set_contacts
 
         # we are summarizing based on contact field
         else:
-            # how many total contacts could have a value
-            contacts = [c.id for c in contacts]
+            set_contacts = contacts & set([v['contact'] for v in Value.objects.filter(contact_field=contact_field).values('contact')])
+            unset_contacts = contacts - set_contacts
 
-            total = len(contacts)
-            set_count = Value.objects.filter(contact_field=contact_field, contact__in=contacts).count()
-            unset_count = total - set_count
-
-            categories = []
-
-            value_counts = Value.objects.filter(contact_field=contact_field, contact__in=contacts)
-
+            values = Value.objects.filter(contact_field=contact_field)
 
             if contact_field.value_type == TEXT:
-                value_counts = value_counts.values('string_value').annotate(value_count=Count('string_value')).order_by('-value_count', 'string_value')
-                for count in value_counts:
-                    categories.append(dict(label=count['string_value'], count=count['value_count']))
+                values = values.values('string_value', 'contact')
+                categories = cls._filtered_values_to_categories(contacts, values, 'string_value',
+                                                                return_contacts=return_contacts)
 
             elif contact_field.value_type == DECIMAL:
-                value_counts = value_counts.values('decimal_value').annotate(value_count=Count('decimal_value')).order_by('-value_count', 'decimal_value')
-                for count in value_counts:
-                    categories.append(dict(label=format_decimal(count['decimal_value']), count=count['value_count']))
+                values = values.values('decimal_value', 'contact')
+                categories = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
+                                                                formatter=format_decimal, return_contacts=return_contacts)
 
             elif contact_field.value_type == DATETIME:
-                value_counts = value_counts.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value').annotate(value_count=Count('id')).order_by('date_value')
-                for count in value_counts:
-                    categories.append(dict(label=count['date_value'], count=count['value_count']))
+                values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
+                categories = cls._filtered_values_to_categories(contacts, values, 'date_value',
+                                                                return_contacts=return_contacts)
 
             elif contact_field.value_type in [STATE, DISTRICT]:
-                value_counts = value_counts.values('location_value__osm_id').annotate(value_count=Count('location_value__osm_id')).order_by('-value_count', 'location_value__osm_id')
-                for count in value_counts:
-                    categories.append(dict(label=count['location_value__osm_id'], count=count['value_count']))
+                values = values.values('location_value__osm_id', 'contact')
+                categories = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
+                                                                return_contacts=return_contacts)
 
             else:
                 raise Exception(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
 
-        return (set_count, unset_count, categories)
+        print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
+
+        if return_contacts:
+            return (set_contacts, unset_contacts, categories)
+        else:
+            return (len(set_contacts), len(unset_contacts), categories)
 
     @classmethod
     def invalidate_cache(cls, contact_field=None, ruleset=None, group=None):
@@ -246,7 +302,7 @@ class Value(models.Model):
         return invalidated
 
     @classmethod
-    def get_value_summary(cls, ruleset=None, contact_field=None, filters=None, segment=None, latest_only=True):
+    def get_value_summary(cls, ruleset=None, contact_field=None, filters=None, segment=None):
         """
         Returns the results for the passed in ruleset or contact field given the passed in filters and segments.
 
@@ -261,6 +317,7 @@ class Value(models.Model):
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import TrueTest
 
+        start = time.time()
         results = []
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
@@ -275,11 +332,11 @@ class Value(models.Model):
             filters = []
 
         # build the kwargs for our subcall
-        kwargs = dict(ruleset=ruleset, contact_field=contact_field, filters=filters, latest_only=latest_only)
+        kwargs = dict(ruleset=ruleset, contact_field=contact_field, filters=filters)
 
         # this is our list of dependencies, that is things that will blow away our results
         dependencies = set()
-        fingerprint_dict = dict(filters=filters, segment=segment, latest_only=latest_only)
+        fingerprint_dict = dict(filters=filters, segment=segment)
         if ruleset:
             fingerprint_dict['ruleset'] = ruleset.id
             dependencies.add(RULESET_KEY % ruleset.id)
@@ -374,21 +431,56 @@ class Value(models.Model):
                 if parent_osm_id:
                     parent = AdminBoundary.objects.get(osm_id=parent_osm_id)
 
+                # get all the boundaries we are segmenting on
+                boundaries = list(AdminBoundary.objects.filter(parent=parent).order_by('name'))
+
                 # if the field is a district field, they need to specify the parent state
                 if not parent_osm_id and field.value_type == DISTRICT:
                     raise Exception(_("You must specify a parent state to segment results by district"))
 
-                # now segment by all the children of this parent
-                for boundary in AdminBoundary.objects.filter(parent=parent).order_by('name'):
-                    boundary_filter = list(filters)
-                    boundary_filter.append(dict(location=field.id, boundary=boundary.osm_id))
-                    kwargs['filters'] = boundary_filter
+                # if this is a district, we can speed things up by only including those districts in our parent, build
+                # the filter for that
+                if parent and field.value_type == DISTRICT:
+                    location_filters = [filters, dict(location=field.pk, boundary=[b.osm_id for b in boundaries])]
+                else:
+                    location_filters = filters
 
-                    # calculate our results for this segment
-                    (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
-                    results.append(dict(label=boundary.name, boundary=boundary.osm_id, open_ended=open_ended,
-                                        set=set_count, unset=unset_count, categories=categories))
+                # get all the contacts segment by location first
+                (location_set_contacts, location_unset_contacts, location_results) = \
+                    cls.get_filtered_value_summary(contact_field=field, filters=location_filters, return_contacts=True)
 
+                # now get the contacts for our primary query
+                kwargs['return_contacts'] = True
+                kwargs['filter_contacts'] = location_set_contacts
+                (primary_set_contacts, primary_unset_contacts, primary_results) = cls.get_filtered_value_summary(**kwargs)
+
+                # build a map of osm_id to location_result
+                osm_results = {lr['label']: lr for lr in location_results}
+                empty_result = dict(contacts=list())
+
+                for boundary in boundaries:
+                    location_result = osm_results.get(boundary.osm_id, empty_result)
+
+                    # clone our primary results
+                    segmented_results = dict(label=boundary.name,
+                                             boundary=boundary.osm_id,
+                                             open_ended=open_ended)
+
+                    location_categories = list()
+                    location_contacts = set(location_result['contacts'])
+
+                    for category in primary_results:
+                        category_contacts = set(category['contacts'])
+
+                        intersection = location_contacts & category_contacts
+                        location_categories.append(dict(label=category['label'], count=len(intersection)))
+
+                    segmented_results['set'] = len(location_contacts & primary_set_contacts)
+                    segmented_results['unset'] = len(location_contacts & primary_unset_contacts)
+                    segmented_results['categories'] = location_categories
+                    results.append(segmented_results)
+
+                results = sorted(results, key=lambda r: r['label'])
 
         else:
             (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
@@ -422,12 +514,22 @@ class Value(models.Model):
                         categories.append(dict(label=category['label'], count=int(category['count'])))
 
                 # sort by count, then alphabetically
-                categories= sorted(categories, key=lambda c: (-c['count'], c['label']))
+                categories = sorted(categories, key=lambda c: (-c['count'], c['label']))
 
             results.append(dict(label=unicode(_("All")), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
         # cache this result set
         r.set(key, dict_to_json(results), VALUE_SUMMARY_CACHE_TIME)
+
+        # leave me: nice for profiling..
+        # from django.db import connection as db_connection, reset_queries
+        # print "=" * 80
+        # for query in db_connection.queries:
+        #     print "%s - %s" % (query['time'], query['sql'][:100])
+        # print "-" * 80
+        # print "took: %f" % (time.time() - start)
+        # print "=" * 80
+        # reset_queries()
 
         return results
 

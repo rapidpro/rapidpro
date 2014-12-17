@@ -16,8 +16,8 @@ from .cache import get_cacheable_result, incrby_existing
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, dict_to_json
-from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
+from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json
 
 
 class InitTest(TembaTest):
@@ -277,7 +277,8 @@ class ParserTest(TembaTest):
         variables['contact'] = contact.build_message_context()
         variables['flow'] = dict(water_source="Well",     # key with underscore
                                  blank="",                # blank string
-                                 arabic="شاملیدل عمومی",      # non-ASCII chars
+                                 arabic="اثنين ثلاثة",    # RTL chars
+                                 english="two three",     # LTR chars
                                  urlstuff=' =&\u0628',    # stuff that needs URL encoding
                                  users=5,                 # numeric as int
                                  count="5",               # numeric as string
@@ -301,6 +302,16 @@ class ParserTest(TembaTest):
                           evaluate_template('=("(" & """")',  context))  # string literals containing delimiters
         self.assertEquals(('Joe Blow and Joe Blow', []),
                           evaluate_template('@contact and =(contact)',  context))  # old and new style
+
+        # test LTR and RTL mixing
+        self.assertEquals(("one two three four", []),
+                          evaluate_template("one =flow.english four", context))  # LTR var, LTR value, LTR text
+        self.assertEquals(("one اثنين ثلاثة four", []),
+                          evaluate_template("one =flow.arabic four", context))  # LTR var, RTL value, LTR text
+        self.assertEquals(("واحد اثنين ثلاثة أربعة", []),
+                          evaluate_template("واحد =flow.arabic أربعة",  context))  # LTR var, RTL value, RTL text
+        self.assertEquals(("واحد two three أربعة", []),
+                          evaluate_template("واحد =flow.english أربعة",  context))  # LTR var, LTR value, RTL text
 
         # test decimal arithmetic
         self.assertEquals(("Result: 7", []),
@@ -372,8 +383,8 @@ class ParserTest(TembaTest):
                           evaluate_template("Hello World: @flow.water_source", context))
         self.assertEquals(("Hello World: ", []),
                           evaluate_template("Hello World: @flow.blank", context))
-        self.assertEquals(("Hello شاملیدل عمومی", []),
-                          evaluate_template("Hello @flow.arabic", context))
+        self.assertEquals(("Hello اثنين ثلاثة thanks", []),
+                          evaluate_template("Hello @flow.arabic thanks", context))
         self.assertEqual((' %20%3D%26%D8%A8 ', []),
                          evaluate_template(' @flow.urlstuff ', context, True))  # url encoding enabled
         self.assertEquals(("Hello Joe", []),

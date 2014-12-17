@@ -1501,6 +1501,7 @@ class TopUpCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
             context['org'] = self.request.user.get_org()
+            context['now'] = timezone.now()
             return context
 
         def get_template_names(self):

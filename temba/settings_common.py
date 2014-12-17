@@ -715,6 +715,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_list',
         'flows.flow_read',
         'flows.flow_editor',
+        'flows.flow_json',
         'flows.flow_results',
         'flows.flow_simulate',
         'flows.ruleset_analytics',
@@ -839,7 +840,7 @@ CELERYBEAT_SCHEDULE = {
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
 CELERY_TASK_MAP = {
     'send_msg_task': 'temba.channels.tasks.send_msg_task',
-    'start_msg_flow_batch': 'temba.flows.tasks.start_msg_flow_batch',
+    'start_msg_flow_batch': 'temba.flows.tasks.start_msg_flow_batch_task',
 }
 
 #-----------------------------------------------------------------------------------

@@ -35,11 +35,7 @@ class RuleTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
-        self.flow = Flow.objects.create(name="Color Flow",
-                                        org=self.org,
-                                        saved_by=self.admin,
-                                        created_by=self.admin,
-                                        modified_by=self.admin)
+        self.flow = Flow.create(self.org, self.admin, "Color Flow")
 
         self.other_group = self.create_group("Other", [])
 
@@ -75,7 +71,6 @@ class RuleTest(TembaTest):
 
         settings.SEND_EMAILS = False
         settings.SEND_WEBHOOKS = False
-
 
     def test_revision_history(self):
 
@@ -130,15 +125,15 @@ class RuleTest(TembaTest):
         self.flow.update(self.definition)
 
         # how many people in the flow?
-        self.assertEquals(0, self.flow.participant_count())
-        self.assertEquals(0, self.flow.completed_percentage())
+        self.assertEquals(0, self.flow.get_total_contacts())
+        self.assertEquals(0, self.flow.get_completed_percentage())
 
         # start the flow
         self.flow.start([], [self.contact, self.contact2])
 
         # test our stats again
-        self.assertEquals(2, self.flow.participant_count())
-        self.assertEquals(0, self.flow.completed_percentage())
+        self.assertEquals(2, self.flow.get_total_contacts())
+        self.assertEquals(0, self.flow.get_completed_percentage())
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
@@ -164,8 +159,8 @@ class RuleTest(TembaTest):
 
         self.login(self.admin)
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
-        self.assertEquals(dict(count=2), activity['visited']["%s->%s" % (uuid(1), uuid(5))])
-        self.assertEquals(dict(count=2), activity['activity'][uuid(5)])
+        self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
+        self.assertEquals(2, activity['activity'][uuid(5)])
 
         self.assertEquals(entry.uuid, step.step_uuid)
         self.assertEquals(ACTION_SET, step.step_type)
@@ -301,8 +296,8 @@ class RuleTest(TembaTest):
         self.assertFalse(step.next_uuid)
 
         # check our completion percentages
-        self.assertEquals(2, self.flow.participant_count())
-        self.assertEquals(50, self.flow.completed_percentage())
+        self.assertEquals(2, self.flow.get_total_contacts())
+        self.assertEquals(50, self.flow.get_completed_percentage())
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
@@ -365,6 +360,7 @@ class RuleTest(TembaTest):
         self.assertEquals('color', color['label'])
         self.assertEquals('Orange', color['category'])
         self.assertEquals('orange', color['value'])
+        self.assertEquals(uuid(5), color['node'])
         self.assertEquals(incoming.text, color['text'])
 
     def test_export_results_flow_with_no_response(self):
@@ -372,8 +368,8 @@ class RuleTest(TembaTest):
         flow_missing_responses = self.create_flow()
         flow_missing_responses.update(self.definition)
 
-        self.assertEquals(0, flow_missing_responses.participant_count())
-        self.assertEquals(0, flow_missing_responses.completed_percentage())
+        self.assertEquals(0, flow_missing_responses.get_total_contacts())
+        self.assertEquals(0, flow_missing_responses.get_completed_percentage())
 
         # try exporting the flow without responses
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % flow_missing_responses.pk)
@@ -566,7 +562,7 @@ class RuleTest(TembaTest):
         if runs:
             run = runs[0]
         else:
-            run = FlowRun.objects.create(flow=self.flow, contact=self.contact)
+            run = FlowRun.create(self.flow, self.contact)
 
         # clear any extra on this run
         run.fields = ""
@@ -590,7 +586,7 @@ class RuleTest(TembaTest):
         if runs:
             run = runs[0]
         else:
-            run = FlowRun.objects.create(flow=self.flow, contact=self.contact)
+            run = FlowRun.create(self.flow, self.contact)
 
         tz = run.flow.org.get_tzinfo()
         context = run.flow.build_message_context(run.contact, None)
@@ -985,7 +981,7 @@ class RuleTest(TembaTest):
 
     def test_actions(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.objects.create(contact=self.contact, flow=self.flow)
+        run = FlowRun.create(self.flow, self.contact)
 
         test = ReplyAction("We love green too!")
         test.execute(run, None, msg)
@@ -1023,7 +1019,7 @@ class RuleTest(TembaTest):
     def test_email_action(self):
         flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.objects.create(contact=self.contact, flow=self.flow)
+        run = FlowRun.create(self.flow, self.contact)
 
         recipients = ["steve@apple.com"]
         test = EmailAction(recipients, "Subject", "Body")
@@ -1081,7 +1077,7 @@ class RuleTest(TembaTest):
         flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Superhero Name", value='@step'))
-        run = FlowRun.objects.create(contact=self.contact, flow=self.flow)
+        run = FlowRun.create(self.flow, self.contact)
 
         field = ContactField.objects.get(org=self.org, key="superhero_name")
         self.assertEquals("Superhero Name", field.label)
@@ -1145,13 +1141,13 @@ class RuleTest(TembaTest):
         self.assertTrue('Klingon', test.lang)
 
         # execute our action and check we are Klingon now, eeektorp shnockahltip.
-        run = FlowRun.objects.create(contact=self.contact, flow=self.flow)
+        run = FlowRun.create(self.flow, self.contact)
         test.execute(run, None, None)
         self.assertEquals('kli', Contact.objects.get(pk=self.contact.pk).language)
 
     def test_flow_action(self):
         orig_flow = self.create_flow()
-        run = FlowRun.objects.create(contact=self.contact, flow=orig_flow)
+        run = FlowRun.create(orig_flow, self.contact)
 
         flow = self.flow
         flow.update(self.definition)
@@ -1171,7 +1167,7 @@ class RuleTest(TembaTest):
     def test_group_actions(self):
         flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.objects.create(contact=self.contact, flow=self.flow)
+        run = FlowRun.create(self.flow, self.contact)
 
         group = self.create_group("Flow Group", [])
 
@@ -1216,7 +1212,7 @@ class RuleTest(TembaTest):
     def test_add_label_action(self):
         flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.objects.create(contact=self.contact, flow=flow)
+        run = FlowRun.create(flow, self.contact)
 
         label = Label.objects.create(name='green label', org=self.org)
 
@@ -1248,7 +1244,7 @@ class RuleTest(TembaTest):
         self.create_secondary_org()
 
         # create a flow for another org
-        flow2 = Flow.objects.create(org=self.org2, name="Flow2", saved_by=self.admin2, created_by=self.admin2, modified_by=self.admin2)
+        flow2 = Flow.create(self.org2, self.admin2, "Flow2")
 
         # no login, no list
         response = self.client.get(reverse('flows.flow_list'))
@@ -1529,6 +1525,21 @@ class RuleTest(TembaTest):
         # shouldn't have a new flow start as validation failed
         self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=new_start.id))
 
+        # test creating a  flow with base language
+        # create the language for our org
+        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
+                                           created_by=flow.created_by, modified_by=flow.modified_by)
+        self.org.primary_language = language
+        self.org.save()
+
+        post_data = dict(name="Language Flow", expires_after_minutes=5, base_language=language.iso_code)
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        language_flow = Flow.objects.get(name=post_data['name'])
+
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[language_flow.pk]))
+        self.assertEquals(language_flow.base_language, language.iso_code)
+
     def test_views_viewers(self):
         #create a viewer
         self.viewer= self.create_user("Viewer")
@@ -1538,7 +1549,7 @@ class RuleTest(TembaTest):
         self.create_secondary_org()
 
         # create a flow for another org and a flow label
-        flow2 = Flow.objects.create(org=self.org2, name="Flow2", created_by=self.admin2, modified_by=self.admin2, saved_by=self.admin2)
+        flow2 = Flow.create(self.org2, self.admin2, "Flow2")
         flow_label = FlowLabel.objects.create(name="one", org=self.org, parent=None)
 
         flow_list_url = reverse('flows.flow_list')
@@ -1599,6 +1610,14 @@ class RuleTest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertFalse(response.context['mutable'])
 
+        # we can fetch the json for the flow
+        response = self.client.get(reverse('flows.flow_json', args=[self.flow.pk]))
+        self.assertEquals(200, response.status_code)
+
+        # but posting to it should redirect to a get
+        response = self.client.post(reverse('flows.flow_json', args=[self.flow.pk]), post_data=response.content)
+        self.assertEquals(302, response.status_code)
+
         self.flow.is_archived = True
         self.flow.save()
 
@@ -1628,8 +1647,6 @@ class RuleTest(TembaTest):
         # also shouldn't be able to view other flow
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
         self.assertEquals(302, response.status_code)
-        
-        
 
     def test_multiple(self):
         # set our flow
@@ -1637,11 +1654,7 @@ class RuleTest(TembaTest):
         self.flow.start([], [self.contact])
 
         # create a second flow
-        self.flow2 = Flow.objects.create(name="Color Flow 2",
-                                         org=self.org,
-                                         saved_by=self.admin,
-                                         created_by=self.admin,
-                                         modified_by=self.admin)
+        self.flow2 = Flow.create(self.org, self.admin, "Color Flow 2")
 
         # broadcast to one user
         self.flow2 = self.flow.copy(self.flow, self.flow.created_by)
@@ -1704,11 +1717,7 @@ class RuleTest(TembaTest):
         self.flow.start([], [self.contact])
 
         # create a second flow
-        self.flow2 = Flow.objects.create(name="Kiva Flow",
-                                         org=self.org,
-                                         saved_by=self.admin,
-                                         created_by=self.admin,
-                                         modified_by=self.admin)
+        self.flow2 = Flow.create(self.org, self.admin, "Kiva Flow")
 
         self.flow2 = self.flow.copy(self.flow, self.flow.created_by)
 
@@ -1775,8 +1784,7 @@ class FlowRunTest(TembaTest):
         self.flow = self.create_flow()
         self.contact = self.create_contact("Ben Haggerty", "+250788123123")
 
-        run = FlowRun.objects.create(flow=self.flow,
-                                     contact=self.contact)
+        run = FlowRun.create(self.flow, self.contact)
 
         # set our fields from an empty state
         new_values = dict(field1="value1", field2="value2")
@@ -1898,8 +1906,7 @@ class WebhookTest(TembaTest):
         self.flow = self.create_flow()
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')
 
-        run = FlowRun.objects.create(flow=self.flow,
-                                     contact=self.contact)
+        run = FlowRun.create(self.flow, self.contact)
 
         rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0)
         rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), ContainsTest("valid")).as_json(),
@@ -2053,6 +2060,170 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
+    def clear_activity(self, flow):
+        r = get_redis_connection()
+        flow.clear_cache()
+
+    def test_activity(self):
+
+        flow = self.get_flow('favorites')
+
+        # clear our previous redis activity
+        self.clear_activity(flow)
+
+        other_rule_to_msg = 'e342d6af-7149-485c-b2ac-0e56c6cc1aa9:dcd9541a-0263-474e-b3f1-03a28993f95a'
+        msg_to_color_step = 'dcd9541a-0263-474e-b3f1-03a28993f95a:1a08ec37-2218-48fd-b6b0-846b14407041'
+
+        # we don't know this shade of green, it should route us to the beginning again
+        self.send_message(flow, 'chartreuse')
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, visited[other_rule_to_msg])
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
+        self.assertEquals(0, flow.get_completed_runs())
+        self.assertEquals(0, flow.get_completed_percentage())
+
+        # another unknown color, that'll route us right back again
+        # the active stats will look the same, but there should be one more journey on the path
+        self.send_message(flow, 'mauve')
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(2, visited[other_rule_to_msg])
+        self.assertEquals(2, visited[msg_to_color_step])
+
+        # this time a color we know takes us elsewhere, activity will move
+        # to another node, but still just one entry
+        self.send_message(flow, 'blue')
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, active['0784d7f8-3534-4432-99ad-7e4ea41cfbdb'])
+
+        # a new participant, showing distinct active counts and incremented path
+        ryan = self.create_contact('Ryan Lewis', '+12065550725')
+        self.send_message(flow, 'burnt sienna', contact=ryan)
+        (active, visited) = flow.get_activity()
+        self.assertEquals(2, len(active))
+        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, active['0784d7f8-3534-4432-99ad-7e4ea41cfbdb'])
+        self.assertEquals(3, visited[other_rule_to_msg])
+        self.assertEquals(3, visited[msg_to_color_step])
+        self.assertEquals(2, flow.get_total_runs())
+        self.assertEquals(2, flow.get_total_contacts())
+
+        # now let's have them land in the same place
+        self.send_message(flow, 'blue', contact=ryan)
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(2, active['0784d7f8-3534-4432-99ad-7e4ea41cfbdb'])
+
+        # now move our first contact forward to the end, back to two nodes with active
+        self.send_message(flow, 'Turbo King')
+        self.send_message(flow, 'Ben Haggerty')
+        (active, visited) = flow.get_activity()
+        self.assertEquals(2, len(active))
+
+        # half of our flows are now complete
+        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEquals(50, flow.get_completed_percentage())
+
+        # rebuild our flow stats and make sure they are the same
+        flow.do_calculate_flow_stats()
+        (active, visited) = flow.get_activity()
+        self.assertEquals(2, len(active))
+        self.assertEquals(3, visited[other_rule_to_msg])
+        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEquals(50, flow.get_completed_percentage())
+
+        # expire the first contact's runs
+        for run in FlowRun.objects.filter(contact=self.contact):
+            run.expire()
+
+        # now we should only have one node with active runs, but the paths stay
+        # the same since those are historical
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(3, visited[other_rule_to_msg])
+
+        # our completion stats should remain the same
+        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEquals(50, flow.get_completed_percentage())
+
+
+        # our completion stats should remain the same
+        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEquals(50, flow.get_completed_percentage())
+
+        # check that we have the right number of steps and runs
+        self.assertEquals(17, FlowStep.objects.all().count())
+        self.assertEquals(2, FlowRun.objects.all().count())
+
+        # now let's delete our contact, we'll still have one active node, but
+        # our visit path counts will go down by two since he went there twice
+        self.contact.release()
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, visited[other_rule_to_msg])
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
+
+        # he was also accounting for our completion rate, back to nothing
+        self.assertEquals(0, flow.get_completed_runs())
+        self.assertEquals(0, flow.get_completed_percentage())
+
+        # advance ryan to the end to make sure our percentage accounts for one less contact
+        self.send_message(flow, 'Turbo King', contact=ryan)
+        self.send_message(flow, 'Ryan Lewis', contact=ryan)
+        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEquals(100, flow.get_completed_percentage())
+
+        # test contacts should not affect the counts
+        hammer = self.create_contact('Hammer', '+12065550002')
+        hammer.is_test = True
+        hammer.save()
+
+        # please hammer, don't hurt em
+        self.send_message(flow, 'Rose', contact=hammer)
+        self.send_message(flow, 'Violet', contact=hammer)
+        self.send_message(flow, 'Blue', contact=hammer)
+        self.send_message(flow, 'Turbo King', contact=hammer)
+        self.send_message(flow, 'MC Hammer', contact=hammer)
+
+        # our flow stats should be unchanged
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, visited[other_rule_to_msg])
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
+        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEquals(100, flow.get_completed_percentage())
+
+        # but hammer should have created some simulation activity
+        (active, visited) = flow.get_activity(simulation=True)
+        self.assertEquals(1, len(active))
+        self.assertEquals(2, visited[msg_to_color_step])
+        self.assertEquals(2, visited[other_rule_to_msg])
+
+        # delete our last contact to make sure activity is gone without first expiring, zeros abound
+        ryan.release()
+        (active, visited) = flow.get_activity()
+        self.assertEquals(0, len(active))
+        self.assertEquals(0, visited[msg_to_color_step])
+        self.assertEquals(0, visited[other_rule_to_msg])
+        self.assertEquals(0, flow.get_total_runs())
+        self.assertEquals(0, flow.get_total_contacts())
+        self.assertEquals(0, flow.get_completed_runs())
+        self.assertEquals(0, flow.get_completed_percentage())
+
+        # runs and steps all gone too
+        self.assertEquals(0, FlowStep.objects.filter(contact__is_test=False).count())
+        self.assertEquals(0, FlowRun.objects.filter(contact__is_test=False).count())
+
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')
         self.assertEquals("You picked 3!", self.send_message(flow, "3"))
@@ -2090,8 +2261,7 @@ class FlowsTest(FlowFileTest):
         self.assertLastResponse("You are something else.")
 
         # add them to the father's group
-        fathers = ContactGroup.objects.create(name="Fathers", org=self.org, created_by=self.admin, modified_by=self.admin)
-        self.contact.groups.add(fathers)
+        self.create_group("Fathers", [self.contact])
 
         rule_flow.start([], [self.contact], restart_participants=True)
         self.assertLastResponse("You are a father.")
@@ -2296,7 +2466,7 @@ class FlowsTest(FlowFileTest):
         favorites = self.get_flow('favorites')
 
         # do a dry run once so that the groups and fields get created
-        group = ContactGroup.objects.create(name="Campaign", created_by=self.admin, modified_by=self.admin, org=self.org)
+        group = self.create_group("Campaign", [])
         field = ContactField.get_or_create(self.org, "campaign_date", "Campaign Date")
 
         # tests that a contact is properly updated when a child flow is called
@@ -2313,6 +2483,34 @@ class FlowsTest(FlowFileTest):
 
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
+
+    def test_tanslations_rule_first(self):
+
+        # import a rule first flow that already has language dicts
+        # this rule first does not depend on @step.value for the first rule, so
+        # it can be evaluated right away
+        flow = self.get_flow('group_membership')
+
+        # create the language for our org
+        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
+                                           created_by=flow.created_by, modified_by=flow.modified_by)
+        self.org.primary_language = language
+        self.org.save()
+
+        # start our flow without a message (simulating it being fired by a trigger or the simulator)
+        # this will evaluate requires_step() to make sure it handles localized flows
+        runs = flow.start_msg_flow([self.contact])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('You are not in the enrolled group.', self.contact.msgs.all()[0].text)
+
+        enrolled_group = ContactGroup.create(self.org, self.user, "Enrolled")
+        enrolled_group.update_contacts([self.contact], True)
+
+        runs_started = flow.start_msg_flow([self.contact])
+        self.assertEquals(1, len(runs_started))
+        self.assertEquals(2, self.contact.msgs.all().count())
+        self.assertEquals('You are in the enrolled group.', self.contact.msgs.all().order_by('-pk')[0].text)
 
     def test_translations(self):
 

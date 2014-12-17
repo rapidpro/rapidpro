@@ -19,6 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 from itertools import chain
+from redis_cache import get_redis_connection
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView, SmartDeleteView, SmartTemplateView
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
@@ -34,7 +35,6 @@ from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import analytics, build_json_response
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
-
 
 def flow_unread_response_count_processor(request):
     """
@@ -70,6 +70,8 @@ class BaseFlowForm(forms.ModelForm):
                                               initial=str(60*24*7),
                                               choices=((0, _('Never')),
                                                        (5, _('After 5 minutes')),
+                                                       (10, _('After 10 minutes')),
+                                                       (15, _('After 15 minutes')),
                                                        (30, _('After 30 minutes')),
                                                        (60, _('After 1 hour')),
                                                        (60*3, _('After 3 hours')),
@@ -158,10 +160,9 @@ class RuleCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             filters = json.loads(self.request.GET.get('filters', '[]'))
             segment = json.loads(self.request.GET.get('segment', 'null'))
-            latest_only = self.request.GET.get('latest_only', 'true') == 'true'
 
             ruleset = self.get_object()
-            results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment, latest_only=latest_only)
+            results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
             return dict(id=ruleset.pk, label=ruleset.label, results=results)
 
         def render_to_response(self, context, **response_kwargs):
@@ -494,18 +495,17 @@ class FlowCRUDL(SmartCRUDL):
             context['has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count() > 0
             return context
 
-        def pre_save(self, obj):
+        def save(self, obj):
             analytics.track(self.request.user.username, 'temba.flow_created', dict(name=obj.name))
-
-            obj = super(FlowCRUDL.Create, self).pre_save(obj)
-            user = self.request.user
-            obj.org = user.get_org()
-            obj.saved_by = user
-            return obj
+            org = self.request.user.get_org()
+            self.object = Flow.create(org, self.request.user, obj.name,
+                                      flow_type=Flow.FLOW, expires_after_minutes=obj.expires_after_minutes, base_language=obj.base_language)
 
         def post_save(self, obj):
             user = self.request.user
             org = user.get_org()
+
+
 
             # create triggers for this flow only if there are keywords
             if len(self.form.cleaned_data['keyword_triggers']) > 0:
@@ -871,7 +871,7 @@ class FlowCRUDL(SmartCRUDL):
                 starting = True
             context['starting'] = starting
             context['mutable'] = False
-            if self.has_org_perm('flows.flow_json') and not self.request.user.is_superuser:
+            if self.has_org_perm('flows.flow_update') and not self.request.user.is_superuser:
                 context['mutable'] = True
 
             return context
@@ -939,7 +939,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 # remove this run and its steps in the process
                 run.delete()
-                run.flow.clear_participation_stats()
                 return dict(status="success")
 
         def derive_formax_sections(self, formax, context):
@@ -1093,40 +1092,10 @@ class FlowCRUDL(SmartCRUDL):
             context = super(FlowCRUDL.Results, self).get_context_data(*args, **kwargs)
             return context
 
-
     class Activity(OrgObjPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object(self.get_queryset())
-
-            steps_json = {}
-            visited_json = {}
-
-            sim = request.REQUEST.get('simulation', 'false') == 'true'
-
-            cached_activity = cache.get('activity:%d' % flow.pk, None)
-            if cached_activity is None:
-                start = time.time()
-
-                active = FlowStep.objects.filter(run__is_active=True, run__flow=flow, left_on=None, run__contact__is_test=sim).values('step_uuid').annotate(count=Count('run'))
-                visited_actions = FlowStep.objects.filter(run__flow=flow, step_type='A', run__contact__is_test=sim).values('step_uuid', 'next_uuid').annotate(count=Count('run'))
-                visited_rules = FlowStep.objects.filter(run__flow=flow, step_type='R', run__contact__is_test=sim).exclude(rule_uuid=None).values('rule_uuid', 'next_uuid').annotate(count=Count('run'))
-
-                for step in active:
-                    steps_json[step['step_uuid']] = dict(count=step['count'])
-
-                for step in visited_actions:
-                    visited_json['%s->%s' % (step['step_uuid'], step['next_uuid'])] = dict(count=step['count'])
-
-                for path in visited_rules:
-                    visited_json['%s->%s' % (path['rule_uuid'], path['next_uuid'])] = dict(count=path['count'])
-
-                cached_activity = dict(visited_actions=visited_actions, visited_rules=visited_rules,
-                                       steps_json=steps_json, visited_json=visited_json)
-
-                # our cache time is our time to calculate times two or 5 seconds, whichever is larger
-                cache_time = max(5, (time.time() - start) * 2)
-                cache.set('activity:%d' % flow.pk, cached_activity, cache_time)
 
             # if we are interested in the flow details add that
             flow_json = dict()
@@ -1141,42 +1110,33 @@ class FlowCRUDL(SmartCRUDL):
 
             # if we have an active call, include that
             from temba.ivr.models import IVRCall
-            call_id = request.REQUEST.get('call', None)
-
-            test_call = IVRCall.objects.filter(contact__is_test=True, flow=flow)
-            if test_call:
-                test_call = test_call[0]
-                if sim:
-                    call_id = test_call.pk
-
-            call = dict()
 
             messages = []
-            if call_id:
-                calls = IVRCall.objects.filter(pk=call_id, org=flow.org)
-                if calls:
-                    call = calls[0]
-                    call = dict(pk=call.pk,
-                                call_type=call.call_type,
-                                status=call.status,
-                                duration=call.get_duration(),
-                                number=call.contact.raw_tel())
-                    if sim:
-                        messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
-                        action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
+            call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
+            if call:
+                call = dict(pk=call.pk,
+                            call_type=call.call_type,
+                            status=call.status,
+                            duration=call.get_duration(),
+                            number=call.contact.raw_tel())
 
-                        messages_and_logs = chain(messages, action_logs)
-                        messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+                messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
+                action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
-                        messages_json = []
-                        if messages_and_logs:
-                            for msg in messages_and_logs:
-                                messages_json.append(msg.as_json())
-                        messages = messages_json
+                messages_and_logs = chain(messages, action_logs)
+                messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+
+                messages_json = []
+                if messages_and_logs:
+                    for msg in messages_and_logs:
+                        messages_json.append(msg.as_json())
+                messages = messages_json
+
+            (active, visited) = flow.get_activity()
 
             return build_json_response(dict(call=call, messages=messages,
-                                            activity=cached_activity['steps_json'],
-                                            visited=cached_activity['visited_json'],
+                                            activity=active,
+                                            visited=visited,
                                             flow=flow_json, pending=pending))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
@@ -1211,7 +1171,6 @@ class FlowCRUDL(SmartCRUDL):
                 if lang:
                     test_contact.language = lang
                     test_contact.save()
-
 
                 # delete all our steps and messages to restart the simulation
                 runs = FlowRun.objects.filter(contact=test_contact)
@@ -1252,23 +1211,11 @@ class FlowCRUDL(SmartCRUDL):
                 for msg in messages_and_logs:
                     messages_json.append(msg.as_json())
 
-            steps_json = {}
-            visited_json = {}
+            (active, visited) = flow.get_activity(simulation=True)
 
-            active = FlowStep.objects.filter(run__flow=flow, run__contact=test_contact, left_on=None).values('step_uuid').annotate(count=Count('run'))
-            visited_actions = FlowStep.objects.filter(run__flow=flow, run__contact=test_contact, step_type='A').values('step_uuid', 'next_uuid').annotate(count=Count('run'))
-            visited_rules = FlowStep.objects.filter(run__flow=flow, run__contact=test_contact, step_type='R').exclude(rule_uuid=None).values('rule_uuid', 'next_uuid').annotate(count=Count('run'))
-
-            for step in active:
-                steps_json[step['step_uuid']] = dict(count=step['count'])
-
-            for step in visited_actions:
-                visited_json['%s->%s' % (step['step_uuid'], step['next_uuid'])] = dict(count=step['count'])
-
-            for path in visited_rules:
-                visited_json['%s->%s' % (path['rule_uuid'], path['next_uuid'])] = dict(count=path['count'])
-
-            return build_json_response(dict(status="success", description="Message sent to Flow", messages=messages_json, activity=steps_json, visited=visited_json))
+            return build_json_response(dict(status="success", description="Message sent to Flow",
+                                            messages=messages_json,
+                                            activity=active, visited=visited))
 
     class Json(OrgObjPermsMixin, SmartUpdateView):
         success_message = ''
@@ -1282,6 +1229,11 @@ class FlowCRUDL(SmartCRUDL):
             return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages))
 
         def post(self, request, *args, **kwargs):
+
+            # require update permissions
+            if not self.has_org_perm('flows.flow_update'):
+                return HttpResponseRedirect(reverse('flows.flow_json', args=[self.get_object().pk]))
+
             # try to parse our body
             json_string = request.body
 
@@ -1336,8 +1288,8 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)
-            context['participant_count'] = self.object.participant_count()
-            context['complete_count'] = self.object.completed_count()
+            context['participant_count'] = self.object.get_total_contacts()
+            context['complete_count'] = self.object.get_completed_runs()
             return context
 
         def get_form_kwargs(self):

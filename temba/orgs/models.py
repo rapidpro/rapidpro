@@ -164,16 +164,24 @@ class OrgAssetMixin(object):
         """
         Updates the state of this org-owned asset and triggers an org event, if it is currently in another state
         """
+        qs = type(self).objects.filter(pk=self.pk)
+
+        # required state is either provided explicitly, or is inverse of new_state
+        if required_state:
+            qs = qs.filter(**required_state)
+        else:
+            qs = qs.exclude(**new_state)
+
         # tells us if object state was actually changed at a db-level
-        updated = type(self).objects.filter(pk=self.pk, **required_state).update(**new_state)
-        if updated:
+        rows_updated = qs.update(**new_state)
+        if rows_updated:
             # update current object to new state
             for attr_name, value in new_state.iteritems():
                 setattr(self, attr_name, value)
 
             self.org.update_caches(event, self)
 
-        return bool(updated)
+        return bool(rows_updated)
 
 
 class Org(SmartModel):
@@ -410,7 +418,7 @@ class Org(SmartModel):
             increment_count(OrgFolder.msgs_inbox if entity.direction == INCOMING else OrgFolder.msgs_outbox)
             decrement_count(OrgFolder.msgs_archived)
             if entity.status == M_FAILED:
-                decrement_count(OrgFolder.msgs_failed)
+                increment_count(OrgFolder.msgs_failed)
 
         elif event == OrgEvent.msg_deleted:
             decrement_count(OrgFolder.msgs_archived)
@@ -921,7 +929,7 @@ class Org(SmartModel):
 
                     if not Flow.objects.filter(name=flow_name, org=self):
                         try:
-                            flow = Flow.objects.create(name=flow_name, org=self, saved_by=user, created_by=user, modified_by=user)
+                            flow = Flow.create(self, user, flow_name)
                             flow.import_definition(json.loads(org_example))
                             flow.save()
 
@@ -964,8 +972,18 @@ class Org(SmartModel):
                                     self._calculate_credits_total)
 
     def _calculate_credits_total(self):
-        total = self.topups.filter(is_active=True).aggregate(Sum('credits')).get('credits__sum')
-        return total if total else 0
+        # these are the credits that are still active
+        active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
+        active_credits = active_credits if active_credits else 0
+
+        # get our expired topups
+        expired_topups = [t['id'] for t in self.topups.filter(is_active=True, expires_on__lte=timezone.now()).values('id')]
+
+        # get how many messages were used on those topups
+        expired_msgs = self.msgs.filter(topup__in=expired_topups).count()
+        expired_ivrs = self.ivr_actions.filter(topup__in=expired_topups).count()
+
+        return active_credits + expired_msgs + expired_ivrs
 
     def get_credits_used(self):
         """

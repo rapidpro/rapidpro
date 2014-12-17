@@ -478,14 +478,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           actionset: -> actionset
           flowController: -> $scope
     else
-      $timeout ->
-        DragHelper.showSaveResponse($('#' + actionset.uuid + ' .source'))
-      ,0
+      if window.mutable
+        $timeout ->
+          DragHelper.showSaveResponse($('#' + actionset.uuid + ' .source'))
+        ,0
 
   $scope.clickRuleSource = (category) ->
-    $timeout ->
-      DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
-    ,0
+    if window.mutable
+      $timeout ->
+        DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
+      ,0
 
 
   $scope.addAction = (actionset) ->

@@ -118,6 +118,30 @@ def get_message_handlers():
     return __message_handlers
 
 
+def get_unique_recipients(urns, contacts, groups):
+    """
+    Builds a list of the unique contacts and URNs by merging urns, contacts and groups
+    """
+    unique_urns = set()
+    unique_contacts = set()
+    included_by_urn = set()  # contact ids of contacts included by URN
+
+    for urn in urns:
+        unique_urns.add(urn)
+        included_by_urn.add(urn.contact_id)
+
+    for group in groups:
+        for contact in group.contacts.all():
+            if contact.id not in included_by_urn:
+                unique_contacts.add(contact)
+
+    for contact in contacts:
+        if contact.id not in included_by_urn:
+            unique_contacts.add(contact)
+
+    return unique_urns, unique_contacts
+
+
 class UnreachableException(Exception):
     pass
 
@@ -172,28 +196,64 @@ class Broadcast(models.Model):
                                        help_text="When this item was last modified")
 
     @classmethod
-    def create(cls, user, text, org=None, **kwargs):
-        if not org:
-            org = user.get_org()
+    def create(cls, org, user, text, recipients, **kwargs):
+        if not recipients:
+            raise ValueError("Broadcast must have at least one recipient")
 
         create_args = dict(org=org, text=text, created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
+        broadcast.update_recipients(recipients)
 
         org.update_caches(OrgEvent.broadcast_new, broadcast)
 
         return broadcast
 
+    def update_recipients(self, recipients):
+        """
+        Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a
+        broadcast after it has been created - the exception is scheduled broadcasts which are never really sent (clones
+        of them are sent).
+        """
+        urns = []
+        contacts = []
+        groups = []
+
+        for recipient in recipients:
+            if isinstance(recipient, ContactURN):
+                urns.append(recipient)
+            elif isinstance(recipient, Contact):
+                contacts.append(recipient)
+            elif isinstance(recipient, ContactGroup):
+                groups.append(recipient)
+            else:
+                raise ValueError("Recipient item is not a Contact, ContactURN or ContactGroup")
+
+        self.urns.clear()
+        self.urns.add(*urns)
+        self.contacts.clear()
+        self.contacts.add(*contacts)
+        self.groups.clear()
+        self.groups.add(*groups)
+
+        urns, contacts = get_unique_recipients(urns, contacts, groups)
+
+        # update the recipient count - the number of messages we intend to send
+        self.recipient_count = len(urns) + len(contacts)
+        self.save(update_fields=('recipient_count',))
+
+        # cache on object for use in subsequent send(..) calls
+        setattr(self, '_recipient_cache', (urns, contacts))
+
+        return urns, contacts
+
     def has_pending_fire(self):
         return self.schedule and self.schedule.has_pending_fire()
 
     def fire(self):
-        broadcast = Broadcast.create(self.created_by, self.text, org=self.org, parent=self, modified_by=self.modified_by)
-
-        groups = list(self.groups.all())
-        contacts = list(self.contacts.all())
-        urns = list(self.urns.all())
-        broadcast.set_recipients(*(groups + contacts + urns))
+        recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
+        broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
+                                     parent=self, modified_by=self.modified_by)
 
         broadcast.send(trigger_send=True)
 
@@ -208,7 +268,7 @@ class Broadcast(models.Model):
         return qs.distinct()
 
     def get_messages(self):
-        return Msg.objects.filter(broadcast=self, contact__is_test=Contact.get_simulation()).exclude(status=RESENT)
+        return Msg.objects.filter(broadcast=self).exclude(status=RESENT)
 
     def get_messages_by_status(self):
         return self.get_messages().order_by('delivered_on', 'sent_on', '-status')
@@ -263,76 +323,27 @@ class Broadcast(models.Model):
 
         return commands
 
-    def set_recipients(self, *recipients):
-        """
-        Sets the recipients which may be contact groups, contacts or contact URNs
-        """
-        groups = []
-        contacts = []
-        urns = []
-        for recipient in recipients:
-            if isinstance(recipient, ContactGroup):
-                groups.append(recipient)
-            elif isinstance(recipient, Contact):
-                contacts.append(recipient)
-            elif isinstance(recipient, ContactURN):
-                urns.append(recipient)
-
-        self.groups.add(*groups)
-        self.contacts.add(*contacts)
-        self.urns.add(*urns)
-
-        recipients = self.get_recipients(cache_initialize=False)
-        self.recipient_count = len(recipients)
-        self.save(update_fields=('recipient_count',))
-
-        setattr(self, '_recipients_cache', dict(groups=groups, contacts=contacts, urns=urns))
-
-    def get_recipients(self, cache_initialize=False):
-        """
-        Gets the unique contacts and URNs who should receive this broadcast by merging the groups, contacts and urns
-        """
-        # if set_recipients was previously called on this object, we can get recipients from cache rather than db
-        recipients_cache = getattr(self, '_recipients_cache', None)
-        if recipients_cache:
-            groups, contacts, urns = recipients_cache['groups'], recipients_cache['contacts'], recipients_cache['urns']
-        else:
-            groups, contacts, urns = self.groups.all(), self.contacts.all(), self.urns.all()
-
-        unique_urns = set()
-        unique_contacts = set()
-        included_by_urn = set()  # contact ids of contacts included by URN
-
-        for urn in urns:
-            unique_urns.add(urn)
-            included_by_urn.add(urn.contact_id)
-
-        for group in groups:
-            for contact in group.contacts.all():
-                if contact.id not in included_by_urn:
-                    unique_contacts.add(contact)
-
-        for contact in contacts:
-            if contact.id not in included_by_urn:
-                unique_contacts.add(contact)
-
-        if cache_initialize:
-            # loads caches for fields and URNs in bulk for all contacts
-            Contact.bulk_cache_initialize(self.org, unique_contacts)
-
-        return list(unique_urns) + list(unique_contacts)
-
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING,
-             created_on=None, base_language=None):
+             created_on=None, base_language=None, partial_recipients=None):
         """
-        Sends this broadcast by creating outgoing messages for each recipient
+        Sends this broadcast by creating outgoing messages for each recipient.
         """
         # cannot ask for sending by us AND specify a created on, blow up in that case
         if trigger_send and created_on:
             raise Exception("Cannot trigger send and specify a created_on, breaks creating batches")
 
-        # merge the groups, contacts and URNs into a set of unique URNs and contacts
-        recipients = self.get_recipients(cache_initialize=True)
+        if partial_recipients:
+            # if flow is being started, it'll provide a batch of unique contacts itself
+            urns, contacts = partial_recipients
+        elif hasattr(self, '_recipient_cache'):
+            # look to see if previous call to update_recipients left a cached value
+            urns, contacts = self._recipient_cache
+        else:
+            # otherwise fetch everything and calculate
+            urns, contacts = get_unique_recipients(self.urns.all(), self.contacts.all(), self.groups.all())
+
+        Contact.bulk_cache_initialize(self.org, contacts)
+        recipients = list(urns) + list(contacts)
 
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
@@ -410,8 +421,12 @@ class Broadcast(models.Model):
             if trigger_send:
                 self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
-        self.status = QUEUED
-        self.save(update_fields=('status',))
+        # for large batches, status is handled externally
+        # we do this as with the high concurrency of sending we can run into postgresl deadlocks
+        # (this could be our fault, or could be: http://www.postgresql.org/message-id/20140731233051.GN17765@andrew-ThinkPad-X230)
+        if not partial_recipients:
+            self.status = QUEUED
+            self.save(update_fields=('status',))
 
     def update(self):
         """
@@ -447,7 +462,7 @@ class Broadcast(models.Model):
         elif status_map.get(DELIVERED, 0) == total:
             self.status = DELIVERED
 
-        self.save()
+        self.save(update_fields=['status'])
 
     def __unicode__(self):
         return "%s (%s)" % (self.org.name, self.pk)
@@ -692,28 +707,25 @@ class Msg(models.Model, OrgAssetMixin):
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
     @classmethod
-    def mark_error(cls, msg, failed=False):
+    def mark_error(cls, msg, fatal=False):
         """
         Marks an outgoing message as FAILED or ERRORED
         :param msg: a JSON representation of the message or a Msg object
-        :param failed: mark message as failed, otherwise uses number of errors
         """
         msg.error_count += 1
-        if failed or msg.error_count >= 3:
-            msg.status = FAILED
+        if msg.error_count >= 3 or fatal:
+            if isinstance(msg, Msg):
+                msg.fail()
+            else:
+                Msg.objects.select_related('org').get(pk=msg.id).fail()
         else:
             msg.status = ERRORED
             msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
 
-        if isinstance(msg, Msg):
-            msg.save(update_fields=('status', 'next_attempt', 'error_count'))
-            org = msg.org
-        else:
-            Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
-            org = Org.objects.get(pk=msg.org)
-
-        if msg.status == FAILED:
-            org.update_caches(OrgEvent.msg_failed, msg)
+            if isinstance(msg, Msg):
+                msg.save(update_fields=('status', 'next_attempt', 'error_count'))
+            else:
+                Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
 
     @classmethod
     def mark_sent(cls, r, msg, status, external_id=None):
@@ -1110,6 +1122,12 @@ class Msg(models.Model, OrgAssetMixin):
 
         org.update_caches(OrgEvent.msg_new_outgoing, msg)
         return msg
+
+    def fail(self):
+        """
+        Fails this message, provided it is currently not failed
+        """
+        self._update_state(None, dict(status=FAILED), OrgEvent.msg_failed)
 
     def archive(self):
         """

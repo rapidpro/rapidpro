@@ -74,7 +74,7 @@ class Campaign(SmartModel):
 
                 # all else fails, create the objects from scratch
                 if not group:
-                    group = ContactGroup.objects.create(name=campaign_spec['group']['name'], org=org, created_by=user, modified_by=user)
+                    group = ContactGroup.create(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign = Campaign.objects.create(name=Campaign.get_unique_name(name, org), org=org, group=group, created_by=user, modified_by=user)
@@ -99,7 +99,7 @@ class Campaign(SmartModel):
 
                     # create our message flow for message events
                     if event_spec['event_type'] == MESSAGE_EVENT:
-                        flow = CampaignEvent.create_single_message_flow(org, user, event_spec['message'])
+                        flow = Flow.create_single_message(org, user, event_spec['message'])
                     else:
                         flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
 
@@ -232,16 +232,6 @@ class CampaignEvent(SmartModel):
                     hour -= 12
             hours.append((i, 'at %s:00 %s' % (hour, period)))
         return hours
-
-    @classmethod
-    def create_single_message_flow(cls, org, user, message):
-        """
-        Creates and initializes a single message flow for use by a Message CampaignEvent
-        """
-        flow = Flow.objects.create(name='Single Message (%s)' % str(uuid4()), org=org, flow_type=Flow.MESSAGE,
-                                   saved_by=user, created_by=user, modified_by=user)
-        flow.update_single_message_flow(message)
-        return flow
 
     def update_flow_name(self):
         """

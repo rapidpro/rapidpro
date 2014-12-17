@@ -3,7 +3,7 @@ Django==1.7.1
 coverage==3.5.1
 django-celery==3.1.9
 django-compressor==1.4
-django-debug-toolbar==1.0.1
+django-debug-toolbar==1.2.2
 django-digest==1.13
 django-guardian==1.2.4
 -e git+http://github.com/nyaruka/django-modeltranslation.git@dffebc9363297d77d91c99d46e8e53b32dc05e61#egg=django_modeltranslation-master

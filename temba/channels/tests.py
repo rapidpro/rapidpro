@@ -917,15 +917,14 @@ class ChannelTest(TembaTest):
         if not user:
             user = self.user
 
-        (group, created) = ContactGroup.objects.get_or_create(name=",".join(numbers), org=org, created_by=user, modified_by=user)
+        group = ContactGroup.get_or_create(org, user, ",".join(numbers))
         contacts = list()
         for number in numbers:
             contacts.append(Contact.get_or_create(user, org, name=None, urns=[(TEL_SCHEME, number)]))
 
         group.contacts.add(*contacts)
 
-        broadcast = Broadcast.create(user, message)
-        broadcast.set_recipients(group)
+        broadcast = Broadcast.create(org, user, message, [group])
         broadcast.send()
 
         sms = Msg.objects.filter(broadcast=broadcast).order_by('text', 'pk')

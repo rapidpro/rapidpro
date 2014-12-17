@@ -214,14 +214,9 @@ class BroadcastCRUDL(SmartCRUDL):
             # save off our broadcast info
             omnibox = form.cleaned_data['omnibox']
 
-            # clear out any previous contacts
-            broadcast.contacts.clear()
-            broadcast.groups.clear()
-            broadcast.urns.clear()
-
             # set our new message
             broadcast.text = form.cleaned_data['message']
-            broadcast.set_recipients(*(list(omnibox['groups']) + list(omnibox['contacts']) + list(omnibox['urns'])))
+            broadcast.update_recipients(list(omnibox['groups']) + list(omnibox['contacts']) + list(omnibox['urns']))
 
             broadcast.save()
             return broadcast
@@ -319,9 +314,6 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = self.form.cleaned_data['omnibox']
             has_schedule = self.form.cleaned_data['schedule']
 
-            schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(user, self.form.cleaned_data['text'], schedule=schedule)
-
             groups = list(omnibox['groups'])
             contacts = list(omnibox['contacts'])
             urns = list(omnibox['urns'])
@@ -340,7 +332,9 @@ class BroadcastCRUDL(SmartCRUDL):
                 for urn in urns:
                     recipients.append(urn)
 
-            broadcast.set_recipients(*recipients)
+            schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
+            broadcast = Broadcast.create(user.get_org(), user, self.form.cleaned_data['text'], recipients,
+                                         schedule=schedule)
 
             if not has_schedule:
                 self.post_save(broadcast)
