@@ -435,7 +435,7 @@ class Channel(SmartModel):
         if self.channel_type == ANDROID:
             return _("Android Phone")
         else:
-            return _("%s channel" % self.get_channel_type_display())
+            return _("%s Channel" % self.get_channel_type_display())
 
     def get_address_display(self, e164=False):
         from temba.contacts.models import TEL_SCHEME
