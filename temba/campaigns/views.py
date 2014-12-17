@@ -208,8 +208,8 @@ class EventForm(forms.ModelForm):
         if self.cleaned_data['event_type'] == 'M':
 
             if not obj.flow_id or not obj.flow.is_active or obj.flow.flow_type != Flow.MESSAGE:
-                obj.flow = CampaignEvent.create_single_message_flow(request.user.get_org(), request.user,
-                                                                    self.cleaned_data['message'])
+                obj.flow = Flow.create_single_message(request.user.get_org(), request.user,
+                                                      self.cleaned_data['message'])
 
             # set our single message on our flow
             obj.flow.update_single_message_flow(message=self.cleaned_data['message'])

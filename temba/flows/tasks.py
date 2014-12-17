@@ -85,3 +85,13 @@ def start_msg_flow_batch_task():
         import traceback
         traceback.print_exc(e)
         logger.exception("Error starting flow: %s" % id)
+
+@task(track_started=True, name="calculate_flow_stats")
+def calculate_flow_stats_task(flow_id):
+    logger = start_flow_task.get_logger()
+    try:
+        Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+    except Exception as e:
+        logger.exception("Error calculating flow stats: %d" % flow_id)
+
+

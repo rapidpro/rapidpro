@@ -518,15 +518,14 @@ class ChannelCRUDL(SmartCRUDL):
             context = super(ChannelCRUDL.Read, self).get_context_data(**kwargs)
             channel = self.object
 
+            sync_events = SyncEvent.objects.filter(channel=channel.id).order_by('-created_on')
+            context['last_sync'] = sync_events.first()
+
             if 'HTTP_X_FORMAX' in self.request.META:  # no additional data needed if request is only for formax
                 return context
 
             if not channel.is_active:
                 raise Http404("No active channel with that id")
-
-            sync_events = SyncEvent.objects.filter(channel=channel.id).order_by('-created_on')
-
-            context['last_sync'] = sync_events.first()
 
             context['channel_errors'] = ChannelLog.objects.filter(msg__channel=self.object, is_error=True)
             context['sms_count'] = Msg.objects.filter(channel=self.object).count()

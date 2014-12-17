@@ -6,6 +6,7 @@
 *~
 
 # temba
+dump.rdb
 .coverage
 env
 build

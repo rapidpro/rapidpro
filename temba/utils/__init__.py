@@ -1,19 +1,19 @@
 from __future__ import unicode_literals
 
 import calendar
-from decimal import Decimal
 import json
-from django.utils.timezone import is_aware
 import pytz
 import random
 import datetime
 
 from dateutil.parser import parse
+from decimal import Decimal
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.timezone import is_aware
 from django.http import HttpResponse
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
@@ -157,7 +157,6 @@ def truncate(text, max_len):
         return "%s..." % text[:(max_len - 3)]
     else:
         return text
-
 
 def get_preferred_language(language_dict, preferred_languages):
 

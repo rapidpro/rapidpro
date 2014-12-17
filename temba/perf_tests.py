@@ -9,6 +9,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
+from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import truncate
 from temba.values.models import Value, TEXT, DECIMAL
@@ -82,8 +83,11 @@ class PerformanceTest(TembaTest):
         self.clear_cache()
 
         self.user = self.create_user("tito")
+        self.admin = self.create_user("Administrator")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali",
                                       created_by=self.user, modified_by=self.user)
+        self.org.administrators.add(self.admin)
+        self.admin.set_org(self.org)
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
 
@@ -134,8 +138,7 @@ class PerformanceTest(TembaTest):
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            group = ContactGroup.objects.create(org=self.org, name=name, is_active=True,
-                                                created_by=self.user, modified_by=self.user)
+            group = ContactGroup.create(self.org, self.user, name)
             group.contacts.add(*contacts[(g % num_bases)::num_bases])
             groups.append(group)
         return groups
@@ -144,9 +147,7 @@ class PerformanceTest(TembaTest):
         """
         Creates the a single broadcast to the given recipients (which can groups, contacts, URNs)
         """
-        b = Broadcast.objects.create(org=self.org, text=text, created_by=self.user, modified_by=self.user)
-        b.set_recipients(*recipients)
-        return b
+        return Broadcast.create(self.org, self.user, text, recipients)
 
     def _create_values(self, contacts, field, callback):
         """
@@ -278,6 +279,18 @@ class PerformanceTest(TembaTest):
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_mtn).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
+
+    def test_flow_start(self):
+        contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
+        groups = self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
+        flow = self.create_flow()
+
+        with SegmentProfiler(self, "Starting a flow", True):
+            flow.start(groups, [])
+
+        self.assertEqual(10000, Msg.objects.all().count())
+        self.assertEqual(10000, FlowRun.objects.all().count())
+        self.assertEqual(20000, FlowStep.objects.all().count())
 
     def test_api(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])

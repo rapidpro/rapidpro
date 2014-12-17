@@ -68,8 +68,7 @@ def send_spam(user_id, contact_id):
 
     # only trigger sync on the last one
     for idx in range(10):
-        broadcast = Broadcast.create(user, long_text % (idx + 1), org=contact.org)
-        broadcast.set_recipients(contact)
+        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), [contact])
         broadcast.send(trigger_send=(idx == 149))
 
 @task(track_started=True, name='fail_old_messages')
@@ -98,8 +97,8 @@ def collect_message_metrics_task():
             analytics.track('System', 'temba.total_outgoing_delivered', properties=dict(value=count), context=context)
 
             # total # of sent messages (this includes delivered and wired)
-            count = Msg.objects.filter(direction=OUTGOING, status__in=[DELIVERED, SENT, WIRED], contact__is_test=False).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_sent', properties=dict(value=count), context=context)
+            #count = Msg.objects.filter(direction=OUTGOING, status__in=[DELIVERED, SENT, WIRED], contact__is_test=False).exclude(channel=None).exclude(topup=None).count()
+            #analytics.track('System', 'temba.total_outgoing_sent', properties=dict(value=count), context=context)
 
             # total # of failed messages
             count = Msg.objects.filter(direction=OUTGOING, status=FAILED, contact__is_test=False).exclude(channel=None).exclude(topup=None).count()

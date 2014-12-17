@@ -680,7 +680,12 @@ class ContactCRUDL(SmartCRUDL):
             group = self.derive_group()
             org = self.request.user.get_org()
 
-            context['actions'] = ('archive', 'label', 'unlabel')
+            if group.is_dynamic:
+                actions = ('archive', 'label')
+            else:
+                actions = ('archive', 'label', 'unlabel')
+
+            context['actions'] = actions
             context['current_group'] = group
             context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
             return context
@@ -750,18 +755,8 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             super(ContactCRUDL.Update, self).save(obj)
 
-            current_groups = obj.groups.all()
             new_groups = self.form.cleaned_data['groups']
-
-            # figure out our diffs, what groups need to be added or removed
-            remove_groups = [group for group in current_groups if group not in new_groups]
-            add_groups = [group for group in new_groups if group not in current_groups]
-
-            for group in remove_groups:
-                group.update_contacts([obj], False)
-
-            for group in add_groups:
-                group.update_contacts([obj], True)
+            obj.update_groups(new_groups)
 
             # TODO replace the contact edit dialog with something more substantial that will support multiple URNs with
             # the same scheme
@@ -846,13 +841,12 @@ class ContactGroupCRUDL(SmartCRUDL):
         success_message = ''
         submit_button_name = _("Create")
 
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super(ContactGroupCRUDL.Create, self).pre_save(obj, *args, **kwargs)
+        def save(self, obj):
             obj.org = self.request.user.get_org()
-            return obj
+            self.object = ContactGroup.create(obj.org, self.request.user, obj.name)
 
         def post_save(self, obj, *args, **kwargs):
-            obj = super(ContactGroupCRUDL.Create, self).post_save(obj, *args, **kwargs)
+            obj = super(ContactGroupCRUDL.Create, self).post_save(self.object, *args, **kwargs)
             data = self.form.cleaned_data
 
             # static group with initial contact ids

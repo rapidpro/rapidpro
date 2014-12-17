@@ -22,6 +22,7 @@ from temba.channels.models import Channel
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
 from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
@@ -140,14 +141,13 @@ CONTACT_STATUS_CHOICES = ((NORMAL, _("Normal")),
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(SmartModel, OrgAssetMixin):
+class Contact(TembaModel, SmartModel, OrgAssetMixin):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="org_contacts",
                             help_text=_("The organization that this contact belongs to"))
-    uuid = models.CharField(max_length=36, unique=True,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this contact."))
+
     is_archived = models.BooleanField(verbose_name=_("Is Archived"), default=False,
                                       help_text=_("Whether this contacts has been archived"))
 
@@ -408,7 +408,7 @@ class Contact(SmartModel, OrgAssetMixin):
 
             # otherwise create new contact with all URNs
             else:
-                updated_attrs = dict(name=name, org=org, created_by=user, modified_by=user, uuid=uuid4())
+                updated_attrs = dict(name=name, org=org, created_by=user, modified_by=user)
                 contact = Contact.objects.create(**updated_attrs)
 
                 org.update_caches(OrgEvent.contact_new, contact)
@@ -660,7 +660,7 @@ class Contact(SmartModel, OrgAssetMixin):
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
-        group = ContactGroup.create_group(group_name, user, group_org, task)
+        group = ContactGroup.create(group_org, user, group_name, task)
 
         num_creates = 0
         for contact in contacts:
@@ -753,6 +753,10 @@ class Contact(SmartModel, OrgAssetMixin):
                 # delete all messages with this contact
                 for msg in self.msgs.all():
                     msg.release()
+
+                # remove all flow runs and steps
+                for run in self.runs.all():
+                    run.release()
 
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
@@ -917,6 +921,22 @@ class Contact(SmartModel, OrgAssetMixin):
         if hasattr(self, '__urns'):
             delattr(self, '__urns')
 
+    def update_groups(self, groups):
+        """
+        Updates the groups for this contact to match the provided list, i.e. leaves any existing not included
+        """
+        current_groups = self.groups.all()
+
+        # figure out our diffs, what groups need to be added or removed
+        remove_groups = [g for g in current_groups if g not in groups]
+        add_groups = [g for g in groups if g not in current_groups]
+
+        for group in remove_groups:
+            group.update_contacts([self], False)
+
+        for group in add_groups:
+            group.update_contacts([self], True)
+
     def get_display(self, org=None, full=False, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
@@ -957,8 +977,7 @@ class Contact(SmartModel, OrgAssetMixin):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
         from temba.msgs.models import Broadcast
-        broadcast = Broadcast.create(user, text, org=self.org)
-        broadcast.set_recipients(self)
+        broadcast = Broadcast.create(self.org, user, text, [self])
         broadcast.send(trigger_send=trigger_send, message_context=message_context)
 
         if response_to and response_to.id > 0:
@@ -1182,7 +1201,7 @@ class ContactURN(models.Model):
         ordering = ('-priority', 'id')
 
 
-class ContactGroup(SmartModel):
+class ContactGroup(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='groups')
@@ -1196,32 +1215,34 @@ class ContactGroup(SmartModel):
     query_fields = models.ManyToManyField(ContactField, verbose_name=_("Query Fields"))
 
     @classmethod
-    def get_or_create(cls, name, user):
-        org = user.get_org()
-
-        existing = ContactGroup.objects.filter(name=name, org=org, is_active=True)
+    def get_or_create(cls, org, user, name):
+        existing = ContactGroup.objects.filter(name=name, org=org, is_active=True).first()
         if existing:
-            return existing[0]
+            return existing
         else:
-            return cls.create_group(name, user)
+            return cls.create(org, user, name)
 
     @classmethod
-    def create_group(cls, name, user, org=None, task=None):
-
-        if not org:
-            org = user.get_org()
-
+    def create(cls, org, user, name, task=None, query=None):
         full_group_name = name.strip()
-        if full_group_name:
+        if not full_group_name:
+            raise ValueError("Group name cannot be blank")
+
+        # look for name collision and append count if necessary
+        existing = ContactGroup.objects.filter(name=full_group_name, org=org, is_active=True).count() > 0
+
+        count = 2
+        while existing:
+            full_group_name = "%s %d" % (name, count)
             existing = ContactGroup.objects.filter(name=full_group_name, org=org, is_active=True).count() > 0
+            count += 1
 
-            count = 2
-            while existing:
-                full_group_name = "%s %d" % (name, count)
-                existing = ContactGroup.objects.filter(name=full_group_name, org=org, is_active=True).count() > 0
-                count += 1
+        group = ContactGroup.objects.create(name=full_group_name, org=org, import_task=task,
+                                            created_by=user, modified_by=user)
+        if query:
+            group.update_query(query)
 
-            return ContactGroup.objects.create(name=full_group_name, org=org, import_task=task, created_by=user, modified_by=user)
+        return group
 
     def update_contacts(self, contacts, add):
         """
@@ -1373,8 +1394,8 @@ class ExportContactsTask(SmartModel):
                     field = ContactField.make_key(field)
                     field_value = obj.get_field_display(field)
 
-                    if field_value is None:
-                        field_value = getattr(obj, field, None)
+                    if field == 'name':
+                        field_value = obj.name
 
                     value = ""
                     if field_value:
@@ -1419,8 +1440,8 @@ class ExportContactsTask(SmartModel):
                         field = ContactField.make_key(field)
                         field_value = obj.get_field_display(field)
 
-                        if field_value is None:
-                            field_value = getattr(obj, field, None)
+                        if field == 'name':
+                            field_value = obj.name
 
                         value = ""
                         if field_value:

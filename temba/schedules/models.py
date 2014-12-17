@@ -59,7 +59,7 @@ class Schedule(SmartModel):
             org = self.get_broadcast().org
 
         if org and org.timezone:
-            return timezone.pytz.timezone(org.timezone)
+            return org.get_tzinfo()
         else:
             return timezone.pytz.utc
 
@@ -117,7 +117,7 @@ class Schedule(SmartModel):
 
     def is_expired(self):
         if self.next_fire:
-            next_fire = self.next_fire.replace(tzinfo=self.get_org_timezone())
+            next_fire = self.next_fire
             return next_fire < timezone.now()
         else:
             return False
