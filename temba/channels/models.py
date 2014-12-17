@@ -431,6 +431,14 @@ class Channel(SmartModel):
         else:
             return _("Android Phone")
 
+    def get_channel_type_name(self):
+        channel_type_display = self.get_channel_type_display()
+
+        if self.channel_type == ANDROID:
+            return _("Android Phone")
+        else:
+            return _("%s Channel" % channel_type_display)
+
     def get_address_display(self, e164=False):
         from temba.contacts.models import TEL_SCHEME
         if not self.address:
@@ -1683,7 +1691,7 @@ class Alert(SmartModel):
                 template = 'channels/email/disconnected_alert'
 
         elif self.alert_type == ALERT_SMS:
-            subject = "Your Android phone is having trouble sending messages"
+            subject = "Your %s is having trouble sending messages" % self.channel.get_channel_type_name()
             template = 'channels/email/sms_alert'
         else: # pragma: no cover
             raise Exception(_("Unknown alert type: %(alert)s") % {'alert':self.alert_type})
