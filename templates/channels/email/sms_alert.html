@@ -2,6 +2,8 @@
 {% load i18n %}
 
 {% block body %}
+
+  {% if channel.channel_type == 'A' %}
     <p>
       {% blocktrans with org_name=org.name %}
         We've noticed that the Android phone for {{ org_name }} is having trouble sending text messages.  This might be
@@ -17,6 +19,23 @@
       {% endblocktrans %}
     </p>
 
+  {% else %}
+    <p>
+      {% blocktrans with org_name=org.name channel_type=channel.get_type %}
+        We've noticed that the {{ channel_type }} for {{ org_name }} is having trouble sending text messages.  This might be
+        a temporary problem due to network communication to {{ channel_type }}, or could be an indication that your {{ channel_type }} is out of credit.
+      {% endblocktrans %}
+    </p>
+
+    <p>
+      {% blocktrans with channel_type=channel.get_type %}
+        Please check on your {{ channel_type }} to make sure it has sufficient credit and can send text messages.  Currently your {{ channel_type }} has <strong>{{ unsent_count }}</strong>
+        messages which haven't sent in over an hour.
+      {% endblocktrans %}
+    </p>
+
+
+  {% endif  %}
     <p>
       {% blocktrans with channel_name=channel.get_name %}
         You can check the current status of your {{ channel_name }} by visiting its
