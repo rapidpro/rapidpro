@@ -197,9 +197,6 @@ class Broadcast(models.Model):
 
     @classmethod
     def create(cls, org, user, text, recipients, **kwargs):
-        if not recipients:
-            raise ValueError("Broadcast must have at least one recipient")
-
         create_args = dict(org=org, text=text, created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
@@ -425,7 +422,7 @@ class Broadcast(models.Model):
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
         # (this could be our fault, or could be: http://www.postgresql.org/message-id/20140731233051.GN17765@andrew-ThinkPad-X230)
         if not partial_recipients:
-            self.status = QUEUED
+            self.status = QUEUED if len(recipients) > 0 else SENT
             self.save(update_fields=('status',))
 
     def update(self):
