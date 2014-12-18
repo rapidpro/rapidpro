@@ -14,7 +14,7 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED
+from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
 from temba.tests import TembaTest
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
@@ -199,6 +199,14 @@ class MsgTest(TembaTest):
         msgs = broadcast.msgs.all()
         self.assertEquals(1, len(msgs))
         self.assertTrue(reachable, msgs[0].contact)
+
+    def test_empty(self):
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+        broadcast.send(True)
+
+        # should have no messages but marked as sent
+        self.assertEquals(0, broadcast.msgs.all().count())
+        self.assertEquals(SENT, broadcast.status)
 
     def test_outbox(self):
         self.login(self.admin)
