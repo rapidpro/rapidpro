@@ -168,13 +168,6 @@ SITEMAP = ('public.public_index', 'public.video_list', 'public.public_blog',
            'api', 'api.explorer', 'api.webhook', 'api.webhook_simulator',
            'api.sms', 'api.flows', 'api.runs', 'api.calls', 'api.channels')
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'django-cache'
-    }
-}
-
 INSTALLED_APPS = (
     
     'django.contrib.auth',
@@ -785,16 +778,6 @@ DEBUG_TOOLBAR_CONFIG = {
     'INTERCEPT_REDIRECTS': False,  # disable redirect traps
 }
 
-CACHES = {
-    "default": {
-        "BACKEND": "redis_cache.cache.RedisCache",
-        "LOCATION": "localhost:6379:8",
-        "OPTIONS": {
-            "CLIENT_CLASS": "redis_cache.client.DefaultClient",
-        }
-    }
-}
-
 #-----------------------------------------------------------------------------------
 # Crontab Settings ..
 #-----------------------------------------------------------------------------------
@@ -849,15 +832,30 @@ CELERY_TASK_MAP = {
 import djcelery
 djcelery.setup_loader()
 
-BROKER_URL = 'redis://localhost:6379/15'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/15'
-
-REDIS_PORT = 6379
 REDIS_HOST = 'localhost'
-REDIS_DB = 15
+REDIS_PORT = 6379
+
+# we use a redis db of 10 for testing so that we maintain caches for dev
+REDIS_DB = 10 if TESTING else 15
+
+BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
+CELERY_RESULT_BACKEND = BROKER_URL
 
 IS_PROD = False
 HOSTNAME = "localhost"
+
+#-----------------------------------------------------------------------------------
+# Cache to Redis
+#-----------------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "redis_cache.cache.RedisCache",
+        "LOCATION": "%s:%s:%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "OPTIONS": {
+            "CLIENT_CLASS": "redis_cache.client.DefaultClient",
+        }
+    }
+}
 
 #-----------------------------------------------------------------------------------
 # Django-rest-framework configuration

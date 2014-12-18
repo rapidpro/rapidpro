@@ -22,13 +22,6 @@ API_URL = 'https://rapidpro.ngrok.com'
 #-----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
 #-----------------------------------------------------------------------------------
-REDIS_HOST = 'localhost'
-REDIS_PORT = 6379
-REDIS_DB = 15
-
-if TESTING:
-    REDIS_DB = 10
-
 CACHES = {
     "default": {
         "BACKEND": "redis_cache.cache.RedisCache",
