@@ -1494,6 +1494,10 @@ class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')
     model = TopUp
 
+    class Read(OrgPermsMixin, SmartReadView):
+        def derive_queryset(self, **kwargs):
+            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('-expires_on')
+
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
             return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('-expires_on')
