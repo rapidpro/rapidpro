@@ -849,12 +849,12 @@ CELERY_TASK_MAP = {
 import djcelery
 djcelery.setup_loader()
 
-BROKER_URL = 'redis://localhost:6379/13'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/13'
+BROKER_URL = 'redis://localhost:6379/15'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/15'
 
 REDIS_PORT = 6379
 REDIS_HOST = 'localhost'
-REDIS_DB = 13
+REDIS_DB = 15
 
 IS_PROD = False
 HOSTNAME = "localhost"
