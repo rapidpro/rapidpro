@@ -14,8 +14,9 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED
+from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
 from temba.tests import TembaTest
+from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
 
 
@@ -34,6 +35,45 @@ class MsgTest(TembaTest):
         self.kevin = self.create_contact("Kevin Durant", "987")
         
         self.admin.set_org(self.org)
+
+    def test_erroring(self):
+        # test with real message
+        msg = Msg.create_outgoing(self.org, self.joe, "Test 1", self.admin)
+
+        Msg.mark_error(msg)
+        msg = Msg.objects.get(pk=msg.id)
+        self.assertEqual(msg.status, 'E')
+        self.assertEqual(msg.error_count, 1)
+        self.assertIsNotNone(msg.next_attempt)
+
+        Msg.mark_error(msg)
+        msg = Msg.objects.get(pk=msg.id)
+        self.assertEqual(msg.status, 'E')
+        self.assertEqual(msg.error_count, 2)
+        self.assertIsNotNone(msg.next_attempt)
+
+        Msg.mark_error(msg)
+        msg = Msg.objects.get(pk=msg.id)
+        self.assertEqual(msg.status, 'F')
+
+        # test with mock message
+        msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.joe, "Test 2", self.admin).as_task_json())
+
+        Msg.mark_error(msg)
+        msg = Msg.objects.get(pk=msg.id)
+        self.assertEqual(msg.status, 'E')
+        self.assertEqual(msg.error_count, 1)
+        self.assertIsNotNone(msg.next_attempt)
+
+        Msg.mark_error(msg)
+        msg = Msg.objects.get(pk=msg.id)
+        self.assertEqual(msg.status, 'E')
+        self.assertEqual(msg.error_count, 2)
+        self.assertIsNotNone(msg.next_attempt)
+
+        Msg.mark_error(msg)
+        msg = Msg.objects.get(pk=msg.id)
+        self.assertEqual(msg.status, 'F')
 
     def test_send_message_auto_completion_processor(self):
         outbox_url = reverse('msgs.broadcast_outbox')
@@ -152,8 +192,7 @@ class MsgTest(TembaTest):
         reachable = self.create_contact("Ryan Lewis", "+12067771234")
 
         # send a broadcast to the contacts
-        broadcast = Broadcast.create(self.admin, "Want to go thrift shopping?")
-        broadcast.set_recipients(unreachable, reachable)
+        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", [unreachable, reachable])
         broadcast.send(True)
 
         # should have one message created to Ryan
@@ -161,12 +200,20 @@ class MsgTest(TembaTest):
         self.assertEquals(1, len(msgs))
         self.assertTrue(reachable, msgs[0].contact)
 
+    def test_empty(self):
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+        broadcast.send(True)
+
+        # should have no messages but marked as sent
+        self.assertEquals(0, broadcast.msgs.all().count())
+        self.assertEquals(SENT, broadcast.status)
+
     def test_outbox(self):
         self.login(self.admin)
 
-        broadcast1 = Broadcast.create(self.admin, 'How is it going?')
-        broadcast1.set_recipients(Contact.get_or_create(self.admin, self.channel.org, name=None,
-                                                        urns=[(TEL_SCHEME, '250788382382')], channel=self.channel))
+        contact = Contact.get_or_create(self.admin, self.channel.org, name=None,
+                                        urns=[(TEL_SCHEME, '250788382382')], channel=self.channel)
+        broadcast1 = Broadcast.create(self.channel.org, self.admin, 'How is it going?', [contact])
 
         # now send the broadcast so we have messages
         broadcast1.send(trigger_send=False)
@@ -175,8 +222,8 @@ class MsgTest(TembaTest):
         self.assertContains(response, "Outbox (1)")
         self.assertEquals(1, len(response.context_data['object_list']))
 
-        broadcast2 = Broadcast.create(self.admin, 'kLab is an awesome place for @contact.name')
-        broadcast2.set_recipients(self.kevin, self.joe_and_frank)
+        broadcast2 = Broadcast.create(self.channel.org, self.admin, 'kLab is an awesome place for @contact.name',
+                                      [self.kevin, self.joe_and_frank])
 
         # now send the broadcast so we have messages
         broadcast2.send(trigger_send=False)
@@ -582,8 +629,7 @@ class MsgTest(TembaTest):
         self.assertEquals('F', Contact.objects.get(pk=msg1.contact.pk).status)
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(self.root, "message number 2")
-        broadcast.set_recipients(self.joe)
+        broadcast = Broadcast.create(self.org, self.root, "message number 2", [self.joe])
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status='F')
         broadcast.update()
@@ -722,11 +768,9 @@ class BroadcastTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", "123")
         self.frank = self.create_contact("Frank Blow", "321")
 
-        self.just_joe = ContactGroup.objects.create(name="Just Joe", org=self.org, created_by=self.user, modified_by=self.user)
-        self.just_joe.contacts.add(self.joe)
+        self.just_joe = self.create_group("Just Joe", [self.joe])
 
-        self.joe_and_frank = ContactGroup.objects.create(name="Joe and Frank", org=self.org, created_by=self.user, modified_by=self.user)
-        self.joe_and_frank.contacts.add(self.joe, self.frank)
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
         self.kevin = self.create_contact(name="Kevin Durant", number="987")
         self.lucy = self.create_contact(name="Lucy M", twitter="lucy")
@@ -742,8 +786,7 @@ class BroadcastTest(TembaTest):
             sms.broadcast.update()
             self.assertEquals(sms.broadcast.status, broadcast_status)
 
-        broadcast = Broadcast.create(self.user, "Like a tweet")
-        broadcast.set_recipients(self.joe_and_frank, self.kevin, self.lucy)
+        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEquals('I', broadcast.status)
         self.assertEquals(4, broadcast.recipient_count)
         
@@ -1035,9 +1078,9 @@ class BroadcastTest(TembaTest):
         self.joe.set_field("team", "Amavubi")
         self.kevin.set_field("team", "Junior")
 
-        self.broadcast = Broadcast.create(self.user, "Hi @contact.name, You live in @contact.sector and your team is @contact.team.")
-        self.broadcast.set_recipients(self.joe_and_frank, self.kevin)
-
+        self.broadcast = Broadcast.create(self.org, self.user,
+                                          "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
+                                          [self.joe_and_frank, self.kevin])
         self.broadcast.send(trigger_send=False)
 
         # there should be three broadcast objects
@@ -1074,15 +1117,13 @@ class BroadcastCRUDLTest(_CRUDLTest):
         self.frank = Contact.get_or_create(self.user, self.org, name="Frank Blow", urns=[(TEL_SCHEME, "1234")])
 
     def getTestObject(self):
-        broadcast = Broadcast.create(self.user, 'Hi Mammy')
-        broadcast.set_recipients(self.joe)
-        return broadcast
+        return Broadcast.create(self.org, self.user, 'Hi Mammy', [self.joe])
 
     def getUpdatePostData(self):
         return dict(message="Update Text", omnibox='c-%d' % self.joe.pk)
 
     def test_outgoing(self):
-        just_joe = ContactGroup.objects.create(name="Just Joe", org=self.org, created_by=self.user, modified_by=self.user)
+        just_joe = ContactGroup.create(self.org, self.user, "Just Joe")
         just_joe.contacts.add(self.joe)
 
         self._do_test_view('send', post_data=dict(omnibox="g-%d,c-%d" % (just_joe.pk, self.frank.pk),
@@ -1283,8 +1324,7 @@ class ScheduleTest(TembaTest):
         batch_group = self.create_group("Batch Group", contacts)
 
         # create our broadcast
-        broadcast = Broadcast.create(self.admin, 'Many message but only 5 batches.')
-        broadcast.groups.add(batch_group)
+        broadcast = Broadcast.create(self.org, self.admin, 'Many message but only 5 batches.', [batch_group])
 
         self.channel.channel_type = 'EX'
         self.channel.save()

@@ -481,7 +481,7 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             self.assertEquals(990, self.org.get_credits_remaining())  # from db
         with self.assertNumQueries(0):
             self.assertEquals(1000, self.org.get_credits_total())  # from cache
@@ -566,17 +566,19 @@ class OrgTest(TembaTest):
         r = get_redis_connection()
         r.set(ORG_TOPUP_EXPIRES_CACHE_KEY % self.org.pk, datetime_to_ms(yesterday))
 
+        # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertIsNone(msg.topup)
 
-        # check how we cope with no topups...
-        TopUp.objects.update(is_active=False)
+        # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        with self.assertNumQueries(1):
-            self.assertEquals(0, self.org.get_credits_total())
+        with self.assertNumQueries(4):
+            self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
-            self.assertEquals(-32, self.org.get_credits_remaining())
+            self.assertEquals(-1, self.org.get_credits_remaining())
+
+    test_topups.active = True
 
     def test_twilio_connect(self):
         connect_url = reverse("orgs.org_twilio_connect")
@@ -705,42 +707,64 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertFalse(self.org.has_messages())
 
-        contact = self.create_contact("Bob", number="0783835001")
+        contact1 = self.create_contact("Bob", number="0783835001")
+        contact2 = self.create_contact("Jim", number="0783835002")
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 1")
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
-        Msg.create_outgoing(self.org, contact, text="Message 5", user=self.user)
         Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
-        Broadcast.create(self.user, text="Broadcast 1")
-        Broadcast.create(self.user, text="Broadcast 2", schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
+        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
+        bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
+                                  schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
         with self.assertNumQueries(0):
             self.assertTrue(self.org.has_messages())
-            self.assertEqual(dict(msgs_inbox=4, msgs_archived=0, msgs_outbox=1, broadcasts_outbox=1, calls_all=1,
+            self.assertEqual(dict(msgs_inbox=4, msgs_archived=0, msgs_outbox=0, broadcasts_outbox=1, calls_all=1,
                                   msgs_flows=0, broadcasts_scheduled=1, msgs_failed=0), get_all_counts(self.org))
 
         msg3.archive()
-        Msg.create_outgoing(self.org, contact, text="Message 6", user=self.user)
+        bcast1.send()
+        msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
-        Broadcast.create(self.user, text="Broadcast 3", schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
+        Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
+                         schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 
         with self.assertNumQueries(0):
             self.assertEqual(dict(msgs_inbox=3, msgs_archived=1, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=0), get_all_counts(self.org))
 
+        msg1.archive()
         msg3.release()  # deleting an archived msg
         msg4.release()  # deleting a visible msg
+        msg5.fail()
+
+        with self.assertNumQueries(0):
+            self.assertEqual(dict(msgs_inbox=1, msgs_archived=1, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
+                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
+
+        msg1.restore()
+        msg3.release()  # already released
+        msg5.fail()  # already failed
 
         with self.assertNumQueries(0):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=0), get_all_counts(self.org))
+                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
+
+        Msg.mark_error(msg6)
+        Msg.mark_error(msg6)
+        Msg.mark_error(msg6)
+        Msg.mark_error(msg6)
+
+        with self.assertNumQueries(0):
+            self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
+                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
 
         self.org.clear_caches([OrgCache.display])
 
         with self.assertNumQueries(8):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=0), get_all_counts(self.org))
+                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
 
 
 class AnonOrgTest(TembaTest):
@@ -765,7 +789,7 @@ class AnonOrgTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_list'))
 
         # phone not in the list
-        self.assertNotContains(response, "788")
+        self.assertNotContains(response, "788 123 123")
 
         # but the id is
         self.assertContains(response, masked)
@@ -787,28 +811,29 @@ class AnonOrgTest(TembaTest):
 
         # shouldn't show the number on the outgoing page (for now this only shows recipient count)
         response = self.client.get(reverse('msgs.broadcast_outbox'))
-        self.assertNotContains(response, "788")
+
+        self.assertNotContains(response, "788 123 123")
 
         # also shouldn't show up on the flow results page
         response = self.client.get(reverse('flows.flow_results', args=[flow.pk]) + "?json=true")
-        self.assertNotContains(response, "788")
+        self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # create an incoming SMS, check our flow page
         Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
-        self.assertNotContains(response, "788")
+        self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
         Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
-        self.assertNotContains(response, "788")
+        self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # contact detail page
         response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-        self.assertNotContains(response, "788")
+        self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
 

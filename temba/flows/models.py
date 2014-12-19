@@ -3,54 +3,46 @@ from __future__ import unicode_literals
 import copy
 import json
 import numbers
+import os
 import phonenumbers
-import pytz, os
+import pytz
 import re
+import requests
 import time
 import xlwt
 import urllib2
-import requests
 
 from datetime import timedelta
 from decimal import Decimal
+from django.conf import settings
+from django.core.cache import cache
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.mail import send_mail
-from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
 from django.db.models import Q, Count
 from django.utils import timezone
 from django.core.cache import cache
+from enum import Enum
+from redis_cache import get_redis_connection
+from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from smartmin.models import SmartModel
 from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import Broadcast, Msg, FLOW, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
 from temba.orgs.models import Org
-
-from temba.channels.models import Channel, TWILIO
-from temba.msgs.models import Broadcast, Msg, FLOW, OUTGOING, STOP_WORDS, INITIALIZING, Label
-from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, STATE, DISTRICT, Value
-from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
-from twilio import twiml
-
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, get_preferred_language
-from temba.utils import analytics
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, get_preferred_language, analytics
+from temba.utils.models import TembaModel
 from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
 from twilio import twiml
 from unidecode import unidecode
 from uuid import uuid4
-
-# cache flow stats for 7 days
-FLOW_STAT_TIMEOUT = 60 * 60 * 24 * 7
-FLOW_COMPLETED_PERCENTAGE_KEY = 'flow:%d:completed_percentage'
-FLOW_PARTICIPANT_COUNT_KEY = 'flow:%d:participant_count'
-FLOW_STARTED_COUNT_KEY = 'flow:%d:started_count'
-FLOW_COMPLETED_COUNT_KEY = 'flow:%d:completed_count'
 
 OPEN = 'O'
 MULTIPLE_CHOICE = 'C'
@@ -66,15 +58,45 @@ RESPONSE_TYPE_CHOICES = ((OPEN, "Open Ended"),
                          (KEYPAD, "Keypad"),
                          (RECORDING, "Recording"))
 
+FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
+START_FLOW_BATCH_SIZE = 500
+
+
 class FlowException(Exception):
     def __init__(self, *args, **kwargs):
         super(FlowException, self).__init__(*args, **kwargs)
+
 
 class FlowReferenceException(Exception):
     def __init__(self, flow_names):
         self.flow_names = flow_names
 
-START_FLOW_BATCH_SIZE = 500
+
+FLOW_LOCK_TTL = 60  # 1 minute
+FLOW_LOCK_KEY = 'org:%d:lock:flow:%d:%s'
+FLOW_STAT_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
+
+# the most frequently we will check if our cache needs rebuilding
+FLOW_STAT_CACHE_FREQUENCY = 24 * 60 * 60  # 1 day
+
+class FlowLock(Enum):
+    """
+    Locks that are flow specific
+    """
+    participation = 1
+    activity = 2
+
+
+class FlowCache(Enum):
+    """
+    Stats we calculate and cache for flows
+    """
+    runs_started_count = 1
+    runs_completed_count = 2
+    contacts_started_set = 3
+    visit_count_map = 4
+    step_active_set = 5
+    cache_check = 6
 
 def edit_distance(s1, s2): # pragma: no cover
     """
@@ -110,7 +132,8 @@ def edit_distance(s1, s2): # pragma: no cover
 
     return d[lenstr1-1,lenstr2-1]
 
-class Flow(SmartModel):
+
+class Flow(TembaModel, SmartModel):
     UUID = 'uuid'
     ENTRY = 'entry'
     RULE_SETS = 'rule_sets'
@@ -168,7 +191,7 @@ class Flow(SmartModel):
     metadata = models.TextField(null=True, blank=True,
                                 help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."))
 
-    expires_after_minutes = models.IntegerField(default=60*12,
+    expires_after_minutes = models.IntegerField(default=FLOW_DEFAULT_EXPIRES_AFTER,
                                                 help_text=_("Minutes of inactivity that will cause expiration from flow"))
 
     ignore_triggers = models.BooleanField(default=False,
@@ -182,6 +205,47 @@ class Flow(SmartModel):
 
     base_language = models.CharField(max_length=3, null=True, blank=True,
                                      help_text=_('The primary language for editing this flow'))
+
+    @classmethod
+    def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
+        flow = Flow.objects.create(org=org, name=name, flow_type=flow_type,
+                                   expires_after_minutes=expires_after_minutes, base_language=base_language,
+                                   saved_by=user, created_by=user, modified_by=user)
+
+        analytics.track(user.username, 'nyaruka.flow_created', dict(name=name))
+        return flow
+
+    @classmethod
+    def create_single_message(cls, org, user, message):
+        """
+        Creates a special 'single message' flow
+        """
+        name = 'Single Message (%s)' % unicode(uuid4())
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+        flow.update_single_message_flow(message)
+        return flow
+
+    @classmethod
+    def create_join_group(cls, org, user, group, response=None, start_flow=None):
+        """
+        Creates a special 'join group' flow
+        """
+        name = Flow.get_unique_name('Join %s' % group.name, org)
+        flow = Flow.create(org, user, name)
+
+        uuid = unicode(uuid4())
+        actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
+                   dict(type='save', field='name', label='Contact Name', value='@step.value|remove_first_word|title_case')]
+
+        if response:
+            actions += [dict(type='reply', msg=response)]
+
+        if start_flow:
+            actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
+
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
+        flow.update(dict(entry=uuid, rulesets=[], action_sets=action_sets))
+        return flow
 
     @classmethod
     def export_definitions(cls, flows, fail_on_dependencies=True):
@@ -258,7 +322,7 @@ class Flow(SmartModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
-                    flow = Flow.objects.create(name=Flow.get_unique_name(name, org), org=org, created_by=user, modified_by=user, saved_by=user, flow_type=flow_type)
+                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type)
 
                 created_flows.append(dict(flow=flow, definition=flow_spec['definition']))
                 flow_id_map[flow_spec['id']] = flow.pk
@@ -299,12 +363,7 @@ class Flow(SmartModel):
 
     @classmethod
     def copy(cls, flow, user):
-        copy = Flow.objects.create(name="Copy of %s" % flow.name[:55],
-                                   org=flow.org,
-                                   flow_type=flow.flow_type,
-                                   saved_by=user,
-                                   created_by=user,
-                                   modified_by=user)
+        copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
 
         # grab the json of our original
         flow_json = flow.as_json()
@@ -365,10 +424,8 @@ class Flow(SmartModel):
             if step:
                 ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
                 if not ruleset:
-                    if not is_test_contact:
-                        flow.clear_participation_stats()
-
                     response.hangup()
+                    run.set_completed()
                     return response
 
                 # by default we look for pressed keys
@@ -385,6 +442,7 @@ class Flow(SmartModel):
                     temp.write(recording.content)
                     temp.flush()
 
+                    print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
                     text = default_storage.save('recordings/%d/%d/runs/%d/%s.wav' % (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
 
                     # we'll store the fully qualified url
@@ -394,9 +452,8 @@ class Flow(SmartModel):
                 rule, value = ruleset.find_matching_rule(step, run, call_event)
 
                 if not rule:
-                    if not is_test_contact:
-                        flow.clear_participation_stats()
                     response.hangup()
+                    run.set_completed()
                     return response
 
                 step.save_rule_match(rule, value)
@@ -404,21 +461,21 @@ class Flow(SmartModel):
 
                 # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
                 if not rule.destination:
+
                     # log it for our test contacts
                     if is_test_contact:
                         ActionLog.create_action_log(step.run,
                                                     _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-                    else:
-                        flow.clear_participation_stats()
 
                     response.hangup()
+                    run.set_completed()
                     return response
 
                 actionset = ActionSet.get(rule.destination)
-                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call)
-
+                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
             else:
                 response.hangup()
+                run.set_completed()
                 return response
 
         # we haven't begun the flow yet, start at the entry
@@ -434,7 +491,8 @@ class Flow(SmartModel):
 
             if actionset.destination:
                 ruleset = actionset.destination
-                flow.add_step(run, ruleset, call=call)
+                flow.add_step(run, ruleset, call=call, previous_step=step)
+
                 voice_callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
                 input_command = ruleset.get_voice_input(run, action=voice_callback)
 
@@ -447,9 +505,6 @@ class Flow(SmartModel):
                     input_command.record(action=voice_callback)
 
             else:
-                if not is_test_contact:
-                    flow.clear_participation_stats()
-
                 run.voice_response = response
                 action_msgs += actionset.execute_actions(run, call_event, [])
 
@@ -463,6 +518,7 @@ class Flow(SmartModel):
             return response
         else:
             response.hangup()
+            run.set_completed()
 
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
@@ -484,6 +540,7 @@ class Flow(SmartModel):
 
     @classmethod
     def find_and_handle(cls, msg):
+
         start_time = time.time()
         org = msg.org
         is_test_contact = msg.contact.is_test
@@ -508,6 +565,7 @@ class Flow(SmartModel):
             if not action_set:
                 step.left_on = timezone.now()
                 step.save(update_fields=['left_on'])
+                flow.remove_active_for_step(step)
                 continue
 
             # if there is no destination, move on, leaving them at this node
@@ -515,7 +573,7 @@ class Flow(SmartModel):
                 continue
 
             # otherwise, advance them to the rule set
-            flow.add_step(step.run, action_set.destination)
+            flow.add_step(step.run, action_set.destination, previous_step=step)
 
             # that ruleset will be handled below
             break
@@ -538,8 +596,6 @@ class Flow(SmartModel):
 
             ruleset = RuleSet.get(step.step_uuid)
             if not ruleset:
-                if not is_test_contact:
-                    flow.clear_participation_stats()
                 step.left_on = timezone.now()
                 step.save(update_fields=['left_on'])
                 continue
@@ -582,10 +638,10 @@ class Flow(SmartModel):
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
             # log it for our test contacts
+            run.set_completed()
+
             if is_test_contact:
                 ActionLog.create_action_log(run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
-            else:
-                flow.clear_participation_stats()
 
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
             return True
@@ -594,30 +650,28 @@ class Flow(SmartModel):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not action_set:
+            run.set_completed()
             if is_test_contact:
                 ActionLog.create_action_log(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-            else:
-                flow.clear_participation_stats()
 
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
             return True
 
         # execute this step
         msgs = action_set.execute_actions(run, msg, [])
-        step = flow.add_step(run, action_set, msgs, rule=rule.uuid, category=rule.category)
+        step = flow.add_step(run, action_set, msgs, rule=rule.uuid, category=rule.category, previous_step=step)
 
         # and onto the destination
         if action_set.destination:
             step.left_on = timezone.now()
             step.next_uuid = action_set.destination.uuid
             step.save(update_fields=['left_on', 'next_uuid'])
-
-            flow.add_step(run, action_set.destination)
+            flow.add_step(run, action_set.destination, previous_step=step)
 
         else:
-            flow.clear_participation_stats()
+            run.set_completed()
             if run.contact.is_test:
-                ActionLog.create_action_log(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+                ActionLog.create_action_log(step.run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
 
         # sync our channels to trigger any messages
         org.trigger_send(msgs)
@@ -649,6 +703,216 @@ class Flow(SmartModel):
             except FlowException:
                 pass
         return changed
+
+    def clear_cache(self):
+        r = get_redis_connection()
+        keys = r.keys(self.get_cache_key("*"))
+        if keys:
+            r.delete(*keys)
+
+    def get_cache_key(self, kind, item=None):
+
+        name = kind
+        if hasattr(kind, 'name'):
+            name = kind.name
+
+        cache_key = FLOW_STAT_CACHE_KEY % (self.org.pk, self.pk, name)
+        if item:
+            cache_key += (':%s' % item)
+        return cache_key
+
+    def lock_on(self, lock, qualifier=None):
+        """
+        Creates the requested type of flow-level lock
+        """
+        r = get_redis_connection()
+        lock_key = FLOW_LOCK_KEY % (self.org.pk, self.pk, lock.name)
+        if qualifier:
+            lock_key += (":%s" % qualifier)
+
+        return r.lock(lock_key, FLOW_LOCK_TTL)
+
+    def do_calculate_flow_stats(self):
+
+        start_time = time.time()
+
+        r = get_redis_connection()
+        with self.lock_on(FlowLock.participation):
+
+            # all the runs that were started
+            runs_started = self.runs.filter(contact__is_test=False).count()
+            r.set(self.get_cache_key(FlowCache.runs_started_count), runs_started)
+
+            # find all the completed runs
+            terminal_nodes = [node.uuid for node in self.action_sets.filter(destination=None)]
+            category_nodes = [node.uuid for node in self.rule_sets.all()]
+            completed = FlowStep.objects.values('run__pk').filter(run__flow=self).filter(
+                Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) &
+                ~Q(rule_uuid=None))).filter(run__contact__is_test=False).distinct('run')
+
+            run_ids = [ value['run__pk'] for value in completed ]
+            if run_ids:
+                completed_key = self.get_cache_key(FlowCache.runs_completed_count)
+                r.delete(completed_key)
+                r.sadd(completed_key, *run_ids)
+
+            # unique contacts
+            contact_ids = [ value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id') ]
+            contacts_key = self.get_cache_key(FlowCache.contacts_started_set)
+            r.delete(contacts_key)
+            if contact_ids:
+                r.sadd(contacts_key, *contact_ids)
+
+        # activity
+        with self.lock_on(FlowLock.activity):
+            (active, visits) = self._calculate_activity()
+
+            # remove our old active cache
+            keys = r.keys(self.get_cache_key(FlowCache.step_active_set, '*'))
+            if keys:
+                r.delete(*keys)
+            r.delete(self.get_cache_key(FlowCache.visit_count_map))
+
+            # add current active cache
+            for step, runs in active.items():
+                for run in runs:
+                    r.sadd(self.get_cache_key(FlowCache.step_active_set, step), run)
+
+            if len(visits):
+                r.hmset(self.get_cache_key(FlowCache.visit_count_map), visits)
+
+        analytics.track("System", "nyaruka.flow_stat_cache_rebuild", properties=dict(value=time.time() - start_time))
+
+    def _calculate_activity(self, simulation=False):
+
+        """
+        Calculate our activity stats from the database. This is expensive. It should only be run
+        for simulation or in an async task to rebuild the activity cache
+        """
+
+        # who is actively at each step
+        steps = FlowStep.objects.values('run__pk', 'step_uuid').filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=simulation).annotate(count=Count('run_id'))
+
+        active = {}
+        for step in steps:
+            step_id = step['step_uuid']
+            if step_id not in active:
+                active[step_id] = set([step['run__pk']])
+            else:
+                active[step_id].add(step['run__pk'])
+
+        # need to be a list for json
+        for key, value in active.items():
+            active[key] = list(value)
+
+        visits = {}
+        visited_actions = FlowStep.objects.values('step_uuid', 'next_uuid').filter(run__flow=self, step_type='A', run__contact__is_test=simulation).annotate(count=Count('run_id'))
+        visited_rules = FlowStep.objects.values('rule_uuid', 'next_uuid').filter(run__flow=self, step_type='R', run__contact__is_test=simulation).exclude(rule_uuid=None).annotate(count=Count('run_id'))
+
+        # where have people visited
+        for step in visited_actions:
+            if step['next_uuid'] and step['count']:
+                visits['%s:%s' % (step['step_uuid'], step['next_uuid'])] = step['count']
+
+        for step in visited_rules:
+            if step['next_uuid'] and step['count']:
+                visits['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
+
+        return (active, visits)
+
+    def _check_for_cache_update(self):
+        """
+        Checks if we have a redis cache for our flow stats, or whether they need to be updated.
+        If so, triggers an async rebuild of the cache for our flow.
+        """
+        from .tasks import calculate_flow_stats_task
+
+        r = get_redis_connection()
+
+        # if there's no key for our run count, we definitely need to build it
+        if not r.exists(self.get_cache_key(FlowCache.runs_started_count)):
+            calculate_flow_stats_task.delay(self.pk)
+            return
+
+        # don't do the more expensive check if it was performed recently
+        cache_check = self.get_cache_key(FlowCache.cache_check)
+        if r.exists(cache_check):
+            return
+
+        # don't check again for a day or so, add up to an hour of randomness
+        # to spread things out a bit
+        import random
+        r.set(cache_check, 1, FLOW_STAT_CACHE_FREQUENCY + random.randint(0, 60 * 60))
+
+        # check if our flow run count is the same, otherwise trigger rebuild
+        runs_started = self.runs.filter(contact__is_test=False).count()
+        if runs_started != self.get_total_runs():
+            calculate_flow_stats_task.delay(self.pk)
+
+
+    def get_activity(self, simulation=False):
+        """
+        Get the activity summary for a flow as a tuple of the number of active runs
+        at each step and a map of the previous visits
+        """
+
+        if simulation:
+            (active, visits) = self._calculate_activity(simulation=True)
+            # we want counts not actual run ids
+            for key, value in active.items():
+                active[key] = len(value)
+            return (active, visits)
+
+        self._check_for_cache_update()
+
+        r = get_redis_connection()
+
+        # we can do two queries to the db, or just one to redis
+        keys = r.keys(self.get_cache_key(FlowCache.step_active_set, '*'))
+        active = {}
+        for key in keys:
+            active[key[key.rfind(':') + 1:]] = r.scard(key)
+
+        # visited path
+        visited = r.hgetall(self.get_cache_key(FlowCache.visit_count_map))
+
+        # make sure our counts are treated as ints for consistency
+        for k, v in visited.items():
+            visited[k] = int(v)
+
+        return (active, visited)
+
+    def get_total_runs(self):
+        self._check_for_cache_update()
+        r = get_redis_connection()
+        runs = r.get(self.get_cache_key(FlowCache.runs_started_count))
+        if runs:
+            return int(runs)
+        return 0
+
+    def get_total_contacts(self):
+        self._check_for_cache_update()
+        r = get_redis_connection()
+        return r.scard(self.get_cache_key(FlowCache.contacts_started_set))
+
+    def update_start_counts(self, contacts, simulation=False):
+        """
+        Track who and how many people just started our flow
+        """
+
+        simulation = len(contacts) == 1 and contacts[0].is_test
+
+        if not simulation:
+            r = get_redis_connection()
+            contact_count = len(contacts)
+
+            # total number of runs as an int
+            r.incrby(self.get_cache_key(FlowCache.runs_started_count), contact_count)
+
+            # distinct participants as a set
+            if contact_count:
+                r.sadd(self.get_cache_key(FlowCache.contacts_started_set), *[c.pk for c in contacts])
+
 
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):
@@ -708,7 +972,6 @@ class Flow(SmartModel):
                     rule.update_base_language(self.base_language, self.org)
                 ruleset.set_rules(rules)
                 ruleset.save()
-
 
     def update_run_expirations(self):
         """
@@ -797,27 +1060,6 @@ class Flow(SmartModel):
         self.save(update_fields=['is_archived'])
         # we don't know enough to restore triggers automatically
 
-    @classmethod
-    def create_join_group_flow(cls, user, group, response=None, start_flow=None):
-
-        org = user.get_org()
-        flow = Flow.objects.create(name=Flow.get_unique_name('Join %s' % group.name, org), saved_by=user,
-                                   flow_type=Flow.FLOW, org=org, created_by=user, modified_by=user)
-
-        uuid = str(uuid4())
-        actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
-                   dict(type='save', field='name', label='Contact Name', value='@step.value|remove_first_word|title_case')]
-
-        if response:
-            actions += [dict(type='reply', msg=response)]
-
-        if start_flow:
-            actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
-
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
-        flow.update(dict(entry=uuid, rulesets=[], action_sets=action_sets))
-        return flow
-
     def update_single_message_flow(self, message):
         self.flow_type = Flow.MESSAGE
         self.save(update_fields=['name', 'flow_type'])
@@ -829,89 +1071,24 @@ class Flow(SmartModel):
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
 
-    def clear_participation_stats(self):
-        cache.delete(FLOW_PARTICIPANT_COUNT_KEY % self.id)
-        cache.delete(FLOW_COMPLETED_PERCENTAGE_KEY % self.id)
-        cache.delete(FLOW_STARTED_COUNT_KEY % self.id)
-        cache.delete(FLOW_COMPLETED_COUNT_KEY % self.id)
+    def get_completed_runs(self):
+        self._check_for_cache_update()
+        r = get_redis_connection()
+        return r.scard(self.get_cache_key(FlowCache.runs_completed_count))
 
-    def participant_count(self, contact=None):
-        # check for a cached value
-        key = FLOW_PARTICIPANT_COUNT_KEY % self.id
-        participant_count = cache.get(key, None)
-
-        if participant_count is None:
-            runs = self.runs.filter(contact__is_test=False).distinct('contact')
-            participant_count = runs.count()
-            cache.set(key, participant_count, FLOW_STAT_TIMEOUT)
-
-        return participant_count
-
-    def get_completed_counts_per_contact(self, contacts):
-        # participants at a terminal node or at a rule set (which means it is terminal as well [kinda])
-        terminal_nodes = self.get_terminal_nodes()
-        category_nodes = self.get_category_nodes()
-
-        completed = self.steps().filter(Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) &
-                                       ~Q(rule_uuid=None))).filter(run__contact__is_test=False)
-        completed = completed.values('contact').annotate(completed=Count('contact'))
-
-        return {c['contact']: c['completed'] for c in completed}
-
-    def get_started_counts_per_contact(self, contacts):
-        started = FlowRun.objects.filter(flow=self, contact__in=contacts).values('contact').annotate(started=Count('contact'))
-        return {s['contact']: s['started'] for s in started}
-
-    def started_count(self):
-        key = FLOW_STARTED_COUNT_KEY % self.id
-        started_count = cache.get(key, None)
-
-        if started_count is None:
-            started_count = self.runs.filter(contact__is_test=False).count()
-            cache.set(key, started_count, FLOW_STAT_TIMEOUT)
-
-        return started_count
-
-    def completed_count(self):
-        key = FLOW_COMPLETED_COUNT_KEY % self.id
-        completed_count = cache.get(key, None)
-
-        if completed_count is None:
-            # participants at a terminal node or at a rule set (which means it is terminal as well [kinda])
-            terminal_nodes = self.get_terminal_nodes()
-            category_nodes = self.get_category_nodes()
-
-            completed = self.steps().filter(Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) &
-                                           ~Q(rule_uuid=None))).filter(run__contact__is_test=False).distinct('run')
-            completed_count = completed.count()
-            cache.set(key, completed_count, FLOW_STAT_TIMEOUT)
-
-        return completed_count
-
-    def completed_percentage(self):
-        # check for a cached value
-        key = FLOW_COMPLETED_PERCENTAGE_KEY % self.id
-        completed_percentage = cache.get(key, None)
-
-        if completed_percentage is None:
-            total_runs = self.runs.filter(contact__is_test=False).count()
-
-            if total_runs > 0:
-                completed_runs = self.completed_count()
-                completed_percentage =  int((completed_runs * 100) / total_runs)
-            else:
-                completed_percentage = 0
-
-            cache.set(key, completed_percentage, FLOW_STAT_TIMEOUT)
-
+    def get_completed_percentage(self):
+        total_runs = self.get_total_runs()
+        if total_runs > 0:
+            completed_percentage =  int((self.get_completed_runs() * 100) / total_runs)
+        else:
+            completed_percentage = 0
         return completed_percentage
 
     def get_responses_since(self, since):
         return self.steps().filter(step_type=RULE_SET, left_on__gte=since, run__contact__is_test=False).count()
 
     def get_terminal_nodes(self):
-        terminal_actions = [s.uuid for s in self.action_sets.filter(destination=None)]
-        return terminal_actions
+        return [s.uuid for s in self.action_sets.filter(destination=None)]
 
     def get_category_nodes(self):
         return [_.uuid for _ in self.rule_sets.all()]
@@ -1140,7 +1317,8 @@ class Flow(SmartModel):
 
                     value = rule_step['rule_decimal_value'] if rule_step['rule_decimal_value'] is not None else rule_step['rule_value']
 
-                    values.append(dict(label=label,
+                    values.append(dict(node=rule_step['step_uuid'],
+                                       label=label,
                                        category=category,
                                        text=rule_step['text'],
                                        value=value,
@@ -1176,8 +1354,6 @@ class Flow(SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
-        now = timezone.now()
-
         if started_flows is None:
             started_flows = []
 
@@ -1202,7 +1378,9 @@ class Flow(SmartModel):
             all_contacts = all_contacts.exclude(pk__in=[_.contact_id for _ in self.runs.filter(is_active=True)])
         else:
             # mark any current runs as no longer active
-            self.runs.filter(is_active=True, contact__in=all_contacts).update(is_active=False)
+            previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
+            self.remove_active_for_runs(previous_runs)
+            previous_runs.update(is_active=False)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
@@ -1229,16 +1407,16 @@ class Flow(SmartModel):
         channel = self.org.get_call_channel()
 
         from temba.channels.models import CALL
-        print channel.role
         if not channel or CALL not in channel.role:
             return runs
 
-        clear_participation = False
-
         for contact in all_contacts:
-            run = FlowRun.objects.create(flow=self, contact=contact, start=flow_start)
+            run = FlowRun.create(self, contact, start=flow_start)
             if extra:
                 run.update_fields(extra)
+
+            # keep track of all runs we are starting in redis for faster calcs later
+            self.update_start_counts([contact])
 
             # create our call objects
             call = IVRCall.create_outgoing(channel, contact, self, self.created_by)
@@ -1252,13 +1430,8 @@ class Flow(SmartModel):
 
             runs.append(run)
 
-            clear_participation |= not contact.is_test
-
         if flow_start:
             flow_start.update_status()
-
-        if clear_participation:
-            self.clear_participation_stats()
 
         return runs
 
@@ -1280,7 +1453,14 @@ class Flow(SmartModel):
                 language_dict = json.dumps(send_action.msg)
 
             if message_text:
-                broadcast = Broadcast.create(self.created_by, message_text, org=self.org, language_dict=language_dict)
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, all_contacts,
+                                             language_dict=language_dict)
+
+                # manually set our broadcast status to QUEUED, our sub processes will send things off for us
+                broadcast.status = QUEUED
+                broadcast.save(update_fields=['status'])
+
+                # add it to the list of broadcasts in this flow start
                 broadcasts.append(broadcast)
 
         # if there are fewer contacts than our batch size, do it immediately
@@ -1299,13 +1479,13 @@ class Flow(SmartModel):
                 batch_contacts.append(contact.pk)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
-                    print "creating batch of %d for %s" % (len(task_context['contacts']), self.name)
+                    print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
                     push_task(self.org, 'flows', 'start_msg_flow_batch', task_context)
                     batch_contacts = []
                     task_context['contacts'] = batch_contacts
 
             if batch_contacts:
-                print "creating batch of %d for %s" % (len(task_context['contacts']), self.name)
+                print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
                 push_task(self.org, 'flows', 'start_msg_flow_batch', task_context)
 
             return []
@@ -1324,8 +1504,12 @@ class Flow(SmartModel):
         batch = []
         now = timezone.now()
         for contact in batch_contacts:
-            batch.append(FlowRun(contact=contact, flow=self, fields=run_fields, start=flow_start, created_on=now))
+            run = FlowRun.create(self, contact, fields=run_fields, start=flow_start, created_on=now, db_insert=False)
+            batch.append(run)
         FlowRun.objects.bulk_create(batch)
+
+        # keep track of all runs we are starting in redis for faster calcs later
+        self.update_start_counts(batch_contacts)
 
         # build a map of contact to flow run
         run_map = dict()
@@ -1337,8 +1521,6 @@ class Flow(SmartModel):
         # update our expiration date on our runs, we do this by calculating it on one run then updating all others
         run.update_expiration(timezone.now())
         FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on)
-
-        start = time.time()
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1355,13 +1537,15 @@ class Flow(SmartModel):
                 message_context = dict()
                 message_context.update(message_context_base)
 
-                broadcast.set_recipients(*batch_contacts)
+                # provide the broadcast with a partial recipient list
+                partial_recipients = list(), batch_contacts
 
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING,
-                               created_on=created_on, base_language=self.base_language)
+                               created_on=created_on, base_language=self.base_language,
+                               partial_recipients=partial_recipients)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
@@ -1382,19 +1566,19 @@ class Flow(SmartModel):
         msgs = []
         optimize_sending_action = len(broadcasts) > 0
 
-        clear_participation = False
         for contact in batch_contacts:
             run = run_map[contact.id]
             run_msgs = message_map.get(contact.id, [])
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows, execute_reply_action=not optimize_sending_action)
-                self.add_step(run, entry_actions, run_msgs, is_start=True)
+                step = self.add_step(run, entry_actions, run_msgs, is_start=True)
 
                 # and onto the destination
                 if entry_actions.destination:
-                    self.add_step(run, entry_actions.destination)
+                    self.add_step(run, entry_actions.destination, previous_step=step)
                 else:
+                    run.set_completed()
                     if contact.is_test:
                         ActionLog.create_action_log(run, '%s has exited this flow' % run.contact.get_display(self.org, short=True))
 
@@ -1413,8 +1597,6 @@ class Flow(SmartModel):
 
             runs.append(run)
 
-            clear_participation |= not contact.is_test
-
             # add these messages as ones that are ready to send
             for msg in run_msgs:
                 msgs.append(msg)
@@ -1431,12 +1613,12 @@ class Flow(SmartModel):
         if flow_start:
             flow_start.update_status()
 
-        if clear_participation:
-            self.clear_participation_stats()
-
         return runs
 
-    def add_step(self, run, step, msgs=[], rule=None, category=None, call=None, is_start=False):
+    def add_step(self, run, step, msgs=[], rule=None, category=None, call=None, is_start=False, previous_step=None):
+
+        # if we were previously marked complete, activate again
+        run.set_completed(False)
 
         if not is_start:
             # we have activity, update our expires on date accordingly
@@ -1458,7 +1640,70 @@ class Flow(SmartModel):
             from temba.ivr.models import IVRAction
             IVRAction.create_action(call, step)
 
+        # update the activity for our run
+        if not run.contact.is_test:
+            self.update_activity(step, previous_step, rule_uuid=rule)
+
         return step
+
+    def remove_active_for_runs(self, runs):
+        """
+        Bulk deletion of activity for a set of runs. This removes the runs
+        from the active step, but does not remove the visited (path) data
+        for the runs.
+        """
+        r = get_redis_connection()
+        runs = [run.pk for run in runs]
+        if runs:
+            for key in r.keys(self.get_cache_key(FlowCache.step_active_set, '*')):
+                r.srem(key, *runs)
+
+    def remove_active_for_step(self, step):
+        """
+        Removes the active stat for a run at the given step, but does not
+        remove the (path) data for the runs.
+        """
+        r = get_redis_connection()
+        r.srem(self.get_cache_key(FlowCache.step_active_set, step.step_uuid), step.run.pk)
+
+    def remove_visits_for_step(self, step):
+        """
+        Decrements the count for the given step
+        """
+        r = get_redis_connection()
+        step_uuid = step.step_uuid
+        if step.rule_uuid:
+            step_uuid = step.rule_uuid
+        r.hincrby(self.get_cache_key(FlowCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
+
+    def update_activity(self, step, previous_step=None, rule_uuid=None):
+        """
+        Updates our cache for the given step. This will mark the current active step and
+        record history path data for activity.
+
+        :param step: the step they just took
+        :param previous_step: the step they were just on
+        :param rule_uuid: the uuid for the rule they came from (if any)
+        :param simulation: if we are part of a simulation
+        """
+
+        with self.lock_on(FlowLock.activity):
+            r = get_redis_connection()
+
+            # remove our previous active spot
+            if previous_step:
+                self.remove_active_for_step(previous_step)
+
+                # mark our path
+                previous_uuid = previous_step.step_uuid
+
+                # if we came from a rule, use that instead of our step
+                if rule_uuid:
+                    previous_uuid = rule_uuid
+                r.hincrby(self.get_cache_key(FlowCache.visit_count_map), "%s:%s" % (previous_uuid, step.step_uuid), 1)
+
+            # make us active on our new step
+            r.sadd(self.get_cache_key(FlowCache.step_active_set, step.step_uuid), step.run.pk)
 
     def get_entry_send_actions(self):
         """
@@ -1929,9 +2174,7 @@ class RuleSet(models.Model):
             for value in Value.objects.filter(ruleset=self, category=label).order_by('rule_uuid').distinct('rule_uuid'):
                 uuid_to_category[value.rule_uuid] = label
 
-        return ordered_categories, uuid_to_category
-
-
+        return (ordered_categories, uuid_to_category)
 
     def get_value_type(self):
         """
@@ -2180,8 +2423,10 @@ RULE_SET = 'R'
 ACTION_SET = 'A'
 STEP_TYPE_CHOICES = ((RULE_SET, "RuleSet"), (ACTION_SET, "ActionSet"))
 
+
 class FlowRun(models.Model):
     flow = models.ForeignKey(Flow, related_name='runs')
+
     contact = models.ForeignKey(Contact, related_name='runs')
 
     call = models.ForeignKey('ivr.IVRCall', related_name='runs', null=True, blank=True,
@@ -2189,19 +2434,35 @@ class FlowRun(models.Model):
 
     is_active = models.BooleanField(default=True,
                                     help_text=_("Whether this flow run is currently active"))
+
     fields = models.TextField(blank=True, null=True,
                               help_text=_("A JSON representation of any custom flow values the user has saved away"))
+
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
+
     expires_on = models.DateTimeField(blank=True,
                                       null=True,
                                       help_text=_("When this flow run will expire"))
+
     expired_on = models.DateTimeField(blank=True,
                                       null=True,
                                       help_text=_("When this flow run expired"))
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
+
+    @classmethod
+    def create(cls, flow, contact, start=None, call=None, fields=None, created_on=None, db_insert=True):
+        args = dict(flow=flow, contact=contact, start=start, call=call, fields=fields)
+
+        if created_on:
+            args['created_on'] = created_on
+
+        if db_insert:
+            return FlowRun.objects.create(**args)
+        else:
+            return FlowRun(**args)
 
     @classmethod
     def normalize_fields(cls, fields, count=-1):
@@ -2239,6 +2500,48 @@ class FlowRun(models.Model):
         else:
             return (unicode(fields), count+1)
 
+    def release(self):
+
+        # remove each of our steps. we do this one at a time
+        # so we can decrement the activity properly
+        for step in self.steps.all():
+            step.release()
+
+        # remove our run from the activity
+        with self.flow.lock_on(FlowLock.activity):
+            self.flow.remove_active_for_runs([self])
+
+        # decrement our total flow count
+        r = get_redis_connection()
+
+        with self.flow.lock_on(FlowLock.participation):
+
+            r.incrby(self.flow.get_cache_key(FlowCache.runs_started_count), -1)
+
+            # remove ourselves from the completed runs
+            r.srem(self.flow.get_cache_key(FlowCache.runs_completed_count), self.pk)
+
+            # if we are the last run for our contact, remove our contact from the start set
+            if FlowRun.objects.filter(flow=self.flow, contact=self.contact).exclude(pk=self.pk).count() == 0:
+                r.srem(self.flow.get_cache_key(FlowCache.contacts_started_set), self.contact.pk)
+
+        # lastly delete ourselves
+        self.delete()
+
+    def set_completed(self, complete=True):
+        """
+        Mark a run as complete. Runs can become incomplete at a later
+        data if they re-engage with an updated flow.
+        """
+        r = get_redis_connection()
+        if not self.contact.is_test:
+            with self.flow.lock_on(FlowLock.participation):
+                key = self.flow.get_cache_key(FlowCache.runs_completed_count)
+                if complete:
+                    r.sadd(key, self.pk)
+                else:
+                    r.srem(key, self.pk)
+
     def update_expiration(self, point_in_time):
         """
         Set our expiration according to the flow settings
@@ -2251,10 +2554,13 @@ class FlowRun(models.Model):
 
             # if it's in the past, just expire us now
             if self.expires_on < now:
-                self.expired_on = now
-                self.is_active = False
+                self.expire()
 
-            self.save(update_fields=['is_active', 'expires_on'])
+    def expire(self):
+        self.expired_on = timezone.now()
+        self.is_active = False
+        self.save(update_fields=['is_active', 'expires_on'])
+        self.flow.remove_active_for_runs([self])
 
     def update_fields(self, field_map):
         # validate our field
@@ -2671,6 +2977,14 @@ class FlowStep(models.Model):
             return messages.order_by('created_on')
         return messages
 
+    def release(self):
+
+        if not self.contact.is_test:
+            self.run.flow.remove_visits_for_step(self)
+
+        # finally delete us
+        self.delete()
+
     def save_rule_match(self, rule, value):
         self.rule_category = rule.category
         self.rule_uuid = rule.uuid
@@ -3058,7 +3372,7 @@ class AddToGroupAction(Action):
                 elif ContactGroup.objects.filter(org=org, name=group_name, is_active=True).first():
                     group = ContactGroup.objects.filter(org=org, name=group_name, is_active=True).first()
                 else:
-                    group = ContactGroup.create_group(group_name, org.created_by, org=org)
+                    group = ContactGroup.create(org, org.created_by, group_name)
 
                 if group:
                     groups.append(group)
@@ -3070,7 +3384,7 @@ class AddToGroupAction(Action):
                     if group:
                         groups.append(group[0])
                     else:
-                        groups.append(ContactGroup.create_group(g, org.get_user()))
+                        groups.append(ContactGroup.create(org, org.get_user(), g))
         return groups
 
     def as_json(self):
@@ -3099,7 +3413,7 @@ class AddToGroupAction(Action):
                         group = ContactGroup.objects.get(org=contact.org, name=value, is_active=True)
                     except:
                         user = get_flow_user()
-                        group = ContactGroup.objects.create(org=contact.org, name=value, created_by=user, is_active=True, modified_by=user)
+                        group = ContactGroup.create(contact.org, user, name=value)
                         if run.contact.is_test:
                             ActionLog.create_action_log(run, _("Group '%s' created") % value)
 
@@ -3351,7 +3665,7 @@ class VariableContactAction(Action):
             elif ContactGroup.objects.filter(org=org, name=group_name):
                 group = ContactGroup.objects.get(org=org, name=group_name)
             else:
-                group = ContactGroup.create_group(group_name, org.get_user())
+                group = ContactGroup.create(org, org.get_user(), group_name)
 
             groups.append(group)
 
@@ -3702,9 +4016,10 @@ class SendAction(VariableContactAction):
                 if not message_text:
                     return list()
 
-                broadcast = Broadcast.create(flow.modified_by, message_text, org=flow.org, language_dict=language_dict)
+                recipients = groups + contacts
 
-                broadcast.set_recipients(*(groups + contacts))
+                broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
+                                             language_dict=language_dict)
                 broadcast.send(trigger_send=False, message_context=message_context, base_language=flow.base_language)
                 return list(broadcast.get_messages())
 
@@ -3966,48 +4281,27 @@ class OrTest(Test):
 
         return 0, None
 
-class StartsWithTest(Test):
+
+class TranslatableTest(Test):
     """
-    { op: "starts", "test": "red" }
+    A test that can be evaluated against a localized string
     """
-    TEST = 'test'
-    TYPE = 'starts'
-
-    def __init__(self, test):
-        self.test = test
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):
-        return dict(type=StartsWithTest.TYPE, test=self.test)
 
     def requires_step(self):
-        return self.test.find("@step") >= 0
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables in our test
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
-
-        # strip leading and trailing whitespace
-        text = text.strip()
-
-        # see whether we start with our test
-        if text.lower().find(test.lower()) == 0:
-            return 1, self.test
+        if isinstance(self.test, dict):
+            for k,v in self.test.items():
+                if v.find("@step") >= 0:
+                    return True
+            return False
         else:
-            return 0, None
+            return self.test.find("@step") >= 0
 
     def update_base_language(self, language_iso):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.test, dict):
             self.test = {language_iso: self.test}
 
-
-
-class ContainsTest(Test):
+class ContainsTest(TranslatableTest):
     """
     { op: "contains", "test": "red" }
     """
@@ -4024,9 +4318,6 @@ class ContainsTest(Test):
     def as_json(self):
         json = dict(type=ContainsTest.TYPE, test=self.test)
         return json
-
-    def requires_step(self):
-        return self.test.find("@step") >= 0
 
     def test_in_words(self, test, words, raw_words):
         for index, word in enumerate(words):
@@ -4066,11 +4357,6 @@ class ContainsTest(Test):
         else:
             return 0, None
 
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.test, dict):
-            self.test = {language_iso: self.test}
-
 class ContainsAnyTest(ContainsTest):
     """
     { op: "contains_any", "test": "red" }
@@ -4080,9 +4366,6 @@ class ContainsAnyTest(ContainsTest):
 
     def as_json(self):
         return dict(type=ContainsAnyTest.TYPE, test=self.test)
-
-    def requires_step(self):
-        return self.test.find("@step") >= 0
 
     def evaluate(self, run, sms, context, text):
 
@@ -4110,10 +4393,37 @@ class ContainsAnyTest(ContainsTest):
         else:
             return 0, None
 
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.test, dict):
-            self.test = {language_iso: self.test}
+
+class StartsWithTest(TranslatableTest):
+    """
+    { op: "starts", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'starts'
+
+    def __init__(self, test):
+        self.test = test
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):
+        return dict(type=StartsWithTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables in our test
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+
+        # strip leading and trailing whitespace
+        text = text.strip()
+
+        # see whether we start with our test
+        if text.lower().find(test.lower()) == 0:
+            return 1, self.test
+        else:
+            return 0, None
 
 class HasStateTest(Test):
     TYPE = 'state'
@@ -4486,9 +4796,9 @@ class PhoneTest(Test):
 
         return number, number
 
-class RegexTest(Test):
+class RegexTest(TranslatableTest):
     """
-    Test for whether a response matchesa regular expression
+    Test for whether a response matches a regular expression
     """
     TEST = 'test'
     TYPE = 'regex'
@@ -4531,8 +4841,3 @@ class RegexTest(Test):
             traceback.print_exc()
 
         return False, None
-
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.test, dict):
-            self.test = {language_iso: self.test}

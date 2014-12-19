@@ -26,13 +26,13 @@ from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, C
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer
-from temba.api.serializers import FlowSerializer, FlowRunReadSerializer, FlowRunStartSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgReadSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import OrgEvent, get_stripe_credentials, NEXMO_UUID
+from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
 from temba.channels.models import Channel
 from temba.flows.models import Flow, FlowRun, RuleSet
@@ -275,7 +275,7 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FlowRunEndpoint.get_read_explorer())
         endpoints.append(FlowRunEndpoint.get_write_explorer())
 
-#        endpoints.append(FlowResultsEndpoint.get_read_explorer())
+        #endpoints.append(FlowResultsEndpoint.get_read_explorer())
 
         endpoints.append(CampaignEndpoint.get_read_explorer())
         endpoints.append(CampaignEndpoint.get_write_explorer())
@@ -427,7 +427,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **relayer** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn```)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```)
-      * **group** - Any groups the contact belongs to (string) (filterable: ```group```)
+      * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids```)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction```)
       * **labels** - Any labels set on this message (filterable: ```label```)
       * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
@@ -551,9 +551,13 @@ class MessagesEndpoint(generics.ListAPIView):
             uuids = contact.split(',')
             queryset = queryset.filter(contact__uuid__in=uuids)
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)
+        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__groups__name__in=groups)
+
+        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        if group_uuids:
+            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
         type = self.request.QUERY_PARAMS.get('type', None)
         if type:
@@ -948,14 +952,16 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
 
         return spec
 
+
 class Groups(generics.ListAPIView):
     """
     ## Listing Groups
 
     A **GET** returns the list of groups for your organization, in the order of last created.
 
-    * **name** - the name of this group (string) (filterable: ```name```)
-    * **size** - the number of contacts in this group (int)
+    * **uuid** - the UUID of the group (string) (filterable: ```uuid```)
+    * **name** - the name of the group (string) (filterable: ```name```)
+    * **size** - the number of contacts in the group (int)
 
     Example:
 
@@ -969,6 +975,7 @@ class Groups(generics.ListAPIView):
             "previous": null,
             "results": [
                 {
+                    "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Reporters",
                     "size": 315
                 },
@@ -988,6 +995,10 @@ class Groups(generics.ListAPIView):
         if name:
             queryset = queryset.filter(name__icontains=name)
 
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+
         return queryset
 
     @classmethod
@@ -997,8 +1008,10 @@ class Groups(generics.ListAPIView):
                     url=reverse('api.contactgroups'),
                     slug='contactgroup-list',
                     request="")
-        spec['fields'] = [ dict(name='name', required=False,
-                                help="The name of the Contact Group to return.  ex: Reporters") ]
+        spec['fields'] = [dict(name='name', required=False,
+                               help="The name of the Contact Group to return.  ex: Reporters"),
+                          dict(name='uuid', required=False,
+                               help="The UUID of the Contact Group to return.  ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a")]
 
         return spec
 
@@ -1010,22 +1023,21 @@ class Contacts(generics.ListAPIView):
     You can add a new contact to your account, or update the fields on a contact by sending a **POST** request to this
     URL with the following JSON data:
 
-    * **phone** - the phone number for the contact (string) (deprecated)
-    * **urns** - a list of URNs you want associated with the contact (string array)
     * **uuid** - the UUID of the contact to update (string) (optional, new contact created if not present)
-    * **language** - the preferred language for the contact (3 letter iso code, optional)
     * **name** - the full name of the contact (string, optional)
-    * **groups** - a list of the groups this contact is part of (string array)
+    * **language** - the preferred language for the contact (3 letter iso code, optional)
+    * **urns** - a list of URNs you want associated with the contact (string array)
+    * **group_uuids** - a list of the UUIDs of any groups this contact is part of (string array, optional)
     * **fields** - a JSON dictionary of contact fields you want to set or update on this contact (JSON, optional)
 
     Example:
 
         POST /api/v1/contacts.json
         {
-            "phone": "+250788123123",
             "name": "Ben Haggerty",
             "language": "eng",
-            "groups": ["Musicians", "Top 10 Artists"],
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "group_uuids": ["6685e933-26e1-4363-a468-8f7268ab63a9", "1281f10a-d5b3-4580-a0fe-92adb97c2d1a"],
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
@@ -1035,14 +1047,11 @@ class Contacts(generics.ListAPIView):
     You will receive a contact object as a response if successful:
 
         {
-            "phone": "+250788123123",
             "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-            "urns": [
-              "tel:+250788123123"
-            ],
             "name": "Ben Haggerty",
             "language": "eng",
-            "groups": ["Musicians", "Top 10 Artists"],
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "group_uuids": ["6685e933-26e1-4363-a468-8f7268ab63a9", "1281f10a-d5b3-4580-a0fe-92adb97c2d1a"],
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
@@ -1052,19 +1061,18 @@ class Contacts(generics.ListAPIView):
     ## Updating Contacts
 
     You can update contacts in the same manner as adding them but we recommend you pass in the UUID for the contact
-    as a way of specifying which contact to update. Note that when you pass in the contact UUID and either ```phone```
-    or ```urns```, all existing URNs will be evaluated against this new set and updated accordingly.
+    as a way of specifying which contact to update. Note that when you pass in the contact UUID and ```urns```, all
+    existing URNs will be evaluated against this new set and updated accordingly.
 
     ## Listing Contacts
 
     A **GET** returns the list of contacts for your organization, in the order of last activity date.
 
-    * **phone** - the phone number for the contact (string) (filterable: ```phone```)
     * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid```)
-    * **urns** - the URN's associated with this contact (string array)
     * **name** - the name of this contact (string, optional)
     * **language** - the preferred language of this contact (string, optional)
-    * **groups** - the name of the groups this contact is part of (string array, optional) (filterable: ```group```)
+    * **urns** - the URN's associated with this contact (string array) (filterable: ```urns```)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
     * **fields** - any contact fields on this contact (JSON, optional)
 
     Example:
@@ -1079,14 +1087,13 @@ class Contacts(generics.ListAPIView):
             "previous": null,
             "results": [
             {
-                "phone": "+250788123123",
                 "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "name": "Ben Haggerty",
+                "language": null,
                 "urns": [
                   "tel:+250788123123"
                 ],
-                "language": null,
-                "groups": ["Musicians", "Top 10 Artists"],
+                "group_uuids": ["6685e933-26e1-4363-a468-8f7268ab63a9", "1281f10a-d5b3-4580-a0fe-92adb97c2d1a"],
                 "fields": {
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
@@ -1113,19 +1120,25 @@ class Contacts(generics.ListAPIView):
     def get_queryset(self):
         queryset = Contact.objects.filter(org=self.request.user.get_org(), is_active=True, is_test=False).order_by('modified_on')
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)
+        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated, use urns
         if phones:
             phones = phones.split(',')
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
 
-        groups = self.request.QUERY_PARAMS.get('group', None)
+        urns = self.request.QUERY_PARAMS.getlist('urns', None)
+        if urns:
+            queryset = queryset.filter(urns__urn__in=urns)
+
+        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
-            groups = groups.split(',')
             queryset = queryset.filter(groups__name__in=groups)
 
-        uuids = self.request.QUERY_PARAMS.get('uuid', None)
+        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        if group_uuids:
+            queryset = queryset.filter(groups__uuid__in=group_uuids)
+
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
-            uuids = uuids.split(',')
             queryset = queryset.filter(uuid__in=uuids)
 
         return queryset
@@ -1151,12 +1164,12 @@ class Contacts(generics.ListAPIView):
                     url=reverse('api.contacts'),
                     slug='contact-list',
                     request="phone=%2B250788123123")
-        spec['fields'] = [dict(name='phone', required=False,
-                               help="One or more phone number to filter by.  ex: +250788123123,+250788456456"),
-                          dict(name='uuid', required=False,
+        spec['fields'] = [dict(name='uuid', required=False,
                                help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
-                          dict(name='group', required=False,
-                               help="One or more groups to filter by. ex: Musicians, Top 10 Artists") ]
+                          dict(name='urns', required=False,
+                               help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
+                          dict(name='group_uuids', required=False,
+                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
 
         return spec
 
@@ -1168,17 +1181,16 @@ class Contacts(generics.ListAPIView):
                     slug='contact-update',
                     request='{ "name": "Ben Haggerty", "groups": ["Top 10 Artists"], "urns": ["tel:+250788123123"] }')
 
-        spec['fields'] = [dict(name='urns', required=True,
-                               help='The URNs of the contact.  ex: ["tel:+250788123123"]'),
-                          dict(name='name', required=False,
+        spec['fields'] = [dict(name='name', required=False,
                                help="The name of the contact.  ex: Ben Haggerty"),
                           dict(name='language', required=False,
                                help="The 3 letter iso code for the preferred language of the contact.  ex: fre, eng"),
-                          dict(name='groups', required=False,
-                               help='The groups this contact should be part of, as a string array.  ex: ["Musicians"]'),
+                          dict(name='urns', required=True,
+                               help='The URNs of the contact.  ex: ["tel:+250788123123"]'),
+                          dict(name='group_uuids', required=False,
+                               help='The UUIDs of groups this contact should be part of, as a string array.  ex: ["6685e933-26e1-4363-a468-8f7268ab63a9"]'),
                           dict(name='fields', required=False,
-                               help='Any fields to set on the contact, as a JSON dictionary. ex: { "Delivery Date": "2012-10-10 5:00" }')
-                          ]
+                               help='Any fields to set on the contact, as a JSON dictionary. ex: { "Delivery Date": "2012-10-10 5:00" }')]
         return spec
 
 
@@ -1415,25 +1427,25 @@ class FlowResultsEndpoint(generics.GenericAPIView):
 
 class FlowRunEndpoint(generics.ListAPIView):
     """
-    This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A run
-    is created for each time a contact is started down a flow.
+    This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A
+    run is created for each time a contact is started down a flow.
 
     ## Listing Flow Runs
 
-    By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each run
-    has the following attributes:
+    By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
+    run has the following attributes:
 
-    * **flow** - the id of the flow (long) (filterable: ```flow```)
     * **run** - the id of the run (long) (filterable: ```run```)
-    * **phone** - the phone number for the contact this run applies to (string) filterable: ```phone```)
-    * **group** - Any groups the contact belongs to (string) (filterable: ```group```)
+    * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid```)
+    * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact```)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
     * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
     * **steps** - steps visited by the contact on the flow (array of dictionaries)
     * **values** - values collected during the flow run (array of dictionaries)
 
     Example:
 
-        GET /api/v1/runs.json?flow=15015
+        GET /api/v1/runs.json?flow_uuid=f5901b62-ba76-4003-9c62-72fdacc1b7b7
 
     Response is the list of runs on the flow, most recent first:
 
@@ -1443,10 +1455,9 @@ class FlowRunEndpoint(generics.ListAPIView):
             "previous": null,
             "results": [
             {
-                "flow": 159,
-                "run": 13959124,
+                "uuid": "988e040c-33ff-4917-a36e-8cfa6a5ac731",
+                "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-                "phone": "+250788123123",
                 "created_on": "2013-03-02T17:28:12",
                 "steps": [
                     {
@@ -1460,14 +1471,15 @@ class FlowRunEndpoint(generics.ListAPIView):
                     {
                         "node": "9a31495d-1c4c-41d5-9018-06f93baa5b98",
                         "left_on": null,
-                        "text": null,
-                        "value": null,
+                        "text": "I want to buy a fox skin",
+                        "value": "fox skin",
                         "arrived_on": "2013-08-19T19:11:21.088Z",
                         "type": "R"
                     }
                 ],
                 "values": [
                     {
+                        "step_uuid": "9a31495d-1c4c-41d5-9018-06f93baa5b98",
                         "category": "fox skins",
                         "text": "I want to buy a fox skin",
                         "label": "Interest",
@@ -1487,8 +1499,9 @@ class FlowRunEndpoint(generics.ListAPIView):
 
         POST /api/v1/runs.json
         {
-            "flow": 15015,
-            "phone": ["+250788123123","+250788123124"],
+            "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+            "groups": ["b775ea51-b847-4a20-b668-6c4ce2f61356"]
+            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "f23777a3-e606-41d8-a925-3d87370e1a2b"],
             "extra": {
                 "confirmation_code":"JFI0358F98",
                 "name":"Ryan Lewis"
@@ -1499,9 +1512,8 @@ class FlowRunEndpoint(generics.ListAPIView):
 
         [
             {
-                "flow": 15015,
-                "run": 1310,
-                "phone": "+250788123123",
+                "run": 1234,
+                "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-08-19T19:11:20.838Z"
                 "values": [],
@@ -1547,15 +1559,17 @@ class FlowRunEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
 
-        flows = self.request.QUERY_PARAMS.get('flow', None)
+        runs = self.request.QUERY_PARAMS.getlist('run', None)
+        if runs:
+            queryset = queryset.filter(pk__in=runs)
+
+        flows = self.request.QUERY_PARAMS.getlist('flow', None)  # deprecated, use flow_uuid
         if flows:
-            flows = flows.split(',')
             queryset = queryset.filter(flow__pk__in=flows)
 
-        runs = self.request.QUERY_PARAMS.get('run', None)
-        if runs:
-            runs = runs.split(',')
-            queryset = queryset.filter(pk__in=runs)
+        flow_uuids = self.request.QUERY_PARAMS.getlist('flow_uuid', None)
+        if flow_uuids:
+            queryset = queryset.filter(flow__uuid__in=flow_uuids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -1578,9 +1592,13 @@ class FlowRunEndpoint(generics.ListAPIView):
             phones = phone.split(',')
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)
+        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__groups__name__in=groups)
+
+        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        if group_uuids:
+            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
         contact = self.request.QUERY_PARAMS.get('contact', None)
         if contact:
@@ -1596,17 +1614,18 @@ class FlowRunEndpoint(generics.ListAPIView):
                     url=reverse('api.runs'),
                     slug='run-list',
                     request="after=2013-01-01T00:00:00.000")
-        spec['fields'] = [ dict(name='flow', required=False,
-                                help="One or more flow ids to filter by.  ex: 234235,230420"),
-                           dict(name='phone', required=False,
-                                help="One or more phone numbers to filter by in E164 format.  ex: +250788123123"),
-                           dict(name='contact', required=False,
-                                help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
-                           dict(name='before', required=False,
-                                help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return runs which were created after this date.  ex: 2012-01-28T18:00:00.000"),
-                           ]
+        spec['fields'] = [dict(name='run', required=False,
+                               help="One or more run ids to filter by.  ex: 1234,1235"),
+                          dict(name='flow', required=False,
+                               help="One or more flow ids to filter by.  ex: 234235,230420"),
+                          dict(name='contact', required=False,
+                               help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                          dict(name='group_uuids', required=False,
+                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
+                          dict(name='before', required=False,
+                               help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return runs which were created after this date.  ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -2064,7 +2083,7 @@ class FlowEndpoint(generics.ListAPIView):
 
     Returns the flows for your organization, listing the most recent flows first.
 
-      * **flow** - the id of the flow (int) (filterable: ```flow```)
+      * **uuid** - the UUID of the flow (string) (filterable: ```uuid```)
       * **name** - the name of the flow (string)
       * **archived** - whether this poll is archived (boolean) (filterable: ```archived```)
       * **labels** - the labels for this flow (string array) (filterable: ```label```)
@@ -2083,19 +2102,17 @@ class FlowEndpoint(generics.ListAPIView):
             "previous": null,
             "results": [
             {
-                "flow": 15359,
+                "uuid": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
                 "archived": false,
                 "name": "Thrift Shop Status",
                 "labels": [ "Polls" ],
                 "rulesets": [
                    {
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "id": 4236,
                     "label": "Age"
                    },
                    {
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "id": 4238,
                     "label": "Gender"
                    }
                 ]
@@ -2107,14 +2124,17 @@ class FlowEndpoint(generics.ListAPIView):
     permission = 'flows.flow_api'
     model = Flow
     permission_classes = (SSLPermission, ApiPermission)
-    serializer_class = FlowSerializer
+    serializer_class = FlowReadSerializer
 
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('flow', None)
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+
+        ids = self.request.QUERY_PARAMS.getlist('flow', None)  # deprecated, use uuid
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -2165,6 +2185,7 @@ class FlowEndpoint(generics.ListAPIView):
 
         return spec
 
+
 class TwilioHandler(View):
 
     @disable_middleware
@@ -2176,22 +2197,29 @@ class TwilioHandler(View):
 
     def post(self, request, *args, **kwargs):
         from twilio.util import RequestValidator
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg, SENT, DELIVERED
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
         url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
 
-        # see if it's a twilio call being initiated
         call_sid = request.REQUEST.get('CallSid', None)
         direction = request.REQUEST.get('Direction', None)
         status = request.REQUEST.get('CallStatus', None)
         to_number = request.REQUEST.get('To', None)
+        to_country = request.REQUEST.get('ToCountry', None)
         from_number = request.REQUEST.get('From', None)
 
+        # Twilio sometimes sends un-normalized numbers
+        if not to_number.startswith('+') and to_country:
+            to_number, valid = ContactURN.normalize_number(to_number, to_country)
+
+        # see if it's a twilio call being initiated
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
 
             # find a channel that knows how to answer twilio calls
-            channel = Channel.objects.filter(address=to_number, channel_type='T', role__contains='A').first()
+            channel = Channel.objects.filter(address=to_number, channel_type='T', role__contains='A', is_active=True).exclude(org=None).first()
+            if not channel:
+                raise Exception("No active answering channel found for number: %s" % to_number)
 
             client = channel.org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
@@ -2213,7 +2241,7 @@ class TwilioHandler(View):
                 call.save()
 
                 if flow:
-                    run = FlowRun.objects.create(flow=flow, contact=contact, call=call)
+                    run = FlowRun.create(flow, contact, call=call)
                     response = Flow.handle_call(call, request.POST)
                     return HttpResponse(unicode(response))
                 else:
@@ -2263,7 +2291,7 @@ class TwilioHandler(View):
                 sms.save(update_fields=('status', 'delivered_on'))
                 Channel.track_status(sms.channel, "Delivered")
             elif status == 'failed':
-                Msg.mark_error(sms, failed=True)
+                sms.fail()
                 Channel.track_status(sms.channel, "Failed")
 
             sms.broadcast.update()
@@ -2272,9 +2300,9 @@ class TwilioHandler(View):
 
         # this is an incoming message that is being received by Twilio
         elif action == 'received':
-            channel = Channel.objects.filter(address=request.POST['To'], is_active=True).exclude(org=None).first()
+            channel = Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
             if not channel:
-                raise Exception("No active channel found for number: %s" % request.POST['To'])
+                raise Exception("No active channel found for number: %s" % to_number)
 
             # validate this request is coming from twilio
             org = channel.org
@@ -2409,7 +2437,7 @@ class AfricasTalkingHandler(View):
                 sms.save(update_fields=('status',))
                 Channel.track_status(channel, "Sent")
             elif status == 'Rejected' or status == 'Failed':
-                Msg.mark_error(sms, failed=True)
+                sms.fail()
                 Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
@@ -2477,7 +2505,7 @@ class ZenviaHandler(View):
                 sms.save(update_fields=('status',))
                 Channel.track_status(channel, "Sent")
             else:
-                Msg.mark_error(sms, failed=True)
+                sms.fail()
                 Channel.track_status(channel, "Failed")
 
             # update our broadcast status
@@ -2552,7 +2580,7 @@ class ExternalHandler(View):
                 sms.save(update_fields=('status',))
                 Channel.track_status(channel, "Sent")
             elif action == 'failed':
-                Msg.mark_error(sms, failed=True)
+                sms.fail()
                 Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
@@ -2633,7 +2661,7 @@ class InfobipHandler(View):
         elif status in ['NOT_SENT', 'NOT_ALLOWED', 'INVALID_DESTINATION_ADDRESS',
                         'INVALID_SOURCE_ADDRESS', 'ROUTE_NOT_AVAILABLE', 'NOT_ENOUGH_CREDITS',
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
-            Msg.mark_error(sms, failed=True)
+            sms.fail()
             Channel.track_status(channel, "Failed")
 
         sms.broadcast.update()
@@ -2707,7 +2735,7 @@ class Hub9Handler(View):
                 sms.save(update_fields=('status', 'delivered_on'))
                 Channel.track_status(channel, "Delivered")
             elif status > 20:
-                Msg.mark_error(failed=True)
+                sms.fail()
                 Channel.track_status(channel, "Failed")
             elif status != -1:
                 sms.status = SENT
@@ -2787,7 +2815,7 @@ class NexmoHandler(View):
                 sms.save(update_fields=('status', 'sent_on'))
                 Channel.track_status(channel, "Sent")
             elif status == 'expired' or status == 'failed':
-                Msg.mark_error(sms, failed=True)
+                sms.fail()
                 Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()

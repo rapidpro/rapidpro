@@ -1494,6 +1494,10 @@ class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')
     model = TopUp
 
+    class Read(OrgPermsMixin, SmartReadView):
+        def derive_queryset(self, **kwargs):
+            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('-expires_on')
+
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
             return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('-expires_on')
@@ -1501,6 +1505,7 @@ class TopUpCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
             context['org'] = self.request.user.get_org()
+            context['now'] = timezone.now()
             return context
 
         def get_template_names(self):

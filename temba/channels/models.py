@@ -421,8 +421,7 @@ class Channel(SmartModel):
             urn.ensure_number_normalization(self)
 
     def supports_ivr(self):
-        if self.channel_type == TWILIO:
-            return True
+        return CALL in self.role or ANSWER in self.role
 
     def get_name(self):  # pragma: no cover
         if self.name:
@@ -431,6 +430,14 @@ class Channel(SmartModel):
             return self.device
         else:
             return _("Android Phone")
+
+    def get_channel_type_name(self):
+        channel_type_display = self.get_channel_type_display()
+
+        if self.channel_type == ANDROID:
+            return _("Android Phone")
+        else:
+            return _("%s Channel" % channel_type_display)
 
     def get_address_display(self, e164=False):
         from temba.contacts.models import TEL_SCHEME
@@ -613,17 +620,26 @@ class Channel(SmartModel):
             delegate_channel.release()
 
         # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
-        if self.channel_type == TWILIO and not self.is_delegate_sender():
+        if self.channel_type == TWILIO:
             client = self.org.get_twilio_client()
+            number_update_args = dict()
+
+            if not self.is_delegate_sender():
+                number_update_args['sms_application_sid'] = ""
+
+            if self.supports_ivr():
+                number_update_args['voice_application_sid'] = ""
+
             try:
                 client.phone_numbers.update(self.uuid,
-                                            sms_application_sid="")
+                                            **number_update_args)
+
             except Exception as e:
                 if client:
                     matching = client.phone_numbers.list(phone_number=self.address)
                     if matching:
                         client.phone_numbers.update(matching[0].sid,
-                                                    sms_application_sid="")
+                                                    **number_update_args)
 
         # save off our gcm id so we can trigger a sync
         gcm_id = self.gcm_id
@@ -884,7 +900,7 @@ class Channel(SmartModel):
             response = requests.put(url,
                                     data=payload,
                                     headers=headers,
-                                    timeout=5,
+                                    timeout=30,
                                     auth=(channel.config['account_key'], channel.config['access_token']))
 
         except Exception as e:
@@ -1246,7 +1262,7 @@ class Channel(SmartModel):
 
     @classmethod
     def send_message(cls, msg): # pragma: no cover
-        from temba.msgs.models import Msg, QUEUED, OUTGOING, ERRORED, FAILED, WIRED, PENDING
+        from temba.msgs.models import Msg, QUEUED, WIRED
         r = get_redis_connection()
 
         # check whether this message was already sent somehow
@@ -1260,8 +1276,7 @@ class Channel(SmartModel):
 
         # channel can be none in the case where the channel has been removed
         if not channel:
-            msg.error_count = 3
-            Msg.mark_error(msg)
+            Msg.mark_error(msg, fatal=True)
             ChannelLog.log_error(msg, _("Message no longer has a way of being sent, marking as failed."))
             return
 
@@ -1676,7 +1691,7 @@ class Alert(SmartModel):
                 template = 'channels/email/disconnected_alert'
 
         elif self.alert_type == ALERT_SMS:
-            subject = "Your Android phone is having trouble sending messages"
+            subject = "Your %s is having trouble sending messages" % self.channel.get_channel_type_name()
             template = 'channels/email/sms_alert'
         else: # pragma: no cover
             raise Exception(_("Unknown alert type: %(alert)s") % {'alert':self.alert_type})

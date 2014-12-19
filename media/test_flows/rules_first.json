@@ -1,0 +1,82 @@
+{
+  "rule_sets": [
+    {
+      "uuid": "e02c6b80-e1bc-4d5d-a060-9e0a17ccfcd4",
+      "response_type": "C",
+      "rules": [
+        {
+          "test": {
+            "test": "Cats", 
+            "type": "contains_any"
+          }, 
+          "category": "Cats", 
+          "destination": "2a9b17b9-7c46-4b24-9e46-53a8fe060781", 
+          "uuid": "a806788f-ebfc-4515-a849-164fc9245d5d"
+        }, 
+        {
+          "test": {
+            "test": "Dogs", 
+            "type": "contains_any"
+          }, 
+          "category": "Dogs", 
+          "destination": "9d3216b5-a5f9-41ea-b0fb-de27409b41a7", 
+          "uuid": "95ef3d80-90ad-43c6-93ee-84fe0539e2f4"
+        }, 
+        {
+          "test": {
+            "test": "true", 
+            "type": "true"
+          }, 
+          "category": "Other", 
+          "destination": "6548a40d-5cd7-436b-82c1-e93ea8991ffa", 
+          "uuid": "608ba565-2477-49ff-84b8-45eab0bcc2c8"
+        }
+      ], 
+      "label": "Animal", 
+      "operand": "@step.value",
+      "y": 0, 
+      "x": 260
+    }
+  ], 
+  "action_sets": [
+    {
+      "y": 161, 
+      "x": 114, 
+      "destination": null, 
+      "uuid": "2a9b17b9-7c46-4b24-9e46-53a8fe060781", 
+      "actions": [
+        {
+          "msg": "You've got to be kitten me", 
+          "type": "reply"
+        }
+      ]
+    }, 
+    {
+      "y": 160, 
+      "x": 342, 
+      "destination": null, 
+      "uuid": "9d3216b5-a5f9-41ea-b0fb-de27409b41a7", 
+      "actions": [
+        {
+          "msg": "Raise the woof!", 
+          "type": "reply"
+        }
+      ]
+    }, 
+    {
+      "y": 100, 
+      "x": 602, 
+      "destination": "e02c6b80-e1bc-4d5d-a060-9e0a17ccfcd4", 
+      "uuid": "6548a40d-5cd7-436b-82c1-e93ea8991ffa", 
+      "actions": [
+        {
+          "msg": "Is that even an animal?", 
+          "type": "reply"
+        }
+      ]
+    }
+  ], 
+  "metadata": {
+    "notes": []
+  }
+}

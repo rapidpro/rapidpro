@@ -92,8 +92,9 @@ class TembaTest(SmartminTest):
         Contact.set_simulation(False)
 
     def clear_cache(self):
-        # we are extra paranoid here and actually hardcode redis to 'localhost' and '15'
-        r = redis.StrictRedis(host='localhost', db=15)
+        # we are extra paranoid here and actually hardcode redis to 'localhost' and '10'
+        # Redis 10 is our testing redis db
+        r = redis.StrictRedis(host='localhost', db=10)
         r.flushdb()
 
     def import_file(self, file, site='http://rapidpro.io'):
@@ -127,7 +128,7 @@ class TembaTest(SmartminTest):
         return Contact.get_or_create(self.user, org=self.org, name=name, urns=urns)
 
     def create_group(self, name, contacts):
-        group = ContactGroup.objects.create(name=name, org=self.org, created_by=self.user, modified_by=self.user)
+        group = ContactGroup.create(self.org, self.user, name)
         group.contacts.add(*contacts)
         return group
 
@@ -169,12 +170,7 @@ class TembaTest(SmartminTest):
                                     ],
                           entry=uuid(start + 1))
 
-        flow = Flow.objects.create(name="Color Flow",
-                                   org=self.org,
-                                   saved_by=self.admin,
-                                   created_by=self.admin,
-                                   modified_by=self.admin)
-
+        flow = Flow.create(self.org, self.admin, "Color Flow")
         flow.update(definition)
         return flow
 
@@ -224,11 +220,7 @@ class FlowFileTest(TembaTest):
             Contact.set_simulation(False)
 
     def get_flow(self, filename, substitutions=None):
-        flow = Flow.objects.create(name=filename,
-                                   org=self.org,
-                                   saved_by=self.admin,
-                                   created_by=self.admin,
-                                   modified_by=self.admin)
+        flow = Flow.create(self.org, self.admin, name=filename)
         self.update_flow(flow, filename, substitutions)
         return flow
 

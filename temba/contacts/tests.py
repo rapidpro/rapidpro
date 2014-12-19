@@ -142,7 +142,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertEquals(group.name, "first")
 
     def test_update_url(self):
-        group = ContactGroup.create_group("one", self.user)
+        group = ContactGroup.create(self.org, self.user, "one")
 
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         self.login(self.user)
@@ -168,17 +168,16 @@ class ContactGroupTest(TembaTest):
         self.mary = Contact.get_or_create(self.admin, self.org, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
 
     def test_create(self):
-        ContactGroup.create_group("   ", self.admin)
-        self.assertFalse(ContactGroup.objects.all())
+        # exception if group name is blank
+        self.assertRaises(ValueError, ContactGroup.create, self.org, self.admin, "   ")
 
-        ContactGroup.create_group(" group one ", self.admin)
+        ContactGroup.create(self.org, self.admin, " group one ")
         self.assertEquals(1, ContactGroup.objects.all().count())
         group = ContactGroup.objects.all()[0]
         self.assertEquals(group.name, "group one")
 
     def test_member_count(self):
-        group = ContactGroup.objects.create(org=self.org, name="Cool kids", is_active=True,
-                                            created_by=self.user, modified_by=self.user)
+        group = ContactGroup.create(self.org, self.user, "Cool kids")
         group.contacts.add(self.joe, self.frank)
 
         with self.assertNumQueries(1):
@@ -215,13 +214,19 @@ class ContactGroupTest(TembaTest):
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, 'age')
         gender = ContactField.get_or_create(self.org, 'gender')
-        group = ContactGroup.create_group("Group 1", self.admin)
+        group = ContactGroup.create(self.org, self.admin, "Group 1")
 
         group.update_query('(age < 18 and gender = "male") or (age > 18 and gender = "female")')
         self.assertEqual([age, gender], list(ContactGroup.objects.get(pk=group.id).query_fields.all().order_by('key')))
 
         group.update_query('height > 100')
         self.assertEqual(0, ContactGroup.objects.get(pk=group.id).query_fields.count())
+
+        # dynamic group should not have remove to group button
+        self.login(self.admin)
+        filter_url = reverse('contacts.contact_filter', args=[group.pk])
+        response = self.client.get(filter_url)
+        self.assertFalse('unlabel' in response.context['actions'])
 
 
 class ContactTest(TembaTest):
@@ -715,8 +720,7 @@ class ContactTest(TembaTest):
         # login as a manager from out of this organization
         self.login(self.manager1)
         # create kLab group, and add joe to the group
-        kLab = ContactGroup.objects.create(name="kLab", org=self.org, created_by=self.root, modified_by=self.root)
-        kLab.contacts.add(self.joe)
+        kLab = self.create_group("kLab", [self.joe])
 
         # post to read url, joe's contact and kLab group
         post_data = dict(contact=self.joe.id, group=kLab.id)
@@ -741,12 +745,8 @@ class ContactTest(TembaTest):
         from temba.msgs.tasks import check_messages_task
         list_url = reverse('contacts.contact_list')
 
-        self.just_joe = ContactGroup.objects.create(name="Just Joe", org=self.org, created_by=self.user, modified_by=self.user)
-        self.just_joe.contacts.add(self.joe)
-
-        self.joe_and_frank = ContactGroup.objects.create(name="Joe and Frank", org=self.org, created_by=self.user, modified_by=self.user)
-        self.joe_and_frank.contacts.add(self.joe)
-        self.joe_and_frank.contacts.add(self.frank)
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
         self.assertEquals(self.joe.groups_as_text(), "Joe and Frank, Just Joe")
         group_analytic_json = self.joe_and_frank.analytics_json()
@@ -802,8 +802,7 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 2)
 
         # add a new group
-        group = ContactGroup.objects.create(name="Test", org=self.org, created_by=self.user, modified_by=self.user)
-        group.contacts.add(self.joe)
+        group = self.create_group("Test", [self.joe])
 
         # view our test group
         filter_url = reverse('contacts.contact_filter', args=[group.pk])
@@ -1314,8 +1313,7 @@ class ContactTest(TembaTest):
         self.assertEquals(self.joe.uuid, message_context['uuid'])
 
         # add him to a group
-        group = ContactGroup.objects.create(name="Reporters", org=self.org, created_by=self.user, modified_by=self.user)
-        group.contacts.add(self.joe)
+        self.create_group("Reporters", [self.joe])
 
         self.joe = Contact.objects.get(pk=self.joe.pk)
         message_context = self.joe.build_message_context()
@@ -1330,9 +1328,7 @@ class ContactTest(TembaTest):
         from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 
         def create_dynamic_group(name, query):
-            group = ContactGroup.create_group(name, self.user, self.org, None)
-            group.update_query(query)
-            return group
+            return ContactGroup.create(self.org, self.user, name, query=query)
 
         # run all tests as 2/Jan/2014 03:04 AFT
         tz = pytz.timezone('Asia/Kabul')

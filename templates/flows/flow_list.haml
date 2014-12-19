@@ -150,21 +150,21 @@
                                     %a{href:"{% url 'flows.flow_filter' label.pk%}"}
                                       ={label.name}
 
-                        -if not object.participant_count
+                        -if not object.get_total_contacts
                           %td.value-status
                           %td.value-status
                             -trans "No participants"
 
                         -else
                           %td.value-status
-                            {% blocktrans count participant_count=object.participant_count|intcomma %}
+                            {% blocktrans count participant_count=object.get_total_contacts|intcomma %}
                               {{ participant_count }} participant
                             {% plural %}
                               {{ participant_count }} participants
                             {% endblocktrans %}
 
                           %td.value-status
-                            {% blocktrans with completed_percentage=object.completed_percentage %}
+                            {% blocktrans with completed_percentage=object.get_completed_percentage %}
                               {{ completed_percentage }}% completion
                             {% endblocktrans %}
 

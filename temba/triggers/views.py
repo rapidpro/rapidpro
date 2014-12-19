@@ -150,8 +150,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                 if groups:
                     group = groups[0]
                 else:
-                    group = ContactGroup.objects.create(org=self.user.get_org(), name=value,
-                                                        created_by=self.user, modified_by=self.user)
+                    group = ContactGroup.create(self.user.get_org(), self.user, name=value)
                 return group
 
             return super(RegisterTriggerForm.AddNewGroupChoiceField, self).clean(value)
@@ -489,7 +488,8 @@ class TriggerCRUDL(SmartCRUDL):
             start_flow = form.cleaned_data['flow']
             send_msg = form.cleaned_data['response']
 
-            group_flow = Flow.create_join_group_flow(self.request.user, join_group, send_msg, start_flow)
+            org = self.request.user.get_org()
+            group_flow = Flow.create_join_group(org, self.request.user, join_group, send_msg, start_flow)
 
             Trigger.objects.create(created_by=self.request.user, modified_by=self.request.user,
                                    org=self.request.user.get_org(), keyword=keyword,

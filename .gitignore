@@ -6,6 +6,7 @@
 *~
 
 # temba
+dump.rdb
 .coverage
 env
 build
@@ -94,3 +95,4 @@ docs/_build/
 
 # PyBuilder
 target/
+textit

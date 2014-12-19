@@ -5,7 +5,7 @@ from django.utils import timezone
 from temba.contacts.models import ContactField
 from temba.flows.models import RuleSet
 from temba.tests import FlowFileTest
-from temba.values.models import Value, STATE, DECIMAL, TEXT, DATETIME
+from temba.values.models import Value, STATE, DISTRICT, DECIMAL, TEXT, DATETIME
 
 
 class ResultTest(FlowFileTest):
@@ -70,8 +70,18 @@ class ResultTest(FlowFileTest):
         self.assertEquals(2, len(result['categories']))
         self.assertEquals(3, result['set'])
         self.assertEquals(2, result['unset'])
-        self.assertResult(result, 0, (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0), 1)
-        self.assertResult(result, 1, now.replace(hour=0, minute=0, second=0, microsecond=0), 2)
+        self.assertResult(result, 0, now.replace(hour=0, minute=0, second=0, microsecond=0), 2)
+        self.assertResult(result, 1, (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0), 1)
+
+        # make sure categories returned are sorted by count, not name
+        c2.set_field('gender', "Male")
+        result = Value.get_value_summary(contact_field=gender)[0]
+        self.assertEquals(2, len(result['categories']))
+        self.assertEquals(3, result['set'])
+        self.assertEquals(2, result['unset']) # this is two as we have the default contact created by our unit tests
+        self.assertFalse(result['open_ended'])
+        self.assertResult(result, 0, "Male", 2)
+        self.assertResult(result, 1, "Female", 1)
 
     def run_color_gender_flow(self, contact, color, gender, age):
         self.assertEquals("What is your gender?", self.send_message(self.flow, color, contact=contact, restart_participants=True))
@@ -90,10 +100,13 @@ class ResultTest(FlowFileTest):
         self.setup_color_gender_flow()
 
         # create a state field:
-        # assign c1 and c2 to Kigali and c3 to Easter Provence
+        # assign c1 and c2 to Kigali
         state = ContactField.get_or_create(self.org, 'state', label="State", value_type=STATE)
+        district = ContactField.get_or_create(self.org, 'district', label="District", value_type=DISTRICT)
         self.c1.set_field('state', "Kigali City")
+        self.c1.set_field('district', "Kigali")
         self.c2.set_field('state', "Kigali City")
+        self.c2.set_field('district', "Kigali")
 
         self.run_color_gender_flow(self.c1, "red", "male", "16")
         self.run_color_gender_flow(self.c2, "blue", "female", "19")
@@ -181,12 +194,6 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, "Blue", 2)
         self.assertResult(result, 2, "Green", 1)
 
-        # if we ask for all the results, then we have an extra red value
-        result = Value.get_value_summary(ruleset=color, filters=[], latest_only=False)[0]
-        self.assertResult(result, 0, "Red", 2)
-        self.assertResult(result, 1, "Blue", 2)
-        self.assertResult(result, 2, "Green", 1)
-
         # what if we do a partial run?
         self.send_message(self.flow, "red", contact=self.c1, restart_participants=True)
 
@@ -260,6 +267,17 @@ class ResultTest(FlowFileTest):
         self.assertResult(kigali_result, 1, "Blue", 1)
         self.assertResult(kigali_result, 2, "Green", 0)
 
+        # segment by district instead
+        result = Value.get_value_summary(ruleset=color, segment=dict(parent="1708283", location="District"))
+
+        # only on district in kigali
+        self.assertEquals(1, len(result))
+        kigali_result = result[0]
+        self.assertEquals('60485579', kigali_result['boundary'])
+        self.assertEquals('Kigali', kigali_result['label'])
+        self.assertResult(kigali_result, 0, "Red", 0)
+        self.assertResult(kigali_result, 1, "Blue", 2)
+        self.assertResult(kigali_result, 2, "Green", 0)
 
     def test_open_ended_word_frequencies(self):
         flow = self.get_flow('random_word')

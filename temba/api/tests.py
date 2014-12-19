@@ -16,15 +16,16 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from djorm_hstore.models import register_hstore_handler
 from mock import patch
+from redis_cache import get_redis_connection
 from rest_framework.authtoken.models import Token
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, OrgFolder, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, SHAQODOON
-from temba.flows.models import FlowLabel
+from temba.flows.models import Flow, FlowLabel, FlowRun
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED, Label
-from temba.tests import MockResponse, TembaTest
+from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
 from temba.utils import dict_to_struct
 from temba.values.models import Value
@@ -32,7 +33,6 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from .models import WebHookEvent, WebHookResult, SMS_RECEIVED
-from redis_cache import get_redis_connection
 
 
 class APITest(TembaTest):
@@ -233,7 +233,22 @@ class APITest(TembaTest):
         flow.is_archived = False
         flow.save()
 
+    def test_api_runs(self):
         url = reverse('api.runs')
+
+        # can't access, get 403
+        self.assert403(url)
+
+        # log in as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # log in a manager
+        self.login(self.admin)
+
+        # create our test flow and a copy
+        flow = self.create_flow()
+        flow_copy = Flow.copy(flow, self.admin)
 
         # can't start with an invalid phone number
         response = self.postHTML(url, dict(flow=flow.pk, phone="asdf"))
@@ -243,46 +258,72 @@ class APITest(TembaTest):
         response = self.postHTML(url, dict(flow=flow.pk, phone="+250788123123", extra=dict(asdf=dict(asdf="asdf"))))
         self.assertEquals(400, response.status_code)
 
-        # can't start without a flow pk
+        # can't start without a flow
         response = self.postHTML(url, dict(phone="+250788123123"))
         self.assertEquals(400, response.status_code)
 
-        # can start if everything is valid
+        # can start with flow id and phone (deprecated and creates contact)
         response = self.postJSON(url, dict(flow=flow.pk, phone="+250788123123"))
+        run = FlowRun.objects.get()
+        self.assertEqual(201, response.status_code)
+        self.assertEqual(1, FlowRun.objects.filter(contact__urns__path="+250788123123").count())
+
+        # can start with flow UUID and phone
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+        self.assertEqual(201, response.status_code)
+        self.assertEqual(2, FlowRun.objects.filter(contact__urns__path="+250788123123").count())
+
+        # can provide extra
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123124", extra=dict(code="ONEZ")))
         self.assertEquals(201, response.status_code)
+        run_with_extra = FlowRun.objects.get(contact__urns__path="+250788123124")
+        self.assertEqual("ONEZ", run_with_extra.field_dict()['code'])
 
-        # should now have have a flow run started
-        from temba.flows.models import FlowRun
-        run = FlowRun.objects.get(flow=flow.pk, contact__urns__path="+250788123123")
-
-        # do it with some extra
-        response = self.postJSON(url, dict(flow=flow.pk, phone="+250788123124", extra=dict(code="ONEZ")))
-        self.assertEquals(201, response.status_code)
-
-        run = FlowRun.objects.get(flow=flow.pk, contact__urns__path="+250788123124")
-        self.assertEquals("ONEZ", run.field_dict()['code'])
-
-        # can do it with a uuid
         contact = Contact.objects.get(urns__path='+250788123124')
-        response = self.postJSON(url, dict(flow=flow.pk, contact=contact.uuid))
+        group = self.create_group("Group", [contact])
+
+        # can do it with a contact UUID
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
         self.assertEquals(2, FlowRun.objects.filter(flow=flow.pk, contact=contact).count())
 
-        # fetch them instead
+        # can do it with a list of contact UUIDs
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, contacts=[contact.uuid]))
+        self.assertEquals(201, response.status_code)
+        self.assertEquals(3, FlowRun.objects.filter(flow=flow.pk, contact=contact).count())
+
+        # can do it with a list of group UUIDs
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, groups=[group.uuid]))
+        self.assertEquals(201, response.status_code)
+        self.assertEquals(4, FlowRun.objects.filter(flow=flow.pk, contact=contact).count())
+
+        # create another against the copy of the flow
+        response = self.postJSON(url, dict(flow=flow_copy.pk, contact=contact.uuid))
+        self.assertEquals(201, response.status_code)
+
+        # now fetch them instead...
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 7)
         self.assertContains(response, "+250788123124")
         self.assertContains(response, "+250788123123")
 
-        # filter our by flow
-        response = self.fetchJSON(url, "flow=%d" % flow.pk)
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "+250788123123")
-
-        # filter by id
+        # filter by id (deprecated)
         response = self.fetchJSON(url, "run=%d" % run.pk)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
+
+        # filter by flow id (deprecated)
+        response = self.fetchJSON(url, "flow=%d" % flow.pk)
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 6)
+        self.assertContains(response, "+250788123123")
+
+        # filter by flow UUID
+        response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 6)
+        self.assertContains(response, "+250788123123")
 
         # filter by phone
         response = self.fetchJSON(url, "phone=%2B250788123123")
@@ -290,7 +331,7 @@ class APITest(TembaTest):
         self.assertContains(response, "+250788123123")
         self.assertNotContains(response, "+250788123124")
 
-        # filter by uuid
+        # filter by contact UUID
         response = self.fetchJSON(url, "contact=" + contact.uuid)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "+250788123124")
@@ -309,9 +350,19 @@ class APITest(TembaTest):
         self.assertNotContains(response, "+250788123124")
         self.assertNotContains(response, "+250788123123")
 
+        response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
+        self.assertEquals(200, response.status_code)
+        self.assertNotContains(response, "+250788123124")
+        self.assertNotContains(response, "+250788123123")
+
         players.contacts.add(contact)
 
         response = self.fetchJSON(url, "group=Players")
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, "+250788123124")
+        self.assertNotContains(response, "+250788123123")
+
+        response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "+250788123124")
         self.assertNotContains(response, "+250788123123")
@@ -627,14 +678,32 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
         self.assertResponseError(response, 'urns', "Unable to parse URN: 'tel250788123456'")
 
-        # add contact to a group
+        # add contact to a new group by name (deprecated)
         response = self.postJSON(url, dict(phone='+250788123456', groups=["Music Artists"]))
+        artists = ContactGroup.objects.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
+        self.assertEquals("Music Artists", artists.name)
+        self.assertEqual(1, artists.contacts.count())
+        self.assertEqual(1, artists.get_member_count())  # check cached value
 
-        contact = Contact.objects.get()
-        self.assertEquals(1, ContactGroup.objects.filter(org=self.org).count())
-        self.assertEquals("Dr Dre", contact.name)
-        self.assertEquals("Music Artists", contact.groups.all()[0].name)
+        # remove contact from a group by name (deprecated)
+        response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
+        artists = ContactGroup.objects.get(name="Music Artists")
+        self.assertEquals(201, response.status_code)
+        self.assertEqual(0, artists.contacts.count())
+        self.assertEqual(0, artists.get_member_count())
+
+        # add contact to a existing group by UUID
+        response = self.postJSON(url, dict(phone='+250788123456', group_uuids=[artists.uuid]))
+        artists = ContactGroup.objects.get(name="Music Artists")
+        self.assertEquals(201, response.status_code)
+        self.assertEquals("Music Artists", artists.name)
+        self.assertEqual(1, artists.contacts.count())
+        self.assertEqual(1, artists.get_member_count())
+
+        # specifying both groups and group_uuids should return error
+        response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
+        self.assertEquals(400, response.status_code)
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
@@ -668,46 +737,57 @@ class APITest(TembaTest):
         self.assertContains(response, "Invalid", status_code=400)
         self.assertEquals("IL", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
 
+        drdre = Contact.objects.get()
+        jay_z = self.create_contact("Jay-Z", number="123555")
+
         # fetch all with blank query
         response = self.fetchJSON(url, "")
         self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 2)
         self.assertContains(response, "Dr Dre")
         self.assertContains(response, 'tel:+250788123456')
         self.assertContains(response, 'Andre')
+        self.assertContains(response, "Jay-Z")
+        self.assertContains(response, '123555')
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")
-        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # non-matching phone number
         response = self.fetchJSON(url, "phone=%2B250788123000")
-        self.assertEquals(200, response.status_code)
-        self.assertNotContains(response, "Dr Dre")
+        self.assertResultCount(response, 0)
 
         # search using urns field
         response = self.fetchJSON(url, 'urns=' + urlquote_plus("tel:+250788123456"))
-        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
+        # search by group
         response = self.fetchJSON(url, "group=Music+Artists")
-        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 1)
+        self.assertContains(response, "Dr Dre")
+
+        response = self.fetchJSON(url, "group_uuids=%s" % artists.uuid)
+        self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # search using uuid
-        response = self.fetchJSON(url, 'uuids=' + contact.uuid)
-        self.assertEquals(200, response.status_code)
+        response = self.fetchJSON(url, 'uuid=' + drdre.uuid)
+        self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # check anon org case
-        self.org.is_anon = True
-        self.org.save()
-
-        # check no phone numbers in response
-        response = self.fetchJSON(url, "")
-        self.assertContains(response, "Dr Dre")
-        self.assertNotContains(response, '0788123456')
-        self.assertContains(response, 'Andre')
+        with AnonymousOrg(self.org):
+            # check no phone numbers in response
+            response = self.fetchJSON(url, "")
+            self.assertResultCount(response, 2)
+            self.assertContains(response, "Dr Dre")
+            self.assertContains(response, 'Andre')
+            self.assertNotContains(response, '0788123456')
+            self.assertContains(response, "Jay-Z")
+            self.assertNotContains(response, '123555')
 
     def test_api_fields(self):
         url = reverse('api.contactfields')
@@ -908,8 +988,17 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
+        response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 0)
+
         players.contacts.add(contact)
+
         response = self.fetchJSON(url, "group=Players")
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 1)
+
+        response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
@@ -1125,6 +1214,47 @@ class APITest(TembaTest):
         # deleting again is a 404
         response = self.deleteJSON(url, "event=%d" % event.pk)
         self.assertEquals(404, response.status_code)
+
+    def test_api_groups(self):
+        url = reverse('api.contactgroups')
+
+        # 403 if not logged in
+        self.assert403(url)
+
+        # log in
+        self.login(self.user)
+        self.assert403(url)
+
+        # manager
+        self.login(self.admin)
+
+        # no groups yet
+        response = self.fetchJSON(url)
+        self.assertResultCount(response, 0)
+
+        # add 2 groups
+        joe = self.create_contact("Joe", number="123")
+        frank = self.create_contact("Frank", number="1234")
+        reporters = self.create_group("Reporters", [joe, frank])
+        just_joe = self.create_group("Just Joe", [joe])
+
+        # fetch all
+        response = self.fetchJSON(url)
+        self.assertResultCount(response, 2)
+
+        # fetch by partial name
+        response = self.fetchJSON(url, "name=Report")
+        self.assertResultCount(response, 1)
+        self.assertJSON(response, 'name', "Reporters")
+        self.assertJSON(response, 'uuid', unicode(reporters.uuid))
+        self.assertJSON(response, 'size', 2)
+
+        # fetch by UUID
+        response = self.fetchJSON(url, "uuid=%s" % just_joe.uuid)
+        self.assertResultCount(response, 1)
+        self.assertJSON(response, 'name', "Just Joe")
+        self.assertJSON(response, 'uuid', unicode(just_joe.uuid))
+        self.assertJSON(response, 'size', 1)
 
 
 class AfricasTalkingTest(TembaTest):
@@ -2043,20 +2173,31 @@ class TwilioTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/api/v1/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{ 'HTTP_X_TWILIO_SIGNATURE': signature })
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(201, response.status_code)
 
         # and we should have a new message
-        sms = Msg.objects.get()
-        self.assertEquals("+250788383383", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg1 = Msg.objects.get()
+        self.assertEquals("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals("Hello World", msg1.text)
+
+        # try with non-normalized number
+        post_data['To'] = '0785551212'
+        post_data['ToCountry'] = 'RW'
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/api/v1/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        self.assertEquals(201, response.status_code)
+
+        # and we should have another new message
+        msg2 = Msg.objects.exclude(pk=msg1.pk).get()
+        self.assertEquals(self.channel, msg2.channel)
 
         # create an outgoing message instead
-        contact = sms.contact
+        contact = msg2.contact
         Msg.objects.all().delete()
 
         contact.send("outgoing message", self.admin)
@@ -2200,8 +2341,7 @@ class MageHandlerTest(TembaTest):
 
         self.joe = self.create_contact("Joe", number="+250788383383")
 
-        self.dyn_group = ContactGroup.create_group("Bobs", self.user, self.org, None)
-        self.dyn_group.update_query("name has Bob")
+        self.dyn_group = ContactGroup.create(self.org, self.user, "Bobs", query="name has Bob")
 
     def create_contact_like_mage(self, name, twitter):
         """

@@ -68,8 +68,7 @@ def send_spam(user_id, contact_id):
 
     # only trigger sync on the last one
     for idx in range(10):
-        broadcast = Broadcast.create(user, long_text % (idx + 1), org=contact.org)
-        broadcast.set_recipients(contact)
+        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), [contact])
         broadcast.send(trigger_send=(idx == 149))
 
 @task(track_started=True, name='fail_old_messages')
@@ -94,39 +93,39 @@ def collect_message_metrics_task():
             context = dict(source=settings.HOSTNAME)
 
             # total # of delivered messages
-            count = Msg.objects.filter(direction=OUTGOING, status=DELIVERED, contact__is_test=False).exclude(channel=None).exclude(topup=None).count()
+            count = Msg.objects.filter(direction=OUTGOING, status=DELIVERED).exclude(channel=None).exclude(topup=None).count()
             analytics.track('System', 'temba.total_outgoing_delivered', properties=dict(value=count), context=context)
 
             # total # of sent messages (this includes delivered and wired)
-            count = Msg.objects.filter(direction=OUTGOING, status__in=[DELIVERED, SENT, WIRED], contact__is_test=False).exclude(channel=None).exclude(topup=None).count()
+            count = Msg.objects.filter(direction=OUTGOING, status__in=[DELIVERED, SENT, WIRED]).exclude(channel=None).exclude(topup=None).count()
             analytics.track('System', 'temba.total_outgoing_sent', properties=dict(value=count), context=context)
 
             # total # of failed messages
-            count = Msg.objects.filter(direction=OUTGOING, status=FAILED, contact__is_test=False).exclude(channel=None).exclude(topup=None).count()
+            count = Msg.objects.filter(direction=OUTGOING, status=FAILED).exclude(channel=None).exclude(topup=None).count()
             analytics.track('System', 'temba.total_outgoing_failed', properties=dict(value=count), context=context)
 
             # current # of queued messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED, contact__is_test=False).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.track('System', 'temba.current_outgoing_queued', properties=dict(value=count), context=context)
 
             # current # of initializing messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING, contact__is_test=False).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.track('System', 'temba.current_outgoing_initializing', properties=dict(value=count), context=context)
 
             # current # of pending messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=PENDING, contact__is_test=False).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.track('System', 'temba.current_outgoing_pending', properties=dict(value=count), context=context)
 
             # current # of errored messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=ERRORED, contact__is_test=False).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.track('System', 'temba.current_outgoing_errored', properties=dict(value=count), context=context)
 
             # current # of android outgoing messages waiting to be sent
-            count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], contact__is_test=False, channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
+            count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
             analytics.track('System', 'temba.current_outgoing_android', properties=dict(value=count), context=context)
 
             # current # of pending incoming messages that haven't yet been handled
-            count = Msg.objects.filter(direction=INCOMING, status=PENDING, contact__is_test=False).exclude(channel=None).count()
+            count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
             analytics.track('System', 'temba.current_incoming_pending', properties=dict(value=count), context=context)
 
             # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running

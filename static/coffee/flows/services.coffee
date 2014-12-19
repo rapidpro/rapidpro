@@ -310,9 +310,11 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
 app.service "Versions", ['$rootScope', '$http', '$log', ($rootScope, $http, $log) ->
   updateVersions: ->
-    $http.get('/flow/versions/' + $rootScope.flowId).success (data) ->
-      # $log.debug(data)
-      $rootScope.versions = data
+    $http.get('/flow/versions/' + $rootScope.flowId).success (data, status, headers) ->
+
+      # only set the versions if we get back json, if we don't have permission we'll get a login page
+      if headers('content-type') == 'application/json'
+        $rootScope.versions = data
 ]
 
 app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->
@@ -468,7 +470,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     # $log.debug("Applying activity:", node, activity)
     count = 0
     if activity and activity.active and node.uuid of activity.active
-      count = activity.active[node.uuid].count
+      count = activity.active[node.uuid]
     node._active = count
 
     # our visited counts for rules
@@ -477,18 +479,18 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         count = 0
         if activity and activity.visited
           for source in category.sources
-            key = source + '->' + category.target
+            key = source + ':' + category.target
             if key of activity.visited
-              count += activity.visited[key].count
+              count += activity.visited[key]
         # $log.debug(category.name, category.target, count)
         category._visited = count
 
     else
       # our visited counts for actions
-      key = node.uuid + '->' + node.destination
+      key = node.uuid + ':' + node.destination
       count = 0
       if activity and activity.visited and key of activity.visited
-        count += activity.visited[key].count
+        count += activity.visited[key]
       node._visited = count
 
     return
