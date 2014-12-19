@@ -86,6 +86,17 @@ def start_msg_flow_batch_task():
         traceback.print_exc(e)
         logger.exception("Error starting flow: %s" % id)
 
+@task(track_started=True, name="check_flow_stats_accuracy_task")
+def check_flow_stats_accuracy_task(flow_id):
+    logger = start_flow_task.get_logger()
+    try:
+        flow = Flow.objects.get(pk=flow_id)
+        runs_started = flow.runs.filter(contact__is_test=False).count()
+        if runs_started != flow.get_total_runs():
+            calculate_flow_stats_task.delay(flow.pk)
+    except Exception as e:
+        logger.exception("Error checking flow stat accuracy: %d" % flow_id)
+
 @task(track_started=True, name="calculate_flow_stats")
 def calculate_flow_stats_task(flow_id):
     logger = start_flow_task.get_logger()
