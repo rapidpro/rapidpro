@@ -3,6 +3,7 @@ from urlparse import urljoin
 from django.utils.translation import ugettext_lazy as _
 import requests
 
+
 class NexmoClient(object):
     """
     Simple implementation of Nexmo API

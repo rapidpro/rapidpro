@@ -7,32 +7,33 @@ import logging
 
 # javascript translation packages
 js_info_dict = {
-    'packages': (), # this is empty due to the fact that all translation are in one folder
+    'packages': (),  # this is empty due to the fact that all translation are in one folder
 }
 
 urlpatterns = patterns('',
-    url(r'^', include('temba.public.urls')),
-    url(r'^', include('temba.msgs.urls')),
-    url(r'^', include('temba.contacts.urls')),
-    url(r'^', include('temba.orgs.urls')),
-    url(r'^', include('temba.schedules.urls')),
-    url(r'^', include('temba.flows.urls')),
-    url(r'^', include('temba.reports.urls')),
-    url(r'^', include('temba.triggers.urls')),
-    url(r'^', include('temba.campaigns.urls')),
-    url(r'^', include('temba.ivr.urls')),
-    url(r'^', include('temba.locations.urls')),
-    url(r'^channels/', include('temba.channels.urls')),
-    url(r'^relayers/relayer/sync/(\d+)/$', sync, {}, 'sync'),
-    url(r'^relayers/relayer/register/$', register, {}, 'register'),
-    url(r'^users/', include('smartmin.users.urls')),
-    url(r'^imports/', include('smartmin.csv_imports.urls')),
-    url(r'^api/v1', include('temba.api.urls')),
-    url(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict)
-)
+                       url(r'^', include('temba.public.urls')),
+                       url(r'^', include('temba.msgs.urls')),
+                       url(r'^', include('temba.contacts.urls')),
+                       url(r'^', include('temba.orgs.urls')),
+                       url(r'^', include('temba.schedules.urls')),
+                       url(r'^', include('temba.flows.urls')),
+                       url(r'^', include('temba.reports.urls')),
+                       url(r'^', include('temba.triggers.urls')),
+                       url(r'^', include('temba.campaigns.urls')),
+                       url(r'^', include('temba.ivr.urls')),
+                       url(r'^', include('temba.locations.urls')),
+                       url(r'^channels/', include('temba.channels.urls')),
+                       url(r'^relayers/relayer/sync/(\d+)/$', sync, {}, 'sync'),
+                       url(r'^relayers/relayer/register/$', register, {}, 'register'),
+                       url(r'^users/', include('smartmin.users.urls')),
+                       url(r'^imports/', include('smartmin.csv_imports.urls')),
+                       url(r'^api/v1', include('temba.api.urls')),
+                       url(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict)
+                       )
 
 if settings.DEBUG:
-    urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', { 'document_root': settings.MEDIA_ROOT,}),)
+    urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }), )
+
 
 # provide a utility method to initialize our analytics
 def init_analytics():
@@ -48,6 +49,7 @@ init_analytics()
 import importlib
 for app in settings.APP_URLS:
     importlib.import_module(app)
+
 
 def track_user(self):  # pragma: no cover
     """
@@ -76,6 +78,7 @@ def track_user(self):  # pragma: no cover
 User.track_user = track_user
 AnonymousUser.track_user = track_user
 
+
 def handler500(request):
     """
     500 error handler which includes ``request`` in the context.
@@ -90,5 +93,3 @@ def handler500(request):
     return HttpResponseServerError(t.render(Context({
         'request': request,
     })))
-
-
