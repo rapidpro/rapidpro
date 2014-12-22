@@ -206,8 +206,17 @@ class Value(models.Model):
                 value_counts = value_counts.extra(where=["1=0"])
 
             # contacts that have gotten to this step
-            step_contacts = set([s['run__contact'] for s in FlowStep.objects.filter(step_uuid=ruleset.uuid, run__in=runs).values('run__contact')])
-            total = len(step_contacts)
+            step_contacts = FlowStep.objects.filter(step_uuid=ruleset.uuid)
+
+            # if we have runs to filter by, do so using ANY
+            if runs:
+                step_contacts = step_contacts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
+
+            # otherwise, exclude all
+            else:
+                step_contacts = step_contacts.extra(where=["1=0"])
+
+            step_contacts = set([s['run__contact'] for s in step_contacts.values('run__contact')])
 
             # restrict to our filter uuids if we are self filtering
             if self_filter_uuids:
