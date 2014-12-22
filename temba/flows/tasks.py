@@ -5,6 +5,8 @@ from djcelery_transactions import task
 from temba.utils.queues import pop_task
 from temba.contacts.models import Contact
 from temba.msgs.models import Broadcast, Msg
+from temba.flows.models import FlowCache
+from redis_cache import get_redis_connection
 from .models import EmailAction, ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 
 
@@ -91,9 +93,18 @@ def check_flow_stats_accuracy_task(flow_id):
     logger = start_flow_task.get_logger()
     try:
         flow = Flow.objects.get(pk=flow_id)
+
+        r = get_redis_connection()
+        runs_started_cached = int(r.get(flow.get_cache_key(FlowCache.runs_started_count)))
         runs_started = flow.runs.filter(contact__is_test=False).count()
-        if runs_started != flow.get_total_runs():
+
+        if runs_started != runs_started_cached:
+            # log error that we had to rebuild, shouldn't be happening
+            logger.error('Rebuilt flow stats (Org: %d, Flow: %d). Cache was %d but should be %d.'
+                         % (flow.org.pk, flow.pk, runs_started_cached, runs_started))
+
             calculate_flow_stats_task.delay(flow.pk)
+
     except Exception as e:
         logger.exception("Error checking flow stat accuracy: %d" % flow_id)
 

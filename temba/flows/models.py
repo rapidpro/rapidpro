@@ -781,8 +781,6 @@ class Flow(TembaModel, SmartModel):
             if len(visits):
                 r.hmset(self.get_cache_key(FlowCache.visit_count_map), visits)
 
-        analytics.track("System", "nyaruka.flow_stat_cache_rebuild", properties=dict(value=time.time() - start_time))
-
     def _calculate_activity(self, simulation=False):
 
         """
