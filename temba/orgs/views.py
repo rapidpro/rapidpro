@@ -702,7 +702,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_owner(self, obj):
             url = reverse('users.user_mimic', args=[obj.created_by.pk])
-            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, obj.created_by.first_name, obj.created_by.last_name, obj.created_by)
+            return "<a href='%s' class='login btn btn-default btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, obj.created_by.first_name, obj.created_by.last_name, obj.created_by)
 
         def get_name(self, obj):
             return "<div class='org-name'>%s</div><div class='org-timezone'>%s</div>" % (obj.name, obj.timezone)

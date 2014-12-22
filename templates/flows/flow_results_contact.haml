@@ -7,7 +7,7 @@
 -block page-top
 
   .row
-    .span8
+    .col-md-8
       .medium-help.icon-user.float-left
       %h2.font_normalize.header-margin
         {{ contact|name_or_urn:user_org|truncatechars:40 }}
@@ -15,10 +15,10 @@
           {{ flow.name }}
 
 
-    .span4
+    .col-md-4
       .pull-right
         %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" } Export Flow Results
-        %a.btn{ href: "{% url 'flows.flow_editor' object.pk %}" } View Flow
+        %a.btn.btn-default{ href: "{% url 'flows.flow_editor' object.pk %}" } View Flow
 
 -block buttons
 
@@ -223,7 +223,7 @@
 
 
   .row
-    .span8
+    .col-md-8
       .run-summaries
         -for run in runs
           -with run.messages|last as last
@@ -254,7 +254,7 @@
 
   -for run in runs
     -with run.messages as messages
-      .run.hide{class:'run_{{run.pk}}'}
+      .run{class:'run_{{run.pk}}', style:"display:none"}
         .run-messages
           .ilog.from
             Started {{run.created_on}}
@@ -284,7 +284,7 @@
 
 -block post-fields
   - if org_perms.flows.flow_update
-    .deletion.hide
+    .deletion{style:"display:none"}
       .title
         Remove Contact Results
 

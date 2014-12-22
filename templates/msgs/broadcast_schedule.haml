@@ -60,19 +60,19 @@
 
           .weekly-repeat-options.hide
             .btn-group{'data-toggle':'buttons-checkbox'}
-              #mon.btn{value:2}
+              #mon.btn.btn-default{value:2}
                 -trans "Mon"
-              #tue.btn{value:4}
+              #tue.btn.btn-default{value:4}
                 -trans "Tue"
-              #wed.btn{value:8}
+              #wed.btn.btn-default{value:8}
                 -trans "Wed"
-              #thu.btn{value:16}
+              #thu.btn.btn-default{value:16}
                 -trans "Thu"
-              #fri.btn{value:32}
+              #fri.btn.btn-default{value:32}
                 -trans "Fri"
-              #sat.btn{value:64}
+              #sat.btn.btn-default{value:64}
                 -trans "Sat"
-              #sun.btn{value:128}
+              #sun.btn.btn-default{value:128}
                 -trans "Sun"
 
             %input#repeat-days-value{name:'repeat_days', type:'hidden'}
@@ -81,7 +81,8 @@
     %hr
     %br
     -csrf_token
-    %input.btn.btn-success.start-button{ type:'submit', value:'Schedule'}
+    %button.btn.btn-success.start-button{ type:'submit'}
+      -trans "Schedule"
     %a.btn{href:'{% url "msgs.msg_inbox" %}'}
       -trans "Cancel"
 

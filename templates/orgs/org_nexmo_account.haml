@@ -13,7 +13,7 @@
 
 -block pre-form
   .row
-    .span6.disconnect-help
+    .cool-md-6.disconnect-help
       -if config.NEXMO_KEY and config.NEXMO_SECRET
         -trans "This account is connected to a Nexmo account."
         .account_details
@@ -31,7 +31,7 @@
 
 
 -block form-buttons
-  .form-actions
+  .form-actions.smartmin-form-buttons
     -if config.NEXMO_KEY and config.NEXMO_SECRET
       %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
     -else

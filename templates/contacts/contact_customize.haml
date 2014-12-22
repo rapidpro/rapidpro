@@ -36,9 +36,10 @@
                       of type
                 %td.field-as-type
                   {% render_field column_control.type_field %}
-                
+
       .form-buttons
-        %input.btn.btn-primary{type:"submit", value:"Add Fields"}
+        %button.btn.btn-primary{type:"submit"}
+          -trans "Add Fields"
         %a.btn{onclick:"javascript:history.go(-1)"}
           -trans "Cancel"
 
@@ -65,4 +66,15 @@
     .field-as-type {
       vertical-align: top;
     }
-      
+
+    .field-as-type .smartmin-form-field .select2-container {
+      width: 150px;
+    }
+
+    .field-form-label {
+      padding-left: 10px;
+    }
+
+    .smartmin-form-field {
+      padding: 0;
+    }

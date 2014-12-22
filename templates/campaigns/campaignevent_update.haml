@@ -17,12 +17,12 @@
   :javascript
     $(document).ready(function() {
 
-      select2div("#id_flow_to_start", "515px", "Flow to Start");
-      select2div("#id_relative_to", "245px", "Select a date");
+      select2div("#id_flow_to_start", "525px", "Flow to Start");
+      select2div("#id_relative_to", "270px", "Select a date");
       select2div("#id_direction", "85px");
       select2div("#id_unit", "100px");
-      select2div("#id_event_type", "515px");
-      select2div("#id_delivery_hour", "440px");
+      select2div("#id_event_type", "525px");
+      select2div("#id_delivery_hour", "450px");
 
       $('#id_unit').on('change', toggleDeliveryHour);
 
@@ -77,7 +77,8 @@
       display:none;
     }
 
-    .modal .control-group label.control-label, .modal .form-group label.control-label  {
+    .modal .control-group label.control-label,
+    .modal .modal-dialog .modal-content .modal-body .form-group label.control-label  {
       display:none;
     }
 
@@ -96,7 +97,7 @@
       text-align:center;
       font-size:15px;
       line-height:15px;
-      height:24px;
+      height:34px;
       color: #666;
     }
 
@@ -115,16 +116,22 @@
 
     #id_message {
       height:100px;
-      width:500px;
+      width:525px;
       margin-top: 5px;
       margin-bottom:10px;
+      webkit-border-radius: 0;
+      -moz-border-radius: 0;
+      -ms-border-radius: 0;
+      -o-border-radius: 0;
+      border-radius: 0;
     }
 
     #counter {
       font-size: 12px;
       float: right;
       margin-right: 5px;
-      margin-top: -10px;g
+      margin-top: -10px;
+      margin-top: -10px;
     }
 
     #flow-section {
@@ -148,10 +155,12 @@
       width:69px;
       color: #666;
       font-size:16px;
+      float: left;
+      margin-top: 8px;
+      margin-right: 5px;
     }
 
 -block fields
-  //{{ block.super }}
 
   -render_field 'event_type'
 
@@ -167,7 +176,7 @@
     -render_field 'direction'
     -render_field 'relative_to'
 
-  #send-at.hide
+  #send-at
     .delivered
       Delivered
     -render_field 'delivery_hour'

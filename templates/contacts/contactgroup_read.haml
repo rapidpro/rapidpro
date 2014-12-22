@@ -5,11 +5,11 @@
 
 -block fields
   .row
-    .span3
+    .col-md-3
       -for contact in object.contacts.all
         %a{'href':'{% url "contacts.contact_read" contact.uuid %}'}
           {{contact.first_name}} {{contact.last_name}}
-    .span9
+    .col-md-9
       %table.table.table-condensed.table-striped
         %tbody
           -for broadcast in broadcasts

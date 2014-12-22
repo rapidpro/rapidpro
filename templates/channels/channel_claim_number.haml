@@ -14,7 +14,7 @@
 
 -block content
   .row
-    .span9
+    .col-md-9
       -blocktrans
         Once you claim a number you will immediately be able to send and receive messages. Users who send messages
         to your number will be charged according to their plan.
@@ -33,7 +33,8 @@
           .area-label
             -trans "Pattern"
           %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
-          %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
+          %button.btn.btn-primary{ type:"submit"}
+            -trans "Search"
 
       .twilio-numbers-title
 

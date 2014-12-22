@@ -14,39 +14,39 @@
 -block content
     #pjax
       -block pjax
-        .row-fluid
-          .span3.sidebox
+        .row
+          .col-md-3.sidebox
             %div{style:"margin-bottom: 10px"}
               - if org_perms.campaigns.campaign_create
                 %a#create-campaign.btn.btn-primary.btn-block{ href:"#" } Create Campaign
 
             #sidebar-nav
-              %ul.nav.nav-list.level1
-                %li.nav-header Campaigns
+              %ul.nav.nav-level-1
+                %li.nav-level-header Campaigns
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
                     %a{'href':'={folder.url}'}
                       {{ folder.label }} ({{ folder.count }})
 
           -block campaign-list
-            .span9
+            .col-md-9
               - block buttons
                 .pull-right
                   -block buttons-right
 
                 - if org_perms.campaigns.campaign_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       -if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{'href':'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Activate'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Activate'}
                               .glyph.icon-instant
 
                       -if 'archive' in actions
                         %span.btn-group
                           %a.object-btn-archive{'href':'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Archive'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Archive'}
                               .glyph.icon-box
 
               %table.list-table.campaign-list.object-list.table.table-condensed{style: '{% if not org_perms.campaigns.campaign_update %}margin-top:10px{% endif %}'}

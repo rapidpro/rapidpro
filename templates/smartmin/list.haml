@@ -4,20 +4,21 @@
 -block top-form
   - if view.search_fields and object_list
     - block search-form
-      %form
-        %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{search}}"}
+      %form{role:"form"}
+        .form-group
+          %input.form-control.search-query{type:'text', placeholder:'Search', name:"search", value:"{{search}}"}
 
 -block content
   -block table-controls
     .row
-      .span12.table-buttons
+      .col-md-12.table-buttons
         - block table-buttons
           - if view.add_button
             %a.btn.btn-primary.pull-right{ href:"./create/" } Add
   {% block pjax %}
   #pjax
     .row
-      .span12
+      .col-md-12
         - block pre-table
 
         - block table

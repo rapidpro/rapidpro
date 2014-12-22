@@ -14,7 +14,7 @@
       %h5{ ng-show:"reports.length > 0"}
         -trans "Reports"
 
-      %ul.reports.nav.nav-list.level1{ng-show:"reports.length > 0"}
+      %ul.reports.nav.level1{ng-show:"reports.length > 0"}
         %li.report{ng-repeat:'report in reports | orderBy:"-text"', ng-class:'{active:report.id == currentReport.id, inactive: report.id != currentReport.id}'}
           %a.report-label{ng-click:'showReport(report)'} [[report.text]]
 
@@ -120,7 +120,7 @@
 
           %a#rename-btn.pull-right.btn.btn-primary{ ng-click:'showSaveReportModal(currentReport)'}
             [[renameButtonText]]
-          #dirty-notification.pre.alert.pull-right{ ng-show:"dirty"}
+          #dirty-notification.pre.alert-warning.pull-right{ ng-show:"dirty"}
             Unsaved changes!
           .current-report-label
             [[currentReport.text]]
@@ -160,31 +160,30 @@
 
 
     - if org_perms.reports.report_create
-      .creation.hide
+      .creation{style:"display:none"}
         .title
           -trans "Save Report"
 
         .body
-          %form.smartmin-form.form-horizontal{method:"post", enctype:"multipart/form-data"}
+          %form.smartmin-form.form-horizontal{method:"post", enctype:"multipart/form-data", role:"form"}
             %fieldset
-              .control-group
+              .form-group{style:"margin-left:0px"}
                 %label.control-label
                   Title
-                .controls
-                  %input#id_title{maxlength:"64", name:"title", type:"text"}
-                  %p.help-block
-                    The title of this report
+                %input#id_title{maxlength:"64", name:"title", type:"text"}
+                %p.help-block
+                  The title of this report
 
-              .control-group
+              .form-group{style:"margin-left:0px"}
                 %label.control-label
                   Description
-                .controls
-                  %textarea#id_description{name:"description", rows:"5", cols:"40"}
-                  %p.help-block
-                    The full description for the report
-
-            .form-actions
-              %a#save-report-submit.btn.btn-primary{ ng-click: "saveReport()"}
+                %textarea#id_description{name:"description", rows:"5", cols:"40"}
+                %p.help-block
+                  The full description for the report
+            -csrf_token
+            .form-group.smartmin-form-buttons
+              %button#save-report-submit.btn.btn-primary{ ng-click: "saveReport()"}
+                -trans "Save Report"
 
 
 -block extra-style

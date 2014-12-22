@@ -1,22 +1,22 @@
 {% extends "smartmin/base.html" %}
 
-{% load smartmin %}
+{% load smartmin i18n %}
 
 {% block content %}
 {% block pjax %}
 <div class="row" id="pjax">
   {% block modal %}
   <div id="modal">
-  <div class="{% block form-span %}span12{% endblock %}">
+  <div class="{% block form-span %}col-md-12{% endblock %}">
 
   {% block pre-form %}{% endblock %}
 
-  <form class="smartmin-form form-horizontal" method="post" enctype="multipart/form-data" {% if action_url  %}action="{{ action_url }}"{% endif %}>
+  <form class="smartmin-form form-horizontal" method="post" enctype="multipart/form-data" {% if action_url  %}action="{{ action_url }}"{% endif %} role="form">
     {% block pre-form-errors %}
     {% endblock pre-form-errors %}
 
     {% if form.non_field_errors %}
-    <div class="alert alert-error form-errors">
+    <div class="alert alert-danger form-errors">
       {{ form.non_field_errors }}
     </div>
     {% endif %}
@@ -46,8 +46,11 @@
     {% csrf_token %}
 
     {% block form-buttons %}
-    <div class="form-actions">
-      <input type="submit" class="btn btn-primary" value="{{ submit_button_name }}">
+    <div class="form-group smartmin-form-buttons">
+      <div class="col-sm-offset-2 col-sm-10">
+        <button type="submit" class="btn btn-primary">{{ submit_button_name }}</button>
+        <a class="btn btn-default" onclick="javascript:history.go(-1)">{% trans "Cancel" %}</a>
+      </div>
     </div>
     {% endblock %}
   </form>
@@ -83,3 +86,23 @@
 </script>
 {% endif %}
 {% endblock %}
+
+
+{% block extra-style %}
+<style>
+  .smartmin-form-buttons button[type="submit"] {
+    margin-left: -55px;
+  }
+
+  .form-group input[type="checkbox"],
+  .form-group input[type="radio"] {
+    width: 30px;
+
+  }
+
+  ul#id_groups {
+    padding-left: 0px;
+  }
+
+</style>
+{% endblock extra-style %}

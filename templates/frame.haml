@@ -151,12 +151,12 @@
         %a{href:'javascript:void(0);'}
           {{ user_org.name }}
 
-      .other-orgs.hide
+      .other-orgs
 
         .account-details
           .org
             %a{href:'{% url "orgs.org_home" %}'}
-              .icon-home
+              .icon.icon-home
               Account Details
 
         -for org in user.get_user_orgs
@@ -175,7 +175,7 @@
       .divPanel.page-content
         -block page-top
           .row
-            .span9
+            .col-md-9
               -block title
                 -block title-icon
                 -block title-text
@@ -183,7 +183,7 @@
                     %h1
                       {{title}}
 
-            .span3.top-form
+            .col-md-3.top-form
               .pull-right
 
                 -block above-bar
@@ -196,7 +196,7 @@
 
         - if messages
           .row
-            .span12
+            .col-md-12
               - block messages
                 - if messages
                   -for msg in messages
@@ -256,32 +256,34 @@
 
     -block modals
 
-      #modal-template.modal.hide{data-dismiss:'modal'}
+      #modal-template.modal{data-dismiss:'modal'}
 
-        #onConfirm.hide
+        #onConfirm
 
-        .modal-header
-          %button.pull-right.close{type:'button', aria-hidden:'true'}
-            &times;
-          %h3
-            .icon
-            %span#modal-title
-              Uh oh!
+        .modal-dialog
+          .modal-content
+            .modal-header
+              %button.pull-right.close{type:'button', aria-hidden:'true'}
+                &times;
+              %h3
+                .icon
+                %span#modal-title
+                  Uh oh!
 
-        .modal-body
-          .fetched-content
-            #modal-message
-            .form
-          .loader
-            %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
+            .modal-body
+              .fetched-content
+                #modal-message
+                .form
+              .loader
+                %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
 
-        .modal-footer
-          %button.btn.tertiary.pull-left.hide
-            Tertiary
-          %button.btn.btn-primary.primary
-            Ok
-          %button.btn.secondary.hide
-            Cancel
+            .modal-footer
+              %button.btn.tertiary.pull-left{style:"display:none"}
+                Tertiary
+              %button.btn.btn-primary.primary
+                Ok
+              %button.btn.secondary{style:"display:none"}
+                Cancel
 
     -block extra-script
 
@@ -319,11 +321,13 @@
           over:function() {
             // $('.submenu').hide();
             $(this).find('.submenu-container').slideDown(250);
+            console.log("SLIDE DOWN");
             // $(this).find('.submenu').show();
           },
           out:function() {
           $(this).find('.submenu-container').slideUp(200);
             //$(this).find('.submenu').hide();
+            console.log("SLIDE UP");
           },
           timeout:300
         });

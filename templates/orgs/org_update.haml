@@ -10,9 +10,9 @@
   -if perms.auth.org_clear_cache
     <form class="smartmin-form form-horizontal" action="{% url 'orgs.org_clear_cache' object.id %}" method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      <div class="control-group">
+      <div class="form-group">
         <label class="control-label">Cache</label>
-        <div class="controls">
+        <div class="col-sm-10">
           <button type="submit" name="cache" value="1" class="btn btn-primary">Clear Display</button>
           <button type="submit" name="cache" value="2" class="btn btn-primary">Clear Credits</button>
         </div>

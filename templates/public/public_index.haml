@@ -40,23 +40,19 @@
     .container
       #splash
         .row
-          .span12
+          .col-md-12
             %h1.description
               {{ brand.description }}
 
       .row
-        .span12
+        .col-md-12
           #lead-form
-            %form{action:'{% ssl_url "public.lead_create" %}', method:'POST'}
+            %form{action:'{% ssl_url "public.lead_create" %}', method:'POST', role:"form"}
               -csrf_token
-
-              %fieldset
-                .control-group
-                  .controls
-                    %nobr
-                      %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
-                      %button.btn.btn-success{type:"submit"}
-                        -trans "Create Account"
+              .form-group
+                %input.form-control{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
+                %button.btn.btn-success{type:"submit"}
+                  -trans "Create Account"
             -if errors
               %p.text-error {{error_msg}}
 
@@ -64,15 +60,11 @@
       %br{clear:"both"}.clearfix
       #bottom.bottom-call
         #jumbotron
-          %form{action:'{% ssl_url "public.lead_create" %}#bottom', method:'POST'}
+          %form.form-inline{action:'{% ssl_url "public.lead_create" %}#bottom', method:'POST', role:"form"}
             -csrf_token
-
-            %fieldset
-              .control-group
-                .controls
-                  %nobr
-                    %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
-                    %button.btn.btn-success{type:"submit"}
-                      -trans "Try it for Free"
-              -if errors
-                %p.text-error {{error_msg}}
+            .form-group
+              %input.form-control{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
+              %button.btn.btn-success{type:"submit"}
+                -trans "Try it for Free"
+            -if errors
+              %p.text-error {{error_msg}}

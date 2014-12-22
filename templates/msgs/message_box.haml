@@ -15,30 +15,32 @@
 
 -block above-bar
   -block top-form
-    %form{method:"get"}
-      %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+    %form{method:"get", role:"form"}
+      .form-group
+        %input.form-control.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
 -block content
 
-  #numeric-form.hide
-    %form
-      %label
-        -trans "Numeric Value:"
-      %input#number{type:"text"}
+  #numeric-form{style:"display:none"}
+    %form{role:"form"}
+      .form-group
+        %label
+          -trans "Numeric Value:"
+        %input#number{type:"text"}
     .error
 
   #pjax
     -block pjax
-      .row-fluid
-        .span3.sidebox
+      .row
+        .col-md-3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
               %a.btn.btn-primary.btn-block.send-button
                 -trans "Send Message"
 
           #sidebar-nav
-            %ul.nav.nav-list.level1
-              %li.nav-header
+            %ul.nav.nav-level-1
+              %li.nav-level-header
                 -trans "Messages"
               - for folder in folders
                 %li{'class': '{% if request.path == folder.url %}active{% endif %}' }
@@ -46,7 +48,7 @@
                     ={folder.label} ({{ folder.count | intcomma }})
 
               -if labels
-                %li.nav-header
+                %li.nav-level-header
                   -trans "Labels"
                 - for label in labels
                   - with label.children as children
@@ -61,14 +63,14 @@
 
                       - if children
                         - if current_label in children or current_label.id == label.pk
-                          %ul.nav.nav-list.level2
+                          %ul.nav.nav-level-2
                             - for sub_label in children
                               %li{'class':'{% if current_label.pk == sub_label.pk %}active{% endif %}'}
                                 %a{'href':'{% url "msgs.msg_filter" sub_label.pk %}'}
                                   {{ sub_label.name }} ({{ sub_label.get_message_count }})
 
         -if has_messages
-          .span9
+          .col-md-9
             -block message-list
               -block buttons
                 .pull-right
@@ -78,40 +80,40 @@
 
                 -if org_perms.msgs.msg_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       - if 'unlabel' in actions
                         %span.btn-group
                           %a.object-btn-unlabel{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
                               .glyph.icon-box
 
                       - if 'archive' in actions
                         %span.btn-group
                           %a.object-btn-archive{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
                               .glyph.icon-box
 
                       - if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unarchive" %}'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unarchive" %}'}
                               .glyph.icon-download
 
                       - if 'delete' in actions
                         %span.btn-group
                           %a.object-btn-delete{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
                               .glyph.icon-remove
 
                       - if 'resend' in actions
                         %span.btn-group
                           %a.object-btn-resend{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Resend" %}'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Resend" %}'}
                               .glyph.icon-upload
 
                       - if 'label' in actions
                         %span.btn-group
-                          %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
+                          %button.btn.btn-default.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
                             .glyph.icon-tag
                             %span.caret
                           %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}

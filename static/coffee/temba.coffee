@@ -75,7 +75,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
     html += "'>"
     html += label
     html += "</label>"
-    html += "<div class='controls field-input"
+    html += "<div class='check-controls field-input"
     if input.prop('checked')
       html += " checked"
     html += "'>"
@@ -99,7 +99,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
 
   ele = $(".font-checkbox")
 
-  glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
+  glyphCheck = ele.children('.check-controls').children('.glyph.notif-checkbox')
   glyphCheck.on 'click', ->
     cell = $(this).parent('.field-input')
     ipt = cell.children().children("input[type='checkbox']")
@@ -387,7 +387,7 @@ class @Modax extends @ConfirmationModal
       fetchPJAXContent(@url, "#active-modal .fetched-content",
         onSuccess: ->
           modal.ele.find('.loader').hide()
-          modal.submitText = modal.ele.find(".form-actions input[type='submit']").val()
+          modal.submitText = modal.ele.find(".submit-form-buttons input[type='submit']").val()
           modal.ele.find(".primary").text(modal.submitText)
           modal.focusFirstInput()
           if modal.listeners and modal.listeners.onFormLoaded

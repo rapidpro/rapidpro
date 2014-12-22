@@ -160,7 +160,7 @@
 -block post-fields
   -block charts-zone
     .row
-      .span2.strong-min-170
+      .col-md-2.strong-min-170
         -if object.channel_type == 'A'
 
           %table.table.table-bordered
@@ -243,12 +243,12 @@
                   %a{ href:"{% url 'channels.channellog_list' %}?channel={{object.get_sender.id}}" }
                     -trans "View Log"
 
-      .span10.strong-max-750
+      .col-md-10.strong-max-750
         %div#chart1
 
   -if object.channel_type == 'A'
     %div.row
-      %div.span12
+      %div.col-md-12
         %table.list-table.table.table-bordered.table-striped.table-condensed
           %thead
             %tr
@@ -303,7 +303,7 @@
 
 -block post-content
   - if org_perms.channels.channel_delete
-    .deletion.hide
+    .deletion{style:"display:none"}
       .title
         -trans "Remove Channel"
       .body
@@ -315,7 +315,7 @@
 
     %a#deletion-form.posterize{href:'{% url "channels.channel_delete" object.pk %}'}
 
-    .remove-sender.hide
+    .remove-sender{style:"display:none"}
       .title
         -trans "Disable Bulk Sending"
       .body
@@ -330,7 +330,7 @@
 
     -with object.get_caller as caller
       -if caller
-        .remove-caller.hide
+        .remove-caller{style:"display:none"}
           .title
             -trans "Disable Voice Calls"
           .body
@@ -366,11 +366,11 @@
 
 
     @media(min-width: 768px) and (max-width: 1200px) {
-      .span2.strong-min-170 {
+      .col-md-2.strong-min-170 {
         min-width: 170px;
       }
 
-      .span10.strong-max-750 {
+      .col-md-10.strong-max-750 {
         max-width: 750px;
       }
     }

@@ -73,15 +73,20 @@
             margin-top:3px;
             margin-right: 5px;
             vertical-align:top;
+            width: 20px;
 
           }
 
           label {
             display: inline-block;
             width: 290px;
+            font-size: 14px;
+            font-weight: normal;
+            line-weight: 20px;
           }
 
           .icon {
+            display: inline-block;
 
           }
         }
@@ -116,11 +121,11 @@
 -block page-top
   -if not archived
     .pull-right
-      %a.btn.btn-secondary{href:'?archived=1'}
+      %a.btn.btn-default.btn-secondary{href:'?archived=1'}
         -trans "Show Archived"
   -else
     .pull-right
-      %a.btn.btn-secondary{href:'?'}
+      %a.btn.btn-default.btn-secondary{href:'?'}
         -trans "Hide Archived"
 
 
@@ -143,7 +148,7 @@
 
       .exportables
         .pull-right
-          %a.btn.btn-tiny.select-section
+          %a.btn.btn-default.btn-tiny.select-section
             -trans "Select Group"
             {{ forloop.counter|apnumber|capfirst }}
 
@@ -171,7 +176,7 @@
       .exportables
         -if buckets
           .pull-right
-            %a.btn.btn-tiny.select-section
+            %a.btn.btn-default.btn-tiny.select-section
               -if buckets
                 -trans "Select Everthing Else"
 
@@ -188,7 +193,7 @@
               {{ exportable }}
 
     %hr
-    %a.btn.select-all
+    %a.btn.btn-default.select-all
       -trans "Select All"
 
     %a.btn.btn-success.submit

@@ -1,6 +1,6 @@
 {% extends "smartmin/base.html" %}
 
-{% load smartmin %}
+{% load smartmin i18n %}
 
 -block page-top
 
@@ -14,9 +14,9 @@
       }
 
     .row
-      .span2
+      .col-md-2
         .glyph.icon-warning.confirm
-      .span9
+      .col-md-9
         <div class="confirmation">
 
 
@@ -24,14 +24,14 @@
           <p>Are you sure you want to remove <b>{{object}}</b> from your account?</p>
           <p>This cannot be undone.</p>
 
-          <form method="POST">
+          <form method="POST" role="form">
 
             {% block delete_form %}{% endblock %}
 
             <div class="buttons">
               <a class="btn" href="{{ cancel_url }}">Cancel</a>
               {% csrf_token %}
-                <input type="submit" class="btn btn-danger" value="Remove"/>
+                <button type="submit" class="btn btn-danger">{% trans "Remove" %}</button>
             </div>
           </form>
 

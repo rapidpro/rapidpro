@@ -16,7 +16,7 @@
   -else
     #pjax
       .row{style:"height:250px;"}
-        .span9
+        .col-md-9
           %p
             -trans "If you have an export file with flows and or campaigns, select it below to import it into your account."
 
@@ -51,7 +51,8 @@
                   -trans "Do not proceed unless you are willing to replace your existing flows and campaigns."
 
               .form-buttons
-                %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
+                %button.btn.btn-primary{type:"submit"}
+                  -trans "Import"
                 %a.btn{onclick:"javascript:history.go(-1)"}
                   -trans "Cancel"
 
@@ -115,7 +116,7 @@
 
   #file-field {
     width:255px;
-    height:25px;
+    height:35px;
     font-size:16px;
     border:solid 1px #000;
     margin-bottom: 0px;

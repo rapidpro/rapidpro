@@ -20,7 +20,7 @@
 -block post-fields
   -if object.country
     .extra-formax-buttons
-      %a.btn{ href: '{% url "locations.adminboundary_alias" %}', style:'width: 120px;'}
+      %a.btn.btn-default{ href: '{% url "locations.adminboundary_alias" %}', style:'width: 120px;'}
         -trans "Edit Aliases"
 
 -block extra-script
