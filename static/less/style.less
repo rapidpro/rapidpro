@@ -2427,3 +2427,53 @@ span.label a {
   border-color: #aaa;
 }
 
+
+// Styling to mimic iOS messaging client
+
+.imsg {
+  .rounded-corners(12px);
+  margin: 0 10px 5px;
+  padding: 8px 20px;
+  position: relative;
+  word-wrap: break-word;
+}
+
+.imsg.to {
+  background-color: #2095FE;
+  color: #fff;
+  margin-left: 30px;
+}
+
+.imsg.from {
+  background-color: #E5E4E9;
+  color: #363636;
+  margin-right: 30px;
+}
+
+.imsg.to + .message.to,
+
+.imsg.from + .message.from {
+  margin-top: -7px;
+}
+
+.imsg:before {
+  border-color: #2095FE;
+  border-radius: 50% 50% 50% 50%;
+  border-style: solid;
+  border-width: 0 20px;
+  bottom: 0;
+  clip: rect(20px, 35px, 42px, 0px);
+  content: " ";
+  height: 40px;
+  position: absolute;
+  right: -50px;
+  width: 30px;
+}
+
+.imsg.from:before {
+  border-color: #E5E4E9;
+  left: -50px;
+  -webkit-transform: rotateY(180deg);
+  -moz-transform: rotateY(180deg);
+  transform: rotateY(180deg);
+}
