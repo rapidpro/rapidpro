@@ -195,7 +195,7 @@ purpose of this Agreement or any limited remedy to the maximum extent
 possible under law.
 
 
-You
+***You***
 
 Signature: ___________________________
 
@@ -204,7 +204,7 @@ Name: ________________________________
 Address: _____________________________
 
 
-RapidPro
+***RapidPro***
 
 Signature: ___________________________
 
