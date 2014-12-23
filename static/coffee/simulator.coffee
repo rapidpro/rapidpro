@@ -50,7 +50,7 @@ resized = toExpand.height()
 toExpand.autosize callback: ->
   currentResized = toExpand.height()
   unless currentResized is resized
-    footer = currentResized + 10
+    footer = currentResized + 20
     resized = currentResized
     $(".simulator-footer").css "height", footer
     $(".simulator-body").css "height", initSimulatorBody - footer + 30
