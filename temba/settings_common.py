@@ -54,7 +54,7 @@ LANGUAGE_CODE = 'en-us'
 #-----------------------------------------------------------------------------------
 # Available languages for translation
 #-----------------------------------------------------------------------------------
-gettext = lambda s:s
+gettext = lambda s: s
 LANGUAGES = (
     ('en-us', gettext("English")),
     ('pt-br', gettext("Portuguese")),
@@ -169,7 +169,7 @@ SITEMAP = ('public.public_index', 'public.video_list', 'public.public_blog',
            'api.sms', 'api.flows', 'api.runs', 'api.calls', 'api.channels')
 
 INSTALLED_APPS = (
-    
+
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -428,24 +428,24 @@ PERMISSIONS = {
                       ),
 
     'msgs.msg': ('api',
-                'archive',
-                'archived',
-                'export',
-                'failed',
-                'filter',
-                'flow',
-                'inbox',
-                'label',
-                'test',
-                ),
+                 'archive',
+                 'archived',
+                 'export',
+                 'failed',
+                 'filter',
+                 'flow',
+                 'inbox',
+                 'label',
+                 'test',
+                 ),
 
     'msgs.broadcast': ('detail',
-                      'outbox',
-                      'schedule',
-                      'schedule_list',
-                      'schedule_read',
-                      'send',
-                      ),
+                       'outbox',
+                       'schedule',
+                       'schedule_list',
+                       'schedule_read',
+                       'send',
+                       ),
 
     'msgs.call': ('api',),
 
@@ -462,7 +462,7 @@ PERMISSIONS = {
 
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
-    "Service Users": ( # internal Temba services have limited permissions
+    "Service Users": (  # internal Temba services have limited permissions
         'msgs.msg_create',
     ),
     "Alpha": (
@@ -582,7 +582,7 @@ GROUP_PERMISSIONS = {
         'triggers.trigger.*',
 
     ),
-    "Editors":(
+    "Editors": (
         'api.webhookevent_list',
         'api.webhookevent_read',
 

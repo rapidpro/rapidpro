@@ -7,7 +7,7 @@ import logging
 
 # javascript translation packages
 js_info_dict = {
-    'packages': (), # this is empty due to the fact that all translation are in one folder
+    'packages': (),  # this is empty due to the fact that all translation are in one folder
 }
 
 urlpatterns = patterns('',
@@ -32,7 +32,8 @@ urlpatterns = patterns('',
 )
 
 if settings.DEBUG:
-    urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', { 'document_root': settings.MEDIA_ROOT,}),)
+    urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }), )
+
 
 # provide a utility method to initialize our analytics
 def init_analytics():
@@ -48,6 +49,7 @@ init_analytics()
 import importlib
 for app in settings.APP_URLS:
     importlib.import_module(app)
+
 
 def track_user(self):  # pragma: no cover
     """
@@ -76,6 +78,7 @@ def track_user(self):  # pragma: no cover
 User.track_user = track_user
 AnonymousUser.track_user = track_user
 
+
 def handler500(request):
     """
     500 error handler which includes ``request`` in the context.
@@ -90,5 +93,3 @@ def handler500(request):
     return HttpResponseServerError(t.render(Context({
         'request': request,
     })))
-
-
