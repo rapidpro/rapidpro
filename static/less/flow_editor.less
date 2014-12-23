@@ -66,6 +66,7 @@
   .icon-phone {
     margin-right:23px;
     color: @color-say;
+    display: inline-block;
   }
 
   h2 {
@@ -584,6 +585,7 @@
 
 
   .reply, .send {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-response - #222;
       .bg-gradient(@color-response, @color-response - #101010);
@@ -591,6 +593,7 @@
   }
 
   .play {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-play - #222;
       .bg-gradient(@color-play, @color-play - #101010);
@@ -598,6 +601,7 @@
   }
 
   .say {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-say - #222;
       .bg-gradient(@color-say, @color-say - #101010);
@@ -627,6 +631,7 @@
       }
     }
 
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-say - #222;
       .bg-gradient(@color-say, @color-say - #101010);
@@ -703,6 +708,7 @@
   }
 
   .send {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-message - #222;
       .bg-gradient(@color-message, @color-message - #101010);
@@ -710,6 +716,7 @@
   }
 
   .add_label {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-add-label - #222;
       .bg-gradient(@color-add-label, @color-add-label - #101010);
@@ -727,6 +734,7 @@
     }
   }
   .add_group {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-add-to-group - #222;
       .bg-gradient(@color-add-to-group, @color-add-to-group - #101010);
@@ -734,6 +742,7 @@
   }
 
   .del_group {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-remove-from-group - #222;
       .bg-gradient(@color-remove-from-group, @color-remove-from-group - #101010);
@@ -741,6 +750,7 @@
   }
 
   .save, .lang {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-save-to-contact - #222;
       .bg-gradient(@color-save-to-contact, @color-save-to-contact - #101010);
@@ -748,6 +758,7 @@
   }
 
   .api {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-webhook - #222;
       .bg-gradient(@color-webhook, @color-webhook - #101010);
@@ -755,6 +766,7 @@
   }
 
   .email {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-send-email - #222;
       .bg-gradient(@color-send-email, @color-send-email - #101010);
@@ -762,6 +774,7 @@
   }
 
   .trigger-flow, .flow {
+    .modal-dialog .modal-content .title,
     .title {
       text-shadow: 0px 1px @color-start-flow - #222;
       .bg-gradient(@color-start-flow, @color-start-flow - #101010);
@@ -770,9 +783,9 @@
 
   .sms-directive {
     textarea.sms {
-      height: 100px;
+      height: 120px;
       padding: 10px;
-      width: 498px;
+      width: 558px;
     }
 
     .counter {
@@ -786,19 +799,24 @@
   }
 
 .modal {
-  .modal-header {
-    padding: 12px;
-    .modal-title {
-      font-size: 22px;
-      .icon {
-        margin-right: 20px;
-        margin-left: 5px;
+  .modal-dialog {
+    .modal-content {
+      .modal-header {
+        padding: 12px;
+        .modal-title {
+          font-size: 22px;
+          .icon {
+            margin-right: 20px;
+            margin-left: 5px;
 
-        &.icon-bubble-3 {
-          margin-top:2px;
+            &.icon-bubble-3 {
+              margin-top:2px;
+            }
+          }
         }
       }
     }
+
   }
 }
 
@@ -874,6 +892,8 @@
 }
 
 .wide-dialog {
+  display: block;
+
   .modal-header {
     background: @color-rules;
     border-bottom-color: @color-rules - #222;
@@ -888,43 +908,79 @@
     padding: 0 15px 10px;
   }
 
-  @media only screen and (min-width: 980px) {
-    width: 660px;
-    margin-left: -330px;
-  }
+  .modal-dialog {
+    .modal-content {
+      .modal-header {
+        background: @color-rules;
+        border-bottom-color: @color-rules - #222;
 
-  .ie & {
-    width: 660px;
-    margin-left: -330px;
+        h3 {
+          margin:0;
+        }
+      }
+
+      @media only screen and (min-width: 980px) {
+        width: 660px;
+      }
+
+      .ie & {
+        width: 660px;
+      }
+    }
+  }
+}
+
+.modal.reply {
+  display: block;
+  .modal-dialog {
+    .modal-content {
+
+      .modal-header {
+        h3 {
+          margin:0;
+        }
+      }
+    }
   }
 }
 
 
 .modal.api {
-  .modal-body {
-    input {
-      width: 400px;
-      margin-left: 7px;
-    }
-    p {
-      font-size: 15px;
-      line-height: 18px;
+  display: block;
+
+  .modal-dialog {
+    .modal-content {
+
+      .modal-body {
+        input {
+          width: 455px;
+          margin-left: 7px;
+          height: 35px;
+        }
+        p {
+          font-size: 15px;
+          line-height: 18px;
+        }
+      }
+
+      .modal-header, .modal-header {
+        border-bottom: 1px solid @color-webhook - #222;
+        background: @color-webhook;
+        color: #ffffff;
+      }
+
+      h3 {
+        margin: 0;
+      }
+
     }
   }
-
-  .modal-header, .modal-header {
-    border-bottom: 1px solid @color-webhook - #222;
-    background: @color-webhook;
-    color: #ffffff;
-  }
-
-
 }
 
 .rule-editor {
 
   input[type=text] {
-    height: 20px;
+    height: 30px;
 
     &.ng-invalid {
       border-color: red;
@@ -937,7 +993,7 @@
     margin-bottom: 10px;
 
     .operand-small {
-      width: 50px;
+      width: 64px;
       display: inline-block
     }
 
@@ -961,10 +1017,14 @@
     padding: 0 10px 10px;
 
   }
+  .modal-dialog {
+    .modal-content {
+      .modal-body {
+        font-size: 14px;
+        padding: 0px;
 
-  .modal-body {
-    font-size: 14px;
-    padding-bottom: 5px;
+      }
+    }
   }
 
   .rule {
@@ -986,7 +1046,7 @@
     }
 
     .operator-select {
-      width: 190px;
+      width: 230px;
       height: 30px;
     }
 
@@ -1028,6 +1088,7 @@
 }
 
 .action-editor {
+  display: block;
 
   &.trigger-flow .modal-body {
     min-height: 225px;
@@ -1040,8 +1101,9 @@
   textarea {
     height: 100px;
     padding: 10px;
-    width: 498px;
+    width: 558px;
     margin-top:5px;
+    font-weight: normal;
   }
 
   .label {
@@ -1067,9 +1129,9 @@
   }
 
   .modal-body input.url {
-    width: 400px;
+    width: 450px;
     margin-left:5px;
-    height: 24px;
+    height: 34px;
     margin-bottom: 0px;
 
   }
@@ -1090,6 +1152,7 @@
       width: 33%;
       padding: 7px;
       margin: 0;
+      outline: none;
 
       &:first-child {
         width: 34%;
@@ -1140,7 +1203,7 @@
     input[type=text] {
       width: 200px;
       display: inline-block;
-      height: 22px;
+      height: 29px;
       margin-top: 10px;
       padding-top: 2px;
       padding-bottom: 2px;
@@ -1317,7 +1380,7 @@
 }
 
 #version-mask {
-  position:absolute;
+  position:fixed;
   right:230px;
   top:132px;
   width:100%;

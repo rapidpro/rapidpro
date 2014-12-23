@@ -15,29 +15,30 @@
 
 -block above-bar
   -block top-form
-    %form{'method':'get', 'action': "{% url 'contacts.contact_list' %}" }
-      %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
+    %form{'method':'get', 'action': "{% url 'contacts.contact_list' %}", role:"form" }
+      .form-group
+        %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
 
 -block content
   #pjax
     -block pjax
-      .row-fluid
-        .span3.sidebox
+      .row
+        .col-md-3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.contacts.contact_import
               %a#id_import_contacts.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_import' %}"}
                 -trans "Import Contacts"
 
           #sidebar-nav
-            %ul.nav.nav-list
-              %li.nav-header
+            %ul.nav.nav-level-1
+              %li.nav-level-header
                 -trans "Contacts"
               - for folder in folders
                 %li{'class':'{% if request.path == folder.url %}active{% endif %}'}
                   %a{'href':'={folder.url}'}
                     ={folder.label} ({{ folder.count | intcomma }})
 
-              %li.nav-header
+              %li.nav-level-header
                 -trans "Groups"
               - for group in groups
                 %li{'class':'{% if current_group.id == group.pk %}active{% endif %}'}
@@ -46,15 +47,15 @@
 
           %div{style:"margin-top: 10px"}
             - if org_perms.contacts.contact_create
-              %a#add-contact.btn.btn-block
+              %a#add-contact.btn.btn-default.btn-block
                 -trans "Create Contact"
             - if org_perms.contacts.contactgroup_create
-              %a#id_add_group.btn.btn-block
+              %a#id_add_group.btn.btn-default.btn-block
                 -trans "Create Group"
 
         - if has_contacts
           - block contacts-list
-            .span9
+            .col-md-9
 
               - block buttons
 
@@ -78,36 +79,36 @@
 
                 - if org_perms.contacts.contact_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       - if 'archive' in actions
                         %span.btn-group
                           %a.object-btn-archive{'href':'#'}
-                            %button.btn
+                            %button.btn.btn-default
                               .glyph.icon-user-block
                               -trans "Block"
 
                       - if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{'href':'#'}
-                            %button.btn
+                            %button.btn.btn-default
                               -trans "Unblock"
 
                       - if 'delete' in actions
                         %span.btn-group
                           %a.contacts-btn-delete{'href':'#'}
-                            %button.btn
+                            %button.btn.btn-default
                               .glyph.icon-user-delete
                               -trans "Delete"
 
                       - if 'unlabel' in actions
                         %span.btn-group
                           %a{'href':'#', onclick:'unlabelObjectRows({{current_group.pk}})'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Remove from Group" %}'}
+                            %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Remove from Group" %}'}
                               .glyph.icon-user-remove
 
                       - if 'label' in actions
                         %span.btn-group
-                          %button.btn.dropdown-toggle{'data-toggle':"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Contact Groups" %}'}
+                          %button.btn.btn-default.dropdown-toggle{'data-toggle':"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Contact Groups" %}'}
                             .glyph.icon-users-2
                             %span.caret
                           %ul.dropdown-menu.label-menu
@@ -124,23 +125,24 @@
 
                       - if org_perms.msgs.broadcast_send 
                         %span.btn-group
-                          %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
+                          %button.send-button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
                             .glyph.icon-bubble-replu
 
               %table.list-table.contact_list.table.object-list.table.table-condensed{style: '{% if not org_perms.contacts.contact_update %}margin-top:10px{% endif %}'}
 
-                %tr.contacts
-                  - if org_perms.contacts.contact_update
-                    %th
-                  %th
-                  %th
-                  -for field in contact_fields
-                    -if field.show_in_table
+                %thead
+                  %tr.contacts
+                    - if org_perms.contacts.contact_update
                       %th
-                        {{ field.label }}
-                  %th
-                    - if object_list
-                      -trans "Created On"
+                    %th
+                    %th
+                    -for field in contact_fields
+                      -if field.show_in_table
+                        %th
+                          {{ field.label }}
+                    %th
+                      - if object_list
+                        -trans "Created On"
 
                 %tbody
                   - for object in contacts
@@ -217,7 +219,7 @@
       width:650px;
     }
 
-    tr.contacts th {
+    thead tr.contacts th {
       font-size:11px;
       height:10px;
       padding:0;
@@ -233,7 +235,7 @@
       min-width:125px;
     }
 
-    .span9 .contact_list tr.contacts {
+    .col-md-9 .contact_list tr.contacts {
       border-top: none;
     }
 

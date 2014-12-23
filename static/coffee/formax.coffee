@@ -83,8 +83,8 @@ _initializeForm = (section) ->
 
     form.off("submit").on "submit", _submitFormax
     unless section.data("nobutton")
-      form.append "<input type=\"submit\" class=\"btn btn-primary submit-button\" value=\"" + buttonName + "\"/>"
-      form.find(".form-actions").remove()
+      form.append "<button type=\"submit\" class=\"btn btn-primary submit-button\" >" + buttonName + "</button>"
+      form.find(".smartmin-form-buttons").remove()
     form.find(".submit-button").on "click", ->
       $(this).addClass("disabled").attr "enabled", false
 

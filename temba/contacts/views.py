@@ -603,13 +603,13 @@ class ContactCRUDL(SmartCRUDL):
             links = []
 
             if self.has_org_perm('contacts.contactgroup_create') and self.request.REQUEST.get('search', None):
-                links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
+                links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#", style="btn-default"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):
-                links.append(dict(title=_('Manage Fields'), js_class='manage-fields', href="#"))
+                links.append(dict(title=_('Manage Fields'), js_class='manage-fields', href="#", style="btn-default"))
 
             if self.has_org_perm('contacts.contact_export'):
-                links.append(dict(title=_('Export'), href=reverse('contacts.contact_export')))
+                links.append(dict(title=_('Export'), href=reverse('contacts.contact_export'), style="btn-default"))
             return links
 
         def get_context_data(self, *args, **kwargs):

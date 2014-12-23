@@ -6,10 +6,10 @@
 - block pjax
   #pjax
     .row{style:"height:250px;"}
-      .span3
+      .col-md-3
         #big-help.glyph.icon-address-book
 
-      .span9
+      .col-md-9
         %p
           -trans "You can import your contacts from an XLS file you create in Excel."
 
@@ -90,12 +90,12 @@
 
                 %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
                   - if form.non_field_errors
-                    %div.alert.alert-error.form-errors
+                    %div.alert.alert-danger.form-errors
                       {{ form.non_field_errors }}
                   
                   -csrf_token
                   -if form.non_field_errors
-                    %div.alert.alert-error.form-errors
+                    %div.alert.alert-danger.form-errors
                       {{ form.non_field_errors }}
 
                   -block fields
@@ -107,9 +107,10 @@
                       %input{type:"text", id:"file-field"}
                       %a.btn.btn-primary
                         -trans "Choose File"
-                    
+
                   .form-buttons
-                    %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
+                    %button.btn.btn-primary{type:"submit"}
+                      -trans "Import"
                     %a.btn{onclick:"javascript:history.go(-1)"}
                       -trans "Cancel"
  
@@ -144,7 +145,7 @@
 
   #file-field {
     width:255px;
-    height:25px;
+    height:35px;
     font-size:16px;
     border:solid 1px #000;
     margin-bottom: 0px;
@@ -176,6 +177,10 @@
 
   #import-message .import-result a {
     text-decoration :none;
+  }
+
+  .title-text {
+    margin-left: 0;
   }
 
 {% endblock %}

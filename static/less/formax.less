@@ -9,6 +9,7 @@
   list-style-image: none;
   list-style-type: none;
   margin: 0;
+  padding: 0;
   // border-bottom: 1px solid @color-font-lightestgrey + #111;
 
   color: @color-font-lightgrey;
@@ -39,13 +40,20 @@
 
   .form-horizontal  {
 
-    .control-group {
+    .control-group,
+    .form-group {
       margin: 0;
       margin-bottom:3px;
     }
 
     .control-label {
       text-align: left;
+      width: 350px;
+      padding-left: 0px;
+    }
+
+    .smartmin-form-field {
+      padding-left: 0px;
     }
   }
 
@@ -100,7 +108,8 @@
         margin-left:0;
       }
 
-      input[type='submit'] {
+      input[type='submit'],
+      button[type='submit'] {
         padding: 3px 10px;
         margin-bottom:10px;
       }
@@ -162,5 +171,14 @@
         margin-left:-80px;
       }
     }
+  }
+
+  #posterizer {
+    display: none;
+  }
+
+  .select2-temba-field {
+    height: 40px;
+    margin-bottom: 0px;
   }
 }

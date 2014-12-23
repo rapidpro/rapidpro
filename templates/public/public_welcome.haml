@@ -12,7 +12,7 @@
 
 -block content
   .row
-    .span12
+    .col-md-12
       -if 'success' in request.REQUEST.keys
         %h1
           -trans "Your phone number is now connected."
@@ -25,13 +25,13 @@
 
 
       .row
-        .span12
+        .col-md-12
           %hr
 
   .row.workflow-section
-    .span3
+    .col-md-3
       %a.charm.workflow-glyph.icon-nav-flows-inverted{href:'{% url "flows.flow_list" %}'}
-    .span7
+    .col-md-7
       %h3
         -trans "FLOWS"
       %p
@@ -52,14 +52,14 @@
           -trans "How to Build Flows"
 
   .row
-    .offset1.span10
+    .col-md-offset-1.col-md-10
       %hr
 
   -if 'success' not in request.REQUEST.keys
     .row.workflow-section
-      .span3
+      .col-md-3
         %a.charm.workflow-glyph.icon-nav-channels-inverted{href:'{% url "channels.channel_list" %}'}
-      .span7
+      .col-md-7
         %h3
           -trans "GET CONNECTED"
         %p
@@ -77,13 +77,13 @@
             -trans "Add Number"
 
     .row
-      .offset1.span10
+      .col-md-offset-1.col-md-10
         %hr
 
   .row.workflow-section
-    .span3
+    .col-md-3
       %a.charm.workflow-glyph.icon-nav-contacts-inverted{href:'{% url "contacts.contact_list" %}'}
-    .span7
+    .col-md-7
       %h3
         -trans "CONTACTS"
       %p
@@ -112,13 +112,13 @@
             -trans "Create Group"
       
   .row 
-    .offset1.span10
+    .col-md-offset-1.col-md-10
       %hr
 
   .row.workflow-section
-    .span3
+    .col-md-3
       %a.charm.workflow-glyph.icon-nav-messages-inverted{href:'{% url "msgs.msg_inbox" %}'}
-    .span7
+    .col-md-7
       %h3
         -trans "MESSAGES"
       %p
@@ -137,13 +137,13 @@
           -trans "Send Message"
 
   .row
-    .offset1.span10
+    .col-md-offset-1.col-md-10
       %hr
 
   .row.workflow-section
-    .span3
+    .col-md-3
       %a.charm.workflow-glyph.icon-nav-home-inverted{href:'{% url "orgs.org_home" %}'}
-    .span7
+    .col-md-7
       %h3
         -trans "ACCOUNT"
       %p
@@ -157,9 +157,9 @@
           to learn more. 
 
       %div
-        %a.btn.workflow-btn{href:"{% url 'orgs.org_home' %}?open=webhook"}
+        %a.btn.btn-default.workflow-btn{href:"{% url 'orgs.org_home' %}?open=webhook"}
           -trans "Add Web Hook"
-        %a.btn.workflow-btn{href:"{% url 'api' %}"}
+        %a.btn.btn-default.workflow-btn{href:"{% url 'api' %}"}
           -trans "API Documentation"
 
 -block extra-script

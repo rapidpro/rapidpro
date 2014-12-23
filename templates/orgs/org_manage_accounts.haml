@@ -20,7 +20,7 @@
         %th.permission
           -trans "Remove"
     %tbody
-      %tr#admin-error.hide
+      %tr#admin-error{style:"display:none"}
         %td.alert.alert-error{colspan: 5}
           -trans "You must have at least one administator"
       - for user in org_users
@@ -32,11 +32,11 @@
           - with group_fields|get:user as row_fields
             - for check_name in row_fields
               %td.check.permission
-                .hidden-input.hide
+                .hidden-input{style:"display:none"}
                   {{form|field:check_name}}
                 .glyph.level-checkbox
           %td.check.permission
-            .hidden-input.hide
+            .hidden-input{style:"display:none"}
               %input{type: 'checkbox'}
             .glyph.level-checkbox
 

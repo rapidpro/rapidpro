@@ -17,7 +17,7 @@
       .divPanel.page-content
         -block page-top
           .row
-            .span9
+            .col-md-9
               -block title
                 -block title-icon
                 -block title-text
@@ -25,7 +25,7 @@
                     %h1
                       {{title}}
 
-            .span3.top-form
+            .col-md-3.top-form
               .pull-right
 
                 -block above-bar
@@ -37,7 +37,7 @@
 
         - if messages
           .row
-            .span12
+            .col-md-12
               - block messages
                 - if messages
                   -for msg in messages

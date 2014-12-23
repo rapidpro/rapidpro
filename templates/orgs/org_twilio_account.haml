@@ -12,7 +12,7 @@
 
 -block pre-form
   .row
-    .span6.disconnect-help
+    .col-md-6.disconnect-help
       -if config.ACCOUNT_SID and config.ACCOUNT_TOKEN
         This account is connected to a Twilio account.
         .account_details
@@ -30,7 +30,7 @@
 
 
 -block form-buttons
-  .form-actions
+  .form-actions.smartmin-form-buttons
     -if config.ACCOUNT_SID and config.ACCOUNT_TOKEN
       %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
     -else

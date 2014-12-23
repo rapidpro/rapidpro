@@ -6,17 +6,17 @@
   -block pjax-header
 
   -block pjax
-    %div#pjax#read-view
+    #pjax#read-view
       -block buttons
-        %div.row
-          %div.span12.buttons
+        .row
+          .col-md-12.buttons
             -block read-buttons
               -if view.edit_button
                 %a.btn.btn-primary.pull-right{'href':'../../update/={ object.id }/'}
                   Edit
 
-      %div.row
-        %div.span12
+      .row
+        .col-md-12
           -block pre-fields
 
           -block fields

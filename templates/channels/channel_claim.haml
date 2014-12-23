@@ -3,7 +3,7 @@
 
 -block page-top
   .row
-    .span12
+    .col-md-12
       %h2
         -trans "Add a Channel"
       .instructions
@@ -31,7 +31,7 @@
       -trans "Phone Channels"
 
     .claim-row.android-channel
-      .recommendation.hide
+      .recommendation{style:"display:none"}
         %h3
           -trans "Recommendation"
         -blocktrans
@@ -39,13 +39,13 @@
           will send and receive messages for you. You will only need one phone per country depending on
           message volume. Don't worry! The people you are texting with can still use basic phones.
       .row
-        .span3
+        .col-md-3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
             .claim-glyph.icon-channel-android
             %p.claim-text
               -trans "Android Phone"
 
-        .span9
+        .col-md-9
           .claim-description
             %div
               -blocktrans
@@ -56,12 +56,12 @@
     -if user_org.timezone == 'America/Sao_Paulo'
       .claim-row.zenvia-channel
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_zenvia' %}"}
               .claim-glyph.icon-channel-external
               %p.claim-text
                 -trans "Zenvia Short Code"
-          .span9.no-margin
+          .col-md-9.no-margin
             .claim-description
               %div
                 -blocktrans
@@ -71,20 +71,20 @@
 
     -if user_org.timezone == 'Africa/Nairobi'
       .claim-row.africastalking-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
             We recommend using an Africa's Talking shortcode in Kenya. Visit {{link_start}}their website{{link_end}} for details.
 
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_africas_talking' %}"}
               .claim-glyph.icon-channel-external
               %p.claim-text
                 -trans "Africa's Talking Short Code"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
@@ -94,20 +94,20 @@
 
     -if user_org.timezone == 'Africa/Mogadishu'
       .claim-row.shaqodoon-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://www.shaqodoon.org/'>" as link_start and "</a>" as link_end
             We recommend using Shaqodoon in Somalia. Visit {{link_start}}their website{{link_end}} for details.
 
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_shaqodoon' %}"}
               .claim-glyph.icon-channel-external
               %p.claim-text
                 -trans "Shaqodoon Short Code"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans with brand.name as brand
@@ -116,20 +116,20 @@
 
     -if user_org.timezone == 'Asia/Jakarta'
       .claim-row.hub9-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://www.hub9.biz'>" as link_start and "</a>" as link_end
             We recommend using a Hub9 phone number in Indonesia, please visit {{link_start}}http://www.hub9.biz{{link_end}} for details.
 
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_hub9' %}"}
               .claim-glyph.icon-channel-external
               %p.claim-text
                 -trans "Hub9 Number"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -137,20 +137,20 @@
 
     -if not user_org.is_connected_to_twilio
       .claim-row.twilio-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://twilio.com'>" as link_start and "</a>" as link_end
             We recommend using a Twilio phone number for SMS in your country. Sign up for a {{link_start}}Twilio Account{{link_end}} if you don't already have one.
 
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twilio{href:"#"}
               .claim-glyph.icon-channel-twilio
               %p.claim-text
                 -trans "Connect Twilio"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -162,20 +162,20 @@
 
     -else
       .claim-row.twilio-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans
             We recommend using a Twilio phone number for SMS in your country, select this option to purchase a number or use one you already have.
 
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_number' %}"}
               .claim-glyph.icon-channel-twilio
               %p.claim-text
                 -trans "Twilio Number"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -186,19 +186,19 @@
 
     -if not user_org.is_connected_to_nexmo
       .claim-row.nexmo-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans
             We recommend using a Nexmo number in your country, select this option to purchase a number or use one you already have.
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
               .claim-glyph.icon-channel-nexmo
               %p.claim-text
                 -trans "Connect Nexmo"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -207,19 +207,19 @@
 
     -else
       .claim-row.nexmo-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans
             We recommend using a Nexmo number in your country, select this option to purchase a number or use one you already have.
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_nexmo' %}"}
               .claim-glyph.icon-channel-nexmo
               %p.claim-text
                 -trans "Nexmo Number"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -229,38 +229,38 @@
                   -trans "Nexmo Account."
 
     .claim-row.infobip-channel
-      .recommendation.hide
+      .recommendation{style:"display:none"}
         %h3
           -trans "Recommendation"
         -blocktrans
           We recommend using an Infobip phone number for SMS in your country, select this option to configure your number.
       .row
-        .span3
+        .col-md-3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_infobip' %}"}
             .claim-glyph.icon-channel-external
             %p.claim-text
               -trans "Infobip Number"
 
-        .span9
+        .col-md-9
           .claim-description
             %div
               -blocktrans
                 Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
 
     .claim-row.verboice-channel
-      .recommendation.hide
+      .recommendation{style:"display:none"}
         %h3
           -trans "Recommendation"
         -blocktrans
           We recommend using Verboice for voice calling in your country
       .row
-        .span3
+        .col-md-3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_verboice' %}"}
             .claim-glyph.icon-channel-external
             %p.claim-text
               -trans "Verboice"
 
-        .span9
+        .col-md-9
           .claim-description
             %div
               -blocktrans
@@ -268,19 +268,19 @@
 
     -if False
       .claim-row.vumi-channel
-        .recommendation.hide
+        .recommendation{style:"display:none"}
           %h3
             -trans "Recommendation"
           -blocktrans
             We recommend using Vumi to connect a short code in your country, select this option to configure your number.
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi' %}"}
               .claim-glyph.icon-channel-external
               %p.claim-text
                 -trans "Vumi Number"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -288,26 +288,26 @@
 
     .claim-row.kannel-channel
       .row
-        .span3
+        .col-md-3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_kannel' %}"}
             .claim-glyph.icon-channel-kannel
             %p.claim-text
               -trans "Kannel"
 
-        .span9
+        .col-md-9
           .claim-description
             %div
               -trans "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 
     .claim-row.external-channel
       .row
-        .span3
+        .col-md-3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_external' %}"}
             .claim-glyph.icon-power-cord
             %p.claim-text
               -trans "External API"
 
-        .span9
+        .col-md-9
           .claim-description
             %div
               -trans "Use our pluggable API to connect an external service you already have."
@@ -318,13 +318,13 @@
 
       .claim-row.twitter-channel
         .row
-          .span3
+          .col-md-3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter' %}"}
               .claim-glyph.icon-twitter
               %p.claim-text
                 -trans "Twitter"
 
-          .span9
+          .col-md-9
             .claim-description
               %div
                 -blocktrans
@@ -469,8 +469,8 @@
 
     .claim-description {
       padding: 25px 40px;
-      height: 50px;
-      width:95%;
+      height: 100px;
+      width: 100%;
       background: #f5f5f5;
       font-size: 16px;
     }
@@ -499,7 +499,7 @@
     .btn-claim {
       padding: 10px 10px;
       width: 95%;
-      height: 78px;
+      height: 98px;
     }
 
     .claim-row {
@@ -524,6 +524,11 @@
       text-decoration: none;
     }
 
-    .claim-row .span9 {
+    .claim-row .col-md-9 {
       margin-left: 0px;
+    }
+
+    .claim-row .col-md-3 {
+      padding-right: 0px;
+      margin-right: -15px;
     }

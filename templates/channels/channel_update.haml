@@ -7,15 +7,16 @@
     {{ title }}
 
 -block form-buttons
-  .form-actions
-    %input.btn.btn-primary{type:"submit", value:"{{ submit_button_name }}"}
-    %a.btn{onclick:"javascript:history.go(-1)"}
+  .form-actions.smartmin-form-buttons
+    %input.btn.btn-primary{type:"submit"}
+      {{ submit_button_name }}
+    %a.btn.btn-default{onclick:"javascript:history.go(-1)"}
       -trans "Cancel"
 
 -block extra-style
   :css
     .help-block {
-      margin-left:150px;
+      margin-left:0px;
       margin-bottom:20px;
     }
     

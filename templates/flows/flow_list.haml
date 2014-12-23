@@ -16,10 +16,11 @@
 -block top-form
   - if view.search_fields
     - block search-form
-      %form
-        %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
-        -if request.REQUEST.status
-          %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
+      %form{role:"form"}
+        .form-group
+          %input.form-control.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+          -if request.REQUEST.status
+            %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
 
 -block content
 
@@ -28,16 +29,16 @@
   -else
     #pjax
       -block pjax
-        .row-fluid
-          .span3.sidebox
+        .row
+          .col-md-3.sidebox
             %div{style:"margin-bottom: 10px"}
               - if org_perms.flows.flow_create
                 %a.btn.btn-primary.btn-block.create_flow.new-flow{href:"#"}
                   -trans "Create Flow"
 
             #sidebar-nav
-              %ul.nav.nav-list.level1
-                %li.nav-header
+              %ul.nav.nav-level-1
+                %li.nav-level-header
                   -trans "Flows"
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
@@ -45,7 +46,7 @@
                       {{ folder.label }} ({{ folder.count }})
 
                 -if labels
-                  %li.nav-header
+                  %li.nav-level-header
                     -trans "Labels"
                   - for label in labels
                     - with label.children as children
@@ -60,41 +61,41 @@
 
                         - if children
                           - if current_label in children or current_label.id == label.pk
-                            %ul.nav.nav-list.level2
+                            %ul.nav.nav-level-2
                               - for sub_label in children
                                 %li{'class':'{% if current_label.pk == sub_label.pk %}active{% endif %}'}
                                   %a{'href':'{% url "flows.flow_filter" sub_label.pk %}'}
                                     {{ sub_label.name }} ({{ sub_label.get_flows_count }})
 
           -block flow-list
-            .span9
+            .col-md-9
               - block buttons
                 .pull-right
                   -block buttons-right
 
                 .list-buttons-container
-                  .list-buttons.hide
+                  .list-buttons
                     - if 'unlabel' in actions and org_perms.flows.flow_update
                       %span.btn-group
                         %a.object-btn-unlabel{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
+                          %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
                             .glyph.icon-box
 
                     - if 'restore' in actions and org_perms.flows.flow_update
                       %span.btn-group
                         %a.object-btn-restore{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
+                          %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
                             .glyph.icon-tree
 
                     - if 'archive' in actions and org_perms.flows.flow_update
                       %span.btn-group
                         %a.object-btn-archive{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
+                          %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
                             .glyph.icon-box
 
                     - if 'label' in actions and org_perms.flows.flow_update
                       %span.btn-group
-                        %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
+                        %button.btn.btn-default.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
                           .glyph.icon-tag
                           %span.caret
                         %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
@@ -117,7 +118,7 @@
 
                     %span.btn-group
                       %a.object-btn-export{'href':'#', onclick:'exportFlows()'}
-                        %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download Results" %}'}
+                        %button.btn.btn-default{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download Results" %}'}
                          .glyph.icon-excel
 
               %table.list-table.flow-list.object-list.table.table-condensed{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}

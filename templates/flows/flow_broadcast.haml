@@ -38,18 +38,17 @@
     .field.omnibox
       {% render_field 'omnibox' %}
 
-      .control-group.restart-participants
+      .form-group.restart-participants
         %label.control-label{ for:"id_restart_participants" }
           -trans "Restart Participants"
-        .controls
-          %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
-            .help-block
-              %label{ for:"id_restart_participants" }
-                -trans "Restart any of the above contacts already participating in this flow"
+        %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
+          .help-block
+            %label{ for:"id_restart_participants" }
+              -trans "Restart any of the above contacts already participating in this flow"
 
 -block form-buttons
   -if send_channel
-    .form-actions
+    .form-actions.smartmin-form-buttons
       %input.btn.btn-primary{type:"submit", value:"{{ submit_button_name }}"}
 
 -block summary

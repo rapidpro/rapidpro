@@ -34,7 +34,7 @@
 
 
 -block fields
-  -load smartmin
+  -load smartmin i18n
 
   %p.instructions
     Choose when you would like the message to be sent out.
@@ -56,19 +56,19 @@
         -render_field 'repeat_period'
     .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
       .btn-group{'data-toggle':'buttons-checkbox'}
-        #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+        #mon.btn.btn-default{value:2, class:'{% if 0 in days %}active{% endif %}'}
           Mon
-        #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+        #tue.btn.btn-default{value:4, class:'{% if 1 in days %}active{% endif %}'}
           Tue
-        #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+        #wed.btn.btn-default{value:8, class:'{% if 2 in days %}active{% endif %}'}
           Wed
-        #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+        #thu.btn.btn-default{value:16, class:'{% if 3 in days %}active{% endif %}'}
           Thu
-        #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+        #fri.btn.btn-default{value:32, class:'{% if 4 in days %}active{% endif %}'}
           Fri
-        #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+        #sat.btn.btn-default{value:64, class:'{% if 5 in days %}active{% endif %}'}
           Sat
-        #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+        #sun.btn.btn-default{value:128, class:'{% if 6 in days %}active{% endif %}'}
           Sun
 
       %input#repeat-days-value{name:'repeat_days', type:'hidden'}
@@ -112,11 +112,14 @@
   #form-buttons
     %br
     -if object.status = 'U'
-      %input.btn.start-button{type:'submit',value:'Done'}
+      %button.btn.btn-default.start-button{type:'submit'}
+        -trans "Done"
 
     -elif object.status = 'S'
-      %input.btn.btn-primary.start-button{type:'submit',value:'Schedule'}
+      %button.btn.btn-primary.start-button{type:'submit'}
+        -trans "Schedule"
 
     -else
-      %input.btn.btn-success.start-button{type:'submit',value:'Start'}
+      %input.btn.btn-success.start-button{type:'submit'}
+        -trans "Start"
 

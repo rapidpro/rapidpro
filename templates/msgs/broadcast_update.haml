@@ -4,7 +4,7 @@
 -load i18n humanize
 
 -block form-span
-  span8
+  col-md-8
 -block fields
   .instructions
     -trans "Write the message that will get sent when the scheduled time arrives"
@@ -32,14 +32,17 @@
       height:20px;
       font-size: 12px;
       float:left;
-      width:84%;
+      width:83%;
       text-align:right;
       margin-top:-10px;
     }
 
     #id_message {
-      width:83%;
       height:100px;
+    }
+
+    .formax .smartmin-form-field {
+      width: 85%;
     }
 
 

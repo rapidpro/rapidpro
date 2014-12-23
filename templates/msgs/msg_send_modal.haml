@@ -1,47 +1,49 @@
 -load i18n
 
-#send-message.send-message.modal.hide.notice{data-dismiss:'modal'}
-  .modal-header
-    %button.pull-right.close{type:'button', data-dismiss:'modal', aria-hidden:'true'}
-      &times;
-    %h3
-      .glyph.icon-bubble-3
-      %span.title
-        -trans "Send Message"
-  .modal-body
-    -if send_channel
-      #send-form
-        {% csrf_token %}
-        %label{for:"id_text"}
-          -trans "Message"
-        %textarea#id_text{tabindex:1}
-        #counter
+#send-message.send-message.modal.notice{data-dismiss:'modal', style:"display:none"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.pull-right.close{type:'button', data-dismiss:'modal', aria-hidden:'true'}
+          &times;
+        %h3
+          .glyph.icon-bubble-3
+          %span.title
+            -trans "Send Message"
+      .modal-body
+        -if send_channel
+          #send-form
+            {% csrf_token %}
+            %label{for:"id_text"}
+              -trans "Message"
+            %textarea#id_text{tabindex:1}
+            #counter
 
-        #omni
-          #omni-select2
-            #omnibox.placeholder.populate{style:"width:100%"}
-          #loading
-        #errors
-    -else
-      -blocktrans with name=brand.name
-        To get started you need to add a channel to your account. A channel is a phone number or social network
-        account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-        Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-        directly.
+            #omni
+              #omni-select2
+                #omnibox.placeholder.populate{style:"width:100%"}
+              #loading
+            #errors
+        -else
+          -blocktrans with name=brand.name
+            To get started you need to add a channel to your account. A channel is a phone number or social network
+            account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+            Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+            directly.
 
-  .modal-footer
-    -if send_channel
-      %a.btn.schedule.pull-left
-        -trans "Schedule"
-      %a.btn.cancel{tabindex:4}
-        -trans "Cancel"
-      %a.btn.btn-primary.ok{tabindex:3}
-        -trans "Send Message"
-    -else
-      %a.btn.cancel{tabindex:4}
-        -trans "Cancel"
-      %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
-        -trans "Add Channel"
+      .modal-footer
+        -if send_channel
+          %a.btn.schedule.pull-left
+            -trans "Schedule"
+          %a.btn.cancel{tabindex:4}
+            -trans "Cancel"
+          %a.btn.btn-primary.ok{tabindex:3}
+            -trans "Send Message"
+        -else
+          %a.btn.cancel{tabindex:4}
+            -trans "Cancel"
+          %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
+            -trans "Add Channel"
 
   %script{src:"{{ STATIC_URL }}scripts/at/xregexp-min.js"}
 

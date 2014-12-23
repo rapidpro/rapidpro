@@ -40,11 +40,11 @@
       -for group in contact_groups
         %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
           -if org_perms.contacts.contact_update and not group.is_dynamic
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+            %a.btn.btn-primary.btn-xs{href:"{% url 'contacts.contact_filter' group.id %}"}
               = group.name
-              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})', style:"margin-right: 5px"} x
+              %a.btn.btn-primary.btn-xs{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})', style:"margin-right: 5px"} x
           -else
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}", style:"margin-right: 5px"}
+            %a.btn.btn-primary.btn-xs{href:"{% url 'contacts.contact_filter' group.id %}", style:"margin-right: 5px"}
               = group.name
 
 -block read-buttons
@@ -54,7 +54,7 @@
     -block pjax
 
       .row
-        .span9
+        .col-md-9
           -for msg in all_messages
             .message.span9
               .avatar{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%}'}
@@ -88,7 +88,7 @@
                   -if msg.visibility == 'A'
                     (Archived)
             .clearfix
-        .span3
+        .col-md-3
           .contact_fields
             -if contact_fields
               .contact_fields_title
@@ -144,6 +144,11 @@
   -compress css
     {% lessblock %}
       :plain
+
+        .header-margin {
+          margin-top: 0;
+        }
+
         .contact-urn {
           display: inline-block;
           margin-right: 10px;
@@ -156,6 +161,7 @@
 
           .glyph {
             margin-right: 3px;
+            display: inline-block;
           }
         }
 

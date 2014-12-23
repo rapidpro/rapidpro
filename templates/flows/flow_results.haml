@@ -3,7 +3,7 @@
 
 -block page-top
   .row
-    .span9
+    .col-md-9
       .medium-help.icon-tree.float-left
       -if flow.name|length > 40
         %h3.font_normalize.header-margin
@@ -13,10 +13,10 @@
         %h2.font_normalize.header-margin
           {{ flow.name }}
 
-    .span3
+    .col-md-3
       .pull-right
         %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" } Download Results
-        %a.btn{ href: "{% url 'flows.flow_editor' object.pk %}" } View
+        %a.btn.btn-default{ href: "{% url 'flows.flow_editor' object.pk %}" } View
 
 -block buttons
 
@@ -121,7 +121,7 @@
             });
           });
 
-  %button#more-link.btn.btn-tiny
+  %button#more-link.btn.btn-default.btn-tiny
     More Charts
 
   %table#data.dataTable
@@ -149,7 +149,7 @@
     %h5.table-options
       Table Options
 
-    #column-options.hide
+    #column-options
       #contact-columns
         .column-header
           Contact Data
@@ -403,6 +403,7 @@
 
         #column-options {
           padding: 20px 0px;
+          display: none;
         }
 
         .dataTables_scroll {
@@ -539,6 +540,7 @@
 
     .header-margin {
       margin-left: 70px;
+      margin-top: -40px;
     }
 
     .result-header {

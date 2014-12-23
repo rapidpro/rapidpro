@@ -16,10 +16,11 @@
 -block top-form
   - if view.search_fields
     - block search-form
-      %form
-        %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
-        -if request.REQUEST.status
-          %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
+      %form{role:"form"}
+        .form-group
+          %input.form-control.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+          -if request.REQUEST.status
+            %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
 
 -block content
   -if not org_has_triggers
@@ -28,16 +29,16 @@
 
     #pjax
       -block pjax
-        .row-fluid
-          .span3.sidebox
+        .row
+          .col-md-3.sidebox
             %div{style:"margin-bottom: 10px"}
               - if org_perms.triggers.trigger_create
                 %a.btn.btn-primary.btn-block.create_trigger.new-trigger{href:"{% url 'triggers.trigger_create' %}"}
                   -trans "Create Trigger"
 
             #sidebar-nav
-              %ul.nav.nav-list.level1
-                %li.nav-header
+              %ul.nav.nav-level-1
+                %li.nav-level-header
                   -trans "Triggers"
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
@@ -45,14 +46,14 @@
                       {{ folder.label }} ({{ folder.count }})
 
           -block trigger-list
-            .span9
+            .col-md-9
               - block buttons
                 .pull-right
                   -block buttons-right
 
                 - if org_perms.triggers.trigger_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       -if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{'href':'#'}

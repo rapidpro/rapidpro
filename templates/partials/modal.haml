@@ -3,17 +3,19 @@
 %html
   %body
     .modal{class:'[[type]]', data-dismiss:"modal"}
-      .modal-header
-        %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
-        %h3
-          .icon
-          %span{id:"modal-title"}><
-            [[title]]
-      .modal-body
-                 [[body]]
-            
-      .modal-footer
-        %button{ng-click:"cancel()",class:"btn btn-secondary",ng-hide:"hideCancel"}
-          -trans "Cancel"
-        %button{ng-click:"ok()",class:"btn btn-primary"}
-          [[okButton]]
+      .modal-dialog
+        .modal-content
+          .modal-header
+            %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
+            %h3
+              .icon
+              %span{id:"modal-title"}><
+                [[title]]
+          .modal-body
+            [[body]]
+
+          .modal-footer
+            %button{ng-click:"cancel()",class:"btn btn-secondary",ng-hide:"hideCancel"}
+              -trans "Cancel"
+            %button{ng-click:"ok()",class:"btn btn-primary"}
+              [[okButton]]

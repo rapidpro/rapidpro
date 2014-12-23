@@ -79,7 +79,7 @@ table.datatable {
   padding-bottom:400px;
   overflow-y:auto;
   top: 0px;
-  width: 290px;
+  width: 320px;
   z-index:6000;
   left:0px;
   padding-bottom:30px;
@@ -172,8 +172,8 @@ table.datatable {
 
   #dirty-notification {
     font-size: 16px;
-    padding-bottom: 0;
-    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-top: 10px;
     padding-right: 12px;
     height: 38px;
   }
@@ -339,12 +339,12 @@ table.datatable {
   }
 
   .chart-button {
-    @button-size: 20px;
+    @button-size: 30px;
 
-    font-size: @button-size;
+    font-size: @button-size * 2 / 3;
     width: @button-size;
     height: @button-size;
-    padding:@button-size / 4;
+    padding:@button-size / 6;
     color: @flat-darkwhite;
     background: @flat-white;
     display: inline-block;
@@ -365,10 +365,12 @@ table.datatable {
 .field-count {
   font-size:12px;
   margin-top:-3px;
+  margin-left: -13px;
 }
 
 .field-flow {
    font-weight: bold;
+   margin-left: -13px;
 
    option .count {
      font-weight:normal;
@@ -376,7 +378,6 @@ table.datatable {
 }
 
 .field-rule {
-   padding-left: 10px;
    display:inline;
    padding-right: 5px;
    font-size:90%;
@@ -466,6 +467,7 @@ ul.fields, ul.filters, ul.segments {
   margin-left:0px;
   margin-bottom:0;
   width: 95%;
+  padding-left: 0px;
 
   .field {
     background: #fff;
@@ -619,4 +621,14 @@ ul.reports {
     margin-right: 8px;
     opacity: 0.7;
   }
+}
+
+.select2-results {
+  max-width: 270px;
+
+  .select2-result-label {
+    overflow-wrap: break-word;
+    padding-left: 20px;
+  }
+
 }

@@ -8,8 +8,9 @@
 
 -block above-bar
   -block top-form
-    %form{method:"get"}
-      %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+    %form{method:"get", role:"form"}
+      .form-group
+        %input.form-control.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
 -block buttons-right
   -block gear-menu
@@ -18,7 +19,7 @@
 -block post-content
   {{ block.super }}
   - if org_perms.flows.flowlabel_delete
-    .deletion.hide
+    .deletion{style:"display:none;"}
       .title
         -trans "Remove Label"
 
