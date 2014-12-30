@@ -1526,24 +1526,24 @@ class RuleTest(TembaTest):
         self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=new_start.id))
 
         # test ivr flow creation
-        with patch('temba.orgs.models.Org.supports_ivr') as mock:
-            mock.return_value = True
+        self.channel.role = 'SRCA'
+        self.channel.save()
 
-            post_data = dict(name="Message flow", expires_after_minutes=5, flow_type='F')
-            response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
-            msg_flow = Flow.objects.get(name=post_data['name'])
+        post_data = dict(name="Message flow", expires_after_minutes=5, flow_type='F')
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        msg_flow = Flow.objects.get(name=post_data['name'])
 
-            self.assertEquals(200, response.status_code)
-            self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.pk]))
-            self.assertEquals(msg_flow.flow_type, 'F')
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.pk]))
+        self.assertEquals(msg_flow.flow_type, 'F')
 
-            post_data = dict(name="Call flow", expires_after_minutes=5, flow_type='V')
-            response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
-            call_flow = Flow.objects.get(name=post_data['name'])
+        post_data = dict(name="Call flow", expires_after_minutes=5, flow_type='V')
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        call_flow = Flow.objects.get(name=post_data['name'])
 
-            self.assertEquals(200, response.status_code)
-            self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.pk]))
-            self.assertEquals(call_flow.flow_type, 'V')
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.pk]))
+        self.assertEquals(call_flow.flow_type, 'V')
 
         # test creating a  flow with base language
         # create the language for our org
@@ -1552,7 +1552,7 @@ class RuleTest(TembaTest):
         self.org.primary_language = language
         self.org.save()
 
-        post_data = dict(name="Language Flow", expires_after_minutes=5, base_language=language.iso_code)
+        post_data = dict(name="Language Flow", expires_after_minutes=5, base_language=language.iso_code, flow_type='F')
         response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
         language_flow = Flow.objects.get(name=post_data['name'])
 
