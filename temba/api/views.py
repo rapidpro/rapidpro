@@ -259,6 +259,7 @@ class ApiExplorerView(SmartTemplateView):
 
         endpoints.append(Contacts.get_read_explorer())
         endpoints.append(Contacts.get_write_explorer())
+        endpoints.append(Contacts.get_delete_explorer())
 
         endpoints.append(Groups.get_read_explorer())
 
@@ -1100,6 +1101,22 @@ class Contacts(generics.ListAPIView):
                 }
             }]
         }
+
+    ## Removing Contacts
+
+    A **DELETE** removes all matching contacts from your account. You can filter the list of contacts to remove using
+    the same attributes as the list call above. However you must provide at least one attribute.
+
+    * **uuid** - the unique identifier for this contact (string)
+    * **urns** - the URN's associated with this contact (string array)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional)
+
+    Example:
+
+        DELETE /api/v1/contacts.json?uuid=27fb583b-3087-4778-a2b3-8af489bf4a93
+
+    You will receive either a 404 response if no matching contacts were found, or a 204 response if one or more contacts
+    were removed.
     """
     permission = 'contacts.contact_api'
     model = Contact
@@ -1116,6 +1133,24 @@ class Contacts(generics.ListAPIView):
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        self.request = request
+        queryset = self.get_queryset()
+
+        # don't let users delete all their contacts by mistake
+        if not self.request.QUERY_PARAMS:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        if not queryset:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        else:
+            for contact in queryset:
+                contact.release()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
         queryset = Contact.objects.filter(org=self.request.user.get_org(), is_active=True, is_test=False).order_by('modified_on')
@@ -1191,6 +1226,21 @@ class Contacts(generics.ListAPIView):
                                help='The UUIDs of groups this contact should be part of, as a string array.  ex: ["6685e933-26e1-4363-a468-8f7268ab63a9"]'),
                           dict(name='fields', required=False,
                                help='Any fields to set on the contact, as a JSON dictionary. ex: { "Delivery Date": "2012-10-10 5:00" }')]
+        return spec
+
+    @classmethod
+    def get_delete_explorer(cls):
+        spec = dict(method="DELETE",
+                    title="Delete Contacts",
+                    url=reverse('api.contacts'),
+                    slug='contact-delete',
+                    request="uuid=27fb583b-3087-4778-a2b3-8af489bf4a93")
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
+                          dict(name='urns', required=False,
+                               help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
+                          dict(name='group_uuids', required=False,
+                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
         return spec
 
 

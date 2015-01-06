@@ -789,6 +789,35 @@ class APITest(TembaTest):
             self.assertContains(response, "Jay-Z")
             self.assertNotContains(response, '123555')
 
+        # check deleting a contact by UUID
+        response = self.deleteJSON(url, 'uuid=' + drdre.uuid)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Contact.objects.get(pk=drdre.pk).is_active)
+
+        # check deleting with wrong UUID gives 404
+        response = self.deleteJSON(url, 'uuid=XYZ')
+        self.assertEqual(response.status_code, 404)
+
+        # check deleting a contact by URN
+        response = self.deleteJSON(url, 'urns=tel:123555')
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
+
+        self.create_contact("Zuckerberg", number='078333')
+        taylor = self.create_contact("Taylor", number='078111')
+        britney = self.create_contact("Britney", number='078222')
+        artists.update_contacts([taylor, britney], add=True)
+
+        # check deleting contacts by group UUID
+        response = self.deleteJSON(url, 'group_uuids=%s' % artists.uuid)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(Contact.objects.get(is_active=True).name, "Zuckerberg")
+
+        # check blanket delete isn't allowed
+        response = self.deleteJSON(url, '')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Contact.objects.get(is_active=True).name, "Zuckerberg")
+
     def test_api_fields(self):
         url = reverse('api.contactfields')
 
