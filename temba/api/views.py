@@ -1141,8 +1141,12 @@ class Contacts(generics.ListAPIView):
         self.request = request
         queryset = self.get_queryset()
 
-        # don't let users delete all their contacts by mistake
-        if not self.request.QUERY_PARAMS:
+        # to prevent users from deleting all their contacts by mistake, we require them to filter by something
+        filtered = False
+        for opt in 'uuid', 'urns', 'group_uuids':
+            if self.request.QUERY_PARAMS.get(opt, None):
+                filtered = True
+        if not filtered:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         if not queryset:
