@@ -574,6 +574,10 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultCount(response, 0)
 
+        # Invalid data
+        response = self.postJSON(url, ['tel:+250788123123'])
+        self.assertEquals(400, response.status_code)
+
         # add a contact using deprecated phone field
         response = self.postJSON(url, dict(name='Snoop Dog', phone='+250788123123'))
         self.assertEquals(201, response.status_code)
