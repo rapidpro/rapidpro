@@ -1072,7 +1072,7 @@ class Contacts(generics.ListAPIView):
     * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid```)
     * **name** - the name of this contact (string, optional)
     * **language** - the preferred language of this contact (string, optional)
-    * **urns** - the URN's associated with this contact (string array) (filterable: ```urns```)
+    * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
     * **fields** - any contact fields on this contact (JSON, optional)
 
@@ -1104,12 +1104,11 @@ class Contacts(generics.ListAPIView):
 
     ## Removing Contacts
 
-    A **DELETE** removes all matching contacts from your account. You can filter the list of contacts to remove using
-    the same attributes as the list call above. However you must provide at least one attribute.
+    A **DELETE** removes all matching contacts from your account. You must provide either a list of UUIDs or a list of
+    URNs, or both.
 
-    * **uuid** - the unique identifier for this contact (string)
-    * **urns** - the URN's associated with this contact (string array)
-    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional)
+    * **uuid** - the unique identifiers for these contacts (string array)
+    * **urns** - the URNs associated with these contacts (string array)
 
     Example:
 
@@ -1138,16 +1137,19 @@ class Contacts(generics.ListAPIView):
         return self.destroy(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        self.request = request
-        queryset = self.get_queryset()
+        queryset = self.get_base_queryset(request)
 
-        # to prevent users from deleting all their contacts by mistake, we require them to filter by something
-        filtered = False
-        for opt in 'uuid', 'urns', 'group_uuids':
-            if self.request.QUERY_PARAMS.get(opt, None):
-                filtered = True
-        if not filtered:
+        # to make it harder for users to delete all their contacts by mistake, we require them to filter by UUID or urns
+        uuids = request.QUERY_PARAMS.getlist('uuid', None)
+        urns = request.QUERY_PARAMS.getlist('urns', None)
+
+        if not (uuids or urns):
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+        if urns:
+            queryset = queryset.filter(urns__urn__in=urns)
 
         if not queryset:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -1156,8 +1158,11 @@ class Contacts(generics.ListAPIView):
                 contact.release()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def get_base_queryset(self, request):
+        return Contact.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
+
     def get_queryset(self):
-        queryset = Contact.objects.filter(org=self.request.user.get_org(), is_active=True, is_test=False).order_by('modified_on')
+        queryset = self.get_base_queryset(self.request).order_by('modified_on')
 
         phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated, use urns
         if phones:
