@@ -1366,16 +1366,18 @@ class ExportContactsTask(SmartModel):
 
         book = Workbook()
 
-        fields = ['Phone', 'Name']
+        fields = [dict(label='Phone', key='phone'), dict(label='Name', key='name')]
         contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True)
 
         for contact_field in contact_fields_list:
-            fields.append(contact_field.label)
+            fields.append(contact_field)
 
         all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_archived=False).order_by('name', 'pk')
 
         if self.group:
             all_contacts = all_contacts.filter(groups=self.group)
+
+        Contact.bulk_cache_initialize(self.org, all_contacts)
 
         temp = NamedTemporaryFile(delete=True)
 
@@ -1385,19 +1387,14 @@ class ExportContactsTask(SmartModel):
 
             writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
 
-            writer.writerow([s.encode("utf-8") for s in fields])
+            writer.writerow([s['label'].encode("utf-8") for s in fields])
 
             for obj in all_contacts:
                 row_data = []
                 for col in range(len(fields)):
-                    field_label = fields[col]
-
-                    if field_label in ["Name", "Phone"]:
-                        field = field_label.lower()
-                    else:
-                        field = ContactField.objects.filter(org=self.org, is_active=True, label=field_label).first().key
-
-                    field_value = obj.get_field_display(field)
+                    field = fields[col]['key']
+                    if field not in ['name', 'phone']:
+                        field_value = getattr(obj, '__field__%s' % field)
 
                     if field == 'name':
                         field_value = obj.name
@@ -1423,7 +1420,7 @@ class ExportContactsTask(SmartModel):
                 # write our first sheet
                 sheet = book.add_sheet(unicode(_("Contacts %d" % sheet_number)))
                 for col in range(len(fields)):
-                    sheet.write(0, col, unicode(fields[col]))
+                    sheet.write(0, col, unicode(fields[col]['label']))
 
                 return sheet
 
@@ -1441,14 +1438,10 @@ class ExportContactsTask(SmartModel):
                 for row in range(len(contacts)):
                     obj = contacts[row]
                     for col in range(len(fields)):
-                        field_label = fields[col]
+                        field = fields[col]['key']
 
-                        if field_label in ["Name", "Phone"]:
-                            field = field_label.lower()
-                        else:
-                            field = ContactField.objects.filter(org=self.org, is_active=True, label=field_label).first().key
-
-                        field_value = obj.get_field_display(field)
+                        if field not in ['name', 'phone']:
+                            field_value = getattr(obj, '__field__%s' % field)
 
                         if field == 'name':
                             field_value = obj.name
