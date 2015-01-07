@@ -399,9 +399,9 @@ class MessagesEndpoint(generics.ListAPIView):
     You can create new messages by making a **POST** request to this URL with the following JSON data:
 
       * **relayer** - the id of the Android channel that should send the SMS messages (int, optional)
-      * **phone** - either a single phone number or a JSON array of up to 100 phone numbers to send the message to (string or array of strings)
-      * **urn** - either a single phone URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
-      * **contact** - either a single contact UUID or a JSON array of up to 100 contact ids to send the message to (string or array of strings)
+      * **urn** - either a single URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
+      * **contact** - either a single contact UUID or a JSON array of up to 100 contact UUIDs to send the message to (string or array of strings)
+      * **group** - either a single contact group UUID or a JSON array of up to 100 group UUIDs to send the message to (string or array of strings)
       * **text** - the text of the message to send (string, limit of 480 characters)
 
     Example:
@@ -613,18 +613,21 @@ class MessagesEndpoint(generics.ListAPIView):
                     title="Send one or more messages",
                     url=reverse('api.messages'),
                     slug='sms-send',
-                    request='{ "phone": ["+250788222222", "+250788111111"], "text": "My first SMS message", "relayer": 1 }')
+                    request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first SMS message", "relayer": 1 }')
 
-        spec['fields'] = [ dict(name='phone', required=True,
-                                help="A JSON array of one or more strings, each a phone number in E164 format"),
-                           dict(name='contact', required=False,
-                                help="A JSON array of one or more strings, each a contact UUID."),
-                           dict(name='text', required=True,
-                                help="The text of the SMS message you want to send (max length 480 chars)"),
-                           dict(name='relayer', required=False,
-                                help="The id of the channel that should send this message, if not specified we will " \
-                                     "choose what it thinks is the best channel to deliver this message.") ]
+        spec['fields'] = [dict(name='urn', required=False,
+                               help="A JSON array of one or more strings, each a contact URN."),
+                          dict(name='contact', required=False,
+                               help="A JSON array of one or more strings, each a contact UUID."),
+                          dict(name='group', required=False,
+                               help="A JSON array of one or more strings, each a group UUID."),
+                          dict(name='text', required=True,
+                               help="The text of the SMS message you want to send (max length 480 chars)"),
+                          dict(name='relayer', required=False,
+                               help="The id of the channel that should send this message, if not specified we will "
+                                    "choose what it thinks is the best channel to deliver this message.")]
         return spec
+
 
 class Calls(generics.ListAPIView):
     """

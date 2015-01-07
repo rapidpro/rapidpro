@@ -994,7 +994,8 @@ class MsgCreateSerializer(serializers.Serializer):
     text = serializers.CharField(required=True, max_length=480)
     urn = StringArrayField(required=False)
     contact = StringArrayField(required=False)
-    phone = PhoneField(required=False)
+    group = StringArrayField(required=False)
+    phone = PhoneField(required=False)  # deprecated, use urn
 
     def __init__(self, *args, **kwargs):
         if 'user' in kwargs:
@@ -1004,14 +1005,6 @@ class MsgCreateSerializer(serializers.Serializer):
             if 'org' in kwargs: del kwargs['org']
 
         super(MsgCreateSerializer, self).__init__(*args, **kwargs)
-
-    def validate(self, attrs):
-        urns = attrs.get('urn', [])
-        phone = attrs.get('phone', None)
-        contact = attrs.get('contact', [])
-        if (not urns and not phone and not contact) or (urns and phone):
-            raise ValidationError("Must provide either urns or phone or contact and not both")
-        return attrs
 
     def validate_channel(self, attrs, source):
         # load their org
@@ -1047,6 +1040,9 @@ class MsgCreateSerializer(serializers.Serializer):
         return attrs
 
     def validate_urn(self, attrs, source):
+        if self.org.is_anon:
+            raise ValidationError("Cannot send messages by URN for anonymous organizations")
+
         urns = []
 
         if 'channel' in attrs and attrs['channel']:
@@ -1064,9 +1060,9 @@ class MsgCreateSerializer(serializers.Serializer):
         attrs['urn'] = urns
         return attrs
 
-    def validate_phone(self, attrs, source):
+    def validate_phone(self, attrs, source):  # deprecated, use urn
         if self.org.is_anon:
-            raise ValidationError("Cannot create messages for anonymous organizations")
+            raise ValidationError("Cannot send messages by phone for anonymous organizations")
 
         if 'channel' in attrs and attrs['channel']:
             # check our numbers for validity
@@ -1083,34 +1079,47 @@ class MsgCreateSerializer(serializers.Serializer):
 
         return attrs
 
+    def validate_group(self, attrs, source):
+        groups = []
+
+        for uuid in attrs.get(source, []):
+            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            if not group:
+                raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
+
+            groups.append(group)
+
+        attrs['group'] = groups
+        return attrs
+
     def restore_object(self, attrs, instance=None):
         """
         Create a new broadcast to send out
         """
-        if instance: # pragma: no cover
+        if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
         user = self.user
         org = self.org
 
-        if 'urn' in attrs and attrs['urn']:
-            urns = attrs.get('urn', [])
-        else:
-            urns = attrs.get('phone', [])
-
         channel = attrs['channel']
-        contacts = list()
-        for urn in urns:
+        recipients = list()
+        for urn in attrs.get('urn', []) + attrs.get('phone', []):
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create(user, channel.org, urns=[urn], channel=channel))
+            recipients.append(Contact.get_or_create(user, channel.org, urns=[urn], channel=channel))
 
-        # add any contacts specified by uuids
-        uuid_contacts = attrs.get('contact', [])
-        for contact in uuid_contacts:
-            contacts.append(contact)
+        # add any contacts specified by UUID
+        contacts = attrs.get('contact', [])
+        for contact in contacts:
+            recipients.append(contact)
+
+        # add any contact groups specified by UUID
+        groups = attrs.get('group', [])
+        for group in groups:
+            recipients.append(group)
 
         # create the broadcast
-        broadcast = Broadcast.create(org, user, attrs['text'], recipients=contacts)
+        broadcast = Broadcast.create(org, user, attrs['text'], recipients=recipients)
 
         # send it
         broadcast.send()
