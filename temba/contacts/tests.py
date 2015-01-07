@@ -1558,6 +1558,15 @@ class ContactFieldTest(TembaTest):
         # should still have three contact fields
         self.assertEquals(3, ContactField.objects.filter(org=self.org, is_active=True).count())
 
+        # fields name should be unique case insensitively
+        post_data['label_1'] = "Town"
+        post_data['label_2'] = "town"
+
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field names must be unique")
+        self.assertEquals(3, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
+
         # now remove the first field, rename the second and change the type on the third
         post_data['label_1'] = ''
         post_data['label_2'] = 'Number 2'

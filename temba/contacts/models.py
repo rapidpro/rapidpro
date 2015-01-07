@@ -1390,8 +1390,13 @@ class ExportContactsTask(SmartModel):
             for obj in all_contacts:
                 row_data = []
                 for col in range(len(fields)):
-                    field = fields[col]
-                    field = ContactField.make_key(field)
+                    field_label = fields[col]
+
+                    if field_label in ["Name", "Phone"]:
+                        field = field_label.lower()
+                    else:
+                        field = ContactField.objects.filter(org=self.org, is_active=True, label=field_label).first().key
+
                     field_value = obj.get_field_display(field)
 
                     if field == 'name':
@@ -1436,8 +1441,13 @@ class ExportContactsTask(SmartModel):
                 for row in range(len(contacts)):
                     obj = contacts[row]
                     for col in range(len(fields)):
-                        field = fields[col]
-                        field = ContactField.make_key(field)
+                        field_label = fields[col]
+
+                        if field_label in ["Name", "Phone"]:
+                            field = field_label.lower()
+                        else:
+                            field = ContactField.objects.filter(org=self.org, is_active=True, label=field_label).first().key
+
                         field_value = obj.get_field_display(field)
 
                         if field == 'name':
