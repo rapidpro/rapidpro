@@ -57,8 +57,8 @@ class WriteSerializer(serializers.Serializer):
 
     def restore_fields(self, data, files):
 
-        if data is not None and not isinstance(data, dict):
-            self._errors['non_field_errors'] = ['Invalid data']
+        if not isinstance(data, dict):
+            self._errors['non_field_errors'] = ['Request body should be a single JSON object']
             return {}
 
         return super(WriteSerializer, self).restore_fields(data, files)
