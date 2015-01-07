@@ -1370,14 +1370,12 @@ class ExportContactsTask(SmartModel):
         contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True)
 
         for contact_field in contact_fields_list:
-            fields.append(contact_field)
+            fields.append(dict(label=contact_field.label, key=contact_field.key))
 
         all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_archived=False).order_by('name', 'pk')
 
         if self.group:
             all_contacts = all_contacts.filter(groups=self.group)
-
-        Contact.bulk_cache_initialize(self.org, all_contacts)
 
         temp = NamedTemporaryFile(delete=True)
 
@@ -1393,8 +1391,7 @@ class ExportContactsTask(SmartModel):
                 row_data = []
                 for col in range(len(fields)):
                     field = fields[col]['key']
-                    if field not in ['name', 'phone']:
-                        field_value = getattr(obj, '__field__%s' % field)
+                    field_value = obj.get_field_display(field)
 
                     if field == 'name':
                         field_value = obj.name
@@ -1439,9 +1436,7 @@ class ExportContactsTask(SmartModel):
                     obj = contacts[row]
                     for col in range(len(fields)):
                         field = fields[col]['key']
-
-                        if field not in ['name', 'phone']:
-                            field_value = getattr(obj, '__field__%s' % field)
+                        field_value = obj.get_field_display(field)
 
                         if field == 'name':
                             field_value = obj.name
