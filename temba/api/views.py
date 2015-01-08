@@ -259,6 +259,7 @@ class ApiExplorerView(SmartTemplateView):
 
         endpoints.append(Contacts.get_read_explorer())
         endpoints.append(Contacts.get_write_explorer())
+        endpoints.append(Contacts.get_delete_explorer())
 
         endpoints.append(Groups.get_read_explorer())
 
@@ -1071,7 +1072,7 @@ class Contacts(generics.ListAPIView):
     * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid```)
     * **name** - the name of this contact (string, optional)
     * **language** - the preferred language of this contact (string, optional)
-    * **urns** - the URN's associated with this contact (string array) (filterable: ```urns```)
+    * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
     * **fields** - any contact fields on this contact (JSON, optional)
 
@@ -1100,6 +1101,21 @@ class Contacts(generics.ListAPIView):
                 }
             }]
         }
+
+    ## Removing Contacts
+
+    A **DELETE** removes all matching contacts from your account. You must provide either a list of UUIDs or a list of
+    URNs, or both.
+
+    * **uuid** - the unique identifiers for these contacts (string array)
+    * **urns** - the URNs associated with these contacts (string array)
+
+    Example:
+
+        DELETE /api/v1/contacts.json?uuid=27fb583b-3087-4778-a2b3-8af489bf4a93
+
+    You will receive either a 404 response if no matching contacts were found, or a 204 response if one or more contacts
+    were removed.
     """
     permission = 'contacts.contact_api'
     model = Contact
@@ -1117,8 +1133,36 @@ class Contacts(generics.ListAPIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        queryset = self.get_base_queryset(request)
+
+        # to make it harder for users to delete all their contacts by mistake, we require them to filter by UUID or urns
+        uuids = request.QUERY_PARAMS.getlist('uuid', None)
+        urns = request.QUERY_PARAMS.getlist('urns', None)
+
+        if not (uuids or urns):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+        if urns:
+            queryset = queryset.filter(urns__urn__in=urns)
+
+        if not queryset:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        else:
+            for contact in queryset:
+                contact.release()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get_base_queryset(self, request):
+        return Contact.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
+
     def get_queryset(self):
-        queryset = Contact.objects.filter(org=self.request.user.get_org(), is_active=True, is_test=False).order_by('modified_on')
+        queryset = self.get_base_queryset(self.request).order_by('modified_on')
 
         phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated, use urns
         if phones:
@@ -1191,6 +1235,21 @@ class Contacts(generics.ListAPIView):
                                help='The UUIDs of groups this contact should be part of, as a string array.  ex: ["6685e933-26e1-4363-a468-8f7268ab63a9"]'),
                           dict(name='fields', required=False,
                                help='Any fields to set on the contact, as a JSON dictionary. ex: { "Delivery Date": "2012-10-10 5:00" }')]
+        return spec
+
+    @classmethod
+    def get_delete_explorer(cls):
+        spec = dict(method="DELETE",
+                    title="Delete Contacts",
+                    url=reverse('api.contacts'),
+                    slug='contact-delete',
+                    request="uuid=27fb583b-3087-4778-a2b3-8af489bf4a93")
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
+                          dict(name='urns', required=False,
+                               help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
+                          dict(name='group_uuids', required=False,
+                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
         return spec
 
 

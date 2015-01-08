@@ -121,11 +121,18 @@
 
     function send(slug, method, url){
       var codeMirror = codeMirrors['request-' + slug];
-      var json = codeMirror.getValue();
+      var data = codeMirror.getValue();
       $("#result-" + slug).text("Requesting..");
+
+      // by default jQuery sends delete data as the body
+      if (method == 'DELETE') {
+        url += '?' + data
+        data = null;
+      }
+
       $.ajax({ type: method,
                url: url,
-               data: json,
+               data: data,
                headers: {
                  Accept : "application/json; charset=utf-8; indent=4;",
                  "Content-Type": "application/json; charset=utf-8; indent=4;"
