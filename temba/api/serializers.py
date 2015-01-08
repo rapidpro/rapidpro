@@ -53,6 +53,15 @@ class StringArrayField(serializers.WritableField):
         else:
             raise ValidationError("Invalid, must be array: %s" % data)
 
+class WriteSerializer(serializers.Serializer):
+
+    def restore_fields(self, data, files):
+
+        if not isinstance(data, dict):
+            self._errors['non_field_errors'] = ['Request body should be a single JSON object']
+            return {}
+
+        return super(WriteSerializer, self).restore_fields(data, files)
 
 class MsgReadSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField('get_id')
@@ -158,7 +167,7 @@ class ContactReadSerializer(serializers.ModelSerializer):
         fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'modified_on', 'phone', 'groups')
 
 
-class ContactWriteSerializer(serializers.Serializer):
+class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=False, max_length=64)
     language = serializers.CharField(required=False, max_length=4)
