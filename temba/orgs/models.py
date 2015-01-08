@@ -1341,7 +1341,7 @@ def get_user_orgs(user):
     if user.is_superuser:
         return Org.objects.all()
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
-    return user_orgs.distinct()
+    return user_orgs.distinct().order_by('name')
 
 
 def get_org(obj):
