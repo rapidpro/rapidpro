@@ -911,6 +911,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
 class ManageFieldsForm(forms.Form):
     def clean(self):
+        used_labels = []
         for key in self.cleaned_data:
             if key.startswith('field_'):
                 idx = key[6:]
@@ -919,8 +920,13 @@ class ManageFieldsForm(forms.Form):
                 if label:
                     if not ContactField.is_valid_label(label):
                         raise forms.ValidationError(_("Field names can only contain letters, numbers, spaces and hypens"))
+
+                    if label.lower() in used_labels:
+                        raise ValidationError(_("Field names must be unique"))
+
                     elif label in RESERVED_CONTACT_FIELDS:
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
+                    used_labels.append(label.lower())
 
         return self.cleaned_data
 

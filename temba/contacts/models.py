@@ -1366,11 +1366,11 @@ class ExportContactsTask(SmartModel):
 
         book = Workbook()
 
-        fields = ['Phone', 'Name']
+        fields = [dict(label='Phone', key='phone'), dict(label='Name', key='name')]
         contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True)
 
         for contact_field in contact_fields_list:
-            fields.append(contact_field.label)
+            fields.append(dict(label=contact_field.label, key=contact_field.key))
 
         all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_archived=False).order_by('name', 'pk')
 
@@ -1385,13 +1385,12 @@ class ExportContactsTask(SmartModel):
 
             writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
 
-            writer.writerow([s.encode("utf-8") for s in fields])
+            writer.writerow([s['label'].encode("utf-8") for s in fields])
 
             for obj in all_contacts:
                 row_data = []
                 for col in range(len(fields)):
-                    field = fields[col]
-                    field = ContactField.make_key(field)
+                    field = fields[col]['key']
                     field_value = obj.get_field_display(field)
 
                     if field == 'name':
@@ -1418,7 +1417,7 @@ class ExportContactsTask(SmartModel):
                 # write our first sheet
                 sheet = book.add_sheet(unicode(_("Contacts %d" % sheet_number)))
                 for col in range(len(fields)):
-                    sheet.write(0, col, unicode(fields[col]))
+                    sheet.write(0, col, unicode(fields[col]['label']))
 
                 return sheet
 
@@ -1436,8 +1435,7 @@ class ExportContactsTask(SmartModel):
                 for row in range(len(contacts)):
                     obj = contacts[row]
                     for col in range(len(fields)):
-                        field = fields[col]
-                        field = ContactField.make_key(field)
+                        field = fields[col]['key']
                         field_value = obj.get_field_display(field)
 
                         if field == 'name':
