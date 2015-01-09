@@ -510,13 +510,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_object(self, queryset=None):
             uuid = self.kwargs.get('uuid')
+            contact = None
             if self.request.user.is_superuser:
-                return Contact.objects.get(uuid=uuid, is_active=True)
+                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
             else:
-                try:
-                    return Contact.objects.get(uuid=uuid, is_active=True, org=self.request.user.get_org())
-                except ObjectDoesNotExist:
-                    raise Http404("No active contact with that id")
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, org=self.request.user.get_org()).first()
+
+            if contact is None:
+                raise Http404("No active contact with that id")
+
+            return contact
 
         def get_context_data(self, **kwargs):
             from temba.channels.models import SEND
