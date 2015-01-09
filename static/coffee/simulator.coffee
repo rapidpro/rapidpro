@@ -12,10 +12,7 @@ window.updateSimulator = (data) ->
     direction = (if (msg.direction is "O") then "from" else "to")
     model = (if (msg.model is "msg") then "imsg" else "ilog")
     $(".simulator-body").append "<div class=\"" + model + " " + direction + "\"></div>"
-
     $(".simulator-body ." + model + "." + direction + ":last").text(msg.text).html()
-
-
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
