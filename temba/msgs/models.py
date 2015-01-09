@@ -265,7 +265,7 @@ class Broadcast(models.Model):
         return qs.distinct()
 
     def get_messages(self):
-        return Msg.objects.filter(broadcast=self).exclude(status=RESENT)
+        return self.msgs.exclude(status=RESENT)
 
     def get_messages_by_status(self):
         return self.get_messages().order_by('delivered_on', 'sent_on', '-status')

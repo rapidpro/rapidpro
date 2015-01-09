@@ -1,21 +1,20 @@
 from __future__ import unicode_literals
 
 import json
-from uuid import uuid4
 import phonenumbers
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from django.db.models import Q
-from temba.msgs.models import Msg, Call, Broadcast
-from temba.locations.models import AdminBoundary
-from temba.channels.models import Channel
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, RuleSet
-from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT
-from django.utils.translation import ugettext_lazy as _
+from temba.locations.models import AdminBoundary
+from temba.msgs.models import Msg, Call, Broadcast
+from temba.values.models import Value, VALUE_TYPE_CHOICES
+
 
 class DictionaryField(serializers.WritableField):
 
@@ -977,7 +976,7 @@ class ChannelField(serializers.PrimaryKeyRelatedField):
         super(ChannelField, self).initialize(parent, field_name)
 
 
-class BroadcastReadSerializer(serializers.ModelSerializer):
+class BroadcastReadSerializerOld(serializers.ModelSerializer):
     messages = serializers.SerializerMethodField('get_messages')
     sms = serializers.SerializerMethodField('get_messages')  # deprecated
 
@@ -989,13 +988,108 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
         fields = ('messages', 'sms')
 
 
+class BroadcastReadSerializer(serializers.ModelSerializer):
+    id = serializers.Field(source='id')
+    urns = serializers.SerializerMethodField('get_urns')
+    contacts = serializers.SerializerMethodField('get_contacts')
+    groups = serializers.SerializerMethodField('get_groups')
+    text = serializers.Field(source='text')
+    messages = serializers.SerializerMethodField('get_messages')
+    created_on = serializers.Field(source='created_on')
+    status = serializers.Field(source='status')
+
+    def get_urns(self, obj):
+        return [urn.urn for urn in obj.urns.all()]
+
+    def get_contacts(self, obj):
+        return [contact.uuid for contact in obj.contacts.all()]
+
+    def get_groups(self, obj):
+        return [group.uuid for group in obj.groups.all()]
+
+    def get_messages(self, obj):
+        return [msg.id for msg in obj.get_messages()]
+
+    class Meta:
+        model = Broadcast
+        fields = ('urns', 'contacts', 'groups', 'text', 'messages')
+
+
+class BroadcastCreateSerializer(serializers.Serializer):
+    urns = StringArrayField(required=False)
+    contacts = StringArrayField(required=False)
+    groups = StringArrayField(required=False)
+    text = serializers.CharField(required=True, max_length=480)
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        self.org = self.user.get_org()
+
+        super(BroadcastCreateSerializer, self).__init__(*args, **kwargs)
+
+    def validate(self, attrs):
+        if not (attrs.get('urn', []) or attrs.get('contacts', None) or attrs.get('groups', [])):
+            raise ValidationError("Must provide either urns, contacts or groups")
+        return attrs
+
+    def validate_urns(self, attrs, source):
+        urns = []
+        for urn in attrs.get(source, []):
+            contact_urn = ContactURN.objects.filter(urn=urn, org=self.org).first()
+            if not contact_urn:
+                raise ValidationError(_("Unable to find contact URN: %s") % urn)
+            urns.append(contact_urn)
+
+        attrs['urns'] = urns
+        return attrs
+
+    def validate_contacts(self, attrs, source):
+        contacts = []
+        for uuid in attrs.get(source, []):
+            contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            if not contact:
+                raise ValidationError(_("Unable to find contact with uuid: %s") % uuid)
+            contacts.append(contact)
+
+        attrs['contacts'] = contacts
+        return attrs
+
+    def validate_groups(self, attrs, source):
+        groups = []
+        for uuid in attrs.get(source, []):
+            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            if not group:
+                raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
+            groups.append(group)
+
+        attrs['groups'] = groups
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        """
+        Create a new broadcast to send out
+        """
+        from temba.msgs.tasks import send_broadcast_task
+
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        recipients = attrs.get('urns') + attrs.get('contacts') + attrs.get('groups')
+
+        # create the broadcast
+        broadcast = Broadcast.create(self.org, self.user, attrs['text'], recipients=recipients)
+
+        # send in task
+        send_broadcast_task.delay(broadcast.id)
+        return broadcast
+
+
 class MsgCreateSerializer(serializers.Serializer):
     channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
     text = serializers.CharField(required=True, max_length=480)
     urn = StringArrayField(required=False)
     contact = StringArrayField(required=False)
-    group = StringArrayField(required=False)
-    phone = PhoneField(required=False)  # deprecated, use urn
+    phone = PhoneField(required=False)
 
     def __init__(self, *args, **kwargs):
         if 'user' in kwargs:
@@ -1005,6 +1099,14 @@ class MsgCreateSerializer(serializers.Serializer):
             if 'org' in kwargs: del kwargs['org']
 
         super(MsgCreateSerializer, self).__init__(*args, **kwargs)
+
+    def validate(self, attrs):
+        urns = attrs.get('urn', [])
+        phone = attrs.get('phone', None)
+        contact = attrs.get('contact', [])
+        if (not urns and not phone and not contact) or (urns and phone):
+            raise ValidationError("Must provide either urns or phone or contact and not both")
+        return attrs
 
     def validate_channel(self, attrs, source):
         # load their org
@@ -1040,9 +1142,6 @@ class MsgCreateSerializer(serializers.Serializer):
         return attrs
 
     def validate_urn(self, attrs, source):
-        if self.org.is_anon:
-            raise ValidationError("Cannot send messages by URN for anonymous organizations")
-
         urns = []
 
         if 'channel' in attrs and attrs['channel']:
@@ -1060,9 +1159,9 @@ class MsgCreateSerializer(serializers.Serializer):
         attrs['urn'] = urns
         return attrs
 
-    def validate_phone(self, attrs, source):  # deprecated, use urn
+    def validate_phone(self, attrs, source):
         if self.org.is_anon:
-            raise ValidationError("Cannot send messages by phone for anonymous organizations")
+            raise ValidationError("Cannot create messages for anonymous organizations")
 
         if 'channel' in attrs and attrs['channel']:
             # check our numbers for validity
@@ -1079,47 +1178,34 @@ class MsgCreateSerializer(serializers.Serializer):
 
         return attrs
 
-    def validate_group(self, attrs, source):
-        groups = []
-
-        for uuid in attrs.get(source, []):
-            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
-            if not group:
-                raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
-
-            groups.append(group)
-
-        attrs['group'] = groups
-        return attrs
-
     def restore_object(self, attrs, instance=None):
         """
         Create a new broadcast to send out
         """
-        if instance:  # pragma: no cover
+        if instance: # pragma: no cover
             raise ValidationError("Invalid operation")
 
         user = self.user
         org = self.org
 
+        if 'urn' in attrs and attrs['urn']:
+            urns = attrs.get('urn', [])
+        else:
+            urns = attrs.get('phone', [])
+
         channel = attrs['channel']
-        recipients = list()
-        for urn in attrs.get('urn', []) + attrs.get('phone', []):
+        contacts = list()
+        for urn in urns:
             # treat each urn as a separate contact
-            recipients.append(Contact.get_or_create(user, channel.org, urns=[urn], channel=channel))
+            contacts.append(Contact.get_or_create(user, channel.org, urns=[urn], channel=channel))
 
-        # add any contacts specified by UUID
-        contacts = attrs.get('contact', [])
-        for contact in contacts:
-            recipients.append(contact)
-
-        # add any contact groups specified by UUID
-        groups = attrs.get('group', [])
-        for group in groups:
-            recipients.append(group)
+        # add any contacts specified by uuids
+        uuid_contacts = attrs.get('contact', [])
+        for contact in uuid_contacts:
+            contacts.append(contact)
 
         # create the broadcast
-        broadcast = Broadcast.create(org, user, attrs['text'], recipients=recipients)
+        broadcast = Broadcast.create(org, user, attrs['text'], recipients=contacts)
 
         # send it
         broadcast.send()

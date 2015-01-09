@@ -900,19 +900,6 @@ class APITest(TembaTest):
         Msg.objects.all().delete()
         Broadcast.objects.all().delete()
 
-        # add a broadcast using a contact group uuid
-        frank = self.create_contact("Frank", "0788234234")
-        joe_and_frank = self.create_group("Testers", [self.joe, frank])
-        response = self.postJSON(url, dict(text='Bonjour', group=[joe_and_frank.uuid]))
-        self.assertEqual(201, response.status_code)
-
-        # should be one broadcast and two messages
-        self.assertEqual(1, Broadcast.objects.all().count())
-        self.assertEqual(2, Msg.objects.all().count())
-
-        Msg.objects.all().delete()
-        Broadcast.objects.all().delete()
-
         # add a broadcast using a contact uuid
         contact = Contact.objects.get(urns__path='+250788123123')
         response = self.postJSON(url, dict(text='test1', contact=[contact.uuid]))
