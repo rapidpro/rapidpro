@@ -781,8 +781,6 @@ class Flow(TembaModel, SmartModel):
             if len(visits):
                 r.hmset(self.get_cache_key(FlowCache.visit_count_map), visits)
 
-        analytics.track("System", "nyaruka.flow_stat_cache_rebuild", properties=dict(value=time.time() - start_time))
-
     def _calculate_activity(self, simulation=False):
 
         """
@@ -825,7 +823,7 @@ class Flow(TembaModel, SmartModel):
         Checks if we have a redis cache for our flow stats, or whether they need to be updated.
         If so, triggers an async rebuild of the cache for our flow.
         """
-        from .tasks import calculate_flow_stats_task
+        from .tasks import calculate_flow_stats_task, check_flow_stats_accuracy_task
 
         r = get_redis_connection()
 
@@ -844,10 +842,8 @@ class Flow(TembaModel, SmartModel):
         import random
         r.set(cache_check, 1, FLOW_STAT_CACHE_FREQUENCY + random.randint(0, 60 * 60))
 
-        # check if our flow run count is the same, otherwise trigger rebuild
-        runs_started = self.runs.filter(contact__is_test=False).count()
-        if runs_started != self.get_total_runs():
-            calculate_flow_stats_task.delay(self.pk)
+        # check flow stats for accuracy, rebuilding if necessary
+        check_flow_stats_accuracy_task.delay(self.pk)
 
 
     def get_activity(self, simulation=False):
