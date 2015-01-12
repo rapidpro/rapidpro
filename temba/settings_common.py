@@ -439,7 +439,7 @@ PERMISSIONS = {
                 'test',
                 ),
 
-    'msgs.broadcast': ('api,'
+    'msgs.broadcast': ('api',
                       'detail',
                       'outbox',
                       'schedule',

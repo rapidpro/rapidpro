@@ -27,7 +27,7 @@ from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializ
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
-from temba.api.serializers import MsgCreateSerializer, MsgReadSerializer, BroadcastReadSerializerOld
+from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
@@ -441,6 +441,7 @@ class BroadcastsEndpoint(generics.ListAPIView):
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **status** - the status of this broadcast, a string one of: (filterable: ```status```)
 
+            I - no messages have been sent yet
             Q - some messages are still queued
             S - all messages have been sent
             D - all messages have been delivered
@@ -473,7 +474,7 @@ class BroadcastsEndpoint(generics.ListAPIView):
                 ...
 
     """
-    permission = 'broadcasts.broadcast_api'
+    permission = 'msgs.broadcast_api'
     model = Broadcast
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = BroadcastReadSerializer
@@ -491,18 +492,15 @@ class BroadcastsEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.getlist('id', None)
+        ids = self.request.QUERY_PARAMS.get('id', None)
         if ids:
-            queryset = queryset.filter(pk__in=ids)
+            queryset = queryset.filter(pk__in=ids.split(','))
 
-        statuses = self.request.QUERY_PARAMS.getlist('status', None)
+        statuses = self.request.QUERY_PARAMS.get('status', None)
         if statuses:
-            # to the user, Q and P are the same, but not to us
-            if 'Q' in statuses:
-                statuses.append('P')
-            queryset = queryset.filter(status__in=statuses)
+            queryset = queryset.filter(status__in=statuses.split(','))
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -655,7 +653,7 @@ class MessagesEndpoint(generics.ListAPIView):
         if serializer.is_valid():
             serializer.save()
 
-            response_serializer = BroadcastReadSerializerOld(instance=serializer.object)
+            response_serializer = MsgCreateResultSerializer(instance=serializer.object)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -12,7 +12,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast
+from temba.msgs.models import Msg, Call, Broadcast, INITIALIZING
 from temba.values.models import Value, VALUE_TYPE_CHOICES
 
 
@@ -976,18 +976,6 @@ class ChannelField(serializers.PrimaryKeyRelatedField):
         super(ChannelField, self).initialize(parent, field_name)
 
 
-class BroadcastReadSerializerOld(serializers.ModelSerializer):
-    messages = serializers.SerializerMethodField('get_messages')
-    sms = serializers.SerializerMethodField('get_messages')  # deprecated
-
-    def get_messages(self, obj):
-        return [msg.id for msg in obj.get_messages()]
-
-    class Meta:
-        model = Broadcast
-        fields = ('messages', 'sms')
-
-
 class BroadcastReadSerializer(serializers.ModelSerializer):
     id = serializers.Field(source='id')
     urns = serializers.SerializerMethodField('get_urns')
@@ -1008,11 +996,14 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
         return [group.uuid for group in obj.groups.all()]
 
     def get_messages(self, obj):
-        return [msg.id for msg in obj.get_messages()]
+        if obj.status == INITIALIZING:
+            return []
+        else:
+            return [msg.id for msg in obj.get_messages()]
 
     class Meta:
         model = Broadcast
-        fields = ('urns', 'contacts', 'groups', 'text', 'messages')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'messages', 'created_on', 'status')
 
 
 class BroadcastCreateSerializer(serializers.Serializer):
@@ -1028,17 +1019,26 @@ class BroadcastCreateSerializer(serializers.Serializer):
         super(BroadcastCreateSerializer, self).__init__(*args, **kwargs)
 
     def validate(self, attrs):
-        if not (attrs.get('urn', []) or attrs.get('contacts', None) or attrs.get('groups', [])):
+        if not (attrs.get('urns', []) or attrs.get('contacts', None) or attrs.get('groups', [])):
             raise ValidationError("Must provide either urns, contacts or groups")
         return attrs
 
     def validate_urns(self, attrs, source):
+        # if we have tel URNs, we may need a country to normalize by
+        tel_sender = self.org.get_send_channel(TEL_SCHEME)
+        country = tel_sender.country if tel_sender else None
+
         urns = []
         for urn in attrs.get(source, []):
-            contact_urn = ContactURN.objects.filter(urn=urn, org=self.org).first()
-            if not contact_urn:
-                raise ValidationError(_("Unable to find contact URN: %s") % urn)
-            urns.append(contact_urn)
+            try:
+                parsed = ContactURN.parse_urn(urn)
+            except ValueError, e:
+                raise ValidationError(e.message)
+
+            norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, country)
+            if not ContactURN.validate_urn(norm_scheme, norm_path):
+                raise ValidationError("Invalid URN: '%s'" % urn)
+            urns.append((norm_scheme, norm_path))
 
         attrs['urns'] = urns
         return attrs
@@ -1074,7 +1074,13 @@ class BroadcastCreateSerializer(serializers.Serializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        recipients = attrs.get('urns') + attrs.get('contacts') + attrs.get('groups')
+        recipients = attrs.get('contacts') + attrs.get('groups')
+
+        for urn in attrs.get('urns'):
+            # create contacts for URNs if necessary
+            contact = Contact.get_or_create(self.user, self.org, urns=[urn])
+            contact_urn = contact.urn_objects[urn]
+            recipients.append(contact_urn)
 
         # create the broadcast
         broadcast = Broadcast.create(self.org, self.user, attrs['text'], recipients=recipients)
@@ -1210,6 +1216,18 @@ class MsgCreateSerializer(serializers.Serializer):
         # send it
         broadcast.send()
         return broadcast
+
+
+class MsgCreateResultSerializer(serializers.ModelSerializer):
+    messages = serializers.SerializerMethodField('get_messages')
+    sms = serializers.SerializerMethodField('get_messages')  # deprecated
+
+    def get_messages(self, obj):
+        return [msg.id for msg in obj.get_messages()]
+
+    class Meta:
+        model = Broadcast
+        fields = ('messages', 'sms')
 
 
 class CallSerializer(serializers.ModelSerializer):
