@@ -1011,6 +1011,7 @@ class BroadcastCreateSerializer(serializers.Serializer):
     contacts = StringArrayField(required=False)
     groups = StringArrayField(required=False)
     text = serializers.CharField(required=True, max_length=480)
+    channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -1040,7 +1041,7 @@ class BroadcastCreateSerializer(serializers.Serializer):
                 raise ValidationError("Invalid URN: '%s'" % urn)
             urns.append((norm_scheme, norm_path))
 
-        attrs['urns'] = urns
+        attrs[source] = urns
         return attrs
 
     def validate_contacts(self, attrs, source):
@@ -1051,7 +1052,7 @@ class BroadcastCreateSerializer(serializers.Serializer):
                 raise ValidationError(_("Unable to find contact with uuid: %s") % uuid)
             contacts.append(contact)
 
-        attrs['contacts'] = contacts
+        attrs[source] = contacts
         return attrs
 
     def validate_groups(self, attrs, source):
@@ -1062,7 +1063,16 @@ class BroadcastCreateSerializer(serializers.Serializer):
                 raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
             groups.append(group)
 
-        attrs['groups'] = groups
+        attrs[source] = groups
+        return attrs
+
+    def validate_channel(self, attrs, source):
+        channel = attrs.get(source, None)
+
+        if channel:
+            # do they have permission to use this channel?
+            if not (channel.is_active and channel.org == self.org):
+                raise ValidationError("Invalid pk '%d' - object does not exist." % channel.id)
         return attrs
 
     def restore_object(self, attrs, instance=None):
@@ -1083,7 +1093,8 @@ class BroadcastCreateSerializer(serializers.Serializer):
             recipients.append(contact_urn)
 
         # create the broadcast
-        broadcast = Broadcast.create(self.org, self.user, attrs['text'], recipients=recipients)
+        broadcast = Broadcast.create(self.org, self.user, attrs['text'],
+                                     recipients=recipients, channel=attrs['channel'])
 
         # send in task
         send_broadcast_task.delay(broadcast.id)

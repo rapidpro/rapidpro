@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 import json
 
 from datetime import timedelta
-from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -13,7 +12,7 @@ from temba.contacts.models import ContactField, TEL_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
-from temba.msgs.models import Broadcast, Label, Call, SMS_BULK_PRIORITY
+from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
 from temba.tests import TembaTest
 from temba.utils import dict_to_struct
@@ -118,36 +117,63 @@ class MsgTest(TembaTest):
 
     def test_create_outgoing(self):
         tel_urn = (TEL_SCHEME, "250788382382")
-        contact = Contact.get_or_create(self.user, self.org, urns=[tel_urn])
-        urn_obj = contact.urn_objects[tel_urn]
+        tel_contact = Contact.get_or_create(self.user, self.org, urns=[tel_urn])
+        tel_urn_obj = tel_contact.urn_objects[tel_urn]
+        twitter_urn = ('twitter', 'joe')
+        twitter_contact = Contact.get_or_create(self.user, self.org, urns=[twitter_urn])
+        twitter_urn_obj = twitter_contact.urn_objects[twitter_urn]
 
         # check creating by URN tuple
         msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Extra spaces to remove    ")
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEquals(contact, msg.contact)
-        self.assertEquals("+250788382382", msg.contact_urn.path)
-        self.assertEquals("Extra spaces to remove", msg.text)  # check message text is stripped
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+        self.assertEquals(msg.text, "Extra spaces to remove")  # check message text is stripped
+
+        # check creating by URN tuple and specific channel
+        msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Hello 1", channel=self.channel)
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+
+        # try creating by URN tuple and specific channel with different scheme
+        with self.assertRaises(UnreachableException):
+            Msg.create_outgoing(self.org, self.admin, twitter_urn, "Hello 1", channel=self.channel)
 
         # check creating by URN object
-        msg = Msg.create_outgoing(self.org, self.admin, urn_obj, "How is it going?")
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEquals(contact, msg.contact)
-        self.assertEquals("+250788382382", msg.contact_urn.path)
+        msg = Msg.create_outgoing(self.org, self.admin, tel_urn_obj, "Hello 1")
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+
+        # check creating by URN object and specific channel
+        msg = Msg.create_outgoing(self.org, self.admin, tel_urn_obj, "Hello 1", channel=self.channel)
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+
+        # try creating by URN object and specific channel with different scheme
+        with self.assertRaises(UnreachableException):
+            Msg.create_outgoing(self.org, self.admin, twitter_urn_obj, "Hello 1", channel=self.channel)
 
         # check creating by contact
-        msg = Msg.create_outgoing(self.org, self.admin, contact, "How is it going?")
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEquals(contact, msg.contact)
-        self.assertEquals("+250788382382", msg.contact_urn.path)
+        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+
+        # check creating by contact and specific channel
+        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1", channel=self.channel)
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+
+        # try creating by contact and specific channel with different scheme
+        with self.assertRaises(UnreachableException):
+            Msg.create_outgoing(self.org, self.admin, twitter_contact, "Hello 1", channel=self.channel)
 
         # Can't handle outgoing messages
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             msg.handle()
 
         # can't create outgoing messages without org or user
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             Msg.create_outgoing(None, self.admin, (TEL_SCHEME, "250783835665"), "Hello World")
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             Msg.create_outgoing(self.org, None, (TEL_SCHEME, "250783835665"), "Hello World")
 
         # case where the channel number is amongst contact broadcasted to
@@ -184,21 +210,6 @@ class MsgTest(TembaTest):
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEquals(ignored_msg.visibility, ARCHIVED)
         self.assertEquals(ignored_msg.status, HANDLED)
-
-    def test_unreachable(self):
-        unreachable = Contact.get_or_create(self.admin, self.org, name="Ben Haggerty", urns=[])
-
-        # create
-        reachable = self.create_contact("Ryan Lewis", "+12067771234")
-
-        # send a broadcast to the contacts
-        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", [unreachable, reachable])
-        broadcast.send(True)
-
-        # should have one message created to Ryan
-        msgs = broadcast.msgs.all()
-        self.assertEquals(1, len(msgs))
-        self.assertTrue(reachable, msgs[0].contact)
 
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -937,6 +948,42 @@ class BroadcastTest(TembaTest):
         post_data = dict(text="this is a test message", omnibox="c-%s,g-%s,n-911" % (self.kevin.pk, self.joe_and_frank.pk), _format="json")
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
+
+    def test_unreachable(self):
+        no_urns = Contact.get_or_create(self.admin, self.org, name="Ben Haggerty", urns=[])
+        tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
+        twitter_contact = self.create_contact("Lucy", twitter='lucy')
+        recipients = [no_urns, tel_contact, twitter_contact]
+
+        # send a broadcast to all (org has a tel and a twitter channel)
+        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
+        broadcast.send(True)
+
+        # should have only messages for Ryan and Lucy
+        msgs = broadcast.msgs.all()
+        self.assertEqual(len(msgs), 2)
+        self.assertEqual(sorted([m.contact.name for m in msgs]), ["Lucy", "Ryan Lewis"])
+
+        # send another broadcast to all and force use of the twitter channel
+        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients, channel=self.twitter)
+        broadcast.send(True)
+
+        # should have only one message created to Lucy
+        msgs = broadcast.msgs.all()
+        self.assertEqual(len(msgs), 1)
+        self.assertTrue(msgs[0].contact, twitter_contact)
+
+        # remove twitter relayer
+        self.twitter.release(trigger_sync=False, notify_mage=False)
+
+        # send another broadcast to all
+        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
+        broadcast.send(True)
+
+        # should have only one message created to Ryan
+        msgs = broadcast.msgs.all()
+        self.assertEqual(len(msgs), 1)
+        self.assertTrue(msgs[0].contact, tel_contact)
 
     def test_message_parts(self):
         contact = self.create_contact("Matt", "+12067778811")

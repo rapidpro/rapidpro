@@ -390,7 +390,6 @@ def api(request, format=None):
 
 class BroadcastsEndpoint(generics.ListAPIView):
     """
-
     This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
     message broadcasts using the ```POST``` method.
 
@@ -398,10 +397,11 @@ class BroadcastsEndpoint(generics.ListAPIView):
 
     You can create new broadcasts by making a **POST** request to this URL with the following JSON data:
 
-      * **urns** - JSON array of URNs to send the message to (array of strings)
-      * **contacts** - JSON array of contact UUIDs to send the message to (array of strings)
-      * **groups** - JSON array of group UUIDs to send the message to (array of strings)
+      * **urns** - JSON array of URNs to send the message to (array of strings, optional)
+      * **contacts** - JSON array of contact UUIDs to send the message to (array of strings, optional)
+      * **groups** - JSON array of group UUIDs to send the message to (array of strings, optional)
       * **text** - the text of the message to send (string, limit of 480 characters)
+      * **channel** - the id of the channel to use. Contacts and URNs which can't be reached with this channel are ignored (int, optional)
 
     Example:
 
@@ -409,7 +409,6 @@ class BroadcastsEndpoint(generics.ListAPIView):
         {
             "urns": ["tel:+250788123123", "tel:+250788123124"],
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
-            "groups": [],
             "text": "hello world"
         }
 
@@ -492,7 +491,7 @@ class BroadcastsEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         ids = self.request.QUERY_PARAMS.get('id', None)
         if ids:
@@ -552,13 +551,14 @@ class BroadcastsEndpoint(generics.ListAPIView):
                           dict(name='groups', required=False,
                                help="A JSON array of one or more strings, each a group UUID."),
                           dict(name='text', required=True,
-                               help="The text of the message you want to send (max length 480 chars)")]
+                               help="The text of the message you want to send (max length 480 chars)"),
+                          dict(name='channel', required=False,
+                               help="The id of the channel to use for sending")]
         return spec
 
 
 class MessagesEndpoint(generics.ListAPIView):
     """
-
     This endpoint allows you either list messages on your account using the ```GET``` method or send new messages
     using the ```POST``` method.
 
@@ -566,7 +566,7 @@ class MessagesEndpoint(generics.ListAPIView):
 
     You can create new messages by making a **POST** request to this URL with the following JSON data:
 
-      * **relayer** - the id of the Android channel that should send the SMS messages (int, optional)
+      * **channel** - the id of the channel that should send the messages (int, optional)
       * **urn** - either a single URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
       * **contact** - either a single contact UUID or a JSON array of up to 100 contact UUIDs to send the message to (string or array of strings)
       * **text** - the text of the message to send (string, limit of 480 characters)
@@ -591,7 +591,7 @@ class MessagesEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **relayer** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
+      * **channel** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn```)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```)
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids```)
@@ -685,9 +685,10 @@ class MessagesEndpoint(generics.ListAPIView):
             phones = phone.split(',')
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        urn = self.request.QUERY_PARAMS.getlist('urn', None)
+        urn = self.request.QUERY_PARAMS.get('urn', None)
         if urn:
-            queryset = queryset.filter(contact__urns__urn__in=urn)
+            urns = urn.split(',')
+            queryset = queryset.filter(contact__urns__urn__in=urns)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -705,7 +706,7 @@ class MessagesEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        channel = self.request.QUERY_PARAMS.get('relayer', None)
+        channel = self.request.QUERY_PARAMS.get('channel', None)
         if channel:
             try:
                 channel = int(channel)
@@ -718,12 +719,14 @@ class MessagesEndpoint(generics.ListAPIView):
             uuids = contact.split(',')
             queryset = queryset.filter(contact__uuid__in=uuids)
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
-        if groups:
+        group = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
+        if group:
+            groups = group.split(',')
             queryset = queryset.filter(contact__groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
         if group_uuids:
+            group_uuids = group_uuids.split(',')
             queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
         type = self.request.QUERY_PARAMS.get('type', None)
@@ -731,9 +734,10 @@ class MessagesEndpoint(generics.ListAPIView):
             types = type.split(',')
             queryset = queryset.filter(msg_type__in=types)
 
-        label = self.request.QUERY_PARAMS.getlist('label', None)
+        label = self.request.QUERY_PARAMS.get('label', None)
         if label:
-            queryset = queryset.filter(labels__name__in=label)
+            labels = label.split(',')
+            queryset = queryset.filter(labels__name__in=labels)
 
         flow = self.request.QUERY_PARAMS.get('flow', None)
         if flow:

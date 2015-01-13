@@ -1164,32 +1164,45 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(urns=['myspace:123'], text="Hello X"))
         self.assertEqual(response.status_code, 400)
 
+        # creating with 1 sendable and 1 unsendable URN
+        response = self.postJSON(url, dict(urns=['tel:0780000003', 'twitter:bobby'], text="Hello 5"))
+        self.assertEqual(response.status_code, 201)
+        broadcast5 = Broadcast.objects.get(text="Hello 5")
+        self.assertEqual(broadcast5.recipient_count, 2)
+        self.assertEqual(broadcast5.get_message_count(), 1)
+        self.assertEqual(broadcast5.get_messages().first().contact_urn.urn, 'tel:+250780000003')
+
+        twitter = Channel.objects.create(org=self.org, name="Twitter", address="nyaruka", channel_type='TT',
+                                         created_by=self.admin, modified_by=self.admin)
+
+        # creating with a forced channel
+        response = self.postJSON(url, dict(urns=['tel:0780000003', 'twitter:bobby'], text="Hello 6", channel=twitter.pk))
+        self.assertEqual(response.status_code, 201)
+        broadcast6 = Broadcast.objects.get(text="Hello 6")
+        self.assertEqual(broadcast6.channel, twitter)
+        self.assertEqual(broadcast6.recipient_count, 2)
+        self.assertEqual(broadcast6.get_message_count(), 1)
+        self.assertEqual(broadcast6.get_messages().first().contact_urn.urn, 'twitter:bobby')
+
+        broadcast6.is_active = False
+        broadcast6.save()
+
         # now fetch all broadcasts...
         response = self.fetchJSON(url)
-        self.assertEqual(response.json['count'], 4)
-        self.assertEqual(len(response.json['results']), 4)
-        self.assertEqual(response.json['results'][0]['text'], "Hello 4")
-        self.assertEqual(response.json['results'][1]['text'], "Hello 3")
-        self.assertEqual(response.json['results'][2]['text'], "Hello 2")
-        self.assertEqual(response.json['results'][3]['text'], "Hello 1")
+        self.assertEqual(response.json['count'], 5)
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 5", "Hello 4", "Hello 3", "Hello 2", "Hello 1"])
 
         # fetch by id
         response = self.fetchJSON(url, 'id=%d,%d' % (broadcast2.pk, broadcast4.pk))
-        self.assertEqual(response.json['count'], 2)
-        self.assertEqual(response.json['results'][0]['text'], "Hello 4")
-        self.assertEqual(response.json['results'][1]['text'], "Hello 2")
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 4", "Hello 2"])
 
         # fetch by after created_on
-        response = self.fetchJSON(url, 'after=%s' % broadcast3.created_on.strftime('%Y-%m-%dT%H:%M:%S.%f'))
-        self.assertEqual(response.json['count'], 2)
-        self.assertEqual(response.json['results'][0]['text'], "Hello 4")
-        self.assertEqual(response.json['results'][1]['text'], "Hello 3")
+        response = self.fetchJSON(url, 'after=%s' % broadcast4.created_on.strftime('%Y-%m-%dT%H:%M:%S.%f'))
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 5", "Hello 4"])
 
         # fetch by after created_on
         response = self.fetchJSON(url, 'before=%s' % broadcast2.created_on.strftime('%Y-%m-%dT%H:%M:%S.%f'))
-        self.assertEqual(response.json['count'], 2)
-        self.assertEqual(response.json['results'][0]['text'], "Hello 2")
-        self.assertEqual(response.json['results'][1]['text'], "Hello 1")
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 2", "Hello 1"])
 
         broadcast1.status = FAILED
         broadcast1.save()
@@ -1198,9 +1211,7 @@ class APITest(TembaTest):
 
         # fetch by status
         response = self.fetchJSON(url, 'status=E,F')
-        self.assertEqual(response.json['count'], 2)
-        self.assertEqual(response.json['results'][0]['text'], "Hello 3")
-        self.assertEqual(response.json['results'][1]['text'], "Hello 1")
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 3", "Hello 1"])
 
     def test_api_campaigns(self):
         url = reverse('api.campaigns')
