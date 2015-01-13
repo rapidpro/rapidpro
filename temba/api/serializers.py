@@ -1,21 +1,20 @@
 from __future__ import unicode_literals
 
 import json
-from uuid import uuid4
 import phonenumbers
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from django.db.models import Q
-from temba.msgs.models import Msg, Call, Broadcast
-from temba.locations.models import AdminBoundary
-from temba.channels.models import Channel
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, RuleSet
-from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT
-from django.utils.translation import ugettext_lazy as _
+from temba.locations.models import AdminBoundary
+from temba.msgs.models import Msg, Call, Broadcast, INITIALIZING
+from temba.values.models import Value, VALUE_TYPE_CHOICES
+
 
 class DictionaryField(serializers.WritableField):
 
@@ -324,7 +323,7 @@ class ContactWriteSerializer(WriteSerializer):
         if uuid:
             contact.update_urns(urns)
         else:
-            contact = Contact.get_or_create(self.user, org, urns=urns, uuid=uuid)
+            contact = Contact.get_or_create(org, self.user, urns=urns, uuid=uuid)
 
         changed = []
 
@@ -904,7 +903,7 @@ class FlowRunStartSerializer(serializers.Serializer):
             channel = self.org.get_send_channel(TEL_SCHEME)
             for urn in phone_urns:
                 # treat each URN as separate contact
-                contact = Contact.get_or_create(self.user, channel.org, urns=[urn], channel=channel)
+                contact = Contact.get_or_create(channel.org, self.user, urns=[urn])
                 contacts.append(contact)
 
         if contacts or groups:
@@ -987,15 +986,128 @@ class ChannelField(serializers.PrimaryKeyRelatedField):
 
 
 class BroadcastReadSerializer(serializers.ModelSerializer):
+    id = serializers.Field(source='id')
+    urns = serializers.SerializerMethodField('get_urns')
+    contacts = serializers.SerializerMethodField('get_contacts')
+    groups = serializers.SerializerMethodField('get_groups')
+    text = serializers.Field(source='text')
     messages = serializers.SerializerMethodField('get_messages')
-    sms = serializers.SerializerMethodField('get_messages')  # deprecated
+    created_on = serializers.Field(source='created_on')
+    status = serializers.Field(source='status')
+
+    def get_urns(self, obj):
+        return [urn.urn for urn in obj.urns.all()]
+
+    def get_contacts(self, obj):
+        return [contact.uuid for contact in obj.contacts.all()]
+
+    def get_groups(self, obj):
+        return [group.uuid for group in obj.groups.all()]
 
     def get_messages(self, obj):
-        return [msg.id for msg in obj.get_messages()]
+        if obj.status == INITIALIZING:
+            return []
+        else:
+            return [msg.id for msg in obj.get_messages()]
 
     class Meta:
         model = Broadcast
-        fields = ('messages', 'sms')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'messages', 'created_on', 'status')
+
+
+class BroadcastCreateSerializer(serializers.Serializer):
+    urns = StringArrayField(required=False)
+    contacts = StringArrayField(required=False)
+    groups = StringArrayField(required=False)
+    text = serializers.CharField(required=True, max_length=480)
+    channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        self.org = self.user.get_org()
+
+        super(BroadcastCreateSerializer, self).__init__(*args, **kwargs)
+
+    def validate(self, attrs):
+        if not (attrs.get('urns', []) or attrs.get('contacts', None) or attrs.get('groups', [])):
+            raise ValidationError("Must provide either urns, contacts or groups")
+        return attrs
+
+    def validate_urns(self, attrs, source):
+        # if we have tel URNs, we may need a country to normalize by
+        tel_sender = self.org.get_send_channel(TEL_SCHEME)
+        country = tel_sender.country if tel_sender else None
+
+        urns = []
+        for urn in attrs.get(source, []):
+            try:
+                parsed = ContactURN.parse_urn(urn)
+            except ValueError, e:
+                raise ValidationError(e.message)
+
+            norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, country)
+            if not ContactURN.validate_urn(norm_scheme, norm_path):
+                raise ValidationError("Invalid URN: '%s'" % urn)
+            urns.append((norm_scheme, norm_path))
+
+        attrs[source] = urns
+        return attrs
+
+    def validate_contacts(self, attrs, source):
+        contacts = []
+        for uuid in attrs.get(source, []):
+            contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            if not contact:
+                raise ValidationError(_("Unable to find contact with uuid: %s") % uuid)
+            contacts.append(contact)
+
+        attrs[source] = contacts
+        return attrs
+
+    def validate_groups(self, attrs, source):
+        groups = []
+        for uuid in attrs.get(source, []):
+            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            if not group:
+                raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
+            groups.append(group)
+
+        attrs[source] = groups
+        return attrs
+
+    def validate_channel(self, attrs, source):
+        channel = attrs.get(source, None)
+
+        if channel:
+            # do they have permission to use this channel?
+            if not (channel.is_active and channel.org == self.org):
+                raise ValidationError("Invalid pk '%d' - object does not exist." % channel.id)
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        """
+        Create a new broadcast to send out
+        """
+        from temba.msgs.tasks import send_broadcast_task
+
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        recipients = attrs.get('contacts') + attrs.get('groups')
+
+        for urn in attrs.get('urns'):
+            # create contacts for URNs if necessary
+            contact = Contact.get_or_create(self.org, self.user, urns=[urn])
+            contact_urn = contact.urn_objects[urn]
+            recipients.append(contact_urn)
+
+        # create the broadcast
+        broadcast = Broadcast.create(self.org, self.user, attrs['text'],
+                                     recipients=recipients, channel=attrs['channel'])
+
+        # send in task
+        send_broadcast_task.delay(broadcast.id)
+        return broadcast
 
 
 class MsgCreateSerializer(serializers.Serializer):
@@ -1111,7 +1223,7 @@ class MsgCreateSerializer(serializers.Serializer):
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create(user, channel.org, urns=[urn], channel=channel))
+            contacts.append(Contact.get_or_create(channel.org, user, urns=[urn]))
 
         # add any contacts specified by uuids
         uuid_contacts = attrs.get('contact', [])
@@ -1124,6 +1236,18 @@ class MsgCreateSerializer(serializers.Serializer):
         # send it
         broadcast.send()
         return broadcast
+
+
+class MsgCreateResultSerializer(serializers.ModelSerializer):
+    messages = serializers.SerializerMethodField('get_messages')
+    sms = serializers.SerializerMethodField('get_messages')  # deprecated
+
+    def get_messages(self, obj):
+        return [msg.id for msg in obj.get_messages()]
+
+    class Meta:
+        model = Broadcast
+        fields = ('messages', 'sms')
 
 
 class CallSerializer(serializers.ModelSerializer):

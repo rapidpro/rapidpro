@@ -1044,16 +1044,11 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         # check anon org case
-        self.org.is_anon = True
-        self.org.save()
-
-        response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "test1")
-        self.assertNotContains(response, "250788123123")
-
-    test_api_messages.active = True
-
+        with AnonymousOrg(self.org):
+            response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
+            self.assertEquals(200, response.status_code)
+            self.assertContains(response, "test1")
+            self.assertNotContains(response, "250788123123")
 
     def test_api_messages_multiple_contacts(self):
         url = reverse('api.messages')
@@ -1131,6 +1126,117 @@ class APITest(TembaTest):
         # can't send
         response = self.postJSON(url, dict(phone=['250788123123'], text='test1'))
         self.assertEquals(400, response.status_code)
+
+    def test_api_broadcasts(self):
+        url = reverse('api.broadcasts')
+        self.login(self.admin)
+
+        # try creating a broadcast with no recipients
+        response = self.postJSON(url, dict(text='Hello X'))
+        self.assertEqual(response.status_code, 400)
+
+        # check creating by contact UUIDs
+        frank = self.create_contact("Frank", number="0780000002", twitter="franky")
+        response = self.postJSON(url, dict(contacts=[self.joe.uuid, frank.uuid], text="Hello 1"))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json['text'], "Hello 1")
+        self.assertEqual(response.json['status'], 'I')
+        self.assertEqual(response.json['urns'], [])
+        self.assertEqual(sorted(response.json['contacts']), sorted([self.joe.uuid, frank.uuid]))
+        self.assertEqual(response.json['groups'], [])
+        self.assertEqual(response.json['messages'], [])
+
+        # message will have been sent in celery task
+        broadcast1 = Broadcast.objects.get(pk=response.json['id'])
+        self.assertEqual(broadcast1.recipient_count, 2)
+        self.assertEqual(broadcast1.get_message_count(), 2)
+
+        # try creating with invalid contact UUID
+        response = self.postJSON(url, dict(contacts=['abc-123'], text="Hello X"))
+        self.assertEqual(response.status_code, 400)
+
+        # check creating by group UUIDs
+        joe_and_frank = self.create_group("Joe and Frank", [self.joe, frank])
+        response = self.postJSON(url, dict(groups=[joe_and_frank.uuid], text="Hello 2"))
+        self.assertEqual(response.status_code, 201)
+        broadcast2 = Broadcast.objects.get(text="Hello 2")
+        self.assertEqual(broadcast2.recipient_count, 2)
+        self.assertEqual(broadcast2.get_message_count(), 2)
+
+        # try creating with invalid group UUID
+        response = self.postJSON(url, dict(groups=['abc-123'], text="Hello X"))
+        self.assertEqual(response.status_code, 400)
+
+        # check creating by existing URNs (Joe and Frank's tel numbers)
+        response = self.postJSON(url, dict(urns=['tel:0788123123', 'tel:0780000002'], text="Hello 3"))
+        self.assertEqual(response.status_code, 201)
+        broadcast3 = Broadcast.objects.get(text="Hello 3")
+        self.assertEqual(broadcast3.recipient_count, 2)
+        self.assertEqual(broadcast3.get_message_count(), 2)
+        self.assertEqual(sorted([m.contact_urn.urn for m in broadcast3.get_messages()]), ['tel:+250780000002', 'tel:+250788123123'])
+
+        # check creating by new URN
+        response = self.postJSON(url, dict(urns=['tel:0780000003'], text="Hello 4"))
+        self.assertEqual(response.status_code, 201)
+        broadcast4 = Broadcast.objects.get(text="Hello 4")
+        self.assertEqual(broadcast4.recipient_count, 1)
+        self.assertEqual(broadcast4.get_message_count(), 1)
+        msg = broadcast4.get_messages().first()
+        self.assertIsNotNone(msg.contact)
+        self.assertEqual(msg.contact_urn.urn, 'tel:+250780000003')
+
+        # try creating with invalid URN
+        response = self.postJSON(url, dict(urns=['myspace:123'], text="Hello X"))
+        self.assertEqual(response.status_code, 400)
+
+        # creating with 1 sendable and 1 unsendable URN
+        response = self.postJSON(url, dict(urns=['tel:0780000003', 'twitter:bobby'], text="Hello 5"))
+        self.assertEqual(response.status_code, 201)
+        broadcast5 = Broadcast.objects.get(text="Hello 5")
+        self.assertEqual(broadcast5.recipient_count, 2)
+        self.assertEqual(broadcast5.get_message_count(), 1)
+        self.assertEqual(broadcast5.get_messages().first().contact_urn.urn, 'tel:+250780000003')
+
+        twitter = Channel.objects.create(org=self.org, name="Twitter", address="nyaruka", channel_type='TT',
+                                         created_by=self.admin, modified_by=self.admin)
+
+        # creating with a forced channel
+        response = self.postJSON(url, dict(urns=['tel:0780000003', 'twitter:bobby'], text="Hello 6", channel=twitter.pk))
+        self.assertEqual(response.status_code, 201)
+        broadcast6 = Broadcast.objects.get(text="Hello 6")
+        self.assertEqual(broadcast6.channel, twitter)
+        self.assertEqual(broadcast6.recipient_count, 2)
+        self.assertEqual(broadcast6.get_message_count(), 1)
+        self.assertEqual(broadcast6.get_messages().first().contact_urn.urn, 'twitter:bobby')
+
+        broadcast6.is_active = False
+        broadcast6.save()
+
+        # now fetch all broadcasts...
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json['count'], 5)
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 5", "Hello 4", "Hello 3", "Hello 2", "Hello 1"])
+
+        # fetch by id
+        response = self.fetchJSON(url, 'id=%d,%d' % (broadcast2.pk, broadcast4.pk))
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 4", "Hello 2"])
+
+        # fetch by after created_on
+        response = self.fetchJSON(url, 'after=%s' % broadcast4.created_on.strftime('%Y-%m-%dT%H:%M:%S.%f'))
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 5", "Hello 4"])
+
+        # fetch by after created_on
+        response = self.fetchJSON(url, 'before=%s' % broadcast2.created_on.strftime('%Y-%m-%dT%H:%M:%S.%f'))
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 2", "Hello 1"])
+
+        broadcast1.status = FAILED
+        broadcast1.save()
+        broadcast3.status = ERRORED
+        broadcast3.save()
+
+        # fetch by status
+        response = self.fetchJSON(url, 'status=E,F')
+        self.assertEqual([b['text'] for b in response.json['results']], ["Hello 3", "Hello 1"])
 
     def test_api_campaigns(self):
         url = reverse('api.campaigns')
@@ -2810,8 +2916,8 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             broadcast = Broadcast.objects.get()
-            contact = Contact.get_or_create(self.admin, self.org, name=None, urns=[(TEL_SCHEME, "+250788123123")],
-                                            channel=self.channel)
+            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=[(TEL_SCHEME, "+250788123123")],
+                                            incoming_channel=self.channel)
             self.assertTrue("I am success", broadcast.text)
             self.assertTrue(contact, broadcast.contacts.all())
 

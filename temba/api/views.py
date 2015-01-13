@@ -25,18 +25,18 @@ from temba.api.models import WebHookEvent, WebHookResult, SMS_RECEIVED
 from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer
+from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
-from temba.api.serializers import MsgCreateSerializer, MsgReadSerializer
+from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
 from temba.campaigns.models import Campaign, CampaignEvent
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
+from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.channels.models import Channel
-from temba.flows.models import Flow, FlowRun, RuleSet
-from temba.msgs.models import Msg, Call
+from temba.msgs.models import Broadcast, Msg, Call
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse
 from temba.utils.middleware import disable_middleware
@@ -389,9 +389,177 @@ def api(request, format=None):
     })
 
 
+class BroadcastsEndpoint(generics.ListAPIView):
+    """
+    This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
+    message broadcasts using the ```POST``` method.
+
+    ## Sending Messages
+
+    You can create new broadcasts by making a **POST** request to this URL with the following JSON data:
+
+      * **urns** - JSON array of URNs to send the message to (array of strings, optional)
+      * **contacts** - JSON array of contact UUIDs to send the message to (array of strings, optional)
+      * **groups** - JSON array of group UUIDs to send the message to (array of strings, optional)
+      * **text** - the text of the message to send (string, limit of 480 characters)
+      * **channel** - the id of the channel to use. Contacts and URNs which can't be reached with this channel are ignored (int, optional)
+
+    Example:
+
+        POST /api/v1/broadcasts.json
+        {
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
+            "text": "hello world"
+        }
+
+    You will receive a response containing the message broadcast created:
+
+        {
+            "id": 1234,
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"]
+            "groups": [],
+            "text": "hello world",
+            "messages": [
+               158, 159
+            ],
+            "created_on": "2013-03-02T17:28:12",
+            "status": "Q"
+        }
+
+    ## Listing Broadcasts
+
+    Returns the message activity for your organization, listing the most recent messages first.
+
+      * **id** - the id of the broadcast (int) (filterable: ```id```)
+      * **urns** - the contact URNs that received the broadcast (array of strings)
+      * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
+      * **groups** - the UUIDs of groups that received the broadcast (array of strings)
+      * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
+      * **messages** - the ids of messages created by this broadcast (array of ints)
+      * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
+      * **status** - the status of this broadcast, a string one of: (filterable: ```status```)
+
+            I - no messages have been sent yet
+            Q - some messages are still queued
+            S - all messages have been sent
+            D - all messages have been delivered
+            E - majority of messages have errored
+            F - majority of messages have failed
+
+    Example:
+
+        GET /api/v1/broadcasts.json
+
+    Response is a list of recent broadcasts:
+
+        {
+            "count": 15,
+            "next": "/api/v1/broadcasts/?page=2",
+            "previous": null,
+            "results": [
+                {
+                    "id": 1234,
+                    "urns": ["tel:+250788123123", "tel:+250788123124"],
+                    "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"]
+                    "groups": [],
+                    "text": "hello world",
+                    "messages": [
+                       158, 159
+                    ],
+                    "created_on": "2013-03-02T17:28:12",
+                    "status": "Q"
+                },
+                ...
+
+    """
+    permission = 'msgs.broadcast_api'
+    model = Broadcast
+    permission_classes = (SSLPermission, ApiPermission)
+    serializer_class = BroadcastReadSerializer
+    form_serializer_class = BroadcastCreateSerializer
+
+    def post(self, request, format=None):
+        user = request.user
+        serializer = BroadcastCreateSerializer(user=user, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+
+            response_serializer = BroadcastReadSerializer(instance=serializer.object)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+
+        ids = self.request.QUERY_PARAMS.get('id', None)
+        if ids:
+            queryset = queryset.filter(pk__in=ids.split(','))
+
+        statuses = self.request.QUERY_PARAMS.get('status', None)
+        if statuses:
+            queryset = queryset.filter(status__in=statuses.split(','))
+
+        before = self.request.QUERY_PARAMS.get('before', None)
+        if before:
+            try:
+                before = json_date_to_datetime(before)
+                queryset = queryset.filter(created_on__lte=before)
+            except:
+                queryset = queryset.filter(pk=-1)
+
+        after = self.request.QUERY_PARAMS.get('after', None)
+        if after:
+            try:
+                after = json_date_to_datetime(after)
+                queryset = queryset.filter(created_on__gte=after)
+            except:
+                queryset = queryset.filter(pk=-1)
+
+        return queryset.order_by('-created_on').prefetch_related('urns', 'contacts', 'groups')
+
+    @classmethod
+    def get_read_explorer(cls):
+        spec = dict(method="GET",
+                    title="List recent broadcasts",
+                    url=reverse('api.broadcasts'),
+                    slug='broadcast-list',
+                    request="after=2013-01-01T00:00:00.000&status=Q,S")
+        spec['fields'] = [dict(name='id', required=False,
+                               help="One or more message ids to filter by.  ex: 234235,230420"),
+                          dict(name='status', required=False,
+                               help="One or more status states to filter by.  ex: Q,S,D"),
+                          dict(name='before', required=False,
+                               help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000")]
+        return spec
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Send one or more messages",
+                    url=reverse('api.broadcasts'),
+                    slug='broadcast-send',
+                    request='{ "urns": ["tel:+250788222222", "tel:+250788111111"], "text": "My first message" }')
+
+        spec['fields'] = [dict(name='urns', required=False,
+                               help="A JSON array of one or more strings, each a contact URN."),
+                          dict(name='contacts', required=False,
+                               help="A JSON array of one or more strings, each a contact UUID."),
+                          dict(name='groups', required=False,
+                               help="A JSON array of one or more strings, each a group UUID."),
+                          dict(name='text', required=True,
+                               help="The text of the message you want to send (max length 480 chars)"),
+                          dict(name='channel', required=False,
+                               help="The id of the channel to use for sending")]
+        return spec
+
+
 class MessagesEndpoint(generics.ListAPIView):
     """
-
     This endpoint allows you either list messages on your account using the ```GET``` method or send new messages
     using the ```POST``` method.
 
@@ -399,10 +567,9 @@ class MessagesEndpoint(generics.ListAPIView):
 
     You can create new messages by making a **POST** request to this URL with the following JSON data:
 
-      * **relayer** - the id of the Android channel that should send the SMS messages (int, optional)
-      * **phone** - either a single phone number or a JSON array of up to 100 phone numbers to send the message to (string or array of strings)
-      * **urn** - either a single phone URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
-      * **contact** - either a single contact UUID or a JSON array of up to 100 contact ids to send the message to (string or array of strings)
+      * **channel** - the id of the channel that should send the messages (int, optional)
+      * **urn** - either a single URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
+      * **contact** - either a single contact UUID or a JSON array of up to 100 contact UUIDs to send the message to (string or array of strings)
       * **text** - the text of the message to send (string, limit of 480 characters)
 
     Example:
@@ -425,7 +592,7 @@ class MessagesEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **relayer** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
+      * **channel** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn```)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```)
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids```)
@@ -487,7 +654,7 @@ class MessagesEndpoint(generics.ListAPIView):
         if serializer.is_valid():
             serializer.save()
 
-            response_serializer = BroadcastReadSerializer(instance=serializer.object)
+            response_serializer = MsgCreateResultSerializer(instance=serializer.object)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -519,9 +686,10 @@ class MessagesEndpoint(generics.ListAPIView):
             phones = phone.split(',')
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        urn = self.request.QUERY_PARAMS.getlist('urn', None)
+        urn = self.request.QUERY_PARAMS.get('urn', None)
         if urn:
-            queryset = queryset.filter(contact__urns__urn__in=urn)
+            urns = urn.split(',')
+            queryset = queryset.filter(contact__urns__urn__in=urns)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -539,7 +707,7 @@ class MessagesEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        channel = self.request.QUERY_PARAMS.get('relayer', None)
+        channel = self.request.QUERY_PARAMS.get('channel', None)
         if channel:
             try:
                 channel = int(channel)
@@ -552,12 +720,14 @@ class MessagesEndpoint(generics.ListAPIView):
             uuids = contact.split(',')
             queryset = queryset.filter(contact__uuid__in=uuids)
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
-        if groups:
+        group = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
+        if group:
+            groups = group.split(',')
             queryset = queryset.filter(contact__groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
         if group_uuids:
+            group_uuids = group_uuids.split(',')
             queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
         type = self.request.QUERY_PARAMS.get('type', None)
@@ -565,9 +735,10 @@ class MessagesEndpoint(generics.ListAPIView):
             types = type.split(',')
             queryset = queryset.filter(msg_type__in=types)
 
-        label = self.request.QUERY_PARAMS.getlist('label', None)
+        label = self.request.QUERY_PARAMS.get('label', None)
         if label:
-            queryset = queryset.filter(labels__name__in=label)
+            labels = label.split(',')
+            queryset = queryset.filter(labels__name__in=labels)
 
         flow = self.request.QUERY_PARAMS.get('flow', None)
         if flow:
@@ -587,6 +758,8 @@ class MessagesEndpoint(generics.ListAPIView):
                                 help="One or more message ids to filter by.  ex: 234235,230420"),
                            dict(name='contact', required=False,
                                 help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                           dict(name='group_uuids', required=False,
+                                help="One or more contact group UUIDs to filter by.  ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
                            dict(name='status', required=False,
                                 help="One or more status states to filter by.  ex: Q,S,D"),
                            dict(name='direction', required=False,
@@ -597,8 +770,6 @@ class MessagesEndpoint(generics.ListAPIView):
                                 help="A full URN to filter messages by (query parameter can be repeated). ex: tel:+250788123123"),
                            dict(name='flow', required=False,
                                 help="One or more flow ids to filter by. ex: 11851"),
-                           dict(name='phone', required=False,
-                                help="One or more phone numbers to filter by in E164 format.  ex: +250788123123"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -614,18 +785,19 @@ class MessagesEndpoint(generics.ListAPIView):
                     title="Send one or more messages",
                     url=reverse('api.messages'),
                     slug='sms-send',
-                    request='{ "phone": ["+250788222222", "+250788111111"], "text": "My first SMS message", "relayer": 1 }')
+                    request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first SMS message", "relayer": 1 }')
 
-        spec['fields'] = [ dict(name='phone', required=True,
-                                help="A JSON array of one or more strings, each a phone number in E164 format"),
-                           dict(name='contact', required=False,
-                                help="A JSON array of one or more strings, each a contact UUID."),
-                           dict(name='text', required=True,
-                                help="The text of the SMS message you want to send (max length 480 chars)"),
-                           dict(name='relayer', required=False,
-                                help="The id of the channel that should send this message, if not specified we will " \
-                                     "choose what it thinks is the best channel to deliver this message.") ]
+        spec['fields'] = [dict(name='urn', required=False,
+                               help="A JSON array of one or more strings, each a contact URN."),
+                          dict(name='contact', required=False,
+                               help="A JSON array of one or more strings, each a contact UUID."),
+                          dict(name='text', required=True,
+                               help="The text of the SMS message you want to send (max length 480 chars)"),
+                          dict(name='relayer', required=False,
+                               help="The id of the channel that should send this message, if not specified we will "
+                                    "choose what it thinks is the best channel to deliver this message.")]
         return spec
+
 
 class Calls(generics.ListAPIView):
     """
@@ -2291,7 +2463,7 @@ class TwilioHandler(View):
                 from temba.ivr.models import IVRCall
 
                 # find a contact for the one initiating us
-                contact = Contact.get_or_create(channel.created_by, channel.org, urns=[(TEL_SCHEME, from_number)])
+                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, from_number)])
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 call = IVRCall.create_incoming(channel, contact, flow, channel.created_by)
