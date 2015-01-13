@@ -2404,7 +2404,7 @@ class TwilioHandler(View):
                 from temba.ivr.models import IVRCall
 
                 # find a contact for the one initiating us
-                contact = Contact.get_or_create(channel.created_by, channel.org, urns=[(TEL_SCHEME, from_number)])
+                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, from_number)])
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 call = IVRCall.create_incoming(channel, contact, flow, channel.created_by)

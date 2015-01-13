@@ -331,29 +331,22 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         return existing[0].contact if existing else None
 
     @classmethod
-    def get_or_create(cls, user, org, name=None, urns=None, channel=None, uuid=None):
+    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None):
         """
         Gets or creates a contact with the given URNs
         """
-        # derive our org either from our channel or user
-        if not org:
-            if channel:
-                org = channel.org
-            else:
-                org = user.get_org()
-
-        # if we don't have an org, blow up, this is required
-        if not org:
-            raise ValueError("Attempt to create contact without knowing the org")
+        # if we don't have an org or user, blow up, this is required
+        if not org or not user:
+            raise ValueError("Attempt to create contact without org or user")
 
         # if channel is specified then urns should contain the single URN that communicated with the channel
-        if channel and (not urns or len(urns) > 1):
+        if incoming_channel and (not urns or len(urns) > 1):
             raise ValueError("Only one URN may be specified when calling from channel event")
 
         # no channel? try to get one from our org
         country = None
-        if channel:
-            country = channel.country
+        if incoming_channel:
+            country = incoming_channel.country
         else:
             receiver = org.get_receive_channel(TEL_SCHEME)
             if receiver:
@@ -391,8 +384,8 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                         existing_orphan_urns[(scheme, path)] = existing_urn
 
                     # update this URN's channel
-                    if channel:
-                        existing_urn.channel = channel
+                    if incoming_channel:
+                        existing_urn.channel = incoming_channel
                         existing_urn.save()
                 else:
                     urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
@@ -424,7 +417,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel)
+                urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel=incoming_channel)
                 urn_objects[raw] = urn
 
             # handle group and campaign events
@@ -454,10 +447,11 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
     @classmethod
     def get_test_contact(cls, user):
-        test_contact = Contact.objects.filter(urns__path="+12065551212", is_test=True, org=user.get_org()).first()
+        org = user.get_org()
+        test_contact = Contact.objects.filter(urns__path="+12065551212", is_test=True, org=org).first()
 
         if not test_contact:
-            test_contact = Contact.get_or_create(user, None, "Test Contact", [(TEL_SCHEME, "+12065551212")])
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, "+12065551212")])
             test_contact.is_test = True
             test_contact.save()
 
@@ -510,9 +504,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
             return None
 
         # create our contact
-        contact = Contact.get_or_create(field_dict['created_by'], org, name,
-                                        urns=[(TEL_SCHEME, phone)],
-                                        channel=channel)
+        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=[(TEL_SCHEME, phone)])
 
         del field_dict['created_by']
         del field_dict['name']

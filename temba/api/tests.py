@@ -2891,8 +2891,8 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             broadcast = Broadcast.objects.get()
-            contact = Contact.get_or_create(self.admin, self.org, name=None, urns=[(TEL_SCHEME, "+250788123123")],
-                                            channel=self.channel)
+            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=[(TEL_SCHEME, "+250788123123")],
+                                            incoming_channel=self.channel)
             self.assertTrue("I am success", broadcast.text)
             self.assertTrue(contact, broadcast.contacts.all())
 

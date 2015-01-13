@@ -926,7 +926,7 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, ",".join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(user, org, name=None, urns=[(TEL_SCHEME, number)]))
+            contacts.append(Contact.get_or_create(org, user, name=None, urns=[(TEL_SCHEME, number)]))
 
         group.contacts.add(*contacts)
 

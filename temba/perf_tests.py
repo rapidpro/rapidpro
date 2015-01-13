@@ -127,7 +127,7 @@ class PerformanceTest(TembaTest):
         for c in range(0, count):
             name = '%s %d' % (base_names[c % len(base_names)], c + 1)
             scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
-            contacts.append(Contact.get_or_create(self.user, self.org, name, urns=[(scheme, path)]))
+            contacts.append(Contact.get_or_create(self.org, self.user, name, urns=[(scheme, path)]))
         return contacts
 
     def _create_groups(self, count, base_names, contacts):

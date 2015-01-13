@@ -314,7 +314,7 @@ class ContactWriteSerializer(serializers.Serializer):
         if uuid:
             contact.update_urns(urns)
         else:
-            contact = Contact.get_or_create(self.user, org, urns=urns, uuid=uuid)
+            contact = Contact.get_or_create(org, self.user, urns=urns, uuid=uuid)
 
         changed = []
 
@@ -894,7 +894,7 @@ class FlowRunStartSerializer(serializers.Serializer):
             channel = self.org.get_send_channel(TEL_SCHEME)
             for urn in phone_urns:
                 # treat each URN as separate contact
-                contact = Contact.get_or_create(self.user, channel.org, urns=[urn], channel=channel)
+                contact = Contact.get_or_create(channel.org, self.user, urns=[urn])
                 contacts.append(contact)
 
         if contacts or groups:
@@ -1088,7 +1088,7 @@ class BroadcastCreateSerializer(serializers.Serializer):
 
         for urn in attrs.get('urns'):
             # create contacts for URNs if necessary
-            contact = Contact.get_or_create(self.user, self.org, urns=[urn])
+            contact = Contact.get_or_create(self.org, self.user, urns=[urn])
             contact_urn = contact.urn_objects[urn]
             recipients.append(contact_urn)
 
@@ -1214,7 +1214,7 @@ class MsgCreateSerializer(serializers.Serializer):
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create(user, channel.org, urns=[urn], channel=channel))
+            contacts.append(Contact.get_or_create(channel.org, user, urns=[urn]))
 
         # add any contacts specified by uuids
         uuid_contacts = attrs.get('contact', [])

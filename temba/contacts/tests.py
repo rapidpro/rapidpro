@@ -67,10 +67,10 @@ class ContactCRUDLTest(_CRUDLTest):
         return self.object
 
     def testList(self):
-        self.joe = Contact.get_or_create(self.user, self.org, name='Joe', urns=[(TEL_SCHEME, '123')])
+        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
         self.joe.set_field('age', 20)
         self.joe.set_field('home', 'Kigali')
-        self.frank = Contact.get_or_create(self.user, self.org, name='Frank', urns=[(TEL_SCHEME, '124')])
+        self.frank = Contact.get_or_create(self.org, self.user, name='Frank', urns=[(TEL_SCHEME, '124')])
         self.frank.set_field('age', 18)
 
         response = self._do_test_view('list')
@@ -83,7 +83,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual([self.joe], list(response.context['object_list']))
 
     def testRead(self):
-        self.joe = Contact.get_or_create(self.user, self.org, name='Joe', urns=[(TEL_SCHEME, '123')])
+        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
 
         url = reverse('contacts.contact_read', args=[self.joe.uuid])
         response = self.client.get(url)
@@ -114,8 +114,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
                                               org=self.org, created_by=self.user, modified_by=self.user,
                                               secret="12345", gcm_id="123")
 
-        self.joe = Contact.get_or_create(self.user, self.org, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.user, self.org, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
+        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
+        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
 
     def getCreatePostData(self):
         return dict(name="My Group")
@@ -163,9 +163,9 @@ class ContactGroupTest(TembaTest):
 
         register_hstore_handler(connection)
 
-        self.joe = Contact.get_or_create(self.admin, self.org, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.admin, self.org, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
-        self.mary = Contact.get_or_create(self.admin, self.org, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
+        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
+        self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
+        self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
 
     def test_create(self):
         # exception if group name is blank

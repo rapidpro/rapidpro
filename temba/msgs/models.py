@@ -939,7 +939,7 @@ class Msg(models.Model, OrgAssetMixin):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(user, org, name=None, urns=[urn], channel=channel)
+        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
         contact_urn = contact.urn_objects[urn]
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
@@ -1133,7 +1133,7 @@ class Msg(models.Model, OrgAssetMixin):
                 contact_urn = recipient
         elif isinstance(recipient, tuple) and len(recipient) == 2:
             if recipient[0] in sendable_schemes:
-                contact = Contact.get_or_create(user, org, urns=[recipient])
+                contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:
             raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")
@@ -1254,7 +1254,8 @@ class Call(SmartModel):
         if not user:
             user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
 
-        contact = Contact.get_or_create(user, channel.org, name=None, urns=[(TEL_SCHEME, phone)], channel=channel)
+        contact = Contact.get_or_create(channel.org, user, name=None, urns=[(TEL_SCHEME, phone)],
+                                        incoming_channel=channel)
 
         call = Call.objects.create(channel=channel,
                                    org=channel.org,

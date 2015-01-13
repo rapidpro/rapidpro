@@ -117,10 +117,10 @@ class MsgTest(TembaTest):
 
     def test_create_outgoing(self):
         tel_urn = (TEL_SCHEME, "250788382382")
-        tel_contact = Contact.get_or_create(self.user, self.org, urns=[tel_urn])
+        tel_contact = Contact.get_or_create(self.org, self.user, urns=[tel_urn])
         tel_urn_obj = tel_contact.urn_objects[tel_urn]
         twitter_urn = ('twitter', 'joe')
-        twitter_contact = Contact.get_or_create(self.user, self.org, urns=[twitter_urn])
+        twitter_contact = Contact.get_or_create(self.org, self.user, urns=[twitter_urn])
         twitter_urn_obj = twitter_contact.urn_objects[twitter_urn]
 
         # check creating by URN tuple
@@ -222,8 +222,7 @@ class MsgTest(TembaTest):
     def test_outbox(self):
         self.login(self.admin)
 
-        contact = Contact.get_or_create(self.admin, self.channel.org, name=None,
-                                        urns=[(TEL_SCHEME, '250788382382')], channel=self.channel)
+        contact = Contact.get_or_create(self.channel.org, self.admin, name=None, urns=[(TEL_SCHEME, '250788382382')])
         broadcast1 = Broadcast.create(self.channel.org, self.admin, 'How is it going?', [contact])
 
         # now send the broadcast so we have messages
@@ -950,7 +949,7 @@ class BroadcastTest(TembaTest):
         self.assertIn("success", response.content)
 
     def test_unreachable(self):
-        no_urns = Contact.get_or_create(self.admin, self.org, name="Ben Haggerty", urns=[])
+        no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
         twitter_contact = self.create_contact("Lucy", twitter='lucy')
         recipients = [no_urns, tel_contact, twitter_contact]
@@ -1160,8 +1159,8 @@ class BroadcastCRUDLTest(_CRUDLTest):
 
         self.channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
         self.crudl = BroadcastCRUDL
-        self.joe = Contact.get_or_create(self.user, self.org, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.user, self.org, name="Frank Blow", urns=[(TEL_SCHEME, "1234")])
+        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
+        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Blow", urns=[(TEL_SCHEME, "1234")])
 
     def getTestObject(self):
         return Broadcast.create(self.org, self.user, 'Hi Mammy', [self.joe])
@@ -1176,7 +1175,7 @@ class BroadcastCRUDLTest(_CRUDLTest):
         self._do_test_view('send', post_data=dict(omnibox="g-%d,c-%d" % (just_joe.pk, self.frank.pk),
                                                   text="Hey Joe, where you goin' with that gun in your hand?"))
 
-        contact = Contact.get_or_create(self.user, self.org, urns=[(TEL_SCHEME, '250788382382')])
+        contact = Contact.get_or_create(self.org, self.user, urns=[(TEL_SCHEME, '250788382382')])
         Msg.create_outgoing(self.org, self.user, contact, "How is it going?")
         Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
         Msg.create_outgoing(self.org, self.user, contact, "Do you have any children?")
@@ -1209,7 +1208,7 @@ class MsgCRUDLTest(_CRUDLTest):
         self.login(self.getUser())
         channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
 
-        contact = Contact.get_or_create(self.user, self.org, urns=[(TEL_SCHEME, '250788382382')])
+        contact = Contact.get_or_create(self.org, self.user, urns=[(TEL_SCHEME, '250788382382')])
 
         # some incoming messages
         Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "It's going well")
