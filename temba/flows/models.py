@@ -480,8 +480,39 @@ class Flow(TembaModel, SmartModel):
 
         # we haven't begun the flow yet, start at the entry
         else:
-            actionset = ActionSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
-            step = flow.add_step(run, actionset, [], call=call)
+            actionset = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+
+            if actionset:
+                step = flow.add_step(run, actionset, [], call=call)
+
+            # no such actionset, we start with a ruleset, evaluate it then move forward to our next actionset
+            else:
+                ruleset = RuleSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
+                step = flow.add_step(run, ruleset, [], call=call)
+
+                call_event = CallEvent(call.contact, '', call.channel)
+                rule, value = ruleset.find_matching_rule(step, run, call_event)
+
+                if not rule:
+                    response.hangup()
+                    run.set_completed()
+                    return response
+
+                step.save_rule_match(rule, value)
+                ruleset.save_run_value(run, rule, value)
+
+                if not rule.destination:
+                    # log it for our test contacts
+                    if is_test_contact:
+                        ActionLog.create_action_log(step.run,
+                                                    _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+
+                    response.hangup()
+                    run.set_completed()
+                    return response
+
+                actionset = ActionSet.get(rule.destination)
+                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
 
         if actionset:
             call_event = CallEvent(call.contact, user_response.get('Digits', ''), call.channel)
