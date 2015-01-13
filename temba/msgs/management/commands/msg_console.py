@@ -29,7 +29,7 @@ class MessageConsole(cmd.Cmd):
         self.prompt = ("\n" + Fore.CYAN + "[%s] " + Fore.WHITE) % urn.path
 
     def get_contact(self, number):
-        return Contact.get_or_create(self.user, self.org, name=None, urns=[(TEL_SCHEME, number)])
+        return Contact.get_or_create(self.org, self.user, name=None, urns=[(TEL_SCHEME, number)])
 
     def do_org(self, line):
         """

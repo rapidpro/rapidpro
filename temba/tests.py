@@ -125,7 +125,7 @@ class TembaTest(SmartminTest):
         if not name and not urns:
             raise ValueError("Need a name or URN to create a contact")
 
-        return Contact.get_or_create(self.user, org=self.org, name=name, urns=urns)
+        return Contact.get_or_create(self.org, self.user, name, urns=urns)
 
     def create_group(self, name, contacts):
         group = ContactGroup.create(self.org, self.user, name)
