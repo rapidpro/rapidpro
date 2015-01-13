@@ -93,6 +93,10 @@ class ContactCRUDLTest(_CRUDLTest):
         response = self.client.get(url)
         self.assertContains(response, "Joe")
 
+        # invalid uuid should return 404
+        response = self.client.get(reverse('contacts.contact_read', args=['invalid-uuid']))
+        self.assertEquals(response.status_code, 404)
+
     def testDelete(self):
         object = self.getTestObject()
         self._do_test_view('delete', object, post_data=dict())

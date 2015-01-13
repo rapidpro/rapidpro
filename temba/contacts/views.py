@@ -7,7 +7,7 @@ from collections import OrderedDict
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
@@ -510,10 +510,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_object(self, queryset=None):
             uuid = self.kwargs.get('uuid')
+            contact = None
             if self.request.user.is_superuser:
-                return Contact.objects.get(uuid=uuid, is_active=True)
+                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
             else:
-                return Contact.objects.get(uuid=uuid, is_active=True, org=self.request.user.get_org())
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, org=self.request.user.get_org()).first()
+
+            if contact is None:
+                raise Http404("No active contact with that id")
+
+            return contact
 
         def get_context_data(self, **kwargs):
             from temba.channels.models import SEND
