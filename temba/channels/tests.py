@@ -169,7 +169,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.channel_type = 'EX'
         self.tel_channel.save()
 
-        msg = Msg.create_outgoing(self.org, (TEL_SCHEME, '+250738382382'), 'x' * 400, self.user)  # 400 chars long
+        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250738382382'), 'x' * 400)  # 400 chars long
         Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
         self.assertEqual(3, Msg.objects.get(pk=msg.id).msg_count)
 
@@ -178,7 +178,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
         cache.clear()  # clear the channel from cache
 
-        msg = Msg.create_outgoing(self.org, (TEL_SCHEME, '+250738382382'), 'y' * 400, self.user)
+        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250738382382'), 'y' * 400)
         Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
         self.assertEqual(self.tel_channel, Msg.objects.get(pk=msg.id).channel)
         self.assertEqual(1, Msg.objects.get(pk=msg.id).msg_count)
@@ -395,7 +395,7 @@ class ChannelTest(TembaTest):
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # add a message, just sent so shouldn't have delayed
-        msg = Msg.create_outgoing(self.org, (TEL_SCHEME, '250788123123'), "test", self.user)
+        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250788123123'), "test")
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
@@ -408,7 +408,7 @@ class ChannelTest(TembaTest):
         self.assertIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # if there is a successfully sent message after sms was created we do not consider it as delayed
-        success_msg = Msg.create_outgoing(self.org, (TEL_SCHEME, '+250788123123'), "success-send", self.user)
+        success_msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250788123123'), "success-send")
         success_msg.created_on = timezone.now() - timedelta(hours=2)
         success_msg.sent_on = timezone.now() - timedelta(hours=2)
         success_msg.status = 'S'
@@ -625,7 +625,7 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        msg = Msg.create_outgoing(self.org, (TEL_SCHEME, '250785551212'), 'delayed message', self.user)
+        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message')
         msg.created_on = two_hours_ago
         msg.save()
 
@@ -648,7 +648,7 @@ class ChannelTest(TembaTest):
 
         # send messages with a test contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'This incoming message will not be counted')
-        Msg.create_outgoing(self.org, test_contact, 'This outgoing message will not be counted', self.user)
+        Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
         self.assertEquals(200, response.status_code)
@@ -657,7 +657,7 @@ class ChannelTest(TembaTest):
 
         # send messages with a normal contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn(TEL_SCHEME).path), 'This incoming message will be counted')
-        Msg.create_outgoing(self.org, joe, 'This outgoing message will be counted', self.user)
+        Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
         self.assertEquals(200, response.status_code)

@@ -892,7 +892,7 @@ class ContactTest(TembaTest):
         self.assertEquals(0, len(response.context['object_list']))
 
         # create a failed message for joe
-        sms = Msg.create_outgoing(self.org, self.frank, "Failed Outgoing", self.admin)
+        sms = Msg.create_outgoing(self.org, self.admin, self.frank, "Failed Outgoing")
         sms.status = 'F'
         sms.save()
 
@@ -903,7 +903,7 @@ class ContactTest(TembaTest):
         self.assertEquals(1, response.context['object_list'].count())  # from cache
 
         # having another message that is successful removes us from the list though
-        sms = Msg.create_outgoing(self.org, self.frank, "Delivered Outgoing", self.admin)
+        sms = Msg.create_outgoing(self.org, self.admin, self.frank, "Delivered Outgoing")
         sms.status = 'D'
         sms.save()
 

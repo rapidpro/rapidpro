@@ -379,9 +379,9 @@ class Broadcast(models.Model):
 
             try:
                 msg = Msg.create_outgoing(org,
+                                          self.created_by,
                                           recipient,
                                           text,
-                                          self.created_by,
                                           response_to=response_to,
                                           broadcast=self,
                                           message_context=message_context,
@@ -1016,13 +1016,11 @@ class Msg(models.Model, OrgAssetMixin):
         return evaluated, (len(errors) > 0)
 
     @classmethod
-    def create_outgoing(cls, org, recipient, text, user, broadcast=None, priority=SMS_NORMAL_PRIORITY,
+    def create_outgoing(cls, org, user, recipient, text, broadcast=None, priority=SMS_NORMAL_PRIORITY,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True):
 
-        if not user:
-            raise ValueError("User does not have permission to create a message")
-        if not org:
-            raise ValueError("Trying to create outgoing message with no org")
+        if not org or not user:
+            raise ValueError("Trying to create outgoing message with no org or user")
 
         # recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123')
         if isinstance(recipient, Contact):

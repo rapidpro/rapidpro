@@ -38,7 +38,7 @@ class MsgTest(TembaTest):
 
     def test_erroring(self):
         # test with real message
-        msg = Msg.create_outgoing(self.org, self.joe, "Test 1", self.admin)
+        msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Test 1")
 
         Msg.mark_error(msg)
         msg = Msg.objects.get(pk=msg.id)
@@ -57,7 +57,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.status, 'F')
 
         # test with mock message
-        msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.joe, "Test 2", self.admin).as_task_json())
+        msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.admin, self.joe, "Test 2").as_task_json())
 
         Msg.mark_error(msg)
         msg = Msg.objects.get(pk=msg.id)
@@ -122,20 +122,20 @@ class MsgTest(TembaTest):
         urn_obj = contact.urn_objects[tel_urn]
 
         # check creating by URN tuple
-        msg = Msg.create_outgoing(self.org, tel_urn, "Extra spaces to remove    ", self.admin)
+        msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Extra spaces to remove    ")
         msg = Msg.objects.get(pk=msg.pk)
         self.assertEquals(contact, msg.contact)
         self.assertEquals("+250788382382", msg.contact_urn.path)
         self.assertEquals("Extra spaces to remove", msg.text)  # check message text is stripped
 
         # check creating by URN object
-        msg = Msg.create_outgoing(self.org, urn_obj, "How is it going?", self.admin)
+        msg = Msg.create_outgoing(self.org, self.admin, urn_obj, "How is it going?")
         msg = Msg.objects.get(pk=msg.pk)
         self.assertEquals(contact, msg.contact)
         self.assertEquals("+250788382382", msg.contact_urn.path)
 
         # check creating by contact
-        msg = Msg.create_outgoing(self.org, contact, "How is it going?", self.admin)
+        msg = Msg.create_outgoing(self.org, self.admin, contact, "How is it going?")
         msg = Msg.objects.get(pk=msg.pk)
         self.assertEquals(contact, msg.contact)
         self.assertEquals("+250788382382", msg.contact_urn.path)
@@ -146,18 +146,18 @@ class MsgTest(TembaTest):
 
         # can't create outgoing messages without org or user
         with self.assertRaises(Exception):
-            Msg.create_outgoing(None, (TEL_SCHEME, "250783835665"), "Hello World", self.admin)
+            Msg.create_outgoing(None, self.admin, (TEL_SCHEME, "250783835665"), "Hello World")
         with self.assertRaises(Exception):
-            Msg.create_outgoing(self.org, (TEL_SCHEME, "250783835665"), "Hello World", None)
+            Msg.create_outgoing(self.org, None, (TEL_SCHEME, "250783835665"), "Hello World")
 
         # case where the channel number is amongst contact broadcasted to
         # cannot sent more than 10 same message in period of 5 minutes
 
         for number in range(0, 10):
-            Msg.create_outgoing(self.org, (TEL_SCHEME, self.channel.address), 'Infinite Loop', self.admin)
+            Msg.create_outgoing(self.org, self.admin, (TEL_SCHEME, self.channel.address), 'Infinite Loop')
 
         # now that we have 10 same messages then, 
-        must_return_none = Msg.create_outgoing(self.org, (TEL_SCHEME, self.channel.address), 'Infinite Loop', self.admin)
+        must_return_none = Msg.create_outgoing(self.org, self.admin, (TEL_SCHEME, self.channel.address), 'Infinite Loop')
         self.assertIsNone(must_return_none)
         
     def test_create_incoming(self):
@@ -619,7 +619,7 @@ class MsgTest(TembaTest):
 
         failed_url = reverse('msgs.msg_failed')
 
-        msg1 = Msg.create_outgoing(self.org, self.joe, "message number 1", self.admin)
+        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
         self.assertEquals('N', msg1.contact.status)
         msg1.status = 'F'
         msg1.save()
@@ -638,7 +638,7 @@ class MsgTest(TembaTest):
         self.assertEquals(FAILED, broadcast.status)
 
         # message without a broadcast
-        msg3 = Msg.create_outgoing(self.org, self.joe, "messsage number 3", self.admin)
+        msg3 = Msg.create_outgoing(self.org, self.admin, self.joe, "messsage number 3")
         msg3.status = 'F'
         msg3.save()
 
@@ -732,7 +732,7 @@ class MsgTest(TembaTest):
     def test_templatetags(self):
         from .templatetags.sms import as_icon
 
-        msg = Msg.create_outgoing(self.org, (TEL_SCHEME, "250788382382"), "How is it going?", self.admin)
+        msg = Msg.create_outgoing(self.org, self.admin, (TEL_SCHEME, "250788382382"), "How is it going?")
         now = timezone.now()
         two_hours_ago = now - timedelta(hours=2)
 
@@ -1130,9 +1130,9 @@ class BroadcastCRUDLTest(_CRUDLTest):
                                                   text="Hey Joe, where you goin' with that gun in your hand?"))
 
         contact = Contact.get_or_create(self.user, self.org, urns=[(TEL_SCHEME, '250788382382')])
-        Msg.create_outgoing(self.org, contact, "How is it going?", self.user)
-        Msg.create_outgoing(self.org, contact, "What is your name?", self.user)
-        Msg.create_outgoing(self.org, contact, "Do you have any children?", self.user)
+        Msg.create_outgoing(self.org, self.user, contact, "How is it going?")
+        Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
+        Msg.create_outgoing(self.org, self.user, contact, "Do you have any children?")
 
         self._do_test_view('outbox')
 
@@ -1170,8 +1170,8 @@ class MsgCRUDLTest(_CRUDLTest):
         Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "Yes, 3.")
 
         # some outgoing messages
-        Msg.create_outgoing(self.org, contact, "How is it going?", self.user)
-        Msg.create_outgoing(self.org, contact, "What is your name?", self.user)
+        Msg.create_outgoing(self.org, self.user, contact, "How is it going?")
+        Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
 
         self._do_test_view('inbox')
 
