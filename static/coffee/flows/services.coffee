@@ -388,7 +388,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # schedule the save for a bit later in case more dirty events come in quick succession
       if $rootScope.saving
-        $timeout.cancel($rootScope.saving)
+        cancelled = $timeout.cancel($rootScope.saving)
+
+        # If we fail to cancel the current save we need to wait until the previous save completes and try again
+        if not cancelled
+          $timeout ->
+            $rootScope.dirty = true
+          , quietPeriod
+          return
 
       $rootScope.saving = $timeout ->
 
