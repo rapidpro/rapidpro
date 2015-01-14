@@ -25,6 +25,7 @@ from django.contrib.auth.models import User, Group
 from django.db import models, transaction
 from django.db.models import Q, Count
 from django.utils import timezone
+from django.utils.html import escape
 from django.core.cache import cache
 from enum import Enum
 from redis_cache import get_redis_connection
@@ -2954,6 +2955,11 @@ class ActionLog(models.Model):
 
     def as_json(self):
         return dict(direction="O", text=self.text, id=self.id, created_on=self.created_on.strftime('%x %X'), model="log")
+
+    def simulator_json(self):
+        log_json = self.as_json()
+        log_json['text'] = escape(self.text).replace('\n', "<br/>")
+        return log_json
 
 class FlowStep(models.Model):
     run = models.ForeignKey(FlowRun, related_name='steps')

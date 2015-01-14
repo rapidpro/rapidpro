@@ -200,7 +200,7 @@ $("#simulator .send-message").on "click", ->
 
   # add the progress gif
   if newMessage and newMessage.length <= 160
-    $(".simulator-body").append "<div class=\"imsg to post-message\">" + newMessage + "</div>"
+    $("<div class=\"imsg to post-message\"></div>").text(newMessage).appendTo(".simulator-body")
     $("#simulator textarea").val ""
     $(".simulator-loading").css "display", "block"
     # $(".simulator-body").css "height", $(".simulator-body").height() - 25
@@ -215,7 +215,7 @@ $("#simulator textarea").keypress (event) ->
 
     # add the progress gif
     if newMessage and newMessage.length <= 160
-      $(".simulator-body").append "<div class=\"imsg to post-message\">" + newMessage + "</div>"
+      $("<div class=\"imsg to post-message\"></div>").text(newMessage).appendTo(".simulator-body")
       $("#simulator textarea").val ""
       $(".simulator-loading").css "display", "block"
       # $(".simulator-body").css "height", $(".simulator-body").height() - 25

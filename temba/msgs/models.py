@@ -20,6 +20,7 @@ from django.db import models
 from django.db.models import Q, Count
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.html import escape
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
@@ -765,6 +766,12 @@ class Msg(models.Model, OrgAssetMixin):
                     id=self.id,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
+
+    def simulator_json(self):
+        msg_json = self.as_json()
+        msg_json['text'] = escape(self.text).replace('\n', "<br/>")
+        return msg_json
+
 
     @classmethod
     def get_text_parts(cls, text, max_length=160):
