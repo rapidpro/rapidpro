@@ -5,6 +5,7 @@ import phonenumbers
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
