@@ -7,7 +7,7 @@ from collections import OrderedDict
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
@@ -510,10 +510,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_object(self, queryset=None):
             uuid = self.kwargs.get('uuid')
+            contact = None
             if self.request.user.is_superuser:
-                return Contact.objects.get(uuid=uuid, is_active=True)
+                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
             else:
-                return Contact.objects.get(uuid=uuid, is_active=True, org=self.request.user.get_org())
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, org=self.request.user.get_org()).first()
+
+            if contact is None:
+                raise Http404("No active contact with that id")
+
+            return contact
 
         def get_context_data(self, **kwargs):
             from temba.channels.models import SEND
@@ -725,7 +731,7 @@ class ContactCRUDL(SmartCRUDL):
                     scheme = field_key[7:]
                     urns.append((scheme, value))
 
-            Contact.get_or_create(self.request.user, obj.org, obj.name, urns)
+            Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
@@ -911,6 +917,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
 class ManageFieldsForm(forms.Form):
     def clean(self):
+        used_labels = []
         for key in self.cleaned_data:
             if key.startswith('field_'):
                 idx = key[6:]
@@ -919,8 +926,13 @@ class ManageFieldsForm(forms.Form):
                 if label:
                     if not ContactField.is_valid_label(label):
                         raise forms.ValidationError(_("Field names can only contain letters, numbers, spaces and hypens"))
+
+                    if label.lower() in used_labels:
+                        raise ValidationError(_("Field names must be unique"))
+
                     elif label in RESERVED_CONTACT_FIELDS:
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
+                    used_labels.append(label.lower())
 
         return self.cleaned_data
 

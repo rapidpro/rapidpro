@@ -33,6 +33,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/webhook/simulator/$', WebHookSimulatorView.as_view(), name='api.webhook_simulator'),
                        url(r'^/webhook/tunnel/$', login_required(csrf_protect(WebHookTunnelView.as_view())), name='api.webhook_tunnel'),
 
+                       url(r'^/broadcasts$', BroadcastsEndpoint.as_view(), name='api.broadcasts'),
                        url(r'^/messages$', MessagesEndpoint.as_view(), name='api.messages'),
                        url(r'^/sms$', MessagesEndpoint.as_view(), name='api.sms'),  # deprecated
                        url(r'^/flows$', FlowEndpoint.as_view(), name='api.flows'),

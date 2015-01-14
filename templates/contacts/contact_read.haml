@@ -36,16 +36,15 @@
           {{urn|format_urn:user_org}}
 
   %div.header-margin
-    %nobr
-      -for group in contact_groups
-        %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
-          -if org_perms.contacts.contact_update and not group.is_dynamic
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
-              = group.name
-              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})', style:"margin-right: 5px"} x
-          -else
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}", style:"margin-right: 5px"}
-              = group.name
+    -for group in contact_groups
+      %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
+        -if org_perms.contacts.contact_update and not group.is_dynamic
+          %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+            = group.name
+            %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})'} x
+        -else
+          %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+            = group.name
 
 -block read-buttons
 

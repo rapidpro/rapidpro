@@ -172,3 +172,41 @@ class IVRTests(TembaTest):
         call.save()
         IVRCall.hangup_test_call(flow)
         self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_rule_first_ivr_flow(self):
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file('rule-first-ivr')
+        flow = Flow.objects.filter(name='Rule First IVR').first()
+
+        user_settings = self.admin.get_settings()
+        user_settings.tel = '+18005551212'
+        user_settings.save()
+
+        # start our flow`
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        eric.is_test = True
+        eric.save()
+        Contact.set_simulation(True)
+        flow.start([], [eric])
+
+        # should be using the usersettings number in test mode
+        self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
+
+        # we should have an outbound ivr call now
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        self.assertEquals(0, call.get_duration())
+        self.assertIsNotNone(call)
+        self.assertEquals('CallSid', call.external_id)
+
+        # after a call is picked up, twilio will call back to our server
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        self.assertContains(response, '<Say>Thanks for calling!</Say>')

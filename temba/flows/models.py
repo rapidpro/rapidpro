@@ -481,8 +481,39 @@ class Flow(TembaModel, SmartModel):
 
         # we haven't begun the flow yet, start at the entry
         else:
-            actionset = ActionSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
-            step = flow.add_step(run, actionset, [], call=call)
+            actionset = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+
+            if actionset:
+                step = flow.add_step(run, actionset, [], call=call)
+
+            # no such actionset, we start with a ruleset, evaluate it then move forward to our next actionset
+            else:
+                ruleset = RuleSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
+                step = flow.add_step(run, ruleset, [], call=call)
+
+                call_event = CallEvent(call.contact, '', call.channel)
+                rule, value = ruleset.find_matching_rule(step, run, call_event)
+
+                if not rule:
+                    response.hangup()
+                    run.set_completed()
+                    return response
+
+                step.save_rule_match(rule, value)
+                ruleset.save_run_value(run, rule, value)
+
+                if not rule.destination:
+                    # log it for our test contacts
+                    if is_test_contact:
+                        ActionLog.create_action_log(step.run,
+                                                    _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+
+                    response.hangup()
+                    run.set_completed()
+                    return response
+
+                actionset = ActionSet.get(rule.destination)
+                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
 
         if actionset:
             call_event = CallEvent(call.contact, user_response.get('Digits', ''), call.channel)
@@ -782,8 +813,6 @@ class Flow(TembaModel, SmartModel):
             if len(visits):
                 r.hmset(self.get_cache_key(FlowCache.visit_count_map), visits)
 
-        analytics.track("System", "nyaruka.flow_stat_cache_rebuild", properties=dict(value=time.time() - start_time))
-
     def _calculate_activity(self, simulation=False):
 
         """
@@ -826,7 +855,7 @@ class Flow(TembaModel, SmartModel):
         Checks if we have a redis cache for our flow stats, or whether they need to be updated.
         If so, triggers an async rebuild of the cache for our flow.
         """
-        from .tasks import calculate_flow_stats_task
+        from .tasks import calculate_flow_stats_task, check_flow_stats_accuracy_task
 
         r = get_redis_connection()
 
@@ -845,10 +874,8 @@ class Flow(TembaModel, SmartModel):
         import random
         r.set(cache_check, 1, FLOW_STAT_CACHE_FREQUENCY + random.randint(0, 60 * 60))
 
-        # check if our flow run count is the same, otherwise trigger rebuild
-        runs_started = self.runs.filter(contact__is_test=False).count()
-        if runs_started != self.get_total_runs():
-            calculate_flow_stats_task.delay(self.pk)
+        # check flow stats for accuracy, rebuilding if necessary
+        check_flow_stats_accuracy_task.delay(self.pk)
 
 
     def get_activity(self, simulation=False):
@@ -3687,7 +3714,7 @@ class VariableContactAction(Action):
 
             contact = Contact.objects.filter(pk=contact_id, org=org).first()
             if not contact and phone:
-                contact = Contact.get_or_create(org.created_by, org, name=None, urns=[(TEL_SCHEME, phone)])
+                contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
 
                 # if they dont have a name use the one in our action
                 if name and not contact.name:
@@ -3721,7 +3748,7 @@ class VariableContactAction(Action):
 
                 # otherwise, really create the contact
                 else:
-                    contacts.append(Contact.get_or_create(get_flow_user(), org=run.flow.org, name=None, urns=()))
+                    contacts.append(Contact.get_or_create(run.flow.org, get_flow_user(), name=None, urns=()))
 
             # other type of variable, perform our substitution
             else:
@@ -3736,8 +3763,7 @@ class VariableContactAction(Action):
                     if channel:
                         (number, valid) = ContactURN.normalize_number(variable, channel.country if channel else None)
                         if number and valid:
-                            contact = Contact.get_or_create(get_flow_user(), org=run.flow.org,
-                                                            urns=[(TEL_SCHEME, number)], channel=channel)
+                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[(TEL_SCHEME, number)])
                             contacts.append(contact)
 
         return groups, contacts

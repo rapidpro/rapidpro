@@ -144,6 +144,9 @@ def get_unique_recipients(urns, contacts, groups):
 
 
 class UnreachableException(Exception):
+    """
+    Exception thrown when a message is being sent to a contact that we don't have a sendable URN for
+    """
     pass
 
 
@@ -171,6 +174,9 @@ class Broadcast(models.Model):
     text = models.TextField(max_length=640, verbose_name=_("Text"),
                             help_text=_("The message to send out"))
 
+    channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
+                                help_text=_("Channel to use for message sending"))
+
     status = models.CharField(max_length=1, verbose_name=_("Status"), choices=STATUS_CHOICES, default=INITIALIZING,
                               help_text=_("The current status for this broadcast"))
 
@@ -197,8 +203,8 @@ class Broadcast(models.Model):
                                        help_text="When this item was last modified")
 
     @classmethod
-    def create(cls, org, user, text, recipients, **kwargs):
-        create_args = dict(org=org, text=text, created_by=user, modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -266,7 +272,7 @@ class Broadcast(models.Model):
         return qs.distinct()
 
     def get_messages(self):
-        return Msg.objects.filter(broadcast=self).exclude(status=RESENT)
+        return self.msgs.exclude(status=RESENT)
 
     def get_messages_by_status(self):
         return self.get_messages().order_by('delivered_on', 'sent_on', '-status')
@@ -380,11 +386,12 @@ class Broadcast(models.Model):
 
             try:
                 msg = Msg.create_outgoing(org,
+                                          self.created_by,
                                           recipient,
                                           text,
-                                          self.created_by,
-                                          response_to=response_to,
                                           broadcast=self,
+                                          channel=self.channel,
+                                          response_to=response_to,
                                           message_context=message_context,
                                           status=status,
                                           insert_object=False,
@@ -848,7 +855,7 @@ class Msg(models.Model, OrgAssetMixin):
 
     def handle(self):
         if self.direction == OUTGOING:
-            raise Exception(ugettext("Cannot process an outgoing message."))
+            raise ValueError(ugettext("Cannot process an outgoing message."))
 
         # process Android and test contact messages inline
         if not self.channel or self.channel.channel_type == ANDROID or self.contact.is_test:
@@ -939,7 +946,7 @@ class Msg(models.Model, OrgAssetMixin):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(user, org, name=None, urns=[urn], channel=channel)
+        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
         contact_urn = contact.urn_objects[urn]
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
@@ -1023,38 +1030,21 @@ class Msg(models.Model, OrgAssetMixin):
         return evaluated, (len(errors) > 0)
 
     @classmethod
-    def create_outgoing(cls, org, recipient, text, user, broadcast=None, priority=SMS_NORMAL_PRIORITY,
+    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True):
 
-        if not user:
-            raise ValueError("User does not have permission to create a message")
-        if not org:
-            raise ValueError("Trying to create outgoing message with no org")
+        if not org or not user:
+            raise ValueError("Trying to create outgoing message with no org or user")
 
-        # recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123')
-        if isinstance(recipient, Contact):
-            if recipient.is_test:
-                contact = recipient
-                contact_urn = contact.urns.all().first()
-            else:
-                sendable_schemes = org.get_schemes(SEND)
-                contact = recipient
-                contact_urn = contact.get_urn(schemes=sendable_schemes)  # use highest priority URN we can send to
-        elif isinstance(recipient, ContactURN):
-            contact = recipient.contact
-            contact_urn = recipient
-        elif isinstance(recipient, tuple):
-            contact = Contact.get_or_create(user, org, urns=[recipient])
-            contact_urn = contact.urn_objects[recipient]
-        else:
-            raise ValueError("Trying to create outgoing message with no contact or URN")
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel)
 
         if not contact_urn:
             raise UnreachableException("No send-able URN found for contact")
 
-        channel = org.get_send_channel(contact_urn=contact_urn)
-        if not channel and not contact.is_test:
-            raise Exception("No suitable channel available for this org")
+        if not channel:
+            channel = org.get_send_channel(contact_urn=contact_urn)
+            if not channel and not contact.is_test:
+                raise ValueError("No suitable channel available for this org")
 
         # no creation date?  set it to now
         if not created_on:
@@ -1126,6 +1116,36 @@ class Msg(models.Model, OrgAssetMixin):
 
         org.update_caches(OrgEvent.msg_new_outgoing, msg)
         return msg
+
+    @staticmethod
+    def resolve_recipient(org, user, recipient, channel):
+        """
+        Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
+        contact URN to use for an outgoing message.
+        """
+        contact = None
+        contact_urn = None
+        sendable_schemes = {channel.get_scheme()} if channel else org.get_schemes(SEND)
+
+        if isinstance(recipient, Contact):
+            if recipient.is_test:
+                contact = recipient
+                contact_urn = contact.urns.all().first()
+            else:
+                contact = recipient
+                contact_urn = contact.get_urn(schemes=sendable_schemes)  # use highest priority URN we can send to
+        elif isinstance(recipient, ContactURN):
+            if recipient.scheme in sendable_schemes:
+                contact = recipient.contact
+                contact_urn = recipient
+        elif isinstance(recipient, tuple) and len(recipient) == 2:
+            if recipient[0] in sendable_schemes:
+                contact = Contact.get_or_create(org, user, urns=[recipient])
+                contact_urn = contact.urn_objects[recipient]
+        else:
+            raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")
+
+        return contact, contact_urn
 
     def fail(self):
         """
@@ -1241,7 +1261,8 @@ class Call(SmartModel):
         if not user:
             user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
 
-        contact = Contact.get_or_create(user, channel.org, name=None, urns=[(TEL_SCHEME, phone)], channel=channel)
+        contact = Contact.get_or_create(channel.org, user, name=None, urns=[(TEL_SCHEME, phone)],
+                                        incoming_channel=channel)
 
         call = Call.objects.create(channel=channel,
                                    org=channel.org,
