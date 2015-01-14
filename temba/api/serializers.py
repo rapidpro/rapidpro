@@ -117,7 +117,7 @@ class MsgReadSerializer(serializers.ModelSerializer):
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):
-    group = serializers.Field(source='id')  # deprecated, use uuid
+    group = serializers.Field(source='id')  # deprecated, use uuid 
     uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
     size = serializers.SerializerMethodField('get_size')
