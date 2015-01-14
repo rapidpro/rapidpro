@@ -1429,7 +1429,7 @@ class RuleTest(TembaTest):
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 3)
-        self.assertEquals('Test Contact has entered the "Flow" flow', json_dict['messages'][0]['text'])
+        self.assertEquals('Test Contact has entered the &quot;Flow&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("This flow is more like a broadcast", json_dict['messages'][1]['text'])
         self.assertEquals("Test Contact has exited this flow", json_dict['messages'][2]['text'])
 
@@ -2062,7 +2062,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 2)
-        self.assertEquals('Ben Haggerty has entered the "pick_a_number" flow', json_dict['messages'][0]['text'])
+        self.assertEquals('Ben Haggerty has entered the &quot;pick_a_number&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("Pick a number between 1-10.", json_dict['messages'][1]['text'])
 
         post_data['new_message'] = "3"
