@@ -2928,6 +2928,15 @@ class ActionLog(models.Model):
     def as_json(self):
         return dict(direction="O", text=self.text, id=self.id, created_on=self.created_on.strftime('%x %X'), model="log")
 
+    def simulator_json(self):
+        log_json = self.as_json()
+
+        text = self.text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        text = text.replace("'", "&#39;").replace('"', "&quot;").replace('\n', "<br/>")
+        log_json['text'] = text
+
+        return log_json
+
 class FlowStep(models.Model):
     run = models.ForeignKey(FlowRun, related_name='steps')
 

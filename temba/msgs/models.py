@@ -759,6 +759,16 @@ class Msg(models.Model, OrgAssetMixin):
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
+    def simulator_json(self):
+        msg_json = self.as_json()
+
+        text = self.text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        text = text.replace("'", "&#39;").replace('"', "&quot;").replace('\n', "<br/>")
+        msg_json['text'] = text
+
+        return msg_json
+
+
     @classmethod
     def get_text_parts(cls, text, max_length=160):
         """

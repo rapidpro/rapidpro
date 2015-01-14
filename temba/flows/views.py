@@ -1213,7 +1213,7 @@ class FlowCRUDL(SmartCRUDL):
             messages_json = []
             if messages_and_logs:
                 for msg in messages_and_logs:
-                    messages_json.append(msg.as_json())
+                    messages_json.append(msg.simulator_json())
 
             (active, visited) = flow.get_activity(simulation=True)
 
