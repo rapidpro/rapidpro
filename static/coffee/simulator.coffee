@@ -11,8 +11,7 @@ window.updateSimulator = (data) ->
     msg = data.messages[i]
     direction = (if (msg.direction is "O") then "from" else "to")
     model = (if (msg.model is "msg") then "imsg" else "ilog")
-    $(".simulator-body").append "<div class=\"" + model + " " + direction + "\"></div>"
-    $(".simulator-body ." + model + "." + direction + ":last").text(msg.text)
+    $("<div class=\"" + model + " " + direction + "\"></div>").text(msg.text.replace(/\n/g, "<br/>")).appendTo(".simulator-body")
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
@@ -201,8 +200,7 @@ $("#simulator .send-message").on "click", ->
 
   # add the progress gif
   if newMessage and newMessage.length <= 160
-    $(".simulator-body").append "<div class=\"imsg to post-message\"></div>"
-    $(".simulator-body .imsg.to.post-message").text(newMessage)
+    $("<div class=\"imsg to post-message\"></div>").text(newMessage).appendTo(".simulator-body")
     $("#simulator textarea").val ""
     $(".simulator-loading").css "display", "block"
     # $(".simulator-body").css "height", $(".simulator-body").height() - 25
@@ -217,8 +215,7 @@ $("#simulator textarea").keypress (event) ->
 
     # add the progress gif
     if newMessage and newMessage.length <= 160
-      $(".simulator-body").append "<div class=\"imsg to post-message\"></div>"
-      $(".simultor-body .imsg.to.post-message").text(newMessage)
+      $("<div class=\"imsg to post-message\"></div>").text(newMessage).appendTo(".simulator-body")
       $("#simulator textarea").val ""
       $(".simulator-loading").css "display", "block"
       # $(".simulator-body").css "height", $(".simulator-body").height() - 25
