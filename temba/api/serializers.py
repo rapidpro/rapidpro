@@ -200,8 +200,13 @@ class ContactWriteSerializer(WriteSerializer):
 
         if uuid:
             if urns:
-                paths = [u[1] for u in urns]
-                other_contacts = Contact.objects.filter(org=self.org, urns__path__in=paths)
+                urns_strings = ["%s:%s" % u for u in urns]
+                urn_query = Q(pk__lt=0)
+                for urn_string in urns_strings:
+                    urn_query |= Q(urns__urn=urn_string)
+
+                other_contacts = Contact.objects.filter(org=self.org)
+                other_contacts = other_contacts.filter(urn_query).distinct()
                 other_contacts = other_contacts.exclude(uuid=uuid).values_list('urns__urn', flat=True)
                 if other_contacts:
                     raise ValidationError(_("URNs %s are used by other contacts") % other_contacts)
