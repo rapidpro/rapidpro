@@ -814,6 +814,17 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Contact.objects.get(pk=britney.pk).is_active)
 
+        jason = self.create_contact("Jason", number="+250788334455")
+        john = self.create_contact("John", number="+250788998877")
+
+        # cannot update contact with a used phone
+        response = self.postJSON(url, dict(phone="+250788998877", uuid=jason.uuid))
+        self.assertEquals(400, response.status_code)
+
+        # cannot update contact with a used phone
+        response = self.postJSON(url, dict(urns=['tel:+250788998877'], uuid=jason.uuid))
+        self.assertEquals(400, response.status_code)
+
     def test_api_fields(self):
         url = reverse('api.contactfields')
 

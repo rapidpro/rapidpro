@@ -197,6 +197,24 @@ class ContactWriteSerializer(WriteSerializer):
         if attrs.get('group_uuids', []) and attrs.get('groups', []):
             raise ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
+        if uuid:
+            if phone:
+                urns = [(TEL_SCHEME, attrs['phone'])]
+
+            if urns:
+                urns_strings = ["%s:%s" % u for u in urns]
+                urn_query = Q(pk__lt=0)
+                for urn_string in urns_strings:
+                    urn_query |= Q(urns__urn__iexact=urn_string)
+
+                other_contacts = Contact.objects.filter(org=self.org)
+                other_contacts = other_contacts.filter(urn_query).distinct()
+                other_contacts = other_contacts.exclude(uuid=uuid)
+                if other_contacts:
+                    if phone:
+                        raise ValidationError(_("phone %s is used by another contact") % phone)
+                    raise ValidationError(_("URNs %s are used by other contacts") % urns_strings)
+
         return attrs
 
     def validate_language(self, attrs, source):
