@@ -20,6 +20,7 @@ from django.db import models
 from django.db.models import Q, Count
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.html import escape
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
@@ -761,11 +762,7 @@ class Msg(models.Model, OrgAssetMixin):
 
     def simulator_json(self):
         msg_json = self.as_json()
-
-        text = self.text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        text = text.replace("'", "&#39;").replace('"', "&quot;").replace('\n', "<br/>")
-        msg_json['text'] = text
-
+        msg_json['text'] = escape(self.text).replace('\n', "<br/>")
         return msg_json
 
 
