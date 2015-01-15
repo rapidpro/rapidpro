@@ -753,7 +753,7 @@ class Flow(TembaModel, SmartModel):
             cache_key += (':%s' % item)
         return cache_key
 
-    def lock_on(self, lock, qualifier=None):
+    def lock_on(self, lock, qualifier=None, lock_ttl=None):
         """
         Creates the requested type of flow-level lock
         """
@@ -762,14 +762,15 @@ class Flow(TembaModel, SmartModel):
         if qualifier:
             lock_key += (":%s" % qualifier)
 
-        return r.lock(lock_key, FLOW_LOCK_TTL)
+        if not lock_ttl:
+            lock_ttl = FLOW_LOCK_TTL
 
-    def do_calculate_flow_stats(self):
+        return r.lock(lock_key, lock_ttl)
 
-        start_time = time.time()
+    def do_calculate_flow_stats(self, lock_ttl=None):
 
         r = get_redis_connection()
-        with self.lock_on(FlowLock.participation):
+        with self.lock_on(FlowLock.participation, lock_ttl=lock_ttl):
 
             # all the runs that were started
             runs_started = self.runs.filter(contact__is_test=False).count()
@@ -778,25 +779,26 @@ class Flow(TembaModel, SmartModel):
             # find all the completed runs
             terminal_nodes = [node.uuid for node in self.action_sets.filter(destination=None)]
             category_nodes = [node.uuid for node in self.rule_sets.all()]
-            completed = FlowStep.objects.values('run__pk').filter(run__flow=self).filter(
-                Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) &
-                ~Q(rule_uuid=None))).filter(run__contact__is_test=False).distinct('run')
 
-            run_ids = [ value['run__pk'] for value in completed ]
+            stopped_at_rule = Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None)
+            completed = FlowStep.objects.values('run__pk').filter(run__flow=self).filter(
+                Q(step_uuid__in=terminal_nodes) | stopped_at_rule).filter(run__contact__is_test=False).distinct('run')
+
+            run_ids = [value['run__pk'] for value in completed]
             if run_ids:
                 completed_key = self.get_cache_key(FlowCache.runs_completed_count)
                 r.delete(completed_key)
                 r.sadd(completed_key, *run_ids)
 
             # unique contacts
-            contact_ids = [ value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id') ]
+            contact_ids = [value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id')]
             contacts_key = self.get_cache_key(FlowCache.contacts_started_set)
             r.delete(contacts_key)
             if contact_ids:
                 r.sadd(contacts_key, *contact_ids)
 
         # activity
-        with self.lock_on(FlowLock.activity):
+        with self.lock_on(FlowLock.activity, lock_ttl=lock_ttl):
             (active, visits) = self._calculate_activity()
 
             # remove our old active cache
@@ -827,7 +829,7 @@ class Flow(TembaModel, SmartModel):
         for step in steps:
             step_id = step['step_uuid']
             if step_id not in active:
-                active[step_id] = set([step['run__pk']])
+                active[step_id] = {step['run__pk']}
             else:
                 active[step_id].add(step['run__pk'])
 
@@ -876,7 +878,6 @@ class Flow(TembaModel, SmartModel):
 
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
-
 
     def get_activity(self, simulation=False):
         """
@@ -1407,7 +1408,7 @@ class Flow(TembaModel, SmartModel):
         else:
             # mark any current runs as no longer active
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            self.remove_active_for_runs(previous_runs)
+            self.remove_active_for_run_ids([run.pk for run in previous_runs])
             previous_runs.update(is_active=False)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
@@ -1674,17 +1675,18 @@ class Flow(TembaModel, SmartModel):
 
         return step
 
-    def remove_active_for_runs(self, runs):
+    def remove_active_for_run_ids(self, run_ids):
         """
-        Bulk deletion of activity for a set of runs. This removes the runs
+        Bulk deletion of activity for a list of run ids. This removes the runs
         from the active step, but does not remove the visited (path) data
         for the runs.
         """
+
+        print "Removing active for %d runs" % len(run_ids)
         r = get_redis_connection()
-        runs = [run.pk for run in runs]
-        if runs:
+        if run_ids:
             for key in r.keys(self.get_cache_key(FlowCache.step_active_set, '*')):
-                r.srem(key, *runs)
+                r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):
         """
@@ -2528,6 +2530,38 @@ class FlowRun(models.Model):
         else:
             return (unicode(fields), count+1)
 
+    @classmethod
+    def do_expire_runs(cls, runs):
+        """
+        Expires a set of runs
+        """
+
+        # let's optimize by only selecting what we need
+        runs = runs.order_by('flow').values('pk', 'flow')
+
+        # remove activity for each run, batched by flow
+        last_flow = None
+        expired_runs = []
+
+        for run in runs:
+            if run['flow'] != last_flow:
+                expired_runs = []
+                if last_flow is not None:
+                    flow = Flow.objects.filter(pk=last_flow).first()
+                    if flow:
+                        flow.remove_active_for_run_ids(expired_runs)
+            expired_runs.append(run['pk'])
+            last_flow = run['flow']
+
+        # same thing for our last batch if we have one
+        if expired_runs:
+            flow = Flow.objects.filter(pk=last_flow).first()
+            if flow:
+                flow.remove_active_for_run_ids(expired_runs)
+
+        # finally, update the columns in the databse with new expiration
+        runs.update(is_active=False, expired_on=timezone.now())
+
     def release(self):
 
         # remove each of our steps. we do this one at a time
@@ -2537,7 +2571,7 @@ class FlowRun(models.Model):
 
         # remove our run from the activity
         with self.flow.lock_on(FlowLock.activity):
-            self.flow.remove_active_for_runs([self])
+            self.flow.remove_active_for_run_ids([self.pk])
 
         # decrement our total flow count
         r = get_redis_connection()
@@ -2585,10 +2619,7 @@ class FlowRun(models.Model):
                 self.expire()
 
     def expire(self):
-        self.expired_on = timezone.now()
-        self.is_active = False
-        self.save(update_fields=['is_active', 'expires_on'])
-        self.flow.remove_active_for_runs([self])
+        self.do_expire_runs(FlowRun.objects.filter(pk=self.pk))
 
     def update_fields(self, field_map):
         # validate our field
