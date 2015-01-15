@@ -1220,6 +1220,11 @@ class RuleTest(TembaTest):
         action_json = test.as_json()
         test = AddLabelAction.from_json(self.org, action_json)
 
+        # no sms yet; such Add Label action on entry Actionset. No error should be raised
+        test.execute(run, None, None)
+        self.assertFalse(label.get_messages())
+        self.assertEquals(label.get_message_count(), 0)
+
         test.execute(run, None, sms)
 
         # sms should have been labeled

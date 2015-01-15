@@ -3580,7 +3580,7 @@ class AddLabelAction(Action):
                     if run.contact.is_test:
                         ActionLog.create_action_log(run, _("Label '%s' created") % value)
 
-            if label:
+            if label and sms:
                 label.toggle_label([sms], True)
                 if run.contact.is_test:
                     ActionLog.create_action_log(run, _("Added %s label to msg '%s'") % (label.name, sms.text))
