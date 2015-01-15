@@ -30,7 +30,7 @@ def populate_redis_activity(apps, schema_editor):
             print "%d%% flows built" % pct
         last_pct = pct
 
-    print "Total time: %ss" % (time.time() - start)
+    # print "Total time: %ss" % (time.time() - start)
 
 class Migration(migrations.Migration):
 

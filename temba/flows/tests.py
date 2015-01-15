@@ -2172,7 +2172,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
 
-
         # our completion stats should remain the same
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
@@ -2243,6 +2242,30 @@ class FlowsTest(FlowFileTest):
         # runs and steps all gone too
         self.assertEquals(0, FlowStep.objects.filter(contact__is_test=False).count())
         self.assertEquals(0, FlowRun.objects.filter(contact__is_test=False).count())
+
+        # test that expirations remove activity when triggered from the cron in the same way
+        tupac = self.create_contact('Tupac Shakur', '+12065550725')
+        self.send_message(flow, 'azul', contact=tupac)
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, visited[other_rule_to_msg])
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
+
+        # set the run to be ready for expiration
+        run = tupac.runs.first()
+        run.expires_on = timezone.now() - timedelta(days=1)
+        run.save()
+
+        # now trigger the checking task and make sure it is removed from our activity
+        from .tasks import check_flows_task
+        check_flows_task()
+        (active, visited) = flow.get_activity()
+        self.assertEquals(0, len(active))
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')

@@ -32,8 +32,8 @@ def check_flows_task():
     """
     See if any flow runs need to be expired
     """
-    now = timezone.now()
-    FlowRun.objects.filter(is_active=True, expires_on__lte=now).update(is_active=False, expired_on=now)
+    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()).order_by('flow')
+    FlowRun.do_expire_runs(runs)
 
 
 @task(track_started=True, name='export_flow_results_task')

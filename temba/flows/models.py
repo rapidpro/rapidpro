@@ -877,7 +877,6 @@ class Flow(TembaModel, SmartModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
-
     def get_activity(self, simulation=False):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -1407,7 +1406,7 @@ class Flow(TembaModel, SmartModel):
         else:
             # mark any current runs as no longer active
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            self.remove_active_for_runs(previous_runs)
+            self.remove_active_for_run_ids([run.pk for run in previous_runs])
             previous_runs.update(is_active=False)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
@@ -1674,17 +1673,18 @@ class Flow(TembaModel, SmartModel):
 
         return step
 
-    def remove_active_for_runs(self, runs):
+    def remove_active_for_run_ids(self, run_ids):
         """
-        Bulk deletion of activity for a set of runs. This removes the runs
+        Bulk deletion of activity for a list of run ids. This removes the runs
         from the active step, but does not remove the visited (path) data
         for the runs.
         """
+
+        print "Removing active for %d runs" % len(run_ids)
         r = get_redis_connection()
-        runs = [run.pk for run in runs]
-        if runs:
+        if run_ids:
             for key in r.keys(self.get_cache_key(FlowCache.step_active_set, '*')):
-                r.srem(key, *runs)
+                r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):
         """
@@ -2528,6 +2528,41 @@ class FlowRun(models.Model):
         else:
             return (unicode(fields), count+1)
 
+    @classmethod
+    def do_expire_runs(cls, runs, expired_on=None):
+        """
+        Expires a set of runs
+        """
+
+        if not expired_on:
+            expired_on = timezone.now()
+
+        # let's optimize by only selecting what we need
+        runs = runs.values('pk', 'flow')
+
+        # remove activity for each run, batched by flow
+        last_flow = None
+        expired_runs = []
+
+        for run in runs:
+            if run['flow'] != last_flow:
+                expired_runs = []
+                if last_flow is not None:
+                    flow = Flow.objects.filter(pk=last_flow).first()
+                    if flow:
+                        flow.remove_active_for_run_ids(expired_runs)
+            expired_runs.append(run['pk'])
+            last_flow = run['flow']
+
+        # same thing for our last batch if we have one
+        if expired_runs:
+            flow = Flow.objects.filter(pk=last_flow).first()
+            if flow:
+                flow.remove_active_for_run_ids(expired_runs)
+
+        # finally, update the columns in the databse with new expiration
+        runs.update(is_active=False, expired_on=expired_on)
+
     def release(self):
 
         # remove each of our steps. we do this one at a time
@@ -2537,7 +2572,7 @@ class FlowRun(models.Model):
 
         # remove our run from the activity
         with self.flow.lock_on(FlowLock.activity):
-            self.flow.remove_active_for_runs([self])
+            self.flow.remove_active_for_run_ids([self.pk])
 
         # decrement our total flow count
         r = get_redis_connection()
@@ -2585,10 +2620,7 @@ class FlowRun(models.Model):
                 self.expire()
 
     def expire(self):
-        self.expired_on = timezone.now()
-        self.is_active = False
-        self.save(update_fields=['is_active', 'expires_on'])
-        self.flow.remove_active_for_runs([self])
+        self.do_expire_runs(FlowRun.objects.filter(pk=self.pk))
 
     def update_fields(self, field_map):
         # validate our field
