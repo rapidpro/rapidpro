@@ -59,7 +59,7 @@
           .numbers-title
             Add an existing supported number to your account
           -for number in account_numbers
-            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}"}
+            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"={ number.number}", data-country:"={ number.country}" }
               %span.number
                 {{ number.number }}
               (<span class="country">{{ number.country }}</span>)
@@ -79,14 +79,14 @@
 
   :javascript
     $("#results").on('click', ".phone-number", function(e){
-        $("#phone-number").val($(this).text());
+        $("#phone-number").val($(this).data("number"));
         $("#claim-country").val($("#country").val());
         $("#claim-form").submit();
     });
 
     $("#account-numbers").on('click', ".phone-number", function(e){
-        $("#phone-number").val($(this).find(".number").text());
-        $("#claim-country").val($(this).find(".country").text());
+        $("#phone-number").val($(this).data("number"));
+        $("#claim-country").val($(this).data("country"));
         $("#claim-form").submit();
     });
 
@@ -108,7 +108,7 @@
           if (data.length > 0){
             $("#claim-country").val(country);
             for (var i=0; i < data.length; i++){
-              $("#results").append("<div class='phone-number'>" + data[i] + "</div>");
+              $("#results").append("<div class='phone-number' data-number='" + data[i] + "'>" + data[i] + "</div>");
             }
             $("#results").show();
           } else if ('error' in data) {
