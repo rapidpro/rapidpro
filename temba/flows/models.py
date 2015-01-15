@@ -753,7 +753,7 @@ class Flow(TembaModel, SmartModel):
             cache_key += (':%s' % item)
         return cache_key
 
-    def lock_on(self, lock, qualifier=None):
+    def lock_on(self, lock, qualifier=None, lock_ttl=None):
         """
         Creates the requested type of flow-level lock
         """
@@ -762,14 +762,15 @@ class Flow(TembaModel, SmartModel):
         if qualifier:
             lock_key += (":%s" % qualifier)
 
-        return r.lock(lock_key, FLOW_LOCK_TTL)
+        if not lock_ttl:
+            lock_ttl = FLOW_LOCK_TTL
 
-    def do_calculate_flow_stats(self):
+        return r.lock(lock_key, lock_ttl)
 
-        start_time = time.time()
+    def do_calculate_flow_stats(self, lock_ttl=None):
 
         r = get_redis_connection()
-        with self.lock_on(FlowLock.participation):
+        with self.lock_on(FlowLock.participation, lock_ttl=lock_ttl):
 
             # all the runs that were started
             runs_started = self.runs.filter(contact__is_test=False).count()
@@ -778,25 +779,26 @@ class Flow(TembaModel, SmartModel):
             # find all the completed runs
             terminal_nodes = [node.uuid for node in self.action_sets.filter(destination=None)]
             category_nodes = [node.uuid for node in self.rule_sets.all()]
-            completed = FlowStep.objects.values('run__pk').filter(run__flow=self).filter(
-                Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) &
-                ~Q(rule_uuid=None))).filter(run__contact__is_test=False).distinct('run')
 
-            run_ids = [ value['run__pk'] for value in completed ]
+            stopped_at_rule = Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None)
+            completed = FlowStep.objects.values('run__pk').filter(run__flow=self).filter(
+                Q(step_uuid__in=terminal_nodes) | stopped_at_rule).filter(run__contact__is_test=False).distinct('run')
+
+            run_ids = [value['run__pk'] for value in completed]
             if run_ids:
                 completed_key = self.get_cache_key(FlowCache.runs_completed_count)
                 r.delete(completed_key)
                 r.sadd(completed_key, *run_ids)
 
             # unique contacts
-            contact_ids = [ value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id') ]
+            contact_ids = [value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id')]
             contacts_key = self.get_cache_key(FlowCache.contacts_started_set)
             r.delete(contacts_key)
             if contact_ids:
                 r.sadd(contacts_key, *contact_ids)
 
         # activity
-        with self.lock_on(FlowLock.activity):
+        with self.lock_on(FlowLock.activity, lock_ttl=lock_ttl):
             (active, visits) = self._calculate_activity()
 
             # remove our old active cache
@@ -827,7 +829,7 @@ class Flow(TembaModel, SmartModel):
         for step in steps:
             step_id = step['step_uuid']
             if step_id not in active:
-                active[step_id] = set([step['run__pk']])
+                active[step_id] = {step['run__pk']}
             else:
                 active[step_id].add(step['run__pk'])
 
@@ -2529,16 +2531,13 @@ class FlowRun(models.Model):
             return (unicode(fields), count+1)
 
     @classmethod
-    def do_expire_runs(cls, runs, expired_on=None):
+    def do_expire_runs(cls, runs):
         """
         Expires a set of runs
         """
 
-        if not expired_on:
-            expired_on = timezone.now()
-
         # let's optimize by only selecting what we need
-        runs = runs.values('pk', 'flow')
+        runs = runs.order_by('flow').values('pk', 'flow')
 
         # remove activity for each run, batched by flow
         last_flow = None
@@ -2561,7 +2560,7 @@ class FlowRun(models.Model):
                 flow.remove_active_for_run_ids(expired_runs)
 
         # finally, update the columns in the databse with new expiration
-        runs.update(is_active=False, expired_on=expired_on)
+        runs.update(is_active=False, expired_on=timezone.now())
 
     def release(self):
 
