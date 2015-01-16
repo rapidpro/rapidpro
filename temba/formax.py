@@ -5,6 +5,7 @@ import time
 from orgs.context_processors import user_group_perms_processor
 from django.conf import settings
 
+
 class FormaxMixin(object):
 
     def derive_formax_sections(self, formax, context):
