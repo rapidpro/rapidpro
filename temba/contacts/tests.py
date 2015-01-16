@@ -67,10 +67,10 @@ class ContactCRUDLTest(_CRUDLTest):
         return self.object
 
     def testList(self):
-        self.joe = Contact.get_or_create(self.user, self.org, name='Joe', urns=[(TEL_SCHEME, '123')])
+        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
         self.joe.set_field('age', 20)
         self.joe.set_field('home', 'Kigali')
-        self.frank = Contact.get_or_create(self.user, self.org, name='Frank', urns=[(TEL_SCHEME, '124')])
+        self.frank = Contact.get_or_create(self.org, self.user, name='Frank', urns=[(TEL_SCHEME, '124')])
         self.frank.set_field('age', 18)
 
         response = self._do_test_view('list')
@@ -83,7 +83,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual([self.joe], list(response.context['object_list']))
 
     def testRead(self):
-        self.joe = Contact.get_or_create(self.user, self.org, name='Joe', urns=[(TEL_SCHEME, '123')])
+        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
 
         url = reverse('contacts.contact_read', args=[self.joe.uuid])
         response = self.client.get(url)
@@ -92,6 +92,10 @@ class ContactCRUDLTest(_CRUDLTest):
         self.login(self.user)
         response = self.client.get(url)
         self.assertContains(response, "Joe")
+
+        # invalid uuid should return 404
+        response = self.client.get(reverse('contacts.contact_read', args=['invalid-uuid']))
+        self.assertEquals(response.status_code, 404)
 
     def testDelete(self):
         object = self.getTestObject()
@@ -114,8 +118,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
                                               org=self.org, created_by=self.user, modified_by=self.user,
                                               secret="12345", gcm_id="123")
 
-        self.joe = Contact.get_or_create(self.user, self.org, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.user, self.org, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
+        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
+        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
 
     def getCreatePostData(self):
         return dict(name="My Group")
@@ -163,9 +167,9 @@ class ContactGroupTest(TembaTest):
 
         register_hstore_handler(connection)
 
-        self.joe = Contact.get_or_create(self.admin, self.org, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.admin, self.org, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
-        self.mary = Contact.get_or_create(self.admin, self.org, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
+        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
+        self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
+        self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
 
     def test_create(self):
         # exception if group name is blank
@@ -892,7 +896,7 @@ class ContactTest(TembaTest):
         self.assertEquals(0, len(response.context['object_list']))
 
         # create a failed message for joe
-        sms = Msg.create_outgoing(self.org, self.frank, "Failed Outgoing", self.admin)
+        sms = Msg.create_outgoing(self.org, self.admin, self.frank, "Failed Outgoing")
         sms.status = 'F'
         sms.save()
 
@@ -903,7 +907,7 @@ class ContactTest(TembaTest):
         self.assertEquals(1, response.context['object_list'].count())  # from cache
 
         # having another message that is successful removes us from the list though
-        sms = Msg.create_outgoing(self.org, self.frank, "Delivered Outgoing", self.admin)
+        sms = Msg.create_outgoing(self.org, self.admin, self.frank, "Delivered Outgoing")
         sms.status = 'D'
         sms.save()
 
@@ -1557,6 +1561,15 @@ class ContactFieldTest(TembaTest):
 
         # should still have three contact fields
         self.assertEquals(3, ContactField.objects.filter(org=self.org, is_active=True).count())
+
+        # fields name should be unique case insensitively
+        post_data['label_1'] = "Town"
+        post_data['label_2'] = "town"
+
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field names must be unique")
+        self.assertEquals(3, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
 
         # now remove the first field, rename the second and change the type on the third
         post_data['label_1'] = ''

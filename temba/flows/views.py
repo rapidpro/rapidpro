@@ -498,8 +498,12 @@ class FlowCRUDL(SmartCRUDL):
         def save(self, obj):
             analytics.track(self.request.user.username, 'temba.flow_created', dict(name=obj.name))
             org = self.request.user.get_org()
+
+            if not obj.flow_type:
+                obj.flow_type = Flow.FLOW
+
             self.object = Flow.create(org, self.request.user, obj.name,
-                                      flow_type=Flow.FLOW, expires_after_minutes=obj.expires_after_minutes, base_language=obj.base_language)
+                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes, base_language=obj.base_language)
 
         def post_save(self, obj):
             user = self.request.user
@@ -1209,7 +1213,7 @@ class FlowCRUDL(SmartCRUDL):
             messages_json = []
             if messages_and_logs:
                 for msg in messages_and_logs:
-                    messages_json.append(msg.as_json())
+                    messages_json.append(msg.simulator_json())
 
             (active, visited) = flow.get_activity(simulation=True)
 

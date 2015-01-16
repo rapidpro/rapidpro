@@ -683,6 +683,7 @@ RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, utils
     ruleset.webhook_action = $scope.ruleset.webhook_action
     ruleset.webhook = $scope.ruleset.webhook
     ruleset.operand = $scope.ruleset.operand
+    Flow.markDirty()
     $modalInstance.close ""
 
   $scope.cancel = ->

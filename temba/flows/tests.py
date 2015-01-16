@@ -1220,6 +1220,11 @@ class RuleTest(TembaTest):
         action_json = test.as_json()
         test = AddLabelAction.from_json(self.org, action_json)
 
+        # no sms yet; such Add Label action on entry Actionset. No error should be raised
+        test.execute(run, None, None)
+        self.assertFalse(label.get_messages())
+        self.assertEquals(label.get_message_count(), 0)
+
         test.execute(run, None, sms)
 
         # sms should have been labeled
@@ -1429,7 +1434,7 @@ class RuleTest(TembaTest):
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 3)
-        self.assertEquals('Test Contact has entered the "Flow" flow', json_dict['messages'][0]['text'])
+        self.assertEquals('Test Contact has entered the &quot;Flow&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("This flow is more like a broadcast", json_dict['messages'][1]['text'])
         self.assertEquals("Test Contact has exited this flow", json_dict['messages'][2]['text'])
 
@@ -1525,6 +1530,26 @@ class RuleTest(TembaTest):
         # shouldn't have a new flow start as validation failed
         self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=new_start.id))
 
+        # test ivr flow creation
+        self.channel.role = 'SRCA'
+        self.channel.save()
+
+        post_data = dict(name="Message flow", expires_after_minutes=5, flow_type='F')
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        msg_flow = Flow.objects.get(name=post_data['name'])
+
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.pk]))
+        self.assertEquals(msg_flow.flow_type, 'F')
+
+        post_data = dict(name="Call flow", expires_after_minutes=5, flow_type='V')
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        call_flow = Flow.objects.get(name=post_data['name'])
+
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.pk]))
+        self.assertEquals(call_flow.flow_type, 'V')
+
         # test creating a  flow with base language
         # create the language for our org
         language = Language.objects.create(iso_code='eng', name='English', org=self.org,
@@ -1532,7 +1557,7 @@ class RuleTest(TembaTest):
         self.org.primary_language = language
         self.org.save()
 
-        post_data = dict(name="Language Flow", expires_after_minutes=5, base_language=language.iso_code)
+        post_data = dict(name="Language Flow", expires_after_minutes=5, base_language=language.iso_code, flow_type='F')
         response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
         language_flow = Flow.objects.get(name=post_data['name'])
 
@@ -2042,7 +2067,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 2)
-        self.assertEquals('Ben Haggerty has entered the "pick_a_number" flow', json_dict['messages'][0]['text'])
+        self.assertEquals('Ben Haggerty has entered the &quot;pick_a_number&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("Pick a number between 1-10.", json_dict['messages'][1]['text'])
 
         post_data['new_message'] = "3"
@@ -2152,7 +2177,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
 
-
         # our completion stats should remain the same
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
@@ -2223,6 +2247,30 @@ class FlowsTest(FlowFileTest):
         # runs and steps all gone too
         self.assertEquals(0, FlowStep.objects.filter(contact__is_test=False).count())
         self.assertEquals(0, FlowRun.objects.filter(contact__is_test=False).count())
+
+        # test that expirations remove activity when triggered from the cron in the same way
+        tupac = self.create_contact('Tupac Shakur', '+12065550725')
+        self.send_message(flow, 'azul', contact=tupac)
+        (active, visited) = flow.get_activity()
+        self.assertEquals(1, len(active))
+        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, visited[other_rule_to_msg])
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
+
+        # set the run to be ready for expiration
+        run = tupac.runs.first()
+        run.expires_on = timezone.now() - timedelta(days=1)
+        run.save()
+
+        # now trigger the checking task and make sure it is removed from our activity
+        from .tasks import check_flows_task
+        check_flows_task()
+        (active, visited) = flow.get_activity()
+        self.assertEquals(0, len(active))
+        self.assertEquals(1, flow.get_total_runs())
+        self.assertEquals(1, flow.get_total_contacts())
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')

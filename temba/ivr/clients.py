@@ -6,6 +6,7 @@ from django.utils.http import urlencode
 
 import requests
 
+
 class TwilioClient(TwilioRestClient):
     def start_call(self, call, to, from_, status_callback):
 
@@ -16,6 +17,7 @@ class TwilioClient(TwilioRestClient):
         call.external_id = unicode(twilio_call.sid)
         call.save()
 
+
 class VerboiceClient():
     def __init__(self):
         self.endpoint = 'https://verboice.instedd.org/api/call'
@@ -23,7 +25,7 @@ class VerboiceClient():
     def start_call(self, call, to, from_, status_callback):
 
         channel = call.channel
-        contact = Contact.get_or_create(channel.created_by, channel.org, urns=[(TEL_SCHEME, to)])
+        Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
         payload = unicode(Flow.handle_call(call, {}))
