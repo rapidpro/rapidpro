@@ -3,6 +3,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template import loader, Context
 from django.conf import settings
 
+
 def send_temba_email(to_email, subject, template, context, branding):
     """
     Utility method that sends a pretty email, attaching our logo

@@ -6,6 +6,7 @@ from temba.settings import BRANDING
 
 import traceback
 
+
 class ExceptionMiddleware(object):
 
     def process_exception(self, request, exception):
@@ -94,6 +95,7 @@ class OrgTimezoneMiddleware(object):
             timezone.activate(settings.USER_TIME_ZONE)
 
         return None
+
 
 class FlowSimulationMiddleware(object):
     def process_request(self, request):

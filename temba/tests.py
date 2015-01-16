@@ -29,11 +29,14 @@ def unix_time(dt):
     delta = dt - epoch
     return delta.total_seconds()
 
+
 def unix_time_millis(dt):
     return unix_time(dt) * 1000.0
 
+
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
+
 
 def uuid(id):
     return '00000000-00000000-00000000-%08d' % id
@@ -148,7 +151,7 @@ class TembaTest(SmartminTest):
         return Msg.objects.create(**kwargs)
 
     def create_flow(self):
-        start = int(time.time()*1000) % 1000000
+        start = int(time.time() * 1000) % 1000000
 
         definition = dict(action_sets=[dict(uuid=uuid(start + 1), x=1, y=1, destination=uuid(start + 5),
                                             actions=[dict(type='reply', msg='What is your favorite color?')]),
@@ -166,8 +169,8 @@ class TembaTest(SmartminTest):
                                               dict(uuid=uuid(start + 12), destination=uuid(start + 2), test=dict(type='contains', test='orange'), category="Orange"),
                                               dict(uuid=uuid(start + 13), destination=uuid(start + 3), test=dict(type='contains', test='blue'), category="Blue"),
                                               dict(uuid=uuid(start + 14), destination=uuid(start + 4), test=dict(type='true'), category="Other"),
-                                              dict(uuid=uuid(start + 15), test=dict(type='true'), category="Nothing")]) # test case with no destination
-                                    ],
+                                              dict(uuid=uuid(start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
+                                     ],
                           entry=uuid(start + 1))
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
@@ -226,7 +229,7 @@ class FlowFileTest(TembaTest):
 
     def update_flow(self, flow, filename, substitutions=None):
         from django.conf import settings
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename),'r+')
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename), 'r+')
         contents = handle.read()
         handle.close()
 
@@ -246,8 +249,10 @@ class MLStripper(HTMLParser):
     def __init__(self):
         self.reset()
         self.fed = []
+
     def handle_data(self, d):
         self.fed.append(d)
+
     def get_data(self):
         return ''.join(self.fed)
 
@@ -340,7 +345,6 @@ class BrowserTest(LiveServerTestCase):
 
         self.driver.set_window_size(1024, 2000)
 
-
         # view the homepage
         self.fetch_page()
 
@@ -355,7 +359,6 @@ class BrowserTest(LiveServerTestCase):
         self.click('#form-one-submit')
         self.keys('name', 'Temba')
         self.click('#form-two-submit')
-
 
         # set up our channel for claiming
         anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
