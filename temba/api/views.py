@@ -368,7 +368,7 @@ def api(request, format=None):
     and URL encode the + character as %2B. An example to retrieve all the outgoing messages since January 1st, 2013
     that are in a state of Q or S for the number +250788123123:
 
-        /api/v1/messages.json?after=2013-01-01T00:00:00.000&status=Q,S&direction=O&phone=%2B250788123123
+        /api/v1/messages.json?after=2013-01-01T00:00:00.000&status=Q,S&direction=O&urn=tel:%2B250788123123
 
     ## Authentication
 
