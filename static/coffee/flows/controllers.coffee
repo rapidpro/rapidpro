@@ -469,6 +469,17 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     # since we are mucking with jquery directly
     return false
 
+  $scope.confirmRemoveConnection = (connection) ->
+    modal = new ConfirmationModal(gettext('Remove'), gettext('Are you sure you want to remove this connection?'))
+    modal.addClass('alert')
+    modal.setListeners
+      onPrimary: ->
+        Flow.removeConnection(connection)
+        Flow.markDirty()
+    modal.show()
+
+    return false
+
   $scope.clickActionSource = (actionset) ->
     if actionset._terminal
       $modal.open
@@ -479,15 +490,27 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           flowController: -> $scope
     else
       if window.mutable
-        $timeout ->
-          DragHelper.showSaveResponse($('#' + actionset.uuid + ' .source'))
-        ,0
+        source = $("#" + actionset.uuid + "> .source")
+
+        connection = Plumb.getSourceConnection(source)
+        if connection
+          $scope.confirmRemoveConnection(connection)
+        else
+          $timeout ->
+            DragHelper.showSaveResponse($('#' + actionset.uuid + ' .source'))
+          ,0
 
   $scope.clickRuleSource = (category) ->
     if window.mutable
-      $timeout ->
-        DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
-      ,0
+      source = $("#" + category.sources[0] + "> .source")
+
+      connection = Plumb.getSourceConnection(source)
+      if connection
+        $scope.confirmRemoveConnection(connection)
+      else
+        $timeout ->
+          DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
+        ,0
 
 
   $scope.addAction = (actionset) ->

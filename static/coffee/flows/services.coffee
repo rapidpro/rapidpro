@@ -193,6 +193,18 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     jsPlumb.makeTarget element, targetDefaults,
       scope: scope
 
+  getSourceConnection: (source) ->
+    connections = jsPlumb.getConnections({
+      source: source.attr('id'),
+      scope: '*'
+    });
+
+    if connections and connections.length > 0
+      return connections[0]
+
+  detachSingleConnection: (connection) ->
+    jsPlumb.detach(connection)
+
   recalculateOffsets: (nodeId) ->
 
     # update ourselves
@@ -653,6 +665,18 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     Plumb.repaint()
 
     return
+
+  removeConnection: (connection) ->
+    node = $(connection.source).parents('.node').attr('id')
+    rule = $(connection.source).parents('.rule').attr('id')
+
+    if connection.scope == 'actions'
+      @updateRuleTarget(node, rule, null)
+
+    if connection.scope == 'rules'
+      @updateActionsTarget(node, null)
+
+    Plumb.detachSingleConnection(connection)
 
   removeRuleset: (ruleset) ->
 
