@@ -1085,7 +1085,7 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
           break
 
       $timeout ->
-        Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid)
+        Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid, 'rules')
         $scope.ruleset.from = null
       ,10
 
@@ -1181,7 +1181,7 @@ ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Fl
             break
 
       $timeout ->
-        Plumb.connect($scope.actionset.from, $scope.actionset.uuid)
+        Plumb.connect($scope.actionset.from, $scope.actionset.uuid, 'actions')
         $scope.actionset.from = null
       ,10
 
