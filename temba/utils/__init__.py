@@ -18,6 +18,23 @@ from django.http import HttpResponse
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 
+# these are not mapped by pytz.country_timezones
+INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': "US",
+                            'US/Alaska': "US",
+                            'Canada/Pacific': "CA",
+                            'US/Pacific': "US",
+                            'Canada/Mountain': "CA",
+                            'US/Arizona': "US",
+                            'US/Mountain': "US",
+                            'Canada/Central': "CA",
+                            'US/Central': "US",
+                            'America/Montreal': "CA",
+                            'Canada/Eastern': "CA",
+                            'US/Eastern': "US",
+                            'Canada/Atlantic': "CA",
+                            'Canada/Newfoundland': "CA",
+                            'GMT': "",
+                            'UTC': ""}
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
     if not date_obj:
@@ -363,10 +380,10 @@ def non_atomic_when_eager(view_func):
 def timezone_country_code(tz):
     country_timezones = pytz.country_timezones
 
-    timezone_country = {}
+    timezone_country = INITIAL_TIMEZONE_COUNTRY
     for countrycode in country_timezones:
         timezones = country_timezones[countrycode]
         for timezone in timezones:
             timezone_country[timezone] = countrycode
 
-    return timezone_country[tz]
+    return timezone_country.get(tz, "")

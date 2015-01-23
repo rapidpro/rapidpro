@@ -107,7 +107,13 @@ class InitTest(TembaTest):
 
     def test_timezone_country_code(self):
         self.assertEqual('RW', timezone_country_code('Africa/Kigali'))
+        self.assertEqual('US', timezone_country_code('America/Chicago'))
         self.assertEqual('US', timezone_country_code('US/Pacific'))
+        # GMT and UTC give empty
+        self.assertEqual('', timezone_country_code('GMT'))
+
+        # any invalid timezones should return ""
+        self.assertEqual('', timezone_country_code('Nyamirambo'))
 
 class CacheTest(TembaTest):
 
