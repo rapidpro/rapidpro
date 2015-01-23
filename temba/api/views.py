@@ -3276,6 +3276,105 @@ class KannelHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
+class ClickatellHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(ClickatellHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
+        from temba.channels.models import CLICKATELL, API_ID
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=CLICKATELL).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # make sure the API id matches if it is included (pings from clickatell don't include them)
+        if 'api_id' in self.request.REQUEST and channel.config_json()[API_ID] != self.request.REQUEST['api_id']:
+            return HttpResponse("Invalid API id for message delivery: %s" % self.request.REQUEST['api_id'], status=400)
+
+        # Clickatell is telling us a message status changed
+        if action == 'status':
+            if not all(k in request.REQUEST for k in ['apiMsgId', 'status']):
+                # return 200 as clickatell pings our endpoint during configuration
+                return HttpResponse("Missing one of 'apiMsgId' or 'status' in request parameters.", status=200)
+
+            sms_id = self.request.REQUEST['apiMsgId']
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
+            if not sms:
+                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
+
+            # possible status codes Clickatell will send us
+            STATUS_CHOICES = {'001': FAILED,      # incorrect msg id
+                              '002': WIRED,       # queued
+                              '003': SENT,        # delivered to upstream gateway
+                              '004': DELIVERED,   # received by handset
+                              '005': FAILED,      # error in message
+                              '006': FAILED,      # terminated by user
+                              '007': FAILED,      # error delivering
+                              '008': WIRED,       # msg received
+                              '009': FAILED,      # error routing
+                              '010': FAILED,      # expired
+                              '011': WIRED,       # delayed but queued
+                              '012': FAILED,      # out of credit
+                              '014': FAILED}      # too long
+
+            # check our status
+            status_code = self.request.REQUEST['status']
+            status = STATUS_CHOICES.get(status_code, None)
+
+            # we don't recognize this status code
+            if not status:
+                return HttpResponse("Unrecognized status code: '%s', ignoring message." % status_code, status=401)
+
+            # only update to SENT status if still in WIRED state
+            if status == SENT:
+                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+            elif status == DELIVERED:
+                sms.update(status=status, delivered_on=timezone.now())
+            elif status == FAILED:
+                sms.update(status=status)
+            else:
+                # ignore wired, we are wired by default
+                pass
+
+            # update the broadcast status
+            sms.first().broadcast.update()
+
+            return HttpResponse("SMS Status Updated")
+
+        # this is a new incoming message
+        elif action == 'receive':
+            if not all(k in request.REQUEST for k in ['from', 'text', 'moMsgId', 'timestamp']):
+                # return 200 as clickatell pings our endpoint during configuration
+                return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
+
+            # dates come in the format "2014-04-18 03:54:20" GMT
+            sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
+            gmt_date = pytz.timezone('GMT').localize(sms_date)
+
+            sms = Msg.create_incoming(channel,
+                                      (TEL_SCHEME, request.REQUEST['from']),
+                                      request.REQUEST['text'],
+                                      date=gmt_date)
+
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
+            return HttpResponse("SMS Accepted: %d" % sms.id)
+
+        else:
+            return HttpResponse("Not handled", status=400)
+
+
 class MageHandler(View):
 
     @disable_middleware

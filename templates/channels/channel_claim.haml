@@ -286,6 +286,19 @@
                 -blocktrans
                   Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
 
+    .claim-row.clickatell-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_clickatell' %}"}
+            .claim-glyph.icon-channel-external
+            %p.claim-text
+              -trans "Clickatell"
+
+        .span9
+          .claim-description
+            %div
+              -trans "Connect your <a href="http://clickatell.com/">Clickatell</a> number, we'll walk you through the steps necessary to get your Clickatell connection working in a few minutes."
+
     .claim-row.kannel-channel
       .row
         .span3
