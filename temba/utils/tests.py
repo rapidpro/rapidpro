@@ -17,7 +17,7 @@ from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
-from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json
+from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, timezone_country_code
 
 
 class InitTest(TembaTest):
@@ -105,6 +105,9 @@ class InitTest(TembaTest):
         self.assertEqual(dispatch_func1(1, arg2=2), 3)
         self.assertEqual(dispatch_func2(1, arg2=2), 3)
 
+    def test_timezone_country_code(self):
+        self.assertEqual('RW', timezone_country_code('Africa/Kigali'))
+        self.assertEqual('US', timezone_country_code('US/Pacific'))
 
 class CacheTest(TembaTest):
 

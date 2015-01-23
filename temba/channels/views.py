@@ -723,6 +723,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['twilio_countries'] = twilio_countries_str
 
+            org = self.request.user.get_org()
+            context['recommended_channel'] = org.get_recommended_channel()
+
             return context
 
     class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):

@@ -359,3 +359,14 @@ def non_atomic_when_eager(view_func):
         return transaction.non_atomic_requests(view_func)
     else:
         return view_func
+
+def timezone_country_code(tz):
+    country_timezones = pytz.country_timezones
+
+    timezone_country = {}
+    for countrycode in country_timezones:
+        timezones = country_timezones[countrycode]
+        for timezone in timezones:
+            timezone_country[timezone] = countrycode
+
+    return timezone_country[tz]

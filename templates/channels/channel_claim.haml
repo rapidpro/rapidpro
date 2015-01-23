@@ -30,7 +30,7 @@
     %h3
       -trans "Phone Channels"
 
-    .claim-row.android-channel
+    .claim-row.android-channel{class:"{% if recommended_channel == 'android' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
           -trans "Recommendation"
@@ -70,7 +70,7 @@
                   in a few simple steps.
 
     -if user_org.timezone == 'Africa/Nairobi'
-      .claim-row.africastalking-channel
+      .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -93,7 +93,7 @@
                   in a few simple steps.
 
     -if user_org.timezone == 'Africa/Mogadishu'
-      .claim-row.shaqodoon-channel
+      .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'shaqodoon' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -115,7 +115,7 @@
                   and receive messages on your shortcode.
 
     -if user_org.timezone == 'Asia/Jakarta'
-      .claim-row.hub9-channel
+      .claim-row.hub9-channel{class:"{% if recommended_channel == 'hub9' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -136,7 +136,7 @@
                   Easily add a two way number you have configured with Hub9 in Indonesia.
 
     -if not user_org.is_connected_to_twilio
-      .claim-row.twilio-channel
+      .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -161,7 +161,7 @@
 
 
     -else
-      .claim-row.twilio-channel
+      .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -185,7 +185,7 @@
                   -trans "Twilio Account."
 
     -if not user_org.is_connected_to_nexmo
-      .claim-row.nexmo-channel
+      .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -206,7 +206,7 @@
                   a Nexmo Account and get a dedicated number in a few minutes.
 
     -else
-      .claim-row.nexmo-channel
+      .claim-row.nexmo-channel{class:"{% if recommended == 'nexmo' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -337,29 +337,10 @@
 
   :javascript
     $(document).ready(function() {
-      $.get("http://ipinfo.io", function (response) {
-        $('.checking-recommendations').hide()
-        $('.recommended').removeClass('recommended');
-        if ("US|CA|GB|NL|SE|BE".indexOf(response.country) != -1) {
-          recommend('twililo');
-        } else if ("US|CA|GB|AU|AT|FI|DE|HK|HU|LT|NL|NO|PL|SE|CH|BE|ES|ZA".indexOf(response.country) != -1) {
-          recommend('nexmo');
-        } else if ("ID"==response.country) {
-          recommend('hub9');
-        } else if ("KE"==response.country) {
-          recommend("africastalking");
-        } else if ("SO"==response.country) {
-          recommend("shaqodoon");
-        } else {
-          recommend('android');
-        }
-      }, "jsonp");
+      $('.checking-recommendations').hide()
+      var channel = $('.claim-row.recommended');
+      $('.channel-options').prepend(channel);
     });
-
-    function recommend(channel) {
-       var channel = $('.' + channel + '-channel').addClass('recommended');
-       $('.channel-options').prepend(channel);
-    }
 
     {% if not user_org.is_connected_to_twilio %}
       $(".connect-twilio").live('click', function() {

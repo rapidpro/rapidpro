@@ -66,6 +66,31 @@ class OrgTest(TembaTest):
         self.assertEquals("Temba", org.name)
         self.assertEquals("nice-temba", org.slug)
 
+    def test_recommended_channel(self):
+        self.org.timezone = 'Africa/Nairobi'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), "africastalking")
+
+        self.org.timezone = 'America/Phoenix'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), "twilio")
+
+        self.org.timezone = 'Asia/Jakarta'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), "hub9")
+
+        self.org.timezone = 'Africa/Mogadishu'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), "shaqodoon")
+
+        self.org.timezone = 'Europe/Amsterdam'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), "nexmo")
+
+        self.org.timezone = 'Africa/Kigali'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), "android")
+
     def test_country(self):
         from temba.locations.models import AdminBoundary
         country_url = reverse('orgs.org_country')
