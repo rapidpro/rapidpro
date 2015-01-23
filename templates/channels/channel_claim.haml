@@ -22,10 +22,6 @@
               directly.
 
 -block content
-  .checking-recommendations
-    -trans "Looking for recommendations"
-    %img{ style:"margin-left:10px;", src: "{{ STATIC_URL }}/images/loader-circles.gif" }
-
   .channel-options
     %h3
       -trans "Phone Channels"
@@ -337,7 +333,6 @@
 
   :javascript
     $(document).ready(function() {
-      $('.checking-recommendations').hide()
       var channel = $('.claim-row.recommended');
       $('.channel-options').prepend(channel);
     });
