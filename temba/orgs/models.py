@@ -1320,7 +1320,7 @@ class Org(SmartModel):
         NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
                                      'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
 
-        countrycode = timezone_country_code(self.timezone)
+        countrycode = timezone_to_country_code(self.timezone)
 
         recommended = 'android'
         if countrycode in NEXMO_RECOMMEND_COUNTRIES:
