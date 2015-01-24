@@ -1151,7 +1151,7 @@ class ChannelCRUDL(SmartCRUDL):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
                                      help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
             api_id = forms.CharField(label=_("API ID"),
-                                     help_text=_("Your Clickatell API ID as provided"))
+                                     help_text=_("Your API ID as provided by Clickatell"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username for your Clickatell account"))
             password = forms.CharField(label=_("Password"),
@@ -1160,12 +1160,9 @@ class ChannelCRUDL(SmartCRUDL):
             def clean_number(self):
                 # if this is a long number, try to normalize it
                 number = self.data['number']
-                if len(number) > 8:
-                    if number and number[0] != '+':
-                        number = '+' + number
-
+                if len(number) >= 8:
                     try:
-                        cleaned = phonenumbers.parse(number, None)
+                        cleaned = phonenumbers.parse(number, self.data['country'])
                         return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
                     except:
                         raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))

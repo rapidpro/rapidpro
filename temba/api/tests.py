@@ -23,6 +23,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.orgs.models import Org, OrgFolder, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, SHAQODOON
+from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL
 from temba.flows.models import Flow, FlowLabel, FlowRun
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED, Label
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
@@ -2245,7 +2246,6 @@ class Hub9Test(TembaTest):
         self.assertEquals("Hello Jakarta", sms.text)
 
     def test_send(self):
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
         self.channel.config = json.dumps(dict(username='h9-user', password='h9-password'))
         self.channel.channel_type = 'H9'
         self.channel.save()
@@ -2406,7 +2406,7 @@ class TwilioTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 r = get_redis_connection()
-                r.delete('sms_sent_%d' % msg.id)                
+                r.delete('sms_sent_%d' % msg.id)
 
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
@@ -2422,6 +2422,113 @@ class TwilioTest(TembaTest):
         finally:
             settings.SEND_MESSAGES = False
 
+
+class ClickatellTest(TembaTest):
+
+    def test_receive(self):
+        # change our channel to a clickatell channel
+        self.channel.channel_type = CLICKATELL
+        self.channel.uuid = uuid.uuid4()
+        self.channel.save()
+
+        self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
+        self.channel.org.save()
+
+        data = {'to': self.channel.address,
+                'from': '250788383383',
+                'text': "Hello World",
+                'timestamp': '2012-10-10 10:10:10',
+                'moMsgId': 'id1234'}
+
+        encoded_message = urlencode(data)
+        receive_url = reverse('api.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
+
+        response = self.client.get(receive_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # and we should have a new message
+        msg1 = Msg.objects.get()
+        self.assertEquals("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals("Hello World", msg1.text)
+        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals('id1234', msg1.external_id)
+
+        data = {'apiMsgId': 'id1234', 'status': '001'}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.objects.all().order_by('-pk').first()
+
+        # make sure it is marked as failed
+        self.assertEquals(FAILED, sms.status)
+
+        # reset our status to WIRED
+        sms.status = WIRED
+        sms.save()
+
+        # and do it again with a received state
+        data = {'apiMsgId': 'id1234', 'status': '004'}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # load our message
+        sms = Msg.objects.all().order_by('-pk').first()
+
+        # make sure it is marked as delivered
+        self.assertEquals(DELIVERED, sms.status)
+
+    def test_send(self):
+        self.channel.config = json.dumps(dict(username='uname', password='pword', api_id='api1'))
+        self.channel.channel_type = CLICKATELL
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "000")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                r = get_redis_connection()
+                r.delete('sms_sent_%d' % msg.id)
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+        finally:
+            settings.SEND_MESSAGES = False
 
 class TwitterTest(TembaTest):
 

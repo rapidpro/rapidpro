@@ -3349,7 +3349,9 @@ class ClickatellHandler(View):
                 pass
 
             # update the broadcast status
-            sms.first().broadcast.update()
+            bcast = sms.first().broadcast
+            if bcast:
+                bcast.update()
 
             return HttpResponse("SMS Status Updated")
 
