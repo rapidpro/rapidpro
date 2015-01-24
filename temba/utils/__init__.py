@@ -19,22 +19,22 @@ from django.http import HttpResponse
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 
 # these are not mapped by pytz.country_timezones
-INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': "US",
-                            'US/Alaska': "US",
-                            'Canada/Pacific': "CA",
-                            'US/Pacific': "US",
-                            'Canada/Mountain': "CA",
-                            'US/Arizona': "US",
-                            'US/Mountain': "US",
-                            'Canada/Central': "CA",
-                            'US/Central': "US",
-                            'America/Montreal': "CA",
-                            'Canada/Eastern': "CA",
-                            'US/Eastern': "US",
-                            'Canada/Atlantic': "CA",
-                            'Canada/Newfoundland': "CA",
-                            'GMT': "",
-                            'UTC': ""}
+INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
+                            'US/Alaska': 'US',
+                            'Canada/Pacific': 'CA',
+                            'US/Pacific': 'US',
+                            'Canada/Mountain': 'CA',
+                            'US/Arizona': 'US',
+                            'US/Mountain': 'US',
+                            'Canada/Central': 'CA',
+                            'US/Central': 'US',
+                            'America/Montreal': 'CA',
+                            'Canada/Eastern': 'CA',
+                            'US/Eastern': 'US',
+                            'Canada/Atlantic': 'CA',
+                            'Canada/Newfoundland': 'CA',
+                            'GMT': '',
+                            'UTC': ''}
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
     if not date_obj:
@@ -377,7 +377,7 @@ def non_atomic_when_eager(view_func):
     else:
         return view_func
 
-def timezone_country_code(tz):
+def timezone_to_country_code(tz):
     country_timezones = pytz.country_timezones
 
     timezone_country = INITIAL_TIMEZONE_COUNTRY
@@ -386,4 +386,4 @@ def timezone_country_code(tz):
         for timezone in timezones:
             timezone_country[timezone] = countrycode
 
-    return timezone_country.get(tz, "")
+    return timezone_country.get(tz, '')

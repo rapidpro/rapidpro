@@ -29,7 +29,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, datetime_to_ms, random_string
-from temba.utils import timezone_country_code
+from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
 from uuid import uuid4
@@ -1317,22 +1317,22 @@ class Org(SmartModel):
 
     def get_recommended_channel(self):
         from temba.channels.views import TWILIO_SEARCH_COUNTRIES
-        NEXMO_RECOMMEND_COUNTRIES = ["US", "CA", "GB", "AU", "AT", "FI", "DE", "HK", "HU",
-                                     "LT", "NL", "NO", "PL", "SE", "CH", "BE", "ES", "ZA"]
+        NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
+                                     'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
 
         countrycode = timezone_country_code(self.timezone)
 
-        recommended = "android"
+        recommended = 'android'
         if countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = "nexmo"
+            recommended = 'nexmo'
         if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
-            recommended = "twilio"
-        if countrycode == "KE":
-            recommended = "africastalking"
-        if countrycode == "ID":
-            recommended = "hub9"
-        if countrycode == "SO":
-            recommended = "shaqodoon"
+            recommended = 'twilio'
+        if countrycode == 'KE':
+            recommended = 'africastalking'
+        if countrycode == 'ID':
+            recommended = 'hub9'
+        if countrycode == 'SO':
+            recommended = 'shaqodoon'
 
         return recommended
 

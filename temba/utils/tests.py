@@ -17,7 +17,7 @@ from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
-from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, timezone_country_code
+from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, timezone_to_country_code
 
 
 class InitTest(TembaTest):
@@ -106,14 +106,14 @@ class InitTest(TembaTest):
         self.assertEqual(dispatch_func2(1, arg2=2), 3)
 
     def test_timezone_country_code(self):
-        self.assertEqual('RW', timezone_country_code('Africa/Kigali'))
-        self.assertEqual('US', timezone_country_code('America/Chicago'))
-        self.assertEqual('US', timezone_country_code('US/Pacific'))
+        self.assertEqual('RW', timezone_to_country_code('Africa/Kigali'))
+        self.assertEqual('US', timezone_to_country_code('America/Chicago'))
+        self.assertEqual('US', timezone_to_country_code('US/Pacific'))
         # GMT and UTC give empty
-        self.assertEqual('', timezone_country_code('GMT'))
+        self.assertEqual('', timezone_to_country_code('GMT'))
 
         # any invalid timezones should return ""
-        self.assertEqual('', timezone_country_code('Nyamirambo'))
+        self.assertEqual('', timezone_to_country_code('Nyamirambo'))
 
 class CacheTest(TembaTest):
 
