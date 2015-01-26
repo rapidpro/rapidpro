@@ -1726,6 +1726,12 @@ class FlowRunEndpoint(generics.ListAPIView):
 
     By making a ```POST``` request to the endpoint you can add a contact to a flow with a specified set of 'extra' variables.
 
+    * **flow_uuid** - the UUID of the flow to start (string)
+    * **contacts** - the UUIDs of the contacts to start in the flow (string array, optional)
+    * **groups** - the UUIDs of any groups this contact is part of (string array, optional)
+    * **extra** - a set of extra variables. (dictionary)
+    * **restart_participants** - a boolean if True force restart of contacts already in a flow. (boolean, optional, defaults to True)
+
     Example:
 
         POST /api/v1/runs.json
@@ -1733,6 +1739,7 @@ class FlowRunEndpoint(generics.ListAPIView):
             "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
             "groups": ["b775ea51-b847-4a20-b668-6c4ce2f61356"]
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "f23777a3-e606-41d8-a925-3d87370e1a2b"],
+            "restart_participants": "true",
             "extra": {
                 "confirmation_code":"JFI0358F98",
                 "name":"Ryan Lewis"
@@ -1782,8 +1789,12 @@ class FlowRunEndpoint(generics.ListAPIView):
         if serializer.is_valid():
             serializer.save()
 
-            response_serializer = FlowRunReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            if serializer.object:
+                response_serializer = FlowRunReadSerializer(instance=serializer.object)
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(dict(non_field_errors=["All contacts are already started in this flow, "
+                                                   "use restart_participants to force them to restart in the flow"]),
+                                 status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
