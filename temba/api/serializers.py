@@ -1010,7 +1010,6 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
     contacts = serializers.SerializerMethodField('get_contacts')
     groups = serializers.SerializerMethodField('get_groups')
     text = serializers.Field(source='text')
-    messages = serializers.SerializerMethodField('get_messages')
     created_on = serializers.Field(source='created_on')
     status = serializers.Field(source='status')
 
@@ -1023,15 +1022,9 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
     def get_groups(self, obj):
         return [group.uuid for group in obj.groups.all()]
 
-    def get_messages(self, obj):
-        if obj.status == INITIALIZING:
-            return []
-        else:
-            return [msg.id for msg in obj.get_messages()]
-
     class Meta:
         model = Broadcast
-        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'messages', 'created_on', 'status')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
 
 
 class BroadcastCreateSerializer(serializers.Serializer):

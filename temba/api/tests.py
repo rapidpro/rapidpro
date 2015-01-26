@@ -1055,6 +1055,11 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
+        # search by broadcast id
+        response = self.fetchJSON(url, "broadcast=%d" % broadcast.pk)
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 1)
+
         # check anon org case
         with AnonymousOrg(self.org):
             response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
@@ -1156,7 +1161,6 @@ class APITest(TembaTest):
         self.assertEqual(response.json['urns'], [])
         self.assertEqual(sorted(response.json['contacts']), sorted([self.joe.uuid, frank.uuid]))
         self.assertEqual(response.json['groups'], [])
-        self.assertEqual(response.json['messages'], [])
 
         # message will have been sent in celery task
         broadcast1 = Broadcast.objects.get(pk=response.json['id'])

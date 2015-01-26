@@ -421,9 +421,6 @@ class BroadcastsEndpoint(generics.ListAPIView):
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"]
             "groups": [],
             "text": "hello world",
-            "messages": [
-               158, 159
-            ],
             "created_on": "2013-03-02T17:28:12",
             "status": "Q"
         }
@@ -437,7 +434,6 @@ class BroadcastsEndpoint(generics.ListAPIView):
       * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
       * **groups** - the UUIDs of groups that received the broadcast (array of strings)
       * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
-      * **messages** - the ids of messages created by this broadcast (array of ints)
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **status** - the status of this broadcast, a string one of: (filterable: ```status```)
 
@@ -603,6 +599,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow```)
+      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast```)
       * **status** - the status of this message, a string one of: (filterable: ```status```)
 
             Q - Message is queued awaiting to be sent
@@ -662,10 +659,13 @@ class MessagesEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('sms', None)
+        ids = self.request.QUERY_PARAMS.get('id', None)
         if ids:
-            ids = ids.split(',')
-            queryset = queryset.filter(pk__in=ids)
+            queryset = queryset.filter(pk__in=ids.split(','))
+
+        smses = self.request.QUERY_PARAMS.get('sms', None)  # deprecated, use id
+        if smses:
+            queryset = queryset.filter(pk__in=smses.split(','))
 
         status = self.request.QUERY_PARAMS.get('status', None)
         if status:
@@ -745,6 +745,10 @@ class MessagesEndpoint(generics.ListAPIView):
             flows = flow.split(',')
             queryset = queryset.filter(steps__run__flow__in=flows)
 
+        broadcasts = self.request.QUERY_PARAMS.get('broadcast', None)
+        if broadcasts:
+            queryset = queryset.filter(broadcast__in=broadcasts.split(','))
+
         return queryset.order_by('-created_on').select_related('labels')
 
     @classmethod
@@ -770,6 +774,8 @@ class MessagesEndpoint(generics.ListAPIView):
                                 help="A full URN to filter messages by (query parameter can be repeated). ex: tel:+250788123123"),
                            dict(name='flow', required=False,
                                 help="One or more flow ids to filter by. ex: 11851"),
+                           dict(name='broadcast', required=False,
+                                help="One or more broadcast ids to filter by. ex: 23432,34565"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
