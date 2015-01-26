@@ -61,8 +61,8 @@ Now clone the RapidPro repository and link up the development settings:
 
 {% highlight bash %}
 $ git clone git@github.com:rapidpro/rapidpro.git
-$ cd rapidpro
-$ ln -s temba/settings.py.dev temba/settings.py
+$ cd rapidpro/temba
+$ ln -s settings.py.dev settings.py
 {% endhighlight %}
 
 ##Install Node 
