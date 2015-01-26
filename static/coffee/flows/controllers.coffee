@@ -221,7 +221,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     return category.sources[0]
 
   $scope.onConnectorDrop = (connection) ->
-    $log.debug("onConnectorDrop")
 
     $(connection.source).parent().removeClass('reconnecting')
 
@@ -242,6 +241,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     if connection.scope == 'rules'
 
+      if connection.target
+        connection.targetId = connection.target.id
+
       node = $('#' + connection.sourceId).parents('.node').attr('id')
       to = connection.targetId
       window.connection = connection
@@ -255,7 +257,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       Flow.updateActionsTarget(node, to)
 
     if $rootScope.ghost
-
       ghost = $rootScope.ghost
       targetId = uuid()
 
@@ -314,7 +315,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.onConnectorDrag = (connection) ->
 
-    $log.debug('onConnectorDrag')
     DragHelper.hide()
 
     # add some css to our source so we can style during moves
@@ -490,6 +490,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           flowController: -> $scope
     else
       if window.mutable
+
         source = $("#" + actionset.uuid + "> .source")
 
         connection = Plumb.getSourceConnection(source)
@@ -511,7 +512,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         $timeout ->
           DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
         ,0
-
 
   $scope.addAction = (actionset) ->
 

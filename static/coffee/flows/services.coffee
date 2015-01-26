@@ -174,7 +174,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     endpoint: [ "Rectangle", { width: 20, height: 20, hoverClass: 'endpoint-hover' }]
     hoverClass: 'target-hover'
     dropOptions: { tolerance:"touch", hoverClass:"drop-hover" }
-    dragAllowedWhenFull:true
+    dragAllowedWhenFull: false
     deleteEndpointsOnDetach: true
     isTarget:true
 
@@ -182,12 +182,12 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     anchor: "BottomCenter"
     deleteEndpointsOnDetach: true
     maxConnections:1
+    dragAllowedWhenFull:false
     isSource:true
 
   makeSource: (element, scope) ->
     jsPlumb.makeSource element, sourceDefaults,
       scope: scope
-    # source.setElemet(element.parents('.node'))
 
   makeTarget: (element, scope) ->
     jsPlumb.makeTarget element, targetDefaults,
@@ -226,9 +226,10 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
   disconnectOutboundConnections: (id) ->
     jsPlumb.detachAllConnections($('#' + id + ' .source'))
 
-  connect: (sourceId, targetId, scope, fireEvent = true) ->
+  setSourceEnabled: (source, enabled) ->
+    jsPlumb.setSourceEnabled(source, enabled)
 
-    # $log.debug("connecting: " + sourceId + " -> " + targetId)
+  connect: (sourceId, targetId, scope, fireEvent = true) ->
 
     # remove any existing connections for our source first
     @disconnectOutboundConnections(sourceId)
@@ -249,8 +250,17 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
         targetPoint = jsPlumb.addEndpoint(target, { scope: scope }, targetDefaults)
 
       source = $('#' + sourceId + ' .source')
+
       if jsPlumb.getConnections({source:source, scope:scope}).length == 0
-        jsPlumb.connect({ deleteEndpointsOnDetach:true, editable:false, source: source, target: targetPoint, fireEvent: fireEvent})
+
+        # make sure our source is enabled before attempting connection
+        jsPlumb.setSourceEnabled(source, true)
+
+        jsPlumb.connect({ maxConnections:1, dragAllowedWhenFull:false, deleteEndpointsOnDetach:true, editable:false, source: source, target: targetPoint, fireEvent: fireEvent})
+
+        # now that we are connected, we aren't enabled anymore
+        jsPlumb.setSourceEnabled(source, false)
+
 
   updateConnection: (actionset) ->
     if actionset.destination
@@ -553,12 +563,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     determineFlowStart($rootScope.flow)
 
   markDirty: ->
-    $log.debug("Marking dirty")
     $timeout ->
       $rootScope.dirty = true
     ,0
 
-  # TODO: we may want to optimize these for constant lookup
   getActionConfig: (action) ->
     for cfg in $rootScope.actions
       if cfg.type == action.type
@@ -596,6 +604,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       for lang in data.languages
         if lang.iso_code != flow.base_language
           languages.push(lang)
+
 
       $rootScope.languages = languages
       $rootScope.flow = flow
@@ -766,7 +775,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     return
 
   updateActionsTarget: (from, to) ->
-    # $log.debug("Updating target:", from, to)
     for actionset in $rootScope.flow.action_sets
       if actionset.uuid == from
         actionset.destination = to
