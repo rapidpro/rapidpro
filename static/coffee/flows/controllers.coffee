@@ -241,9 +241,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     if connection.scope == 'rules'
 
-      if connection.target
-        connection.targetId = connection.target.id
-
       node = $('#' + connection.sourceId).parents('.node').attr('id')
       to = connection.targetId
       window.connection = connection
