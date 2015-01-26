@@ -29,7 +29,7 @@ from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
 from .models import Channel, SyncEvent, Alert, ChannelLog, SHAQODOON
-from .models import PASSWORD, RECEIVE, SEND, SEND_METHOD, SEND_URL, USERNAME
+from .models import PASSWORD, RECEIVE, SEND, SEND_METHOD, SEND_URL, USERNAME, API_ID, CLICKATELL
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI
 from .models import Channel, SyncEvent, Alert, ChannelLog
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME
@@ -461,7 +461,8 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_number',
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
-               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon', 'claim_verboice')
+               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
+               'claim_verboice', 'claim_clickatell')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1136,6 +1137,55 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    access_token=str(uuid4()),
                                                                    transport_name=data['transport_name'],
                                                                    conversation_key=data['conversation_key']))
+
+            # make sure all contacts added before the channel are normalized
+            self.object.ensure_normalized_contacts()
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
+
+
+    class ClaimClickatell(ClaimAuthenticatedExternal):
+        class ClickatellForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
+            api_id = forms.CharField(label=_("API ID"),
+                                     help_text=_("Your API ID as provided by Clickatell"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username for your Clickatell account"))
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password for your Clickatell account"))
+
+            def clean_number(self):
+                # if this is a long number, try to normalize it
+                number = self.data['number']
+                if len(number) >= 8:
+                    try:
+                        cleaned = phonenumbers.parse(number, self.data['country'])
+                        return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
+                    except:
+                        raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
+                else:
+                    return number
+
+        title = _("Connect Clickatell")
+        channel_type = CLICKATELL
+        form_class = ClickatellForm
+        fields = ('country', 'number', 'api_id', 'username', 'password')
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org:  # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+            self.object = Channel.add_config_external_channel(org, self.request.user,
+                                                              data['country'], data['number'], CLICKATELL,
+                                                              dict(api_id=data['api_id'],
+                                                                   username=data['username'],
+                                                                   password=data['password']))
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()

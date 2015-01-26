@@ -1376,6 +1376,50 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
                           channel.build_send_url(url, { 'from':"5080", 'text':u"Reply “1” for good", 'to':"+250788383383" }))
 
+    def test_clickatell(self):
+        from temba.channels.models import CLICKATELL
+
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+
+        # should see the general channel claim page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, reverse('channels.channel_claim_clickatell'))
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_clickatell'))
+        post_data = response.context['form'].initial
+
+        post_data['api_id'] = '12345'
+        post_data['username'] = 'uname'
+        post_data['password'] = 'pword'
+        post_data['country'] = 'US'
+        post_data['number'] = '(206) 555-1212'
+
+        response = self.client.post(reverse('channels.channel_claim_clickatell'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('US', channel.country)
+        self.assertTrue(channel.uuid)
+        self.assertEquals('+12065551212', channel.address)
+        self.assertEquals(post_data['api_id'], channel.config_json()['api_id'])
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals(CLICKATELL, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('api.clickatell_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('api.clickatell_handler', args=['receive', channel.uuid]))
+
+    test_clickatell.active = True
+
     def test_shaqodoon(self):
         from temba.channels.models import SHAQODOON
 
