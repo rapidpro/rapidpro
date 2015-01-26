@@ -1790,17 +1790,17 @@ class FlowRunEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
 
-        runs = self.request.QUERY_PARAMS.getlist('run', None)
+        runs = self.request.QUERY_PARAMS.get('run', None)
         if runs:
-            queryset = queryset.filter(pk__in=runs)
+            queryset = queryset.filter(pk__in=runs.split(','))
 
-        flows = self.request.QUERY_PARAMS.getlist('flow', None)  # deprecated, use flow_uuid
+        flows = self.request.QUERY_PARAMS.get('flow', None)  # deprecated, use flow_uuid
         if flows:
-            queryset = queryset.filter(flow__pk__in=flows)
+            queryset = queryset.filter(flow__pk__in=flows.split(','))
 
-        flow_uuids = self.request.QUERY_PARAMS.getlist('flow_uuid', None)
+        flow_uuids = self.request.QUERY_PARAMS.get('flow_uuid', None)
         if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids)
+            queryset = queryset.filter(flow__uuid__in=flow_uuids.split(','))
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -1814,27 +1814,25 @@ class FlowRunEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(conreated_on__gte=after)
+                queryset = queryset.filter(created_on__gte=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phone = self.request.QUERY_PARAMS.get('phone', None)
-        if phone:
-            phones = phone.split(',')
-            queryset = queryset.filter(contact__urns__path__in=phones)
+        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated
+        if phones:
+            queryset = queryset.filter(contact__urns__path__in=phones.split(','))
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
+        groups = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups)
+            queryset = queryset.filter(contact__groups__name__in=groups.split(','))
 
-        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
+            queryset = queryset.filter(contact__groups__uuid__in=group_uuids.split(','))
 
-        contact = self.request.QUERY_PARAMS.get('contact', None)
-        if contact:
-            contacts = contact.split(',')
-            queryset = queryset.filter(contact__uuid__in=contacts)
+        contacts = self.request.QUERY_PARAMS.get('contact', None)
+        if contacts:
+            queryset = queryset.filter(contact__uuid__in=contacts.split(','))
 
         return queryset
 
@@ -1847,8 +1845,8 @@ class FlowRunEndpoint(generics.ListAPIView):
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [dict(name='run', required=False,
                                help="One or more run ids to filter by.  ex: 1234,1235"),
-                          dict(name='flow', required=False,
-                               help="One or more flow ids to filter by.  ex: 234235,230420"),
+                          dict(name='flow_uuid', required=False,
+                               help="One or more flow UUIDs to filter by.  ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"),
                           dict(name='contact', required=False,
                                help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
                           dict(name='group_uuids', required=False,
