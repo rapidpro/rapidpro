@@ -1790,17 +1790,17 @@ class FlowRunEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
 
-        runs = self.request.QUERY_PARAMS.getlist('run', None)
+        runs = self.request.QUERY_PARAMS.get('run', None)
         if runs:
-            queryset = queryset.filter(pk__in=runs)
+            queryset = queryset.filter(pk__in=runs.split(','))
 
-        flows = self.request.QUERY_PARAMS.getlist('flow', None)  # deprecated, use flow_uuid
+        flows = self.request.QUERY_PARAMS.get('flow', None)  # deprecated, use flow_uuid
         if flows:
-            queryset = queryset.filter(flow__pk__in=flows)
+            queryset = queryset.filter(flow__pk__in=flows.split(','))
 
-        flow_uuids = self.request.QUERY_PARAMS.getlist('flow_uuid', None)
+        flow_uuids = self.request.QUERY_PARAMS.get('flow_uuid', None)
         if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids)
+            queryset = queryset.filter(flow__uuid__in=flow_uuids.split(','))
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -1814,27 +1814,25 @@ class FlowRunEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(conreated_on__gte=after)
+                queryset = queryset.filter(created_on__gte=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phone = self.request.QUERY_PARAMS.get('phone', None)
-        if phone:
-            phones = phone.split(',')
-            queryset = queryset.filter(contact__urns__path__in=phones)
+        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated
+        if phones:
+            queryset = queryset.filter(contact__urns__path__in=phones.split(','))
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
+        groups = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups)
+            queryset = queryset.filter(contact__groups__name__in=groups.split(','))
 
-        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
+            queryset = queryset.filter(contact__groups__uuid__in=group_uuids.split(','))
 
-        contact = self.request.QUERY_PARAMS.get('contact', None)
-        if contact:
-            contacts = contact.split(',')
-            queryset = queryset.filter(contact__uuid__in=contacts)
+        contacts = self.request.QUERY_PARAMS.get('contact', None)
+        if contacts:
+            queryset = queryset.filter(contact__uuid__in=contacts.split(','))
 
         return queryset
 
@@ -1847,8 +1845,8 @@ class FlowRunEndpoint(generics.ListAPIView):
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [dict(name='run', required=False,
                                help="One or more run ids to filter by.  ex: 1234,1235"),
-                          dict(name='flow', required=False,
-                               help="One or more flow ids to filter by.  ex: 234235,230420"),
+                          dict(name='flow_uuid', required=False,
+                               help="One or more flow UUIDs to filter by.  ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"),
                           dict(name='contact', required=False,
                                help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
                           dict(name='group_uuids', required=False,
@@ -3270,6 +3268,107 @@ class KannelHandler(View):
                                       date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
+            return HttpResponse("SMS Accepted: %d" % sms.id)
+
+        else:
+            return HttpResponse("Not handled", status=400)
+
+
+class ClickatellHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(ClickatellHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
+        from temba.channels.models import CLICKATELL, API_ID
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=CLICKATELL).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # make sure the API id matches if it is included (pings from clickatell don't include them)
+        if 'api_id' in self.request.REQUEST and channel.config_json()[API_ID] != self.request.REQUEST['api_id']:
+            return HttpResponse("Invalid API id for message delivery: %s" % self.request.REQUEST['api_id'], status=400)
+
+        # Clickatell is telling us a message status changed
+        if action == 'status':
+            if not all(k in request.REQUEST for k in ['apiMsgId', 'status']):
+                # return 200 as clickatell pings our endpoint during configuration
+                return HttpResponse("Missing one of 'apiMsgId' or 'status' in request parameters.", status=200)
+
+            sms_id = self.request.REQUEST['apiMsgId']
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
+            if not sms:
+                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
+
+            # possible status codes Clickatell will send us
+            STATUS_CHOICES = {'001': FAILED,      # incorrect msg id
+                              '002': WIRED,       # queued
+                              '003': SENT,        # delivered to upstream gateway
+                              '004': DELIVERED,   # received by handset
+                              '005': FAILED,      # error in message
+                              '006': FAILED,      # terminated by user
+                              '007': FAILED,      # error delivering
+                              '008': WIRED,       # msg received
+                              '009': FAILED,      # error routing
+                              '010': FAILED,      # expired
+                              '011': WIRED,       # delayed but queued
+                              '012': FAILED,      # out of credit
+                              '014': FAILED}      # too long
+
+            # check our status
+            status_code = self.request.REQUEST['status']
+            status = STATUS_CHOICES.get(status_code, None)
+
+            # we don't recognize this status code
+            if not status:
+                return HttpResponse("Unrecognized status code: '%s', ignoring message." % status_code, status=401)
+
+            # only update to SENT status if still in WIRED state
+            if status == SENT:
+                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+            elif status == DELIVERED:
+                sms.update(status=status, delivered_on=timezone.now())
+            elif status == FAILED:
+                sms.update(status=status)
+            else:
+                # ignore wired, we are wired by default
+                pass
+
+            # update the broadcast status
+            bcast = sms.first().broadcast
+            if bcast:
+                bcast.update()
+
+            return HttpResponse("SMS Status Updated")
+
+        # this is a new incoming message
+        elif action == 'receive':
+            if not all(k in request.REQUEST for k in ['from', 'text', 'moMsgId', 'timestamp']):
+                # return 200 as clickatell pings our endpoint during configuration
+                return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
+
+            # dates come in the format "2014-04-18 03:54:20" GMT
+            sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
+            gmt_date = pytz.timezone('GMT').localize(sms_date)
+
+            sms = Msg.create_incoming(channel,
+                                      (TEL_SCHEME, request.REQUEST['from']),
+                                      request.REQUEST['text'],
+                                      date=gmt_date)
+
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:

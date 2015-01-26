@@ -45,12 +45,14 @@ VUMI = 'VM'
 ZENVIA = 'ZV'
 SHAQODOON = 'SQ'
 VERBOICE = 'VB'
+CLICKATELL = 'CT'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
 USERNAME = 'username'
 PASSWORD = 'password'
 KEY = 'key'
+API_ID = 'api_id'
 
 SEND = 'S'
 RECEIVE = 'R'
@@ -69,6 +71,7 @@ RELAYER_TYPE_CHOICES = ((ANDROID, _("Android")),
                         (KANNEL, _("Kannel")),
                         (EXTERNAL, _("External")),
                         (TWITTER, _("Twitter")),
+                        (CLICKATELL, _("Clickatell")),
                         (SHAQODOON, _("Shaqodoon")))
 
 # how many outgoing messages we will queue at once
@@ -91,6 +94,7 @@ RELAYER_TYPE_CONFIG = {
     HUB9: dict(scheme='tel', max_length=1600, send_batch_size=100, send_queue_depth=100),
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
+    CLICKATELL: dict(scheme='tel', max_length=420)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -780,16 +784,7 @@ class Channel(SmartModel):
         # where current_date is in the format: d/m/y H
         payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
                    'username': channel.config[USERNAME], 'password': channel.config[PASSWORD],
-                   'msg': text, 'key': channel.config[KEY],
-                   'date': '{dt.day}/{dt.month}/{dt.year}'.format(dt=timezone.now())}
-
-        # build our signature
-        fingerprint = "%(username)s|%(password)s|%(from)s|%(to)s|%(msg)s|%(key)s|%(date)s" % payload
-        signing_key = hashlib.md5(fingerprint).hexdigest()
-
-        # remove unused parameters in the our payload
-        del payload['date']
-        del payload['key']
+                   'msg': text}
 
         # build our send URL
         url = channel.config[SEND_URL] + "?" + urlencode(payload)
@@ -1237,6 +1232,60 @@ class Channel(SmartModel):
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
+    def send_clickatell_message(cls, channel, msg, text):
+        """
+        Sends a message to Clickatell, they expect a GET in the following format:
+             https://api.clickatell.com/http/sendmsg?api_id=xxx&user=xxxx&password=xxxx&to=xxxxx&text=xxxx
+        """
+        from temba.msgs.models import Msg, WIRED
+
+        url = 'https://api.clickatell.com/http/sendmsg'
+        payload = {'api_id': channel.config[API_ID],
+                   'user': channel.config[USERNAME],
+                   'password': channel.config[PASSWORD],
+                   'from': channel.address.lstrip('+'),
+                   'concat': 3,
+                   'callback': 7,
+                   'mo': 1,
+                   'to': msg.urn_path.lstrip('+'),
+                   'text': text}
+
+        try:
+            response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
+            log_payload = urlencode(payload)
+
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # parse out the external id for the message, comes in the format: "ID: id12312312312"
+        external_id = None
+        if response.text.startswith("ID: "):
+            external_id = response.text[4:]
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='GET',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1291,6 +1340,7 @@ class Channel(SmartModel):
                       KANNEL: Channel.send_kannel_message,
                       NEXMO: Channel.send_nexmo_message,
                       TWILIO: Channel.send_twilio_message,
+                      CLICKATELL: Channel.send_clickatell_message,
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,
                       SHAQODOON: Channel.send_shaqodoon_message,

@@ -21,6 +21,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', Hub9Handler.as_view(), name='api.hub9_handler'),
                        url(r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VumiHandler.as_view(), name='api.vumi_handler'),
                        url(r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', KannelHandler.as_view(), name='api.kannel_handler'),
+                       url(r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', ClickatellHandler.as_view(), name='api.clickatell_handler'),
 
                        url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='api.mage_handler'),
 
