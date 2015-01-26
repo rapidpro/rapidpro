@@ -65,6 +65,8 @@ $ cd rapidpro/temba
 $ ln -s settings.py.dev settings.py
 {% endhighlight %}
 
+At this point, you should edit the rapidpro/settings.py to adjust the password for the postgresql connection.
+
 ##Install Node 
 {% highlight bash %}
 $ sudo apt-get install node npm coffee-script
