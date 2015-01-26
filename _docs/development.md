@@ -69,8 +69,7 @@ At this point, you should edit the rapidpro/settings.py to adjust the password f
 
 ##Install Node 
 {% highlight bash %}
-$ sudo apt-get install node npm coffee-script
-$ sudo npm install -g less
+$ sudo apt-get install node node-less coffee-script
 {% endhighlight %}
 
 ## Build virtual environment
