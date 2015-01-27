@@ -1646,7 +1646,7 @@ class ShaqodoonTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        bcast = joe.send("Test message ☺", self.admin, trigger_send=False)
 
         # our outgoing sms
         sms = bcast.get_messages()[0]

@@ -1035,8 +1035,9 @@ class BroadcastCreateSerializer(serializers.Serializer):
     channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.org = self.user.get_org()
+        if 'user' in kwargs:
+            self.user = kwargs.pop('user')
+            self.org = self.user.get_org()
 
         super(BroadcastCreateSerializer, self).__init__(*args, **kwargs)
 

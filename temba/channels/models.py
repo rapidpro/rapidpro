@@ -784,16 +784,7 @@ class Channel(SmartModel):
         # where current_date is in the format: d/m/y H
         payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
                    'username': channel.config[USERNAME], 'password': channel.config[PASSWORD],
-                   'msg': text, 'key': channel.config[KEY],
-                   'date': '{dt.day}/{dt.month}/{dt.year}'.format(dt=timezone.now())}
-
-        # build our signature
-        fingerprint = "%(username)s|%(password)s|%(from)s|%(to)s|%(msg)s|%(key)s|%(date)s" % payload
-        signing_key = hashlib.md5(fingerprint).hexdigest()
-
-        # remove unused parameters in the our payload
-        del payload['date']
-        del payload['key']
+                   'msg': text}
 
         # build our send URL
         url = channel.config[SEND_URL] + "?" + urlencode(payload)
