@@ -269,6 +269,9 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(MessagesEndpoint.get_read_explorer())
         endpoints.append(MessagesEndpoint.get_write_explorer())
 
+        endpoints.append(BroadcastsEndpoint.get_read_explorer())
+        endpoints.append(BroadcastsEndpoint.get_write_explorer())
+
         endpoints.append(Calls.get_read_explorer())
 
         endpoints.append(FlowEndpoint.get_read_explorer())
@@ -307,6 +310,7 @@ def api(request, format=None):
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
      * [/api/v1/messages](/api/v1/messages) - To list and create new SMS messages.
+     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
      * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
      * [/api/v1/flows](/api/v1/flows) - To list active flows
