@@ -710,23 +710,23 @@ class APITest(TembaTest):
         artists = ContactGroup.objects.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
         self.assertEquals("Music Artists", artists.name)
-        #self.assertEqual(1, artists.contacts.count())
-        #self.assertEqual(1, artists.get_member_count())  # check cached value
+        self.assertEqual(1, artists.contacts.count())
+        self.assertEqual(1, artists.get_member_count())  # check cached value
 
         # remove contact from a group by name (deprecated)
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
         artists = ContactGroup.objects.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
-        #self.assertEqual(0, artists.contacts.count())
-        #self.assertEqual(0, artists.get_member_count())
+        self.assertEqual(0, artists.contacts.count())
+        self.assertEqual(0, artists.get_member_count())
 
         # add contact to a existing group by UUID
         response = self.postJSON(url, dict(phone='+250788123456', group_uuids=[artists.uuid]))
         artists = ContactGroup.objects.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
         self.assertEquals("Music Artists", artists.name)
-        #self.assertEqual(1, artists.contacts.count())
-        #self.assertEqual(1, artists.get_member_count())
+        self.assertEqual(1, artists.contacts.count())
+        self.assertEqual(1, artists.get_member_count())
 
         # specifying both groups and group_uuids should return error
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
