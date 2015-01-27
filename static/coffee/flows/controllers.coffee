@@ -275,6 +275,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             actions: [
               type: if window.ivr then 'say' else 'reply'
               msg: msg
+              uuid: uuid()
             ]
 
           $scope.clickAction(actionset, actionset.actions[0])
