@@ -298,6 +298,16 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
         self.assertEquals(4, FlowRun.objects.filter(flow=flow.pk, contact=contact).count())
 
+        # can's restart participants if restart is False
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, contacts=[contact.uuid], restart_participants=False))
+        self.assertEquals(400, response.status_code)
+        self.assertEquals(4, FlowRun.objects.filter(flow=flow.pk, contact=contact).count())
+
+        # force participants to restart in flow if restart_participants is True
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, contacts=[contact.uuid], restart_participants=True))
+        self.assertEquals(201, response.status_code)
+        self.assertEquals(5, FlowRun.objects.filter(flow=flow.pk, contact=contact).count())
+
         # create another against the copy of the flow
         response = self.postJSON(url, dict(flow=flow_copy.pk, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
@@ -305,7 +315,7 @@ class APITest(TembaTest):
         # now fetch them instead...
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, "+250788123124")
         self.assertContains(response, "+250788123123")
 
@@ -317,13 +327,13 @@ class APITest(TembaTest):
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 6)
+        self.assertResultCount(response, 7)
         self.assertContains(response, "+250788123123")
 
         # filter by flow UUID
         response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 6)
+        self.assertResultCount(response, 7)
         self.assertContains(response, "+250788123123")
 
         # filter by phone

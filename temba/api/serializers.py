@@ -793,6 +793,7 @@ class FlowRunStartSerializer(serializers.Serializer):
     groups = StringArrayField(required=False)
     contacts = StringArrayField(required=False)
     extra = DictionaryField(required=False)
+    restart_participants = serializers.BooleanField(required=False, default=True)
     flow = FlowField(required=False, queryset=Flow.objects.filter(pk=-1))  # deprecated, use flow_uuid
     contact = StringArrayField(required=False)  # deprecated, use contacts
     phone = PhoneField(required=False)  # deprecated
@@ -915,6 +916,7 @@ class FlowRunStartSerializer(serializers.Serializer):
         groups = attrs.get('groups', [])
         contacts = attrs.get('contacts', [])
         extra = attrs.get('extra', None)
+        restart_participants = attrs.get('restart_participants', True)
 
         # include contacts created/matched via deprecated phone field
         phone_urns = attrs.get('phone', [])
@@ -926,7 +928,7 @@ class FlowRunStartSerializer(serializers.Serializer):
                 contacts.append(contact)
 
         if contacts or groups:
-            return flow.start(groups, contacts, restart_participants=True, extra=extra)
+            return flow.start(groups, contacts, restart_participants=restart_participants, extra=extra)
         else:
             return []
 
