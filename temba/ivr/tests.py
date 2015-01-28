@@ -11,8 +11,8 @@ from temba.channels.models import TWILIO, CALL, ANSWER
 from temba.tests import TembaTest
 from twilio.rest import TwilioRestClient, UNSET_TIMEOUT
 from twilio.util import RequestValidator
-import settings
 import os
+from django.conf import settings
 
 class MockRequestValidator(RequestValidator):
 
