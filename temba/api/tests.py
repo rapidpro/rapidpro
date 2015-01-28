@@ -801,7 +801,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Dr Dre")
 
         actors = self.create_group('Actors', [jay_z])
-        response = self.fetchJSON(url, "group=Music+Artists,Actors")
+        response = self.fetchJSON(url, "group=Music+Artists&group=Actors")
         self.assertResultCount(response, 2)
 
         response = self.fetchJSON(url, "group_uuids=%s" % artists.uuid)
@@ -871,7 +871,7 @@ class APITest(TembaTest):
         shinonda = self.create_contact("Shinonda", number="+250788112233")
         chad = self.create_contact("Chad", number="+250788223344")
 
-        response = self.deleteJSON(url, 'urns=%s,%s' % (urlquote_plus("tel:+250788112233"), urlquote_plus("tel:+250788223344")))
+        response = self.deleteJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788112233"), urlquote_plus("tel:+250788223344")))
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=shinonda.pk).is_active)
         self.assertFalse(Contact.objects.get(pk=chad.pk).is_active)
