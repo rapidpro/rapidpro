@@ -11,7 +11,8 @@ from temba.channels.models import TWILIO, CALL, ANSWER
 from temba.tests import TembaTest
 from twilio.rest import TwilioRestClient, UNSET_TIMEOUT
 from twilio.util import RequestValidator
-
+import settings
+import os
 
 class MockRequestValidator(RequestValidator):
 
@@ -78,6 +79,59 @@ class IVRTests(TembaTest):
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_ivr_hangup(self):
+
+        # create our ivr setup
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+        self.import_file('capture-recording')
+        flow = Flow.objects.filter(name='Capture Recording').first()
+
+        # start our flow
+        flow.start([], [self.create_contact('Chuck D', number='+13603621737')])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        # after a call is picked up, twilio will call back to our server
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        self.assertContains(response, '<Say>Please make a recording after the tone.</Say>')
+
+        # simulate the caller making a recording and then hanging up, first they'll give us the
+        # recording (they give us a call status of completed at the same time)
+        from temba.tests import MockResponse
+
+        # make sure our file isn't there to start
+        filename = '%s/recordings/1/1/runs/1/FAKESID.wav' % settings.MEDIA_ROOT
+        try:
+            os.remove(filename)
+        except:
+            pass
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(200, 'Fake Recording Bits')
+            self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
+                             dict(CallStatus='completed',
+                                  Digits='hangup',
+                                  RecordingUrl='http://api.twilio.com/ASID/Recordings/SID',
+                                  RecordingSid='FAKESID'))
+
+        # we should have captured the recording, and ended the call
+        call = IVRCall.objects.get(pk=call.pk)
+        self.assertTrue(os.path.exists(filename))
+        self.assertEquals(COMPLETED, call.status)
+
+        # twilio will also send us a final completion message with the call duration (status of completed again)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
+                         dict(CallStatus='completed', CallDuration='15'))
+
+        call = IVRCall.objects.get(pk=call.pk)
+        self.assertEquals(COMPLETED, call.status)
+        self.assertEquals(15, call.duration)
+
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_options(self):
 
         # should be able to create an ivr flow
@@ -106,7 +160,7 @@ class IVRTests(TembaTest):
         user_settings.tel = '+18005551212'
         user_settings.save()
 
-        # start our flow`
+        # start our flow
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
         eric.is_test = True
         eric.save()
@@ -189,7 +243,7 @@ class IVRTests(TembaTest):
         user_settings.tel = '+18005551212'
         user_settings.save()
 
-        # start our flow`
+        # start our flow
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
         eric.is_test = True
         eric.save()

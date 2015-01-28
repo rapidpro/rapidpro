@@ -395,6 +395,7 @@ class MockResponse(object):
 
     def __init__(self, status_code, text, method='GET', url='http://foo.com/'):
         self.text = text
+        self.content = text
         self.status_code = status_code
 
         # mock up a request object on our response as well
