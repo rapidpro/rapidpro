@@ -252,7 +252,7 @@ class APITest(TembaTest):
         label2 = FlowLabel.create_unique("Surveys", self.org)
         label2.toggle_label([flow2], add=True)
 
-        response = self.fetchJSON(url, "label=Polls,Surveys")
+        response = self.fetchJSON(url, "label=Polls&label=Surveys")
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
@@ -792,7 +792,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
-        response = self.fetchJSON(url, 'urns=%s,%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
+        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
         self.assertResultCount(response, 2)
 
         # search by group
@@ -1138,12 +1138,21 @@ class APITest(TembaTest):
         self.assertEquals(broadcast, msgs[1].broadcast)
 
         # fetch our messages list page
-        response = self.fetchJSON(reverse('api.messages'))
+        response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
         self.assertJSON(response, 'phone', '+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123123')
         self.assertJSON(response, 'phone', '+250788123124')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
+
+        label1 = Label.create_unique("Goo", 'M', self.org)
+        label1.toggle_label([msgs[0]], add=True)
+
+        label2 = Label.create_unique("Fiber", 'M', self.org)
+        label2.toggle_label([msgs[1]], add=True)
+
+        response = self.fetchJSON(url, "label=Goo&label=Fiber")
+        self.assertResultCount(response, 2)
 
     def test_api_messages_invalid_contact(self):
         url = reverse('api.messages')

@@ -38,7 +38,7 @@ from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
 from temba.msgs.models import Broadcast, Msg, Call
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, json_date_to_datetime, JsonResponse
+from temba.utils import analytics, json_date_to_datetime, JsonResponse, legacy_getlist
 from temba.utils.middleware import disable_middleware
 from urlparse import parse_qs
 from twilio import twiml
@@ -735,10 +735,9 @@ class MessagesEndpoint(generics.ListAPIView):
             types = type.split(',')
             queryset = queryset.filter(msg_type__in=types)
 
-        label = self.request.QUERY_PARAMS.get('label', None)
+        label = self.request.QUERY_PARAMS.getlist('label', None)
         if label:
-            labels = label.split(',')
-            queryset = queryset.filter(labels__name__in=labels)
+            queryset = queryset.filter(labels__name__in=label)
 
         flow = self.request.QUERY_PARAMS.get('flow', None)
         if flow:
@@ -1170,9 +1169,9 @@ class Groups(generics.ListAPIView):
         if name:
             queryset = queryset.filter(name__icontains=name)
 
-        uuids = self.request.QUERY_PARAMS.get('uuid', None)
+        uuids = legacy_getlist(self.request, 'uuid')
         if uuids:
-            queryset = queryset.filter(uuid__in=uuids.split(','))
+            queryset = queryset.filter(uuid__in=uuids)
 
         return queryset
 
@@ -1314,16 +1313,16 @@ class Contacts(generics.ListAPIView):
         queryset = self.get_base_queryset(request)
 
         # to make it harder for users to delete all their contacts by mistake, we require them to filter by UUID or urns
-        uuids = request.QUERY_PARAMS.get('uuid', None)
-        urns = request.QUERY_PARAMS.get('urns', None)
+        uuids = legacy_getlist(request, 'uuid')
+        urns = request.QUERY_PARAMS.getlist('urns', None)
 
         if not (uuids or urns):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         if uuids:
-            queryset = queryset.filter(uuid__in=uuids.split(','))
+            queryset = queryset.filter(uuid__in=uuids)
         if urns:
-            queryset = queryset.filter(urns__urn__in=urns.split(','))
+            queryset = queryset.filter(urns__urn__in=urns)
 
         if not queryset:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -1343,21 +1342,21 @@ class Contacts(generics.ListAPIView):
             phones = phones.split(',')
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
 
-        urns = self.request.QUERY_PARAMS.get('urns', None)
+        urns = self.request.QUERY_PARAMS.getlist('urns', None)
         if urns:
-            queryset = queryset.filter(urns__urn__in=urns.split(','))
+            queryset = queryset.filter(urns__urn__in=urns)
 
-        groups = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
+        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(groups__name__in=groups.split(','))
+            queryset = queryset.filter(groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
+        group_uuids = legacy_getlist(self.request ,'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(groups__uuid__in=group_uuids.split(','))
+            queryset = queryset.filter(groups__uuid__in=group_uuids)
 
-        uuids = self.request.QUERY_PARAMS.get('uuid', None)
+        uuids = legacy_getlist(self.request, 'uuid')
         if uuids:
-            queryset = queryset.filter(uuid__in=uuids.split(','))
+            queryset = queryset.filter(uuid__in=uuids)
 
         return queryset
 
@@ -2360,13 +2359,13 @@ class FlowEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        uuids = self.request.QUERY_PARAMS.get('uuid', None)
+        uuids = legacy_getlist(self.request, 'uuid')
         if uuids:
-            queryset = queryset.filter(uuid__in=uuids.split(','))
+            queryset = queryset.filter(uuid__in=uuids)
 
-        ids = self.request.QUERY_PARAMS.get('flow', None)  # deprecated, use uuid
+        ids = legacy_getlist(self.request, 'flow')  # deprecated, use uuid
         if ids:
-            queryset = queryset.filter(pk__in=ids.split(','))
+            queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -2384,9 +2383,9 @@ class FlowEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        labels = self.request.QUERY_PARAMS.get('label', None)
-        if labels:
-            queryset = queryset.filter(labels__name__in=labels.split(','))
+        label = self.request.QUERY_PARAMS.getlist('label', None)
+        if label:
+            queryset = queryset.filter(labels__name__in=label)
 
         archived = self.request.QUERY_PARAMS.get('archived', None)
         if not archived is None:
