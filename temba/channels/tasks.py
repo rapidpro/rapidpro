@@ -1,13 +1,15 @@
 from __future__ import unicode_literals
+from datetime import timedelta
 
 from django.conf import settings
+from django.utils import timezone
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.msgs.models import SEND_MSG_TASK
 from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task
 from temba.utils.mage import MageClient
-from .models import Channel, Alert
+from .models import Channel, Alert, ChannelLog
 
 @task(track_started=True, name='sync_channel_task')
 def sync_channel_task(gcm_id, channel_id=None):  #pragma: no cover
@@ -51,6 +53,14 @@ def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
 
+
+@task(track_started=True, name='trim_channel_log_task')
+def trim_channel_log_task():
+    """
+    Runs daily and clears any channel log items older than 48 hours.
+    """
+    two_days_ago = timezone.now() - timedelta(hours=48)
+    ChannelLog.objects.filter(created_on__lte=two_days_ago).delete()
 
 @task(track_started=True, name='notify_mage_task')
 def notify_mage_task(channel_uuid, action):
