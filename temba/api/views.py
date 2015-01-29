@@ -38,7 +38,7 @@ from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
 from temba.msgs.models import Broadcast, Msg, Call
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, json_date_to_datetime, JsonResponse, legacy_getlist
+from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
 from urlparse import parse_qs
 from twilio import twiml
@@ -494,13 +494,14 @@ class BroadcastsEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('id', None)
+        ids = splitting_getlist(self.request, 'id')
         if ids:
-            queryset = queryset.filter(pk__in=ids.split(','))
+            queryset = queryset.filter(pk__in=ids)
 
-        statuses = self.request.QUERY_PARAMS.get('status', None)
+        statuses = splitting_getlist(self.request, 'status')
         if statuses:
-            queryset = queryset.filter(status__in=statuses.split(','))
+            statuses = [status.upper() for status in statuses]
+            queryset = queryset.filter(status__in=statuses)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -662,33 +663,29 @@ class MessagesEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('sms', None)
+        ids = splitting_getlist(self.request, 'sms')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
-        status = self.request.QUERY_PARAMS.get('status', None)
-        if status:
-            statuses = status.upper().split(',')
+        statuses = splitting_getlist(self.request, 'status')
+        if statuses:
+            statuses = [status.upper() for status in statuses]
 
             # to the user, Q and P are the same, but not to us
             if 'Q' in statuses:
                 statuses.append('P')
             queryset = queryset.filter(status__in=statuses)
 
-        direction = self.request.QUERY_PARAMS.get('direction', None)
-        if direction:
-            directions = direction.split(',')
+        directions = splitting_getlist(self.request, 'direction')
+        if directions:
             queryset = queryset.filter(direction__in=directions)
 
-        phone = self.request.QUERY_PARAMS.get('phone', None)
-        if phone:
-            phones = phone.split(',')
+        phones = splitting_getlist(self.request, 'phone')
+        if phones:
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        urn = self.request.QUERY_PARAMS.get('urn', None)
-        if urn:
-            urns = urn.split(',')
+        urns = self.request.QUERY_PARAMS.getlist('urn', None)
+        if urns:
             queryset = queryset.filter(contact__urns__urn__in=urns)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -715,33 +712,28 @@ class MessagesEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        contact = self.request.QUERY_PARAMS.get('contact', None)
-        if contact:
-            uuids = contact.split(',')
-            queryset = queryset.filter(contact__uuid__in=uuids)
+        contact_uuids = splitting_getlist(self.request, 'contact')
+        if contact_uuids:
+            queryset = queryset.filter(contact__uuid__in=contact_uuids)
 
-        group = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
-        if group:
-            groups = group.split(',')
+        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
+        if groups:
             queryset = queryset.filter(contact__groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
+        group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            group_uuids = group_uuids.split(',')
             queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
-        type = self.request.QUERY_PARAMS.get('type', None)
-        if type:
-            types = type.split(',')
+        types = splitting_getlist(self.request, 'type')
+        if types:
             queryset = queryset.filter(msg_type__in=types)
 
-        label = self.request.QUERY_PARAMS.getlist('label', None)
-        if label:
-            queryset = queryset.filter(labels__name__in=label)
+        labels = self.request.QUERY_PARAMS.getlist('label', None)
+        if labels:
+            queryset = queryset.filter(labels__name__in=labels)
 
-        flow = self.request.QUERY_PARAMS.get('flow', None)
-        if flow:
-            flows = flow.split(',')
+        flows = splitting_getlist(self.request, 'flow')
+        if flows:
             queryset = queryset.filter(steps__run__flow__in=flows)
 
         return queryset.order_by('-created_on').select_related('labels')
@@ -844,9 +836,8 @@ class Calls(generics.ListAPIView):
     def get_queryset(self):
         queryset = Call.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('call', None)
+        ids = splitting_getlist(self.request, 'call')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -865,14 +856,12 @@ class Calls(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        call_type = self.request.QUERY_PARAMS.get('call_type', None)
-        if call_type:
-            call_types = call_type.split(',')
+        call_types = splitting_getlist(self.request, 'call_type')
+        if call_types:
             queryset = queryset.filter(call_type__in=call_types)
 
-        phone = self.request.QUERY_PARAMS.get('phone', None)
-        if phone:
-            phones = phone.split(',')
+        phones = splitting_getlist(self.request, 'phone')
+        if phones:
             queryset = queryset.filter(contact__urns__path__in=phones)
 
         channel = self.request.QUERY_PARAMS.get('relayer', None)
@@ -1037,14 +1026,12 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     def get_queryset(self):
         queryset = Channel.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-last_seen')
 
-        ids = self.request.QUERY_PARAMS.get('relayer', None)
+        ids = splitting_getlist(self.request, 'relayer')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)
+        phones = splitting_getlist(self.request, 'phone')
         if phones:
-            phones = phones.split(',')
             queryset = queryset.filter(address__in=phones)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -1063,10 +1050,9 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        country = self.request.QUERY_PARAMS.get('country', None)
-        if country:
-            country = country.split(',')
-            queryset = queryset.filter(country__in=country)
+        countries = splitting_getlist(self.request, 'country')
+        if countries:
+            queryset = queryset.filter(country__in=countries)
 
         return queryset
 
@@ -1169,7 +1155,7 @@ class Groups(generics.ListAPIView):
         if name:
             queryset = queryset.filter(name__icontains=name)
 
-        uuids = legacy_getlist(self.request, 'uuid')
+        uuids = splitting_getlist(self.request, 'uuid')
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -1313,7 +1299,7 @@ class Contacts(generics.ListAPIView):
         queryset = self.get_base_queryset(request)
 
         # to make it harder for users to delete all their contacts by mistake, we require them to filter by UUID or urns
-        uuids = legacy_getlist(request, 'uuid')
+        uuids = splitting_getlist(request, 'uuid')
         urns = request.QUERY_PARAMS.getlist('urns', None)
 
         if not (uuids or urns):
@@ -1337,9 +1323,8 @@ class Contacts(generics.ListAPIView):
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request).order_by('modified_on')
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated, use urns
+        phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
         if phones:
-            phones = phones.split(',')
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
 
         urns = self.request.QUERY_PARAMS.getlist('urns', None)
@@ -1350,11 +1335,11 @@ class Contacts(generics.ListAPIView):
         if groups:
             queryset = queryset.filter(groups__name__in=groups)
 
-        group_uuids = legacy_getlist(self.request ,'group_uuids')
+        group_uuids = splitting_getlist(self.request ,'group_uuids')
         if group_uuids:
             queryset = queryset.filter(groups__uuid__in=group_uuids)
 
-        uuids = legacy_getlist(self.request, 'uuid')
+        uuids = splitting_getlist(self.request, 'uuid')
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -1791,17 +1776,17 @@ class FlowRunEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
 
-        runs = self.request.QUERY_PARAMS.get('run', None)
+        runs = splitting_getlist(self.request, 'run')
         if runs:
-            queryset = queryset.filter(pk__in=runs.split(','))
+            queryset = queryset.filter(pk__in=runs)
 
-        flows = self.request.QUERY_PARAMS.get('flow', None)  # deprecated, use flow_uuid
+        flows = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
         if flows:
-            queryset = queryset.filter(flow__pk__in=flows.split(','))
+            queryset = queryset.filter(flow__pk__in=flows)
 
-        flow_uuids = self.request.QUERY_PARAMS.get('flow_uuid', None)
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
         if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids.split(','))
+            queryset = queryset.filter(flow__uuid__in=flow_uuids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -1819,21 +1804,21 @@ class FlowRunEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated
+        phones = splitting_getlist(self.request, 'phone')  # deprecated
         if phones:
-            queryset = queryset.filter(contact__urns__path__in=phones.split(','))
+            queryset = queryset.filter(contact__urns__path__in=phones)
 
-        groups = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
+        groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups.split(','))
+            queryset = queryset.filter(contact__groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
+        group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids.split(','))
+            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
-        contacts = self.request.QUERY_PARAMS.get('contact', None)
+        contacts = splitting_getlist(self.request, 'contact')
         if contacts:
-            queryset = queryset.filter(contact__uuid__in=contacts.split(','))
+            queryset = queryset.filter(contact__uuid__in=contacts)
 
         return queryset
 
@@ -1956,9 +1941,8 @@ class CampaignEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Campaign.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('campaign', None)
+        ids = splitting_getlist(self.request, 'campaign')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -2135,14 +2119,12 @@ class CampaignEventEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = CampaignEvent.objects.filter(campaign__org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('campaign', None)
+        ids = splitting_getlist(self.request, 'campaign')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(campaign__pk__in=ids)
 
-        ids = self.request.QUERY_PARAMS.get('event', None)
+        ids = splitting_getlist(self.request, 'event')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -2359,11 +2341,11 @@ class FlowEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        uuids = legacy_getlist(self.request, 'uuid')
+        uuids = splitting_getlist(self.request, 'uuid')
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
-        ids = legacy_getlist(self.request, 'flow')  # deprecated, use uuid
+        ids = splitting_getlist(self.request, 'flow')  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
 

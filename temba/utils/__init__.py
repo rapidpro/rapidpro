@@ -388,7 +388,7 @@ def timezone_to_country_code(tz):
 
     return timezone_country.get(tz, '')
 
-def legacy_getlist(request, name, default=None):
+def splitting_getlist(request, name, default=None):
     vals = request.QUERY_PARAMS.getlist(name, default)
     if vals and len(vals) == 1:
         return vals[0].split(',')
