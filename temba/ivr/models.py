@@ -66,7 +66,7 @@ class IVRCall(SmartModel):
     call_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=FLOW,
                                  help_text="What sort of call is this")
     duration = models.IntegerField(default=0, null=True,
-                                   help_text="The length of this call")
+                                   help_text="The length of this call in seconds")
 
 
     @classmethod

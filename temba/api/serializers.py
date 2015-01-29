@@ -793,6 +793,7 @@ class FlowRunStartSerializer(serializers.Serializer):
     groups = StringArrayField(required=False)
     contacts = StringArrayField(required=False)
     extra = DictionaryField(required=False)
+    restart_participants = serializers.BooleanField(required=False, default=True)
     flow = FlowField(required=False, queryset=Flow.objects.filter(pk=-1))  # deprecated, use flow_uuid
     contact = StringArrayField(required=False)  # deprecated, use contacts
     phone = PhoneField(required=False)  # deprecated
@@ -915,6 +916,7 @@ class FlowRunStartSerializer(serializers.Serializer):
         groups = attrs.get('groups', [])
         contacts = attrs.get('contacts', [])
         extra = attrs.get('extra', None)
+        restart_participants = attrs.get('restart_participants', True)
 
         # include contacts created/matched via deprecated phone field
         phone_urns = attrs.get('phone', [])
@@ -926,7 +928,7 @@ class FlowRunStartSerializer(serializers.Serializer):
                 contacts.append(contact)
 
         if contacts or groups:
-            return flow.start(groups, contacts, restart_participants=True, extra=extra)
+            return flow.start(groups, contacts, restart_participants=restart_participants, extra=extra)
         else:
             return []
 
@@ -1010,7 +1012,6 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
     contacts = serializers.SerializerMethodField('get_contacts')
     groups = serializers.SerializerMethodField('get_groups')
     text = serializers.Field(source='text')
-    messages = serializers.SerializerMethodField('get_messages')
     created_on = serializers.Field(source='created_on')
     status = serializers.Field(source='status')
 
@@ -1023,15 +1024,9 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
     def get_groups(self, obj):
         return [group.uuid for group in obj.groups.all()]
 
-    def get_messages(self, obj):
-        if obj.status == INITIALIZING:
-            return []
-        else:
-            return [msg.id for msg in obj.get_messages()]
-
     class Meta:
         model = Broadcast
-        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'messages', 'created_on', 'status')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
 
 
 class BroadcastCreateSerializer(serializers.Serializer):
@@ -1042,8 +1037,9 @@ class BroadcastCreateSerializer(serializers.Serializer):
     channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.org = self.user.get_org()
+        if 'user' in kwargs:
+            self.user = kwargs.pop('user')
+            self.org = self.user.get_org()
 
         super(BroadcastCreateSerializer, self).__init__(*args, **kwargs)
 

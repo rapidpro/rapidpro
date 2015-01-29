@@ -1470,15 +1470,12 @@ class ChannelLog(models.Model):
                                             response=e.response,
                                             response_status=e.response_status))
 
-        cls.trim_for_org(msg.org)
-
     @classmethod
     def log_error(cls, msg, description):
         cls.write(ChannelLog.objects.create(msg_id=msg.id,
                                             is_error=True,
                                             description=description[:255]))
 
-        cls.trim_for_org(msg.org)
 
     @classmethod
     def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None):
@@ -1491,14 +1488,6 @@ class ChannelLog(models.Model):
                                             response=response,
                                             response_status=response_status))
 
-        cls.trim_for_org(msg.org)
-
-    @classmethod
-    def trim_for_org(cls, org_id):
-        # keep only the most recent 100 errors for each org
-        #for error in ChannelLog.objects.filter(msg__channel__org_id=org_id).order_by('-created_on')[100:]: # pragma: no cover
-        #    error.delete()
-        pass
 
 class SyncEvent(SmartModel):
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),

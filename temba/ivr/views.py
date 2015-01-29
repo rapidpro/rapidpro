@@ -54,7 +54,8 @@ class CallHandler(View):
                                request.POST.get('CallDuration', None))
             call.save()
 
-            if call.status == IN_PROGRESS:
+            hung_up = 'hangup' == request.POST.get('Digits', None)
+            if call.status == IN_PROGRESS or hung_up:
                 if call.is_flow():
                     response = Flow.handle_call(call, request.POST)
                     return HttpResponse(unicode(response))

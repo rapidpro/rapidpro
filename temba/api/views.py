@@ -269,6 +269,9 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(MessagesEndpoint.get_read_explorer())
         endpoints.append(MessagesEndpoint.get_write_explorer())
 
+        endpoints.append(BroadcastsEndpoint.get_read_explorer())
+        endpoints.append(BroadcastsEndpoint.get_write_explorer())
+
         endpoints.append(Calls.get_read_explorer())
 
         endpoints.append(FlowEndpoint.get_read_explorer())
@@ -307,6 +310,7 @@ def api(request, format=None):
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
      * [/api/v1/messages](/api/v1/messages) - To list and create new SMS messages.
+     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
      * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
      * [/api/v1/flows](/api/v1/flows) - To list active flows
@@ -421,9 +425,6 @@ class BroadcastsEndpoint(generics.ListAPIView):
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"]
             "groups": [],
             "text": "hello world",
-            "messages": [
-               158, 159
-            ],
             "created_on": "2013-03-02T17:28:12",
             "status": "Q"
         }
@@ -437,7 +438,6 @@ class BroadcastsEndpoint(generics.ListAPIView):
       * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
       * **groups** - the UUIDs of groups that received the broadcast (array of strings)
       * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
-      * **messages** - the ids of messages created by this broadcast (array of ints)
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **status** - the status of this broadcast, a string one of: (filterable: ```status```)
 
@@ -604,6 +604,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow```)
+      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast```)
       * **status** - the status of this message, a string one of: (filterable: ```status```)
 
             Q - Message is queued awaiting to be sent
@@ -666,6 +667,10 @@ class MessagesEndpoint(generics.ListAPIView):
         ids = splitting_getlist(self.request, 'sms')
         if ids:
             queryset = queryset.filter(pk__in=ids)
+
+        smses = splitting_getlist(self.request, 'sms')  # deprecated, use id
+        if smses:
+            queryset = queryset.filter(pk__in=smses)
 
         statuses = splitting_getlist(self.request, 'status')
         if statuses:
@@ -736,6 +741,10 @@ class MessagesEndpoint(generics.ListAPIView):
         if flows:
             queryset = queryset.filter(steps__run__flow__in=flows)
 
+        broadcasts = self.request.QUERY_PARAMS.get('broadcast', None)
+        if broadcasts:
+            queryset = queryset.filter(broadcast__in=broadcasts.split(','))
+
         return queryset.order_by('-created_on').select_related('labels')
 
     @classmethod
@@ -763,6 +772,8 @@ class MessagesEndpoint(generics.ListAPIView):
                                 help="One or more message labels to filter by. ex: Clogged Filter"),
                            dict(name='flow', required=False,
                                 help="One or more flow ids to filter by. ex: 11851"),
+                           dict(name='broadcast', required=False,
+                                help="One or more broadcast ids to filter by. ex: 23432,34565"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -1712,6 +1723,12 @@ class FlowRunEndpoint(generics.ListAPIView):
 
     By making a ```POST``` request to the endpoint you can add a contact to a flow with a specified set of 'extra' variables.
 
+    * **flow_uuid** - the UUID of the flow to start (string)
+    * **contacts** - the UUIDs of the contacts to start in the flow (string array, optional)
+    * **groups** - the UUIDs of any groups this contact is part of (string array, optional)
+    * **extra** - a set of extra variables. (dictionary)
+    * **restart_participants** - a boolean if True force restart of contacts already in a flow. (boolean, optional, defaults to True)
+
     Example:
 
         POST /api/v1/runs.json
@@ -1719,6 +1736,7 @@ class FlowRunEndpoint(generics.ListAPIView):
             "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
             "groups": ["b775ea51-b847-4a20-b668-6c4ce2f61356"]
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "f23777a3-e606-41d8-a925-3d87370e1a2b"],
+            "restart_participants": true,
             "extra": {
                 "confirmation_code":"JFI0358F98",
                 "name":"Ryan Lewis"
@@ -1768,8 +1786,12 @@ class FlowRunEndpoint(generics.ListAPIView):
         if serializer.is_valid():
             serializer.save()
 
-            response_serializer = FlowRunReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            if serializer.object:
+                response_serializer = FlowRunReadSerializer(instance=serializer.object)
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(dict(non_field_errors=["All contacts are already started in this flow, "
+                                                   "use restart_participants to force them to restart in the flow"]),
+                                 status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
