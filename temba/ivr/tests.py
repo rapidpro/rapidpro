@@ -88,7 +88,8 @@ class IVRTests(TembaTest):
         flow = Flow.objects.filter(name='Capture Recording').first()
 
         # start our flow
-        flow.start([], [self.create_contact('Chuck D', number='+13603621737')])
+        contact = self.create_contact('Chuck D', number='+13603621737')
+        flow.start([], [contact])
         call = IVRCall.objects.filter(direction=OUTGOING).first()
 
         # after a call is picked up, twilio will call back to our server
@@ -101,11 +102,10 @@ class IVRTests(TembaTest):
         from temba.tests import MockResponse
 
         # make sure our file isn't there to start
-        filename = '%s/recordings/1/1/runs/1/FAKESID.wav' % settings.MEDIA_ROOT
-        try:
-            os.remove(filename)
-        except:
-            pass
+        run = contact.runs.all().first()
+        recording_file = '%s/recordings/%d/%d/runs/%d/FAKESID.wav' % (settings.MEDIA_ROOT, flow.org.pk, flow.pk, run.pk)
+        if os.path.isfile(recording_file):
+            os.remove(recording_file)
 
         with patch('requests.get') as mock:
             mock.return_value = MockResponse(200, 'Fake Recording Bits')
@@ -117,7 +117,7 @@ class IVRTests(TembaTest):
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertTrue(os.path.exists(filename))
+        self.assertTrue(os.path.isfile(recording_file))
         self.assertEquals(COMPLETED, call.status)
 
         # twilio will also send us a final completion message with the call duration (status of completed again)
