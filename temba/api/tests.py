@@ -241,11 +241,11 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 3)
 
-        response = self.fetchJSON(url, "uuid=%s,%s" % (flow.uuid, flow2.uuid))
+        response = self.fetchJSON(url, "uuid=%s&uuid=%s" % (flow.uuid, flow2.uuid))
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
-        response = self.fetchJSON(url, "flow=%d,%d" % (flow.pk, flow2.pk))
+        response = self.fetchJSON(url, "flow=%d&flow=%d" % (flow.pk, flow2.pk))
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
@@ -808,9 +808,6 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
-        response = self.fetchJSON(url, "group_uuids=%s,%s" % (artists.uuid, actors.uuid))
-        self.assertResultCount(response, 2)
-
         # search using uuid
         response = self.fetchJSON(url, 'uuid=' + drdre.uuid)
         self.assertResultCount(response, 1)
@@ -863,7 +860,7 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
 
         # check deleting by list of UUID
-        response = self.deleteJSON(url, 'uuid=%s,%s' % (jason.uuid, john.uuid))
+        response = self.deleteJSON(url, 'uuid=%s&uuid=%s' % (jason.uuid, john.uuid))
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=jason.pk).is_active)
         self.assertFalse(Contact.objects.get(pk=john.pk).is_active)
@@ -1464,7 +1461,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 3)
 
         # fetch filtering by UUID list
-        response = self.fetchJSON(url, "uuid=%s,%s" % (just_joe.uuid, just_frank.uuid))
+        response = self.fetchJSON(url, "uuid=%s&uuid=%s" % (just_joe.uuid, just_frank.uuid))
         self.assertResultCount(response, 2)
 
 
