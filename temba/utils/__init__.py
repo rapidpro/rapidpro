@@ -387,3 +387,10 @@ def timezone_to_country_code(tz):
             timezone_country[timezone] = countrycode
 
     return timezone_country.get(tz, '')
+
+def splitting_getlist(request, name, default=None):
+    vals = request.QUERY_PARAMS.getlist(name, default)
+    if vals and len(vals) == 1:
+        return vals[0].split(',')
+    else:
+        return vals

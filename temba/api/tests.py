@@ -234,6 +234,28 @@ class APITest(TembaTest):
         flow.is_archived = False
         flow.save()
 
+        flow2 = self.create_flow()
+        flow3 = self.create_flow()
+
+        response = self.fetchJSON(url)
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 3)
+
+        response = self.fetchJSON(url, "uuid=%s&uuid=%s" % (flow.uuid, flow2.uuid))
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 2)
+
+        response = self.fetchJSON(url, "flow=%d&flow=%d" % (flow.pk, flow2.pk))
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 2)
+
+        label2 = FlowLabel.create_unique("Surveys", self.org)
+        label2.toggle_label([flow2], add=True)
+
+        response = self.fetchJSON(url, "label=Polls&label=Surveys")
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 2)
+
     def test_api_runs(self):
         url = reverse('api.runs')
 
@@ -779,10 +801,18 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
+        # search using urns list
+        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
+        self.assertResultCount(response, 2)
+
         # search by group
         response = self.fetchJSON(url, "group=Music+Artists")
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
+
+        actors = self.create_group('Actors', [jay_z])
+        response = self.fetchJSON(url, "group=Music+Artists&group=Actors")
+        self.assertResultCount(response, 2)
 
         response = self.fetchJSON(url, "group_uuids=%s" % artists.uuid)
         self.assertResultCount(response, 1)
@@ -792,6 +822,9 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=' + drdre.uuid)
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
+
+        response = self.fetchJSON(url, 'uuid=%s&uuid=%s' % (drdre.uuid, jay_z.uuid))
+        self.assertResultCount(response, 2)
 
         # check anon org case
         with AnonymousOrg(self.org):
@@ -835,6 +868,20 @@ class APITest(TembaTest):
         # cannot update contact with a used phone
         response = self.postJSON(url, dict(urns=['tel:+250788998877'], uuid=jason.uuid))
         self.assertEquals(400, response.status_code)
+
+        # check deleting by list of UUID
+        response = self.deleteJSON(url, 'uuid=%s&uuid=%s' % (jason.uuid, john.uuid))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Contact.objects.get(pk=jason.pk).is_active)
+        self.assertFalse(Contact.objects.get(pk=john.pk).is_active)
+
+        shinonda = self.create_contact("Shinonda", number="+250788112233")
+        chad = self.create_contact("Chad", number="+250788223344")
+
+        response = self.deleteJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788112233"), urlquote_plus("tel:+250788223344")))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Contact.objects.get(pk=shinonda.pk).is_active)
+        self.assertFalse(Contact.objects.get(pk=chad.pk).is_active)
 
     def test_api_fields(self):
         url = reverse('api.contactfields')
@@ -1103,12 +1150,21 @@ class APITest(TembaTest):
         self.assertEquals(broadcast, msgs[1].broadcast)
 
         # fetch our messages list page
-        response = self.fetchJSON(reverse('api.messages'))
+        response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
         self.assertJSON(response, 'phone', '+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123123')
         self.assertJSON(response, 'phone', '+250788123124')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
+
+        label1 = Label.create_unique("Goo", 'M', self.org)
+        label1.toggle_label([msgs[0]], add=True)
+
+        label2 = Label.create_unique("Fiber", 'M', self.org)
+        label2.toggle_label([msgs[1]], add=True)
+
+        response = self.fetchJSON(url, "label=Goo&label=Fiber")
+        self.assertResultCount(response, 2)
 
     def test_api_messages_invalid_contact(self):
         url = reverse('api.messages')
@@ -1412,6 +1468,15 @@ class APITest(TembaTest):
         self.assertJSON(response, 'name', "Just Joe")
         self.assertJSON(response, 'uuid', unicode(just_joe.uuid))
         self.assertJSON(response, 'size', 1)
+
+        just_frank = self.create_group("Just Frank", [frank])
+
+        response = self.fetchJSON(url)
+        self.assertResultCount(response, 3)
+
+        # fetch filtering by UUID list
+        response = self.fetchJSON(url, "uuid=%s&uuid=%s" % (just_joe.uuid, just_frank.uuid))
+        self.assertResultCount(response, 2)
 
 
 class AfricasTalkingTest(TembaTest):
