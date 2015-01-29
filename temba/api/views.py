@@ -38,7 +38,7 @@ from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
 from temba.msgs.models import Broadcast, Msg, Call
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, json_date_to_datetime, JsonResponse
+from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
 from urlparse import parse_qs
 from twilio import twiml
@@ -433,13 +433,13 @@ class BroadcastsEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **id** - the id of the broadcast (int) (filterable: ```id```)
+      * **id** - the id of the broadcast (int) (filterable: ```id``` repeatable)
       * **urns** - the contact URNs that received the broadcast (array of strings)
       * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
       * **groups** - the UUIDs of groups that received the broadcast (array of strings)
       * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
-      * **status** - the status of this broadcast, a string one of: (filterable: ```status```)
+      * **status** - the status of this broadcast, a string one of: (filterable: ```status``` repeatable)
 
             I - no messages have been sent yet
             Q - some messages are still queued
@@ -494,13 +494,14 @@ class BroadcastsEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('id', None)
+        ids = splitting_getlist(self.request, 'id')
         if ids:
-            queryset = queryset.filter(pk__in=ids.split(','))
+            queryset = queryset.filter(pk__in=ids)
 
-        statuses = self.request.QUERY_PARAMS.get('status', None)
+        statuses = splitting_getlist(self.request, 'status')
         if statuses:
-            queryset = queryset.filter(status__in=statuses.split(','))
+            statuses = [status.upper() for status in statuses]
+            queryset = queryset.filter(status__in=statuses)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -528,9 +529,9 @@ class BroadcastsEndpoint(generics.ListAPIView):
                     slug='broadcast-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
         spec['fields'] = [dict(name='id', required=False,
-                               help="One or more message ids to filter by.  ex: 234235,230420"),
+                               help="One or more message ids to filter by (repeatable).  ex: 234235,230420"),
                           dict(name='status', required=False,
-                               help="One or more status states to filter by.  ex: Q,S,D"),
+                               help="One or more status states to filter by (repeatable).  ex: Q,S,D"),
                           dict(name='before', required=False,
                                help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
@@ -592,19 +593,19 @@ class MessagesEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **channel** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
-      * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn```)
-      * **contact** - the UUID of the contact (string) (filterable: ```contact```)
-      * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids```)
-      * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction```)
-      * **labels** - Any labels set on this message (filterable: ```label```)
+      * **channel** - the id of the channel that sent or received this message (int) (filterable: ```channel``` repeatable)
+      * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn``` repeatable)
+      * **contact** - the UUID of the contact (string) (filterable: ```contact```repeatable )
+      * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
+      * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
+      * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
-      * **flow** - the flow this message is associated with (only filterable as ```flow```)
-      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast```)
-      * **status** - the status of this message, a string one of: (filterable: ```status```)
+      * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
+      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast``` repeatable)
+      * **status** - the status of this message, a string one of: (filterable: ```status``` repeatable)
 
             Q - Message is queued awaiting to be sent
             S - Message has been sent by the channel
@@ -612,7 +613,7 @@ class MessagesEndpoint(generics.ListAPIView):
             H - Incoming message was handled
             F - Message was not sent due to a failure
 
-      * **type** - the type of the message, a string one of: (filterable: ```type```)
+      * **type** - the type of the message, a string one of: (filterable: ```type``` repeatable)
 
             I - A message that was either sent or received from the message inbox
             F - A message that was either sent or received by a flow
@@ -663,36 +664,33 @@ class MessagesEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('id', None)
+        ids = splitting_getlist(self.request, 'sms')
         if ids:
-            queryset = queryset.filter(pk__in=ids.split(','))
+            queryset = queryset.filter(pk__in=ids)
 
-        smses = self.request.QUERY_PARAMS.get('sms', None)  # deprecated, use id
+        smses = splitting_getlist(self.request, 'sms')  # deprecated, use id
         if smses:
-            queryset = queryset.filter(pk__in=smses.split(','))
+            queryset = queryset.filter(pk__in=smses)
 
-        status = self.request.QUERY_PARAMS.get('status', None)
-        if status:
-            statuses = status.upper().split(',')
+        statuses = splitting_getlist(self.request, 'status')
+        if statuses:
+            statuses = [status.upper() for status in statuses]
 
             # to the user, Q and P are the same, but not to us
             if 'Q' in statuses:
                 statuses.append('P')
             queryset = queryset.filter(status__in=statuses)
 
-        direction = self.request.QUERY_PARAMS.get('direction', None)
-        if direction:
-            directions = direction.split(',')
+        directions = splitting_getlist(self.request, 'direction')
+        if directions:
             queryset = queryset.filter(direction__in=directions)
 
-        phone = self.request.QUERY_PARAMS.get('phone', None)
-        if phone:
-            phones = phone.split(',')
+        phones = splitting_getlist(self.request, 'phone')
+        if phones:
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        urn = self.request.QUERY_PARAMS.get('urn', None)
-        if urn:
-            urns = urn.split(',')
+        urns = self.request.QUERY_PARAMS.getlist('urn', None)
+        if urns:
             queryset = queryset.filter(contact__urns__urn__in=urns)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -711,47 +709,37 @@ class MessagesEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        channel = self.request.QUERY_PARAMS.get('channel', None)
-        if channel:
-            try:
-                channel = int(channel)
-                queryset = queryset.filter(channel_id=channel)
-            except:
-                queryset = queryset.filter(pk=-1)
+        channels = self.request.QUERY_PARAMS.getlist('channel', None)
+        if channels:
+            queryset = queryset.filter(channel__id__in=channels)
 
-        contact = self.request.QUERY_PARAMS.get('contact', None)
-        if contact:
-            uuids = contact.split(',')
-            queryset = queryset.filter(contact__uuid__in=uuids)
+        contact_uuids = splitting_getlist(self.request, 'contact')
+        if contact_uuids:
+            queryset = queryset.filter(contact__uuid__in=contact_uuids)
 
-        group = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
-        if group:
-            groups = group.split(',')
+        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
+        if groups:
             queryset = queryset.filter(contact__groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
+        group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            group_uuids = group_uuids.split(',')
             queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
-        type = self.request.QUERY_PARAMS.get('type', None)
-        if type:
-            types = type.split(',')
+        types = splitting_getlist(self.request, 'type')
+        if types:
             queryset = queryset.filter(msg_type__in=types)
 
-        label = self.request.QUERY_PARAMS.get('label', None)
-        if label:
-            labels = label.split(',')
+        labels = self.request.QUERY_PARAMS.getlist('label', None)
+        if labels:
             queryset = queryset.filter(labels__name__in=labels)
 
-        flow = self.request.QUERY_PARAMS.get('flow', None)
-        if flow:
-            flows = flow.split(',')
+        flows = splitting_getlist(self.request, 'flow')
+        if flows:
             queryset = queryset.filter(steps__run__flow__in=flows)
 
-        broadcasts = self.request.QUERY_PARAMS.get('broadcast', None)
+        broadcasts = splitting_getlist(self.request, 'broadcast')
         if broadcasts:
-            queryset = queryset.filter(broadcast__in=broadcasts.split(','))
+            queryset = queryset.filter(broadcast__in=broadcasts)
 
         return queryset.order_by('-created_on').select_related('labels')
 
@@ -763,29 +751,31 @@ class MessagesEndpoint(generics.ListAPIView):
                     slug='sms-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
         spec['fields'] = [ dict(name='id', required=False,
-                                help="One or more message ids to filter by.  ex: 234235,230420"),
+                                help="One or more message ids to filter by. (repeatable)  ex: 234235,230420"),
                            dict(name='contact', required=False,
-                                help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                                help="One or more contact UUIDs to filter by. (repeatable)  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
                            dict(name='group_uuids', required=False,
-                                help="One or more contact group UUIDs to filter by.  ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
+                                help="One or more contact group UUIDs to filter by. (repeatable) ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
                            dict(name='status', required=False,
-                                help="One or more status states to filter by.  ex: Q,S,D"),
+                                help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
                            dict(name='direction', required=False,
-                                help="One or more directions to filter by.  ex: I,O"),
+                                help="One or more directions to filter by. (repeatable) ex: I,O"),
                            dict(name='type', required=False,
-                                help="One or more message types to filter by (inbox or flow). ex: I,F"),
+                                help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
                            dict(name='urn', required=False,
-                                help="A full URN to filter messages by (query parameter can be repeated). ex: tel:+250788123123"),
+                                help="One or more URNs to filter messages by. (repeatable) ex: tel:+250788123123"),
+                           dict(name='label', required=False,
+                                help="One or more message labels to filter by. (repeatable) ex: Clogged Filter"),
                            dict(name='flow', required=False,
-                                help="One or more flow ids to filter by. ex: 11851"),
+                                help="One or more flow ids to filter by. (repeatable) ex: 11851"),
                            dict(name='broadcast', required=False,
-                                help="One or more broadcast ids to filter by. ex: 23432,34565"),
+                                help="One or more broadcast ids to filter by. (repeatable) ex: 23432,34565"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
                                 help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='relayer', required=False,
-                                help="Only return messages that were received or sent by these channels.  ex: 515,854") ]
+                                help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
 
         return spec
 
@@ -814,10 +804,10 @@ class Calls(generics.ListAPIView):
     Returns the incoming and outgoing calls for your organization, most recent first.
 
       * **relayer** - which channel received or placed this call (int) (filterable: ```channel```)
-      * **phone** - the phone number of the caller or callee depending on the call_type (string) (filterable: ```phone```)
+      * **phone** - the phone number of the caller or callee depending on the call_type (string) (filterable: ```phone``` repeatable)
       * **created_on** - when the call was received or sent (datetime) (filterable: ```before``` and ```after```)
       * **duration** - the duration of the call in seconds (int, 0 for missed calls)
-      * **call_type** - one of the following strings: (filterable: ```call_type```)
+      * **call_type** - one of the following strings: (filterable: ```call_type``` repeatable)
 
              mt_call - Outgoing Call
              mo_call - Incoming Call
@@ -853,9 +843,8 @@ class Calls(generics.ListAPIView):
     def get_queryset(self):
         queryset = Call.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('call', None)
+        ids = splitting_getlist(self.request, 'call')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -874,14 +863,12 @@ class Calls(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        call_type = self.request.QUERY_PARAMS.get('call_type', None)
-        if call_type:
-            call_types = call_type.split(',')
+        call_types = splitting_getlist(self.request, 'call_type')
+        if call_types:
             queryset = queryset.filter(call_type__in=call_types)
 
-        phone = self.request.QUERY_PARAMS.get('phone', None)
-        if phone:
-            phones = phone.split(',')
+        phones = splitting_getlist(self.request, 'phone')
+        if phones:
             queryset = queryset.filter(contact__urns__path__in=phones)
 
         channel = self.request.QUERY_PARAMS.get('relayer', None)
@@ -904,9 +891,9 @@ class Calls(generics.ListAPIView):
         spec['fields'] = [ dict(name='call', required=False,
                                 help="One or more call ids to filter by.  ex: 2335,2320"),
                            dict(name='call_type', required=False,
-                                help="One or more types of calls to filter by.  ex: mo_miss"),
+                                help="One or more types of calls to filter by. (repeatable)  ex: mo_miss"),
                            dict(name='phone', required=False,
-                                help="One or more phone numbers to filter by in E164 format.  ex: +250788123123"),
+                                help="One or more phone numbers to filter by in E164 format. (repeatable) ex: +250788123123"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -957,10 +944,10 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     A **GET** returns the list of Android channels for your organization, in the order of last activity date.  Note that all
     status information for the device is as of the last time it was seen and can be null before the first sync.
 
-    * **relayer** - the id of the channel (long)
-    * **phone** - the phone number for the channel (string) (filterable: ```phone```)
+    * **relayer** - the id of the channel (filterable: ```long``` repeatable)
+    * **phone** - the phone number for the channel (string) (filterable: ```phone``` repeatable)
     * **name** - the name of this channel (string)
-    * **country** - which country the sim card for this channel is registered for (string, two letter country code) (filterable: ```country```)
+    * **country** - which country the sim card for this channel is registered for (string, two letter country code) (filterable: ```country``` repeatable)
     * **last_seen** - the datetime when this channel was last seen (datetime) (filterable: ```before``` and ```after```)
     * **power_level** - the power level of the device (int)
     * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string)
@@ -998,11 +985,11 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     A **DELETE** removes all matching channels from your account.  You can filter the list of channels to remove
     using the same attributes as the list call above.
 
-    * **relayer** - the id of the the channel (long)
-    * **phone** - the phone number of the channel to remove (string)
+    * **relayer** - the id of the the channel (long) (filterable: ```long``` repeatable)
+    * **phone** - the phone number of the channel to remove (string) (filterable: ```string``` repeatable)
     * **before** - only delete channels which have not been seen since this date (string) ex: 2012-01-28T18:00:00.000
     * **after** - only delete channels which have been seen since this date (string) ex: 2012-01-28T18:00:00.000
-    * **country** - the country this channel is in (string, two letter country code)
+    * **country** - the country this channel is in (string, two letter country code)(filterable: ```country``` repeatable)
 
     Example:
 
@@ -1046,14 +1033,12 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     def get_queryset(self):
         queryset = Channel.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-last_seen')
 
-        ids = self.request.QUERY_PARAMS.get('relayer', None)
+        ids = splitting_getlist(self.request, 'relayer')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)
+        phones = splitting_getlist(self.request, 'phone')
         if phones:
-            phones = phones.split(',')
             queryset = queryset.filter(address__in=phones)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -1072,10 +1057,9 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        country = self.request.QUERY_PARAMS.get('country', None)
-        if country:
-            country = country.split(',')
-            queryset = queryset.filter(country__in=country)
+        countries = splitting_getlist(self.request, 'country')
+        if countries:
+            queryset = queryset.filter(country__in=countries)
 
         return queryset
 
@@ -1087,15 +1071,15 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
                     slug='channel-list',
                     request="after=2013-01-01T00:00:00.000&country=RW")
         spec['fields'] = [ dict(name='relayer', required=False,
-                                help="One or more channel ids to filter by.  ex: 235,124"),
+                                help="One or more channel ids to filter by. (repeatable)  ex: 235,124"),
                            dict(name='phone', required=False,
-                                help="One or more phone number to filter by.  ex: +250788123123,+250788456456"),
+                                help="One or more phone number to filter by. (repeatable)  ex: +250788123123,+250788456456"),
                            dict(name='before', required=False,
                                 help="Only return channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
                                 help="Only return channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='country', required=False,
-                                help="Only channels which are active in countries with these country codes.  ex: RW") ]
+                                help="Only channels which are active in countries with these country codes. (repeatable) ex: RW") ]
 
         return spec
 
@@ -1123,15 +1107,15 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
                     slug='channel-delete',
                     request="after=2013-01-01T00:00:00.000&country=RW")
         spec['fields'] = [ dict(name='relayer', required=False,
-                                help="Only delete channels with these ids.  ex: 235,124"),
+                                help="Only delete channels with these ids. (repeatable)  ex: 235,124"),
                            dict(name='phone', required=False,
-                                help="Only delete channels with these phones numbers.  ex: +250788123123,+250788456456"),
+                                help="Only delete channels with these phones numbers. (repeatable)  ex: +250788123123,+250788456456"),
                            dict(name='before', required=False,
                                 help="Only delete channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
                                 help="Only delete channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='country', required=False,
-                                help="Only delete channels which are active in countries with these country codes.  ex: RW") ]
+                                help="Only delete channels which are active in countries with these country codes. (repeatable) ex: RW") ]
 
         return spec
 
@@ -1142,7 +1126,7 @@ class Groups(generics.ListAPIView):
 
     A **GET** returns the list of groups for your organization, in the order of last created.
 
-    * **uuid** - the UUID of the group (string) (filterable: ```uuid```)
+    * **uuid** - the UUID of the group (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of the group (string) (filterable: ```name```)
     * **size** - the number of contacts in the group (int)
 
@@ -1194,7 +1178,7 @@ class Groups(generics.ListAPIView):
         spec['fields'] = [dict(name='name', required=False,
                                help="The name of the Contact Group to return.  ex: Reporters"),
                           dict(name='uuid', required=False,
-                               help="The UUID of the Contact Group to return.  ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a")]
+                               help="The UUID of the Contact Group to return. (repeatable) ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a")]
 
         return spec
 
@@ -1251,11 +1235,11 @@ class Contacts(generics.ListAPIView):
 
     A **GET** returns the list of contacts for your organization, in the order of last activity date.
 
-    * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid```)
+    * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of this contact (string, optional)
     * **language** - the preferred language of this contact (string, optional)
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
-    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **fields** - any contact fields on this contact (JSON, optional)
 
     Example:
@@ -1346,9 +1330,8 @@ class Contacts(generics.ListAPIView):
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request).order_by('modified_on')
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated, use urns
+        phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
         if phones:
-            phones = phones.split(',')
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
 
         urns = self.request.QUERY_PARAMS.getlist('urns', None)
@@ -1391,11 +1374,11 @@ class Contacts(generics.ListAPIView):
                     slug='contact-list',
                     request="phone=%2B250788123123")
         spec['fields'] = [dict(name='uuid', required=False,
-                               help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
+                               help="One or more UUIDs to filter by. (repeatable) ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
 
         return spec
 
@@ -1427,11 +1410,11 @@ class Contacts(generics.ListAPIView):
                     slug='contact-delete',
                     request="uuid=27fb583b-3087-4778-a2b3-8af489bf4a93")
         spec['fields'] = [dict(name='uuid', required=False,
-                               help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
+                               help="One or more UUIDs to filter by. (repeatable) ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
         return spec
 
 
@@ -1676,10 +1659,10 @@ class FlowRunEndpoint(generics.ListAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **run** - the id of the run (long) (filterable: ```run```)
-    * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid```)
-    * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact```)
-    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
+    * **run** - the id of the run (long) (filterable: ```run``` repeatable)
+    * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
+    * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
     * **steps** - steps visited by the contact on the flow (array of dictionaries)
     * **values** - values collected during the flow run (array of dictionaries)
@@ -1811,17 +1794,17 @@ class FlowRunEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
 
-        runs = self.request.QUERY_PARAMS.get('run', None)
+        runs = splitting_getlist(self.request, 'run')
         if runs:
-            queryset = queryset.filter(pk__in=runs.split(','))
+            queryset = queryset.filter(pk__in=runs)
 
-        flows = self.request.QUERY_PARAMS.get('flow', None)  # deprecated, use flow_uuid
+        flows = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
         if flows:
-            queryset = queryset.filter(flow__pk__in=flows.split(','))
+            queryset = queryset.filter(flow__pk__in=flows)
 
-        flow_uuids = self.request.QUERY_PARAMS.get('flow_uuid', None)
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
         if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids.split(','))
+            queryset = queryset.filter(flow__uuid__in=flow_uuids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -1839,21 +1822,21 @@ class FlowRunEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phones = self.request.QUERY_PARAMS.get('phone', None)  # deprecated
+        phones = splitting_getlist(self.request, 'phone')  # deprecated
         if phones:
-            queryset = queryset.filter(contact__urns__path__in=phones.split(','))
+            queryset = queryset.filter(contact__urns__path__in=phones)
 
-        groups = self.request.QUERY_PARAMS.get('group', None)  # deprecated, use group_uuids
+        groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups.split(','))
+            queryset = queryset.filter(contact__groups__name__in=groups)
 
-        group_uuids = self.request.QUERY_PARAMS.get('group_uuids', None)
+        group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids.split(','))
+            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
 
-        contacts = self.request.QUERY_PARAMS.get('contact', None)
+        contacts = splitting_getlist(self.request, 'contact')
         if contacts:
-            queryset = queryset.filter(contact__uuid__in=contacts.split(','))
+            queryset = queryset.filter(contact__uuid__in=contacts)
 
         return queryset
 
@@ -1865,13 +1848,13 @@ class FlowRunEndpoint(generics.ListAPIView):
                     slug='run-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [dict(name='run', required=False,
-                               help="One or more run ids to filter by.  ex: 1234,1235"),
+                               help="One or more run ids to filter by. (repeatable) ex: 1234,1235"),
                           dict(name='flow_uuid', required=False,
-                               help="One or more flow UUIDs to filter by.  ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"),
+                               help="One or more flow UUIDs to filter by. (repeatable) ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"),
                           dict(name='contact', required=False,
-                               help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                               help="One or more contact UUIDs to filter by. (repeatable) ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
+                               help="One or more group UUIDs to filter by.(repeatable)  ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='before', required=False,
                                help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
@@ -1931,7 +1914,7 @@ class CampaignEndpoint(generics.ListAPIView):
     You can retrieve the campaigns for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign```)
+      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` repeatable)
       * **name** - the name of this campaign (string)
       * **group** - the name of the group this campaign operates on (string)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
@@ -1976,9 +1959,8 @@ class CampaignEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Campaign.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('campaign', None)
+        ids = splitting_getlist(self.request, 'campaign')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -2007,7 +1989,7 @@ class CampaignEndpoint(generics.ListAPIView):
                     slug='campaign-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by.  ex: 234235,230420"),
+                                help="One or more campaign ids to filter by. (repeatable)  ex: 234235,230420"),
                            dict(name='before', required=False,
                                 help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -2080,8 +2062,8 @@ class CampaignEventEndpoint(generics.ListAPIView):
     You can retrieve the campaign events for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign```)
-      * **event** - only return events with these ids (int) (filterable: ```event```)
+      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` repeatable)
+      * **event** - only return events with these ids (int) (filterable: ```event``` repeatable)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
 
     Example:
@@ -2155,14 +2137,12 @@ class CampaignEventEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = CampaignEvent.objects.filter(campaign__org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        ids = self.request.QUERY_PARAMS.get('campaign', None)
+        ids = splitting_getlist(self.request, 'campaign')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(campaign__pk__in=ids)
 
-        ids = self.request.QUERY_PARAMS.get('event', None)
+        ids = splitting_getlist(self.request, 'event')
         if ids:
-            ids = ids.split(',')
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
@@ -2191,7 +2171,9 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     slug='campaignevent-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by.  ex: 234235,230420"),
+                                help="One or more campaign ids to filter by. (repeatable) ex: 234235,230420"),
+                           dict(name='event', required=False,
+                                help="One or more even ids to filter by. (repeatable) ex:3435,67464"),
                            dict(name='before', required=False,
                                 help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -2235,7 +2217,7 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     slug='campaignevent-delete',
                     request="event=1255")
         spec['fields'] = [ dict(name='event', required=False,
-                                help="Only delete events with these ids ids.  ex: 235,124"),
+                                help="Only delete events with these ids ids. (repeatable) ex: 235,124"),
                            dict(name='campaign', required=False,
                                 help="Only delete events that are part of these campaigns. ex: 1514,141") ]
 
@@ -2333,10 +2315,10 @@ class FlowEndpoint(generics.ListAPIView):
 
     Returns the flows for your organization, listing the most recent flows first.
 
-      * **uuid** - the UUID of the flow (string) (filterable: ```uuid```)
+      * **uuid** - the UUID of the flow (string) (filterable: ```uuid``` repeatable)
       * **name** - the name of the flow (string)
-      * **archived** - whether this poll is archived (boolean) (filterable: ```archived```)
-      * **labels** - the labels for this flow (string array) (filterable: ```label```)
+      * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
+      * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
       * **rulesets** - the rulesets on this flow, including their label, node id and integer id
 
@@ -2422,13 +2404,13 @@ class FlowEndpoint(generics.ListAPIView):
                     slug='flow-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='flow', required=False,
-                                help="One or more flow ids to filter by.  ex: 234235,230420"),
+                                help="One or more flow ids to filter by. (repeatable) ex: 234235,230420"),
                            dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                                help="Only return flows which were created before this date. ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000"),
+                                help="Only return flows which were created after this date. ex: 2012-01-28T18:00:00.000"),
                            dict(name='label', required=False,
-                                help="Only return flows with this label. ex: Polls"),
+                                help="Only return flows with this label. (repeatable) ex: Polls"),
                            dict(name='archived', required=False,
                                 help="Filter returned flows based on whether they are archived. ex: Y")
                            ]
