@@ -1026,7 +1026,7 @@ class APITest(TembaTest):
         self.assertContains(response, "tel:+250788123123")
 
         # bad dates, bad channel
-        response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&phone=%2B250788123123&channel=asdf&sms=124")
+        response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&phone=%2B250788123123&channel=-1&sms=124")
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
 
@@ -1067,7 +1067,7 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
-        response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&urn=%2B250788123123&channel=asdf")
+        response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&urn=%2B250788123123&channel=-1")
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
 
