@@ -711,11 +711,7 @@ class MessagesEndpoint(generics.ListAPIView):
 
         channels = self.request.QUERY_PARAMS.getlist('channel', None)
         if channels:
-            try:
-                channels = [int(channel) for channel in channels]
-                queryset = queryset.filter(channel_id__in=channels)
-            except:
-                queryset = queryset.filter(pk=-1)
+            queryset = queryset.filter(channel__in=channels)
 
         contact_uuids = splitting_getlist(self.request, 'contact')
         if contact_uuids:
