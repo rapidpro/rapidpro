@@ -813,7 +813,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
-        response = self.fetchJSON(url, 'uuid=%s,%s' % (drdre.uuid, jay_z.uuid))
+        response = self.fetchJSON(url, 'uuid=%s&uuid=%s' % (drdre.uuid, jay_z.uuid))
         self.assertResultCount(response, 2)
 
         # check anon org case
