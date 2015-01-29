@@ -1155,7 +1155,7 @@ class Groups(generics.ListAPIView):
         if name:
             queryset = queryset.filter(name__icontains=name)
 
-        uuids = splitting_getlist(self.request, 'uuid')
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -1299,7 +1299,7 @@ class Contacts(generics.ListAPIView):
         queryset = self.get_base_queryset(request)
 
         # to make it harder for users to delete all their contacts by mistake, we require them to filter by UUID or urns
-        uuids = splitting_getlist(request, 'uuid')
+        uuids = request.QUERY_PARAMS.getlist('uuid', None)
         urns = request.QUERY_PARAMS.getlist('urns', None)
 
         if not (uuids or urns):
@@ -1335,11 +1335,11 @@ class Contacts(generics.ListAPIView):
         if groups:
             queryset = queryset.filter(groups__name__in=groups)
 
-        group_uuids = splitting_getlist(self.request ,'group_uuids')
+        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
         if group_uuids:
             queryset = queryset.filter(groups__uuid__in=group_uuids)
 
-        uuids = splitting_getlist(self.request, 'uuid')
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -2341,11 +2341,11 @@ class FlowEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        uuids = splitting_getlist(self.request, 'uuid')
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
-        ids = splitting_getlist(self.request, 'flow')  # deprecated, use uuid
+        ids = self.request.QUERY_PARAMS.getlist('flow', None)  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
