@@ -221,7 +221,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     return category.sources[0]
 
   $scope.onConnectorDrop = (connection) ->
-    $log.debug("onConnectorDrop")
 
     $(connection.source).parent().removeClass('reconnecting')
 
@@ -255,7 +254,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       Flow.updateActionsTarget(node, to)
 
     if $rootScope.ghost
-
       ghost = $rootScope.ghost
       targetId = uuid()
 
@@ -315,7 +313,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.onConnectorDrag = (connection) ->
 
-    $log.debug('onConnectorDrag')
     DragHelper.hide()
 
     # add some css to our source so we can style during moves
@@ -470,6 +467,17 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     # since we are mucking with jquery directly
     return false
 
+  $scope.confirmRemoveConnection = (connection) ->
+    modal = new ConfirmationModal(gettext('Remove'), gettext('Are you sure you want to remove this connection?'))
+    modal.addClass('alert')
+    modal.setListeners
+      onPrimary: ->
+        Flow.removeConnection(connection)
+        Flow.markDirty()
+    modal.show()
+
+    return false
+
   $scope.clickActionSource = (actionset) ->
     if actionset._terminal
       $modal.open
@@ -480,16 +488,28 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           flowController: -> $scope
     else
       if window.mutable
-        $timeout ->
-          DragHelper.showSaveResponse($('#' + actionset.uuid + ' .source'))
-        ,0
+
+        source = $("#" + actionset.uuid + "> .source")
+
+        connection = Plumb.getSourceConnection(source)
+        if connection
+          $scope.confirmRemoveConnection(connection)
+        else
+          $timeout ->
+            DragHelper.showSaveResponse($('#' + actionset.uuid + ' .source'))
+          ,0
 
   $scope.clickRuleSource = (category) ->
     if window.mutable
-      $timeout ->
-        DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
-      ,0
+      source = $("#" + category.sources[0] + "> .source")
 
+      connection = Plumb.getSourceConnection(source)
+      if connection
+        $scope.confirmRemoveConnection(connection)
+      else
+        $timeout ->
+          DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
+        ,0
 
   $scope.addAction = (actionset) ->
 
@@ -1063,7 +1083,7 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
           break
 
       $timeout ->
-        Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid)
+        Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid, 'rules')
         $scope.ruleset.from = null
       ,10
 
@@ -1159,7 +1179,7 @@ ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Fl
             break
 
       $timeout ->
-        Plumb.connect($scope.actionset.from, $scope.actionset.uuid)
+        Plumb.connect($scope.actionset.from, $scope.actionset.uuid, 'actions')
         $scope.actionset.from = null
       ,10
 
