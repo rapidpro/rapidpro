@@ -432,14 +432,14 @@ class BroadcastsEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **id** - the id of the broadcast (int) (filterable: ```id```)
+      * **id** - the id of the broadcast (int) (filterable: ```id``` and repeatable arguments for multiple values)
       * **urns** - the contact URNs that received the broadcast (array of strings)
       * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
       * **groups** - the UUIDs of groups that received the broadcast (array of strings)
       * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
       * **messages** - the ids of messages created by this broadcast (array of ints)
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
-      * **status** - the status of this broadcast, a string one of: (filterable: ```status```)
+      * **status** - the status of this broadcast, a string one of: (filterable: ```status``` and repeatable arguments for multiple values)
 
             I - no messages have been sent yet
             Q - some messages are still queued
@@ -593,18 +593,18 @@ class MessagesEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **channel** - the id of the Android channel that sent or received this message (int) (filterable: ```channel```)
-      * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn```)
-      * **contact** - the UUID of the contact (string) (filterable: ```contact```)
-      * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids```)
-      * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction```)
-      * **labels** - Any labels set on this message (filterable: ```label```)
+      * **channel** - the UUID of the channel that sent or received this message (int) (filterable: ```channel``` and repeatable arguments for multiple values)
+      * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn``` and repeatable arguments for multiple values)
+      * **contact** - the UUID of the contact (string) (filterable: ```contact```and repeatable arguments for multiple values )
+      * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` and repeatable arguments for multiple values)
+      * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` and repeatable arguments for multiple values)
+      * **labels** - Any labels set on this message (filterable: ```label``` and repeatable arguments for multiple values)
       * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
-      * **flow** - the flow this message is associated with (only filterable as ```flow```)
-      * **status** - the status of this message, a string one of: (filterable: ```status```)
+      * **flow** - the flow this message is associated with (only filterable as ```flow``` and repeatable arguments for multiple values)
+      * **status** - the status of this message, a string one of: (filterable: ```status``` and repeatable arguments for multiple values)
 
             Q - Message is queued awaiting to be sent
             S - Message has been sent by the channel
@@ -612,7 +612,7 @@ class MessagesEndpoint(generics.ListAPIView):
             H - Incoming message was handled
             F - Message was not sent due to a failure
 
-      * **type** - the type of the message, a string one of: (filterable: ```type```)
+      * **type** - the type of the message, a string one of: (filterable: ```type``` and repeatable arguments for multiple values)
 
             I - A message that was either sent or received from the message inbox
             F - A message that was either sent or received by a flow
@@ -704,13 +704,9 @@ class MessagesEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        channel = self.request.QUERY_PARAMS.get('channel', None)
-        if channel:
-            try:
-                channel = int(channel)
-                queryset = queryset.filter(channel_id=channel)
-            except:
-                queryset = queryset.filter(pk=-1)
+        channels = self.request.QUERY_PARAMS.getlist('channel', None)
+        if channels:
+            queryset = queryset.filter(channel__uuid__in=channels)
 
         contact_uuids = splitting_getlist(self.request, 'contact')
         if contact_uuids:
@@ -797,10 +793,10 @@ class Calls(generics.ListAPIView):
     Returns the incoming and outgoing calls for your organization, most recent first.
 
       * **relayer** - which channel received or placed this call (int) (filterable: ```channel```)
-      * **phone** - the phone number of the caller or callee depending on the call_type (string) (filterable: ```phone```)
+      * **phone** - the phone number of the caller or callee depending on the call_type (string) (filterable: ```phone``` and repeatable arguments for multiple values)
       * **created_on** - when the call was received or sent (datetime) (filterable: ```before``` and ```after```)
       * **duration** - the duration of the call in seconds (int, 0 for missed calls)
-      * **call_type** - one of the following strings: (filterable: ```call_type```)
+      * **call_type** - one of the following strings: (filterable: ```call_type``` and repeatable arguments for multiple values)
 
              mt_call - Outgoing Call
              mo_call - Incoming Call
@@ -937,10 +933,10 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     A **GET** returns the list of Android channels for your organization, in the order of last activity date.  Note that all
     status information for the device is as of the last time it was seen and can be null before the first sync.
 
-    * **relayer** - the id of the channel (long)
-    * **phone** - the phone number for the channel (string) (filterable: ```phone```)
+    * **relayer** - the id of the channel (filterable: ```long``` and repeatable arguments for multiple values)
+    * **phone** - the phone number for the channel (string) (filterable: ```phone``` and repeatable arguments for multiple values)
     * **name** - the name of this channel (string)
-    * **country** - which country the sim card for this channel is registered for (string, two letter country code) (filterable: ```country```)
+    * **country** - which country the sim card for this channel is registered for (string, two letter country code) (filterable: ```country``` and repeatable arguments for multiple values)
     * **last_seen** - the datetime when this channel was last seen (datetime) (filterable: ```before``` and ```after```)
     * **power_level** - the power level of the device (int)
     * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string)
@@ -978,11 +974,11 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     A **DELETE** removes all matching channels from your account.  You can filter the list of channels to remove
     using the same attributes as the list call above.
 
-    * **relayer** - the id of the the channel (long)
-    * **phone** - the phone number of the channel to remove (string)
+    * **relayer** - the id of the the channel (long) (filterable: ```long``` and repeatable arguments for multiple values)
+    * **phone** - the phone number of the channel to remove (string) (filterable: ```string``` and repeatable arguments for multiple values)
     * **before** - only delete channels which have not been seen since this date (string) ex: 2012-01-28T18:00:00.000
     * **after** - only delete channels which have been seen since this date (string) ex: 2012-01-28T18:00:00.000
-    * **country** - the country this channel is in (string, two letter country code)
+    * **country** - the country this channel is in (string, two letter country code)(filterable: ```country``` and repeatable arguments for multiple values)
 
     Example:
 
@@ -1119,7 +1115,7 @@ class Groups(generics.ListAPIView):
 
     A **GET** returns the list of groups for your organization, in the order of last created.
 
-    * **uuid** - the UUID of the group (string) (filterable: ```uuid```)
+    * **uuid** - the UUID of the group (string) (filterable: ```uuid``` and repeatable arguments for multiple values)
     * **name** - the name of the group (string) (filterable: ```name```)
     * **size** - the number of contacts in the group (int)
 
@@ -1228,7 +1224,7 @@ class Contacts(generics.ListAPIView):
 
     A **GET** returns the list of contacts for your organization, in the order of last activity date.
 
-    * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid```)
+    * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid``` and repeatable arguments for multiple values)
     * **name** - the name of this contact (string, optional)
     * **language** - the preferred language of this contact (string, optional)
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
@@ -1652,10 +1648,10 @@ class FlowRunEndpoint(generics.ListAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **run** - the id of the run (long) (filterable: ```run```)
-    * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid```)
-    * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact```)
-    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
+    * **run** - the id of the run (long) (filterable: ```run``` and repeatable arguments for multiple values)
+    * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` and repeatable arguments for multiple values)
+    * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` and repeatable arguments for multiple values)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` and repeatable arguments for multiple values)
     * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
     * **steps** - steps visited by the contact on the flow (array of dictionaries)
     * **values** - values collected during the flow run (array of dictionaries)
@@ -1896,7 +1892,7 @@ class CampaignEndpoint(generics.ListAPIView):
     You can retrieve the campaigns for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign```)
+      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` and repeatable arguments for multiple values)
       * **name** - the name of this campaign (string)
       * **group** - the name of the group this campaign operates on (string)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
@@ -2044,8 +2040,8 @@ class CampaignEventEndpoint(generics.ListAPIView):
     You can retrieve the campaign events for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign```)
-      * **event** - only return events with these ids (int) (filterable: ```event```)
+      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` and repeatable arguments for multiple values)
+      * **event** - only return events with these ids (int) (filterable: ```event``` and repeatable arguments for multiple values)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
 
     Example:
@@ -2295,10 +2291,10 @@ class FlowEndpoint(generics.ListAPIView):
 
     Returns the flows for your organization, listing the most recent flows first.
 
-      * **uuid** - the UUID of the flow (string) (filterable: ```uuid```)
+      * **uuid** - the UUID of the flow (string) (filterable: ```uuid``` and repeatable arguments for multiple values)
       * **name** - the name of the flow (string)
-      * **archived** - whether this poll is archived (boolean) (filterable: ```archived```)
-      * **labels** - the labels for this flow (string array) (filterable: ```label```)
+      * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
+      * **labels** - the labels for this flow (string array) (filterable: ```label``` and repeatable arguments for multiple values)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
       * **rulesets** - the rulesets on this flow, including their label, node id and integer id
 
