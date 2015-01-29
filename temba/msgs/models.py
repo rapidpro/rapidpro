@@ -24,7 +24,7 @@ from django.utils.html import escape
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
-from temba.channels.models import Channel, ANDROID, SEND
+from temba.channels.models import Channel, ANDROID, SEND, CALL
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
@@ -63,6 +63,7 @@ DELETED = 'D'
 
 INBOX = 'I'
 FLOW = 'F'
+IVR = 'V'
 
 SMS_HIGH_PRIORITY = 1000
 SMS_NORMAL_PRIORITY = 500
@@ -498,7 +499,8 @@ class Msg(models.Model, OrgAssetMixin):
                          (OUTGOING, _("Outgoing")))
 
     MSG_TYPES = ((INBOX, _("Inbox Message")),
-                 (FLOW, _("Flow Message")))
+                 (FLOW, _("Flow Message")),
+                 (IVR, _("IVR Message")))
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -574,6 +576,9 @@ class Msg(models.Model, OrgAssetMixin):
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
+
+    recording_url = models.URLField(null=True, blank=True, max_length=255,
+                                    help_text=_("The url for any recording associated with this message"))
 
     @classmethod
     def send_messages(cls, msgs):
@@ -931,7 +936,9 @@ class Msg(models.Model, OrgAssetMixin):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None):
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+                        status=PENDING, recording_url=None, msg_type=INBOX):
+
         from temba.api.models import WebHookEvent, SMS_RECEIVED
 
         if not org and channel:
@@ -969,7 +976,9 @@ class Msg(models.Model, OrgAssetMixin):
                         created_on=date,
                         queued_on=timezone.now(),
                         direction=INCOMING,
-                        status=PENDING)
+                        msg_type=msg_type,
+                        recording_url=recording_url,
+                        status=status)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -980,7 +989,8 @@ class Msg(models.Model, OrgAssetMixin):
         if channel:
             analytics.track('System', 'temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        msg.handle()
+        if status == PENDING:
+            msg.handle()
 
         # fire an event off for this message
         WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
@@ -1031,18 +1041,30 @@ class Msg(models.Model, OrgAssetMixin):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True):
+                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        recording_url=None, topup_id=None, msg_type=INBOX):
 
         if not org or not user:
             raise ValueError("Trying to create outgoing message with no org or user")
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel)
+        # normally we care about message sending urns
+        scheme = SEND
+
+        # if its an IVR message, we want the call urn instead
+        if msg_type == IVR:
+            scheme = CALL
+
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, scheme=scheme)
 
         if not contact_urn:
-            raise UnreachableException("No send-able URN found for contact")
+            raise UnreachableException("No suitable URN found for contact")
 
         if not channel:
-            channel = org.get_send_channel(contact_urn=contact_urn)
+            if msg_type == IVR:
+                channel = org.get_call_channel()
+            else:
+                channel = org.get_send_channel(contact_urn=contact_urn)
+
             if not channel and not contact.is_test:
                 raise ValueError("No suitable channel available for this org")
 
@@ -1063,6 +1085,7 @@ class Msg(models.Model, OrgAssetMixin):
             same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
                                                 contact__is_test=False,
                                                 channel=channel,
+                                                recording_url=recording_url,
                                                 text=text,
                                                 direction=OUTGOING,
                                                 created_on__gte=created_on - timedelta(minutes=10)).count()
@@ -1081,11 +1104,9 @@ class Msg(models.Model, OrgAssetMixin):
                     return None
 
         # costs 1 credit to send a message
-        topup_id = None
-        if not contact.is_test:
+        if not topup_id and not contact.is_test:
             topup_id = org.decrement_credit()
 
-        msg_type = 'I'
         if response_to:
             msg_type = response_to.msg_type
 
@@ -1118,14 +1139,15 @@ class Msg(models.Model, OrgAssetMixin):
         return msg
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel):
+    def resolve_recipient(org, user, recipient, channel, scheme=SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
         """
         contact = None
         contact_urn = None
-        sendable_schemes = {channel.get_scheme()} if channel else org.get_schemes(SEND)
+
+        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(scheme)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1133,13 +1155,13 @@ class Msg(models.Model, OrgAssetMixin):
                 contact_urn = contact.urns.all().first()
             else:
                 contact = recipient
-                contact_urn = contact.get_urn(schemes=sendable_schemes)  # use highest priority URN we can send to
+                contact_urn = contact.get_urn(schemes=resolved_schemes)  # use highest priority URN we can send to
         elif isinstance(recipient, ContactURN):
-            if recipient.scheme in sendable_schemes:
+            if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, tuple) and len(recipient) == 2:
-            if recipient[0] in sendable_schemes:
+            if recipient[0] in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:

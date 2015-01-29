@@ -7,6 +7,7 @@ import mock
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog
 from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
 from temba.ivr.clients import TwilioClient
+from temba.msgs.models import Msg
 from temba.channels.models import TWILIO, CALL, ANSWER
 from temba.tests import TembaTest
 from twilio.rest import TwilioRestClient, UNSET_TIMEOUT
@@ -134,6 +135,8 @@ class IVRTests(TembaTest):
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_options(self):
 
+        from temba.msgs.models import IVR
+
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
@@ -182,6 +185,11 @@ class IVRTests(TembaTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
 
+        for msg in Msg.objects.all():
+            print msg.__dict__
+
+        self.assertEquals(1, Msg.objects.filter(msg_type=IVR).count())
+
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(20, call.duration)
@@ -197,9 +205,13 @@ class IVRTests(TembaTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
 
+        # two more messages, one inbound and it's response
+        self.assertEquals(3, Msg.objects.filter(msg_type=IVR).count())
+
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
+        self.assertEquals(5, Msg.objects.filter(msg_type=IVR).count())
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
