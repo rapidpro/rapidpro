@@ -593,7 +593,7 @@ class MessagesEndpoint(generics.ListAPIView):
 
     Returns the message activity for your organization, listing the most recent messages first.
 
-      * **channel** - the UUID of the channel that sent or received this message (int) (filterable: ```channel``` and repeatable arguments for multiple values)
+      * **channel** - the id of the channel that sent or received this message (int) (filterable: ```channel``` and repeatable arguments for multiple values)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn``` and repeatable arguments for multiple values)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```and repeatable arguments for multiple values )
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` and repeatable arguments for multiple values)
@@ -706,7 +706,11 @@ class MessagesEndpoint(generics.ListAPIView):
 
         channels = self.request.QUERY_PARAMS.getlist('channel', None)
         if channels:
-            queryset = queryset.filter(channel__uuid__in=channels)
+            try:
+                channels = [int(channel) for channel in channels]
+                queryset = queryset.filter(channel_id__in=channels)
+            except:
+                queryset = queryset.filter(pk=-1)
 
         contact_uuids = splitting_getlist(self.request, 'contact')
         if contact_uuids:
