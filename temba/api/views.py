@@ -529,9 +529,9 @@ class BroadcastsEndpoint(generics.ListAPIView):
                     slug='broadcast-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
         spec['fields'] = [dict(name='id', required=False,
-                               help="One or more message ids to filter by.  ex: 234235,230420"),
+                               help="One or more message ids to filter by (repeatable arguments).  ex: 234235,230420"),
                           dict(name='status', required=False,
-                               help="One or more status states to filter by.  ex: Q,S,D"),
+                               help="One or more status states to filter by (repeatable arguments).  ex: Q,S,D"),
                           dict(name='before', required=False,
                                help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
@@ -746,29 +746,29 @@ class MessagesEndpoint(generics.ListAPIView):
                     slug='sms-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
         spec['fields'] = [ dict(name='id', required=False,
-                                help="One or more message ids to filter by.  ex: 234235,230420"),
+                                help="One or more message ids to filter by. (repeatable arguments)  ex: 234235,230420"),
                            dict(name='contact', required=False,
-                                help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                                help="One or more contact UUIDs to filter by. (repeatable arguments)  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
                            dict(name='group_uuids', required=False,
-                                help="One or more contact group UUIDs to filter by.  ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
+                                help="One or more contact group UUIDs to filter by. (repeatable arguments) ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
                            dict(name='status', required=False,
-                                help="One or more status states to filter by.  ex: Q,S,D"),
+                                help="One or more status states to filter by. (repeatable arguments) ex: Q,S,D"),
                            dict(name='direction', required=False,
-                                help="One or more directions to filter by.  ex: I,O"),
+                                help="One or more directions to filter by. (repeatable arguments) ex: I,O"),
                            dict(name='type', required=False,
-                                help="One or more message types to filter by (inbox or flow). ex: I,F"),
+                                help="One or more message types to filter by (inbox or flow). (repeatable arguments) ex: I,F"),
                            dict(name='urn', required=False,
-                                help="One or more URNs to filter messages by. ex: tel:+250788123123"),
+                                help="One or more URNs to filter messages by. (repeatable arguments) ex: tel:+250788123123"),
                            dict(name='label', required=False,
-                                help="One or more message labels to filter by. ex: Clogged Filter"),
+                                help="One or more message labels to filter by. (repeatable arguments) ex: Clogged Filter"),
                            dict(name='flow', required=False,
-                                help="One or more flow ids to filter by. ex: 11851"),
+                                help="One or more flow ids to filter by.(repeatable arguments)  ex: 11851"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
                                 help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='relayer', required=False,
-                                help="Only return messages that were received or sent by these channels.  ex: 515,854") ]
+                                help="Only return messages that were received or sent by these channels. (repeatable arguments)  ex: 515,854") ]
 
         return spec
 
@@ -884,9 +884,9 @@ class Calls(generics.ListAPIView):
         spec['fields'] = [ dict(name='call', required=False,
                                 help="One or more call ids to filter by.  ex: 2335,2320"),
                            dict(name='call_type', required=False,
-                                help="One or more types of calls to filter by.  ex: mo_miss"),
+                                help="One or more types of calls to filter by. (repeatable arguments)  ex: mo_miss"),
                            dict(name='phone', required=False,
-                                help="One or more phone numbers to filter by in E164 format.  ex: +250788123123"),
+                                help="One or more phone numbers to filter by in E164 format. (repeatable arguments) ex: +250788123123"),
                            dict(name='before', required=False,
                                 help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -1064,15 +1064,15 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
                     slug='channel-list',
                     request="after=2013-01-01T00:00:00.000&country=RW")
         spec['fields'] = [ dict(name='relayer', required=False,
-                                help="One or more channel ids to filter by.  ex: 235,124"),
+                                help="One or more channel ids to filter by. (repeatable arguments)  ex: 235,124"),
                            dict(name='phone', required=False,
-                                help="One or more phone number to filter by.  ex: +250788123123,+250788456456"),
+                                help="One or more phone number to filter by. (repeatable arguments)  ex: +250788123123,+250788456456"),
                            dict(name='before', required=False,
                                 help="Only return channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
                                 help="Only return channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='country', required=False,
-                                help="Only channels which are active in countries with these country codes.  ex: RW") ]
+                                help="Only channels which are active in countries with these country codes. (repeatable arguments) ex: RW") ]
 
         return spec
 
@@ -1100,15 +1100,15 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
                     slug='channel-delete',
                     request="after=2013-01-01T00:00:00.000&country=RW")
         spec['fields'] = [ dict(name='relayer', required=False,
-                                help="Only delete channels with these ids.  ex: 235,124"),
+                                help="Only delete channels with these ids. (repeatable arguments)  ex: 235,124"),
                            dict(name='phone', required=False,
-                                help="Only delete channels with these phones numbers.  ex: +250788123123,+250788456456"),
+                                help="Only delete channels with these phones numbers. (repeatable arguments)  ex: +250788123123,+250788456456"),
                            dict(name='before', required=False,
                                 help="Only delete channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
                                 help="Only delete channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='country', required=False,
-                                help="Only delete channels which are active in countries with these country codes.  ex: RW") ]
+                                help="Only delete channels which are active in countries with these country codes. (repeatable arguments) ex: RW") ]
 
         return spec
 
@@ -1171,7 +1171,7 @@ class Groups(generics.ListAPIView):
         spec['fields'] = [dict(name='name', required=False,
                                help="The name of the Contact Group to return.  ex: Reporters"),
                           dict(name='uuid', required=False,
-                               help="The UUID of the Contact Group to return.  ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a")]
+                               help="The UUID of the Contact Group to return. (repeatable arguments) ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a")]
 
         return spec
 
@@ -1232,7 +1232,7 @@ class Contacts(generics.ListAPIView):
     * **name** - the name of this contact (string, optional)
     * **language** - the preferred language of this contact (string, optional)
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
-    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids```)
+    * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` and repeatable arguments for multiple values)
     * **fields** - any contact fields on this contact (JSON, optional)
 
     Example:
@@ -1367,11 +1367,11 @@ class Contacts(generics.ListAPIView):
                     slug='contact-list',
                     request="phone=%2B250788123123")
         spec['fields'] = [dict(name='uuid', required=False,
-                               help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
+                               help="One or more UUIDs to filter by. (repeatable arguments) ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable arguments) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
 
         return spec
 
@@ -1403,11 +1403,11 @@ class Contacts(generics.ListAPIView):
                     slug='contact-delete',
                     request="uuid=27fb583b-3087-4778-a2b3-8af489bf4a93")
         spec['fields'] = [dict(name='uuid', required=False,
-                               help="One or more UUIDs to filter by.  ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
+                               help="One or more UUIDs to filter by. (repeatable arguments) ex: 27fb583b-3087-4778-a2b3-8af489bf4a93"),
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable arguments) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
         return spec
 
 
@@ -1830,13 +1830,13 @@ class FlowRunEndpoint(generics.ListAPIView):
                     slug='run-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [dict(name='run', required=False,
-                               help="One or more run ids to filter by.  ex: 1234,1235"),
+                               help="One or more run ids to filter by. (repeatable arguments) ex: 1234,1235"),
                           dict(name='flow_uuid', required=False,
-                               help="One or more flow UUIDs to filter by.  ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"),
+                               help="One or more flow UUIDs to filter by. (repeatable arguments) ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"),
                           dict(name='contact', required=False,
-                               help="One or more contact UUIDs to filter by.  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                               help="One or more contact UUIDs to filter by. (repeatable arguments) ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
+                               help="One or more group UUIDs to filter by.(repeatable arguments)  ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='before', required=False,
                                help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
@@ -1971,7 +1971,7 @@ class CampaignEndpoint(generics.ListAPIView):
                     slug='campaign-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by.  ex: 234235,230420"),
+                                help="One or more campaign ids to filter by. (repeatable arguments)  ex: 234235,230420"),
                            dict(name='before', required=False,
                                 help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -2153,7 +2153,9 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     slug='campaignevent-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by.  ex: 234235,230420"),
+                                help="One or more campaign ids to filter by. (repeatable arguments) ex: 234235,230420"),
+                           dict(name='event', required=False,
+                                help="One or more even ids to filter by. (repeatable arguments) ex:3435,67464"),
                            dict(name='before', required=False,
                                 help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
@@ -2197,7 +2199,7 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     slug='campaignevent-delete',
                     request="event=1255")
         spec['fields'] = [ dict(name='event', required=False,
-                                help="Only delete events with these ids ids.  ex: 235,124"),
+                                help="Only delete events with these ids ids. (repeatable arguments) ex: 235,124"),
                            dict(name='campaign', required=False,
                                 help="Only delete events that are part of these campaigns. ex: 1514,141") ]
 
@@ -2384,13 +2386,13 @@ class FlowEndpoint(generics.ListAPIView):
                     slug='flow-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='flow', required=False,
-                                help="One or more flow ids to filter by.  ex: 234235,230420"),
+                                help="One or more flow ids to filter by. (repeatable arguments) ex: 234235,230420"),
                            dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                                help="Only return flows which were created before this date. ex: 2012-01-28T18:00:00.000"),
                            dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000"),
+                                help="Only return flows which were created after this date. ex: 2012-01-28T18:00:00.000"),
                            dict(name='label', required=False,
-                                help="Only return flows with this label. ex: Polls"),
+                                help="Only return flows with this label. (repeatable arguments) ex: Polls"),
                            dict(name='archived', required=False,
                                 help="Filter returned flows based on whether they are archived. ex: Y")
                            ]
