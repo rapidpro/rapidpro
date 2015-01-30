@@ -2888,13 +2888,17 @@ class ExportFlowResultsTask(SmartModel):
         row = 1
         sheet_count = 0
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows).exclude(messages=None)
-        all_steps = all_steps.order_by('run', 'arrived_on').select_related('run','contact').prefetch_related('messages')
+        all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on')
+        all_steps = all_steps.select_related('run','contact').prefetch_related('messages')
 
         # now print out all the raw messages
         all_messages = None
         for step in MemorySavingQuerysetIterator(all_steps):
             if step.contact.is_test:
+                continue
+
+            # if the step has no message to display and no ivr action
+            if not step.get_text():
                 continue
 
             if row > max_rows or not all_messages:
