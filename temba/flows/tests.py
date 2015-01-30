@@ -338,7 +338,7 @@ class RuleTest(TembaTest):
         self.assertEquals(8, entries.ncols)
 
         messages = workbook.sheets()[2]
-        self.assertEquals(6, messages.nrows)
+        self.assertEquals(5, messages.nrows)
         self.assertEquals(6, messages.ncols)
 
         # try getting our results
