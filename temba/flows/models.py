@@ -2888,8 +2888,8 @@ class ExportFlowResultsTask(SmartModel):
         row = 1
         sheet_count = 0
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on').select_related('run',
-                                                                          'contact').prefetch_related('messages')
+        all_steps = FlowStep.objects.filter(run__flow__in=flows).exclude(messages=None)
+        all_steps = all_steps.order_by('run', 'arrived_on').select_related('run','contact').prefetch_related('messages')
 
         # now print out all the raw messages
         all_messages = None
