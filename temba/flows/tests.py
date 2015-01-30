@@ -2532,7 +2532,7 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
-    def test_tanslations_rule_first(self):
+    def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
         # this rule first does not depend on @step.value for the first rule, so

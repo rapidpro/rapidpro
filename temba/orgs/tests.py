@@ -506,7 +506,7 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             self.assertEquals(990, self.org.get_credits_remaining())  # from db
         with self.assertNumQueries(0):
             self.assertEquals(1000, self.org.get_credits_total())  # from cache
@@ -598,7 +598,7 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())

@@ -206,35 +206,3 @@ class IVRCall(SmartModel):
     def start_call(self):
         from .tasks import start_call_task
         start_call_task.delay(self.pk)
-
-
-class IVRAction(models.Model):
-
-    DIRECTION_CHOICES = ((INCOMING, "Incoming"),
-                         (OUTGOING, "Outgoing"))
-
-    org = models.ForeignKey(Org, related_name='ivr_actions',
-                            help_text="The org this message is connected to")
-
-    call = models.ForeignKey(IVRCall, related_name='ivr_actions_for_call',
-                             help_text="The call this action is a part of")
-
-    created_on = models.DateTimeField(help_text="When this message was created", auto_now_add=True)
-
-    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
-                                 help_text="The direction for this action, either incoming or outgoing")
-
-    step = models.ForeignKey(FlowStep, null=True, blank=True, related_name='ivr_actions_for_step',
-                             help_text="The step that created this action")
-
-    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='ivr', on_delete=models.SET_NULL,
-                              help_text="The topup that this action was deducted from")
-
-    @classmethod
-    def create_action(cls, call, step):
-        # costs 1 credit to perform an IVR action
-        topup_id = None
-        if not call.contact.is_test:
-            topup_id = call.org.decrement_credit()
-
-        IVRAction.objects.create(call=call, org=call.org, step=step, topup_id=topup_id)

@@ -173,6 +173,13 @@ class IVRTests(TembaTest):
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
+        # now pretend we are a normal caller
+        eric.is_test = False
+        eric.save()
+        Contact.set_simulation(False)
+        IVRCall.objects.all().delete()
+        flow.start([], [eric], restart_participants=True)
+
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=OUTGOING).first()
 
@@ -184,26 +191,18 @@ class IVRTests(TembaTest):
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
-
-        for msg in Msg.objects.all():
-            print msg.__dict__
-
         self.assertEquals(1, Msg.objects.filter(msg_type=IVR).count())
+        self.assertEquals(1, self.org.get_credits_used())
 
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(20, call.duration)
         self.assertEquals(IN_PROGRESS, call.status)
 
-        # should mention our our action log that we read a message to them
-        run = FlowRun.objects.all().first()
-        logs = ActionLog.objects.filter(run=run).order_by('-pk')
-        self.assertEquals(2, len(logs))
-        self.assertEquals('Read message "Would you like me to call you? Press one for yes, two for no, or three for maybe."', logs.first().text)
-
         # press the number 4 (unexpected)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
+        self.assertEquals(3, self.org.get_credits_used())
 
         # two more messages, one inbound and it's response
         self.assertEquals(3, Msg.objects.filter(msg_type=IVR).count())
@@ -212,6 +211,7 @@ class IVRTests(TembaTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
         self.assertEquals(5, Msg.objects.filter(msg_type=IVR).count())
+        self.assertEquals(5, self.org.get_credits_used())
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
@@ -233,8 +233,10 @@ class IVRTests(TembaTest):
         test_status_update(call, 'failed', FAILED)
         test_status_update(call, 'no-answer', NO_ANSWER)
 
-        # explicitly hanging up an in progress call should remove it
+        # explicitly hanging up on a test call should remove it
         call.update_status('in-progress', 0)
+        eric.is_test = True
+        eric.save()
         call.save()
         IVRCall.hangup_test_call(flow)
         self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())

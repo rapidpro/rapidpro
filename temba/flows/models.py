@@ -1650,11 +1650,6 @@ class Flow(TembaModel, SmartModel):
         for msg in msgs:
             step.add_message(msg)
 
-        # create our ivr action
-        if call:
-            from temba.ivr.models import IVRAction
-            IVRAction.create_action(call, step)
-
         # update the activity for our run
         if not run.contact.is_test:
             self.update_activity(step, previous_step, rule_uuid=rule)
@@ -3077,10 +3072,6 @@ class FlowStep(models.Model):
         msg = self.messages.all().first()
         if msg:
             return msg.text
-
-        # IVR always has a decimal value and no text
-        elif self.ivr_actions_for_step.all():
-            return unicode(self.rule_value)
 
     def add_message(self, msg):
         self.messages.add(msg)

@@ -982,9 +982,8 @@ class Org(SmartModel):
 
         # get how many messages were used on those topups
         expired_msgs = self.msgs.filter(topup__in=expired_topups).count()
-        expired_ivrs = self.ivr_actions.filter(topup__in=expired_topups).count()
 
-        return active_credits + expired_msgs + expired_ivrs
+        return active_credits + expired_msgs
 
     def get_credits_used(self):
         """
@@ -994,9 +993,7 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        total_msgs = self.msgs.filter(org=self, contact__is_test=False).count()
-        total_ivrs = self.ivr_actions.filter(org=self, call__contact__is_test=False).count()
-        return total_msgs + total_ivrs
+        return self.msgs.filter(org=self, contact__is_test=False).count()
 
     def get_credits_remaining(self):
         """
@@ -1070,14 +1067,12 @@ class Org(SmartModel):
         We allow users to receive messages even if they're out of credit. Once they re-add credit, this function
         retro-actively applies topups to any messages or IVR actions that don't have a topup
         """
-        from temba.ivr.models import IVRAction
         from temba.msgs.models import Msg
 
         with self.lock_on(OrgLock.credits):
             # get all items that haven't been credited
             msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False).order_by('created_on')
-            ivr_uncredited = self.ivr_actions.filter(topup=None, call__contact__is_test=False).order_by('created_on')
-            all_uncredited = list(msg_uncredited) + list(ivr_uncredited)
+            all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
             unexpired_topups = list(self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('-expires_on'))
@@ -1109,7 +1104,6 @@ class Org(SmartModel):
             # update items in the database with their new topups
             for topup, items in new_topup_items.iteritems():
                 Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
-                IVRAction.objects.filter(id__in=[item.pk for item in items if isinstance(item, IVRAction)]).update(topup=topup)
 
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)
@@ -1553,12 +1547,11 @@ class TopUp(SmartModel):
             return Decimal(self.price) / Decimal(100)
 
     def used(self):
-        return self.msgs.count() + self.ivr.count()
+        return self.msgs.count()
 
     def revert_topup(self):
         # unwind any items that were assigned to this topup
         self.msgs.update(topup=None)
-        self.ivr.update(topup=None)
 
         # mark this topup as inactive
         self.is_active = False
