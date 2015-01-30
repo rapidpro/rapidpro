@@ -2391,6 +2391,9 @@ class ActionSet(models.Model):
         actions = self.get_actions()
         msgs = []
 
+        if sms:
+            msgs.append(sms)
+
         for action in actions:
             if not execute_reply_action and isinstance(action, ReplyAction):
                 pass

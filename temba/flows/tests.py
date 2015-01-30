@@ -1673,6 +1673,29 @@ class RuleTest(TembaTest):
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
         self.assertEquals(302, response.status_code)
 
+    def test_flow_start_with_start_msg(self):
+        # set our flow
+        self.flow.update(self.definition)
+
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        self.flow.start([], [self.contact], start_msg=sms)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact))
+        run = FlowRun.objects.filter(contact=self.contact).first()
+
+        self.assertEquals(run.steps.all().count(), 2)
+        actionset_step = run.steps.filter(step_type=ACTION_SET).first()
+        ruleset_step = run.steps.filter(step_type=RULE_SET).first()
+
+        # no messages on the ruleset step
+        self.assertFalse(ruleset_step.messages.all())
+
+        # should have 2 messages onthe actionset step
+        self.assertEquals(actionset_step.messages.all().count(), 2)
+
+        # one is the start msg
+        self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
+
     def test_multiple(self):
         # set our flow
         self.flow.update(self.definition)
