@@ -339,7 +339,7 @@ class RuleTest(TembaTest):
 
         messages = workbook.sheets()[2]
         self.assertEquals(6, messages.nrows)
-        self.assertEquals(5, messages.ncols)
+        self.assertEquals(6, messages.ncols)
 
         # try getting our results
         results = self.flow.get_results()
@@ -2388,7 +2388,7 @@ class FlowsTest(FlowFileTest):
 
         messages = workbook.sheets()[2]
         self.assertEquals(10, messages.nrows)
-        self.assertEquals(5, messages.ncols)
+        self.assertEquals(6, messages.ncols)
 
         # assert the time is correct here as well
         self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 3).value, 0)[3])
