@@ -2912,12 +2912,14 @@ class ExportFlowResultsTask(SmartModel):
                 all_messages.write(0, 2, "Date")
                 all_messages.write(0, 3, "Direction")
                 all_messages.write(0, 4, "Message")
+                all_messages.write(0, 5, "Channel")
 
                 all_messages.col(0).width = small_width
                 all_messages.col(1).width = medium_width
                 all_messages.col(2).width = medium_width
                 all_messages.col(3).width = small_width
                 all_messages.col(4).width = large_width
+                all_messages.col(5).width = small_width
 
             all_messages.write(row, 0, step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
             all_messages.write(row, 1, step.contact.name)
@@ -2929,6 +2931,7 @@ class ExportFlowResultsTask(SmartModel):
             else:
                 all_messages.write(row, 3, "OUT")
             all_messages.write(row, 4, step.get_text())
+            all_messages.write(row, 5, step.get_channel_address())
             row += 1
 
             if row % 1000 == 0:
@@ -3077,6 +3080,15 @@ class FlowStep(models.Model):
         # IVR always has a decimal value and no text
         elif self.ivr_actions_for_step.all():
             return unicode(self.rule_value)
+
+    def get_channel_address(self):
+        msg = self.messages.all().first()
+        if msg:
+            return msg.channel.address
+
+        ivr_action = self.ivr_actions_for_step.all().first()
+        if ivr_action:
+            return ivr_action.call.channel.address
 
     def add_message(self, msg):
         self.messages.add(msg)
