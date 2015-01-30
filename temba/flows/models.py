@@ -2935,7 +2935,7 @@ class ExportFlowResultsTask(SmartModel):
             else:
                 all_messages.write(row, 3, "OUT")
             all_messages.write(row, 4, step.get_text())
-            all_messages.write(row, 5, step.get_channel_address())
+            all_messages.write(row, 5, step.get_channel_name())
             row += 1
 
             if row % 1000 == 0:
@@ -3085,14 +3085,14 @@ class FlowStep(models.Model):
         elif self.ivr_actions_for_step.all():
             return unicode(self.rule_value)
 
-    def get_channel_address(self):
+    def get_channel_name(self):
         msg = self.messages.all().first()
         if msg:
-            return msg.channel.address
+            return msg.channel.name
 
         ivr_action = self.ivr_actions_for_step.all().first()
         if ivr_action:
-            return ivr_action.call.channel.address
+            return ivr_action.call.channel.name
 
     def add_message(self, msg):
         self.messages.add(msg)
