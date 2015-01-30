@@ -2283,9 +2283,20 @@ class FlowsTest(FlowFileTest):
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
+
+        self.contact.name = "Ben Haggerty"
+        self.contact.save()
+
+        runs = flow.start_msg_flow([self.contact])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('Hi Ben Haggerty, what is your phone number?', self.contact.msgs.all()[0].text)
+
         self.assertEquals("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
+
+    test_substitution.active = True
 
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')

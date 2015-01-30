@@ -377,7 +377,6 @@ class Broadcast(models.Model):
             text = self.text
 
             if self.language_dict:
-
                 # prepend the contact language if we have one
                 if isinstance(recipient, Contact) and recipient.language:
                     preferred_languages.insert(0, recipient.language)
@@ -1003,6 +1002,10 @@ class Msg(models.Model, OrgAssetMixin):
 
         if contact:
             message_context['contact'] = contact.build_message_context()
+
+        # add 'step.contact' if it isn't already populated (like in flow batch starts)
+        if 'step' not in message_context or not 'contact' in message_context['step']:
+            message_context['step'] = dict(contact=message_context['contact'])
 
         if not org:
             dayfirst = True
