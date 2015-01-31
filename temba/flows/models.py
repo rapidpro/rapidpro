@@ -1624,6 +1624,9 @@ class Flow(TembaModel, SmartModel):
                     msg = Msg(contact=contact, text='', id=0)
                     self.handle_ruleset(entry_rules, step, run, msg)
 
+            if start_msg:
+                step.add_message(start_msg)
+
             runs.append(run)
 
             # add these messages as ones that are ready to send
@@ -2390,9 +2393,6 @@ class ActionSet(models.Model):
     def execute_actions(self, run, sms, started_flows, execute_reply_action=True):
         actions = self.get_actions()
         msgs = []
-
-        if sms:
-            msgs.append(sms)
 
         for action in actions:
             if not execute_reply_action and isinstance(action, ReplyAction):
