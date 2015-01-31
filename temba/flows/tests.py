@@ -1696,6 +1696,9 @@ class RuleTest(TembaTest):
         # one is the start msg
         self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
 
+        # sms msg_type should be FLOW
+        self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+
     def test_multiple(self):
         # set our flow
         self.flow.update(self.definition)
