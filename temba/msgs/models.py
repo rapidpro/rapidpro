@@ -1005,11 +1005,8 @@ class Msg(models.Model, OrgAssetMixin):
         if not text or (text.find('@') < 0 and text.find('=') < 0):
             return text, False
 
-        start = time.time()
-
         if contact:
             message_context['contact'] = contact.build_message_context()
-            print "contact context took: %f" % (time.time() - start)
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
         if 'step' not in message_context or not 'contact' in message_context['step']:
