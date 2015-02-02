@@ -56,7 +56,7 @@
                 %a.href{ href: "{% url 'contacts.contact_read' fire.contact.uuid %}" }= fire.contact|name_or_urn:user_org
 
               .relative-to
-                {{object.relative_to}} - {{fire.get_relative_to_value|date:"M d, Y \a\t h:ma"|slice:"-3"}}
+                {{object.relative_to}} - {{fire.get_relative_to_value|date:"M d, Y \a\t h:ia"|slice:"-3"}}
 
             %td.event_date
               -if fire.is_firing_soon
