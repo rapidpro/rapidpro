@@ -26,9 +26,9 @@ def check_campaigns_task(sched_id=None):
     if not r.get(key):
         with r.lock(key, timeout=3600):
             # for each that needs to be fired
-            for fire in EventFire.objects.filter(fired=None, scheduled__lte=timezone.now()).select_related('org'):
+            for fire in EventFire.objects.filter(fired=None, scheduled__lte=timezone.now()).select_related('event', 'event.org'):
                 try:
-                    push_task(fire.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, id=fire.id))
+                    push_task(fire.event.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, id=fire.id))
 
                 except:  # pragma: no cover
                     logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)
