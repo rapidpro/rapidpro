@@ -1686,6 +1686,7 @@ class Flow(TembaModel, SmartModel):
         """
 
         print "Removing active for %d runs" % len(run_ids)
+
         r = get_redis_connection()
         if run_ids:
             for key in r.keys(self.get_cache_key(FlowCache.step_active_set, '*')):
@@ -2272,6 +2273,7 @@ class RuleSet(models.Model):
 
     def find_matching_rule(self, step, run, event):
         orig_text = event.text
+
         context = run.flow.build_message_context(run.contact, event)
 
         if self.webhook_url:
@@ -3599,7 +3601,7 @@ class AddLabelAction(Action):
                     if run.contact.is_test:
                         ActionLog.create_action_log(run, _("Label '%s' created") % value)
 
-            if label and sms:
+            if label and sms and sms.pk:
                 label.toggle_label([sms], True)
                 if run.contact.is_test:
                     ActionLog.create_action_log(run, _("Added %s label to msg '%s'") % (label.name, sms.text))

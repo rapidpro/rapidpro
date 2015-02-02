@@ -12,10 +12,10 @@ from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.urls import init_analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
-from .models import Msg, ExportMessagesTask, PENDING
+from .models import Msg, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT, FIRE_EVENT
+from temba.utils.queues import pop_task
 
 logger = logging.getLogger(__name__)
-
 
 @task(track_started=True, name='process_message_task')  # pragma: no cover
 def process_message_task(msg_id, from_mage=False, new_contact=False):
@@ -176,6 +176,9 @@ def check_messages_task():
             send_msg_task.delay()
             send_msg_task.delay()
 
+            handle_event_task.delay()
+            handle_event_task.delay()
+
             # also check any incoming messages that are still pending somehow, reschedule them to be handled
             unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
             unhandled_messages = unhandled_messages.exclude(channel__org=None).exclude(contact__is_test=True)
@@ -197,5 +200,38 @@ def export_sms_task(id):
     """
     tasks = ExportMessagesTask.objects.filter(pk=id)
     if tasks:
-        task = tasks[0]
-        task.do_export()
+        export_task = tasks[0]
+        export_task.do_export()
+
+@task(track_started=True, name="handle_event_task")
+def handle_event_task():
+    """
+    Priority queue task that handles both event fires (when fired) and new incoming
+    messages that need to be handled.
+
+    Currently two types of events may be "popped" from our queue:
+           msg - Which contains the id of the Msg to be processed
+          fire - Which contains the id of the EventFire that needs to be fired
+    """
+    from temba.campaigns.models import EventFire
+    r = get_redis_connection()
+
+    # pop off the next task
+    event_task = pop_task(HANDLE_EVENT_TASK)
+
+    # it is possible we have no message to send, if so, just return
+    if not event_task:
+        return
+
+    if event_task['type'] == MSG_EVENT:
+        process_message_task(event_task['id'], event_task.get('from_mage', False), event_task.get('new_contact', False))
+
+    elif event_task['type'] == FIRE_EVENT:
+        # use a lock to make sure we don't do two at once somehow
+        with r.lock('fire_campaign_%s' % event_task['id'], timeout=120):
+            event = EventFire.objects.filter(pk=event_task['id'], fired=None).first()
+            if event:
+                event.fire()
+
+    else:
+        raise Exception("Unexpected event type: %s" % event_task)

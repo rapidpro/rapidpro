@@ -36,11 +36,12 @@ from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call
+from temba.msgs.models import Broadcast, Msg, Call, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
 from urlparse import parse_qs
+from temba.utils.queues import push_task
 from twilio import twiml
 
 
@@ -3388,7 +3389,6 @@ class MageHandler(View):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.tasks import process_message_task
         from temba.triggers.tasks import fire_follow_triggers
 
         authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
@@ -3407,7 +3407,8 @@ class MageHandler(View):
 
             msg = Msg.objects.select_related('org').get(pk=msg_id)
 
-            process_message_task.apply_async(args=[msg.id, True, new_contact], queue='handler')
+            push_task(msg.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                      dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, msg.created_on)
