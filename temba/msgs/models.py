@@ -913,6 +913,24 @@ class Msg(models.Model, OrgAssetMixin):
     def get_flow_step(self):
         return self.steps.all().first()
 
+    def get_flow_id(self):
+        step = self.get_flow_step()
+        flow_id = None
+        if step:
+            flow_id = step.run.flow.id
+
+        return flow_id
+
+
+    def get_flow_name(self):
+        flow_name = ""
+
+        step = self.get_flow_step()
+        if step:
+            flow_name = step.run.flow.name
+
+        return flow_name
+
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
