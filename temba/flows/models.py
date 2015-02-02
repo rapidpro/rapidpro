@@ -1624,6 +1624,9 @@ class Flow(TembaModel, SmartModel):
                     msg = Msg(contact=contact, text='', id=0)
                     self.handle_ruleset(entry_rules, step, run, msg)
 
+            if start_msg:
+                step.add_message(start_msg)
+
             runs.append(run)
 
             # add these messages as ones that are ready to send
