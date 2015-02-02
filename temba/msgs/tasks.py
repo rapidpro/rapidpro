@@ -229,7 +229,7 @@ def handle_event_task():
     elif event_task['type'] == FIRE_EVENT:
         # use a lock to make sure we don't do two at once somehow
         with r.lock('fire_campaign_%s' % event_task['id'], timeout=120):
-            event = EventFire.objects.filter(pk=event_task['id'], fired=None)
+            event = EventFire.objects.filter(pk=event_task['id'], fired=None).first()
             if event:
                 event.fire()
 
