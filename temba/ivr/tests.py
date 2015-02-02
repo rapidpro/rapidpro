@@ -14,6 +14,8 @@ from twilio.rest import TwilioRestClient, UNSET_TIMEOUT
 from twilio.util import RequestValidator
 import os
 from django.conf import settings
+from temba.msgs.models import IVR
+
 
 class MockRequestValidator(RequestValidator):
 
@@ -129,13 +131,27 @@ class IVRTests(TembaTest):
         self.assertEquals(COMPLETED, call.status)
         self.assertEquals(15, call.duration)
 
+        messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
+        self.assertEquals(3, messages.count())
+        self.assertEquals(3, self.org.get_credits_used())
+
+        from temba.flows.models import FlowStep
+        steps = FlowStep.objects.all()
+        self.assertEquals(3, steps.count())
+
+        # each of our steps should have exactly one message
+        for step in steps:
+            self.assertEquals(1, step.messages.all().count(), msg="Step '%s' does not have excatly one message" % step)
+
+        # each message should have exactly one step
+        for msg in messages:
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
+
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_options(self):
-
-        from temba.msgs.models import IVR
 
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
@@ -210,8 +226,12 @@ class IVRTests(TembaTest):
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
-        self.assertEquals(5, Msg.objects.filter(msg_type=IVR).count())
+        messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
+        self.assertEquals(5, messages.count())
         self.assertEquals(5, self.org.get_credits_used())
+
+        for msg in messages:
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))

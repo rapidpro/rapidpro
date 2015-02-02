@@ -445,6 +445,7 @@ class Flow(TembaModel, SmartModel):
                     run.set_completed()
                     return response
 
+                step.add_message(msg)
                 step.save_rule_match(rule, value)
                 ruleset.save_run_value(run, rule, value, recording=recording_url)
 
@@ -500,6 +501,9 @@ class Flow(TembaModel, SmartModel):
 
                 actionset = ActionSet.get(rule.destination)
                 step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
+
+                if msg:
+                    step.add_message(msg)
 
         if actionset:
             run.voice_response = response
@@ -2646,7 +2650,6 @@ class FlowRun(models.Model):
             self.voice_response.say(text)
 
         # create a Msg object to track what happened
-        # TODO: these should mostly be free
         from temba.msgs.models import DELIVERED, IVR
         return Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                    response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)

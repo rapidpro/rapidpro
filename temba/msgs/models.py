@@ -1128,6 +1128,7 @@ class Msg(models.Model, OrgAssetMixin):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
+                        recording_url=recording_url,
                         has_template_error=has_template_error)
 
         if topup_id is not None:

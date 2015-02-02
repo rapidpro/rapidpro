@@ -1,5 +1,5 @@
 -extends "smartmin/read.html"
--load smartmin sms compress temba contacts
+-load smartmin sms compress temba contacts i18n
 
 -block post-header
   -include "flows/simulator.html"
@@ -31,6 +31,45 @@
   -compress css inline
     {% lessblock %}
       :plain
+
+        .to {
+          a {
+            color: @flat-white;
+          }
+        }
+        .recording {
+
+
+
+          padding:1px 6px;
+          padding-left:1px;
+          display:inline-block;
+          margin-right:5px;
+          line-height:0px;
+          font-size:11px;
+
+          .text {
+            display:inline-block;
+            padding-left:0px;
+          }
+
+          &:hover {
+            cursor:pointer;
+          }
+
+          &.playing {
+
+            .stop {
+              display:block;
+            }
+
+            .play {
+              display:none;
+            }
+          }
+        }
+
+
         .flow-name {
           font-size:18px;
           margin-top:-3px;
@@ -162,7 +201,29 @@
 
 -block extra-script
   {{block.super}}
+
   :javascript
+    function playMessage (messageId) {
+      var audio = $('audio#message-' + messageId)
+      var parent = audio.parent();
+      var player = audio[0];
+
+      if (!parent.hasClass('playing')) {
+        audio.bind('ended', function(){
+          parent.removeClass('playing');
+
+        });
+
+        parent.addClass('playing');
+        player.currentTime = 0;
+        player.play();
+
+      } else {
+        parent.removeClass('playing');
+        player.pause();
+      }
+    }
+
 
     $(window).scroll(function() {
       var top = $(this).scrollTop();
@@ -245,7 +306,7 @@
                   .glyph.icon-bubbles-2
 
                 .active
-                  -if run.is_active or run.pk == 12461
+                  -if run.is_active
                 .most-recent
                   .title
                     Last message sent {{last.created_on}}
@@ -263,17 +324,41 @@
 
           -for msg in messages
             -if msg.direction == 'O'
-              .imsg.from= msg.text
+              .imsg.from
+                {{msg.text}}
+                -if msg.recording_url
+                  .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
+                    %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                    .play
+                      %a{href:'javascript:void();'}
+                        listen
+                    .stop.hide
+                      %a{href:'javascript:void();'}
+                        stop
             -if msg.direction == 'I'
               -if msg.text == ''
                 .imsg.to.empty
                   Empty message
               -else
-                .imsg.to= msg.text
+                .imsg.to
+                  {{msg.text}}
+                  -if msg.recording_url
+                    .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
+                      %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                      .play
+                        %a{href:'javascript:void();'}
+                          listen
+                      .stop.hide
+                        %a{href:'javascript:void();'}
+                          stop
+
+
             -with msg.get_flow_step as step
               -if step and step.rule_category
                 .ilog.from
                   Categorized as {{step.rule_category}}
+
+
           -if not run.is_active
             .ilog.from
               -if run.expired_on
