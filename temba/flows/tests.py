@@ -337,9 +337,37 @@ class RuleTest(TembaTest):
         self.assertEquals(3, entries.nrows)
         self.assertEquals(8, entries.ncols)
 
+        self.assertEqual(entries.cell(0, 0).value, "Phone")
+        self.assertEqual(entries.cell(0, 1).value, "Name")
+        self.assertEqual(entries.cell(0, 2).value, "Groups")
+        self.assertEqual(entries.cell(0, 3).value, "First Seen")
+        self.assertEqual(entries.cell(0, 4).value, "Last Seen")
+        self.assertEqual(entries.cell(0, 5).value, "color (Category) - Color Flow")
+        self.assertEqual(entries.cell(0, 6).value, "color (Value) - Color Flow")
+        self.assertEqual(entries.cell(0, 7).value, "color (Text) - Color Flow")
+
+        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
+        self.assertEqual(entries.cell(1, 1).value, "Eric")
+
+        self.assertEqual(entries.cell(2, 0).value, "+250788383383")
+        self.assertEqual(entries.cell(2, 1).value, "Nic")
+
         messages = workbook.sheets()[2]
         self.assertEquals(5, messages.nrows)
         self.assertEquals(6, messages.ncols)
+
+        self.assertEqual(messages.cell(0, 0).value, "Phone")
+        self.assertEqual(messages.cell(0, 1).value, "Name")
+        self.assertEqual(messages.cell(0, 2).value, "Date")
+        self.assertEqual(messages.cell(0, 3).value, "Direction")
+        self.assertEqual(messages.cell(0, 4).value, "Message")
+        self.assertEqual(messages.cell(0, 5).value, "Channel")
+
+        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
+        self.assertEqual(messages.cell(1, 1).value, "Eric")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
 
         # try getting our results
         results = self.flow.get_results()
@@ -2389,6 +2417,19 @@ class FlowsTest(FlowFileTest):
         messages = workbook.sheets()[2]
         self.assertEquals(10, messages.nrows)
         self.assertEquals(6, messages.ncols)
+
+        self.assertEqual(messages.cell(0, 0).value, "Phone")
+        self.assertEqual(messages.cell(0, 1).value, "Name")
+        self.assertEqual(messages.cell(0, 2).value, "Date")
+        self.assertEqual(messages.cell(0, 3).value, "Direction")
+        self.assertEqual(messages.cell(0, 4).value, "Message")
+        self.assertEqual(messages.cell(0, 5).value, "Channel")
+
+        self.assertEqual(messages.cell(1, 0).value, "+12065552020")
+        self.assertEqual(messages.cell(1, 1).value, "Ben Haggerty")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "Thanks for registering a new mother, what is her name?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
 
         # assert the time is correct here as well
         self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 3).value, 0)[3])
