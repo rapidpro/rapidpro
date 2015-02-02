@@ -831,6 +831,7 @@ CELERYBEAT_SCHEDULE = {
 CELERY_TASK_MAP = {
     'send_msg_task': 'temba.channels.tasks.send_msg_task',
     'start_msg_flow_batch': 'temba.flows.tasks.start_msg_flow_batch_task',
+    'handle_event_task': 'temba.msgs.tasks.handle_event_task',
 }
 
 #-----------------------------------------------------------------------------------

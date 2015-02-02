@@ -41,6 +41,11 @@ __message_handlers = None
 MSG_QUEUE = 'msgs'
 SEND_MSG_TASK = 'send_msg_task'
 
+HANDLER_QUEUE = 'handler'
+HANDLE_EVENT_TASK = 'handle_event_task'
+MSG_EVENT = 'msg'
+FIRE_EVENT = 'fire'
+
 BATCH_SIZE = 500
 
 INITIALIZING = 'I'
@@ -862,8 +867,8 @@ class Msg(models.Model, OrgAssetMixin):
 
         # others do in celery
         else:
-            from temba.msgs.tasks import process_message_task
-            process_message_task.apply_async(args=[self.id], queue='handler')
+            push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                      dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
 
     def build_message_context(self):
         message_context = dict()
@@ -1000,8 +1005,11 @@ class Msg(models.Model, OrgAssetMixin):
         if not text or (text.find('@') < 0 and text.find('=') < 0):
             return text, False
 
+        start = time.time()
+
         if contact:
             message_context['contact'] = contact.build_message_context()
+            print "contact context took: %f" % (time.time() - start)
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
         if 'step' not in message_context or not 'contact' in message_context['step']:

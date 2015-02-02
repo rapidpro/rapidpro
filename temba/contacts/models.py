@@ -234,15 +234,28 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
             if value.category:
                 return value.category
             else:
-                value_type = value.contact_field.value_type
-                if value_type == DATETIME:
-                    return self.org.format_date(value.datetime_value)
-                elif value_type == DECIMAL:
-                    return format_decimal(value.decimal_value)
-                else:
-                    return value.string_value
+                field = value.contact_field
+                return Contact.get_field_display_for_value(field, value)
         else:
             return None
+
+    @classmethod
+    def get_field_display_for_value(cls, field, value):
+        """
+        Utility method to determine best display value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if value.category:
+            return value.category
+        else:
+            if field.value_type == DATETIME:
+                return field.org.format_date(value.datetime_value)
+            elif field.value_type == DECIMAL:
+                return format_decimal(value.decimal_value)
+            else:
+                return value.string_value
 
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
@@ -808,15 +821,17 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         contact_dict['groups'] = ",".join([_.name for _ in self.groups.all()])
         contact_dict['uuid'] = self.uuid
 
-
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
             urn_value = self.get_urn_display(scheme=scheme, org=org)
             contact_dict[scheme] = urn_value if not urn_value is None else ''
 
+        # get all the values for this contact
+        contact_values = {v.contact_field.key: v for v in Value.objects.filter(contact=self).exclude(contact_field=None).select_related('contact_field')}
+
         # add all fields
-        for field in ContactField.objects.filter(org_id=self.org_id):
-            field_value = self.get_field_display(field.key)
+        for field in ContactField.objects.filter(org_id=self.org_id).select_related('org'):
+            field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
             contact_dict[field.key] = field_value if not field_value is None else ''
 
         return contact_dict
