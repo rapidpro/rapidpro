@@ -41,6 +41,11 @@ __message_handlers = None
 MSG_QUEUE = 'msgs'
 SEND_MSG_TASK = 'send_msg_task'
 
+HANDLER_QUEUE = 'handler'
+HANDLE_EVENT_TASK = 'handle_event_task'
+MSG_EVENT = 'msg'
+FIRE_EVENT = 'fire'
+
 BATCH_SIZE = 500
 
 INITIALIZING = 'I'
@@ -378,7 +383,6 @@ class Broadcast(models.Model):
             text = self.text
 
             if self.language_dict:
-
                 # prepend the contact language if we have one
                 if isinstance(recipient, Contact) and recipient.language:
                     preferred_languages.insert(0, recipient.language)
@@ -868,8 +872,8 @@ class Msg(models.Model, OrgAssetMixin):
 
         # others do in celery
         else:
-            from temba.msgs.tasks import process_message_task
-            process_message_task.apply_async(args=[self.id], queue='handler')
+            push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                      dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
 
     def build_message_context(self):
         message_context = dict()
@@ -918,6 +922,24 @@ class Msg(models.Model, OrgAssetMixin):
 
     def get_flow_step(self):
         return self.steps.all().first()
+
+    def get_flow_id(self):
+        step = self.get_flow_step()
+        flow_id = None
+        if step:
+            flow_id = step.run.flow.id
+
+        return flow_id
+
+
+    def get_flow_name(self):
+        flow_name = ""
+
+        step = self.get_flow_step()
+        if step:
+            flow_name = step.run.flow.name
+
+        return flow_name
 
     def as_task_json(self):
         """
@@ -1015,6 +1037,10 @@ class Msg(models.Model, OrgAssetMixin):
 
         if contact:
             message_context['contact'] = contact.build_message_context()
+
+        # add 'step.contact' if it isn't already populated (like in flow batch starts)
+        if 'step' not in message_context or not 'contact' in message_context['step']:
+            message_context['step'] = dict(contact=message_context['contact'])
 
         if not org:
             dayfirst = True

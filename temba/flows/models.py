@@ -1614,6 +1614,9 @@ class Flow(TembaModel, SmartModel):
                     msg = Msg(contact=contact, text='', id=0)
                     self.handle_ruleset(entry_rules, step, run, msg)
 
+            if start_msg:
+                step.add_message(start_msg)
+
             runs.append(run)
 
             # add these messages as ones that are ready to send
@@ -1668,6 +1671,7 @@ class Flow(TembaModel, SmartModel):
         """
 
         print "Removing active for %d runs" % len(run_ids)
+
         r = get_redis_connection()
         if run_ids:
             for key in r.keys(self.get_cache_key(FlowCache.step_active_set, '*')):
@@ -2253,10 +2257,7 @@ class RuleSet(models.Model):
         return False
 
     def find_matching_rule(self, step, run, msg):
-
-        orig_text = None
-        if msg:
-            orig_text = msg.text
+        orig_text = msg.text
 
         context = run.flow.build_message_context(run.contact, msg)
 
@@ -2890,13 +2891,17 @@ class ExportFlowResultsTask(SmartModel):
         row = 1
         sheet_count = 0
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on').select_related('run',
-                                                                          'contact').prefetch_related('messages')
+        all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on', 'pk')
+        all_steps = all_steps.select_related('run','contact').prefetch_related('messages')
 
         # now print out all the raw messages
         all_messages = None
         for step in MemorySavingQuerysetIterator(all_steps):
             if step.contact.is_test:
+                continue
+
+            # if the step has no message to display and no ivr action
+            if not step.get_text():
                 continue
 
             if row > max_rows or not all_messages:
@@ -2914,12 +2919,14 @@ class ExportFlowResultsTask(SmartModel):
                 all_messages.write(0, 2, "Date")
                 all_messages.write(0, 3, "Direction")
                 all_messages.write(0, 4, "Message")
+                all_messages.write(0, 5, "Channel")
 
                 all_messages.col(0).width = small_width
                 all_messages.col(1).width = medium_width
                 all_messages.col(2).width = medium_width
                 all_messages.col(3).width = small_width
                 all_messages.col(4).width = large_width
+                all_messages.col(5).width = small_width
 
             all_messages.write(row, 0, step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
             all_messages.write(row, 1, step.contact.name)
@@ -2931,6 +2938,7 @@ class ExportFlowResultsTask(SmartModel):
             else:
                 all_messages.write(row, 3, "OUT")
             all_messages.write(row, 4, step.get_text())
+            all_messages.write(row, 5, step.get_channel_name())
             row += 1
 
             if row % 1000 == 0:
@@ -3075,6 +3083,11 @@ class FlowStep(models.Model):
         msg = self.messages.all().first()
         if msg:
             return msg.text
+
+    def get_channel_name(self):
+        msg = self.messages.all().first()
+        if msg:
+            return msg.channel.name
 
     def add_message(self, msg):
         self.messages.add(msg)
@@ -3580,7 +3593,7 @@ class AddLabelAction(Action):
                     if run.contact.is_test:
                         ActionLog.create_action_log(run, _("Label '%s' created") % value)
 
-            if label and sms:
+            if label and sms and sms.pk:
                 label.toggle_label([sms], True)
                 if run.contact.is_test:
                     ActionLog.create_action_log(run, _("Added %s label to msg '%s'") % (label.name, sms.text))

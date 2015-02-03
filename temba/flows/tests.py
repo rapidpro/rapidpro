@@ -337,9 +337,37 @@ class RuleTest(TembaTest):
         self.assertEquals(3, entries.nrows)
         self.assertEquals(8, entries.ncols)
 
+        self.assertEqual(entries.cell(0, 0).value, "Phone")
+        self.assertEqual(entries.cell(0, 1).value, "Name")
+        self.assertEqual(entries.cell(0, 2).value, "Groups")
+        self.assertEqual(entries.cell(0, 3).value, "First Seen")
+        self.assertEqual(entries.cell(0, 4).value, "Last Seen")
+        self.assertEqual(entries.cell(0, 5).value, "color (Category) - Color Flow")
+        self.assertEqual(entries.cell(0, 6).value, "color (Value) - Color Flow")
+        self.assertEqual(entries.cell(0, 7).value, "color (Text) - Color Flow")
+
+        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
+        self.assertEqual(entries.cell(1, 1).value, "Eric")
+
+        self.assertEqual(entries.cell(2, 0).value, "+250788383383")
+        self.assertEqual(entries.cell(2, 1).value, "Nic")
+
         messages = workbook.sheets()[2]
-        self.assertEquals(6, messages.nrows)
-        self.assertEquals(5, messages.ncols)
+        self.assertEquals(5, messages.nrows)
+        self.assertEquals(6, messages.ncols)
+
+        self.assertEqual(messages.cell(0, 0).value, "Phone")
+        self.assertEqual(messages.cell(0, 1).value, "Name")
+        self.assertEqual(messages.cell(0, 2).value, "Date")
+        self.assertEqual(messages.cell(0, 3).value, "Direction")
+        self.assertEqual(messages.cell(0, 4).value, "Message")
+        self.assertEqual(messages.cell(0, 5).value, "Channel")
+
+        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
+        self.assertEqual(messages.cell(1, 1).value, "Eric")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
 
         # try getting our results
         results = self.flow.get_results()
@@ -1673,6 +1701,32 @@ class RuleTest(TembaTest):
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
         self.assertEquals(302, response.status_code)
 
+    def test_flow_start_with_start_msg(self):
+        # set our flow
+        self.flow.update(self.definition)
+
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        self.flow.start([], [self.contact], start_msg=sms)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact))
+        run = FlowRun.objects.filter(contact=self.contact).first()
+
+        self.assertEquals(run.steps.all().count(), 2)
+        actionset_step = run.steps.filter(step_type=ACTION_SET).first()
+        ruleset_step = run.steps.filter(step_type=RULE_SET).first()
+
+        # no messages on the ruleset step
+        self.assertFalse(ruleset_step.messages.all())
+
+        # should have 2 messages onthe actionset step
+        self.assertEquals(actionset_step.messages.all().count(), 2)
+
+        # one is the start msg
+        self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
+
+        # sms msg_type should be FLOW
+        self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+
     def test_multiple(self):
         # set our flow
         self.flow.update(self.definition)
@@ -2283,9 +2337,20 @@ class FlowsTest(FlowFileTest):
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
+
+        self.contact.name = "Ben Haggerty"
+        self.contact.save()
+
+        runs = flow.start_msg_flow([self.contact])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('Hi Ben Haggerty, what is your phone number?', self.contact.msgs.all()[0].text)
+
         self.assertEquals("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
+
+    test_substitution.active = True
 
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
@@ -2388,7 +2453,20 @@ class FlowsTest(FlowFileTest):
 
         messages = workbook.sheets()[2]
         self.assertEquals(10, messages.nrows)
-        self.assertEquals(5, messages.ncols)
+        self.assertEquals(6, messages.ncols)
+
+        self.assertEqual(messages.cell(0, 0).value, "Phone")
+        self.assertEqual(messages.cell(0, 1).value, "Name")
+        self.assertEqual(messages.cell(0, 2).value, "Date")
+        self.assertEqual(messages.cell(0, 3).value, "Direction")
+        self.assertEqual(messages.cell(0, 4).value, "Message")
+        self.assertEqual(messages.cell(0, 5).value, "Channel")
+
+        self.assertEqual(messages.cell(1, 0).value, "+12065552020")
+        self.assertEqual(messages.cell(1, 1).value, "Ben Haggerty")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "Thanks for registering a new mother, what is her name?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
 
         # assert the time is correct here as well
         self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 3).value, 0)[3])
