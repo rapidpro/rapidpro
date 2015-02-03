@@ -937,7 +937,7 @@ class Msg(models.Model, OrgAssetMixin):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
-                        status=PENDING, recording_url=None, msg_type=INBOX):
+                        status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
 
@@ -962,7 +962,9 @@ class Msg(models.Model, OrgAssetMixin):
 
         # costs 1 credit to receive a message
         topup_id = None
-        if not contact.is_test:
+        if topup:
+            topup_id = topup.pk
+        elif not contact.is_test:
             topup_id = org.decrement_credit()
 
         # we limit text messages to 640 characters
@@ -992,8 +994,8 @@ class Msg(models.Model, OrgAssetMixin):
         if status == PENDING:
             msg.handle()
 
-        # fire an event off for this message
-        WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
+            # fire an event off for this message
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
 
         return msg
 
