@@ -1402,6 +1402,34 @@ class ContactTest(TembaTest):
             self.mary.update_urns([('tel', "54321"), ('twitter', 'mary_mary')])
             self.assertEquals([self.frank, self.joe], list(_123_group.contacts.order_by('name')))
 
+    def test_simulator_contact_views(self):
+        simulator_contact = self.create_contact("Simulator Contact", "+250788123123")
+        simulator_contact.is_test = True
+        simulator_contact.save()
+
+        other_contact = self.create_contact("Will", "+250788987987")
+
+        group = self.create_group("Members", [simulator_contact, other_contact])
+
+        self.login(self.admin)
+        response = self.client.get(reverse('contacts.contact_read', args=[simulator_contact.uuid]))
+        self.assertEquals(response.status_code, 404)
+
+        response = self.client.get(reverse('contacts.contact_update', args=[simulator_contact.pk]))
+        self.assertEquals(response.status_code, 404)
+
+        response = self.client.get(reverse('contacts.contact_list'))
+        self.assertEquals(response.status_code, 200)
+        self.assertFalse(simulator_contact in response.context['object_list'])
+        self.assertTrue(other_contact in response.context['object_list'])
+        self.assertFalse("Simulator Contact" in response.content)
+
+        response = self.client.get(reverse('contacts.contact_filter', args=[group.pk]))
+        self.assertEquals(response.status_code, 200)
+        self.assertFalse(simulator_contact in response.context['object_list'])
+        self.assertTrue(other_contact in response.context['object_list'])
+        self.assertFalse("Simulator Contact" in response.content)
+
 
 class ContactURNTest(TembaTest):
     def setUp(self):
