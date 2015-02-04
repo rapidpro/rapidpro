@@ -410,9 +410,12 @@ class ParserTest(TembaTest):
                           evaluate_template("Hello @contact|title_case", context))
         self.assertEquals(("Hello JOE", []),
                           evaluate_template("Hello @contact.first_name|upper_case", context))
-
         self.assertEquals(("Hello Joe from info@example.com", []),
                           evaluate_template("Hello @contact.first_name from info@example.com", context))
+        self.assertEquals(("Joe", []),
+                          evaluate_template("@contact.first_name", context))
+        self.assertEquals(("foo@nicpottier.com", []),
+                          evaluate_template("foo@nicpottier.com", context))
 
 
         # evaluation errors
