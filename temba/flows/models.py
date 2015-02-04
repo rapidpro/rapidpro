@@ -2257,7 +2257,10 @@ class RuleSet(models.Model):
         return False
 
     def find_matching_rule(self, step, run, msg):
-        orig_text = msg.text
+
+        orig_text = None
+        if msg:
+            orig_text = msg.text
 
         context = run.flow.build_message_context(run.contact, msg)
 
