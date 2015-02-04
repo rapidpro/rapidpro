@@ -78,7 +78,7 @@ def evaluate_template_old(template, context, url_encode=False):
         return evaluated
 
     # substitute classic style @xxx.yyy[|filter[:"param"]] expressions
-    regex = re.compile(r'@([\w\.\|]*[\w](:([\"\']).*?\3)?)', flags=re.MULTILINE | re.UNICODE)
+    regex = re.compile(r'\B@([\w\.\|]*[\w](:([\"\']).*?\3)?)', flags=re.MULTILINE | re.UNICODE)
     return regex.sub(resolve_expression, template), errors
 
 

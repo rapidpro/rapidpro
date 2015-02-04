@@ -411,6 +411,10 @@ class ParserTest(TembaTest):
         self.assertEquals(("Hello JOE", []),
                           evaluate_template("Hello @contact.first_name|upper_case", context))
 
+        self.assertEquals(("Hello Joe from info@example.com", []),
+                          evaluate_template("Hello @contact.first_name from info@example.com", context))
+
+
         # evaluation errors
         self.assertEquals(("Error: =()", ["Syntax error at ')'"]),
                           evaluate_template("Error: =()",
