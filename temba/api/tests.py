@@ -1968,6 +1968,19 @@ class NexmoTest(TembaTest):
                 r = get_redis_connection()
                 r.delete('sms_sent_%d' % msg.id)
 
+                # test some throttling by sending six messages right after another
+                start = time.time()
+                for i in range(6):
+                    Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                    r.delete('sms_sent_%d' % msg.id)
+
+                    msg = bcast.get_messages()[0]
+                    self.assertEquals(SENT, msg.status)
+
+                # assert we sent the messages out in a reasonable amount of time
+                end = time.time()
+                self.assertTrue(1.5 > end - start > 1, "Sending of six messages took: %f" % (end - start))
+
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -1981,7 +1994,6 @@ class NexmoTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
-
 
 
 class VumiTest(TembaTest):
