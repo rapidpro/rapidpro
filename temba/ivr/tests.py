@@ -190,6 +190,7 @@ class IVRTests(TembaTest):
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
         # now pretend we are a normal caller
+        ActionLog.objects.all().delete()
         eric.is_test = False
         eric.save()
         Contact.set_simulation(False)
@@ -239,6 +240,10 @@ class IVRTests(TembaTest):
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())
+
+        # also shouldn't have any ActionLogs for non-test users
+        self.assertEquals(0, ActionLog.objects.all().count())
+        self.assertEquals(1, flow.get_completed_runs())
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):

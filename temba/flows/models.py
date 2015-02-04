@@ -394,7 +394,7 @@ class Flow(TembaModel, SmartModel):
             return response
 
         flow = run.flow
-        is_test_contact = run.contact
+        is_test_contact = call.contact.is_test
 
         from temba.msgs.models import HANDLED, IVR
 
@@ -529,6 +529,14 @@ class Flow(TembaModel, SmartModel):
                 action_msgs += actionset.execute_actions(run, msg, [])
                 step.left_on = timezone.now()
                 step.save(update_fields=['left_on'])
+
+                # log it for our test contacts
+                if is_test_contact:
+                    ActionLog.create_action_log(step.run,
+                                                _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+
+                response.hangup()
+                run.set_completed()
 
             for msg in action_msgs:
                 step.add_message(msg)
