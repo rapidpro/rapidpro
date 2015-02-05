@@ -91,6 +91,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
     def get_queryset(self, **kwargs):
         qs = super(ContactListView, self).get_queryset(**kwargs)
+        qs = qs.filter(is_test=False)
         org = self.request.user.get_org()
 
         # contact list views don't use regular field searching but use more complex contact searching
@@ -514,7 +515,7 @@ class ContactCRUDL(SmartCRUDL):
             if self.request.user.is_superuser:
                 contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
             else:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True, org=self.request.user.get_org()).first()
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
 
             if contact is None:
                 raise Http404("No active contact with that id")
@@ -739,6 +740,10 @@ class ContactCRUDL(SmartCRUDL):
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
         submit_button_name = _("Save Changes")
+
+        def derive_queryset(self):
+            qs = super(ContactCRUDL.Update, self).derive_queryset()
+            return qs.filter(is_test=False)
 
         def derive_exclude(self):
             exclude = []

@@ -31,6 +31,7 @@ from twilio.rest import TwilioRestClient
 from twython import Twython
 from uuid import uuid4
 from urllib import quote_plus
+import time
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -86,12 +87,12 @@ RELAYER_TYPE_CONFIG = {
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
     ZENVIA: dict(scheme='tel', max_length=150),
     EXTERNAL: dict(scheme='tel', max_length=160),
-    NEXMO: dict(scheme='tel', max_length=1600),
+    NEXMO: dict(scheme='tel', max_length=1600, max_tps=5),
     INFOBIP: dict(scheme='tel', max_length=1600),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
-    HUB9: dict(scheme='tel', max_length=1600, send_batch_size=100, send_queue_depth=100),
+    HUB9: dict(scheme='tel', max_length=1600),
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     CLICKATELL: dict(scheme='tel', max_length=420)
@@ -1345,6 +1346,35 @@ class Channel(SmartModel):
                       VUMI: Channel.send_vumi_message,
                       SHAQODOON: Channel.send_shaqodoon_message,
                       ZENVIA: Channel.send_zenvia_message}
+
+        # Check whether we need to throttle ourselves
+        # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
+        # and a low throttle rate, we will have lots of threads waiting, but since throttling is currently
+        # a rare event, this is an ok stopgap.
+        max_tps = type_config.get('max_tps', 0)
+        if max_tps:
+            tps_set_name = 'channel_tps_%d' % channel.id
+            lock_name = '%s_lock' % tps_set_name
+
+            while True:
+                # only one thread should be messing with the map at once
+                with r.lock(lock_name, timeout=5):
+                    # check how many were sent in the last second
+                    now = time.time()
+                    last_second = time.time() - 1
+
+                    # how many have been sent in the past second?
+                    count = r.zcount(tps_set_name, last_second, now)
+
+                    # we're within our tps, add ourselves to the list and go on our way
+                    if count < max_tps:
+                        r.zadd(tps_set_name, now, now)
+                        r.zremrangebyscore(tps_set_name, "-inf", last_second)
+                        r.expire(tps_set_name, 5)
+                        break
+
+                # too many sent in the last second, sleep a bit and try again
+                time.sleep(1 / float(max_tps))
 
         sent_count = 0
         parts = Msg.get_text_parts(msg.text, type_config['max_length'])
