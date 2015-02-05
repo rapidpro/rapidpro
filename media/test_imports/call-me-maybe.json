@@ -52,7 +52,7 @@
             "webhook": null, 
             "label": "Call Me", 
             "operand": "@step.value", 
-            "finished_key": null, 
+            "finished_key": null,
             "y": 165, 
             "x": 204
           }
