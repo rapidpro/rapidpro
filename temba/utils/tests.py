@@ -416,6 +416,8 @@ class ParserTest(TembaTest):
                           evaluate_template("@contact.first_name", context))
         self.assertEquals(("foo@nicpottier.com", []),
                           evaluate_template("foo@nicpottier.com", context))
+        self.assertEquals(("@nicpottier is on twitter", []),
+                          evaluate_template("@nicpottier is on twitter", context))
 
 
         # evaluation errors

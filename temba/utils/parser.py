@@ -39,6 +39,9 @@ class EvaluationContext(object):
         formats = get_datetime_format(self.date_options['dayfirst'])
         return formats[1] if inc_time else formats[0]
 
+    def keys(self):
+        return self.variables.keys()
+
 
 def evaluate_template(template, context, url_encode=False):
     """
@@ -77,8 +80,12 @@ def evaluate_template_old(template, context, url_encode=False):
 
         return evaluated
 
+    # build pattern that match the context keys even if they have filters and do not match twitter handle and
+    context_keys_joined_pattern = "[\|\w]*|".join(context.keys())
+    pattern = '\B@([\w]+[\.][\w\.\|]*[\w](:([\"\']).*?\3)?|' + context_keys_joined_pattern + '[\|\w]*)'
+
     # substitute classic style @xxx.yyy[|filter[:"param"]] expressions
-    regex = re.compile(r'\B@([\w\.\|]*[\w](:([\"\']).*?\3)?)', flags=re.MULTILINE | re.UNICODE)
+    regex = re.compile(pattern, flags=re.MULTILINE | re.UNICODE)
     return regex.sub(resolve_expression, template), errors
 
 
