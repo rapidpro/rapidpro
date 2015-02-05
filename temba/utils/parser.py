@@ -81,8 +81,8 @@ def evaluate_template_old(template, context, url_encode=False):
         return evaluated
 
     # build pattern that match the context keys even if they have filters and do not match twitter handle and
-    context_keys_joined_pattern = "[\|\w]*|".join(context.keys())
-    pattern = '\B@([\w]+[\.][\w\.\|]*[\w](:([\"\']).*?\3)?|' + context_keys_joined_pattern + '[\|\w]*)'
+    context_keys_joined_pattern = r'[\|\w]*|'.join(context.keys())
+    pattern = r'\B@([\w]+[\.][\w\.\|]*[\w](:([\"\']).*?\3)?|' + context_keys_joined_pattern + r'[\|\w]*)'
 
     # substitute classic style @xxx.yyy[|filter[:"param"]] expressions
     regex = re.compile(pattern, flags=re.MULTILINE | re.UNICODE)
