@@ -2249,7 +2249,7 @@ class RuleSet(models.Model):
         if self.response_type == RECORDING:
             return run.voice_response
         elif self.response_type == KEYPAD:
-            return run.voice_response.gather(finished_key=self.finished_key, timeout=60, action=action)
+            return run.voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
         else:
             # otherwise we assume it's single digit entry
             return run.voice_response.gather(numDigits=1, timeout=60, action=action)

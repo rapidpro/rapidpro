@@ -79,7 +79,7 @@ class IVRTests(TembaTest):
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_ivr_hangup(self):
+    def test_ivr_recording(self):
 
         # create our ivr setup
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
@@ -128,11 +128,53 @@ class IVRTests(TembaTest):
         self.assertEquals(COMPLETED, call.status)
         self.assertEquals(15, call.duration)
 
+        messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
+        self.assertEquals(3, messages.count())
+        self.assertEquals(3, self.org.get_credits_used())
+
+        from temba.flows.models import FlowStep
+        steps = FlowStep.objects.all()
+        self.assertEquals(3, steps.count())
+
+        # each of our steps should have exactly one message
+        for step in steps:
+            self.assertEquals(1, step.messages.all().count(), msg="Step '%s' does not have excatly one message" % step)
+
+        # each message should have exactly one step
+        for msg in messages:
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_ivr_options(self):
+    def test_ivr_digit_gather(self):
+
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file('gather-digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        # after a call is picked up, twilio will call back to our server
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # make sure we send the finishOnKey attribute to twilio
+        self.assertContains(response, 'finishOnKey="#"')
+
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_ivr_flow(self):
 
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
@@ -180,6 +222,7 @@ class IVRTests(TembaTest):
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
 
         # updated our status and duration accordingly
