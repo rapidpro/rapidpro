@@ -392,6 +392,7 @@ PERMISSIONS = {
                          'claim_number',
                          'claim_shaqodoon',
                          'claim_twitter',
+                         'claim_verboice',
                          'claim_vumi',
                          'claim_zenvia',
                          'configuration',
@@ -470,7 +471,6 @@ GROUP_PERMISSIONS = {
     "Alpha": (
     ),
     "Beta": (
-        'channels.channel_claim_twitter',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -540,6 +540,8 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_kannel',
         'channels.channel_claim_number',
         'channels.channel_claim_shaqodoon',
+        'channels.channel_claim_twitter',
+        'channels.channel_claim_verboice',
         'channels.channel_claim_vumi',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
