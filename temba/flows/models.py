@@ -1421,14 +1421,15 @@ class Flow(TembaModel, SmartModel):
             return
 
         if self.flow_type == Flow.VOICE:
-            return self.start_call_flow(all_contacts, started_flows=started_flows, extra=extra, flow_start=flow_start)
+            return self.start_call_flow(all_contacts, started_flows=started_flows, start_msg=start_msg,
+                                        extra=extra, flow_start=flow_start)
 
         else:
             return self.start_msg_flow(all_contacts,
                                        started_flows=started_flows,
                                        start_msg=start_msg, extra=extra, flow_start=flow_start)
 
-    def start_call_flow(self, all_contacts, started_flows=[], extra=None, flow_start=None):
+    def start_call_flow(self, all_contacts, started_flows=[], start_msg=None, extra=None, flow_start=None):
         from temba.ivr.models import IVRCall
 
         runs = []
@@ -1437,6 +1438,13 @@ class Flow(TembaModel, SmartModel):
         from temba.channels.models import CALL
         if not channel or CALL not in channel.role:
             return runs
+
+        (entry_actions, entry_rules) = (None, None)
+        if self.entry_type == Flow.ACTIONS_ENTRY:
+            entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+
+        elif self.entry_type == Flow.RULES_ENTRY:
+            entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
         for contact in all_contacts:
             run = FlowRun.create(self, contact, start=flow_start)
@@ -1455,6 +1463,23 @@ class Flow(TembaModel, SmartModel):
 
             # trigger the call to start (in the background)
             call.start_call()
+
+            if start_msg:
+                if entry_actions:
+                    step = self.add_step(run, entry_actions, [], is_start=True)
+
+                    # and onto the destination
+                    if entry_actions.destination:
+                        self.add_step(run, entry_actions.destination, previous_step=step)
+
+                elif entry_rules:
+                    step = self.add_step(run, entry_rules, [], is_start=True)
+
+                    # if we have a start message, go and handle the rule
+                    self.find_and_handle(start_msg)
+
+                step.add_message(start_msg)
+
 
             runs.append(run)
 
