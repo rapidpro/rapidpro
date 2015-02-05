@@ -1718,7 +1718,7 @@ class RuleTest(TembaTest):
         # no messages on the ruleset step
         self.assertFalse(ruleset_step.messages.all())
 
-        # should have 2 messages onthe actionset step
+        # should have 2 messages on the actionset step
         self.assertEquals(actionset_step.messages.all().count(), 2)
 
         # one is the start msg
@@ -1726,6 +1726,41 @@ class RuleTest(TembaTest):
 
         # sms msg_type should be FLOW
         self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+
+        # remove all runs,  steps and messages
+        FlowRun.objects.all().delete()
+        FlowStep.objects.all().delete()
+        Msg.objects.all().delete()
+
+        self.channel.role = 'SRCA'
+        self.channel.save()
+
+        self.flow.flow_type = Flow.VOICE
+        self.flow.save()
+
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        self.flow.start([], [self.contact], start_msg=sms)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact))
+        run = FlowRun.objects.filter(contact=self.contact).first()
+
+        self.assertEquals(run.steps.all().count(), 2)
+        actionset_step = run.steps.filter(step_type=ACTION_SET).first()
+        ruleset_step = run.steps.filter(step_type=RULE_SET).first()
+
+        # no messages on the ruleset step
+        self.assertFalse(ruleset_step.messages.all())
+
+        # should have 1 messages on the actionset step
+        self.assertEquals(actionset_step.messages.all().count(), 1)
+
+        # it is the start msg
+        self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
+
+        # sms msg_type should be FLOW
+        self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+
+
 
     def test_multiple(self):
         # set our flow
@@ -2610,7 +2645,7 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
-    def test_tanslations_rule_first(self):
+    def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
         # this rule first does not depend on @step.value for the first rule, so

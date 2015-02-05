@@ -55,7 +55,7 @@
       .row
         .span9
           -for msg in all_messages
-            .message.span9
+            .message.span9{class:'type-{{msg.msg_type}}'}
               .avatar{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%}'}
                 -if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss"
                   .glyph.icon-user
@@ -69,7 +69,10 @@
 
               .text{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%} {% if msg.visibility == "A" %}A{%endif%}'}
 
-                {{msg.text}}
+                -if msg.text != msg.recording_url
+                  {{msg.text}}
+                -else
+                  -trans "Recorded message from the contact"
 
                 -if msg.call_type == 'mo_call'
                   -blocktrans with duration=msg.duration
@@ -86,6 +89,17 @@
                   {{ msg.created_on|gmail_time }}
                   -if msg.visibility == 'A'
                     (Archived)
+                  -if msg.recording_url
+                    .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
+                      %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                      .play
+                        .icon-arrow-right-8
+                        .text
+                          -trans "Listen"
+                      .stop.hide
+                        .stop-icon
+                        .text
+                          -trans "Stop"
             .clearfix
         .span3
           .contact_fields
@@ -155,6 +169,80 @@
 
           .glyph {
             margin-right: 3px;
+          }
+        }
+
+
+        .sent-at {
+
+          .recording {
+
+            .stop {
+              .stop-icon {
+                width:7px;
+                height:7px;
+                background: @flat-white;
+                display:inline-block;
+                line-height:0px;
+                margin-top:-6px;
+                margin-right:1px;
+                margin-left:5px;
+              }
+              .text {
+                padding-top:7px;
+              }
+            }
+
+            &.direction-I{
+
+            }
+
+            padding:1px 6px;
+            padding-bottom:4px;
+            padding-left:1px;
+            .rounded-corners(6px);
+            height:12px;
+            background: @flat-white;
+            color:@flat-white - #333;
+            display:inline-block;
+            margin-right:5px;
+            line-height:0px;
+
+
+            .icon-arrow-right-8 {
+              display:inline-block;
+              font-size:16px;
+              margin-top:-1px;
+              margin-right:-3px;
+            }
+
+            .text {
+              display:inline-block;
+              padding-left:0px;
+            }
+
+            &:hover {
+              background: @color-links;
+              color: @flat-white;
+              cursor:pointer;
+            }
+
+            &.playing {
+              background: @flat-blue;
+              color: #fff;
+
+              &:hover {
+                color: #fff;
+              }
+
+              .stop {
+                display:block;
+              }
+
+              .play {
+                display:none;
+              }
+            }
           }
         }
 
@@ -268,7 +356,7 @@
               font-size:11px;
               font-style:normal;
               padding-bottom:5px;
-              margin-top:-3px;
+              margin-top:0px;
 
               .glyph {
                 margin-right:2px;
@@ -283,6 +371,28 @@
 
 -block extra-script
   {{ block.super }}
+
+  :javascript
+    function playMessage (messageId) {
+      var audio = $('audio#message-' + messageId)
+      var parent = audio.parent();
+      var player = audio[0];
+
+      if (!parent.hasClass('playing')) {
+        audio.bind('ended', function(){
+          parent.removeClass('playing');
+
+        });
+
+        parent.addClass('playing');
+        player.currentTime = 0;
+        player.play();
+
+      } else {
+        parent.removeClass('playing');
+        player.pause();
+      }
+    }
 
   %script
 

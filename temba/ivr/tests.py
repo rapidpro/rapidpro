@@ -7,12 +7,15 @@ import mock
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog
 from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
 from temba.ivr.clients import TwilioClient
+from temba.msgs.models import Msg
 from temba.channels.models import TWILIO, CALL, ANSWER
 from temba.tests import TembaTest
 from twilio.rest import TwilioRestClient, UNSET_TIMEOUT
 from twilio.util import RequestValidator
 import os
 from django.conf import settings
+from temba.msgs.models import IVR
+
 
 class MockRequestValidator(RequestValidator):
 
@@ -128,6 +131,22 @@ class IVRTests(TembaTest):
         self.assertEquals(COMPLETED, call.status)
         self.assertEquals(15, call.duration)
 
+        messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
+        self.assertEquals(3, messages.count())
+        self.assertEquals(3, self.org.get_credits_used())
+
+        from temba.flows.models import FlowStep
+        steps = FlowStep.objects.all()
+        self.assertEquals(3, steps.count())
+
+        # each of our steps should have exactly one message
+        for step in steps:
+            self.assertEquals(1, step.messages.all().count(), msg="Step '%s' does not have excatly one message" % step)
+
+        # each message should have exactly one step
+        for msg in messages:
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
+
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -197,6 +216,14 @@ class IVRTests(TembaTest):
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
+        # now pretend we are a normal caller
+        ActionLog.objects.all().delete()
+        eric.is_test = False
+        eric.save()
+        Contact.set_simulation(False)
+        IVRCall.objects.all().delete()
+        flow.start([], [eric], restart_participants=True)
+
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=OUTGOING).first()
 
@@ -209,25 +236,31 @@ class IVRTests(TembaTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
+        self.assertEquals(1, Msg.objects.filter(msg_type=IVR).count())
+        self.assertEquals(1, self.org.get_credits_used())
 
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(20, call.duration)
         self.assertEquals(IN_PROGRESS, call.status)
 
-        # should mention our our action log that we read a message to them
-        run = FlowRun.objects.all().first()
-        logs = ActionLog.objects.filter(run=run).order_by('-pk')
-        self.assertEquals(2, len(logs))
-        self.assertEquals('Read message "Would you like me to call you? Press one for yes, two for no, or three for maybe."', logs.first().text)
-
         # press the number 4 (unexpected)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
+        self.assertEquals(3, self.org.get_credits_used())
+
+        # two more messages, one inbound and it's response
+        self.assertEquals(3, Msg.objects.filter(msg_type=IVR).count())
 
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
+        messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
+        self.assertEquals(5, messages.count())
+        self.assertEquals(5, self.org.get_credits_used())
+
+        for msg in messages:
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
@@ -235,6 +268,10 @@ class IVRTests(TembaTest):
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())
+
+        # also shouldn't have any ActionLogs for non-test users
+        self.assertEquals(0, ActionLog.objects.all().count())
+        self.assertEquals(1, flow.get_completed_runs())
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):
@@ -249,8 +286,10 @@ class IVRTests(TembaTest):
         test_status_update(call, 'failed', FAILED)
         test_status_update(call, 'no-answer', NO_ANSWER)
 
-        # explicitly hanging up an in progress call should remove it
+        # explicitly hanging up on a test call should remove it
         call.update_status('in-progress', 0)
+        eric.is_test = True
+        eric.save()
         call.save()
         IVRCall.hangup_test_call(flow)
         self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())

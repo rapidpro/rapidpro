@@ -6,7 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, TEL_SCHEME
+from temba.contacts.models import Contact, TEL_SCHEME, ContactURN
 from temba.flows.models import Flow, FlowStep, ActionLog, FlowRun
 from temba.channels.models import Channel
 from temba.orgs.models import Org, TopUp
@@ -21,7 +21,7 @@ FAILED = 'F'
 NO_ANSWER = 'N'
 CANCELED = 'C'
 
-DONE = [ COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED ]
+DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED]
 
 INCOMING = 'I'
 OUTGOING = 'O'
@@ -53,6 +53,10 @@ class IVRCall(SmartModel):
                                 help_text="The channel that made this call")
     contact = models.ForeignKey(Contact,
                                 help_text="Who this call is with")
+
+    contact_urn = models.ForeignKey(ContactURN, verbose_name=_("Contact URN"),
+                                    help_text=_("The URN this call is communicating with"))
+
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this call, either incoming or outgoing")
     flow = models.ForeignKey(Flow, null=True,
@@ -71,8 +75,13 @@ class IVRCall(SmartModel):
 
     @classmethod
     def create_outgoing(cls, channel, contact, flow, user, call_type=FLOW):
-        call = IVRCall.objects.create(channel=channel, contact=contact, flow=flow, direction=OUTGOING,
-                                      org=channel.org, created_by=user, modified_by=user, call_type=call_type)
+        contact_urn = contact.get_urn(TEL_SCHEME)
+        if not contact_urn:
+            raise ValueError("Can't call contact with no tel URN")
+
+        call = IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
+                                      direction=OUTGOING, org=channel.org,
+                                      created_by=user, modified_by=user, call_type=call_type)
         return call
 
     @classmethod
@@ -140,10 +149,7 @@ class IVRCall(SmartModel):
                             ActionLog.create_action_log(run[0],
                                                         "Placing test call to %s" % user_settings.get_tel_formatted())
                 if not tel:
-                    tel_urn = self.contact.get_urn(TEL_SCHEME)
-                    if not tel_urn:
-                        raise ValueError("Can't call contact with no tel URN")
-
+                    tel_urn = self.contact_urn
                     tel = tel_urn.path
 
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
@@ -200,35 +206,3 @@ class IVRCall(SmartModel):
     def start_call(self):
         from .tasks import start_call_task
         start_call_task.delay(self.pk)
-
-
-class IVRAction(models.Model):
-
-    DIRECTION_CHOICES = ((INCOMING, "Incoming"),
-                         (OUTGOING, "Outgoing"))
-
-    org = models.ForeignKey(Org, related_name='ivr_actions',
-                            help_text="The org this message is connected to")
-
-    call = models.ForeignKey(IVRCall, related_name='ivr_actions_for_call',
-                             help_text="The call this action is a part of")
-
-    created_on = models.DateTimeField(help_text="When this message was created", auto_now_add=True)
-
-    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
-                                 help_text="The direction for this action, either incoming or outgoing")
-
-    step = models.ForeignKey(FlowStep, null=True, blank=True, related_name='ivr_actions_for_step',
-                             help_text="The step that created this action")
-
-    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='ivr', on_delete=models.SET_NULL,
-                              help_text="The topup that this action was deducted from")
-
-    @classmethod
-    def create_action(cls, call, step):
-        # costs 1 credit to perform an IVR action
-        topup_id = None
-        if not call.contact.is_test:
-            topup_id = call.org.decrement_credit()
-
-        IVRAction.objects.create(call=call, org=call.org, step=step, topup_id=topup_id)

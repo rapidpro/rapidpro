@@ -34,7 +34,7 @@ from smartmin.models import SmartModel
 from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
 from temba.orgs.models import Org
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, get_preferred_language, analytics
@@ -394,28 +394,16 @@ class Flow(TembaModel, SmartModel):
             return response
 
         flow = run.flow
-        is_test_contact = run.contact
+        is_test_contact = call.contact.is_test
 
-        # this wraps our response based on our digit
-        class CallEvent(object):
-            def __init__(self, contact, text, channel):
-                self.contact = contact
-                self.text = text
-                self.channel = channel
-                self.created_on = timezone.now()
+        from temba.msgs.models import HANDLED, IVR
 
-            def reply(self, text, user, trigger_send=False, message_context=None):
-                return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context)
-
-            def build_message_context(self):
-                message_context = dict()
-                message_context['__default__'] = self.text
-
-                message_context['contact'] = self.contact.build_message_context()
-                message_context['value'] = self.text
-                message_context['time'] = self.created_on
-
-                return message_context
+        # by default we look for pressed keys
+        text = user_response.get('Digits', None)
+        msg = None
+        if text:
+            msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+                                      text, status=HANDLED, msg_type=IVR)
 
         # if we are at ruleset, interpret based on our incoming data
         if run.steps.all():
@@ -429,14 +417,11 @@ class Flow(TembaModel, SmartModel):
                     run.set_completed()
                     return response
 
-                # by default we look for pressed keys
-                text = user_response.get('Digits', '')
-
                 # see if the user is giving us a recording
                 recording_url = user_response.get('RecordingUrl', None)
                 recording_id = user_response.get('RecordingSid', uuid4())
 
-                # recording is more important than digits (we shouldnt ever get both)
+                # recording is more important than digits (we shouldn't ever get both)
                 if recording_url:
                     recording = requests.get(recording_url, stream=True)
                     temp = NamedTemporaryFile(delete=True)
@@ -447,16 +432,20 @@ class Flow(TembaModel, SmartModel):
                     text = default_storage.save('recordings/%d/%d/runs/%d/%s.wav' % (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
 
                     # we'll store the fully qualified url
-                    text = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
+                    recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
+                    text = recording_url
 
-                call_event = CallEvent(call.contact, text, call.channel)
-                rule, value = ruleset.find_matching_rule(step, run, call_event)
+                    msg.text = text
+                    msg.recording_url = recording_url
+                    msg.save(update_fields=['text', 'recording_url'])
 
+                rule, value = ruleset.find_matching_rule(step, run, msg)
                 if not rule:
                     response.hangup()
                     run.set_completed()
                     return response
 
+                step.add_message(msg)
                 step.save_rule_match(rule, value)
                 ruleset.save_run_value(run, rule, value, recording=recording_url)
 
@@ -490,9 +479,7 @@ class Flow(TembaModel, SmartModel):
             else:
                 ruleset = RuleSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
                 step = flow.add_step(run, ruleset, [], call=call)
-
-                call_event = CallEvent(call.contact, '', call.channel)
-                rule, value = ruleset.find_matching_rule(step, run, call_event)
+                rule, value = ruleset.find_matching_rule(step, run, msg)
 
                 if not rule:
                     response.hangup()
@@ -515,9 +502,10 @@ class Flow(TembaModel, SmartModel):
                 actionset = ActionSet.get(rule.destination)
                 step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
 
-        if actionset:
-            call_event = CallEvent(call.contact, user_response.get('Digits', ''), call.channel)
+                if msg:
+                    step.add_message(msg)
 
+        if actionset:
             run.voice_response = response
             action_msgs = []
 
@@ -530,7 +518,7 @@ class Flow(TembaModel, SmartModel):
 
                 with input_command as input:
                     run.voice_response = input
-                    action_msgs += actionset.execute_actions(run, call_event, [])
+                    action_msgs += actionset.execute_actions(run, msg, [])
 
                 # if our next step is a recording, tack a Record on the end of our actions
                 if ruleset.response_type == RECORDING:
@@ -538,10 +526,20 @@ class Flow(TembaModel, SmartModel):
 
             else:
                 run.voice_response = response
-                action_msgs += actionset.execute_actions(run, call_event, [])
-
+                action_msgs += actionset.execute_actions(run, msg, [])
                 step.left_on = timezone.now()
                 step.save(update_fields=['left_on'])
+
+                # log it for our test contacts
+                if is_test_contact:
+                    ActionLog.create_action_log(step.run,
+                                                _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+
+                response.hangup()
+                run.set_completed()
+
+            for msg in action_msgs:
+                step.add_message(msg)
 
             # sync our messages
             flow.org.trigger_send(action_msgs)
@@ -1202,7 +1200,7 @@ class Flow(TembaModel, SmartModel):
 
         return (rulesets, rule_categories)
 
-    def build_message_context(self, contact, sms):
+    def build_message_context(self, contact, msg):
         # if we have a contact, build up our results for them
         if contact:
             results = self.get_results(contact, only_last_run=True)
@@ -1236,15 +1234,15 @@ class Flow(TembaModel, SmartModel):
 
         # add our message context
         channel_context = dict()
-        if sms:
-            message_context = sms.build_message_context()
+        if msg:
+            message_context = msg.build_message_context()
 
             # some fake channel deets for simulation
-            if sms.contact.is_test:
+            if msg.contact.is_test:
                 channel_context = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
             # where the message was sent to
-            elif sms.channel:
-                channel_context = sms.channel.build_message_context()
+            elif msg.channel:
+                channel_context = msg.channel.build_message_context()
 
         elif contact:
             message_context = dict(__default__='', contact=contact.build_message_context())
@@ -1423,14 +1421,15 @@ class Flow(TembaModel, SmartModel):
             return
 
         if self.flow_type == Flow.VOICE:
-            return self.start_call_flow(all_contacts, started_flows=started_flows, extra=extra, flow_start=flow_start)
+            return self.start_call_flow(all_contacts, started_flows=started_flows, start_msg=start_msg,
+                                        extra=extra, flow_start=flow_start)
 
         else:
             return self.start_msg_flow(all_contacts,
                                        started_flows=started_flows,
                                        start_msg=start_msg, extra=extra, flow_start=flow_start)
 
-    def start_call_flow(self, all_contacts, started_flows=[], extra=None, flow_start=None):
+    def start_call_flow(self, all_contacts, started_flows=[], start_msg=None, extra=None, flow_start=None):
         from temba.ivr.models import IVRCall
 
         runs = []
@@ -1439,6 +1438,13 @@ class Flow(TembaModel, SmartModel):
         from temba.channels.models import CALL
         if not channel or CALL not in channel.role:
             return runs
+
+        (entry_actions, entry_rules) = (None, None)
+        if self.entry_type == Flow.ACTIONS_ENTRY:
+            entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+
+        elif self.entry_type == Flow.RULES_ENTRY:
+            entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
         for contact in all_contacts:
             run = FlowRun.create(self, contact, start=flow_start)
@@ -1457,6 +1463,23 @@ class Flow(TembaModel, SmartModel):
 
             # trigger the call to start (in the background)
             call.start_call()
+
+            if start_msg:
+                if entry_actions:
+                    step = self.add_step(run, entry_actions, [], is_start=True)
+
+                    # and onto the destination
+                    if entry_actions.destination:
+                        self.add_step(run, entry_actions.destination, previous_step=step)
+
+                elif entry_rules:
+                    step = self.add_step(run, entry_rules, [], is_start=True)
+
+                    # if we have a start message, go and handle the rule
+                    self.find_and_handle(start_msg)
+
+                step.add_message(start_msg)
+
 
             runs.append(run)
 
@@ -1667,11 +1690,6 @@ class Flow(TembaModel, SmartModel):
         # for each message, associate it with this step and set the label on it
         for msg in msgs:
             step.add_message(msg)
-
-        # create our ivr action
-        if call:
-            from temba.ivr.models import IVRAction
-            IVRAction.create_action(call, step)
 
         # update the activity for our run
         if not run.contact.is_test:
@@ -2272,37 +2290,42 @@ class RuleSet(models.Model):
         # otherwise, looks like we don't need it
         return False
 
-    def find_matching_rule(self, step, run, event):
-        orig_text = event.text
+    def find_matching_rule(self, step, run, msg):
 
-        context = run.flow.build_message_context(run.contact, event)
+        orig_text = None
+        if msg:
+            orig_text = msg.text
+
+        context = run.flow.build_message_context(run.contact, msg)
 
         if self.webhook_url:
             from temba.api.models import WebHookEvent
             (value, missing) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                         org=run.flow.org, url_encode=True)
             WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                            run.contact, event, self.webhook_action)
+                                            run.contact, msg, self.webhook_action)
 
             # rebuild our context again, the webhook may have populated something
-            context = run.flow.build_message_context(run.contact, event)
+            context = run.flow.build_message_context(run.contact, msg)
 
         # if we have a custom operand, figure that out
+        text = None
         if self.operand:
             (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
-        else:
-            text = event.text
+        elif msg:
+            text = msg.text
 
         try:
             rules = self.get_rules()
             for rule in rules:
-                (result, value) = rule.matches(run, event, context, text)
+                (result, value) = rule.matches(run, msg, context, text)
                 if result > 0:
                     # treat category as the base category
                     rule.category = run.flow.get_base_text(rule.category)
                     return rule, value
         finally:
-            event.text = orig_text
+            if msg:
+                msg.text = orig_text
 
         return None, None
 
@@ -2657,6 +2680,17 @@ class FlowRun(models.Model):
         completed = self.steps.filter(Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None))).filter(run__contact__is_test=False)
         return completed
 
+    def create_outgoing_ivr(self, text, recording_url, response_to=None):
+
+        if recording_url:
+            self.voice_response.play(url=recording_url)
+        else:
+            self.voice_response.say(text)
+
+        # create a Msg object to track what happened
+        from temba.msgs.models import DELIVERED, IVR
+        return Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
+                                   response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)
 
 class MemorySavingQuerysetIterator(object):
     """
@@ -3087,25 +3121,18 @@ class FlowStep(models.Model):
         if msg:
             return msg.text
 
-        # IVR always has a decimal value and no text
-        elif self.ivr_actions_for_step.all():
-            return unicode(self.rule_value)
-
     def get_channel_name(self):
         msg = self.messages.all().first()
         if msg:
             return msg.channel.name
 
-        ivr_action = self.ivr_actions_for_step.all().first()
-        if ivr_action:
-            return ivr_action.call.channel.name
-
     def add_message(self, msg):
         self.messages.add(msg)
 
         # skip inbox
-        msg.msg_type = FLOW
-        msg.save(update_fields=['msg_type'])
+        if msg.msg_type == INBOX:
+            msg.msg_type = FLOW
+            msg.save(update_fields=['msg_type'])
 
     def __unicode__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
@@ -3120,7 +3147,7 @@ FAILED = 'F'
 FLOW_START_STATUS_CHOICES = ((PENDING, "Pending"),
                              (STARTING, "Starting"),
                              (COMPLETE, "Complete"),
-                              (FAILED, "Failed"))
+                             (FAILED, "Failed"))
 
 class FlowStart(SmartModel):
     flow = models.ForeignKey(Flow, related_name='starts',
@@ -3162,6 +3189,7 @@ class FlowStart(SmartModel):
 
     def __unicode__(self):
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
+
 
 class FlowLabel(models.Model):
     name = models.CharField(max_length=64, verbose_name=_("Name"),
@@ -3634,25 +3662,28 @@ class SayAction(Action):
 
     def execute(self, run, actionset, event):
 
-        recording = None
+        recording_url = None
         if self.recording:
+
+            # localize our recording
             recording = run.flow.get_localized_text(self.recording, run.contact)
-        if recording:
-            url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, recording)
-            run.voice_response.play(url=url)
-            if run.contact.is_test:
-                text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, missing) = Msg.substitute_variables(text, run.contact, run.flow.build_message_context(run.contact, event))
-                log_txt = _('Played recorded message for "%s"') % message
-                ActionLog.create_action_log(run, log_txt)
-        else:
-            text = run.flow.get_localized_text(self.msg, run.contact)
-            (message, missing) = Msg.substitute_variables(text, run.contact, run.flow.build_message_context(run.contact, event))
-            run.voice_response.say(message)
-            if run.contact.is_test:
-                log_txt = _('Read message "%s"') % message
-                ActionLog.create_action_log(run, log_txt)
-        return []
+
+            # if we have a localized recording, create the url
+            if recording:
+                recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, recording)
+
+        # localize the text for our message, need this either way for logging
+        message = run.flow.get_localized_text(self.msg, run.contact)
+        (message, missing) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
+
+        msg = run.create_outgoing_ivr(message, recording_url)
+
+        if run.contact.is_test:
+            if recording_url:
+                ActionLog.create_action_log(run, _('Played recorded message for "%s"') % message)
+            else:
+                ActionLog.create_action_log(run, _('Read message "%s"') % message)
+        return [msg]
 
     def update_base_language(self, language_iso):
         # if we are a single language message, then convert to multi-language
@@ -3660,6 +3691,7 @@ class SayAction(Action):
             self.msg = {language_iso: self.msg}
         if not isinstance(self.recording, dict):
             self.recording = {language_iso: self.recording}
+
 
 class PlayAction(Action):
     """
@@ -3682,12 +3714,14 @@ class PlayAction(Action):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
     def execute(self, run, actionset, event):
-        (url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
-        run.voice_response.play(url=url)
+        (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
+        msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
+
         if run.contact.is_test:
-            log_txt = _('Played recording at "%s"') % url
+            log_txt = _('Played recording at "%s"') % recording_url
             ActionLog.create_action_log(run, log_txt)
-        return []
+
+        return [msg]
 
 class ReplyAction(Action):
     """
