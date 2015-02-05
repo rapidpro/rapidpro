@@ -2,7 +2,7 @@ app = angular.module('temba.services', [])
 
 version = new Date().getTime()
 
-quietPeriod = 1000
+quietPeriod = 500
 errorRetries = 5
 
 app.service "utils", ->
