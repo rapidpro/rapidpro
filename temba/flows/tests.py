@@ -78,13 +78,28 @@ class RuleTest(TembaTest):
         response = self.flow.update(self.definition)
         self.assertEquals(1, self.flow.versions.all().count())
         self.assertEquals(self.flow.created_by, self.flow.versions.all()[0].created_by)
+        first_save_time = self.flow.versions.all().first().created_on
 
-        # versions should be tited to the user that created them
+        # create a new update
         self.definition['last_saved'] = response['saved_on']
         response = self.flow.update(self.definition, user=self.root)
         versions = self.flow.versions.all().order_by('-pk')
-        self.assertEquals(2, versions.count())
-        self.assertEquals(versions[0].created_by, self.root)
+
+        # since we saved in the same minute, we should still have one version,
+        self.assertEquals(1, versions.count())
+
+        # but it should be the new version, the old one having been removed
+        version = versions.first()
+        self.assertNotEquals(version.created_on, first_save_time)
+
+        # now simulate a save from 1.5m later
+        version.created_on = version.created_on - timedelta(seconds=190)
+        version.save()
+        self.definition['last_saved'] = response['saved_on']
+        self.flow.update(self.definition, user=self.root)
+
+        # now we should have two revisions
+        self.assertEquals(2, self.flow.versions.all().count())
 
     def test_flow_lists(self):
 
