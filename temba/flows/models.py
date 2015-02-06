@@ -2127,7 +2127,6 @@ class Flow(TembaModel, SmartModel):
                     self.entry_uuid = None
                     self.entry_type = None
 
-
             # if we have a base language, set that, but never overwrite an existing language
             json_language = json_dict.get('base_language', None)
             if not self.base_language and json_language:
@@ -2147,6 +2146,10 @@ class Flow(TembaModel, SmartModel):
             if user is None:
                 user = self.created_by
 
+            # remove any versions that were created in the last minute
+            versions = self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
+
+            # create a new version
             self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))

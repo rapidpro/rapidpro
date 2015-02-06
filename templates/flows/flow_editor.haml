@@ -134,6 +134,14 @@
       }, 100)
     });
 
+    $(window).bind('beforeunload', function(e) {
+      scope = $('html').scope();
+      if (scope && scope.saving) {
+        return "Your flow is still saving, are you sure you want to leave?"
+      }
+    });
+
+
 -block page-top
 
 -block page-container
