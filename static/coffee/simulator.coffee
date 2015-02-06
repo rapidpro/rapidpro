@@ -59,22 +59,32 @@ toExpand.autosize callback: ->
 
 # check form errors
 checkForm = (newMessage) ->
-  status = true
+  valid = true
   if newMessage is ""
     $("#simulator textarea").addClass "error"
-    status = false
+    valid = false
   else if newMessage.length > 160
     $("#simulator textarea").val ""
     $("#simulator textarea").addClass "error"
-    status = false
+    valid = false
   toExpand.css "height", initTextareaHeight
   $(".simulator-footer").css "height", initTextareaHeight + 10
   $(".simulator-body").css "height", "360px"
-  status
+  return valid
 
 # process form
 processForm = (newMessage) ->
   if checkForm(newMessage)
+
+
+    # if we are currently saving to don't post message yet
+    scope = $('html').scope('scope')
+    if scope and scope.saving
+      setTimeout ->
+        processForm(newMessage)
+      , 500
+      return
+
     $.post(getSimulateURL(), JSON.stringify({ new_message: newMessage })).done (data) ->
 
       window.updateSimulator(data)
@@ -168,16 +178,28 @@ showSimulator = (reset=false) ->
   window.simulation = true
 
 window.refreshSimulator = ->
+
+  # if we are currently saving to don't post message yet
+  scope = $('html').scope('scope')
+  if scope and scope.saving
+    setTimeout(refreshSimulator, 500)
+    return
+
   $.post(getSimulateURL(), JSON.stringify({ has_refresh:false })).done (data) ->
     window.updateSimulator(data)
     if window.ivr and window.simulation
       setTimeout(window.refreshSimulator, 2000)
 
 window.resetSimulator = ->
-
-
   $(".simulator-body").html ""
   $(".simulator-body").append "<div class='ilog from'>One moment..</div>"
+
+  # if we are currently saving to don't post message yet
+  scope = $('html').scope('scope')
+  if scope and scope.saving
+    setTimeout(resetSimulator, 500)
+    return
+
   $.post(getSimulateURL(), JSON.stringify({ has_refresh:true })).done (data) ->
     window.updateSimulator(data)
     if window.ivr and window.simulation
