@@ -2822,7 +2822,7 @@ class ExternalHandler(View):
 
         # this is a new incoming message
         elif action == 'received':
-            if not 'from' in request.REQUEST:
+            if not request.REQUEST.get('from', None):
                 return HttpResponse("Missing 'from' parameter, invalid call.", status=400)
 
             if not 'text' in request.REQUEST:
