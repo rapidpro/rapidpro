@@ -218,9 +218,16 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
 
   disconnectAllConnections: (id) ->
+
+    # reenable any sources connecting to us
+    jsPlumb.select({target:id}).each (connection) ->
+      jsPlumb.setSourceEnabled($('#' + connection.sourceId), true)
+
+    # now disconnect the existing connections
     jsPlumb.detachAllConnections(id)
 
     $('#' + id + ' .source').each ->
+      jsPlumb.setSourceEnabled($(this), true)
       jsPlumb.detachAllConnections($(this))
 
   disconnectOutboundConnections: (id) ->
