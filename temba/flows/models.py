@@ -399,11 +399,9 @@ class Flow(TembaModel, SmartModel):
         from temba.msgs.models import HANDLED, IVR
 
         # by default we look for pressed keys
-        text = user_response.get('Digits', None)
-        msg = None
-        if text:
-            msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                      text, status=HANDLED, msg_type=IVR)
+        text = user_response.get('Digits', '')
+        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+                                  text, status=HANDLED, msg_type=IVR)
 
         # if we are at ruleset, interpret based on our incoming data
         if run.steps.all():
@@ -423,7 +421,8 @@ class Flow(TembaModel, SmartModel):
 
                 # recording is more important than digits (we shouldn't ever get both)
                 if recording_url:
-                    recording = requests.get(recording_url, stream=True)
+                    ivr_client = call.channel.get_ivr_client()
+                    recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(recording.content)
                     temp.flush()

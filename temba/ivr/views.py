@@ -42,14 +42,7 @@ class CallHandler(View):
                 else:
                     return HttpResponse("Not found", status=404)
 
-        validator = RequestValidator(client.auth[1])
-        signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-
-        base_url = settings.TEMBA_HOST
-        url = "https://%s%s" % (base_url, request.get_full_path())
-
-        # make sure this is coming from twilio
-        if validator.validate(url, request.POST, signature):
+        if client.validate(request):
             call.update_status(request.POST.get('CallStatus', None),
                                request.POST.get('CallDuration', None))
             call.save()
