@@ -1649,8 +1649,6 @@ class ExternalTest(TembaTest):
 
         self.assertEquals(400, response.status_code)
 
-
-
    def test_send(self):
         from temba.channels.models import EXTERNAL
         self.channel.channel_type = EXTERNAL
