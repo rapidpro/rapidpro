@@ -399,9 +399,11 @@ class Flow(TembaModel, SmartModel):
         from temba.msgs.models import HANDLED, IVR
 
         # by default we look for pressed keys
-        text = user_response.get('Digits', '')
-        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                  text, status=HANDLED, msg_type=IVR)
+        text = user_response.get('Digits', None)
+        msg = None
+        if text:
+            msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+                                      text, status=HANDLED, msg_type=IVR)
 
         # if we are at ruleset, interpret based on our incoming data
         if run.steps.all():
@@ -434,9 +436,13 @@ class Flow(TembaModel, SmartModel):
                     recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
                     text = recording_url
 
-                    msg.text = text
-                    msg.recording_url = recording_url
-                    msg.save(update_fields=['text', 'recording_url'])
+                    if not msg:
+                        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+                                                  text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
+                    else:
+                        msg.text = text
+                        msg.recording_url = recording_url
+                        msg.save(update_fields=['text', 'recording_url'])
 
                 rule, value = ruleset.find_matching_rule(step, run, msg)
                 if not rule:

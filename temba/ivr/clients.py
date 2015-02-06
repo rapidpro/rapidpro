@@ -29,8 +29,6 @@ class TwilioClient(TwilioRestClient):
         return validator.validate(url, request.POST, signature)
 
 
-
-
 class VerboiceClient():
     def __init__(self, channel):
         self.endpoint = 'https://verboice.instedd.org/api/call'
