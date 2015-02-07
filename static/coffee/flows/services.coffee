@@ -820,6 +820,20 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
   saveAction: (actionset, action) ->
 
+    # link us up if necessary, we need to do this after our element is created
+    if actionset.from
+      for ruleset in $rootScope.flow.rule_sets
+        for rule in ruleset.rules
+          if rule.uuid == actionset.from
+            rule.destination = actionset.uuid
+            break
+
+      $timeout ->
+        Plumb.connect(actionset.from, actionset.uuid, 'actions')
+        actionset.from = null
+      ,10
+
+
     found = false
     for previous, idx in actionset.actions
       if previous.uuid == action.uuid
