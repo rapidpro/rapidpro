@@ -401,6 +401,7 @@ class Flow(TembaModel, SmartModel):
         # by default we look for pressed keys
         text = user_response.get('Digits', None)
         msg = None
+
         if text:
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
                                       text, status=HANDLED, msg_type=IVR)
@@ -527,8 +528,6 @@ class Flow(TembaModel, SmartModel):
             else:
                 run.voice_response = response
                 action_msgs += actionset.execute_actions(run, msg, [])
-                step.left_on = timezone.now()
-                step.save(update_fields=['left_on'])
 
                 # log it for our test contacts
                 if is_test_contact:
