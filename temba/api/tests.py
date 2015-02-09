@@ -1644,6 +1644,11 @@ class ExternalTest(TembaTest):
         self.assertEquals(self.channel, sms.channel)
         self.assertEquals("Hello World!", sms.text)
 
+        data = {'from':"", 'text':"Hi there"}
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(400, response.status_code)
+
    def test_send(self):
         from temba.channels.models import EXTERNAL
         self.channel.channel_type = EXTERNAL
