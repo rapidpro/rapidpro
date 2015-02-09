@@ -2724,17 +2724,16 @@ class ExportFlowResultsTask(SmartModel):
     """
     Container for managing our export requests
     """
+    org = models.ForeignKey(Org, related_name='flow_results_exports', null=True, help_text=_("The Organization of the user."))
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
-
     def do_export(self):
         from xlwt import Workbook
         book = Workbook()
         max_rows = 65535
-
 
         date_format = xlwt.easyxf(num_format_str='MM/DD/YYYY HH:MM:SS')
         small_width = 15 * 256
@@ -3006,8 +3005,11 @@ class ExportFlowResultsTask(SmartModel):
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username, subject,
-                          template, dict(flows=flows, link='http://%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, self.filename)), branding)
+        send_temba_email(self.created_by.username,
+                         subject,
+                         template,
+                         dict(flows=flows, link='http://%s/org/download/flows/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         branding)
 
     def queryset_iterator(self, queryset, chunksize=1000):
         pk = 0

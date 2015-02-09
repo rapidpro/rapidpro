@@ -1580,5 +1580,8 @@ class ExportMessagesTask(SmartModel):
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username, subject,
-                          template, dict(link='http://%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, self.filename)), branding)
+        send_temba_email(self.created_by.username,
+                         subject,
+                         template,
+                         dict(link='http://%s/org/download/messages/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         branding)

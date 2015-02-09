@@ -12,12 +12,12 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
 from temba.orgs.models import ORG_ACTIVE_TOPUP_CACHE_KEY, ORG_TOPUP_CREDITS_CACHE_KEY, ORG_TOPUP_EXPIRES_CACHE_KEY
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER
-from temba.flows.models import Flow
-from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING
+from temba.flows.models import Flow, ExportFlowResultsTask
+from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
 from temba.tests import TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_ms
@@ -790,6 +790,46 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(8):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
+
+    def test_download(self):
+        messages_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                 created_by=self.admin, modified_by=self.admin)
+
+        self.assertLoginRedirect(self.client.get('/org/download/messages/%s/' % messages_export_task.pk))
+
+        self.login(self.admin)
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(302, response.status_code)
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk, follow=True)
+        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
+
+        messages_export_task.do_export()
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(200, response.status_code)
+
+        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk)
+        self.assertEquals(302, response.status_code)
+        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk, follow=True)
+        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
+
+        contact_export_task = ExportContactsTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                created_by=self.admin, modified_by=self.admin)
+        contact_export_task.do_export()
+
+        flow = self.create_flow()
+        flow_export_task = ExportFlowResultsTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                created_by=self.admin, modified_by=self.admin)
+
+        flow_export_task.flows.add(flow)
+        flow_export_task.do_export()
+
+        response = self.client.get('/org/download/contacts/%s/' % contact_export_task.pk, follow=True)
+        self.assertEquals(200, response.status_code)
+
+        response = self.client.get('/org/download/flows/%s/' % flow_export_task.pk, follow=True)
+        self.assertEquals(200, response.status_code)
 
 
 class AnonOrgTest(TembaTest):
