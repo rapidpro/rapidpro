@@ -424,7 +424,8 @@ class Flow(TembaModel, SmartModel):
 
                 # recording is more important than digits (we shouldn't ever get both)
                 if recording_url:
-                    recording = requests.get(recording_url, stream=True)
+                    ivr_client = call.channel.get_ivr_client()
+                    recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(recording.content)
                     temp.flush()
@@ -436,9 +437,13 @@ class Flow(TembaModel, SmartModel):
                     recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
                     text = recording_url
 
-                    msg.text = text
-                    msg.recording_url = recording_url
-                    msg.save(update_fields=['text', 'recording_url'])
+                    if not msg:
+                        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+                                                  text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
+                    else:
+                        msg.text = text
+                        msg.recording_url = recording_url
+                        msg.save(update_fields=['text', 'recording_url'])
 
                 rule, value = ruleset.find_matching_rule(step, run, msg)
                 if not rule:

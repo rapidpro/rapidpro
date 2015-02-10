@@ -32,6 +32,9 @@ class MockTwilioClient(TwilioClient):
         self.calls = MockTwilioClient.MockCalls()
         self.auth = ['', 'FakeRequestToken']
 
+    def validate(self, request):
+        return True
+
     class MockCall():
         def __init__(self, to=None, from_=None, url=None, status_callback=None):
             self.to = to

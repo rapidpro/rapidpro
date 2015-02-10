@@ -736,10 +736,13 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-
     def get_verboice_client(self):
         from temba.ivr.clients import VerboiceClient
-        return VerboiceClient()
+        channel = self.get_call_channel()
+        from temba.channels.models import VERBOICE
+        if channel.channel_type == VERBOICE:
+            return VerboiceClient(channel)
+        return None
 
     def get_twilio_client(self):
         config = self.config_json()
