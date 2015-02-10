@@ -598,7 +598,7 @@ class Msg(models.Model, OrgAssetMixin):
 
         # update them to queued
         send_messages = Msg.objects.filter(id__in=msg_ids)
-        send_messages = send_messages.exclude(msg_type=IVR, channel__channel_type=ANDROID).exclude(topup=None).exclude(contact__is_test=True)
+        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(msg_type=IVR).exclude(topup=None).exclude(contact__is_test=True)
         send_messages.update(status=QUEUED, queued_on=queued_on)
 
         # now push each onto our queue
