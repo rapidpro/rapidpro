@@ -218,9 +218,16 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
 
   disconnectAllConnections: (id) ->
+
+    # reenable any sources connecting to us
+    jsPlumb.select({target:id}).each (connection) ->
+      jsPlumb.setSourceEnabled($('#' + connection.sourceId), true)
+
+    # now disconnect the existing connections
     jsPlumb.detachAllConnections(id)
 
     $('#' + id + ' .source').each ->
+      jsPlumb.setSourceEnabled($(this), true)
       jsPlumb.detachAllConnections($(this))
 
   disconnectOutboundConnections: (id) ->
@@ -812,6 +819,20 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       actionset._terminal = terminal
 
   saveAction: (actionset, action) ->
+
+    # link us up if necessary, we need to do this after our element is created
+    if actionset.from
+      for ruleset in $rootScope.flow.rule_sets
+        for rule in ruleset.rules
+          if rule.uuid == actionset.from
+            rule.destination = actionset.uuid
+            break
+
+      $timeout ->
+        Plumb.connect(actionset.from, actionset.uuid, 'actions')
+        actionset.from = null
+      ,10
+
 
     found = false
     for previous, idx in actionset.actions

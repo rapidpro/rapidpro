@@ -1169,21 +1169,6 @@ ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Fl
 
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)
-
-    # link us up if necessary, we need to do this after our element is created
-    if $scope.actionset.from
-      for ruleset in $scope.flow.rule_sets
-        for rule in ruleset.rules
-          if rule.uuid == $scope.actionset.from
-            rule.destination = $scope.actionset.uuid
-            break
-
-      $timeout ->
-        Plumb.connect($scope.actionset.from, $scope.actionset.uuid, 'actions')
-        $scope.actionset.from = null
-      ,10
-
-
     $modalInstance.close()
 
   # Saving an SMS to somebody else
