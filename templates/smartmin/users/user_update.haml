@@ -1,0 +1,17 @@
+-extends "smartmin/update.html"
+
+- block extra-style
+  {{block.super}}
+  :css
+    .smartmin-form-buttons button[type="submit"] {
+      margin-left: 0px;
+    }
+
+    .form-horizontal .controls {
+      margin-left: 150px;
+    }
+
+    .controls #id_groups {
+      margin-left: 0px;
+    }
+

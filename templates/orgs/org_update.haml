@@ -18,3 +18,19 @@
         </div>
       </div>
     </form>
+
+-block extra-style
+  {{block.super}}
+  :css
+    .form-horizontal .controls {
+      margin-left: 180px;
+    }
+
+    .form-horizontal .smartmin-form-buttons {
+      padding-left: 180px;
+      margin-bottom: 20px;
+    }
+
+    .form-horizontal .control-label {
+      width: 160px;
+    }
