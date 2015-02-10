@@ -24,6 +24,7 @@ class Migration(migrations.Migration):
                         print step.messages.all().count()
 
     def create_messages_for_ivr_actions(apps, schema_editor):
+        from django.contrib.auth.models import User
 
         IVRAction = apps.get_model("ivr", "IVRAction")
         # create a one-to-one mapping for any ivr actions as ivr messages
@@ -35,14 +36,14 @@ class Migration(migrations.Migration):
                 for ivr in IVRAction.objects.filter(org=org):
                     step = FlowStep.objects.get(pk=ivr.step.pk)
                     if step.rule_value:
-                        print "[%s] %s" % (ivr.call.contact_urn, step.rule_value)
                         urn = ivr.call.contact_urn
                         msg_dict = {}
                         if step.rule_value[0:4] == 'http':
                             msg_dict['recording_url'] = step.rule_value
 
+                        user = User.objects.get(pk=ivr.call.created_by_id)
                         msg = Msg.create_incoming(channel, (urn.scheme, urn.path), step.rule_value,
-                                                  user=ivr.call.created_by, topup=ivr.topup, status=HANDLED,
+                                                  user=user, topup=ivr.topup, status=HANDLED,
                                                   msg_type=IVR, date=ivr.created_on, org=org, **msg_dict)
                         step.add_message(msg)
 
