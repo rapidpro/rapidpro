@@ -452,7 +452,7 @@
                   .count
                     [[category._visited|number]]
 
-        .note{ng-repeat:'note in flow.metadata.notes', note:'note'}
+        .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}
           %a.close{ng-click:'removeNote(note);'}
             .glyph.icon-close
           %textarea.msd-elastic.title.note-input{ng-model:'note.title'}

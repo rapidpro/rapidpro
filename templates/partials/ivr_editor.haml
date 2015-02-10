@@ -57,7 +57,7 @@
             .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule.config.type != "true"'}
               %form{name:"inner"}
                 .icon.icon-menu
-                %select{ng-model:"rule.config",ng-options:"operator as operator.verbose_name for operator in $parent.operators|filter:operator.voice=true",class:"operator-select",ng-change:"updateCategory(rule)"}
+                %select{ng-model:"rule.config",ng-options:'operator as operator.verbose_name for operator in $parent.operators|filter:{voice:true}',class:"operator-select",ng-change:"updateCategory(rule)"}
 
                 // between is the only one with two operands
                 .operation{ng-if:"rule.config.operands == 2"}

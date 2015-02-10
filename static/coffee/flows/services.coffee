@@ -718,6 +718,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     @markDirty()
 
   addNote: (x, y) ->
+
+    if not $rootScope.flow.metadata.notes
+      $rootScope.flow.metadata.notes = []
+
     $rootScope.flow.metadata.notes.push
       x: x
       y: y
