@@ -298,8 +298,6 @@ class @Modal
     @listeners[event] = listener
 
   setListeners: (@listeners, @autoDismiss=true) ->
-    console.log("listeners!")
-
     modal = @
     primary = @ele.find('.primary')
 
