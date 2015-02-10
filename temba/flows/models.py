@@ -2728,7 +2728,7 @@ class ExportFlowResultsTask(SmartModel):
     """
     Container for managing our export requests
     """
-    org = models.ForeignKey(Org, related_name='flow_results_exports', null=True, help_text=_("The Organization of the user."))
+    org = models.ForeignKey(Org, related_name='flow_results_exports', help_text=_("The Organization of the user."))
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
