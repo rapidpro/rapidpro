@@ -356,7 +356,7 @@ PERMISSIONS = {
     'orgs.org': ('country',
                  'clear_cache',
                  'create_login',
-                 'download'
+                 'download',
                  'edit',
                  'export',
                  'grant',
