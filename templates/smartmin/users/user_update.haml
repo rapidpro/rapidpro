@@ -6,12 +6,12 @@
   -if perms.auth.user_mimic
     <form class="smartmin-form form-horizontal" action="{% url 'users.user_mimic' object.id %}" method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      .control-group
-      %label.control-label
-        Login as
-      .controls
-        %button.btn.btn-primary{type:"submit"}
-          {{object|user_as_string}}
+      .control-group{ style:"margin-top:15px" }
+        %label.control-label
+          Login as
+        .controls
+          %button.btn.btn-primary{type:"submit"}
+            {{object|user_as_string}}
     </form>
 
 - block extra-style
