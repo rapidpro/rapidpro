@@ -1,0 +1,41 @@
+{% load smartmin %}
+
+{% with form|field:field as form_field %}
+{% getblock "before_field_" field %}
+
+{% if form_field and form_field.is_hidden %}
+{{ form_field }}
+{% else %}
+{% if form_field %}
+<div class="control-group {% if form_field.errors %}error{% endif %}">
+  <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
+  <div class="controls">{{ form_field }}
+    {% with view|field_help:field as help %}
+    {% if help %}
+    <p class="help-block">{{ help }}</p>
+    {% endif %}
+    {% endwith %}
+
+    {% if form_field.errors %}
+    <span class="help-block field-errors">{{ form_field.errors }}</span>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="control-group">
+  <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
+  <div class="controls">
+    <span class="uneditable-input">{% get_value_from_view field %}</span>
+    {% with view|field_help:field as help %}
+    {% if help %}
+    <p class="help-block">{{ help }}</p>
+    {% endif %}
+    {% endwith %}
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% getblock "after_field_" field %}
+
+{% endwith %}
