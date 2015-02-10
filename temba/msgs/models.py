@@ -598,13 +598,13 @@ class Msg(models.Model, OrgAssetMixin):
 
         # update them to queued
         send_messages = Msg.objects.filter(id__in=msg_ids)
-        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(topup=None).exclude(contact__is_test=True)
+        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(msg_type=IVR).exclude(topup=None).exclude(contact__is_test=True)
         send_messages.update(status=QUEUED, queued_on=queued_on)
 
         # now push each onto our queue
         for msg in msgs:
             # skip over non-android channels, messages with no top up and test contacts
-            if (msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
+            if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
                 # serialize the model to a dictionary
                 msg.queued_on = queued_on
                 task = msg.as_task_json()

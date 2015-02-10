@@ -401,6 +401,7 @@ class Flow(TembaModel, SmartModel):
         # by default we look for pressed keys
         text = user_response.get('Digits', None)
         msg = None
+
         if text:
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
                                       text, status=HANDLED, msg_type=IVR)
@@ -423,7 +424,8 @@ class Flow(TembaModel, SmartModel):
 
                 # recording is more important than digits (we shouldn't ever get both)
                 if recording_url:
-                    recording = requests.get(recording_url, stream=True)
+                    ivr_client = call.channel.get_ivr_client()
+                    recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(recording.content)
                     temp.flush()
@@ -435,9 +437,13 @@ class Flow(TembaModel, SmartModel):
                     recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
                     text = recording_url
 
-                    msg.text = text
-                    msg.recording_url = recording_url
-                    msg.save(update_fields=['text', 'recording_url'])
+                    if not msg:
+                        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+                                                  text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
+                    else:
+                        msg.text = text
+                        msg.recording_url = recording_url
+                        msg.save(update_fields=['text', 'recording_url'])
 
                 rule, value = ruleset.find_matching_rule(step, run, msg)
                 if not rule:
@@ -527,8 +533,6 @@ class Flow(TembaModel, SmartModel):
             else:
                 run.voice_response = response
                 action_msgs += actionset.execute_actions(run, msg, [])
-                step.left_on = timezone.now()
-                step.save(update_fields=['left_on'])
 
                 # log it for our test contacts
                 if is_test_contact:

@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from mock import patch
 import mock
-from temba.flows.models import Flow, FAILED, FlowRun, ActionLog
+from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
 from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg
@@ -31,6 +31,9 @@ class MockTwilioClient(TwilioClient):
         self.applications = MockTwilioClient.MockApplications()
         self.calls = MockTwilioClient.MockCalls()
         self.auth = ['', 'FakeRequestToken']
+
+    def validate(self, request):
+        return True
 
     class MockCall():
         def __init__(self, to=None, from_=None, url=None, status_callback=None):
@@ -272,6 +275,13 @@ class IVRTests(TembaTest):
         # also shouldn't have any ActionLogs for non-test users
         self.assertEquals(0, ActionLog.objects.all().count())
         self.assertEquals(1, flow.get_completed_runs())
+
+        # should still have one active run
+        self.assertEquals(1, FlowRun.objects.filter(is_active=True).count())
+
+        # and we haven't left our final step
+        step = FlowStep.objects.all().order_by('-pk').first()
+        self.assertIsNone(step.left_on)
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):

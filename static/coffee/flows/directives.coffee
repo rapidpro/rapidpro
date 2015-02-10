@@ -277,7 +277,8 @@ app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
       if scope.action_set
         scope.$watch (->scope.action_set.destination), (destination) ->
           scope.$evalAsync ->
-            Plumb.setSourceEnabled(element, !destination?)
+            if !scope.action_set._terminal
+              Plumb.setSourceEnabled(element, !destination?)
 
       else if scope.category
         scope.$watch (->scope.category.target), (target) ->
