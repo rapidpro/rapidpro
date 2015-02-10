@@ -140,8 +140,12 @@ class ChannelTest(TembaTest):
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
         self.assertEquals(tigo, sms.channel)
 
-        # clear the affinity for our channel
-        ContactURN.objects.filter(path='+250788382382').update(channel=None)
+        # add a voice caller
+        caller = Channel.add_call_channel(self.org, self.user, self.tel_channel)
+
+        # set our affinity to the caller (ie, they were on an ivr call)
+        ContactURN.objects.filter(path='+250788382382').update(channel=caller)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=ContactURN.objects.get(path='+250788382382')))
 
         # change channel numbers to be shortcodes, i.e. no overlap with contact numbers
         mtn.address = '1234'
@@ -163,6 +167,8 @@ class ChannelTest(TembaTest):
 
         # calling without scheme or urn should raise exception
         self.assertRaises(ValueError, self.org.get_send_channel)
+
+
 
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars

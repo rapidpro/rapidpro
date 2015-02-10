@@ -520,7 +520,9 @@ class Org(SmartModel):
 
             # if URN has a previously used channel that is still active, use that
             if contact_urn.channel and contact_urn.channel.is_active:
-                return self.get_channel_delegate(contact_urn.channel, SEND)
+                previous_sender = self.get_channel_delegate(contact_urn.channel, SEND)
+                if previous_sender:
+                    return previous_sender
 
             if contact_urn.scheme == TEL_SCHEME:
                 # we don't have a channel for this contact yet, let's try to pick one from the same carrier
