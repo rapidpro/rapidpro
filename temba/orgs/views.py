@@ -1495,7 +1495,8 @@ class OrgCRUDL(SmartCRUDL):
             num_deleted = self.get_object().clear_caches([cache])
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
-    class Download(SmartReadView):
+    class Download(SmartTemplateView):
+        template_name = 'orgs/org_download.haml'
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1527,19 +1528,20 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated()
 
-        def get_context_data(self, *args, **kwargs):
-            context = super(OrgCRUDL.Download, self).get_context_data(*args, **kwargs)
-            context['export_task'] = self.get_export_task()
-            return context
-
-
-        def render_to_response(self, context, **response_kwargs):
-            export_task = context['export_task']
+        def get(self, request, *args, **kwargs):
+            export_task = self.get_export_task()
             task_type = self.kwargs.get('task_type')
 
             if not export_task or not export_task.filename or not default_storage.exists(export_task.filename):
                 messages.warning(self.request, _("No exported file found"))
+                if self.request.user.is_superuser:
+                    return HttpResponseRedirect(reverse('orgs.org_manage'))
                 return HttpResponseRedirect(reverse('msgs.msg_inbox'))
+
+            download = request.REQUEST.get('download', None)
+
+            if not download:
+                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
 
             download_format = export_task.filename[-3:]
             download_filename = '%s_export.%s' % (task_type, download_format)
