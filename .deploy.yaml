@@ -1,0 +1,10 @@
+name: rapidpro
+user: ubuntu
+buildscript: sideloader/deploy.sh
+postinstall: sideloader/postinstall.sh
+pip:
+  - gunicorn
+dependencies:
+  - build-essential
+  - nodejs
+  - npm
