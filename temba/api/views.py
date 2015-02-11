@@ -43,7 +43,7 @@ from temba.utils.middleware import disable_middleware
 from urlparse import parse_qs
 from temba.utils.queues import push_task
 from twilio import twiml
-
+from redis_cache import get_redis_connection
 
 def webhook_status_processor(request):
     status = dict()
@@ -3153,14 +3153,13 @@ class VumiHandler(View):
             elif status == 'delivery_report':
                 sms = sms.first()
                 if sms:
-
                     delivery_status = body.get('delivery_status', 'success')
                     if delivery_status == 'failed':
 
                         # we can get multiple reports from vumi if they multi-part the message for us
                         if sms.status in (WIRED, DELIVERED):
                             print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                            Msg.mark_error(sms)
+                            Msg.mark_error(get_redis_connection(), sms)
                     else:
 
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our

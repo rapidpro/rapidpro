@@ -1312,11 +1312,11 @@ class Channel(SmartModel):
 
     @classmethod
     def send_message(cls, msg): # pragma: no cover
-        from temba.msgs.models import Msg, QUEUED, WIRED
+        from temba.msgs.models import Msg, QUEUED, WIRED, MSG_SENT_KEY
         r = get_redis_connection()
 
         # check whether this message was already sent somehow
-        if r.get('sms_sent_%d' % msg.id):
+        if r.get(MSG_SENT_KEY % msg.id):
             Msg.mark_sent(r, msg, WIRED)
             print "!! [%d] prevented duplicate send" % (msg.id)
             return
@@ -1326,7 +1326,7 @@ class Channel(SmartModel):
 
         # channel can be none in the case where the channel has been removed
         if not channel:
-            Msg.mark_error(msg, fatal=True)
+            Msg.mark_error(r, msg, fatal=True)
             ChannelLog.log_error(msg, _("Message no longer has a way of being sent, marking as failed."))
             return
 
@@ -1398,7 +1398,7 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(msg)
+                Msg.mark_error(r, msg)
                 sent_count -= 1
 
             except Exception as e:
@@ -1407,14 +1407,14 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(msg)
+                Msg.mark_errorr(r, msg)
                 sent_count -= 1
 
             finally:
                 # if we are still in a queued state, mark ourselves as an error
                 if msg.status == QUEUED:
                     print "!! [%d] marking queued message as error" % msg.id
-                    Msg.mark_error(msg)
+                    Msg.mark_error(r, msg)
                     sent_count -= 1
 
         # update the number of sms it took to send this if it was more than 1
