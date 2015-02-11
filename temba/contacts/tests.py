@@ -270,7 +270,10 @@ class ContactGroupTest(TembaTest):
         trigger.save()
 
         response = self.client.post(delete_url, dict())
+        # group should have is_active = False and all its triggers
         self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
+        self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
 
 class ContactTest(TembaTest):

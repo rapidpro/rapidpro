@@ -917,6 +917,9 @@ class ContactGroupCRUDL(SmartCRUDL):
             group = self.get_object()
             group.release()
 
+            # make is_active False for all its triggers too
+            group.trigger_set.all().update(is_active=False)
+
             return HttpResponseRedirect(reverse("contacts.contact_list"))
 
 
