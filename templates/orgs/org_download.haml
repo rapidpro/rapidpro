@@ -1,0 +1,9 @@
+-extends "smartmin/base.html"
+
+-block title
+
+-block extra-script
+  :javascript
+    $(document).ready(function() {
+      window.location.href += "?download=1";
+    });

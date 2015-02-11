@@ -2465,7 +2465,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
 
         # export the flow
-        task = ExportFlowResultsTask.objects.create(created_by=self.admin, modified_by=self.admin)
+        task = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         task.flows.add(registration_flow)
         task.do_export()
 

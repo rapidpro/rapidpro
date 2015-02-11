@@ -356,6 +356,7 @@ PERMISSIONS = {
     'orgs.org': ('country',
                  'clear_cache',
                  'create_login',
+                 'download',
                  'edit',
                  'export',
                  'grant',
@@ -510,6 +511,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_country',
+        'orgs.org_download',
         'orgs.org_edit',
         'orgs.org_export',
         'orgs.org_home',
@@ -621,6 +623,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
         'orgs.org_import',
@@ -695,6 +698,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
         'locations.adminboundary_alias',
 
+        'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
         'orgs.org_profile',

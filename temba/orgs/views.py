@@ -1,12 +1,18 @@
 from __future__ import unicode_literals
 
 from operator import attrgetter
+from django.core.urlresolvers import reverse
+from django.core.files.storage import default_storage
 from django.contrib.humanize.templatetags.humanize import intcomma
+from django.contrib import messages
 from django.db.models import Sum
+from django.http import HttpResponse, HttpResponseRedirect
 from django.forms import Form
 from django.utils.text import slugify
 import pycountry
-from temba.flows.models import Flow
+from temba.contacts.models import ExportContactsTask
+from temba.flows.models import Flow, ExportFlowResultsTask
+from temba.msgs.models import ExportMessagesTask
 from temba.nexmo import NexmoClient
 from temba.channels.models import Channel, ANDROID, TWILIO, NEXMO, KANNEL
 from temba.formax import FormaxMixin
@@ -415,7 +421,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose', 'manage_accounts',
-               'create', 'manage', 'update', 'country', 'languages', 'clear_cache',
+               'create', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import')
 
     model = Org
@@ -1489,6 +1495,69 @@ class OrgCRUDL(SmartCRUDL):
             num_deleted = self.get_object().clear_caches([cache])
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
+    class Download(SmartTemplateView):
+        template_name = 'orgs/org_download.haml'
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'%s/%s/(?P<task_type>\w+)/(?P<pk>\d+)/$' % (path, action)
+
+        def get_export_task(self):
+            export_task = None
+            user = self.request.user
+            user_orgs = user.get_user_orgs()
+
+            task_type = self.kwargs.get('task_type')
+            pk = self.kwargs.get('pk')
+
+            if task_type not in ['contacts', 'flows', 'messages']:
+                return None
+
+            if not pk:
+                return None
+
+            if task_type == 'contacts':
+                export_task = ExportContactsTask.objects.filter(pk=pk, org=user_orgs).first()
+            elif task_type == 'flows':
+                export_task = ExportFlowResultsTask.objects.filter(pk=pk, org=user_orgs).first()
+            elif task_type == 'messages':
+                export_task = ExportMessagesTask.objects.filter(pk=pk, org=user_orgs).first()
+
+            return export_task
+
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated()
+
+        def get(self, request, *args, **kwargs):
+            export_task = self.get_export_task()
+            task_type = self.kwargs.get('task_type')
+
+            if not export_task or not export_task.filename or not default_storage.exists(export_task.filename):
+                messages.warning(self.request, _("No exported file found"))
+                if self.request.user.is_superuser:
+                    return HttpResponseRedirect(reverse('orgs.org_manage'))
+                return HttpResponseRedirect(reverse('msgs.msg_inbox'))
+
+            download = request.REQUEST.get('download', None)
+
+            if not download:
+                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
+
+            download_format = export_task.filename[-3:]
+            download_filename = '%s_export.%s' % (task_type, download_format)
+
+            if download_format == 'csv':
+                content_type = "text/csv"
+            else:
+                content_type = "application/vnd.ms-excel"
+
+            file = default_storage.open(export_task.filename, 'r')
+
+            response = HttpResponse(file, content_type=content_type)
+            response['Content-Disposition'] = 'attachment; filename=%s' % download_filename
+            file.close()
+
+            return response
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')

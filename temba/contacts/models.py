@@ -1483,5 +1483,8 @@ class ExportContactsTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username, subject,
-                          template, dict(link='http://%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, self.filename)), branding)
+        send_temba_email(self.created_by.username,
+                         subject,
+                         template,
+                         dict(link='http://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         branding)
