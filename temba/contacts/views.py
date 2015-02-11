@@ -906,7 +906,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             group = self.get_object()
-            triggers = group.trigger_set.all()
+            triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
                 trigger_list = ', '.join([trigger.__unicode__() for trigger in triggers])
                 messages.error(self.request, _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
