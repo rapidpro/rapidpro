@@ -1407,7 +1407,7 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_errorr(r, msg)
+                Msg.mark_error(r, msg)
                 sent_count -= 1
 
             finally:
