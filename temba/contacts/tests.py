@@ -22,6 +22,7 @@ from temba.orgs.models import Org, OrgFolder
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label
 from temba.tests import AnonymousOrg, TembaTest
+from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import STATE
 
@@ -231,6 +232,48 @@ class ContactGroupTest(TembaTest):
         filter_url = reverse('contacts.contact_filter', args=[group.pk])
         response = self.client.get(filter_url)
         self.assertFalse('unlabel' in response.context['actions'])
+
+    def test_delete(self):
+        group = ContactGroup.create(self.org, self.user, "one")
+
+        self.login(self.admin)
+
+        response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
+        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+
+        group = ContactGroup.create(self.org, self.user, "one")
+        delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
+
+        trigger = Trigger.objects.create(org=self.org, keyword="join", created_by=self.admin, modified_by=self.admin)
+        trigger.groups.add(group)
+
+        second_trigger = Trigger.objects.create(org=self.org, keyword="register", created_by=self.admin, modified_by=self.admin)
+        second_trigger.groups.add(group)
+
+        response = self.client.post(delete_url, dict())
+        self.assertEquals(302, response.status_code)
+        response = self.client.post(delete_url, dict(), follow=True)
+        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
+
+        # archive a trigger
+        second_trigger.is_archived = True
+        second_trigger.save()
+
+        response = self.client.post(delete_url, dict())
+        self.assertEquals(302, response.status_code)
+        response = self.client.post(delete_url, dict(), follow=True)
+        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
+
+        trigger.is_archived = True
+        trigger.save()
+
+        response = self.client.post(delete_url, dict())
+        # group should have is_active = False and all its triggers
+        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
+        self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
 
 class ContactTest(TembaTest):
