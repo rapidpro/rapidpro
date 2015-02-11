@@ -76,6 +76,8 @@ SMS_BULK_PRIORITY = 100
 
 BULK_THRESHOLD = 50
 
+MSG_SENT_KEY = 'msg_sent_%d'
+
 STATUS_CHOICES = (
     # special state for flows that is used to hold off sending the message until the flow is ready to receive a response
     (INITIALIZING, _("Initializing")),
@@ -721,7 +723,7 @@ class Msg(models.Model, OrgAssetMixin):
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
     @classmethod
-    def mark_error(cls, msg, fatal=False):
+    def mark_error(cls, r, msg, fatal=False):
         """
         Marks an outgoing message as FAILED or ERRORED
         :param msg: a JSON representation of the message or a Msg object
@@ -741,6 +743,9 @@ class Msg(models.Model, OrgAssetMixin):
             else:
                 Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
 
+            # clear that we tried to send this message (otherwise we'll ignore it when we retry)
+            r.delete(MSG_SENT_KEY % msg.id)
+
     @classmethod
     def mark_sent(cls, r, msg, status, external_id=None):
         """
@@ -753,7 +758,7 @@ class Msg(models.Model, OrgAssetMixin):
             msg.external_id = external_id
 
         # use redis to mark this message sent
-        r.set('sms_sent_%d' % msg.id, str(msg.sent_on), ex=86400)
+        r.set(MSG_SENT_KEY % msg.id, str(msg.sent_on), ex=86400)
 
         if external_id:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
