@@ -581,12 +581,14 @@ class Flow(TembaModel, SmartModel):
 
         # first bump up this message if it is stuck at an action
         steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__flow__is_archived=False,
-                                        run__contact=msg.contact, step_type=ACTION_SET, left_on=None)
+                                        run__contact=msg.contact, step_type=ACTION_SET,
+                                        run__flow__flow_type=Flow.FLOW, left_on=None)
 
         # in simulation allow to handle msg even by archived flows
         if is_test_contact:
             steps = FlowStep.objects.filter(run__flow__is_active=True, run__is_active=True,
                                             run__contact=msg.contact, step_type=ACTION_SET,
+                                            run__flow__flow_type=Flow.FLOW,
                                             left_on=None)
 
         # optimization
@@ -617,12 +619,13 @@ class Flow(TembaModel, SmartModel):
         # order by most recent first
         steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__flow__is_archived=False,
                                         run__contact=msg.contact, step_type=RULE_SET, left_on=None,
-                                        run__flow__flow_type=Flow.MESSAGE, rule_uuid=None).order_by('-arrived_on')
+                                        run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on')
 
         # in simulation allow to handle msg even by archived flows
         if msg.contact.is_test:
             steps = FlowStep.objects.filter(run__flow__is_active=True, run__is_active=True,
-                                            run__contact=msg.contact, step_type=RULE_SET, left_on=None, rule_uuid=None).order_by('-arrived_on')
+                                            run__contact=msg.contact, step_type=RULE_SET, left_on=None,
+                                            run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on')
 
         # optimization
         steps = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
