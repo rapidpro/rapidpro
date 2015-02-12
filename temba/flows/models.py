@@ -586,17 +586,14 @@ class Flow(TembaModel, SmartModel):
         # in simulation allow to handle msg even by archived flows
         if is_test_contact:
             steps = FlowStep.objects.filter(run__flow__is_active=True, run__is_active=True,
-                                            run__contact=msg.contact, step_type=ACTION_SET, left_on=None)
+                                            run__contact=msg.contact, step_type=ACTION_SET,
+                                            left_on=None)
 
         # optimization
         steps = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
 
         for step in steps:
             flow = step.run.flow
-
-            # voice flows don't deal with text messages
-            if flow.flow_type == Flow.VOICE:
-                return False
 
             action_set = ActionSet.get(step.step_uuid)
 
@@ -619,7 +616,8 @@ class Flow(TembaModel, SmartModel):
 
         # order by most recent first
         steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__flow__is_archived=False,
-                                        run__contact=msg.contact, step_type=RULE_SET, left_on=None, rule_uuid=None).order_by('-arrived_on')
+                                        run__contact=msg.contact, step_type=RULE_SET, left_on=None,
+                                        run__flow__flow_type=Flow.MESSAGE, rule_uuid=None).order_by('-arrived_on')
 
         # in simulation allow to handle msg even by archived flows
         if msg.contact.is_test:
@@ -632,10 +630,6 @@ class Flow(TembaModel, SmartModel):
         for step in steps:
             run = step.run
             flow = run.flow
-
-            # voice flows don't deal with text messages
-            if flow.flow_type == Flow.VOICE:
-                return False
 
             ruleset = RuleSet.get(step.step_uuid)
             if not ruleset:
