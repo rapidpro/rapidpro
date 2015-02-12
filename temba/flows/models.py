@@ -1471,23 +1471,6 @@ class Flow(TembaModel, SmartModel):
             # trigger the call to start (in the background)
             call.start_call()
 
-            if start_msg:
-                if entry_actions:
-                    step = self.add_step(run, entry_actions, [], is_start=True)
-
-                    # and onto the destination
-                    if entry_actions.destination:
-                        self.add_step(run, entry_actions.destination, previous_step=step)
-
-                elif entry_rules:
-                    step = self.add_step(run, entry_rules, [], is_start=True)
-
-                    # if we have a start message, go and handle the rule
-                    self.find_and_handle(start_msg)
-
-                step.add_message(start_msg)
-
-
             runs.append(run)
 
         if flow_start:

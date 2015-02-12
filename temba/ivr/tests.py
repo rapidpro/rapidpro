@@ -10,7 +10,6 @@ from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg
 from temba.channels.models import TWILIO, CALL, ANSWER
 from temba.tests import TembaTest
-from twilio.rest import TwilioRestClient, UNSET_TIMEOUT
 from twilio.util import RequestValidator
 import os
 from django.conf import settings
@@ -308,6 +307,37 @@ class IVRTests(TembaTest):
         call.save()
         IVRCall.hangup_test_call(flow)
         self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
+
+        FlowStep.objects.all().delete()
+        IVRCall.objects.all().delete()
+        eric.is_test = False
+        eric.save()
+
+        # try sending callme trigger
+        from temba.msgs.models import INCOMING
+        msg = self.create_msg(direction=INCOMING, contact=eric, text="callme")
+
+        # make sure if we are started with a message we still create a normal voice run
+        flow.start([], [eric], restart_participants=True, start_msg=msg)
+
+        # we should have an outbound ivr call now, and no steps yet
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        self.assertIsNotNone(call)
+        self.assertEquals(0, FlowStep.objects.all().count())
+
+        # after a call is picked up, twilio will call back to our server
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # should have two flow steps (the outgoing messages, and the step to handle the response)
+        steps = FlowStep.objects.all().order_by('pk')
+
+        # the first step has exactly one message which is an outgoing IVR message
+        self.assertEquals(1, steps.first().messages.all().count())
+        self.assertEquals(1, steps.first().messages.filter(direction=OUTGOING, msg_type=IVR).count())
+
+        # the next step shouldn't have any messages yet since they haven't pressed anything
+        self.assertEquals(0, steps[1].messages.all().count())
 
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
