@@ -593,6 +593,11 @@ class Flow(TembaModel, SmartModel):
 
         for step in steps:
             flow = step.run.flow
+
+            # voice flows don't deal with text messages
+            if flow.flow_type == Flow.VOICE:
+                return False
+
             action_set = ActionSet.get(step.step_uuid)
 
             # this action set doesn't exist anymore, mark it as left so they leave the flow
@@ -627,6 +632,10 @@ class Flow(TembaModel, SmartModel):
         for step in steps:
             run = step.run
             flow = run.flow
+
+            # voice flows don't deal with text messages
+            if flow.flow_type == Flow.VOICE:
+                return False
 
             ruleset = RuleSet.get(step.step_uuid)
             if not ruleset:

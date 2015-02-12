@@ -307,6 +307,33 @@ class IVRTests(TembaTest):
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_incoming_text_message_during_call(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file('gather-digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        # after a call is picked up, twilio will call back to our server
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # make sure a message from the person on the call goes to the
+        # inbox since our flow doesn't handle text messages
+        msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
+        self.assertFalse(Flow.find_and_handle(msg))
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_rule_first_ivr_flow(self):
         # connect it and check our client is configured
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
