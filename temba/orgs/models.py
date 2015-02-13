@@ -1311,7 +1311,7 @@ class Org(SmartModel):
         from temba.flows.models import Flow
         flows = self.flows.all().exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
         if not include_archived:
-            flows= flows.filter(is_archived=False)
+            flows = flows.filter(is_archived=False)
         return flows
 
     def get_recommended_channel(self):

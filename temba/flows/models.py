@@ -3001,7 +3001,7 @@ class ExportFlowResultsTask(SmartModel):
         send_temba_email(self.created_by.username,
                          subject,
                          template,
-                         dict(flows=flows, link='http://%s/org/download/flows/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         dict(flows=flows, link='https://%s/org/download/flows/%s/' % (settings.TEMBA_HOST, self.pk)),
                          branding)
 
     def queryset_iterator(self, queryset, chunksize=1000):

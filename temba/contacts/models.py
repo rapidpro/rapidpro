@@ -1486,5 +1486,5 @@ class ExportContactsTask(SmartModel):
         send_temba_email(self.created_by.username,
                          subject,
                          template,
-                         dict(link='http://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         dict(link='https://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
                          branding)

@@ -1588,5 +1588,5 @@ class ExportMessagesTask(SmartModel):
         send_temba_email(self.created_by.username,
                          subject,
                          template,
-                         dict(link='http://%s/org/download/messages/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         dict(link='https://%s/org/download/messages/%s/' % (settings.TEMBA_HOST, self.pk)),
                          branding)
