@@ -241,6 +241,11 @@ class IVRTests(TembaTest):
         self.assertEquals(1, Msg.objects.filter(msg_type=IVR).count())
         self.assertEquals(1, self.org.get_credits_used())
 
+        # make sure a message from the person on the call goes to the
+        # inbox since our flow doesn't handle text messages
+        msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
+        self.assertFalse(Flow.find_and_handle(msg))
+
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(20, call.duration)
@@ -249,7 +254,7 @@ class IVRTests(TembaTest):
         # press the number 4 (unexpected)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(3, self.org.get_credits_used())
+        self.assertEquals(4, self.org.get_credits_used())
 
         # two more messages, one inbound and it's response
         self.assertEquals(3, Msg.objects.filter(msg_type=IVR).count())
@@ -259,7 +264,7 @@ class IVRTests(TembaTest):
         self.assertContains(response, '<Say>This might be crazy.</Say>')
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
         self.assertEquals(5, messages.count())
-        self.assertEquals(5, self.org.get_credits_used())
+        self.assertEquals(6, self.org.get_credits_used())
 
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
@@ -372,3 +377,9 @@ class IVRTests(TembaTest):
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         self.assertContains(response, '<Say>Thanks for calling!</Say>')
+
+        # make sure a message from the person on the call goes to the
+        # inbox since our flow doesn't handle text messages
+        msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
+        self.assertFalse(Flow.find_and_handle(msg))
+

@@ -71,9 +71,8 @@
 
                 -if msg.text != msg.recording_url
                   {{msg.text}}
-                -else
+                -elif msg.recording_url
                   -trans "Recorded message from the contact"
-
                 -if msg.call_type == 'mo_call'
                   -blocktrans with duration=msg.duration
                     Incoming Call ({{duration}} seconds)
@@ -85,21 +84,24 @@
                 -if msg.call_type == 'mt_miss'
                   -trans "Missed Outgoing Call"
                 .sent-at{title:'{{ msg.created_on }}'}
-                  {{ msg|as_icon }}
-                  {{ msg.created_on|gmail_time }}
-                  -if msg.visibility == 'A'
-                    (Archived)
                   -if msg.recording_url
                     .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
                       %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
                       .play
-                        .icon-arrow-right-8
+                        .icon-phone
                         .text
                           -trans "Listen"
                       .stop.hide
                         .stop-icon
                         .text
                           -trans "Stop"
+                  -else
+                    {{ msg|as_icon }}
+
+                  {{ msg.created_on|gmail_time }}
+                  -if msg.visibility == 'A'
+                    (Archived)
+
             .clearfix
         .span3
           .contact_fields
@@ -176,7 +178,8 @@
         .sent-at {
 
           .recording {
-
+            width:50px;
+            text-align:center;
             .stop {
               .stop-icon {
                 width:7px;
@@ -203,17 +206,17 @@
             .rounded-corners(6px);
             height:12px;
             background: @flat-white;
-            color:@flat-white - #333;
+            color:@flat-white - #555;
             display:inline-block;
             margin-right:5px;
             line-height:0px;
 
 
-            .icon-arrow-right-8 {
+            .icon-phone {
               display:inline-block;
-              font-size:16px;
-              margin-top:-1px;
-              margin-right:-3px;
+              font-size:11px;
+              margin-top:1px;
+              margin-right:0px;
             }
 
             .text {
