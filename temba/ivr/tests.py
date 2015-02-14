@@ -400,3 +400,8 @@ class IVRTests(TembaTest):
                          From='+250788382382', To=self.channel.address)
         response = self.client.post(reverse('api.twilio_handler'), post_data)
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
+
+        call = IVRCall.objects.all().first()
+        self.assertEquals('+250788382382', call.contact_urn.path)
+
+
