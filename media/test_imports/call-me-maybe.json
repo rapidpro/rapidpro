@@ -147,6 +147,15 @@
       "groups": [], 
       "keyword": "callme", 
       "trigger_type": "K"
+    },
+    {
+      "flow": {
+        "name": "Call me maybe",
+        "id": 12079
+      },
+      "groups": [],
+      "keyword": null,
+      "trigger_type": "V"
     }
   ]
 }

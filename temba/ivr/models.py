@@ -85,9 +85,10 @@ class IVRCall(SmartModel):
         return call
 
     @classmethod
-    def create_incoming(cls, channel, contact, flow, user, call_type=FLOW):
-        call = IVRCall.objects.create(channel=channel, contact=contact, flow=flow, direction=INCOMING,
-                                      org=channel.org, created_by=user, modified_by=user, call_type=call_type)
+    def create_incoming(cls, channel, contact, contact_urn, flow, user, call_type=FLOW):
+        call = IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
+                                      direction=INCOMING, org=channel.org, created_by=user, modified_by=user,
+                                      call_type=call_type)
         return call
 
     @classmethod

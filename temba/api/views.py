@@ -2465,17 +2465,18 @@ class TwilioHandler(View):
                 from temba.ivr.models import IVRCall
 
                 # find a contact for the one initiating us
+                contact_urn = ContactURN.get_or_create(channel.org, TEL_SCHEME, from_number, channel)
                 contact = Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, from_number)])
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
-                call = IVRCall.create_incoming(channel, contact, flow, channel.created_by)
+                call = IVRCall.create_incoming(channel, contact, contact_urn, flow, channel.created_by)
                 call.update_status(request.POST.get('CallStatus', None),
                                    request.POST.get('CallDuration', None))
                 call.save()
 
                 if flow:
-                    run = FlowRun.create(flow, contact, call=call)
-                    response = Flow.handle_call(call, request.POST, None)
+                    FlowRun.create(flow, contact, call=call)
+                    response = Flow.handle_call(call, {})
                     return HttpResponse(unicode(response))
                 else:
 
