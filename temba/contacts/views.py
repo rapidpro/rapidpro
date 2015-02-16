@@ -99,13 +99,13 @@ class ContactListView(OrgPermsMixin, SmartListView):
         if query:
             qs, self.request.compiled_query = Contact.search(org, query, qs)
 
-        return qs.prefetch_related('groups')
+        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('groups')
 
     def order_queryset(self, queryset):
         """
         Order contacts by name, case insensitive
         """
-        return queryset.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk')
+        return queryset
             
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
