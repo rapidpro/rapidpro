@@ -833,6 +833,24 @@ class OrgTest(TembaTest):
         response = self.client.get('/org/download/flows/%s/' % flow_export_task.pk, follow=True)
         self.assertEquals(200, response.status_code)
 
+        self.create_secondary_org()
+        self.org2.administrators.add(self.admin)
+        self.admin.set_org(self.org2)
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(200, response.status_code)
+        user = response.context_data['view'].request.user
+        self.assertEquals(user, self.admin)
+        self.assertEquals(user.get_org(), self.org2)
+
+        self.admin.set_org(None)
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(200, response.status_code)
+        user = response.context_data['view'].request.user
+        self.assertEquals(user, self.admin)
+        self.assertEquals(user.get_org(), messages_export_task.org)
+        self.assertEquals(user.get_org(), self.org)
+
 
 class AnonOrgTest(TembaTest):
     """
