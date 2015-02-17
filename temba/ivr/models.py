@@ -147,8 +147,7 @@ class IVRCall(SmartModel):
                         tel = user_settings.tel
                         run = FlowRun.objects.filter(call=self)
                         if run:
-                            ActionLog.create_action_log(run[0],
-                                                        "Placing test call to %s" % user_settings.get_tel_formatted())
+                            ActionLog.create(run[0], "Placing test call to %s" % user_settings.get_tel_formatted())
                 if not tel:
                     tel_urn = self.contact_urn
                     tel = tel_urn.path
@@ -179,7 +178,7 @@ class IVRCall(SmartModel):
             if self.contact.is_test:
                 run = FlowRun.objects.filter(call=self)
                 if run:
-                    ActionLog.create_action_log(run[0], _("Call ended."))
+                    ActionLog.create(run[0], _("Call ended."))
             self.status = COMPLETED
         elif status == 'busy':
             self.status = BUSY

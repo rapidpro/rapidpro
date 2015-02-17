@@ -460,8 +460,8 @@ class Flow(TembaModel, SmartModel):
 
                     # log it for our test contacts
                     if is_test_contact:
-                        ActionLog.create_action_log(step.run,
-                                                    _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+                        ActionLog.create(step.run,
+                                         _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
 
                     response.hangup()
                     run.set_completed()
@@ -498,8 +498,8 @@ class Flow(TembaModel, SmartModel):
                 if not rule.destination:
                     # log it for our test contacts
                     if is_test_contact:
-                        ActionLog.create_action_log(step.run,
-                                                    _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+                        ActionLog.create(step.run,
+                                         _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
 
                     response.hangup()
                     run.set_completed()
@@ -536,8 +536,8 @@ class Flow(TembaModel, SmartModel):
 
                 # log it for our test contacts
                 if is_test_contact:
-                    ActionLog.create_action_log(step.run,
-                                                _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+                    ActionLog.create(step.run,
+                                     _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
 
                 response.hangup()
                 run.set_completed()
@@ -681,7 +681,7 @@ class Flow(TembaModel, SmartModel):
             run.set_completed()
 
             if is_test_contact:
-                ActionLog.create_action_log(run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
+                ActionLog.create(run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
 
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
             return True
@@ -692,7 +692,7 @@ class Flow(TembaModel, SmartModel):
         if not action_set:
             run.set_completed()
             if is_test_contact:
-                ActionLog.create_action_log(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+                ActionLog.create(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
 
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
             return True
@@ -711,7 +711,7 @@ class Flow(TembaModel, SmartModel):
         else:
             run.set_completed()
             if run.contact.is_test:
-                ActionLog.create_action_log(step.run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
+                ActionLog.create(step.run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
 
         # sync our channels to trigger any messages
         org.trigger_send(msgs)
@@ -1562,7 +1562,7 @@ class Flow(TembaModel, SmartModel):
         for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now):
             run_map[run.contact_id] = run
             if run.contact.is_test:
-                ActionLog.create_action_log(run, '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name))
+                ActionLog.create(run, '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name))
 
         # update our expiration date on our runs, we do this by calculating it on one run then updating all others
         run.update_expiration(timezone.now())
@@ -1626,7 +1626,7 @@ class Flow(TembaModel, SmartModel):
                 else:
                     run.set_completed()
                     if contact.is_test:
-                        ActionLog.create_action_log(run, '%s has exited this flow' % run.contact.get_display(self.org, short=True))
+                        ActionLog.create(run, '%s has exited this flow' % run.contact.get_display(self.org, short=True))
 
             elif entry_rules:
                 step = self.add_step(run, entry_rules, run_msgs, is_start=True)
@@ -3021,7 +3021,7 @@ class ActionLog(models.Model):
                                       help_text=_("When this action log was created"))
 
     @classmethod
-    def create_action_log(cls, run, text, safe=False):
+    def create(cls, run, text, safe=False):
 
         if not safe:
             text = escape(text)
@@ -3402,7 +3402,7 @@ class EmailAction(Action):
             send_email_action_task.delay(emails, subject, message)
         else:
             log_txt = _("\"%s\" would be sent to %s") % (message, ", ".join(emails))
-            ActionLog.create_action_log(run, log_txt)
+            ActionLog.create(run, log_txt)
         return []
 
     @classmethod
@@ -3531,15 +3531,15 @@ class AddToGroupAction(Action):
                         user = get_flow_user()
                         group = ContactGroup.create(contact.org, user, name=value)
                         if run.contact.is_test:
-                            ActionLog.create_action_log(run, _("Group '%s' created") % value)
+                            ActionLog.create(run, _("Group '%s' created") % value)
 
                 if group:
                     group.update_contacts([contact], add)
                     if run.contact.is_test:
                         if add:
-                            ActionLog.create_action_log(run, _("Added %s to %s") % (run.contact.name, group.name))
+                            ActionLog.create(run, _("Added %s to %s") % (run.contact.name, group.name))
                         else:
-                            ActionLog.create_action_log(run, _("Removed %s from %s") % (run.contact.name, group.name))
+                            ActionLog.create(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
 
@@ -3630,12 +3630,12 @@ class AddLabelAction(Action):
                 except:
                     label = Label.create_unique(value, 'M', contact.org)
                     if run.contact.is_test:
-                        ActionLog.create_action_log(run, _("Label '%s' created") % value)
+                        ActionLog.create(run, _("Label '%s' created") % value)
 
             if label and sms and sms.pk:
                 label.toggle_label([sms], True)
                 if run.contact.is_test:
-                    ActionLog.create_action_log(run, _("Added %s label to msg '%s'") % (label.name, sms.text))
+                    ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, sms.text))
         return []
 
 class SayAction(Action):
@@ -3682,9 +3682,9 @@ class SayAction(Action):
 
         if run.contact.is_test:
             if recording_url:
-                ActionLog.create_action_log(run, _('Played recorded message for "%s"') % message)
+                ActionLog.create(run, _('Played recorded message for "%s"') % message)
             else:
-                ActionLog.create_action_log(run, _('Read message "%s"') % message)
+                ActionLog.create(run, _('Read message "%s"') % message)
         return [msg]
 
     def update_base_language(self, language_iso):
@@ -3721,7 +3721,7 @@ class PlayAction(Action):
 
         if run.contact.is_test:
             log_txt = _('Played recording at "%s"') % recording_url
-            ActionLog.create_action_log(run, log_txt)
+            ActionLog.create(run, log_txt)
 
         return [msg]
 
@@ -3922,7 +3922,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def logger(self, run, flow, contact_count):
         log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
-        log = ActionLog.create_action_log(run, log_txt)
+        log = ActionLog.create(run, log_txt)
         return log
 
 
@@ -3957,7 +3957,7 @@ class SetLanguageAction(Action):
             return False
 
         log_txt = _("Setting language to %s") % self.name
-        log = ActionLog.create_action_log(run, log_txt)
+        log = ActionLog.create(run, log_txt)
         return log
 
 class StartFlowAction(Action):
@@ -3997,7 +3997,7 @@ class StartFlowAction(Action):
 
         log_txt = _("Starting other flow %s") % self.flow.name
 
-        log = ActionLog.create_action_log(run, log_txt)
+        log = ActionLog.create(run, log_txt)
 
         return log
 
@@ -4086,7 +4086,7 @@ class SaveToContactAction(Action):
 
         log_txt = _("Updated %s to '%s'") % (label, new_value)
 
-        log = ActionLog.create_action_log(run, log_txt)
+        log = ActionLog.create(run, log_txt)
 
         return log
 
@@ -4165,7 +4165,7 @@ class SendAction(VariableContactAction):
         log_txt = _n("Sending '%(msg)s' to %(count)d contact",
                      "Sending '%(msg)s' to %(count)d contacts",
                      contact_count) % dict(msg=text, count=contact_count)
-        log = ActionLog.create_action_log(run, log_txt)
+        log = ActionLog.create(run, log_txt)
         return log
 
     def update_base_language(self, language_iso):
