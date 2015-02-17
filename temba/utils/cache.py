@@ -5,7 +5,7 @@ import json
 from redis_cache import get_redis_connection
 
 
-def get_cacheable(cache_key, cache_ttl, callable, as_json=True, r=None):
+def get_cacheable(cache_key, cache_ttl, callable, r=None):
     """
     Gets the result of a method call, using the given key and TTL as a cache
     """
@@ -14,10 +14,10 @@ def get_cacheable(cache_key, cache_ttl, callable, as_json=True, r=None):
 
     cached = r.get(cache_key)
     if cached is not None:
-        return json.loads(cached) if as_json else cached
+        return json.loads(cached)
 
     calculated = callable()
-    r.set(cache_key, json.dumps(calculated) if as_json else calculated, cache_ttl)
+    r.set(cache_key, json.dumps(calculated), cache_ttl)
 
     return calculated
 
@@ -26,7 +26,7 @@ def get_cacheable_result(cache_key, cache_ttl, callable, r=None):
     """
     Gets a cache-able integer calculation result
     """
-    return int(get_cacheable(cache_key, cache_ttl, callable, as_json=False, r=r))
+    return int(get_cacheable(cache_key, cache_ttl, callable, r=r))
 
 
 def incrby_existing(key, delta, r=None):
