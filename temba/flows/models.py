@@ -1128,7 +1128,7 @@ class Flow(TembaModel, SmartModel):
         return [s.uuid for s in self.action_sets.filter(destination=None)]
 
     def get_category_nodes(self):
-        return [_.uuid for _ in self.rule_sets.all()]
+        return [rs.uuid for rs in self.rule_sets.all()]
 
     def get_columns(self):
         runs = self.steps().filter(step_type=RULE_SET).exclude(rule_uuid=None).order_by('run').values('run').annotate(count=Count('run')).order_by('-count').first()
@@ -2672,9 +2672,10 @@ class FlowRun(models.Model):
         Whether this run has reached the terminal node in the flow
         """
         terminal_nodes = self.flow.get_terminal_nodes()
-        category_nodes = [_.uuid for _ in self.flow.rule_sets.all()]
-        completed = self.steps.filter(Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None))).filter(run__contact__is_test=False)
-        return completed
+        category_nodes = self.flow.get_category_nodes()
+
+        is_end = Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None))
+        return self.steps.filter(is_end).filter(run__contact__is_test=False).exists()
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 

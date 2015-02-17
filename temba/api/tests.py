@@ -342,10 +342,15 @@ class APITest(TembaTest):
         self.assertContains(response, "+250788123124")
         self.assertContains(response, "+250788123123")
 
-        # filter by id (deprecated)
+        # filter by id
         response = self.fetchJSON(url, "run=%d" % run.pk)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
+        fetched = json.loads(response.content)['results'][0]
+        self.assertEqual(fetched['run'], run.pk)
+        self.assertEqual(fetched['flow_uuid'], flow.uuid)
+        self.assertEqual(fetched['contact'], self.joe.uuid)
+        self.assertEqual(fetched['completed'], False)
 
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
@@ -359,7 +364,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 7)
         self.assertContains(response, "+250788123123")
 
-        # filter by phone
+        # filter by phone (deprecated)
         response = self.fetchJSON(url, "phone=%2B250788123123")
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "+250788123123")

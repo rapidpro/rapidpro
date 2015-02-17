@@ -959,6 +959,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     values = serializers.SerializerMethodField('get_values')
     steps = serializers.SerializerMethodField('get_steps')
     contact = serializers.SerializerMethodField('get_contact_uuid')
+    completed = serializers.SerializerMethodField('is_completed')
     flow = serializers.SerializerMethodField('get_flow')  # deprecated, use flow_uuid
     phone = serializers.SerializerMethodField('get_phone')  # deprecated, use contact
 
@@ -973,6 +974,9 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
+
+    def is_completed(self, obj):
+        return obj.is_completed()
 
     def get_values(self, obj):
         results = obj.flow.get_results(obj.contact, run=obj)
@@ -995,7 +999,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'phone', 'values', 'steps', 'created_on')
+        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'phone', 'values', 'steps', 'created_on')
         read_only_fields = ('created_on',)
 
 
