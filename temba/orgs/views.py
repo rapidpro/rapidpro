@@ -1498,6 +1498,9 @@ class OrgCRUDL(SmartCRUDL):
     class Download(SmartTemplateView):
         template_name = 'orgs/org_download.haml'
 
+        def derive_title(self):
+            return _('Download')
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r'%s/%s/(?P<task_type>\w+)/(?P<pk>\d+)/$' % (path, action)
@@ -1537,6 +1540,10 @@ class OrgCRUDL(SmartCRUDL):
                 if self.request.user.is_superuser:
                     return HttpResponseRedirect(reverse('orgs.org_manage'))
                 return HttpResponseRedirect(reverse('msgs.msg_inbox'))
+
+            user = self.request.user
+            if not user.get_org():
+                user.set_org(export_task.org)
 
             download = request.REQUEST.get('download', None)
 

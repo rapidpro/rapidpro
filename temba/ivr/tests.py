@@ -202,7 +202,7 @@ class IVRTests(TembaTest):
 
         # make sure our flow is there as expected
         flow = Flow.objects.filter(name='Call me maybe').first()
-        self.assertEquals('callme', flow.triggers.all().first().keyword)
+        self.assertEquals('callme', flow.triggers.filter(trigger_type='K').first().keyword)
 
         user_settings = self.admin.get_settings()
         user_settings.tel = '+18005551212'
@@ -339,7 +339,6 @@ class IVRTests(TembaTest):
         # the next step shouldn't have any messages yet since they haven't pressed anything
         self.assertEquals(0, steps[1].messages.all().count())
 
-
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -382,4 +381,27 @@ class IVRTests(TembaTest):
         # inbox since our flow doesn't handle text messages
         msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
         self.assertFalse(Flow.find_and_handle(msg))
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_incoming_call(self):
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file('call-me-maybe')
+        flow = Flow.objects.filter(name='Call me maybe').first()
+
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('api.twilio_handler'), post_data)
+        self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
+
+        call = IVRCall.objects.all().first()
+        self.assertEquals('+250788382382', call.contact_urn.path)
+
 
