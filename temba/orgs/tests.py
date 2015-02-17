@@ -835,7 +835,11 @@ class OrgTest(TembaTest):
 
         self.create_secondary_org()
         self.org2.administrators.add(self.admin)
+
         self.admin.set_org(self.org2)
+        s = self.client.session
+        s['org_id'] = self.org2.pk
+        s.save()
 
         response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
         self.assertEquals(200, response.status_code)
@@ -844,6 +848,10 @@ class OrgTest(TembaTest):
         self.assertEquals(user.get_org(), self.org2)
 
         self.admin.set_org(None)
+        s = self.client.session
+        s['org_id'] = None
+        s.save()
+
         response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
         self.assertEquals(200, response.status_code)
         user = response.context_data['view'].request.user
