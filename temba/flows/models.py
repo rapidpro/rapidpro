@@ -15,7 +15,6 @@ import urllib2
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
-from django.core.cache import cache
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -25,11 +24,10 @@ from django.contrib.auth.models import User, Group
 from django.db import models, transaction
 from django.db.models import Q, Count
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
-from django.core.cache import cache
 from enum import Enum
 from redis_cache import get_redis_connection
-from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from smartmin.models import SmartModel
 from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
@@ -38,6 +36,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS,
 from temba.orgs.models import Org
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, get_preferred_language, analytics
+from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel
 from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
@@ -75,10 +74,15 @@ class FlowReferenceException(Exception):
 
 FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = 'org:%d:lock:flow:%d:%s'
+
+FLOW_PROP_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
+FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 FLOW_STAT_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
+
 
 # the most frequently we will check if our cache needs rebuilding
 FLOW_STAT_CACHE_FREQUENCY = 24 * 60 * 60  # 1 day
+
 
 class FlowLock(Enum):
     """
@@ -88,7 +92,15 @@ class FlowLock(Enum):
     activity = 2
 
 
-class FlowCache(Enum):
+class FlowPropsCache(Enum):
+    """
+    Properties of a flow that we cache
+    """
+    terminal_nodes = 1
+    category_nodes = 2
+
+
+class FlowStatsCache(Enum):
     """
     Stats we calculate and cache for flows
     """
@@ -98,6 +110,7 @@ class FlowCache(Enum):
     visit_count_map = 4
     step_active_set = 5
     cache_check = 6
+
 
 def edit_distance(s1, s2): # pragma: no cover
     """
@@ -744,14 +757,20 @@ class Flow(TembaModel, SmartModel):
                 pass
         return changed
 
-    def clear_cache(self):
+    def clear_props_cache(self):
         r = get_redis_connection()
-        keys = r.keys(self.get_cache_key("*"))
-        if keys:
-            r.delete(*keys)
+        keys = [self.get_props_cache_key(c) for c in FlowPropsCache.__members__.values()]
+        r.delete(*keys)
 
-    def get_cache_key(self, kind, item=None):
+    def clear_stats_cache(self):
+        r = get_redis_connection()
+        keys = [self.get_stats_cache_key(c) for c in FlowStatsCache.__members__.values()]
+        r.delete(*keys)
 
+    def get_props_cache_key(self, kind):
+        return FLOW_PROP_CACHE_KEY % (self.org.pk, self.pk, kind.name)
+
+    def get_stats_cache_key(self, kind, item=None):
         name = kind
         if hasattr(kind, 'name'):
             name = kind.name
@@ -782,7 +801,7 @@ class Flow(TembaModel, SmartModel):
 
             # all the runs that were started
             runs_started = self.runs.filter(contact__is_test=False).count()
-            r.set(self.get_cache_key(FlowCache.runs_started_count), runs_started)
+            r.set(self.get_stats_cache_key(FlowStatsCache.runs_started_count), runs_started)
 
             # find all the completed runs
             terminal_nodes = [node.uuid for node in self.action_sets.filter(destination=None)]
@@ -794,13 +813,13 @@ class Flow(TembaModel, SmartModel):
 
             run_ids = [value['run__pk'] for value in completed]
             if run_ids:
-                completed_key = self.get_cache_key(FlowCache.runs_completed_count)
+                completed_key = self.get_stats_cache_key(FlowStatsCache.runs_completed_count)
                 r.delete(completed_key)
                 r.sadd(completed_key, *run_ids)
 
             # unique contacts
             contact_ids = [value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id')]
-            contacts_key = self.get_cache_key(FlowCache.contacts_started_set)
+            contacts_key = self.get_stats_cache_key(FlowStatsCache.contacts_started_set)
             r.delete(contacts_key)
             if contact_ids:
                 r.sadd(contacts_key, *contact_ids)
@@ -810,18 +829,18 @@ class Flow(TembaModel, SmartModel):
             (active, visits) = self._calculate_activity()
 
             # remove our old active cache
-            keys = r.keys(self.get_cache_key(FlowCache.step_active_set, '*'))
+            keys = r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))
             if keys:
                 r.delete(*keys)
-            r.delete(self.get_cache_key(FlowCache.visit_count_map))
+            r.delete(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
 
             # add current active cache
             for step, runs in active.items():
                 for run in runs:
-                    r.sadd(self.get_cache_key(FlowCache.step_active_set, step), run)
+                    r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, step), run)
 
             if len(visits):
-                r.hmset(self.get_cache_key(FlowCache.visit_count_map), visits)
+                r.hmset(self.get_stats_cache_key(FlowStatsCache.visit_count_map), visits)
 
     def _calculate_activity(self, simulation=False):
 
@@ -870,12 +889,12 @@ class Flow(TembaModel, SmartModel):
         r = get_redis_connection()
 
         # if there's no key for our run count, we definitely need to build it
-        if not r.exists(self.get_cache_key(FlowCache.runs_started_count)):
+        if not r.exists(self.get_stats_cache_key(FlowStatsCache.runs_started_count)):
             calculate_flow_stats_task.delay(self.pk)
             return
 
         # don't do the more expensive check if it was performed recently
-        cache_check = self.get_cache_key(FlowCache.cache_check)
+        cache_check = self.get_stats_cache_key(FlowStatsCache.cache_check)
         if r.exists(cache_check):
             return
 
@@ -905,13 +924,13 @@ class Flow(TembaModel, SmartModel):
         r = get_redis_connection()
 
         # we can do two queries to the db, or just one to redis
-        keys = r.keys(self.get_cache_key(FlowCache.step_active_set, '*'))
+        keys = r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))
         active = {}
         for key in keys:
             active[key[key.rfind(':') + 1:]] = r.scard(key)
 
         # visited path
-        visited = r.hgetall(self.get_cache_key(FlowCache.visit_count_map))
+        visited = r.hgetall(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
 
         # make sure our counts are treated as ints for consistency
         for k, v in visited.items():
@@ -922,7 +941,7 @@ class Flow(TembaModel, SmartModel):
     def get_total_runs(self):
         self._check_for_cache_update()
         r = get_redis_connection()
-        runs = r.get(self.get_cache_key(FlowCache.runs_started_count))
+        runs = r.get(self.get_stats_cache_key(FlowStatsCache.runs_started_count))
         if runs:
             return int(runs)
         return 0
@@ -930,7 +949,7 @@ class Flow(TembaModel, SmartModel):
     def get_total_contacts(self):
         self._check_for_cache_update()
         r = get_redis_connection()
-        return r.scard(self.get_cache_key(FlowCache.contacts_started_set))
+        return r.scard(self.get_stats_cache_key(FlowStatsCache.contacts_started_set))
 
     def update_start_counts(self, contacts, simulation=False):
         """
@@ -944,11 +963,11 @@ class Flow(TembaModel, SmartModel):
             contact_count = len(contacts)
 
             # total number of runs as an int
-            r.incrby(self.get_cache_key(FlowCache.runs_started_count), contact_count)
+            r.incrby(self.get_stats_cache_key(FlowStatsCache.runs_started_count), contact_count)
 
             # distinct participants as a set
             if contact_count:
-                r.sadd(self.get_cache_key(FlowCache.contacts_started_set), *[c.pk for c in contacts])
+                r.sadd(self.get_stats_cache_key(FlowStatsCache.contacts_started_set), *[c.pk for c in contacts])
 
 
     def get_base_text(self, language_dict, default=''):
@@ -1111,7 +1130,7 @@ class Flow(TembaModel, SmartModel):
     def get_completed_runs(self):
         self._check_for_cache_update()
         r = get_redis_connection()
-        return r.scard(self.get_cache_key(FlowCache.runs_completed_count))
+        return r.scard(self.get_stats_cache_key(FlowStatsCache.runs_completed_count))
 
     def get_completed_percentage(self):
         total_runs = self.get_total_runs()
@@ -1125,10 +1144,13 @@ class Flow(TembaModel, SmartModel):
         return self.steps().filter(step_type=RULE_SET, left_on__gte=since, run__contact__is_test=False).count()
 
     def get_terminal_nodes(self):
-        return [s.uuid for s in self.action_sets.filter(destination=None)]
+        cache_key = self.get_props_cache_key(FlowPropsCache.terminal_nodes)
+        return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL,
+                             lambda: [s.uuid for s in self.action_sets.filter(destination=None)])
 
     def get_category_nodes(self):
-        return [rs.uuid for rs in self.rule_sets.all()]
+        cache_key = self.get_props_cache_key(FlowPropsCache.category_nodes)
+        return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL, lambda: [rs.uuid for rs in self.rule_sets.all()])
 
     def get_columns(self):
         runs = self.steps().filter(step_type=RULE_SET).exclude(rule_uuid=None).order_by('run').values('run').annotate(count=Count('run')).order_by('-count').first()
@@ -1701,7 +1723,7 @@ class Flow(TembaModel, SmartModel):
 
         r = get_redis_connection()
         if run_ids:
-            for key in r.keys(self.get_cache_key(FlowCache.step_active_set, '*')):
+            for key in r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
                 r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):
@@ -1710,7 +1732,7 @@ class Flow(TembaModel, SmartModel):
         remove the (path) data for the runs.
         """
         r = get_redis_connection()
-        r.srem(self.get_cache_key(FlowCache.step_active_set, step.step_uuid), step.run.pk)
+        r.srem(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
 
     def remove_visits_for_step(self, step):
         """
@@ -1720,7 +1742,7 @@ class Flow(TembaModel, SmartModel):
         step_uuid = step.step_uuid
         if step.rule_uuid:
             step_uuid = step.rule_uuid
-        r.hincrby(self.get_cache_key(FlowCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
+        r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
 
     def update_activity(self, step, previous_step=None, rule_uuid=None):
         """
@@ -1746,10 +1768,10 @@ class Flow(TembaModel, SmartModel):
                 # if we came from a rule, use that instead of our step
                 if rule_uuid:
                     previous_uuid = rule_uuid
-                r.hincrby(self.get_cache_key(FlowCache.visit_count_map), "%s:%s" % (previous_uuid, step.step_uuid), 1)
+                r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (previous_uuid, step.step_uuid), 1)
 
             # make us active on our new step
-            r.sadd(self.get_cache_key(FlowCache.step_active_set, step.step_uuid), step.run.pk)
+            r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
 
     def get_entry_send_actions(self):
         """
@@ -2134,6 +2156,9 @@ class Flow(TembaModel, SmartModel):
                 self.saved_by = user
             self.saved_on = timezone.now()
             self.save()
+
+            # clear property cache
+            self.clear_props_cache()
 
             # create a version of our flow for posterity
             if user is None:
@@ -2603,14 +2628,14 @@ class FlowRun(models.Model):
 
         with self.flow.lock_on(FlowLock.participation):
 
-            r.incrby(self.flow.get_cache_key(FlowCache.runs_started_count), -1)
+            r.incrby(self.flow.get_stats_cache_key(FlowStatsCache.runs_started_count), -1)
 
             # remove ourselves from the completed runs
-            r.srem(self.flow.get_cache_key(FlowCache.runs_completed_count), self.pk)
+            r.srem(self.flow.get_stats_cache_key(FlowStatsCache.runs_completed_count), self.pk)
 
             # if we are the last run for our contact, remove our contact from the start set
             if FlowRun.objects.filter(flow=self.flow, contact=self.contact).exclude(pk=self.pk).count() == 0:
-                r.srem(self.flow.get_cache_key(FlowCache.contacts_started_set), self.contact.pk)
+                r.srem(self.flow.get_stats_cache_key(FlowStatsCache.contacts_started_set), self.contact.pk)
 
         # lastly delete ourselves
         self.delete()
@@ -2623,7 +2648,7 @@ class FlowRun(models.Model):
         r = get_redis_connection()
         if not self.contact.is_test:
             with self.flow.lock_on(FlowLock.participation):
-                key = self.flow.get_cache_key(FlowCache.runs_completed_count)
+                key = self.flow.get_stats_cache_key(FlowStatsCache.runs_completed_count)
                 if complete:
                     r.sadd(key, self.pk)
                 else:

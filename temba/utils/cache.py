@@ -1,25 +1,32 @@
 from __future__ import unicode_literals
 
+import json
+
 from redis_cache import get_redis_connection
 
 
-def get_cacheable_result(cache_key, cache_ttl, callable, r=None):
+def get_cacheable(cache_key, cache_ttl, callable, as_json=True, r=None):
     """
-    Gets a cache-able calculation result
+    Gets the result of a method call, using the given key and TTL as a cache
     """
     if not r:
         r = get_redis_connection()
 
     cached = r.get(cache_key)
     if cached is not None:
-        try:
-            return int(cached)
-        except ValueError:
-            pass
+        return json.loads(cached) if as_json else cached
 
-    calculated = int(callable())
-    r.set(cache_key, calculated, cache_ttl)
+    calculated = callable()
+    r.set(cache_key, json.dumps(calculated) if as_json else calculated, cache_ttl)
+
     return calculated
+
+
+def get_cacheable_result(cache_key, cache_ttl, callable, r=None):
+    """
+    Gets a cache-able integer calculation result
+    """
+    return int(get_cacheable(cache_key, cache_ttl, callable, as_json=False, r=r))
 
 
 def incrby_existing(key, delta, r=None):
