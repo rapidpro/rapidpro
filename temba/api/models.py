@@ -206,7 +206,7 @@ class WebHookEvent(SmartModel):
             if run.contact.is_test:
                 from temba.flows.models import ActionLog
                 log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (reverse('api.log_read', args=[webhook_event.pk]), status_code)
-                ActionLog.create_action_log(run, log_txt)
+                ActionLog.create(run, log_txt, safe=True)
 
         return result
 
