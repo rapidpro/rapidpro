@@ -2158,7 +2158,7 @@ class FlowsTest(FlowFileTest):
 
     def clear_activity(self, flow):
         r = get_redis_connection()
-        flow.clear_cache()
+        flow.clear_stats_cache()
 
     def test_activity(self):
 
