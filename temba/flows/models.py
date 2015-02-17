@@ -3021,7 +3021,13 @@ class ActionLog(models.Model):
                                       help_text=_("When this action log was created"))
 
     @classmethod
-    def create_action_log(cls, run, text):
+    def create_action_log(cls, run, text, safe=False):
+
+        if not safe:
+            text = escape(text)
+
+        text = text.replace('\n', "<br/>")
+
         try:
             return ActionLog.objects.create(run=run, text=text)
         except Exception:
@@ -3033,9 +3039,7 @@ class ActionLog(models.Model):
         return dict(direction="O", text=self.text, id=self.id, created_on=self.created_on.strftime('%x %X'), model="log")
 
     def simulator_json(self):
-        log_json = self.as_json()
-        log_json['text'] = escape(self.text).replace('\n', "<br/>")
-        return log_json
+        return self.as_json()
 
 class FlowStep(models.Model):
     run = models.ForeignKey(FlowRun, related_name='steps')
