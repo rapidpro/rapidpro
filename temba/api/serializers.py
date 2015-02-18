@@ -425,6 +425,18 @@ class ContactFieldWriteSerializer(serializers.Serializer):
                 raise ValidationError("Invalid field value type")
         return attrs
 
+    def validate(self, attrs):
+
+        key = attrs.get('key', None)
+        label = attrs.get('label')
+
+        if not key:
+            key = ContactField.api_make_key(label)
+
+        attrs['key'] = key
+        return attrs
+
+
     def restore_object(self, attrs, instance=None):
         """
         Update our contact field
@@ -433,12 +445,9 @@ class ContactFieldWriteSerializer(serializers.Serializer):
             raise ValidationError("Invalid operation")
 
         org = self.user.get_org()
-        key = attrs.get('key', None)
+        key = attrs.get('key')
         label = attrs.get('label')
         value_type = attrs.get('value_type')
-
-        if not key:
-            key = ContactField.api_make_key(label)
 
         return ContactField.get_or_create(org, key, label, value_type=value_type)
 

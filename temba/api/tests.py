@@ -946,6 +946,10 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
         self.assertResponseError(response, 'value_type', "This field is required.")
 
+        response = self.postJSON(url, dict(label='Name', value_type='T'))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'non_field_error', "key for Name is a reserved name for contact fields")
+
     def test_api_messages(self):
         url = reverse('api.messages')
 
