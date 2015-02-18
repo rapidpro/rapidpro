@@ -438,7 +438,7 @@ class ContactFieldWriteSerializer(serializers.Serializer):
         value_type = attrs.get('value_type')
 
         if not key:
-            key = ContactField.make_key(label)
+            key = ContactField.api_make_key(label)
 
         return ContactField.get_or_create(org, key, label, value_type=value_type)
 
@@ -605,7 +605,8 @@ class CampaignEventWriteSerializer(serializers.Serializer):
         existing_field = ContactField.objects.filter(label=relative_to, org=org, is_active=True)
 
         if not existing_field:
-            relative_to_field = ContactField.get_or_create(org, ContactField.make_key(relative_to), relative_to)
+            key = ContactField.api_make_key(relative_to)
+            relative_to_field = ContactField.get_or_create(org, key, relative_to)
         else:
             relative_to_field = existing_field[0]
 

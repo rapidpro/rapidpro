@@ -7,6 +7,7 @@ from datetime import datetime, date
 from django.utils import timezone
 
 from django_hstore.apps import register_hstore_handler
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -1567,6 +1568,9 @@ class ContactFieldTest(TembaTest):
         self.assertEquals("first_name", ContactField.make_key("First Name"))
         self.assertEquals("second_name", ContactField.make_key("Second   Name  "))
         self.assertEquals("323_ffsn_slfs_ksflskfs_fk_anfaddgas", ContactField.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "))
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("Name")
 
     def test_export(self):
         from xlrd import open_workbook, xldate_as_tuple, XL_CELL_DATE, XLRDError
