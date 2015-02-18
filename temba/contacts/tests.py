@@ -1570,7 +1570,7 @@ class ContactFieldTest(TembaTest):
         self.assertEquals("323_ffsn_slfs_ksflskfs_fk_anfaddgas", ContactField.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "))
 
         with self.assertRaises(ValidationError):
-            ContactField.make_key("Name")
+            ContactField.api_make_key("Name")
 
     def test_export(self):
         from xlrd import open_workbook, xldate_as_tuple, XL_CELL_DATE, XLRDError

@@ -55,11 +55,15 @@ class ContactField(models.Model, OrgAssetMixin):
 
     @classmethod
     def make_key(cls, label):
-        key_candidate = re.sub(r'([^a-z0-9]+)', ' ', label.lower())
-        key = re.sub(r'([^a-z0-9]+)', '_', key_candidate.strip())
+        key = re.sub(r'([^a-z0-9]+)', ' ', label.lower())
+        return re.sub(r'([^a-z0-9]+)', '_', key.strip())
+
+    @classmethod
+    def api_make_key(cls, label):
+        key = cls.make_key(cls, label)
 
         if key in RESERVED_CONTACT_FIELDS:
-            raise ValidationError(_("key form %s is a reserved name for contact fields") % label)
+            raise ValidationError(_("key for %s is a reserved name for contact fields") % label)
 
         return key
 
