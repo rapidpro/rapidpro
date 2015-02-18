@@ -7,6 +7,7 @@ import phonenumbers
 import re
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -54,8 +55,13 @@ class ContactField(models.Model, OrgAssetMixin):
 
     @classmethod
     def make_key(cls, label):
-        key = re.sub(r'([^a-z0-9]+)', ' ', label.lower())
-        return re.sub(r'([^a-z0-9]+)', '_', key.strip())
+        key_candidate = re.sub(r'([^a-z0-9]+)', ' ', label.lower())
+        key = re.sub(r'([^a-z0-9]+)', '_', key_candidate.strip())
+
+        if key in RESERVED_CONTACT_FIELDS:
+            raise ValidationError(_("key form %s is a reserved name for contact fields") % label)
+
+        return key
 
     @classmethod
     def is_valid_label(cls, label):
