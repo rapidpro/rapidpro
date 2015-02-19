@@ -1640,6 +1640,7 @@ class Flow(TembaModel, SmartModel):
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows, execute_reply_action=not optimize_sending_action)
+
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True)
 
                 # and onto the destination

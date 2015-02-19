@@ -2528,6 +2528,41 @@ class FlowsTest(FlowFileTest):
         Flow.import_flows(definition, trey_org, trey)
         self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="new_mother").first())
 
+    def test_cross_language_import(self):
+
+        # import our localized flow into an org with no languages
+        self.import_file('multi-language-flow')
+        flow = Flow.objects.get(name='Multi Language Flow')
+
+        # even tho we don't have a language, our flow has enough info to function
+        self.assertEquals('eng', flow.base_language)
+
+        # now try executing this flow on our org, should use the flow base language
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        replies = self.send_message(flow, 'blue')
+        self.assertEquals('Thank you! I like blue.', replies[0])
+        self.assertEquals('This message was not translated.', replies[1])
+
+        # now add a primary language to our org
+        self.org.primary_language = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
+                                                            created_by=self.admin, modified_by=self.admin)
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # with our org in spanish, we should get the spanish version
+        self.assertEquals('\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        # but set our contact's language explicity should get us back to english
+        self.contact.language = 'eng'
+        self.contact.save()
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+
+
     def test_different_expiration(self):
         flow = self.get_flow('favorites')
         self.send_message(flow, "RED", restart_participants=True)

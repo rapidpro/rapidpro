@@ -213,9 +213,15 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                reply = Msg.objects.get(response_to=incoming)
-                self.assertEquals(contact, reply.contact)
-                return reply.text
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                self.assertGreaterEqual(len(replies), 1)
+
+                if len(replies) == 1:
+                    self.assertEquals(contact, replies.first().contact)
+                    return replies.first().text
+
+                # if it's more than one, send back a list of replies
+                return [reply.text for reply in replies]
 
             return None
 

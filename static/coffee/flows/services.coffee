@@ -612,6 +612,17 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if lang.iso_code != flow.base_language
           languages.push(lang)
 
+      # if they don't have our base language in the org, force ourselves as the default
+      if not $rootScope.language and flow.base_language
+        $rootScope.language =
+          iso_code: flow.base_language
+
+      # if we have language choices, make sure our base language is one of them
+      if languages
+        if flow.base_language not in (lang.iso_code for lang in languages)
+          languages.unshift
+            iso_code:flow.base_language
+            name:'Default'
 
       $rootScope.languages = languages
       $rootScope.flow = flow

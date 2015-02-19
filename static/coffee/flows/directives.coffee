@@ -167,7 +167,6 @@ app.directive "action", [ "Plumb", "Flow", (Plumb, Flow) ->
         if action._translation_recording
           action._translation_recording = window.recordingURL + action._translation_recording
 
-
       Plumb.repaint(element.parents('.node').find('.source'))
 
     scope.$watch (->scope.action.dirty), (current) ->
