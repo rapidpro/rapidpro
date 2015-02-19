@@ -649,8 +649,12 @@ class ChannelTest(TembaTest):
         test_contact.is_test = True
         test_contact.save()
 
-        r_incomings = response.context['message_stats'][0]['data'][-1]['count']
-        r_outgoings = response.context['message_stats'][1]['data'][-1]['count']
+        # should have two series, one for incoming one for outgoing
+        self.assertEquals(2, len(response.context['message_stats']))
+
+        # but only an outgoing message so far
+        self.assertEquals(0, len(response.context['message_stats'][0]['data']))
+        self.assertEquals(1, response.context['message_stats'][1]['data'][-1]['count'])
 
         # send messages with a test contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'This incoming message will not be counted')
@@ -658,17 +662,41 @@ class ChannelTest(TembaTest):
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['message_stats'][0]['data'][-1]['count'], r_incomings)
-        self.assertEquals(response.context['message_stats'][1]['data'][-1]['count'], r_outgoings)
+
+        # nothing should change since it's a test contact
+        self.assertEquals(0, len(response.context['message_stats'][0]['data']))
+        self.assertEquals(1, response.context['message_stats'][1]['data'][-1]['count'])
 
         # send messages with a normal contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn(TEL_SCHEME).path), 'This incoming message will be counted')
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
+        # now we have an inbound message and two outbounds
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['message_stats'][0]['data'][-1]['count'], r_incomings+1)
-        self.assertEquals(response.context['message_stats'][1]['data'][-1]['count'], r_outgoings+1)
+        self.assertEquals(1, response.context['message_stats'][0]['data'][-1]['count'])
+        self.assertEquals(2, response.context['message_stats'][1]['data'][-1]['count'])
+
+        # test cases for IVR messaging, make our relayer accept calls
+        self.tel_channel.role = 'SCAR'
+        self.tel_channel.save()
+
+        from temba.msgs.models import IVR
+        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'incoming ivr as a test contact', msg_type=IVR)
+        Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+
+        # nothing should have changed
+        self.assertEquals(2, len(response.context['message_stats']))
+
+        # now let's create an ivr interaction from a real contact
+        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn().path), 'incoming ivr', msg_type=IVR)
+        Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+
+        self.assertEquals(4, len(response.context['message_stats']))
+        self.assertEquals(1, response.context['message_stats'][2]['data'][0]['count'])
+        self.assertEquals(1, response.context['message_stats'][3]['data'][0]['count'])
 
     def test_invalid(self):
 

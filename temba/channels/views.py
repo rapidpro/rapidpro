@@ -22,9 +22,10 @@ from smartmin.views import *
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
 from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING
+from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager
+from temba.ivr.models import IVRCall
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
@@ -528,15 +529,17 @@ class ChannelCRUDL(SmartCRUDL):
             if not channel.is_active:
                 raise Http404("No active channel with that id")
 
+            ivr_count = Msg.objects.filter(channel=self.object, msg_type=IVR).exclude(contact__is_test=True).count()
             context['channel_errors'] = ChannelLog.objects.filter(msg__channel=self.object, is_error=True)
-            context['sms_count'] = Msg.objects.filter(channel=self.object).count()
+            context['sms_count'] = Msg.objects.filter(channel=self.object).exclude(msg_type=IVR).exclude(contact__is_test=True).count()
+            context['ivr_count'] = ivr_count
 
             ## power source stats data
-            source_stats = [[_['power_source'], _['count']] for _ in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
+            source_stats = [[event['power_source'], event['count']] for event in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
             context['source_stats'] = source_stats
 
             ## network connected to stats
-            network_stats = [[_['network_type'], _['count']] for _ in sync_events.order_by('network_type').values('network_type').annotate(count=Count('network_type'))]
+            network_stats = [[event['network_type'], event['count']] for event in sync_events.order_by('network_type').values('network_type').annotate(count=Count('network_type'))]
             context['network_stats'] = network_stats
 
             total_network = 0
@@ -578,11 +581,12 @@ class ChannelCRUDL(SmartCRUDL):
                 if unsent_msgs:
                     context['unsent_msgs_count'] = unsent_msgs.count()
 
-            end_date = timezone.now()
-            start_date = end_date - timedelta(days=30)
+            end_date = timezone.now() + timedelta(days=1)
+            start_date = end_date - timedelta(days=31)
 
-            incoming_stats = []
-            outgoing_stats = []
+            context['start_date'] = start_date.date()
+            context['end_date'] = end_date.date()
+
             message_stats = []
 
             # build up the channels we care about for outgoing messages
@@ -590,36 +594,39 @@ class ChannelCRUDL(SmartCRUDL):
             for sender in Channel.objects.filter(parent=channel):
                 outgoing_channels.append(sender)
 
-            # get our incoming messages by date
-            incoming = list(channel.msgs.filter(created_on__gte=start_date, direction='I', contact__is_test=False).extra(
-                {'date_created': "date(msgs_msg.created_on)"}).order_by('date_created').values('date_created').annotate(created_count=Count('id')))
+            # Show sms messages in a stacked column
+            incoming = list(channel.msgs.filter(created_on__gte=start_date, direction='I', contact__is_test=False).exclude(msg_type=IVR).extra(
+                {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-            outgoing = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False).extra(
-                {'date_created': "date(msgs_msg.created_on)"}).order_by('date_created').values('date_created').annotate(created_count=Count('id')))
+            outgoing = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False).exclude(msg_type=IVR).extra(
+                {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-            while start_date <= end_date:
-                day = start_date.date()
+            message_stats.append(dict(name=_('Incoming Text'), data=incoming))
+            message_stats.append(dict(name=_('Outgoing Text'), data=outgoing))
 
-                in_count = 0
-                if incoming and incoming[0]['date_created'] == day:
-                    in_count = incoming[0]['created_count']
-                    incoming.pop(0)
+            # Show ivr messages in the same stack
+            ivr_in = []
+            ivr_out = []
+            if ivr_count:
+                ivr_out = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False, msg_type=IVR).extra(
+                    {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-                out_count = 0
-                if outgoing and outgoing[0]['date_created'] == day:
-                    out_count = outgoing[0]['created_count']
-                    outgoing.pop(0)
+                ivr_in = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='I', contact__is_test=False, msg_type=IVR).extra(
+                    {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
+                message_stats.append(dict(name=_('Incoming IVR'), data=ivr_in))
+                message_stats.append(dict(name=_('Outgoing IVR'), data=ivr_out))
 
-                incoming_stats.append(dict(date=start_date, count=in_count))
-                outgoing_stats.append(dict(date=start_date, count=out_count))
+                from django.db.models import Sum
+                context['call_duration'] = list(IVRCall.objects.filter(
+                    channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False)
+                    .extra({'date': "date(ivr_ivrcall.created_on)"})
+                    .order_by('date').values('date')
+                    .annotate(duration=Sum('duration')))
 
-                start_date += timedelta(days=1)
-
-            message_stats.append(dict(name='Incoming', data=incoming_stats))
-            message_stats.append(dict(name='Outgoing', data=outgoing_stats))
+                print context['call_duration']
 
             context['message_stats'] = message_stats
-            context['has_messages'] = len(incoming_stats) or len(outgoing_stats)
+            context['has_messages'] = len(incoming) or len(outgoing) or len(ivr_in) or len(ivr_out)
 
             return context
 
