@@ -1241,7 +1241,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()
+        full_group_name = name.strip()[:64]
         if not full_group_name:
             raise ValueError("Group name cannot be blank")
 
