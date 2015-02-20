@@ -94,7 +94,7 @@ def check_flow_stats_accuracy_task(flow_id):
         flow = Flow.objects.get(pk=flow_id)
 
         r = get_redis_connection()
-        runs_started_cached = int(r.get(flow.get_cache_key(FlowStatsCache.runs_started_count)))
+        runs_started_cached = int(r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count)))
         runs_started = flow.runs.filter(contact__is_test=False).count()
 
         if runs_started != runs_started_cached:
