@@ -969,6 +969,8 @@ app.directive "chart", ->
             enabled: true
             color: "#888"
             connectorColor: "#888"
+            style:
+              textShadow: "none"
             formatter: ->
               if @point.percentage <= 0
                 return null

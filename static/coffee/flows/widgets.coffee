@@ -494,6 +494,12 @@ app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
       if term.indexOf('@') != 0 and data.length == 0
         return { id: term, text: term }
 
+  extraAndArbitraryAddFunction = (term, data) ->
+      if /^@extra.(\w+)(\.\w+)*$/.test(term)
+        return { id: term, text: term }
+      else
+        return arbitraryAddFunction(term, data)
+
   omnibox = (ele, options) ->
 
     data = []
@@ -521,7 +527,11 @@ app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
 
     # set our function to show and additional search choice
     if options.arbitraryAdd
-      options.createSearchChoice = arbitraryAddFunction
+      # allow using @extra variables
+      if options.allowExtra
+        options.createSearchChoice = extraAndArbitraryAddFunction
+      else
+        options.createSearchChoice = arbitraryAddFunction
     # allow arbitrary numbers if there is no custom create search choice and urns are allowed
     else if !options.createSearchChoice and types and types.indexOf('u') >= 0
       options.createSearchChoice = omniArbitraryNumberOption

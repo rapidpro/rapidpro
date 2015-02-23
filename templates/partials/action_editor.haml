@@ -47,14 +47,14 @@
             %p{class:"description"}
               -blocktrans
                 Choose one or more groups below.
-            %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"g", "arbitraryAdd":true, "completions":true}',groups:"action.groups",type:"hidden"}
+            %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"g", "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"action.groups",type:"hidden"}
             %button{ng-click:"saveGroups(config.type, editor.omnibox.selected)",class:"submit hide"}
               -trans "Ok"
           %div{ng-if:'config.type == "lang"'}
             %p{class:"description"}
               -blocktrans
                 Set the preferred language for the contact.
-                               
+
             %select{ng-model:"action.lang",style:"height:34px",name:"lang",ng-options:"lang.iso_code as lang.name for lang in $parent.languages",required:"",class:"language",select2:""}
             %button{ng-click:"saveLanguage(editor.lang)",class:"submit hide"}
               -trans "Ok"
