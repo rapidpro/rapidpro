@@ -55,8 +55,6 @@
       // this must be loaded after angular
       conditionalLoad('scripts/angular-file-upload-1.6.12/angular-file-upload.js', null)
 
-    -include "includes/frame_top.html"
-
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
@@ -89,6 +87,7 @@
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
 
+    -include "includes/frame_top.html"
 
     -if brand.favico
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
