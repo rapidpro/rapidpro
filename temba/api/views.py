@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
@@ -2326,6 +2326,9 @@ class FlowEndpoint(generics.ListAPIView):
              O - Open Ended
              C - Multiple Choice
              N - Numeric
+             M - Menu
+             K - Keypad
+             R - Recording
 
     Example:
 
