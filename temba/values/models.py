@@ -1,14 +1,15 @@
-from collections import Counter, defaultdict
-import json
+from __future__ import absolute_import, unicode_literals
+
+import time
+
+from collections import defaultdict
 from django.db import models, connection
-from django.db.models import Count
-from redis_cache import get_redis_connection
-from temba.orgs.models import Org
-from temba.locations.models import AdminBoundary
 from django.utils.translation import ugettext_lazy as _
+from redis_cache import get_redis_connection
+from temba.locations.models import AdminBoundary
+from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
 from stop_words import get_stop_words
-import time
 
 TEXT = 'T'
 DECIMAL = 'N'
@@ -30,6 +31,7 @@ RULESET_KEY = 'vsr%d'
 # cache for up to 30 days (we will invalidate manually when dependencies change)
 VALUE_SUMMARY_CACHE_TIME = 60 * 60 * 24 * 30
 
+
 class Value(models.Model):
 
     """
@@ -43,7 +45,7 @@ class Value(models.Model):
                                       help_text="The ContactField this value is for, if any")
 
     ruleset = models.ForeignKey('flows.RuleSet', null=True, on_delete=models.SET_NULL,
-                               help_text="The RuleSet this value is for, if any")
+                                help_text="The RuleSet this value is for, if any")
 
     run = models.ForeignKey('flows.FlowRun', null=True, on_delete=models.SET_NULL, related_name='values',
                             help_text="The FlowRun this value is for, if any")
@@ -71,7 +73,6 @@ class Value(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
-
 
     @classmethod
     def _filtered_values_to_categories(cls, contacts, values, label_field, formatter=None, return_contacts=False):
@@ -161,7 +162,6 @@ class Value(models.Model):
                     # filter our contacts by that group
                     for group_id in filter['groups']:
                         contacts = contacts.filter(groups__pk=group_id)
-
 
                 # we are filtering by one or more admin boundaries
                 elif 'boundary':
@@ -324,7 +324,7 @@ class Value(models.Model):
             { location: "State", parent: null }             // segment for each admin boundary within the parent
         """
         from temba.contacts.models import ContactGroup, ContactField
-        from temba.flows.models import TrueTest
+        from temba.flows.models import TrueTest, OPEN
 
         start = time.time()
         results = []
@@ -334,7 +334,7 @@ class Value(models.Model):
 
         org = ruleset.flow.org if ruleset else contact_field.org
 
-        open_ended = ruleset and len(ruleset.get_rules()) == 1
+        open_ended = ruleset and ruleset.response_type == OPEN
 
         # default our filters to an empty list if None are passed in
         if filters is None:
