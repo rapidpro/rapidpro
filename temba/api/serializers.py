@@ -756,7 +756,10 @@ class FlowReadSerializer(serializers.ModelSerializer):
     def get_rulesets(self, obj):
         rulesets = list()
         for ruleset in obj.rule_sets.all().order_by('y'):
-            rulesets.append(dict(label=ruleset.label, id=ruleset.id, node=ruleset.uuid))
+            rulesets.append(dict(node=ruleset.uuid,
+                                 label=ruleset.label,
+                                 response_type=ruleset.response_type,
+                                 id=ruleset.id))  # deprecated
 
         return rulesets
 

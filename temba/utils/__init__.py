@@ -107,8 +107,23 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
+def datetime_to_json_date(dt):
+    """
+    Formats a datetime as a string for inclusion in JSON
+    """
+    # always output as UTC / Z and always include milliseconds
+    as_utc = dt.astimezone(pytz.utc)
+    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+
 def json_date_to_datetime(date_str):
-    return datetime.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
+    """
+    Parses a datetime from a JSON string value
+    """
+    iso_format = '%Y-%m-%dT%H:%M:%S.%f'
+    if date_str.endswith('Z'):
+        iso_format += 'Z'
+    return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
 
 
 def datetime_to_ms(dt):
@@ -211,7 +226,7 @@ class DictStruct(object):
         for field in datetime_fields:
             value = self._values.get(field, None)
             if value:
-                self._values[field] = datetime.datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc)
+                self._values[field] = json_date_to_datetime(value)
 
         self._initialized = True
 
@@ -252,10 +267,7 @@ class DateTimeJsonEncoder(json.JSONEncoder):
     def default(self, o):
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime.datetime):
-            # always output as UTC / Z and always include milliseconds
-            as_utc = o.astimezone(pytz.utc)
-            r = as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-            return r
+            return datetime_to_json_date(o)
         elif isinstance(o, datetime.date):
             return o.isoformat()
         elif isinstance(o, datetime.time):
@@ -295,7 +307,7 @@ def datetime_decoder(d):
                 # For Python <= 2.5 strip off microseconds
                 # v = datetime.datetime.strptime(v.rsplit('.', 1)[0],
                 #     '%Y-%m-%dT%H:%M:%S')
-                v = datetime.datetime.strptime(v, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc)
+                v = json_date_to_datetime(v)
             except ValueError:
                 pass
         elif isinstance(v, (dict, list)):
