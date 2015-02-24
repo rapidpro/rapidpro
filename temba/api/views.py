@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
@@ -2321,7 +2321,7 @@ class FlowEndpoint(generics.ListAPIView):
       * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
-      * **rulesets** - the rulesets on this flow, including their label, node id and integer id
+      * **rulesets** - the rulesets on this flow, including their node UUID and label
 
     Example:
 

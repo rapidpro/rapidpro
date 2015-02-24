@@ -24,12 +24,12 @@ from temba.orgs.models import Org, OrgFolder, ACCOUNT_SID, ACCOUNT_TOKEN, APPLIC
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, SHAQODOON
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL
-from temba.flows.models import Flow, FlowLabel, FlowRun
+from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
 from temba.msgs.models import MSG_SENT_KEY, Label
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
-from temba.utils import dict_to_struct
+from temba.utils import dict_to_struct, datetime_to_json_date
 from temba.values.models import Value
 from twilio.util import RequestValidator
 from twython import TwythonError
@@ -200,13 +200,26 @@ class APITest(TembaTest):
 
         # create our test flow
         flow = self.create_flow()
+        flow_ruleset1 = RuleSet.objects.get(flow=flow)
 
         # this time, a 200
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
 
-        # should contain our channel in the response
-        self.assertContains(response, "Color Flow")
+        # should contain our single flow in the response
+        self.assertEqual(response.json['results'][0], dict(flow=flow.pk,
+                                                           uuid=flow.uuid,
+                                                           name='Color Flow',
+                                                           labels=[],
+                                                           runs=0,
+                                                           completed_runs=0,
+                                                           rulesets=[dict(node=flow_ruleset1.uuid,
+                                                                          id=flow_ruleset1.pk,
+                                                                          response_type='C',
+                                                                          label='color')],
+                                                           participants=0,
+                                                           created_on=datetime_to_json_date(flow.created_on),
+                                                           archived=False))
 
         response = self.fetchJSON(url)
         self.assertResultCount(response, 1)
