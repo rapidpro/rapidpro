@@ -2,6 +2,7 @@
 
 -with gear_links=view.get_gear_links
   -if gear_links
+
     #gear-container
       -if gear_links|length == 1
         -with link=gear_links|first
@@ -17,6 +18,12 @@
             .glyph.icon-cog
             %span.caret
           %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
+
+            // If we are inside an angular controller, let it insert options
+            %li.dynamic-item.hide{ ng-repeat:'link in $root.gearLinks', ng-class:'{divider:link.id=="divider"}'}
+              %a{href:'javascript:void(0);', ng-click:'clickGearMenuItem(link.id)'}
+                [[link.title]]
+
             -for link in gear_links
               -if not forloop.first
                 -if link.divider
@@ -29,6 +36,7 @@
                     -else
                       %a{href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
+
 
       :javascript
         $("#gear-container .gear-delete").on('click', function(e){

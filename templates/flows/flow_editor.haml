@@ -211,11 +211,15 @@
           -blocktrans
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-      .languages{ng-show:'flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
+      .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' ng-class='{active:lang == $root.language}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == $root.language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
+
+        .translated
+          %span.pct{ng-show:'flow.base_language != $root.language.iso_code'}
+            [[flow._pctTranslated]]% translated
 
     #status.hide
       #error
@@ -259,7 +263,6 @@
             .button
               %a.btn.btn-primary
                 Receive Message First
-
 
         // Our empty action node shown while dragging
         -if object.flow_type == 'V'
