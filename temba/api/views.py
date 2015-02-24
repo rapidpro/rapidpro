@@ -2321,14 +2321,7 @@ class FlowEndpoint(generics.ListAPIView):
       * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
-      * **rulesets** - the rulesets on this flow, including their node UUID label, and response type which is one of following string:
-
-             O - Open Ended
-             C - Multiple Choice
-             N - Numeric
-             M - Menu
-             K - Keypad
-             R - Recording
+      * **rulesets** - the rulesets on this flow, including their node UUID and label
 
     Example:
 
@@ -2349,13 +2342,11 @@ class FlowEndpoint(generics.ListAPIView):
                 "rulesets": [
                    {
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "label": "Age",
-                    "response_type": "N"
+                    "label": "Age"
                    },
                    {
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "label": "Gender",
-                    "response_type": "C"
+                    "label": "Gender"
                    }
                 ]
             },
