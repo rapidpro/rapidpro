@@ -3,7 +3,7 @@
 # a PostgreSQL database.
 #
 # The following are requirements:
-#     - a postgreSQL database named 'temba', with a user name 'temba' and 
+#     - a postgreSQL database named 'temba', with a user name 'temba' and
 #       password 'temba' (with postgis extensions installed)
 #     - a redis instance listening on localhost
 #-----------------------------------------------------------------------------------
@@ -90,5 +90,5 @@ warnings.filterwarnings(
 #-----------------------------------------------------------------------------------
 # Make our sitestatic URL be our static URL on development
 #-----------------------------------------------------------------------------------
-STATIC_URL = '/sitestatic/'
+STATIC_URL = '/static/'
 
