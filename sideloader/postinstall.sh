@@ -11,4 +11,5 @@ if [ ! -f /usr/bin/lessc ]; then
 fi
 
 $pip install -r pip-freeze.txt
-PYTHONPATH=`pwd` python manage.py syncdb
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
