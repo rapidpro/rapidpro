@@ -896,7 +896,7 @@ COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
-COMPRESS_URL = '/sitestatic/'
+COMPRESS_URL = '/static/'
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
 MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
