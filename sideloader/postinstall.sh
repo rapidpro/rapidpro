@@ -7,3 +7,4 @@ npm install -g bower
 bower install lessc
 
 $pip install -r pip-freeze.txt
+python manage.py syncdb
