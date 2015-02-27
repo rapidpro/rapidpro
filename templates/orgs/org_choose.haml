@@ -8,7 +8,7 @@
 -block content
   -if not orgs
     .
-      -trans "Your account is not associated to an organization. Contact your administrator for an invite."
+      -trans "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization."
 
   -for org in orgs
     %a.org-choose.posterize{ href: "?organization={{ org.id }}" }
