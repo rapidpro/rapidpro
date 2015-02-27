@@ -628,6 +628,53 @@ class ChannelCRUDL(SmartCRUDL):
             context['message_stats'] = message_stats
             context['has_messages'] = len(incoming) or len(outgoing) or len(ivr_in) or len(ivr_out)
 
+            message_stats_table = []
+
+            now = timezone.now()
+            month_end_time = now
+            month_start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            channel_added_on = channel.created_on
+
+            for i in range(12):
+                if month_end_time > channel_added_on:
+                    incoming_messages_count = Msg.objects.filter(channel=self.object,
+                                                                 created_on__lt=month_end_time,
+                                                                 created_on__gte=month_start_time,
+                                                                 contact__is_test=False,
+                                                                 direction='I').exclude(msg_type=IVR).count()
+
+                    outgoing_messages_count = Msg.objects.filter(channel=self.object,
+                                                                 created_on__lt=month_end_time,
+                                                                 created_on__gte=month_start_time,
+                                                                 contact__is_test=False,
+                                                                 direction='O').exclude(msg_type=IVR).count()
+
+                    incoming_ivr_count = Msg.objects.filter(channel=self.object,
+                                                            created_on__lt=month_end_time,
+                                                            created_on__gte=month_start_time,
+                                                            contact__is_test=False,
+                                                            msg_type=IVR,
+                                                            direction='I').count()
+
+                    outgoing_ivr_count = Msg.objects.filter(channel=self.object,
+                                                            created_on__lt=month_end_time,
+                                                            created_on__gte=month_start_time,
+                                                            contact__is_test=False,
+                                                            msg_type=IVR,
+                                                            direction='O').count()
+
+                    message_stats_table.append(dict(month_start=month_start_time,
+                                                    incoming_messages_count=incoming_messages_count,
+                                                    outgoing_messages_count=outgoing_messages_count,
+                                                    incoming_ivr_count=incoming_ivr_count,
+                                                    outgoing_ivr_count=outgoing_ivr_count))
+                month_end_time = month_start_time
+                month_start_time = (month_start_time - timedelta(days=7)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+            context['message_stats_table'] = message_stats_table
+
             return context
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):

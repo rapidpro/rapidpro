@@ -1,7 +1,7 @@
 -extends "smartmin/read.html"
 
 -load smartmin temba compress humanize channels
--load i18n
+-load i18n tz
 
 -block title
   .medium-help.float-left{class:'{{object|channel_icon}}'}
@@ -257,6 +257,36 @@
             .minutes-disclaimer
               In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
 
+  .row
+    .span12
+      %table.list-table.table.table-bordered.table-striped.table-condensed.message-stats-table
+        %thead
+          %tr
+            %th
+              -trans "Month"
+            %th
+              -trans "Incoming Text Messages"
+            %th
+              -trans "Outgoing Text Messages"
+            %th
+              -trans "Incoming IVR Messages"
+            %th
+              -trans "Outgoing IVR Messages"
+        %tbody
+          -for month_data in message_stats_table
+            %tr
+              %td
+                = month_data.month_start|utc|date:"F Y"
+              %td
+                = month_data.incoming_messages_count
+              %td
+                = month_data.outgoing_messages_count
+              %td
+                = month_data.incoming_ivr_count
+              %td
+                = month_data.outgoing_ivr_count
+
+
 
   -if object.channel_type == 'A'
     %div.row
@@ -428,6 +458,14 @@
 
     #gear-container {
       float:right;
+    }
+
+    .message-stats-table thead tr th {
+      text-align: center;
+    }
+
+    .message-stats-table tbody tr td {
+      text-align: right;
     }
 
 {% block extra-script %}
