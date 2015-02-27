@@ -1201,12 +1201,7 @@ class BulkExportTest(TembaTest):
 
     def test_trigger_flow(self):
 
-        handle = open('%s/test_imports/triggered-flow.json' % settings.MEDIA_ROOT, 'r+')
-        data = handle.read()
-        handle.close()
-
-        # import all our bits
-        self.org.import_app(json.loads(data), self.admin, site='http://rapidpro.io')
+        self.import_file('triggered-flow')
 
         flow = Flow.objects.filter(name='Trigger a Flow', org=self.org).first()
         definition = flow.as_json()

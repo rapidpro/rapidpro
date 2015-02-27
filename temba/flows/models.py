@@ -1640,6 +1640,7 @@ class Flow(TembaModel, SmartModel):
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows, execute_reply_action=not optimize_sending_action)
+
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True)
 
                 # and onto the destination
@@ -2142,9 +2143,9 @@ class Flow(TembaModel, SmartModel):
                     self.entry_uuid = None
                     self.entry_type = None
 
-            # if we have a base language, set that, but never overwrite an existing language
+            # if we have a base language, set that
             json_language = json_dict.get('base_language', None)
-            if not self.base_language and json_language:
+            if json_language:
                 self.base_language = json_language
 
             # set our metadata

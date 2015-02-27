@@ -134,7 +134,7 @@ app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $lo
 ]
 
 # update translations when actions or language
-app.directive "action", [ "Plumb", "Flow", (Plumb, Flow) ->
+app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
   link = (scope, element, attrs) ->
 
     scope.updateTranslationStatus = (action, baseLanguage, currentLanguage) ->
@@ -167,6 +167,7 @@ app.directive "action", [ "Plumb", "Flow", (Plumb, Flow) ->
         if action._translation_recording
           action._translation_recording = window.recordingURL + action._translation_recording
 
+      Flow.updateTranslationStats()
 
       Plumb.repaint(element.parents('.node').find('.source'))
 
@@ -233,6 +234,7 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           else
             category._translation = category.name
 
+      Flow.updateTranslationStats()
       Plumb.repaint(element)
 
     scope.$watch (->scope.ruleset), ->

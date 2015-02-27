@@ -612,6 +612,17 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if lang.iso_code != flow.base_language
           languages.push(lang)
 
+      # if they don't have our base language in the org, force ourselves as the default
+      if not $rootScope.language and flow.base_language
+        $rootScope.language =
+          iso_code: flow.base_language
+
+      # if we have language choices, make sure our base language is one of them
+      if languages
+        if flow.base_language not in (lang.iso_code for lang in languages)
+          languages.unshift
+            iso_code:flow.base_language
+            name: gettext('Default')
 
       $rootScope.languages = languages
       $rootScope.flow = flow
@@ -681,6 +692,47 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     Plumb.repaint()
 
     return
+
+  updateTranslationStats: ->
+
+    # look at all translatable bits in our flow and check for completeness
+    flow = $rootScope.flow
+    items = 0
+    missing = 0
+    for actionset in flow.action_sets
+      for action in actionset.actions
+        if action.type in ['send', 'reply', 'say']
+          items++
+          if action._missingTranslation
+            missing++
+
+    for ruleset in flow.rule_sets
+      for category in ruleset._categories
+          items++
+          if category._missingTranslation
+            missing++
+
+    # set our stats and translation status
+    flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
+    flow._missingTranslation = items > 0
+
+    if flow._pctTranslated == 100 and flow.base_language != $rootScope.language.iso_code
+      $rootScope.gearLinks = [
+        {
+          title: 'Default Language'
+          id: 'default_language'
+        },
+        {
+          id: 'divider'
+        }
+      ]
+    else
+      $rootScope.gearLinks = []
+
+    return flow._pctTranslated
+
+  setMissingTranslation: (missing) ->
+    $rootScope.flow._missingTranslation = missing
 
   removeConnection: (connection) ->
     node = $(connection.source).parents('.node').attr('id')

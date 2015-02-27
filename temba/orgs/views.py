@@ -1382,12 +1382,6 @@ class OrgCRUDL(SmartCRUDL):
                     if new_lang in old_languages:
                         old_languages.remove(new_lang)
 
-                # now check if any flows are using any of the old languages to be removed
-                dependency = Flow.objects.filter(org=self.org, is_active=True, base_language__in=old_languages).first()
-                if dependency:
-                    lang = Language.objects.filter(iso_code=dependency.base_language).first()
-                    raise ValidationError(_("%s cannot be removed since it is the base language for %s" % (lang.name, dependency.name)))
-
                 return super(OrgCRUDL.Languages.LanguagesForm, self).clean()
 
             class Meta:

@@ -35,6 +35,11 @@
   display:none;
 }
 
+.gear-menu {
+  .dynamic-item {
+    display:block;
+  }
+}
 
 // The main grid background
 @intensity:80;
@@ -1190,6 +1195,7 @@
 
 .languages {
   position:absolute;
+  text-align:right;
   right:52px;
   .language {
     padding:3px;
@@ -1199,6 +1205,10 @@
       color:@color-font-black;
     }
   }
+
+  .translated {
+    font-size:11px;
+  }
 }
 
 // Flow saving status
@@ -1206,7 +1216,7 @@
   position: absolute;
   right: 50px;
   text-align: right;
-  top: 222px;
+  top: 238px;
 
   z-index:@z-status-message;
   .error {

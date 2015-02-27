@@ -77,6 +77,24 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
 
 app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $modal, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
 
+  # inject into our gear menu
+  $rootScope.gearLinks = []
+
+  # when they click on an injected gear item
+  $scope.clickGearMenuItem = (id) ->
+
+    # setting our default language
+    if id == 'default_language'
+      modal = new ConfirmationModal(gettext('Default Language'), gettext('The default language for the flow is used for contacts which have no preferred language. Are you sure you want to set the default language for this flow to') + ' <span class="attn">' + $rootScope.language.name + "</span>?")
+      modal.addClass('warning')
+      modal.setListeners
+        onPrimary: ->
+          $scope.setBaseLanguage($rootScope.language)
+      modal.show()
+
+    return false
+
+
   $rootScope.activityInterval = 5000
 
   # fetch our flow to get started
@@ -98,6 +116,25 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
       $rootScope.showVersions = true
+
+  $scope.setBaseLanguage = (lang) ->
+
+    # now we have a real base language, remove the default placeholder
+    if $rootScope.languages[0].name == gettext('Default')
+      $rootScope.languages.splice(0, 1)
+
+    # reorder our languages so the base language is first
+    $rootScope.languages.splice($rootScope.languages.indexOf(lang), 1)
+    $rootScope.languages.unshift(lang)
+
+
+    # set the base language
+    $rootScope.flow.base_language = lang.iso_code
+
+    $timeout ->
+      $scope.setLanguage(lang)
+      Flow.markDirty()
+    ,0
 
 
   # Handle uploading of audio files for IVR recorded prompts
@@ -165,6 +202,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     $rootScope.activityInterval += 200
 
   $scope.setLanguage = (lang) ->
+    Flow.setMissingTranslation(false)
     $rootScope.language = lang
     Plumb.repaint()
 
