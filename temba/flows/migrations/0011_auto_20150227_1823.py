@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-from temba.flows.models import RuleSet, Flow
+from temba.flows.models import RuleSet, Flow, ActionSet
 
 
 def fix_like_named_destinations(apps, schema_editor):
@@ -16,6 +16,8 @@ def fix_like_named_destinations(apps, schema_editor):
     for flow in Flow.objects.all():
 
         for ruleset in RuleSet.objects.filter(flow=flow):
+            actionsets = {actionset['uuid'] for actionset in ActionSet.objects.filter(flow=flow).values('uuid')}
+
             category_map = {}
             new_rules = []
             rules = ruleset.get_rules()
@@ -37,6 +39,11 @@ def fix_like_named_destinations(apps, schema_editor):
                     print "[%s] - %d: (No Category) (%s)" % (flow.org.name, flow.pk, flow.modified_on)
                     continue
 
+                if rule.destination and rule.destination not in actionsets:
+                    print ("*" * 8) + " Fixing missing actionset" + ("*" * 8)
+                    rule.destination = None
+                    changed = True
+
                 new_destination = category_map[category_name.lower()]
                 if new_destination != rule.destination:
                     print "[%s] - %d: %s (%s)" % (flow.org.name, flow.pk, rule.get_category_name(flow.base_language), flow.modified_on)
@@ -46,7 +53,11 @@ def fix_like_named_destinations(apps, schema_editor):
                 new_rules.append(rule)
 
             if changed:
-                flow.update(flow.as_json())
+                try:
+                    flow.update(flow.as_json())
+                except:
+                    print "Skipping backup of broken flow [%d] - %s - %s" % (flow.pk, flow.org.name, flow.name)
+
                 ruleset.set_rules(new_rules)
                 updates += 1
 
