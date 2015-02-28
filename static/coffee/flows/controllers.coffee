@@ -1100,8 +1100,9 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   $scope.ok = ->
 
-    stopWatching()
     $modalInstance.close ""
+    stopWatching()
+
 
     $scope.updateRules()
 

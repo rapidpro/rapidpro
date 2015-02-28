@@ -532,6 +532,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     return
 
   deriveCategories: (ruleset, language) ->
+
     ruleset._categories = []
     for rule in ruleset.rules
 
@@ -548,17 +549,26 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       if rule.category
         if $rootScope.flow.base_language
-          rule_cat = rule.category[language]
-          existing = (category.name[language] for category in ruleset._categories)
+          rule_cat = rule.category[language].toLocaleLowerCase()
+          existing = (category.name[language].toLocaleLowerCase() for category in ruleset._categories)
         else
-          rule_cat = rule.category
-          existing = (category.name for category in ruleset._categories)
+          rule_cat = rule.category.toLocaleLowerCase()
+          existing = (category.name.toLocaleLowerCase() for category in ruleset._categories)
 
         if rule_cat not in existing
           ruleset._categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
         else
+
           for cat in ruleset._categories
-            if cat.name == rule_cat
+
+            # unlocalized flows just have a string name
+            name = cat.name
+
+            # if we are localized, use the base name
+            if cat.name.base
+              name = cat.name.base
+
+            if name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
               cat.sources.push(rule.uuid)
               if cat.target
                 rule.destination = cat.target
@@ -695,41 +705,42 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
   updateTranslationStats: ->
 
-    # look at all translatable bits in our flow and check for completeness
-    flow = $rootScope.flow
-    items = 0
-    missing = 0
-    for actionset in flow.action_sets
-      for action in actionset.actions
-        if action.type in ['send', 'reply', 'say']
-          items++
-          if action._missingTranslation
-            missing++
+    if $rootScope.language
+      # look at all translatable bits in our flow and check for completeness
+      flow = $rootScope.flow
+      items = 0
+      missing = 0
+      for actionset in flow.action_sets
+        for action in actionset.actions
+          if action.type in ['send', 'reply', 'say']
+            items++
+            if action._missingTranslation
+              missing++
 
-    for ruleset in flow.rule_sets
-      for category in ruleset._categories
-          items++
-          if category._missingTranslation
-            missing++
+      for ruleset in flow.rule_sets
+        for category in ruleset._categories
+            items++
+            if category._missingTranslation
+              missing++
 
-    # set our stats and translation status
-    flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
-    flow._missingTranslation = items > 0
+      # set our stats and translation status
+      flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
+      flow._missingTranslation = items > 0
 
-    if flow._pctTranslated == 100 and flow.base_language != $rootScope.language.iso_code
-      $rootScope.gearLinks = [
-        {
-          title: 'Default Language'
-          id: 'default_language'
-        },
-        {
-          id: 'divider'
-        }
-      ]
-    else
-      $rootScope.gearLinks = []
+      if flow._pctTranslated == 100 and flow.base_language != $rootScope.language.iso_code
+        $rootScope.gearLinks = [
+          {
+            title: 'Default Language'
+            id: 'default_language'
+          },
+          {
+            id: 'divider'
+          }
+        ]
+      else
+        $rootScope.gearLinks = []
 
-    return flow._pctTranslated
+      return flow._pctTranslated
 
   setMissingTranslation: (missing) ->
     $rootScope.flow._missingTranslation = missing
@@ -849,8 +860,23 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     for ruleset in $rootScope.flow.rule_sets
       if ruleset.uuid == node
 
+        # find the rule we are going to update
+        rule_to_update = null
+        category_name = null
         for rule in ruleset.rules
           if rule.uuid == from
+            rule_to_update = rule
+            category_name = rule.category
+            if rule.category.base
+              category_name = rule.category.base
+
+        for rule in ruleset.rules
+          name = rule.category
+          if rule.category.base
+            name = rule.category.base
+
+          # update the destination if its our uuid or if it shares our category name
+          if rule.uuid == from or category_name.toLocaleLowerCase() == name.toLocaleLowerCase()
             rule.destination = to
 
         for category in ruleset._categories
