@@ -470,6 +470,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       ruleset.webhook = null
       ruleset.webhook_action = null
       Plumb.repaint()
+      Flow.markDirty()
 
     # otherwise warn the user first
     else
