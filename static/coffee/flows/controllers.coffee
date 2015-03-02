@@ -730,7 +730,7 @@ TranslationController = ($scope, $modalInstance, languages, translation) ->
     $modalInstance.dismiss "cancel"
 
 # The controller for sub-dialogs when editing rules
-RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, utils, ruleset, Flow, Plumb, methods, type) ->
+RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, $timeout, utils, ruleset, Flow, Plumb, methods, type) ->
 
   $scope.ruleset = utils.clone(ruleset)
   $scope.methods = methods
@@ -744,6 +744,11 @@ RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, utils
     ruleset.webhook = $scope.ruleset.webhook
     ruleset.operand = $scope.ruleset.operand
     Flow.markDirty()
+
+    $timeout ->
+      Plumb.recalculateOffsets(ruleset.uuid)
+    ,0
+
     $modalInstance.close ""
 
   $scope.cancel = ->
