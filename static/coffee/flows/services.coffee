@@ -555,7 +555,8 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           rule_cat = rule.category.toLocaleLowerCase()
           existing = (category.name.toLocaleLowerCase() for category in ruleset._categories)
 
-        if rule_cat not in existing
+        # don't munge the Other category
+        if rule.test.type == 'true' or rule_cat not in existing
           ruleset._categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
         else
 
