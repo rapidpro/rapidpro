@@ -730,7 +730,7 @@ TranslationController = ($scope, $modalInstance, languages, translation) ->
     $modalInstance.dismiss "cancel"
 
 # The controller for sub-dialogs when editing rules
-RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, utils, ruleset, Flow, Plumb, methods, type) ->
+RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, $timeout, utils, ruleset, Flow, Plumb, methods, type) ->
 
   $scope.ruleset = utils.clone(ruleset)
   $scope.methods = methods
@@ -744,6 +744,11 @@ RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, utils
     ruleset.webhook = $scope.ruleset.webhook
     ruleset.operand = $scope.ruleset.operand
     Flow.markDirty()
+
+    $timeout ->
+      Plumb.recalculateOffsets(ruleset.uuid)
+    ,0
+
     $modalInstance.close ""
 
   $scope.cancel = ->
@@ -989,6 +994,7 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   , true
 
   $scope.updateRules = ->
+
     # set the base values on the rule definition
     rules = []
 
@@ -1102,16 +1108,20 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.ok = ->
 
     $modalInstance.close ""
-    stopWatching()
 
+    # update in the next cycle so we don't see effects in the dialog on close
+    $timeout ->
 
-    $scope.updateRules()
+      stopWatching()
 
-    # unplumb any rules that were explicity removed
-    Plumb.disconnectRules($scope.removed)
+      $scope.updateRules()
 
-    # splice in our new ruleset
-    Flow.replaceRuleset($scope.ruleset)
+      # unplumb any rules that were explicity removed
+      Plumb.disconnectRules($scope.removed)
+
+      # splice in our new ruleset
+      Flow.replaceRuleset($scope.ruleset)
+    ,0
 
     # link us up if necessary, we need to do this after our element is created
     if $scope.ruleset.from
