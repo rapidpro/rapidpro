@@ -117,33 +117,6 @@ class OrgTest(TembaTest):
         org = Org.objects.get(pk=self.org.pk)
         self.assertFalse(org.country)
 
-    def test_org_create(self):
-        self.login(self.admin)
-
-        response = self.client.get(reverse('orgs.org_create'))
-        self.assertEquals(200, response.status_code)
-        self.assertFalse(Org.objects.filter(name="kLab"))
-
-        data = dict(name="kLab", timezone="Africa/Kigali")
-        response = self.client.post(reverse('orgs.org_create'), data)
-        self.assertEquals(302, response.status_code)
-
-        orgs = Org.objects.filter(name="kLab")
-        self.assertEquals(orgs.count(), 1)
-        self.assertEquals(orgs[0].name, "kLab")
-        self.assertEquals(orgs[0].slug, "klab")
-
-        data = dict(name="kLab", timezone="Africa/Kigali")
-        response = self.client.post(reverse('orgs.org_create'), data)
-        self.assertEquals(302, response.status_code)
-
-        orgs = Org.objects.filter(name="kLab")
-        self.assertEquals(orgs.count(), 2)
-        self.assertEquals(orgs[0].name, "kLab")
-        self.assertEquals(orgs[1].name, "kLab")
-        self.assertEquals(orgs.filter(slug="klab").count(), 1)
-        self.assertEquals(orgs.filter(slug="klab-2").count(), 1)
-
     def test_plans(self):
         self.contact = self.create_contact("Joe", "+250788123123")
 
@@ -418,12 +391,12 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertEquals(response.context_data['org'], self.org2)
 
-        # a non org user is redirected to create his own org
+        # a non org user get a message to contact their administrator
         self.login(self.non_org_manager)
         response = self.client.get(choose_url)
-        self.assertEquals(302, response.status_code)
-        response = self.client.get(choose_url, follow=True)
-        self.assertEquals(reverse('orgs.org_create'), response.request['PATH_INFO'])
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(0, len(response.context['orgs']))
+        self.assertContains(response, "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization.")
 
         # superuser gets redirected to user management page
         self.login(self.superuser)

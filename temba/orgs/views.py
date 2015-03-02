@@ -420,8 +420,8 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose', 'manage_accounts',
-               'create', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
+    actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
+               'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import')
 
     model = Org
@@ -913,10 +913,6 @@ class OrgCRUDL(SmartCRUDL):
                 if self.request.user.is_superuser:
                     return HttpResponseRedirect(reverse('orgs.org_manage'))
 
-                elif not user_orgs:
-                    messages.info(request, _("Your account is not associated to an organization. Please create an organization."))
-                    return HttpResponseRedirect(reverse('orgs.org_create'))
-
                 elif user_orgs.count() == 1:
                     org = user_orgs[0]
                     self.request.session['org_id'] = org.pk
@@ -1097,38 +1093,6 @@ class OrgCRUDL(SmartCRUDL):
 
             context['org'] = self.get_object()
             return context
-
-    class Create(SmartCreateView):
-        title = _("Create Your Organization")
-        form_class = OrgSignupForm
-        fields = ('name', 'timezone')
-        success_message = ''
-
-        def get_success_url(self):
-            return "%s?start" % reverse('public.public_welcome')
-
-        def pre_save(self, obj):
-            obj = super(OrgCRUDL.Create, self).pre_save(obj)
-
-            user = self.request.user
-            obj.created_by = user
-            obj.modified_by = user
-
-            slug = Org.get_unique_slug(self.form.cleaned_data['name'])
-            obj.slug = slug
-
-            return obj
-
-        def post_save(self, obj):
-            obj = super(OrgCRUDL.Create, self).post_save(obj)
-            obj.administrators.add(self.request.user)
-
-            self.request.session['org_id'] = obj.pk
-
-            return obj
-
-        def has_permission(self, request, *args, **kwargs):
-            return self.request.user.is_authenticated()
 
     class Grant(SmartCreateView):
         title = _("Create Organization Account")
