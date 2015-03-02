@@ -71,12 +71,9 @@ def fix_like_named_destinations(apps, schema_editor):
                 ruleset.set_rules(new_rules)
                 ruleset.save()
 
-                try:
-                    # make sure there's nothing cached when creating our new revision
-                    flow = Flow.objects.get(pk=flow.pk)
-                    flow.update(flow.as_json())
-                except:
-                    print "Skipping backup of broken flow [%d] - %s - %s" % (flow.pk, flow.org.name, flow.name)
+                # make sure there's nothing cached when creating our new revision
+                flow = Flow.objects.get(pk=flow.pk)
+                flow.update(flow.as_json())
 
                 updates += 1
 
