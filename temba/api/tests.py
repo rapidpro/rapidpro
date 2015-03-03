@@ -354,10 +354,14 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
         self.assertEqual(400, response.status_code)
 
+        # but can with contact
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
+        self.assertEquals(201, response.status_code)
+
         # now fetch them instead...
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
         self.assertContains(response, "+250788123124")
         self.assertContains(response, "+250788123123")
 
@@ -374,13 +378,13 @@ class APITest(TembaTest):
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, "+250788123123")
 
         # filter by flow UUID
         response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, "+250788123123")
 
         # filter by phone (deprecated)
