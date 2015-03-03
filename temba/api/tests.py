@@ -348,6 +348,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow=flow_copy.pk, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
 
+        # can't start flow with phone if got no tel channel
+        self.channel.is_active = False
+        self.channel.save()
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+        self.assertEqual(400, response.status_code)
+
         # now fetch them instead...
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)

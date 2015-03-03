@@ -898,20 +898,22 @@ class FlowRunStartSerializer(serializers.Serializer):
         if org.is_anon:
             raise ValidationError("Cannot start flows for anonymous organizations")
 
-        # get a channel
-        channel = self.org.get_send_channel(TEL_SCHEME)
+        numbers = attrs.get(source, [])
+        if numbers:
+            # get a channel
+            channel = self.org.get_send_channel(TEL_SCHEME)
 
-        if channel:
-            # check our numbers for validity
-            for tel, phone in attrs.get(source, []):
-                try:
-                    normalized = phonenumbers.parse(phone, channel.country.code)
-                    if not phonenumbers.is_possible_number(normalized):
+            if channel:
+                # check our numbers for validity
+                for tel, phone in numbers:
+                    try:
+                        normalized = phonenumbers.parse(phone, channel.country.code)
+                        if not phonenumbers.is_possible_number(normalized):
+                            raise ValidationError("Invalid phone number: '%s'" % phone)
+                    except:
                         raise ValidationError("Invalid phone number: '%s'" % phone)
-                except:
-                    raise ValidationError("Invalid phone number: '%s'" % phone)
-        else:
-            raise ValidationError("You cannot start flows without at least one channel configured")
+            else:
+                raise ValidationError("You cannot start a flow for a phone number without a phone channel")
 
         return attrs
 
