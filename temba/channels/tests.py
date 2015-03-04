@@ -569,12 +569,15 @@ class ChannelTest(TembaTest):
         postdata['auto_follow'] = False
         postdata['address'] = "billy_bob"
 
-        self.fetch_protected(update_url, self.user, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEquals(channel.name, "Twitter2")
-        self.assertEquals(channel.alert_email, "bob@example.com")
-        self.assertEquals(channel.address, "billy_bob")
-        self.assertFalse(json.loads(channel.config)['auto_follow'])
+        with patch('temba.utils.mage.MageClient.refresh_twitter_stream') as refresh_twitter_stream:
+            refresh_twitter_stream.return_value = dict()
+
+            self.fetch_protected(update_url, self.user, postdata)
+            channel = Channel.objects.get(pk=self.tel_channel.id)
+            self.assertEquals(channel.name, "Twitter2")
+            self.assertEquals(channel.alert_email, "bob@example.com")
+            self.assertEquals(channel.address, "billy_bob")
+            self.assertFalse(json.loads(channel.config)['auto_follow'])
 
     def test_read(self):
         post_data = dict(cmds=[
@@ -907,8 +910,8 @@ class ChannelTest(TembaTest):
             self.assertEqual(self.client.session['twitter_oauth_token'], 'abcde')
             self.assertEqual(self.client.session['twitter_oauth_token_secret'], '12345')
 
-        with patch('temba.utils.mage.MageClient.add_twitter_stream') as add_twitter_stream:
-            add_twitter_stream.return_value = dict()
+        with patch('temba.utils.mage.MageClient.activate_twitter_stream') as activate_twitter_stream:
+            activate_twitter_stream.return_value = dict()
 
             with patch('twython.Twython.get_authorized_tokens') as get_authorized_tokens:
                 get_authorized_tokens.return_value = dict(screen_name='billy_bob',
