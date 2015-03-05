@@ -48,7 +48,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/campaigns$', CampaignEndpoint.as_view(), name='api.campaigns'),
                        url(r'^/events$', CampaignEventEndpoint.as_view(), name='api.campaignevents'),
                        url(r'^/boundaries$', BoundaryEndpoint.as_view(), name='api.boundaries'),
-                       )
+                       url(r'^/assets$', AssetEndpoint.as_view(), name='api.assets'))
 
 # Format suffixes
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'xml', 'api'])

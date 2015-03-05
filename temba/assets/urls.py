@@ -1,10 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
 from django.conf.urls import patterns, url
-from .views import RecordingAssetView, ExportContactsAssetView, ExportFlowResultsAssetView, ExportMessagesAssetView
+from .views import AssetView, ASSET_HANDLERS
 
-urlpatterns = patterns('',
-                       url(r'^recording/(?P<identifier>\d+)/$', RecordingAssetView.as_view(), name='assets.recording'),
-                       url(r'^contacts-export/(?P<identifier>\d+)/$', ExportContactsAssetView.as_view(), name='assets.contacts_export'),
-                       url(r'^results-export/(?P<identifier>\d+)/$', ExportFlowResultsAssetView.as_view(), name='assets.results_export'),
-                       url(r'^messages-export/(?P<identifier>\d+)/$', ExportMessagesAssetView.as_view(), name='assets.messages_export'))
+urlpatterns = patterns('')
+
+# add a URL for each asset type so each has it's own URL name, e.g. assets.recording
+for type_name in ASSET_HANDLERS:
+    url_regex = '^%s/(?P<identifier>\d+)/$' % type_name
+    url_name = 'assets.%s' % type_name.replace('-', '_')
+    urlpatterns += patterns('', url(url_regex, AssetView.as_view(type_name=type_name), name=url_name))

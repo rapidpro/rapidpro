@@ -10,10 +10,11 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
+from redis_cache import get_redis_connection
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.mixins import DestroyModelMixin
@@ -29,6 +30,7 @@ from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteS
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
+from temba.assets.views import get_asset_handler
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
@@ -40,10 +42,10 @@ from temba.msgs.models import Broadcast, Msg, Call, HANDLE_EVENT_TASK, HANDLER_Q
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
-from urlparse import parse_qs
 from temba.utils.queues import push_task
 from twilio import twiml
-from redis_cache import get_redis_connection
+from urlparse import parse_qs
+
 
 def webhook_status_processor(request):
     status = dict()
@@ -2417,6 +2419,28 @@ class FlowEndpoint(generics.ListAPIView):
                            ]
 
         return spec
+
+
+class AssetEndpoint(generics.RetrieveAPIView):
+    """
+    This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
+    """
+    def retrieve(self, request, *args, **kwargs):
+        type_name = request.GET.get('type')
+        identifier = request.GET.get('identifier')
+        if not type_name or not identifier:
+            return HttpResponseBadRequest("Must provide type and identifier")
+
+        handler = get_asset_handler(type_name)
+        if not handler:
+            return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
+
+        return handler.get(request, identifier)
+
+
+# ====================================================================================================================
+# Channel handlers
+# ====================================================================================================================
 
 
 class TwilioHandler(View):

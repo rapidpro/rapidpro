@@ -10,9 +10,23 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import Msg, ExportMessagesTask
 
 
-class BaseAssetView(View):
+class AssetView(View):
+    type_name = None
+
+    def __init__(self, **kwargs):
+        self.type_name = kwargs.pop('type_name')
+        super(AssetView, self).__init__(**kwargs)
+
+    def get(self, request, *args, **kwargs):
+        identifier = kwargs.get('identifier')
+
+        handler = get_asset_handler(self.type_name)
+        return handler.get(request, identifier)
+
+
+class BaseAssetHandler(object):
     """
-    Base class for asset views. Assumes that identifier is primary key of a db object with an associated asset.
+    Base class for asset handlers. Assumes that identifier is primary key of a db object with an associated asset.
     """
     model = None
     directory = None
@@ -20,15 +34,15 @@ class BaseAssetView(View):
     content_type = None
     extension = None
 
-    def get(self, request, *args, **kwargs):
-        identifier = kwargs.get('identifier')
+    def get(self, request, identifier):
+
         asset_org = self.derive_org(identifier)
 
         if not has_org_permission(asset_org, request.user, self.permission):
             return HttpResponseForbidden("Not allowed")
 
         asset_filename = self.derive_filename(asset_org, identifier)
-        asset_url = self.derive_url(asset_org, self.directory, identifier)
+        asset_url = self.derive_url(asset_org, identifier)
 
         try:
             asset_file = urllib2.urlopen(asset_url)
@@ -50,12 +64,12 @@ class BaseAssetView(View):
     def derive_filename(self, org, identifier):
         return '%s.%s' % (identifier, self.extension)
 
-    def derive_url(self, org, type_name, identifier):
+    def derive_url(self, org, identifier):
         asset_filename = self.derive_filename(org, identifier)
-        return 'http://%s/orgs/%d/%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, org.pk, type_name, asset_filename)
+        return 'http://%s/orgs/%d/%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, org.pk, self.directory, asset_filename)
 
 
-class RecordingAssetView(BaseAssetView):
+class RecordingAssetHandler(BaseAssetHandler):
     model = Msg
     directory = 'recordings'
     permission = 'msgs.msg_recording_asset'
@@ -63,28 +77,43 @@ class RecordingAssetView(BaseAssetView):
     extension = 'wav'
 
 
-class ExportContactsAssetView(BaseAssetView):
+class ExportContactsAssetHandler(BaseAssetHandler):
     model = ExportContactsTask
-    directory = 'contact-exports'
+    directory = 'contact_exports'
     permission = 'contacts.contact_export_asset'
     content_type = 'text/csv'
     extension = 'csv'
 
 
-class ExportFlowResultsAssetView(BaseAssetView):
+class ExportResultsAssetHandler(BaseAssetHandler):
     model = ExportFlowResultsTask
-    directory = 'flow-exports'
+    directory = 'results_exports'
     permission = 'flows.flow_results_export_asset'
     content_type = 'text/csv'
     extension = 'csv'
 
 
-class ExportMessagesAssetView(BaseAssetView):
+class ExportMessagesAssetHandler(BaseAssetHandler):
     model = ExportMessagesTask
-    directory = 'message-exports'
+    directory = 'message_exports'
     permission = 'msgs.msg_export_asset'
     content_type = 'text/csv'
     extension = 'csv'
+
+
+ASSET_HANDLERS = {
+    'recording': RecordingAssetHandler,
+    'contact-export': ExportContactsAssetHandler,
+    'results-export': ExportResultsAssetHandler,
+    'message-export': ExportMessagesAssetHandler
+}
+
+
+def get_asset_handler(type_name):
+    if type_name in ASSET_HANDLERS:
+        return ASSET_HANDLERS[type_name]()
+    else:
+        return None
 
 
 def has_org_permission(org, user, permission):
