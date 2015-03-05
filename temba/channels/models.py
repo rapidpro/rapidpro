@@ -1,10 +1,10 @@
-from __future__ import unicode_literals
-import hashlib
+from __future__ import absolute_import, unicode_literals
 
 import json
 import os
 import phonenumbers
 import requests
+import time
 
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -31,7 +31,7 @@ from twilio.rest import TwilioRestClient
 from twython import Twython
 from uuid import uuid4
 from urllib import quote_plus
-import time
+
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -325,9 +325,9 @@ class Channel(SmartModel):
                                                  org=org, role=SEND+RECEIVE, uuid=str(uuid4()),
                                                  config=config, name="Twitter", created_by=user, modified_by=user)
 
-                # notify Mage so that it receives messages for this channel
-                from .tasks import notify_mage_task
-                notify_mage_task.delay(channel.uuid, 'add')
+                # notify Mage so that it activates this channel
+                from .tasks import MageStreamAction, notify_mage_task
+                notify_mage_task.delay(channel.uuid, MageStreamAction.activate)
 
         return channel
 
@@ -669,9 +669,9 @@ class Channel(SmartModel):
         Channel.clear_cached_channel(self.id)
 
         if notify_mage and self.channel_type == TWITTER:
-            # notify Mage so that it stops receiving messages for this channel
-            from .tasks import notify_mage_task
-            notify_mage_task.delay(self.uuid, 'remove')
+            # notify Mage so that it deactivates this channel
+            from .tasks import MageStreamAction, notify_mage_task
+            notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
 
         # if we just lost calling capabilities archive our voice flows
         if CALL in self.role:

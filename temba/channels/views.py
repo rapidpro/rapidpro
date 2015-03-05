@@ -1,39 +1,41 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import base64
 import hashlib
 import hmac
 import json
-from django.core.exceptions import ValidationError
 import phonenumbers
 import pytz
 import time
-from collections import OrderedDict
 
+from collections import OrderedDict
 from datetime import datetime, timedelta
+from django import forms
+from django.conf import settings
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
 from django.db.models import Count
-from django.http import Http404
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
-from smartmin.views import *
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
+from smartmin.views import SmartCRUDL, SmartReadView
+from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
+from temba.ivr.models import IVRCall
+from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
 from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager
-from temba.ivr.models import IVRCall
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, SHAQODOON
-from .models import PASSWORD, RECEIVE, SEND, SEND_METHOD, SEND_URL, USERNAME, API_ID, CLICKATELL
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI
 from .models import Channel, SyncEvent, Alert, ChannelLog
-from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME
+from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
@@ -717,6 +719,12 @@ class ChannelCRUDL(SmartCRUDL):
                     channel.address = obj.address
                     channel.uuid = e164_phone_number
                     channel.save()
+
+            if obj.channel_type == TWITTER:
+                # notify Mage so that it refreshes this channel
+                from .tasks import MageStreamAction, notify_mage_task
+                notify_mage_task.delay(obj.uuid, MageStreamAction.refresh)
+
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
