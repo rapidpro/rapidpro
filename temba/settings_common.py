@@ -217,6 +217,7 @@ INSTALLED_APPS = (
     'raven.contrib.django.celery',
 
     # temba apps
+    'temba.assets',
     'temba.auth_tweaks',
     'temba.api',
     'temba.public',
@@ -338,6 +339,7 @@ PERMISSIONS = {
                          'import',
                          'omnibox',
                          'restore',
+                         'export_asset'
                          ),
 
     'contacts.contactfield': ('api',
@@ -419,6 +421,7 @@ PERMISSIONS = {
                    'json',
                    'read',
                    'results',
+                   'results_export_asset'
                    'simulate',
                    'upload_action_recording',
                    'versions',
@@ -440,6 +443,8 @@ PERMISSIONS = {
                  'inbox',
                  'label',
                  'test',
+                 'export_asset',
+                 'recording_asset'
                  ),
 
     'msgs.broadcast': ('api',
@@ -585,6 +590,8 @@ GROUP_PERMISSIONS = {
         'msgs.msg_list',
         'msgs.msg_read',
         'msgs.msg_update',
+        'msgs.msg_export_asset',
+        'msgs.msg_recording_asset',
 
         'triggers.trigger.*',
 
@@ -611,6 +618,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_restore',
         'contacts.contact_update',
+        'contacts.contact_export_asset',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
