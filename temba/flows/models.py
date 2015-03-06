@@ -2596,7 +2596,7 @@ class FlowRun(models.Model):
 
         for run in runs:
             if run['flow'] != last_flow:
-                if last_flow is not None:
+                if expired_runs:
                     flow = Flow.objects.filter(pk=last_flow).first()
                     if flow:
                         flow.remove_active_for_run_ids(expired_runs)
