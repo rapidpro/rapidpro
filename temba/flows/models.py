@@ -2596,11 +2596,11 @@ class FlowRun(models.Model):
 
         for run in runs:
             if run['flow'] != last_flow:
-                expired_runs = []
                 if last_flow is not None:
                     flow = Flow.objects.filter(pk=last_flow).first()
                     if flow:
                         flow.remove_active_for_run_ids(expired_runs)
+                expired_runs = []
             expired_runs.append(run['pk'])
             last_flow = run['flow']
 
@@ -2610,8 +2610,8 @@ class FlowRun(models.Model):
             if flow:
                 flow.remove_active_for_run_ids(expired_runs)
 
-        # finally, update the columns in the databse with new expiration
-        runs.update(is_active=False, expired_on=timezone.now())
+        # finally, update the columns in the database with new expiration
+        runs.filter(is_active=True).update(is_active=False, expired_on=timezone.now())
 
     def release(self):
 

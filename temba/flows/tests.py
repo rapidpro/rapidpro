@@ -2234,9 +2234,20 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
 
+        # we are going to expire, but we want runs across two different flows
+        # to make sure that our optimization for expiration is working properly
+        number_flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 3!", self.send_message(number_flow, "3"))
+        self.assertEquals(1, len(number_flow.get_activity()[0]))
+
         # expire the first contact's runs
-        for run in FlowRun.objects.filter(contact=self.contact):
-            run.expire()
+        FlowRun.do_expire_runs(FlowRun.objects.filter(contact=self.contact))
+
+        # no active runs for our contact
+        self.assertEquals(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # both of our flows should have reduced active contacts
+        self.assertEquals(0, len(number_flow.get_activity()[0]))
 
         # now we should only have one node with active runs, but the paths stay
         # the same since those are historical
@@ -2253,8 +2264,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(50, flow.get_completed_percentage())
 
         # check that we have the right number of steps and runs
-        self.assertEquals(17, FlowStep.objects.all().count())
-        self.assertEquals(2, FlowRun.objects.all().count())
+        self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
+        self.assertEquals(2, FlowRun.objects.filter(flow=flow).count())
 
         # now let's delete our contact, we'll still have one active node, but
         # our visit path counts will go down by two since he went there twice
@@ -2316,8 +2327,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, flow.get_completed_percentage())
 
         # runs and steps all gone too
-        self.assertEquals(0, FlowStep.objects.filter(contact__is_test=False).count())
-        self.assertEquals(0, FlowRun.objects.filter(contact__is_test=False).count())
+        self.assertEquals(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
+        self.assertEquals(0, FlowRun.objects.filter(flow=flow, contact__is_test=False).count())
 
         # test that expirations remove activity when triggered from the cron in the same way
         tupac = self.create_contact('Tupac Shakur', '+12065550725')
