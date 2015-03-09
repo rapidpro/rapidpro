@@ -659,6 +659,14 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, len(response.context['message_stats'][0]['data']))
         self.assertEquals(1, response.context['message_stats'][1]['data'][-1]['count'])
 
+        # we have one row for the message stats table
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        # only one outgoing message
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
+
         # send messages with a test contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'This incoming message will not be counted')
         Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
@@ -670,6 +678,13 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, len(response.context['message_stats'][0]['data']))
         self.assertEquals(1, response.context['message_stats'][1]['data'][-1]['count'])
 
+        # no change on the table starts too
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
+
         # send messages with a normal contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn(TEL_SCHEME).path), 'This incoming message will be counted')
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
@@ -679,6 +694,13 @@ class ChannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertEquals(1, response.context['message_stats'][0]['data'][-1]['count'])
         self.assertEquals(2, response.context['message_stats'][1]['data'][-1]['count'])
+
+        # message stats table have an inbound and two outbounds in the last month
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(2, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # test cases for IVR messaging, make our relayer accept calls
         self.tel_channel.role = 'SCAR'
@@ -692,6 +714,12 @@ class ChannelTest(TembaTest):
         # nothing should have changed
         self.assertEquals(2, len(response.context['message_stats']))
 
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(2, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
+
         # now let's create an ivr interaction from a real contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn().path), 'incoming ivr', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
@@ -700,6 +728,12 @@ class ChannelTest(TembaTest):
         self.assertEquals(4, len(response.context['message_stats']))
         self.assertEquals(1, response.context['message_stats'][2]['data'][0]['count'])
         self.assertEquals(1, response.context['message_stats'][3]['data'][0]['count'])
+
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(2, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
     def test_invalid(self):
 
