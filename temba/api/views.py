@@ -30,7 +30,8 @@ from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteS
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
-from temba.assets.views import get_asset_handler
+from temba.assets import AssetType
+from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
@@ -2431,11 +2432,10 @@ class AssetEndpoint(generics.RetrieveAPIView):
         if not type_name or not identifier:
             return HttpResponseBadRequest("Must provide type and identifier")
 
-        handler = get_asset_handler(type_name)
-        if not handler:
+        if type_name not in AssetType.__members__:
             return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
 
-        return handler.get(request, identifier)
+        return handle_asset_request(request.user, AssetType[type_name], identifier)
 
 
 # ====================================================================================================================
