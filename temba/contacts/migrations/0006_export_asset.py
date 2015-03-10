@@ -6,10 +6,12 @@ import os
 from django.core.files.storage import default_storage
 from django.db import migrations
 from temba.assets import AssetType
-from temba.contacts.models import ExportContactsTask
+from temba.orgs.models import Org
 
 
 def migrate_contact_exports(apps, schema_editor):
+    ExportContactsTask = apps.get_model('contacts', 'ExportContactsTask')
+
     handler = AssetType.contact_export.get_handler()
 
     num_copied = 0
@@ -22,6 +24,8 @@ def migrate_contact_exports(apps, schema_editor):
 
         identifier = task.pk
         existing_ext = os.path.splitext(task.filename)[1][1:]
+
+        task.org = Org.objects.get(pk=task.org_id)  # replace with actual org instance with functions
 
         existing_file = default_storage.open(task.filename)
         handler.save(identifier, existing_file, existing_ext)
