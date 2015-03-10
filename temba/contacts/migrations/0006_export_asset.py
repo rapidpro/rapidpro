@@ -16,6 +16,7 @@ def migrate_contact_exports(apps, schema_editor):
 
     num_copied = 0
     num_missing = 0
+    num_failed = 0
 
     for task in ExportContactsTask.objects.select_related('created_by').all():
         if not task.filename:
@@ -26,13 +27,17 @@ def migrate_contact_exports(apps, schema_editor):
         existing_ext = os.path.splitext(task.filename)[1][1:]
 
         # need to patch org attribute to have get_user_org_group method
-        # task.org.get_user_org_group = lambda u: Org.objects.get(pk=task.org_id).get_user_org_group(u)
+        task.org.get_user_org_group = lambda u: Org.objects.get(pk=task.org_id).get_user_org_group(u)
 
-        existing_file = default_storage.open(task.filename)
-        handler.save(identifier, existing_file, existing_ext)
-        num_copied += 1
+        try:
+            existing_file = default_storage.open(task.filename)
+            handler.save(identifier, existing_file, existing_ext)
+            num_copied += 1
+        except Exception:
+            print "Unable to open %s" % task.filename
+            num_failed += 1
 
-    print 'Copied %d contact export files (%d tasks have no file)' % (num_copied, num_missing)
+    print 'Copied %d contact export files (%d tasks have no file, %d could not be opened)' % (num_copied, num_missing, num_failed)
 
 
 class Migration(migrations.Migration):
