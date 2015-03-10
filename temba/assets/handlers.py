@@ -13,14 +13,23 @@ class AssetException(Exception):
 
 
 class AssetAccessDenied(AssetException):
+    """
+    User does not have permission to access the given asset
+    """
     pass
 
 
 class AssetEntityNotFound(AssetException):
+    """
+    Database entity associated with the asset could not be found
+    """
     pass
 
 
 class AssetFileNotFound(AssetException):
+    """
+    Asset file could not be found
+    """
     pass
 
 
@@ -31,39 +40,41 @@ class BaseAssetHandler(object):
     model = None
     directory = None
     permission = None
-    content_type = None
-    extension = None
+    extensions = None
 
-    def resolve_url(self, user, identifier):
+    def resolve(self, user, identifier):
         """
-        Returns the complete URL of the identified asset
+        Returns the complete URL and filename of the identified asset
         """
         asset_org = self.derive_org(identifier)
 
         if not has_org_permission(asset_org, user, self.permission):
             raise AssetAccessDenied()
 
-        asset_path = self.derive_path(asset_org, identifier)
+        path, name = self.derive_location(asset_org, identifier)
 
-        if not default_storage.exists(asset_path):
-            raise AssetFileNotFound()
+        return default_storage.url(path + name), name
 
-        return default_storage.url(asset_path)
-
-    def save(self, user, identifier, file):
+    def save(self, user, identifier, _file, extension):
         """
         Saves a file asset
         """
+        if extension not in self.extensions:
+            raise ValueError("Extension %s not supported by handler" % extension)
+
         asset_org = self.derive_org(identifier)
 
         if not has_org_permission(asset_org, user, self.permission):
             raise AssetAccessDenied()
 
-        asset_path = self.derive_path(asset_org, identifier)
+        path, name = self.derive_location(asset_org, identifier, extension)
 
-        default_storage.save(asset_path, file)
+        default_storage.save(path + name, _file)
 
     def derive_org(self, identifier):
+        """
+        Derives the owning org of an asset
+        """
         try:
             model_instance = self.model.objects.get(pk=identifier)
         except self.model.DoesNotExist:
@@ -71,43 +82,51 @@ class BaseAssetHandler(object):
 
         return model_instance.org
 
-    def derive_filename(self, identifier):
-        return '%s.%s' % (identifier, self.extension)
+    def derive_location(self, org, identifier, extension=None):
+        """
+        Derives the path and filename of an asset and returns them as a tuple, e.g. ('orgs/1/recordings/', '123.wav')
+        """
+        base_name = unicode(identifier)
+        path = os.path.join('orgs', unicode(org.pk), self.directory) + '/'
 
-    def derive_path(self, org, identifier):
-        return os.path.join('orgs', unicode(org.pk), self.directory, self.derive_filename(identifier))
+        if extension:
+            return path, '%s.%s' % (base_name, extension)
+
+        # no explicit extension so look for one with an existing file
+        for ext in extension or self.extensions:
+            name = '%s.%s' % (base_name, ext)
+            if default_storage.exists(path + name):
+                return path, name
+
+        raise AssetFileNotFound()
 
 
 class RecordingAssetHandler(BaseAssetHandler):
     model = Msg
     directory = 'recordings'
     permission = 'msgs.msg_recording_asset'
-    content_type = 'audio/wav'
-    extension = 'wav'
+    extensions = ('wav',)
 
 
 class ExportContactsAssetHandler(BaseAssetHandler):
     model = ExportContactsTask
     directory = 'contact_exports'
     permission = 'contacts.contact_export_asset'
-    content_type = 'text/csv'
-    extension = 'csv'
+    extensions = ('xls', 'csv')
 
 
 class ExportResultsAssetHandler(BaseAssetHandler):
     model = ExportFlowResultsTask
     directory = 'results_exports'
     permission = 'flows.flow_results_export_asset'
-    content_type = 'text/csv'
-    extension = 'csv'
+    extensions = ('xls', 'csv')
 
 
 class ExportMessagesAssetHandler(BaseAssetHandler):
     model = ExportMessagesTask
     directory = 'message_exports'
     permission = 'msgs.msg_export_asset'
-    content_type = 'text/csv'
-    extension = 'csv'
+    extensions = ('xls', 'csv')
 
 
 def has_org_permission(org, user, permission):

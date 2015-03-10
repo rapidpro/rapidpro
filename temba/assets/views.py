@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import mimetypes
 import urllib2
 
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden
@@ -13,12 +14,16 @@ def handle_asset_request(user, asset_type, identifier):
     """
     try:
         handler = asset_type.get_handler()
-        asset_filename = handler.derive_filename(identifier)
-        asset_url = handler.resolve_url(user, identifier)
-        asset_stream = urllib2.urlopen(asset_url)
+        url, filename = handler.resolve(user, identifier)
+        asset_type = mimetypes.guess_type(url)[0]
 
-        response = HttpResponse(asset_stream, content_type=handler.content_type)
-        response['Content-Disposition'] = 'attachment; filename="%s"' % asset_filename
+        if url.startswith('http'):
+            asset_file = urllib2.urlopen(url)
+        else:
+            asset_file = open('.' + url, 'rb')
+
+        response = HttpResponse(asset_file, content_type=asset_type)
+        response['Content-Disposition'] = 'attachment; filename=%s' % filename
         return response
     except AssetEntityNotFound:
         return HttpResponseNotFound("No such object in database")
