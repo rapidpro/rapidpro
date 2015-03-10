@@ -1495,18 +1495,15 @@ class OrgCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             export_task = self.get_export_task()
-
-            download = request.REQUEST.get('download', None)
-            if not download:
-                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
-
-            # contact exports use new assets app
-            if isinstance(export_task, ExportContactsTask):
-                return handle_asset_request(request.user, AssetType.contact_export, export_task.pk)
-
             task_type = self.kwargs.get('task_type')
 
-            if not export_task or not export_task.filename or not default_storage.exists(export_task.filename):
+            if isinstance(export_task, ExportContactsTask):
+                contact_exports = AssetType.contact_export.get_handler()
+                download_exists = contact_exports.exists(export_task.pk)
+            else:
+                download_exists = export_task and export_task.filename and default_storage.exists(export_task.filename)
+
+            if not download_exists:
                 messages.warning(self.request, _("No exported file found"))
                 if self.request.user.is_superuser:
                     return HttpResponseRedirect(reverse('orgs.org_manage'))
@@ -1516,21 +1513,29 @@ class OrgCRUDL(SmartCRUDL):
             if not user.get_org():
                 user.set_org(export_task.org)
 
-            download_format = export_task.filename[-3:]
-            download_filename = '%s_export.%s' % (task_type, download_format)
+            download = request.REQUEST.get('download', None)
+            if not download:
+                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
 
-            if download_format == 'csv':
-                content_type = "text/csv"
+            # contact exports use new assets app
+            if isinstance(export_task, ExportContactsTask):
+                return handle_asset_request(request.user, AssetType.contact_export, export_task.pk)
             else:
-                content_type = "application/vnd.ms-excel"
+                download_format = export_task.filename[-3:]
+                download_filename = '%s_export.%s' % (task_type, download_format)
 
-            file = default_storage.open(export_task.filename, 'r')
+                if download_format == 'csv':
+                    content_type = "text/csv"
+                else:
+                    content_type = "application/vnd.ms-excel"
 
-            response = HttpResponse(file, content_type=content_type)
-            response['Content-Disposition'] = 'attachment; filename=%s' % download_filename
-            file.close()
+                file = default_storage.open(export_task.filename, 'r')
 
-            return response
+                response = HttpResponse(file, content_type=content_type)
+                response['Content-Disposition'] = 'attachment; filename=%s' % download_filename
+                file.close()
+
+                return response
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')
