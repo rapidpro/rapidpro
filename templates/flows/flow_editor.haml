@@ -410,7 +410,7 @@
           .add.icon-plus-circle2{ng-click:'addAction(action_set);'}
           .source{drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
           .visited{ng-show:'action_set._visited && action_set.destination'}
-            .count
+            .count{ng-mouseover:'getRecentMessages(action_set.uuid, action_set.destination)', tooltip-placement:'bottom', tooltip-trigger:'mouseenter', tooltip-html-unsafe:'[[$root.recentMessages]]', tooltip-append-to-body:'true'}
               [[action_set._visited|number]]
 
         .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid', node:'ruleset', drop-scope:'rules', ng-dblclick:'$event.stopPropagation()', class:'rule-node', ng-attr-id:'[[ruleset.uuid]]', ng-style:"{left:ruleset.x, top:ruleset.y}"}
@@ -452,7 +452,7 @@
                 .source{drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
 
                 .visited{ng-show:'category._visited && category.target'}
-                  .count
+                  .count{ng-mouseenter:'getRecentMessages(ruleset.uuid, category.target, getSource(category))', tooltip-placement:'bottom', tooltip-trigger:'mouseenter', tooltip-html-unsafe:'[[$root.recentMessages]]', tooltip-append-to-body:'true'}
                     [[category._visited|number]]
 
         .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}

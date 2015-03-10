@@ -670,6 +670,15 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         left: $event.pageX - ($rootScope.ghost.width() / 2)
         top: $event.pageY
     return false
+
+  $scope.getRecentMessages = (stepUUID, nextUUID, ruleUUID) ->
+    if ruleUUID == null
+      ruleUUID = ''
+
+    $rootScope.stepTooltip = stepUUID
+    $rootScope.recentMessages = '<img class="loader-bars" src="/sitestatic/images/loader-bars.gif">'
+    Flow.fetchRecentMessages(stepUUID, nextUUID, ruleUUID)
+
 ]
 
 # translating rules

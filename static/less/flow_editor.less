@@ -1419,3 +1419,34 @@
     font-weight: 700;
   }
 }
+
+.tooltip {
+  z-index: 1030;
+
+  &.bottom {
+    .tooltip-arrow {
+      border-bottom-color: @color-font-lightgrey;
+    }
+  }
+
+  .tooltip-inner {
+    background: @color-font-lightestgrey + #222;
+    border: 1px solid @color-font-lightestgrey;
+    color: @color-font-black;
+    font-size: 12px;
+
+    ul.activity-recent-messages {
+      margin:0px;
+
+      li:not(:last-child) {
+        border-bottom: 1px solid;
+        padding-bottom: 5px;
+      }
+
+      li:not(:first-child) {
+        padding-top: 5px;
+      }
+    }
+  }
+}
+

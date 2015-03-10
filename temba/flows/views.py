@@ -27,9 +27,9 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, STARTING, PENDING
+from temba.flows.models import Flow, FlowReferenceException, FlowRun, STARTING, PENDING, ACTION_SET, RULE_SET
 from temba.flows.tasks import export_flow_results_task
-from temba.msgs.models import Msg
+from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import analytics, build_json_response
@@ -429,10 +429,41 @@ class PartialTemplate(SmartTemplateView):
         return "partials/%s.html" % self.template
 
 class FlowCRUDL(SmartCRUDL):
-    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results', 'upload_action_recording',
-               'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter', 'completion', 'versions')
+    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
+               'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
+               'completion', 'versions', 'recent_messages')
 
     model = Flow
+
+    class RecentMessages(OrgObjPermsMixin, SmartReadView):
+        def get(self, request, *args, **kwargs):
+            flow = self.get_object()
+
+            step_uuid = request.REQUEST.get('step', None)
+            next_uuid = request.REQUEST.get('destination', None)
+            rule_uuid = request.REQUEST.get('rule', None)
+
+            recent_messages = []
+            if rule_uuid and next_uuid and step_uuid:
+                recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
+                                                         steps__rule_uuid=rule_uuid,
+                                                         steps__next_uuid=next_uuid,
+                                                         steps__run__flow=flow,
+                                                         steps__step_type=RULE_SET,
+                                                         steps__run__contact__is_test=Contact.get_simulation(),
+                                                         direction=INCOMING,
+                                                         visibility=VISIBLE).order_by('created_on').values_list('text', flat=True)[:5]
+            elif next_uuid and step_uuid:
+                recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
+                                                     steps__next_uuid=next_uuid,
+                                                     steps__run__flow=flow,
+                                                     steps__step_type=ACTION_SET,
+                                                     steps__run__contact__is_test=Contact.get_simulation(),
+                                                     direction=OUTGOING,
+                                                     visibility=VISIBLE).order_by('created_on').values_list('text', flat=True)[:5]
+
+            recent_messages = [str(elt) for elt in recent_messages]
+            return build_json_response(recent_messages)
 
     class Versions(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
