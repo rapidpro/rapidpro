@@ -25,7 +25,8 @@ def migrate_contact_exports(apps, schema_editor):
         identifier = task.pk
         existing_ext = os.path.splitext(task.filename)[1][1:]
 
-        task.org = Org.objects.get(pk=task.org_id)  # replace with actual org instance with functions
+        # need to patch org attribute to have get_user_org_group method
+        # task.org.get_user_org_group = lambda u: Org.objects.get(pk=task.org_id).get_user_org_group(u)
 
         existing_file = default_storage.open(task.filename)
         handler.save(identifier, existing_file, existing_ext)
