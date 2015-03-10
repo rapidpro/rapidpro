@@ -9,7 +9,6 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils.translation import ugettext
@@ -18,15 +17,14 @@ from django_hstore import hstore
 from django_hstore.fields import DictionaryField
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.channels.models import Channel
+from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
 from urlparse import urlparse, urlunparse, ParseResult
-from uuid import uuid4
 
 # don't allow custom contact fields with these keys
 RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
@@ -1375,7 +1373,6 @@ class ExportContactsTask(SmartModel):
     org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-    filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
     def do_export(self):
@@ -1394,10 +1391,12 @@ class ExportContactsTask(SmartModel):
         if self.group:
             all_contacts = all_contacts.filter(groups=self.group)
 
+        # if we have too many fields, Export using csv Otherwise use Excel
+        use_csv = len(fields) > 256
+
         temp = NamedTemporaryFile(delete=True)
 
-        # if we have too many fields, Export using csv Otherwise use Excel
-        if len(fields) > 256:
+        if use_csv:
             import csv
 
             writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
@@ -1423,9 +1422,6 @@ class ExportContactsTask(SmartModel):
                     row_data.append(value)
 
                 writer.writerow([s.encode("utf-8") for s in row_data])
-
-            name = '%s_%s.csv' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         else:
             contact_sheet_number = 1
             all_contacts = list(all_contacts)
@@ -1468,20 +1464,17 @@ class ExportContactsTask(SmartModel):
                         # skip the header
                         current_contact_sheet.write(row + 1, col, value)
 
-
                 contact_sheet_number += 1
                 current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
-
-
-            name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
 
             book.save(temp)
 
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('contacts', 'exports', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets import AssetType
+        handler = AssetType.contact_export.get_handler()
+        handler.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'

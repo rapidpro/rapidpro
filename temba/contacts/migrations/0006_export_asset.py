@@ -20,12 +20,11 @@ def migrate_contact_exports(apps, schema_editor):
             num_missing += 1
             continue
 
-        user = task.org.administrators.first()
         identifier = task.pk
         existing_ext = os.path.splitext(task.filename)[1][1:]
 
         existing_file = default_storage.open(task.filename)
-        handler.save(user, identifier, existing_file, existing_ext)
+        handler.save(identifier, existing_file, existing_ext)
         num_copied += 1
 
     print 'Copied %d contact export files (%d tasks have no file)' % (num_copied, num_missing)

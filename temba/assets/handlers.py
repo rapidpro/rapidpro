@@ -44,7 +44,8 @@ class BaseAssetHandler(object):
 
     def resolve(self, user, identifier):
         """
-        Returns the complete URL and filename of the identified asset
+        Returns the complete URL and filename of the identified asset. If user does not have access to the asset, an
+        exception is raised
         """
         asset_org = self.derive_org(identifier)
 
@@ -55,7 +56,17 @@ class BaseAssetHandler(object):
 
         return default_storage.url(path + name), name
 
-    def save(self, user, identifier, _file, extension):
+    def exists(self, identifier):
+        """
+        Determines whether an asset exists with the given identifier
+        """
+        asset_org = self.derive_org(identifier)
+
+        path, name = self.derive_location(asset_org, identifier)
+
+        return default_storage.exists(path + name)
+
+    def save(self, identifier, _file, extension):
         """
         Saves a file asset
         """
@@ -63,9 +74,6 @@ class BaseAssetHandler(object):
             raise ValueError("Extension %s not supported by handler" % extension)
 
         asset_org = self.derive_org(identifier)
-
-        if not has_org_permission(asset_org, user, self.permission):
-            raise AssetAccessDenied()
 
         path, name = self.derive_location(asset_org, identifier, extension)
 

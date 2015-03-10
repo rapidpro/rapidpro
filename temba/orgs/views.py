@@ -24,6 +24,8 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from temba.assets import AssetType
+from temba.assets.views import handle_asset_request
 from temba.channels.models import Channel
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
@@ -1493,6 +1495,15 @@ class OrgCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             export_task = self.get_export_task()
+
+            download = request.REQUEST.get('download', None)
+            if not download:
+                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
+
+            # contact exports use new assets app
+            if isinstance(export_task, ExportContactsTask):
+                return handle_asset_request(request.user, AssetType.contact_export, export_task.pk)
+
             task_type = self.kwargs.get('task_type')
 
             if not export_task or not export_task.filename or not default_storage.exists(export_task.filename):
@@ -1504,11 +1515,6 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             if not user.get_org():
                 user.set_org(export_task.org)
-
-            download = request.REQUEST.get('download', None)
-
-            if not download:
-                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
 
             download_format = export_task.filename[-3:]
             download_filename = '%s_export.%s' % (task_type, download_format)
