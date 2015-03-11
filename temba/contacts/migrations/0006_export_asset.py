@@ -12,7 +12,7 @@ from temba.orgs.models import Org
 def migrate_contact_exports(apps, schema_editor):
     ExportContactsTask = apps.get_model('contacts', 'ExportContactsTask')
 
-    handler = AssetType.contact_export.get_handler()
+    handler = AssetType.contact_export.handler
 
     num_copied = 0
     num_missing = 0

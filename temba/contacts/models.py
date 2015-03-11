@@ -1473,7 +1473,7 @@ class ExportContactsTask(SmartModel):
 
         # save as file asset associated with this task
         from temba.assets import AssetType
-        handler = AssetType.contact_export.get_handler()
+        handler = AssetType.contact_export.handler
         handler.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
 
         subject = "Your contacts export is ready"

@@ -13,7 +13,7 @@ def handle_asset_request(user, asset_type, identifier):
     Request handler shared by the asset view and the asset API endpoint
     """
     try:
-        handler = asset_type.get_handler()
+        handler = asset_type.handler
         url, filename = handler.resolve(user, identifier)
         asset_type = mimetypes.guess_type(url)[0]
 

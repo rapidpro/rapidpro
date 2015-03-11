@@ -1498,7 +1498,7 @@ class OrgCRUDL(SmartCRUDL):
             task_type = self.kwargs.get('task_type')
 
             if isinstance(export_task, ExportContactsTask):
-                contact_exports = AssetType.contact_export.get_handler()
+                contact_exports = AssetType.contact_export.handler
                 download_exists = contact_exports.exists(export_task.pk)
             else:
                 download_exists = export_task and export_task.filename and default_storage.exists(export_task.filename)

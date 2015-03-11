@@ -42,19 +42,26 @@ class BaseAssetHandler(object):
     permission = None
     extensions = None
 
+    def __init__(self, asset_type):
+        self.asset_type = asset_type
+
     def resolve(self, user, identifier):
         """
-        Returns the complete URL and filename of the identified asset. If user does not have access to the asset, an
-        exception is raised
+        Returns a tuple of the complete URL and download filename of the identified asset. If user does not have access
+        to the asset, an exception is raised
         """
         asset_org = self.derive_org(identifier)
 
         if not has_org_permission(asset_org, user, self.permission):
             raise AssetAccessDenied()
 
-        path, name = self.derive_location(asset_org, identifier)
+        path = self.derive_path(asset_org, identifier)
 
-        return default_storage.url(path + name), name
+        # create a more friendly download filename
+        remainder, extension = path.rsplit('.', 1)
+        filename = '%s.%s' % (self.asset_type.name, extension)
+
+        return default_storage.url(path), filename
 
     def exists(self, identifier):
         """
@@ -62,9 +69,9 @@ class BaseAssetHandler(object):
         """
         asset_org = self.derive_org(identifier)
 
-        path, name = self.derive_location(asset_org, identifier)
+        path = self.derive_path(asset_org, identifier)
 
-        return default_storage.exists(path + name)
+        return default_storage.exists(path)
 
     def save(self, identifier, _file, extension):
         """
@@ -75,9 +82,9 @@ class BaseAssetHandler(object):
 
         asset_org = self.derive_org(identifier)
 
-        path, name = self.derive_location(asset_org, identifier, extension)
+        path = self.derive_path(asset_org, identifier, extension)
 
-        default_storage.save(path + name, _file)
+        default_storage.save(path, _file)
 
     def derive_org(self, identifier):
         """
@@ -90,21 +97,21 @@ class BaseAssetHandler(object):
 
         return model_instance.org
 
-    def derive_location(self, org, identifier, extension=None):
+    def derive_path(self, org, identifier, extension=None):
         """
-        Derives the path and filename of an asset and returns them as a tuple, e.g. ('orgs/1/recordings/', '123.wav')
+        Derives the storage path of an asset, e.g. 'orgs/1/recordings/123.wav'
         """
         base_name = unicode(identifier)
-        path = os.path.join('orgs', unicode(org.pk), self.directory) + '/'
+        directory = os.path.join('orgs', unicode(org.pk), self.directory)
 
         if extension:
-            return path, '%s.%s' % (base_name, extension)
+            return '%s/%s.%s' % (directory, base_name, extension)
 
         # no explicit extension so look for one with an existing file
         for ext in extension or self.extensions:
-            name = '%s.%s' % (base_name, ext)
-            if default_storage.exists(path + name):
-                return path, name
+            path = '%s/%s.%s' % (directory, base_name, ext)
+            if default_storage.exists(path):
+                return path
 
         raise AssetFileNotFound()
 
@@ -116,21 +123,21 @@ class RecordingAssetHandler(BaseAssetHandler):
     extensions = ('wav',)
 
 
-class ExportContactsAssetHandler(BaseAssetHandler):
+class ContactExportAssetHandler(BaseAssetHandler):
     model = ExportContactsTask
     directory = 'contact_exports'
     permission = 'contacts.contact_export_asset'
     extensions = ('xls', 'csv')
 
 
-class ExportResultsAssetHandler(BaseAssetHandler):
+class ResultsExportAssetHandler(BaseAssetHandler):
     model = ExportFlowResultsTask
     directory = 'results_exports'
     permission = 'flows.flow_results_export_asset'
     extensions = ('xls', 'csv')
 
 
-class ExportMessagesAssetHandler(BaseAssetHandler):
+class MessageExportAssetHandler(BaseAssetHandler):
     model = ExportMessagesTask
     directory = 'message_exports'
     permission = 'msgs.msg_export_asset'
