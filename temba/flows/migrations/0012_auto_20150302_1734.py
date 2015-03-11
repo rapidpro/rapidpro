@@ -34,11 +34,13 @@ def fix_like_named_destinations(apps, schema_editor):
                     category_map[category_name] = rule.destination
 
             changed = False
+            other_rule = None
             for rule in rules:
 
                 category_name = rule.get_category_name(flow.base_language)
 
                 if isinstance(rule.test, TrueTest):
+                    other_rule = rule
                     continue
 
                 if not category_name:
@@ -66,6 +68,10 @@ def fix_like_named_destinations(apps, schema_editor):
                 new_rules.append(rule)
 
             if changed:
+
+                # tack on our other rule
+                if other_rule:
+                    new_rules.append(other_rule)
 
                 # update our ruleset
                 ruleset.set_rules(new_rules)

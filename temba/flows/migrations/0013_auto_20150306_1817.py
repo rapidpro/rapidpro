@@ -20,5 +20,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(remove_expired_flows_from_active, remove_expired_flows_from_active)
+        migrations.RunPython(remove_expired_flows_from_active)
     ]
