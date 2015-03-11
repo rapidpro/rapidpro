@@ -6,7 +6,6 @@ import os
 from django.core.files.storage import default_storage
 from django.db import migrations
 from temba.assets import AssetType
-from temba.orgs.models import Org
 
 
 def migrate_contact_exports(apps, schema_editor):
@@ -24,14 +23,12 @@ def migrate_contact_exports(apps, schema_editor):
             continue
 
         identifier = task.pk
-        existing_ext = os.path.splitext(task.filename)[1][1:]
-
-        # need to patch org attribute to have get_user_org_group method
-        task.org.get_user_org_group = lambda u: Org.objects.get(pk=task.org_id).get_user_org_group(u)
+        extension = os.path.splitext(task.filename)[1][1:]
 
         try:
             existing_file = default_storage.open(task.filename)
-            handler.save(identifier, existing_file, existing_ext)
+            new_path = handler.derive_path(task.org, identifier, extension)
+            default_storage.save(new_path, existing_file)
             num_copied += 1
         except Exception:
             print "Unable to open %s" % task.filename
