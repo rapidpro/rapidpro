@@ -2160,6 +2160,100 @@ class FlowsTest(FlowFileTest):
         r = get_redis_connection()
         flow.clear_stats_cache()
 
+    def test_recent_messages(self):
+        flow = self.get_flow('favorites')
+
+        self.login(self.admin)
+        recent_messages_url = reverse('flows.flow_recent_messages', args=[flow.pk])
+
+        response = self.client.get(recent_messages_url)
+        self.assertEquals([], json.loads(response.content))
+
+        self.send_message(flow, 'chartreuse')
+        response = self.client.get(recent_messages_url)
+        self.assertEquals([], json.loads(response.content))
+
+        first_action_set_uuid = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
+        first_action_set_destination = '1a08ec37-2218-48fd-b6b0-846b14407041'
+
+        first_ruleset_uuid = '1a08ec37-2218-48fd-b6b0-846b14407041'
+        other_rule_destination = 'dcd9541a-0263-474e-b3f1-03a28993f95a'
+        other_rule_uuid = 'e342d6af-7149-485c-b2ac-0e56c6cc1aa9'
+
+        blue_rule_uuid = 'ad45fa86-0e4e-4d91-a1ff-a96308267216'
+        blue_rule_destination = '2469ada5-3c36-4d74-bf73-daab0a56c37c'
+
+        # use the right get params
+        get_params_entry = "?step=%s&destination=%s&rule=%s" % (first_action_set_uuid, first_action_set_destination, '')
+        response = self.client.get(recent_messages_url + get_params_entry)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(1, len(response_json))
+        self.assertEquals("What is your favorite color?", response_json[0])
+
+        get_params_other_rule = "?step=%s&destination=%s&rule=%s" % (first_ruleset_uuid, other_rule_destination, other_rule_uuid)
+        response = self.client.get(recent_messages_url + get_params_other_rule)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(1, len(response_json))
+        self.assertEquals("chartreuse", response_json[0])
+
+        # nothing yet for blue
+        get_params_blue_rule = "?step=%s&destination=%s&rule=%s" % (first_ruleset_uuid, blue_rule_destination, blue_rule_uuid)
+        response = self.client.get(recent_messages_url + get_params_blue_rule)
+        self.assertEquals([], json.loads(response.content))
+
+        # mixed wrong params
+        get_params_mixed = "?step=%s&destination=%s&rule=%s" % (first_ruleset_uuid, first_action_set_destination, '')
+        response = self.client.get(recent_messages_url + get_params_mixed)
+        self.assertEquals([], json.loads(response.content))
+
+        self.send_message(flow, 'mauve')
+
+        response = self.client.get(recent_messages_url + get_params_entry)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(1, len(response_json))
+        self.assertEquals("What is your favorite color?", response_json[0])
+
+        response = self.client.get(recent_messages_url + get_params_other_rule)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(2, len(response_json))
+        self.assertEquals("mauve", response_json[0])
+        self.assertEquals("chartreuse", response_json[1])
+
+        response = self.client.get(recent_messages_url + get_params_blue_rule)
+        self.assertEquals([], json.loads(response.content))
+
+        response = self.client.get(recent_messages_url + get_params_mixed)
+        self.assertEquals([], json.loads(response.content))
+
+        self.send_message(flow, 'blue')
+
+        response = self.client.get(recent_messages_url + get_params_entry)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(1, len(response_json))
+        self.assertEquals("What is your favorite color?", response_json[0])
+
+        response = self.client.get(recent_messages_url + get_params_other_rule)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(2, len(response_json))
+        self.assertEquals("mauve", response_json[0])
+        self.assertEquals("chartreuse", response_json[1])
+
+        response = self.client.get(recent_messages_url + get_params_blue_rule)
+        response_json = json.loads(response.content)
+        self.assertTrue(response_json)
+        self.assertEquals(1, len(response_json))
+        self.assertEquals("blue", response_json[0])
+
+        response = self.client.get(recent_messages_url + get_params_mixed)
+        self.assertEquals([], json.loads(response.content))
+
+
     def test_activity(self):
 
         flow = self.get_flow('favorites')

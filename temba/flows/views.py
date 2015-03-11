@@ -452,7 +452,7 @@ class FlowCRUDL(SmartCRUDL):
                                                          steps__step_type=RULE_SET,
                                                          steps__run__contact__is_test=Contact.get_simulation(),
                                                          direction=INCOMING,
-                                                         visibility=VISIBLE).order_by('created_on').values_list('text', flat=True)[:5]
+                                                         visibility=VISIBLE).order_by('-created_on').values_list('text', flat=True)[:5]
             elif next_uuid and step_uuid:
                 recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
                                                      steps__next_uuid=next_uuid,
@@ -460,7 +460,7 @@ class FlowCRUDL(SmartCRUDL):
                                                      steps__step_type=ACTION_SET,
                                                      steps__run__contact__is_test=Contact.get_simulation(),
                                                      direction=OUTGOING,
-                                                     visibility=VISIBLE).order_by('created_on').values_list('text', flat=True)[:5]
+                                                     visibility=VISIBLE).order_by('-created_on').values_list('text', flat=True)[:5]
 
             recent_messages = [str(elt) for elt in recent_messages]
             return build_json_response(recent_messages)
