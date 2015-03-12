@@ -22,7 +22,7 @@ from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
-from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, PLIVO_UUID
+from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.orgs.models import Org
 from temba.tests import TembaTest, MockResponse
 from temba.orgs.models import FREE_PLAN
@@ -952,8 +952,7 @@ class ChannelTest(TembaTest):
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
                 self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
                                                           PLIVO_AUTH_TOKEN: 'auth-token',
-                                                          PLIVO_APP_ID: 'app-id',
-                                                          PLIVO_UUID: channel.uuid})
+                                                          PLIVO_APP_ID: 'app-id'})
                 self.assertEquals(channel.address, "+16062681435")
                 # no more credential in the session
                 self.assertFalse(PLIVO_AUTH_ID in self.client.session)

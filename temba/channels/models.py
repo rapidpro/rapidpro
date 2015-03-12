@@ -109,7 +109,6 @@ proxies = {"http": "http://proxy.rapidpro.io:3128"}
 
 PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
-PLIVO_UUID = 'PLIVO_UUID'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
 
 
@@ -208,7 +207,6 @@ class Channel(SmartModel):
 
         plivo_config = json.dumps({PLIVO_AUTH_ID: auth_id,
                                    PLIVO_AUTH_TOKEN: auth_token,
-                                   PLIVO_UUID: plivo_uuid,
                                    PLIVO_APP_ID: plivo_app_id})
 
         plivo_number = phone_number.strip('+ ').replace(' ', '')
