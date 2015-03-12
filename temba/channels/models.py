@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import os
 import phonenumbers
+import plivo
 import requests
 import time
 
@@ -47,6 +48,7 @@ ZENVIA = 'ZV'
 SHAQODOON = 'SQ'
 VERBOICE = 'VB'
 CLICKATELL = 'CT'
+PLIVO = 'PL'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -73,6 +75,7 @@ RELAYER_TYPE_CHOICES = ((ANDROID, _("Android")),
                         (EXTERNAL, _("External")),
                         (TWITTER, _("Twitter")),
                         (CLICKATELL, _("Clickatell")),
+                        (PLIVO, _("Plivo")),
                         (SHAQODOON, _("Shaqodoon")))
 
 # how many outgoing messages we will queue at once
@@ -95,7 +98,8 @@ RELAYER_TYPE_CONFIG = {
     HUB9: dict(scheme='tel', max_length=1600),
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
-    CLICKATELL: dict(scheme='tel', max_length=420)
+    CLICKATELL: dict(scheme='tel', max_length=420),
+    PLIVO: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -184,6 +188,53 @@ class Channel(SmartModel):
         return Channel.objects.create(channel_type=channel_type, country=country, name=phone_number,
                                       address=phone_number, uuid=str(uuid4()), config=json.dumps(config),
                                       role=role, parent=parent,
+                                      org=org, created_by=user, modified_by=user)
+    @classmethod
+    def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
+        plivo_uuid = unicode(uuid4())
+        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
+
+        client = plivo.RestAPI(auth_id, auth_token)
+
+        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler', args=['receive', plivo_uuid])
+        answer_url = "https://" + settings.AWS_STORAGE_BUCKET_NAME + "/plivo_voice_unavailable.xml"
+
+        plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
+                                                                                      answer_url=answer_url,
+                                                                                      message_url=message_url))
+
+        if plivo_response_status in [201, 200, 202]:
+            plivo_app_id = plivo_response['app_id']
+
+        plivo_config = json.dumps({PLIVO_AUTH_ID: auth_id,
+                                   PLIVO_AUTH_TOKEN: auth_token,
+                                   PLIVO_UUID: plivo_uuid,
+                                   PLIVO_APP_ID: plivo_app_id})
+
+        plivo_number = phone_number.strip('+ ').replace(' ', '')
+
+        plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
+
+        if plivo_response_status != 200:
+            plivo_response_status, plivo_number = client.buy_phone_number(params=dict(number=plivo_number))
+
+            if plivo_response_status != 201:
+                raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
+
+            plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
+
+        if plivo_response_status == 200:
+            plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
+                                                                                     app_id=plivo_app_id))
+            if plivo_response_status != 202:
+                raise Exception(_("There was a problem updating that number, please try again."))
+
+        phone_number = '+' + plivo_number
+        phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
+                                           phonenumbers.PhoneNumberFormat.NATIONAL)
+
+        return Channel.objects.create(channel_type=PLIVO, country=country, name=phone,
+                                      address=phone_number, uuid=plivo_uuid, config=plivo_config,
                                       org=org, created_by=user, modified_by=user)
 
 

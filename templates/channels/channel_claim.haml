@@ -224,6 +224,26 @@
                 %a.nexmo-account{href:"#"}
                   -trans "Nexmo Account."
 
+      .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using a Plivo number in your country, select this option to purchase a number or use one you already have.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-plivo{href:"#"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Connect Plivo"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Another great option is to connect
+                  a Plivo Account and get a dedicated number in a few minutes.
+
     .claim-row.infobip-channel
       .recommendation.hide
         %h3
@@ -396,6 +416,19 @@
         modal.show();
       });
     {% endif %}
+
+    $(".connect-plivo").live('click', function() {
+        var modal = new Modax('{% trans "Connect plivo" %}', '{% url "orgs.org_plivo_connect" %}');
+        modal.setIcon("icon-plivo");
+        modal.setListeners({onCompleted: function() {
+        },
+        onFormLoaded: function() {
+          form = modal.ele.find("form");
+          form.attr('autocomplete', 'off');
+        }})
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
 
 
 -block extra-less

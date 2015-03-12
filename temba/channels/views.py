@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import phonenumbers
+import plivo
 import pytz
 import time
 
@@ -34,7 +35,7 @@ from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog
+from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
@@ -486,7 +487,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo')
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1625,6 +1626,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return channel
 
+        def remove_api_credentials_from_session(self):
+            pass
+
         def form_valid(self, form, *args, **kwargs):
 
             # must have an org
@@ -1667,6 +1671,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 # make sure all contacts added before the channel are normalized
                 channel.ensure_normalized_contacts()
+                self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
             except Exception as e:
@@ -1778,7 +1783,155 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(error=str(e)))
 
     class ClaimPlivo(ClaimNumber):
-        pass
+        class ClaimPlivoForm(forms.Form):
+            phone_number = forms.CharField(help_text=_("The phone number being added"))
+
+            def clean_phone_number(self):
+                phone = self.cleaned_data['phone_number']
+                phone = phonenumbers.parse(phone, None)
+
+                self.cleaned_data['country'] = phonenumbers.region_code_for_number(phone)
+
+                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
+
+
+        form_class = ClaimPlivoForm
+
+        template_name = 'channels/channel_claim_plivo.html'
+
+        def pre_process(self, *args, **kwargs):
+            client = self.get_valid_client()
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_valid_client(self):
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            try:
+                client = plivo.RestAPI(auth_id, auth_token)
+                validation_response = client.get_account()
+            except:
+                client = None
+
+            if validation_response[0] != 200:
+                client = None
+
+            return client
+
+        def is_valid_country(self, country_code):
+            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+
+        def get_search_url(self):
+            return reverse('channels.channel_search_plivo')
+
+        def get_claim_url(self):
+            return reverse('channels.channel_claim_plivo')
+
+        def get_supported_countries_tuple(self):
+            return PLIVO_SUPPORTED_COUNTRIES
+
+        def get_search_countries_tuple(self):
+            return PLIVO_SUPPORTED_COUNTRIES
+
+        def get_existing_numbers(self, org):
+            client = self.get_valid_client()
+
+            account_numbers = []
+            if client:
+                status, data = client.get_numbers()
+
+                if status == 200:
+                    for number_dict in data['objects']:
+                        parsed = phonenumbers.parse('+' + number_dict['number'], None)
+                        phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+                        account_numbers.append(dict(number=phone_number,
+                                                    country=phonenumbers.region_code_for_number(parsed)))
+
+            return account_numbers
+
+        def claim_number(self, user, phone_number, country):
+
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            # add this channel
+            channel = Channel.add_plivo_channel(user.get_org(),
+                                                user,
+                                                country,
+                                                phone_number,
+                                                auth_id,
+                                                auth_token)
+
+            analytics.track(user.username, 'temba.channel_claim_plivo', dict(number=phone_number))
+
+            return channel
+
+        def remove_api_credentials_from_session(self):
+            if PLIVO_AUTH_ID in self.request.session:
+                del self.request.session[PLIVO_AUTH_ID]
+            if PLIVO_AUTH_TOKEN in self.request.session:
+                del self.request.session[PLIVO_AUTH_TOKEN]
+
+    class SearchPlivo(SearchNumbers):
+        class SearchNexmoForm(forms.Form):
+            area_code = forms.CharField(max_length=3, min_length=3, required=False,
+                                        help_text=_("The area code you want to search for a new number in"))
+            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+
+        form_class = SearchNexmoForm
+
+        def pre_process(self, *args, **kwargs):
+            client = self.get_valid_client()
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_valid_client(self):
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            try:
+                client = plivo.RestAPI(auth_id, auth_token)
+                validation_response = client.get_account()
+            except:
+                client = None
+
+            if validation_response[0] != 200:
+                client = None
+
+            return client
+
+
+        def form_valid(self, form, *args, **kwargs):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            client = self.get_valid_client()
+
+            results_numbers = []
+            try:
+                status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
+
+                if status == 200:
+                    for number_dict in response_data['objects']:
+                        results_numbers.append('+' + number_dict['number'])
+
+                numbers = []
+
+                for number in results_numbers:
+                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number.phone_number, None),
+                                                              phonenumbers.PhoneNumberFormat.INTERNATIONAL))
+                return HttpResponse(json.dumps(numbers))
+            except Exception as e:
+                return HttpResponse(json.dumps(error=str(e)))
+
+
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog

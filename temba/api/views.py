@@ -3378,6 +3378,8 @@ class ClickatellHandler(View):
         else:
             return HttpResponse("Not handled", status=400)
 
+class PlivoHandler(View):
+    pass
 
 class MageHandler(View):
 
