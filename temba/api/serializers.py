@@ -196,7 +196,7 @@ class LabelWriteSerializer(serializers.Serializer):
             existing.save()
             return existing
         else:
-            return Label.create(org, name, parent)
+            return Label.create(org, self.user, name, parent)
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):

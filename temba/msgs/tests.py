@@ -366,11 +366,11 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
         # let's add some labels 
-        self.label1 = Label.objects.create(name="label1", org=self.org)
-        self.label2 = Label.objects.create(name="label2", org=self.org)
-        self.label3 = Label.objects.create(name="label3", org=self.org)
+        self.label1 = Label.create(self.org, self.user, "label1")
+        self.label2 = Label.create(self.org, self.user, "label2")
+        self.label3 = Label.create(self.org, self.user, "label3")
 
-        self.child = Label.objects.create(name="child label", org=self.org, parent=self.label3)
+        self.child = Label.create(self.org, self.user, "child label", parent=self.label3)
         
         self.assertEquals(Label.objects.all().count(), 4)
 
@@ -725,7 +725,7 @@ class MsgTest(TembaTest):
         # try exporting the messages
         self.login(self.admin)
 
-        label = Label.objects.create(name="label1", org=self.org)
+        label = Label.create(self.org, self.user, "label1")
         msg = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path), "message to export")
         self.label_messages([msg.pk], label.pk)
 
@@ -1236,27 +1236,27 @@ class LabelTest(TembaTest):
 
     def test_create_unique(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        label1 = Label.create_unique("alongwordcomposedofmorethanthirtytwoletters", self.org, parent=None)
+        label1 = Label.create_unique(self.org, self.user, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
         self.assertEquals(label1.name, "alongwordcomposedofmorethanthirt")
 
         # try to create another label which starts with the same 32 caracteres
         # the one we already have
-        label2 = Label.create_unique("alongwordcomposedofmorethanthirtytwocaracteres", self.org, parent=None)
+        label2 = Label.create_unique(self.org, self.user, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
         self.assertEquals(label2.name, "alongwordcomposedofmorethanthi 2")
         self.assertEquals(unicode(label2), "alongwordcomposedofmorethanthi 2")
 
         # create child label
-        child = Label.create_unique("child", self.org, parent=label2)
+        child = Label.create_unique(self.org, self.user, "child", parent=label2)
         self.assertEquals(unicode(child), "alongwordcomposedofmorethanthi 2 > child")
 
-        Label.create_unique("dog", self.org)
-        Label.create_unique("dog", self.org)
-        dog3 = Label.create_unique("dog", self.org)
+        Label.create_unique(self.org, self.user, "dog")
+        Label.create_unique(self.org, self.user, "dog")
+        dog3 = Label.create_unique(self.org, self.user, "dog")
         self.assertEquals("dog 3", dog3.name)
 
     def test_message_count(self):
-        label = Label.create_unique("Parent", self.org)
-        child = Label.create_unique("Child", self.org, parent=label)
+        label = Label.create_unique(self.org, self.user, "Parent")
+        child = Label.create_unique(self.org, self.user, "Child", parent=label)
 
         with self.assertNumQueries(2):  # from db
             self.assertEqual(label.get_message_count(), 0)
@@ -1337,7 +1337,7 @@ class LabelCRUDLTest(TembaTest):
         self.assertContains(response, "sub_label")
 
     def test_label_delete(self):
-        label_one = Label.create_unique("label1", self.org)
+        label_one = Label.create_unique(self.org, self.user, "label1")
 
         delete_url = reverse('msgs.label_delete', args=[label_one.pk])
 
