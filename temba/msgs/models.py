@@ -787,7 +787,6 @@ class Msg(models.Model, OrgAssetMixin):
         msg_json['text'] = escape(self.text).replace('\n', "<br/>")
         return msg_json
 
-
     @classmethod
     def get_text_parts(cls, text, max_length=160):
         """
@@ -822,9 +821,6 @@ class Msg(models.Model, OrgAssetMixin):
                 parts.append(part)
 
             return parts
-
-    def get_message_labels(self):
-        return self.labels.all()
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, response_to=self, message_context=message_context)
