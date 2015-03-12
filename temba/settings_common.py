@@ -453,6 +453,8 @@ PERMISSIONS = {
 
     'msgs.call': ('api',),
 
+    'msgs.label': ('api',),
+
     'triggers.trigger': ('archived',
                          'catchall',
                          'follow',

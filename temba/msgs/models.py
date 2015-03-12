@@ -1366,6 +1366,14 @@ class Label(TembaModel, models.Model):
     org = models.ForeignKey(Org)
 
     @classmethod
+    def create(cls, org, name, parent=None, label_type='M'):
+        # only allow 1 level of nesting
+        if parent and parent.parent_id:  # pragma: no cover
+            raise ValueError("Only one level of nesting is allowed")
+
+        return Label.objects.create(org=org, name=name, parent=parent, label_type=label_type)
+
+    @classmethod
     def create_unique(cls, base, label_type, org, parent=None):
 
         # truncate if necessary
@@ -1384,7 +1392,7 @@ class Label(TembaModel, models.Model):
             base = "%s %d" % (base.strip(), count)
             count += 1
 
-        return Label.objects.create(name=base, org=org, label_type=label_type, parent=parent)
+        return Label.create(org, base, parent, label_type)
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
