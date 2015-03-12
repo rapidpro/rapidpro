@@ -830,6 +830,10 @@ CELERYBEAT_SCHEDULE = {
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
         'schedule': crontab(hour=3, minute=0),
+    },
+    "calculate-credit-caches": {
+        'task': 'calculate_credit_caches',
+        'schedule': timedelta(days=3),
     }
 }
 
