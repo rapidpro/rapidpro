@@ -270,6 +270,57 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
+    def test_api_flow_update(self):
+        url = reverse('api.flows')
+        self.login(self.admin)
+
+        # can't create a flow without a name
+        response = self.postJSON(url, dict(name="", flow_type='F'))
+        self.assertEqual(response.status_code, 400)
+
+        # or without a type
+        response = self.postJSON(url, dict(name="Hello World", flow_type=''))
+        self.assertEqual(response.status_code, 400)
+
+        # or invalid type
+        response = self.postJSON(url, dict(name="Hello World", flow_type='X'))
+        self.assertEqual(response.status_code, 400)
+
+        # but we can create an empty flow
+        response = self.postJSON(url, dict(name="Empty", flow_type='F'))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json['name'], "Empty")
+
+        # load flow definition from test data
+        handle = open('%s/test_flows/pick_a_number.json' % settings.MEDIA_ROOT, 'r+')
+        definition = json.loads(handle.read())
+        handle.close()
+
+        # and create flow with a definition
+        response = self.postJSON(url, dict(name="Pick a number", flow_type='F', definition=definition))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json['name'], "Pick a number")
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.get(name='Pick a number')
+        self.assertEqual(flow.flow_type, 'F')
+        self.assertEqual(flow.action_sets.count(), 2)
+        self.assertEqual(flow.rule_sets.count(), 1)
+
+        # make local change
+        flow.name = 'Something else'
+        flow.flow_type = 'V'
+        flow.save()
+
+        # updating should overwrite local change
+        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a number", flow_type='F', definition=definition))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json['name'], "Pick a number")
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.get(name='Pick a number')
+        self.assertEqual(flow.flow_type, 'F')
+
     def test_api_runs(self):
         url = reverse('api.runs')
 
