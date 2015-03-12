@@ -452,7 +452,7 @@
                 .source{drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
 
                 .visited{ng-show:'category._visited && category.target'}
-                  .count{ng-mouseenter:'getRecentMessages(ruleset.uuid, category.target, getSource(category))', tooltip-placement:'bottom', tooltip-trigger:'mouseenter', tooltip-html-unsafe:'[[$root.recentMessages]]', tooltip-append-to-body:'true'}
+                  .count{ng-mouseenter:'getRecentMessages(ruleset.uuid, category.target, getJoinedCategoryRulesUUID(category))', tooltip-placement:'bottom', tooltip-trigger:'mouseenter', tooltip-html-unsafe:'[[$root.recentMessages]]', tooltip-append-to-body:'true'}
                     [[category._visited|number]]
 
         .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}

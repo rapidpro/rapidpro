@@ -258,6 +258,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.getSource = (category) ->
     return category.sources[0]
 
+  $scope.getJoinedCategoryRulesUUID = (category) ->
+    return category.sources.join()
+
   $scope.onConnectorDrop = (connection) ->
 
     $(connection.source).parent().removeClass('reconnecting')

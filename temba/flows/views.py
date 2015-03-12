@@ -445,14 +445,16 @@ class FlowCRUDL(SmartCRUDL):
 
             recent_messages = []
             if rule_uuid and next_uuid and step_uuid:
+                rule_uuids = rule_uuid.split(',')
                 recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
-                                                         steps__rule_uuid=rule_uuid,
-                                                         steps__next_uuid=next_uuid,
-                                                         steps__run__flow=flow,
-                                                         steps__step_type=RULE_SET,
-                                                         steps__run__contact__is_test=Contact.get_simulation(),
-                                                         direction=INCOMING,
-                                                         visibility=VISIBLE).order_by('-created_on').values_list('text', flat=True)[:5]
+                                                     steps__next_uuid=next_uuid,
+                                                     steps__rule_uuid__in=rule_uuids,
+                                                     steps__run__flow=flow,
+                                                     steps__step_type=RULE_SET,
+                                                     steps__run__contact__is_test=Contact.get_simulation(),
+                                                     direction=INCOMING,
+                                                     visibility=VISIBLE).order_by('-created_on').values_list('text', flat=True)[:5]
+
             elif next_uuid and step_uuid:
                 recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
                                                      steps__next_uuid=next_uuid,
