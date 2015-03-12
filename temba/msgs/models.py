@@ -824,7 +824,7 @@ class Msg(models.Model, OrgAssetMixin):
             return parts
 
     def get_message_labels(self):
-        return self.labels.filter(label_type='M')
+        return self.labels.all()
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, response_to=self, message_context=message_context)
@@ -1345,8 +1345,6 @@ class Call(SmartModel):
         return Call.objects.filter(org=org)
 
 
-LABEL_TYPES = (('M', _("Message")),)
-
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
@@ -1361,20 +1359,19 @@ class Label(TembaModel, models.Model):
     name = models.CharField(max_length=64, verbose_name=_("Name"),
                             help_text=_("The name of this label"))
     parent = models.ForeignKey('Label', verbose_name=_("Parent"), null=True, related_name="children")
-    label_type = models.CharField(max_length=1, default='M', verbose_name=_("Label Type"),
-                                  help_text=_("What type of label this is"))
+
     org = models.ForeignKey(Org)
 
     @classmethod
-    def create(cls, org, name, parent=None, label_type='M'):
+    def create(cls, org, name, parent=None):
         # only allow 1 level of nesting
         if parent and parent.parent_id:  # pragma: no cover
             raise ValueError("Only one level of nesting is allowed")
 
-        return Label.objects.create(org=org, name=name, parent=parent, label_type=label_type)
+        return Label.objects.create(org=org, name=name, parent=parent)
 
     @classmethod
-    def create_unique(cls, base, label_type, org, parent=None):
+    def create_unique(cls, base, org, parent=None):
 
         # truncate if necessary
         if len(base) > 32:
@@ -1392,7 +1389,7 @@ class Label(TembaModel, models.Model):
             base = "%s %d" % (base.strip(), count)
             count += 1
 
-        return Label.create(org, base, parent, label_type)
+        return Label.create(org, base, parent)
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
@@ -1411,7 +1408,7 @@ class Label(TembaModel, models.Model):
         return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
 
     @classmethod
-    def generate_label(cls, org, label_type, text, fallback):
+    def generate_label(cls, org, text, fallback):
 
         # TODO: POS tagging might be better here using nltk
         # tags = nltk.pos_tag(nltk.word_tokenize(str(obj.question).lower()))
@@ -1447,7 +1444,7 @@ class Label(TembaModel, models.Model):
         if not label:
             label = fallback
 
-        label = Label.create_unique(label, label_type, org)
+        label = Label.create_unique(label, org)
         return label
 
     def toggle_label(self, msgs, add):

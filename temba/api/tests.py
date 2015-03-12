@@ -1093,7 +1093,7 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
-        label = Label.create_unique("Goo", 'M', self.org)
+        label = Label.create_unique("Goo", self.org)
         label.toggle_label([sms], add=True)
 
         response = self.fetchJSON(url, "label=Goo")
@@ -1190,10 +1190,10 @@ class APITest(TembaTest):
         self.assertJSON(response, 'phone', '+250788123124')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
-        label1 = Label.create_unique("Goo", 'M', self.org)
+        label1 = Label.create_unique("Goo", self.org)
         label1.toggle_label([msgs[0]], add=True)
 
-        label2 = Label.create_unique("Fiber", 'M', self.org)
+        label2 = Label.create_unique("Fiber", self.org)
         label2.toggle_label([msgs[1]], add=True)
 
         response = self.fetchJSON(url, "label=Goo&label=Fiber")

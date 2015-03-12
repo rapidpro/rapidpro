@@ -3617,7 +3617,7 @@ class AddLabelAction(Action):
                 elif Label.objects.filter(org=org, name=label_name).first():
                     label = Label.objects.filter(org=org, name=label_name).first()
                 else:
-                    label = Label.create_unique(label_name, 'M', org)
+                    label = Label.create_unique(label_name, org)
 
                 if label:
                     labels.append(label)
@@ -3629,7 +3629,7 @@ class AddLabelAction(Action):
                     if label:
                         labels.append(label[0])
                     else:
-                        labels.append(Label.create_unique(l_data, 'M', org))
+                        labels.append(Label.create_unique(l_data, org))
 
         return AddLabelAction(labels)
 
@@ -3655,7 +3655,7 @@ class AddLabelAction(Action):
                 try:
                     label = Label.objects.get(org=contact.org, name=value)
                 except:
-                    label = Label.create_unique(value, 'M', contact.org)
+                    label = Label.create_unique(value, contact.org)
                     if run.contact.is_test:
                         ActionLog.create(run, _("Label '%s' created") % value)
 

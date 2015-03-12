@@ -907,7 +907,7 @@ class LabelsEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = Label.objects.filter(org=self.request.user.get_org(), label_type='M').order_by('-pk')
+        queryset = Label.objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:

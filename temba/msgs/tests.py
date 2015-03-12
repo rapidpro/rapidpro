@@ -1236,27 +1236,27 @@ class LabelTest(TembaTest):
 
     def test_create_unique(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        label1 = Label.create_unique("alongwordcomposedofmorethanthirtytwoletters", 'M', self.org, parent=None)
+        label1 = Label.create_unique("alongwordcomposedofmorethanthirtytwoletters", self.org, parent=None)
         self.assertEquals(label1.name, "alongwordcomposedofmorethanthirt")
 
         # try to create another label which starts with the same 32 caracteres
         # the one we already have
-        label2 = Label.create_unique("alongwordcomposedofmorethanthirtytwocaracteres", 'M', self.org, parent=None)
+        label2 = Label.create_unique("alongwordcomposedofmorethanthirtytwocaracteres", self.org, parent=None)
         self.assertEquals(label2.name, "alongwordcomposedofmorethanthi 2")
         self.assertEquals(unicode(label2), "alongwordcomposedofmorethanthi 2")
 
         # create child label
-        child = Label.create_unique("child", 'M', self.org, parent=label2)
+        child = Label.create_unique("child", self.org, parent=label2)
         self.assertEquals(unicode(child), "alongwordcomposedofmorethanthi 2 > child")
 
-        Label.create_unique("dog", 'M', self.org)
-        Label.create_unique("dog", 'M', self.org)
-        dog3 = Label.create_unique("dog", 'M', self.org)
+        Label.create_unique("dog", self.org)
+        Label.create_unique("dog", self.org)
+        dog3 = Label.create_unique("dog", self.org)
         self.assertEquals("dog 3", dog3.name)
 
     def test_message_count(self):
-        label = Label.create_unique("Parent", 'M', self.org)
-        child = Label.create_unique("Child", 'M', self.org, parent=label)
+        label = Label.create_unique("Parent", self.org)
+        child = Label.create_unique("Child", self.org, parent=label)
 
         with self.assertNumQueries(2):  # from db
             self.assertEqual(label.get_message_count(), 0)
@@ -1337,7 +1337,7 @@ class LabelCRUDLTest(TembaTest):
         self.assertContains(response, "sub_label")
 
     def test_label_delete(self):
-        label_one = Label.create_unique("label1", 'M', self.org)
+        label_one = Label.create_unique("label1", self.org)
 
         delete_url = reverse('msgs.label_delete', args=[label_one.pk])
 

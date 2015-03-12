@@ -130,7 +130,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.msgs_failed), label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
         # fetch all top-level labels with their children
-        label_qs = Label.objects.filter(org=org, parent=None, label_type='M')
+        label_qs = Label.objects.filter(org=org, parent=None)
         label_qs = label_qs.prefetch_related('children').order_by('name')
         labels = [dict(pk=l.pk, label=l.name, count=l.get_message_count(), children=l.children.all()) for l in label_qs]
 
@@ -811,7 +811,7 @@ class LabelForm(forms.ModelForm):
             del kwargs['label']
 
         super(LabelForm, self).__init__(*args, **kwargs)
-        qs = Label.objects.filter(org=self.org, parent=None, label_type='M')
+        qs = Label.objects.filter(org=self.org, parent=None)
 
         if label:
             qs = qs.exclude(id=label.pk)
