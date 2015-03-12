@@ -29,6 +29,7 @@ from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
 from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from unidecode import unidecode
@@ -1349,7 +1350,7 @@ LABEL_TYPES = (('M', _("Message")),)
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class Label(models.Model):
+class Label(TembaModel, models.Model):
     """
     Labels are simple labels that can be applied to messages much the same way labels or tags apply
     to messages in web-based email services.
