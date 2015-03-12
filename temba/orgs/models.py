@@ -95,7 +95,7 @@ ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
 ORG_LOCK_TTL = 60  # 1 minute
-ORG_CREDITS_CACHE_TTL = 24 * 60 * 60  # 1 day
+ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 ORG_DISPLAY_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
@@ -989,6 +989,32 @@ class Org(SmartModel):
         expired_msgs = self.msgs.filter(topup__in=expired_topups).count()
 
         return active_credits + expired_msgs
+
+    def _calculate_credit_caches(self):
+        """
+        Calculates both our total as well as our active topup
+        """
+        r = get_redis_connection()
+
+        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                             self._calculate_credits_total, force_dirty=True)
+        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                             self._calculate_credits_used, force_dirty=True)
+
+        active_topup = self._calculate_active_topup()
+
+        active_topup_key = ORG_ACTIVE_TOPUP_CACHE_KEY % self.pk
+        topup_credits_key = ORG_TOPUP_CREDITS_CACHE_KEY % self.pk
+        topup_expires_key = ORG_TOPUP_EXPIRES_CACHE_KEY % self.pk
+
+        if active_topup:
+            expires_on = datetime_to_ms(active_topup.expires_on)
+            r.set(active_topup_key, active_topup.pk, ORG_CREDITS_CACHE_TTL)
+            r.set(topup_credits_key, active_topup.num_msgs, ORG_CREDITS_CACHE_TTL)
+            r.set(topup_expires_key, expires_on, ORG_CREDITS_CACHE_TTL)
+        else:
+            # delete the existing cache values
+            r.delete(active_topup_key, topup_credits_key, topup_expires_key)
 
     def get_credits_used(self):
         """
