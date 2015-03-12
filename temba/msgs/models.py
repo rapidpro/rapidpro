@@ -5,7 +5,6 @@ import logging
 import os
 import pytz
 import re
-import string
 import time
 import traceback
 
@@ -19,12 +18,12 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Q, Count
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
 from django.utils.html import escape
+from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.channels.models import Channel, ANDROID, SEND, CALL
+from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
@@ -32,7 +31,6 @@ from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from unidecode import unidecode
 from uuid import uuid4
 from .handler import MessageHandler
 
