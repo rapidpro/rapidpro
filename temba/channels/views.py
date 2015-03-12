@@ -121,6 +121,27 @@ NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
 NEXMO_SUPPORTED_COUNTRY_CODES  = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
                                   60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265]
 
+PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
+                             ('BE', _('Belgium')),
+                             ('CA', _('Canada')),
+                             ('CZ', _('Czech Republic')),
+                             ('EE', _('Estonia')),
+                             ('FI', _('Finland')),
+                             ('DE', _('Germany')),
+                             ('HK', _('Hong Kong')),
+                             ('HU', _('Hungary')),
+                             ('IL', _('Israel')),
+                             ('LT', _('Lithuania')),
+                             ('MX', _('Mexico')),
+                             ('NO', _('Norway')),
+                             ('PK', _('Pakistan')),
+                             ('PL', _('Poland')),
+                             ('SE', _('Sweden')),
+                             ('CH', _('Switzerland')),
+                             ('GB', _('United Kingdom')),
+                             ('US', _('United States')))
+
+PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 46, 41, 44]
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
@@ -465,7 +486,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell')
+               'claim_verboice', 'claim_clickatell', 'claim_plivo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1756,6 +1777,8 @@ class ChannelCRUDL(SmartCRUDL):
             except Exception as e:
                 return HttpResponse(json.dumps(error=str(e)))
 
+    class ClaimPlivo(ClaimNumber):
+        pass
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog

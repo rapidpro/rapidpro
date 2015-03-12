@@ -103,6 +103,11 @@ TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 # Some providers need a static ip to whitelist, route them through our proxy
 proxies = {"http": "http://proxy.rapidpro.io:3128"}
 
+PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
+PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
+PLIVO_UUID = 'PLIVO_UUID'
+PLIVO_APP_ID = 'PLIVO_APP_ID'
+
 
 class Channel(SmartModel):
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
