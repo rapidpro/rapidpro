@@ -17,7 +17,7 @@ def check_credits_task():
 def calculate_credit_caches():
     """
     Repopulates the active topup and total credits for each organization
-    that received messages in the past day.
+    that received messages in the past week.
     """
     # get all orgs that have sent a message in the past week
     last_week = timezone.now() - timedelta(days=7)
