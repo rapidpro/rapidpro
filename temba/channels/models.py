@@ -678,6 +678,14 @@ class Channel(SmartModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
+        if self.channel_type == PLIVO:
+            import plivo
+            client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+
+            # remove the application
+            client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
+
+
         # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
         if self.channel_type == TWILIO:
             client = self.org.get_twilio_client()
