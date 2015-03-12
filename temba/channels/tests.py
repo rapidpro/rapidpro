@@ -22,6 +22,7 @@ from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
+from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, PLIVO_UUID
 from temba.orgs.models import Org
 from temba.tests import TembaTest, MockResponse
 from temba.orgs.models import FREE_PLAN
@@ -936,13 +937,27 @@ class ChannelTest(TembaTest):
                 self.assertContains(response, "+1 606-268-1435")
 
                 # claim it
+                session = self.client.session
+                session[PLIVO_AUTH_ID] = 'auth-id'
+                session[PLIVO_AUTH_TOKEN] = 'auth-token'
+                session.save()
+
+                self.assertTrue(PLIVO_AUTH_ID in self.client.session)
+                self.assertTrue(PLIVO_AUTH_TOKEN in self.client.session)
+
                 response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1435'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
-
-
+                self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
+                                                          PLIVO_AUTH_TOKEN: 'auth-token',
+                                                          PLIVO_APP_ID: 'app-id',
+                                                          PLIVO_UUID: channel.uuid})
+                self.assertEquals(channel.address, "+16062681435")
+                # no more credential in the session
+                self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+                self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
     def test_claim_twitter(self):
         # add to this user an org
