@@ -1547,6 +1547,8 @@ class TopUp(SmartModel):
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
+    used = models.IntegerField(verbose_name=_("Number of Credits used"), default=0,
+                               help_text=_("The number of credits used in this top up"))
     expires_on = models.DateTimeField(verbose_name=("Expiration Date"),
                                       help_text=_("The date that this top up will expire"))
     stripe_charge = models.CharField(verbose_name=_("Stripe Charge Id"), max_length=32, null=True, blank=True,
