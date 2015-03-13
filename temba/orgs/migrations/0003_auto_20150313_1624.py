@@ -55,19 +55,29 @@ class Migration(migrations.Migration):
                   UPDATE orgs_topup SET used=used-1 WHERE id=OLD.topup_id;
                 END IF;
 
+              -- Msgs table is being truncated
+              ELSIF TG_OP = 'TRUNCATE' THEN
+                -- Clear all used credits
+                UPDATE orgs_topup SET used=0;
+
               END IF;
 
               RETURN NEW;
             END;
             $$ LANGUAGE plpgsql;
 
-            DROP TRIGGER IF EXISTS update_topup_used_trg ON msgs_msg;
-
-            CREATE TRIGGER update_topup_used_trg
+            DROP TRIGGER IF EXISTS when_msgs_update_then_update_topup_trg on msgs_msg;
+            CREATE TRIGGER when_msgs_update_then_update_topup_trg
                AFTER INSERT OR DELETE OR UPDATE OF topup_id
                ON msgs_msg
                FOR EACH ROW
                EXECUTE PROCEDURE update_topup_used();
+
+            DROP TRIGGER IF EXISTS when_msgs_truncate_then_update_topup_trg on msgs_msg;
+            CREATE TRIGGER when_msgs_truncate_then_update_topup_trg
+              AFTER TRUNCATE
+              ON msgs_msg
+              EXECUTE PROCEDURE update_topup_used();
         """
         cursor = connection.cursor()
         cursor.execute(install_trigger)

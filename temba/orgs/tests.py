@@ -501,6 +501,8 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).msgs.count())
+        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).used)
+
         self.assertFalse(self.org._calculate_active_topup())
 
         with self.assertNumQueries(0):
@@ -516,6 +518,8 @@ class OrgTest(TembaTest):
             self.assertEquals(30, self.org.get_credits_used())
             self.assertEquals(-15, self.org.get_credits_remaining())
 
+        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).used)
+
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
@@ -525,7 +529,9 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
 
         self.assertEquals(20, welcome_topup.msgs.count())
+        self.assertEquals(20, TopUp.objects.get(pk=welcome_topup.pk).used)
         self.assertEquals(5, new_topup.msgs.count())
+        self.assertEquals(5, TopUp.objects.get(pk=new_topup.pk).used)
         self.assertEquals(25, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(-5, self.org.get_credits_remaining())
@@ -547,6 +553,7 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).used)
 
         # now we're pro
         self.assertTrue(self.org.is_pro())
@@ -557,6 +564,8 @@ class OrgTest(TembaTest):
         # and new messages use the mega topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertEquals(msg.topup, mega_topup)
+
+        self.assertEquals(6, TopUp.objects.get(pk=mega_topup.pk).used)
 
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
