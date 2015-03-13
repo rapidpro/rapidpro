@@ -1953,14 +1953,13 @@ class Flow(TembaModel, SmartModel):
 
         return flow
 
-    def update(self, json_dict, user=None):
+    def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow.
         """
         try:
-
             # check whether the flow has changed since this flow was last saved
-            if user:
+            if user and not force:
                 saved_on = json_dict.get(Flow.LAST_SAVED, None)
                 org = user.get_org()
                 tz = org.get_tzinfo()
@@ -2166,7 +2165,7 @@ class Flow(TembaModel, SmartModel):
                 user = self.created_by
 
             # remove any versions that were created in the last minute
-            versions = self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
+            self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
 
             # create a new version
             self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)

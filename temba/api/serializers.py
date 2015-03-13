@@ -818,7 +818,7 @@ class FlowWriteSerializer(serializers.Serializer):
             flow = Flow.create(org, self.user, name, flow_type)
 
         if definition:
-            flow.import_definition(definition)
+            flow.update(definition, self.user, force=True)
 
         return flow
 
