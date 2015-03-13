@@ -3250,7 +3250,8 @@ class KannelHandler(View):
             elif status == DELIVERED:
                 sms.update(status=status, delivered_on=timezone.now())
             else:
-                sms.update(status=status)
+                sms.fail()
+                Channel.track_status(sms.channel, "Failed")
 
             # update the broadcast status
             sms.first().broadcast.update()
@@ -3345,7 +3346,8 @@ class ClickatellHandler(View):
             elif status == DELIVERED:
                 sms.update(status=status, delivered_on=timezone.now())
             elif status == FAILED:
-                sms.update(status=status)
+                sms.fail()
+                Channel.track_status(sms.channel, "Failed")
             else:
                 # ignore wired, we are wired by default
                 pass
@@ -3445,6 +3447,7 @@ class PlivoHandler(View):
                 sms.update(status=status, delivered_on=timezone.now())
             elif status == FAILED:
                 sms.fail()
+                Channel.track_status(sms.channel, "Failed")
             else:
                 # ignore wired, we are wired by default
                 pass
