@@ -1874,12 +1874,12 @@ class ChannelCRUDL(SmartCRUDL):
                 del self.request.session[PLIVO_AUTH_TOKEN]
 
     class SearchPlivo(SearchNumbers):
-        class SearchNexmoForm(forms.Form):
+        class SearchPlivoForm(forms.Form):
             area_code = forms.CharField(max_length=3, min_length=3, required=False,
                                         help_text=_("The area code you want to search for a new number in"))
             country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
 
-        form_class = SearchNexmoForm
+        form_class = SearchPlivoForm
 
         def pre_process(self, *args, **kwargs):
             client = self.get_valid_client()

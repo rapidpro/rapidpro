@@ -2515,18 +2515,11 @@ class TwilioHandler(View):
 
             # queued, sending, sent, failed, or received.
             if status == 'sent':
-                sms.status = SENT
-                sms.sent_on = timezone.now()
-                sms.save(update_fields=('status', 'sent_on'))
-                Channel.track_status(sms.channel, "Sent")
+                sms.status_sent()
             elif status == 'delivered':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(sms.channel, "Delivered")
+                sms.status_delivered()
             elif status == 'failed':
                 sms.fail()
-                Channel.track_status(sms.channel, "Failed")
 
             sms.broadcast.update()
 
@@ -2662,17 +2655,11 @@ class AfricasTalkingHandler(View):
                 return HttpResponse("No SMS message with id: %s" % external_id, status=404)
 
             if status == 'Success':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status == 'Sent' or status == 'Buffered':
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             elif status == 'Rejected' or status == 'Failed':
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
 
@@ -2728,19 +2715,11 @@ class ZenviaHandler(View):
 
             # delivered
             if status == 120:
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                if not sms.sent_on:
-                    sms.sent_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on', 'sent_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status == 111:
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             else:
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             # update our broadcast status
             sms.broadcast.update()
@@ -2805,17 +2784,11 @@ class ExternalHandler(View):
                 return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
 
             if action == 'delivered':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif action == 'sent':
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             elif action == 'failed':
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
 
@@ -2884,19 +2857,13 @@ class InfobipHandler(View):
             return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
         if status == 'DELIVERED':
-            sms.status = DELIVERED
-            sms.delivered_on = timezone.now()
-            sms.save(update_fields=('status', 'delivered_on'))
-            Channel.track_status(channel, "Delivered")
+            sms.status_delivered()
         elif status == 'SENT':
-            sms.status = SENT
-            sms.save(update_fields=('status',))
-            Channel.track_status(channel, "Sent")
+            sms.status_sent()
         elif status in ['NOT_SENT', 'NOT_ALLOWED', 'INVALID_DESTINATION_ADDRESS',
                         'INVALID_SOURCE_ADDRESS', 'ROUTE_NOT_AVAILABLE', 'NOT_ENOUGH_CREDITS',
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
             sms.fail()
-            Channel.track_status(channel, "Failed")
 
         sms.broadcast.update()
 
@@ -2964,17 +2931,11 @@ class Hub9Handler(View):
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
             if 10 <= status <= 12:
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status > 20:
                 sms.fail()
-                Channel.track_status(channel, "Failed")
             elif status != -1:
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
 
             sms.broadcast.update()
             return HttpResponse("000")
@@ -3039,18 +3000,11 @@ class NexmoHandler(View):
             status = request.REQUEST['status']
 
             if status == 'delivered':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status == 'accepted' or status == 'buffered':
-                sms.status = SENT
-                sms.sent_on = timezone.now()
-                sms.save(update_fields=('status', 'sent_on'))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             elif status == 'expired' or status == 'failed':
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
 
@@ -3166,9 +3120,7 @@ class VumiHandler(View):
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our
                         # delivery failures if any part of the message comes back as failed
                         if sms.status == WIRED:
-                            sms.status = DELIVERED
-                            sms.delivered_on = timezone.now()
-                            sms.save(update_fields=('delivered_on', 'status'))
+                            sms.status_delivered()
 
             # disabled for performance reasons
             # sms.first().broadcast.update()
@@ -3246,13 +3198,14 @@ class KannelHandler(View):
 
             # only update to SENT status if still in WIRED state
             if status == SENT:
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
             elif status == DELIVERED:
-                sms.update(status=status, delivered_on=timezone.now())
-            else:
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
+            elif status == FAILED:
                 for sms_obj in sms:
                     sms_obj.fail()
-                    Channel.track_status(sms_obj.channel, "Failed")
 
             # update the broadcast status
             sms.first().broadcast.update()
@@ -3343,9 +3296,11 @@ class ClickatellHandler(View):
 
             # only update to SENT status if still in WIRED state
             if status == SENT:
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
             elif status == DELIVERED:
-                sms.update(status=status, delivered_on=timezone.now())
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
                     sms_obj.fail()
@@ -3444,9 +3399,11 @@ class PlivoHandler(View):
 
             # only update to SENT status if still in WIRED state
             if status == SENT:
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
             elif status == DELIVERED:
-                sms.update(status=status, delivered_on=timezone.now())
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
                     sms_obj.fail()
