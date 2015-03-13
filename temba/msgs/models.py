@@ -5,7 +5,6 @@ import logging
 import os
 import pytz
 import re
-import string
 import time
 import traceback
 
@@ -19,19 +18,19 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Q, Count
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
 from django.utils.html import escape
+from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.channels.models import Channel, ANDROID, SEND, CALL
+from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
 from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from unidecode import unidecode
 from uuid import uuid4
 from .handler import MessageHandler
 
@@ -786,7 +785,6 @@ class Msg(models.Model, OrgAssetMixin):
         msg_json['text'] = escape(self.text).replace('\n', "<br/>")
         return msg_json
 
-
     @classmethod
     def get_text_parts(cls, text, max_length=160):
         """
@@ -821,9 +819,6 @@ class Msg(models.Model, OrgAssetMixin):
                 parts.append(part)
 
             return parts
-
-    def get_message_labels(self):
-        return self.labels.filter(label_type='M')
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, response_to=self, message_context=message_context)
@@ -1344,28 +1339,32 @@ class Call(SmartModel):
         return Call.objects.filter(org=org)
 
 
-LABEL_TYPES = (('M', _("Message")),)
-
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class Label(models.Model):
+class Label(TembaModel, SmartModel):
     """
     Labels are simple labels that can be applied to messages much the same way labels or tags apply
     to messages in web-based email services.
 
     Labels can be created as one-level deep hierarchy.
     """
+    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
 
-    name = models.CharField(max_length=64, verbose_name=_("Name"),
-                            help_text=_("The name of this label"))
     parent = models.ForeignKey('Label', verbose_name=_("Parent"), null=True, related_name="children")
-    label_type = models.CharField(max_length=1, default='M', verbose_name=_("Label Type"),
-                                  help_text=_("What type of label this is"))
+
     org = models.ForeignKey(Org)
 
     @classmethod
-    def create_unique(cls, base, label_type, org, parent=None):
+    def create(cls, org, user, name, parent=None):
+        # only allow 1 level of nesting
+        if parent and parent.parent_id:  # pragma: no cover
+            raise ValueError("Only one level of nesting is allowed")
+
+        return Label.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
+
+    @classmethod
+    def create_unique(cls, org, user, base, parent=None):
 
         # truncate if necessary
         if len(base) > 32:
@@ -1373,7 +1372,7 @@ class Label(models.Model):
 
         # find the next available label by appending numbers
         count = 2
-        while Label.objects.filter(name=base, org=org, parent=parent):
+        while Label.objects.filter(org=org, name=base, parent=parent):
             # make room for the number
             if len(base) >= 32:
                 base = base[:30]
@@ -1383,7 +1382,7 @@ class Label(models.Model):
             base = "%s %d" % (base.strip(), count)
             count += 1
 
-        return Label.objects.create(name=base, org=org, label_type=label_type, parent=parent)
+        return Label.create(org, user, base, parent)
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
@@ -1401,45 +1400,6 @@ class Label(models.Model):
     def get_message_count_cache_key(self):
         return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
 
-    @classmethod
-    def generate_label(cls, org, label_type, text, fallback):
-
-        # TODO: POS tagging might be better here using nltk
-        # tags = nltk.pos_tag(nltk.word_tokenize(str(obj.question).lower()))
-
-        # remove punctuation and split into words
-        words = unidecode(text).lower().translate(string.maketrans("",""), string.punctuation)
-        words = words.split(' ')
-
-        # now look for some label candidates based on word length
-        labels = []
-        take_next = False
-        for word in words:
-
-            # ignore stop words
-            if word.lower() in STOP_WORDS:
-                continue
-
-            if not labels:
-                labels.append(word)
-                take_next = True
-            elif len(word) == len(labels[0]):
-                labels.append(word)
-                take_next = True
-            elif len(word) > len(labels[0]):
-                labels = [word]
-                take_next = True
-            elif take_next:
-                labels.append(word)
-                take_next = False
-
-        label = " ".join(labels)
-
-        if not label:
-            label = fallback
-
-        label = Label.create_unique(label, label_type, org)
-        return label
 
     def toggle_label(self, msgs, add):
         """
