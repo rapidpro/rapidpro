@@ -3378,6 +3378,7 @@ class ClickatellHandler(View):
         else:
             return HttpResponse("Not handled", status=400)
 
+
 class PlivoHandler(View):
 
     @disable_middleware
@@ -3400,20 +3401,20 @@ class PlivoHandler(View):
         channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type=PLIVO).first()
 
         if action == 'status':
-            if not 'Status' in request.REQUEST:
-                return HttpResponse("Missing 'Status' in request parameters.",status=400)
-
-            if not channel:
-                return HttpResponse("Channel not found for number: %s" % request.REQUEST['From'], status=400)
-
             plivo_channel_address = request.REQUEST['From']
 
-            channel_address =plivo_channel_address
+            if not 'Status' in request.REQUEST:
+                return HttpResponse("Missing 'Status' in request parameters.", status=400)
+
+            if not channel:
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
+
+            channel_address = plivo_channel_address
             if channel_address[0] != '+':
                 channel_address = '+' + channel_address
 
             if channel.address != channel_address:
-                return HttpResponse("Channel not found for number: %s" % request.REQUEST['From'], status=400)
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
             sms_id = request.REQUEST['MessageUUID']
 
@@ -3443,7 +3444,7 @@ class PlivoHandler(View):
             elif status == DELIVERED:
                 sms.update(status=status, delivered_on=timezone.now())
             elif status == FAILED:
-                sms.update(status=status)
+                sms.fail()
             else:
                 # ignore wired, we are wired by default
                 pass
@@ -3459,17 +3460,17 @@ class PlivoHandler(View):
             if not 'Text' in request.REQUEST:
                 return HttpResponse("Missing 'Text' in request parameters.", status=400)
 
-            if not channel:
-                return HttpResponse("Channel not found for number: %s" % request.REQUEST['To'], status=400)
-
             plivo_channel_address = request.REQUEST['To']
 
-            channel_address =plivo_channel_address
+            if not channel:
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
+
+            channel_address = plivo_channel_address
             if channel_address[0] != '+':
                 channel_address = '+' + channel_address
 
             if channel.address != channel_address:
-                return HttpResponse("Channel not found for number: %s" % request.REQUEST['To'], status=400)
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
             sms = Msg.create_incoming(channel,
                                       (TEL_SCHEME, request.REQUEST['From']),
@@ -3480,6 +3481,7 @@ class PlivoHandler(View):
             return HttpResponse("SMS accepted: %d" % sms.id)
         else:
             return HttpResponse("Not handled", status=400)
+
 
 class MageHandler(View):
 

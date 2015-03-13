@@ -1794,9 +1794,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
-
         form_class = ClaimPlivoForm
-
         template_name = 'channels/channel_claim_plivo.html'
 
         def pre_process(self, *args, **kwargs):
@@ -1814,10 +1812,9 @@ class ChannelCRUDL(SmartCRUDL):
             try:
                 client = plivo.RestAPI(auth_id, auth_token)
                 validation_response = client.get_account()
-            except:
-                client = None
-
-            if validation_response[0] != 200:
+                if validation_response[0] != 200:
+                    client = None
+            except plivo.PlivoError:
                 client = None
 
             return client
@@ -1899,14 +1896,13 @@ class ChannelCRUDL(SmartCRUDL):
             try:
                 client = plivo.RestAPI(auth_id, auth_token)
                 validation_response = client.get_account()
+
+                if validation_response[0] != 200:
+                    client = None
             except:
                 client = None
 
-            if validation_response[0] != 200:
-                client = None
-
             return client
-
 
         def form_valid(self, form, *args, **kwargs):
             org = self.request.user.get_org()
@@ -1930,7 +1926,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
                 return HttpResponse(json.dumps(error=str(e)))
-
 
 
 class ChannelLogCRUDL(SmartCRUDL):
