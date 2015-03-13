@@ -1122,7 +1122,7 @@ class Org(SmartModel):
                         break
 
                     current_topup = unexpired_topups.pop()
-                    current_topup_remaining = current_topup.credits - current_topup.used()
+                    current_topup_remaining = current_topup.credits - current_topup.credits_used()
 
                 if current_topup_remaining:
                     # if we found some credit, assign the item to the current topup
@@ -1548,6 +1548,8 @@ class TopUp(SmartModel):
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
+    used = models.IntegerField(verbose_name=_("Number of Credits used"), default=0,
+                               help_text=_("The number of credits used in this top up"))
     expires_on = models.DateTimeField(verbose_name=("Expiration Date"),
                                       help_text=_("The date that this top up will expire"))
     stripe_charge = models.CharField(verbose_name=_("Stripe Charge Id"), max_length=32, null=True, blank=True,
@@ -1577,7 +1579,7 @@ class TopUp(SmartModel):
         else:
             return Decimal(self.price) / Decimal(100)
 
-    def used(self):
+    def credits_used(self):
         return self.msgs.count()
 
     def revert_topup(self):
