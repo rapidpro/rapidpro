@@ -479,14 +479,16 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             self.assertEquals(990, self.org.get_credits_remaining())  # from db
+
         with self.assertNumQueries(0):
             self.assertEquals(1000, self.org.get_credits_total())  # from cache
             self.assertEquals(10, self.org.get_credits_used())
             self.assertEquals(990, self.org.get_credits_remaining())
 
         self.assertEquals(10, welcome_topup.msgs.count())
+        self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).used)
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)

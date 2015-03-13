@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, F
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -1010,7 +1010,7 @@ class Org(SmartModel):
         if active_topup:
             expires_on = datetime_to_ms(active_topup.expires_on)
             r.set(active_topup_key, active_topup.pk, ORG_CREDITS_CACHE_TTL)
-            r.set(topup_credits_key, active_topup.num_msgs, ORG_CREDITS_CACHE_TTL)
+            r.set(topup_credits_key, active_topup.used, ORG_CREDITS_CACHE_TTL)
             r.set(topup_expires_key, expires_on, ORG_CREDITS_CACHE_TTL)
         else:
             # delete the existing cache values
@@ -1024,7 +1024,12 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        return self.msgs.filter(org=self, contact__is_test=False).count()
+        used_credits_sum = self.topups.filter(is_active=True).aggregate(Sum('used')).get('used__sum')
+        used_credits_sum = used_credits_sum if used_credits_sum else 0
+
+        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
+
+        return used_credits_sum + unassigned_sum
 
     def get_credits_remaining(self):
         """
@@ -1061,7 +1066,7 @@ class Org(SmartModel):
 
                 if active_topup:
                     active_topup_id = active_topup.pk
-                    decremented_credit = (active_topup.credits - active_topup.num_msgs) - 1
+                    decremented_credit = (active_topup.credits - active_topup.used) - 1
                     expires_on = datetime_to_ms(active_topup.expires_on)
 
                     # cache it, the decremented credit value and expires timestamp
@@ -1084,14 +1089,8 @@ class Org(SmartModel):
         Calculates the oldest non-expired topup that still has credits
         """
         non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now())
-        non_expired_topups = non_expired_topups.annotate(num_msgs=Count('msgs')).order_by('expires_on')
-
-        # find the first one that has credits remaining
-        for topup in non_expired_topups:
-            if topup.num_msgs < topup.credits:
-                return topup
-
-        return None
+        active_topups = non_expired_topups.filter(credits__gt=F('used')).order_by('expires_on')
+        return active_topups.first()
 
     def apply_topups(self):
         """
@@ -1122,7 +1121,7 @@ class Org(SmartModel):
                         break
 
                     current_topup = unexpired_topups.pop()
-                    current_topup_remaining = current_topup.credits - current_topup.used()
+                    current_topup_remaining = current_topup.credits - current_topup.used
 
                 if current_topup_remaining:
                     # if we found some credit, assign the item to the current topup
@@ -1576,9 +1575,6 @@ class TopUp(SmartModel):
             return 0
         else:
             return Decimal(self.price) / Decimal(100)
-
-    def used(self):
-        return self.msgs.count()
 
     def revert_topup(self):
         # unwind any items that were assigned to this topup
