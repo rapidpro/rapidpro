@@ -26,7 +26,7 @@ from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, C
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
@@ -2512,6 +2512,17 @@ class FlowEndpoint(generics.ListAPIView):
     model = Flow
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowReadSerializer
+    form_serializer_class = FlowWriteSerializer
+
+    def post(self, request, format=None):
+        user = request.user
+        serializer = FlowWriteSerializer(user=user, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = FlowReadSerializer(instance=serializer.object)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
