@@ -6,6 +6,7 @@ import hmac
 import json
 import phonenumbers
 import plivo
+import pycountry
 import pytz
 import time
 
@@ -1784,13 +1785,15 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimPlivo(ClaimNumber):
         class ClaimPlivoForm(forms.Form):
+            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
             phone_number = forms.CharField(help_text=_("The phone number being added"))
 
             def clean_phone_number(self):
-                phone = self.cleaned_data['phone_number']
-                phone = phonenumbers.parse(phone, None)
+                if not self.cleaned_data.get('country', None):
+                    raise ValidationError(_("That number is not currently supported."))
 
-                self.cleaned_data['country'] = phonenumbers.region_code_for_number(phone)
+                phone = self.cleaned_data['phone_number']
+                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
 
                 return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
@@ -1843,10 +1846,19 @@ class ChannelCRUDL(SmartCRUDL):
 
                 if status == 200:
                     for number_dict in data['objects']:
-                        parsed = phonenumbers.parse('+' + number_dict['number'], None)
-                        phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-                        account_numbers.append(dict(number=phone_number,
-                                                    country=phonenumbers.region_code_for_number(parsed)))
+
+                        region = number_dict['region']
+                        country_name = region.split(',')[-1].strip().title()
+                        country = pycountry.countries.get(name=country_name).alpha2
+
+                        if len(number_dict['number']) <= 6:
+                            phone_number = number_dict['number']
+                        else:
+                            parsed = phonenumbers.parse('+' + number_dict['number'], None)
+                            phone_number = phonenumbers.format_number(parsed,
+                                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+
+                        account_numbers.append(dict(number=phone_number, country=country))
 
             return account_numbers
 

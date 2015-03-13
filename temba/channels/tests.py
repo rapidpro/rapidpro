@@ -929,14 +929,22 @@ class ChannelTest(TembaTest):
         # let's add a number already connected to the account
         with patch('requests.get') as plivo_get:
             with patch('requests.post') as plivo_post:
-                plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[dict(number='16062681435')])))
+                plivo_get.return_value = MockResponse(200,
+                                                      json.dumps(dict(objects=[dict(number='16062681435',
+                                                                                    region="California, UNITED STATES"),
+                                                                               dict(number='8080',
+                                                                                    region='GUADALAJARA, MEXICO')])))
+
                 plivo_post.return_value = MockResponse(202, json.dumps(dict(status='changed', app_id='app-id')))
 
-                # make sure our number appears on the claim page
+                # make sure our numbers appear on the claim page
                 response = self.client.get(claim_plivo_url)
                 self.assertContains(response, "+1 606-268-1435")
+                self.assertContains(response, "8080")
+                self.assertContains(response, 'US')
+                self.assertContains(response, 'MX')
 
-                # claim it
+                # claim it the US number
                 session = self.client.session
                 session[PLIVO_AUTH_ID] = 'auth-id'
                 session[PLIVO_AUTH_TOKEN] = 'auth-token'
@@ -945,7 +953,7 @@ class ChannelTest(TembaTest):
                 self.assertTrue(PLIVO_AUTH_ID in self.client.session)
                 self.assertTrue(PLIVO_AUTH_TOKEN in self.client.session)
 
-                response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1435'))
+                response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1435', country='US'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
                 # make sure it is actually connected
