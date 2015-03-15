@@ -9,9 +9,10 @@ class Migration(migrations.Migration):
         """
         Iterate across all our topups, calculate how many messages are assigned to them
         """
-        from temba.orgs.models import TopUp
+        TopUp = apps.get_model('orgs', 'TopUp')
+        Msg = apps.get_model('msgs', 'Msg')
         for topup in TopUp.objects.all():
-            topup.used = TopUp.msgs.all().count()
+            topup.used = Msg.objects.filter(topup=topup).count()
             topup.save()
 
     def install_topup_used_trigger(apps, schema_editor):
@@ -19,8 +20,7 @@ class Migration(migrations.Migration):
         Installs a Postgres trigger that will update the # of used credits in a topup when
         a new Msg is created.
         """
-        from temba.orgs.models import TopUp
-
+        #language=SQL
         install_trigger = """
             CREATE OR REPLACE FUNCTION update_topup_used() RETURNS TRIGGER AS $$
             BEGIN
@@ -34,9 +34,7 @@ class Migration(migrations.Migration):
               -- Msg is being updated
               ELSIF TG_OP = 'UPDATE' THEN
                 -- If the topup has changed
-                IF NEW.topup_id IS NULL AND OLD.topup_id IS NOT NULL OR
-                   NEW.topup_id IS NOT NULL AND OLD.topup_id is NULL OR
-                   NEW.topup_id <> OLD.topup_id THEN
+                IF NEW.topup_id IS DISTINCT FROM OLD.topup_id THEN
                   -- If our old topup wasn't null then decrement our used credits on it
                   IF OLD.topup_id IS NOT NULL THEN
                     UPDATE orgs_topup SET used=used-1 where id=OLD.topup_id;
@@ -83,6 +81,7 @@ class Migration(migrations.Migration):
         cursor.execute(install_trigger)
 
     dependencies = [
+        ('msgs', '0003_auto_20150129_0515'),
         ('orgs', '0002_topup_used'),
     ]
 
