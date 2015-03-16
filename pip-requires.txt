@@ -55,3 +55,4 @@ pycountry==1.6
 stop-words
 twython
 enum34
+plivo

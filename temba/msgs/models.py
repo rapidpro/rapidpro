@@ -1203,6 +1203,28 @@ class Msg(models.Model, OrgAssetMixin):
         Fails this message, provided it is currently not failed
         """
         self._update_state(None, dict(status=FAILED), OrgEvent.msg_failed)
+        Channel.track_status(self.channel, "Failed")
+
+    def status_sent(self):
+        """
+        Update the message status to SENT
+        """
+        self.status = SENT
+        self.sent_on = timezone.now()
+        self.save(update_fields=('status', 'sent_on'))
+        Channel.track_status(self.channel, "Sent")
+
+    def status_delivered(self):
+        """
+        Update the message status to DELIVERED
+        """
+        self.status = DELIVERED
+        self.delivered_on = timezone.now()
+        if not self.sent_on:
+            self.sent_on = timezone.now()
+        self.save(update_fields=('status', 'delivered_on', 'sent_on'))
+        Channel.track_status(self.channel, "Delivered")
+
 
     def archive(self):
         """

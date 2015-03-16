@@ -23,6 +23,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.orgs.models import Org, OrgFolder, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, SHAQODOON
+from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
@@ -2797,6 +2798,124 @@ class ClickatellTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
+class PlivoTest(TembaTest):
+    def setUp(self):
+        super(PlivoTest, self).setUp()
+
+        # change our channel to plivo channel
+        self.channel.channel_type = PLIVO
+        self.channel.uuid = unicode(uuid.uuid4())
+
+        plivo_config = {PLIVO_AUTH_ID:'plivo-auth-id',
+                        PLIVO_AUTH_TOKEN:'plivo-auth-token',
+                        PLIVO_APP_ID:'plivo-app-id'}
+
+        self.channel.config = json.dumps(plivo_config)
+        self.channel.save()
+
+        self.joe = self.create_contact("Joe", "+250788383383")
+
+    def test_receive(self):
+        response = self.client.get(reverse('api.plivo_handler', args=['receive', 'not-real-uuid']), dict())
+        self.assertEquals(400, response.status_code)
+
+        data = dict(MessageUUID="msg-uuid", Text="Hey, there", To="254788383383", From="254788383383")
+        receive_url = reverse('api.plivo_handler', args=['receive', self.channel.uuid])
+        response = self.client.get(receive_url, data)
+        self.assertEquals(400, response.status_code)
+
+        data = dict(MessageUUID="msg-uuid", Text="Hey, there", To=self.channel.address.lstrip('+'), From="254788383383")
+        response = self.client.get(receive_url, data)
+        self.assertEquals(200, response.status_code)
+
+        msg1 = Msg.objects.get()
+        self.assertEquals("+254788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals('Hey, there', msg1.text)
+
+    def test_status(self):
+        # an invalid uuid
+        data = dict(MessageUUID="-1", Status="delivered", From=self.channel.address.lstrip('+'), To="254788383383")
+        response = self.client.get(reverse('api.plivo_handler', args=['status', 'not-real-uuid']), data)
+        self.assertEquals(400, response.status_code)
+
+        # a valid uuid, but invalid data
+        delivery_url = reverse('api.plivo_handler', args=['status', self.channel.uuid])
+        response = self.client.get(delivery_url, dict())
+        self.assertEquals(400, response.status_code)
+
+        response = self.client.get(delivery_url, data)
+        self.assertEquals(400, response.status_code)
+
+        # ok, lets create an outgoing message to update
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        sms = broadcast.get_messages()[0]
+        sms.external_id = 'msg-uuid'
+        sms.save()
+
+        data['MessageUUID'] = sms.external_id
+
+        def assertStatus(sms, status, assert_status):
+            sms.status = WIRED
+            sms.save()
+            data['Status'] = status
+            response = self.client.get(delivery_url, data)
+            self.assertEquals(200, response.status_code)
+            sms = Msg.objects.get(external_id=sms.external_id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(sms, 'queued', WIRED)
+        assertStatus(sms, 'sent', SENT)
+        assertStatus(sms, 'delivered', DELIVERED)
+        assertStatus(sms, 'undelivered', SENT)
+        assertStatus(sms, 'rejected', FAILED)
+
+    def test_send(self):
+
+        bcast = self.joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(202,
+                                                 json.dumps({"message": "message(s) queued",
+                                                             "message_uuid": ["db3ce55a-7f1d-11e1-8ea7-1231380bc196"],
+                                                             "api_id": "db342550-7f1d-11e1-8ea7-1231380bc196"}))
+
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                r = get_redis_connection()
+                r.delete(MSG_SENT_KEY % msg.id)
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+        finally:
+            settings.SEND_MESSAGES = False
+
 
 class TwitterTest(TembaTest):
 
