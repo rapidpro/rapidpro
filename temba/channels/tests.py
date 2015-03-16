@@ -1707,10 +1707,6 @@ class ChannelAlertTest(TembaTest):
 
         self.login(self.admin)
 
-        # should always see infobip as an option
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Infobip")
-
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_infobip'))
         post_data = response.context['form'].initial
