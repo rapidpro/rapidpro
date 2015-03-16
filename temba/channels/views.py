@@ -1931,13 +1931,12 @@ class ChannelCRUDL(SmartCRUDL):
                         results_numbers.append('+' + number_dict['number'])
 
                 numbers = []
-
                 for number in results_numbers:
-                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number.phone_number, None),
+                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
                                                               phonenumbers.PhoneNumberFormat.INTERNATIONAL))
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
-                return HttpResponse(json.dumps(error=str(e)))
+                return HttpResponse(json.dumps(dict(error=str(e))))
 
 
 class ChannelLogCRUDL(SmartCRUDL):
