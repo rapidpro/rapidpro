@@ -38,6 +38,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/broadcasts$', BroadcastsEndpoint.as_view(), name='api.broadcasts'),
                        url(r'^/messages$', MessagesEndpoint.as_view(), name='api.messages'),
                        url(r'^/sms$', MessagesEndpoint.as_view(), name='api.sms'),  # deprecated
+                       url(r'^/labels$', LabelsEndpoint.as_view(), name='api.labels'),
                        url(r'^/flows$', FlowEndpoint.as_view(), name='api.flows'),
                        url(r'^/results', FlowResultsEndpoint.as_view(), name='api.results'),
                        url(r'^/runs$', non_atomic_requests(FlowRunEndpoint.as_view()), name='api.runs'),

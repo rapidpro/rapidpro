@@ -148,10 +148,9 @@
                         .value-labels
                           %nobr
                             - for label in object.labels.all
-                              -if label.label_type == 'M'
-                                %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                  %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
-                                    ={label.name}
+                              %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                                %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                                  ={label.name}
 
 
                       %td.value-flow.field_flow

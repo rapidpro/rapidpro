@@ -26,8 +26,9 @@ from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, C
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
+from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
@@ -36,7 +37,7 @@ from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
@@ -44,6 +45,7 @@ from urlparse import parse_qs
 from temba.utils.queues import push_task
 from twilio import twiml
 from redis_cache import get_redis_connection
+
 
 def webhook_status_processor(request):
     status = dict()
@@ -247,6 +249,7 @@ class WebHookSimulatorView(SmartTemplateView):
         context['endpoints'] = endpoints
         return context
 
+
 class ApiExplorerView(SmartTemplateView):
     template_name = "api/api_explorer.html"
 
@@ -269,6 +272,9 @@ class ApiExplorerView(SmartTemplateView):
 
         endpoints.append(MessagesEndpoint.get_read_explorer())
         endpoints.append(MessagesEndpoint.get_write_explorer())
+
+        endpoints.append(LabelsEndpoint.get_read_explorer())
+        endpoints.append(LabelsEndpoint.get_write_explorer())
 
         endpoints.append(BroadcastsEndpoint.get_read_explorer())
         endpoints.append(BroadcastsEndpoint.get_write_explorer())
@@ -310,7 +316,8 @@ def api(request, format=None):
 
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
-     * [/api/v1/messages](/api/v1/messages) - To list and create new SMS messages.
+     * [/api/v1/messages](/api/v1/messages) - To list and create new messages.
+     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
      * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
@@ -387,6 +394,7 @@ def api(request, format=None):
         'fields': reverse('api.contactfields', request=request),
         'relayers': reverse('api.channels', request=request),
         'messages': reverse('api.messages', request=request),
+        'labels': reverse('api.labels', request=request),
         'sms': reverse('api.sms', request=request),
         'calls': reverse('api.calls', request=request),
         'campaigns': reverse('api.campaigns', request=request),
@@ -797,6 +805,152 @@ class MessagesEndpoint(generics.ListAPIView):
                           dict(name='relayer', required=False,
                                help="The id of the channel that should send this message, if not specified we will "
                                     "choose what it thinks is the best channel to deliver this message.")]
+        return spec
+
+
+class LabelsEndpoint(generics.ListAPIView):
+    """
+    ## Listing Message Labels
+
+    A **GET** returns the list of message labels for your organization, in the order of last created.
+
+    * **uuid** - the UUID of the label (string) (filterable: ```uuid``` repeatable)
+    * **name** - the name of the label (string) (filterable: ```name```)
+    * **parent** - the UUID of the parent label (string) (filterable: ```parent```)
+    * **count** - the number of messages with the label (int)
+
+    Example:
+
+        GET /api/v1/labels.json
+
+    Response containing the groups for your organization:
+
+        {
+            "count": 1,
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+                    "name": "Screened",
+                    "parent": null,
+                    "count": 315
+                },
+                ...
+            ]
+        }
+
+    ## Adding a Label
+
+    A **POST** can be used to create a new message label. Don't specify a UUID as this will be generated for you.
+
+    * **name** - the label name (string)
+    * **parent** - the UUID of an existing label which will be the parent (string, optional)
+
+    Example:
+
+        POST /api/v1/labels.json
+        {
+            "name": "Screened",
+            "parent": null
+        }
+
+    You will receive a label object (with the new UUID) as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Screened",
+            "parent": null,
+            "count": 0
+        }
+
+    ## Updating a Label
+
+    A **POST** can also be used to update an message label if you do specify it's UUID.
+
+    * **uuid** - the label UUID
+    * **name** - the label name (string)
+    * **parent** - the UUID of an existing label which will be the parent (string, optional)
+
+    Example:
+
+        POST /api/v1/labels.json
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Checked",
+            "parent": null
+        }
+
+    You will receive the updated label object as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Checked",
+            "parent": null,
+            "count": 0
+        }
+    """
+    permission = 'msgs.label_api'
+    model = Label
+    serializer_class = LabelReadSerializer
+    permission_classes = (SSLPermission, ApiPermission)
+    form_serializer_class = LabelWriteSerializer
+
+    def post(self, request, format=None):
+        user = request.user
+        serializer = LabelWriteSerializer(user=user, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = LabelReadSerializer(instance=serializer.object)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        queryset = Label.objects.filter(org=self.request.user.get_org()).order_by('-pk')
+
+        name = self.request.QUERY_PARAMS.get('name', None)
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+
+        parents = self.request.QUERY_PARAMS.getlist('parent', None)
+        if parents:
+            queryset = queryset.filter(parent__uuid__in=parents)
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        spec = dict(method="GET",
+                    title="List Message Labels",
+                    url=reverse('api.labels'),
+                    slug='label-list',
+                    request="")
+        spec['fields'] = [dict(name='name', required=False,
+                               help="The name of the message label to return.  ex: Priority"),
+                          dict(name='uuid', required=False,
+                               help="The UUID of the message label to return. (repeatable) ex: fdd156ca-233a-48c1-896d-a9d594d59b95")]
+
+        return spec
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Add or Update a Message Label",
+                    url=reverse('api.labels'),
+                    slug='label-update',
+                    request='{ "name": "Screened", "parent": null }')
+
+        spec['fields'] = [dict(name='uuid', required=True,
+                               help='The UUID of the message label.  ex: "fdd156ca-233a-48c1-896d-a9d594d59b95"'),
+                          dict(name='name', required=False,
+                               help='The name of the message label.  ex: "Screened"'),
+                          dict(name='parent', required=False,
+                               help='The UUID of the parent label. ex: "34914a7c-911d-4768-8adb-ac75fb6e9b94"')]
         return spec
 
 
@@ -1495,7 +1649,7 @@ class FieldsEndpoint(generics.ListAPIView):
             "value_type": "T"
         }
 
-    You will receive a field object (with the new field key) as a response if successful:
+    You will receive the updated field object as a response if successful:
 
         {
             "key": "nick_name",
@@ -2358,6 +2512,17 @@ class FlowEndpoint(generics.ListAPIView):
     model = Flow
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowReadSerializer
+    form_serializer_class = FlowWriteSerializer
+
+    def post(self, request, format=None):
+        user = request.user
+        serializer = FlowWriteSerializer(user=user, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = FlowReadSerializer(instance=serializer.object)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
