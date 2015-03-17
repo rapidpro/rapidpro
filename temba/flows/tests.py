@@ -345,7 +345,8 @@ class RuleTest(TembaTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
@@ -421,7 +422,8 @@ class RuleTest(TembaTest):
         task = ExportFlowResultsTask.objects.all()[0]
 
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(2, len(workbook.sheets()))
 
@@ -2451,7 +2453,8 @@ class FlowsTest(FlowFileTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
