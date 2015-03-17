@@ -444,7 +444,6 @@ PERMISSIONS = {
                  'inbox',
                  'label',
                  'test',
-                 'export'
                  ),
 
     'msgs.broadcast': ('api',
