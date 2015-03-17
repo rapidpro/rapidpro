@@ -205,7 +205,7 @@ class MsgTest(TembaTest):
 
         # test blocked contacts are skipped from inbox and are not handled by flows
         contact = self.create_contact("Blocked contact", "250728739305")
-        contact.is_archived = True
+        contact.is_blocked = True
         contact.save()
         ignored_msg = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)

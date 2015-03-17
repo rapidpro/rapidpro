@@ -587,11 +587,11 @@ class ContactCRUDL(SmartCRUDL):
 
                 links.append(dict(title=_('Edit'), style='btn-primary', js_class='update-contact', href="#"))
 
-                if self.has_org_perm("contacts.contact_archive") and not self.object.is_archived:
+                if self.has_org_perm("contacts.contact_archive") and not self.object.is_blocked:
                     links.append(dict(title=_('Block'), style='btn-primary', js_class='posterize',
-                                      href=reverse('contacts.contact_archive', args=(self.object.pk,))))
+                                      href=reverse('contacts.contact_block', args=(self.object.pk,))))
 
-                if self.has_org_perm("contacts.contact_restore") and self.object.is_archived:
+                if self.has_org_perm("contacts.contact_restore") and self.object.is_blocked:
                     links.append(dict(title=_('Unblock'), style='btn-primary', js_class='posterize',
                                       href=reverse('contacts.contact_restore', args=(self.object.pk,))))
 
@@ -631,7 +631,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return context
 
-    class Archived(ContactActionMixin, ContactListView):
+    class Blocked(ContactActionMixin, ContactListView):
         title = _("Blocked Contacts")
         template_name = 'contacts/contact_list.haml'
         folder = OrgFolder.contacts_blocked
@@ -706,7 +706,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_archived', 'created_by', 'modified_by', 'is_test', 'status', 'channel')
+        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'created_by', 'modified_by', 'is_test', 'status', 'channel')
         success_message = ''
         submit_button_name = _("Create")
 
@@ -736,7 +736,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_archived', 'created_by', 'modified_by', 'is_test', 'status', 'channel')
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'created_by', 'modified_by', 'is_test', 'status', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
         submit_button_name = _("Save Changes")
@@ -791,7 +791,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return obj
 
-    class Archive(OrgPermsMixin, SmartUpdateView):
+    class Block(OrgPermsMixin, SmartUpdateView):
         """
         Block this contact
         """

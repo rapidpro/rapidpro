@@ -339,10 +339,10 @@ class ContactTest(TembaTest):
 
         # check this contact object but also that changes were persisted
         self.assertTrue(self.joe.is_active)
-        self.assertTrue(self.joe.is_archived)
+        self.assertTrue(self.joe.is_blocked)
         self.joe = Contact.objects.get(pk=self.joe.pk)
         self.assertTrue(self.joe.is_active)
-        self.assertTrue(self.joe.is_archived)
+        self.assertTrue(self.joe.is_blocked)
 
         # that he was removed from the group
         self.assertEqual(0, ContactGroup.objects.get(pk=group.pk).contacts.count())
@@ -359,10 +359,10 @@ class ContactTest(TembaTest):
 
         # check this contact object but also that changes were persisted
         self.assertTrue(self.joe.is_active)
-        self.assertFalse(self.joe.is_archived)
+        self.assertFalse(self.joe.is_blocked)
         self.joe = Contact.objects.get(pk=self.joe.pk)
         self.assertTrue(self.joe.is_active)
-        self.assertFalse(self.joe.is_archived)
+        self.assertFalse(self.joe.is_blocked)
 
         self.joe.release()
 
@@ -469,7 +469,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
 
         # block the default contacts, these should be ignored in our searches
-        Contact.objects.all().update(is_active=False, is_archived=True)
+        Contact.objects.all().update(is_active=False, is_blocked=True)
 
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
@@ -931,7 +931,7 @@ class ContactTest(TembaTest):
         self.client.post(list_url, post_data, follow=True)
 
         self.joe = Contact.objects.filter(pk=self.joe.pk)[0]
-        self.assertEquals(self.joe.is_archived, True)
+        self.assertEquals(self.joe.is_blocked, True)
         self.assertEquals(len(self.just_joe.contacts.all()), 0)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 1)
 
@@ -1581,7 +1581,7 @@ class ContactFieldTest(TembaTest):
         flow = self.create_flow()
 
         # archive all our current contacts
-        Contact.objects.filter(org=self.org).update(is_archived=True)
+        Contact.objects.filter(org=self.org).update(is_blocked=True)
 
         # start one of our contacts down it
         contact = self.create_contact("Ben Haggerty", '+12067799294')

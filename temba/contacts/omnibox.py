@@ -28,7 +28,7 @@ def omnibox_query(org, **kwargs):
 
     # these lookups return a Contact queryset
     if contact_ids or step_uuid or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_archived=False, is_active=True, is_test=simulation)
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_active=True, is_test=simulation)
 
         if contact_ids:
             qs = qs.filter(id__in=contact_ids.split(","))
@@ -121,7 +121,7 @@ def omnibox_mixed_search(org, search, types):
     if 'c' in types:
         clauses = ["""SELECT 2 AS type, c.id AS id, c.name AS text, NULL AS owner, NULL AS scheme
                       FROM contacts_contact c
-                      WHERE c.is_active = TRUE AND c.is_archived = FALSE AND c.is_test = FALSE AND c.org_id = %s"""]
+                      WHERE c.is_active = TRUE AND c.is_blocked = FALSE AND c.is_test = FALSE AND c.org_id = %s"""]
         params = [org.pk]
         if search_terms:
             add_search('name', clauses, params, org.is_anon)

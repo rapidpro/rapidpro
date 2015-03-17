@@ -625,7 +625,7 @@ class Msg(models.Model, OrgAssetMixin):
         """
         handlers = get_message_handlers()
 
-        if msg.contact.is_archived:
+        if msg.contact.is_blocked:
             msg.visibility = ARCHIVED
             msg.save(update_fields=['visibility'])
         else:

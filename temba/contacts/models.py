@@ -158,8 +158,8 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="org_contacts",
                             help_text=_("The organization that this contact belongs to"))
 
-    is_archived = models.BooleanField(verbose_name=_("Is Archived"), default=False,
-                                      help_text=_("Whether this contacts has been archived"))
+    is_blocked = models.BooleanField(verbose_name=_("Is Blocked"), default=False,
+                                     help_text=_("Whether this contacts has been blocked"))
 
     is_test = models.BooleanField(verbose_name=_("Is Test"), default=False,
                                   help_text=_("Whether this contact is for simulation"))
@@ -177,7 +177,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
-        return Contact.objects.filter(org=org, is_active=True, is_test=False, is_archived=blocked)
+        return Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=blocked)
 
     @property
     def anon_identifier(self):
@@ -511,7 +511,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         from temba.contacts import search
 
         if not base_queryset:
-            base_queryset = Contact.objects.filter(org=org, is_archived=False, is_active=True, is_test=False)
+            base_queryset = Contact.objects.filter(org=org, is_blocked=False, is_active=True, is_test=False)
 
         return search.contact_search(org, query, base_queryset)
 
@@ -751,7 +751,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         """
         Blocks (i.e. archives) this contact removing it from all groups, and marking it as archived
         """
-        if self._update_state(dict(is_archived=False), dict(is_archived=True), OrgEvent.contact_blocked):
+        if self._update_state(dict(is_blocked=False), dict(is_blocked=True), OrgEvent.contact_blocked):
             for group in self.groups.all():
                 group.update_contacts([self], False)
 
@@ -759,7 +759,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         """
         Unlocks (i.e. un-archives) this contact and marking it as not archived
         """
-        self._update_state(dict(is_archived=True), dict(is_archived=False), OrgEvent.contact_unblocked)
+        self._update_state(dict(is_blocked=True), dict(is_blocked=False), OrgEvent.contact_unblocked)
 
     def fail(self):
         """
@@ -1242,15 +1242,12 @@ class ContactURN(models.Model):
 
 class ContactGroup(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
-
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='groups')
-
+    count = models.IntegerField(default=0,
+                                verbose_name=_("Count"), help_text=_("The number of contacts in this group"))
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this group is part of"))
-
     import_task = models.ForeignKey(ImportTask, null=True, blank=True)
-
     query = models.TextField(null=True, help_text=_("The membership query for this group"))
-
     query_fields = models.ManyToManyField(ContactField, verbose_name=_("Query Fields"))
 
     @classmethod
@@ -1411,7 +1408,7 @@ class ExportContactsTask(SmartModel):
         for contact_field in contact_fields_list:
             fields.append(dict(label=contact_field.label, key=contact_field.key))
 
-        all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_archived=False).order_by('name', 'pk')
+        all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_blocked=False).order_by('name', 'pk')
 
         if self.group:
             all_contacts = all_contacts.filter(groups=self.group)
