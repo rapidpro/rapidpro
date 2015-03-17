@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import json
 
+from mock import patch
+
 from context_processors import GroupPermWrapper
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -15,10 +17,10 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
 from temba.orgs.models import ORG_ACTIVE_TOPUP_CACHE_KEY, ORG_TOPUP_CREDITS_CACHE_KEY, ORG_TOPUP_EXPIRES_CACHE_KEY
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER
+from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.flows.models import Flow, ExportFlowResultsTask
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
-from temba.tests import TembaTest
+from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_ms
 
@@ -479,14 +481,16 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             self.assertEquals(990, self.org.get_credits_remaining())  # from db
+
         with self.assertNumQueries(0):
             self.assertEquals(1000, self.org.get_credits_total())  # from cache
             self.assertEquals(10, self.org.get_credits_used())
             self.assertEquals(990, self.org.get_credits_remaining())
 
         self.assertEquals(10, welcome_topup.msgs.count())
+        self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).used)
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
@@ -499,6 +503,8 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).msgs.count())
+        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).used)
+
         self.assertFalse(self.org._calculate_active_topup())
 
         with self.assertNumQueries(0):
@@ -514,6 +520,8 @@ class OrgTest(TembaTest):
             self.assertEquals(30, self.org.get_credits_used())
             self.assertEquals(-15, self.org.get_credits_remaining())
 
+        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).used)
+
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
@@ -523,7 +531,9 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
 
         self.assertEquals(20, welcome_topup.msgs.count())
+        self.assertEquals(20, TopUp.objects.get(pk=welcome_topup.pk).used)
         self.assertEquals(5, new_topup.msgs.count())
+        self.assertEquals(5, TopUp.objects.get(pk=new_topup.pk).used)
         self.assertEquals(25, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(-5, self.org.get_credits_remaining())
@@ -545,6 +555,7 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).used)
 
         # now we're pro
         self.assertTrue(self.org.is_pro())
@@ -555,6 +566,8 @@ class OrgTest(TembaTest):
         # and new messages use the mega topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertEquals(msg.topup, mega_topup)
+
+        self.assertEquals(6, TopUp.objects.get(pk=mega_topup.pk).used)
 
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
@@ -616,6 +629,61 @@ class OrgTest(TembaTest):
         response = self.client.post(twilio_account_url, dict(name="DO NOT CHANGE ME"), follow=True)
         org = Org.objects.get(pk=self.org.pk)
         self.assertEquals(org.name, "Temba")
+
+    def test_connect_nexmo(self):
+        self.login(self.admin)
+
+        # connect nexmo
+        connect_url = reverse('orgs.org_nexmo_connect')
+
+        # simulate invalid credentials
+        with patch('requests.get') as nexmo:
+            nexmo.return_value = MockResponse(401, '{"error-code": "401"}')
+            response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_nexmo())
+
+        # ok, now with a success
+        with patch('requests.get') as nexmo_get:
+            with patch('requests.post') as nexmo_post:
+                # believe it or not nexmo returns 'error-code' 200
+                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
+                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+
+                # nexmo should now be connected
+                self.org = Org.objects.get(pk=self.org.pk)
+                self.assertTrue(self.org.is_connected_to_nexmo())
+                self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
+                self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
+
+
+    def test_connect_plivo(self):
+        self.login(self.admin)
+
+        # connect plivo
+        connect_url = reverse('orgs.org_plivo_connect')
+
+        # simulate invalid credentials
+        with patch('requests.get') as plivo_mock:
+            plivo_mock.return_value = MockResponse(401,
+                                                   'Could not verify your access level for that URL.'
+                                                   '\nYou have to login with proper credentials')
+            response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+            self.assertContains(response,
+                                "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
+            self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+            self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+
+        # ok, now with a success
+        with patch('requests.get') as plivo_mock:
+            plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
+            self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+
+            # plivo should be added to the session
+            self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
+            self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
+
 
     def test_patch_folder_queryset(self):
         self.create_contact(name="Bob", number="123")

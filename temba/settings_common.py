@@ -370,6 +370,7 @@ PERMISSIONS = {
                  'manage_accounts',
                  'nexmo_account',
                  'nexmo_connect',
+                 'plivo_connect',
                  'profile',
                  'signup',
                  'trial',
@@ -393,6 +394,7 @@ PERMISSIONS = {
                          'claim_kannel',
                          'claim_nexmo',
                          'claim_number',
+                         'claim_plivo',
                          'claim_shaqodoon',
                          'claim_twitter',
                          'claim_verboice',
@@ -457,6 +459,8 @@ PERMISSIONS = {
                        ),
 
     'msgs.call': ('api',),
+
+    'msgs.label': ('api',),
 
     'triggers.trigger': ('archived',
                          'catchall',
@@ -526,6 +530,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_manage_accounts',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
+        'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
@@ -547,6 +552,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_infobip',
         'channels.channel_claim_kannel',
         'channels.channel_claim_number',
+        'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -843,6 +849,10 @@ CELERYBEAT_SCHEDULE = {
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
         'schedule': crontab(hour=3, minute=0),
+    },
+    "calculate-credit-caches": {
+        'task': 'calculate_credit_caches',
+        'schedule': timedelta(days=3),
     }
 }
 
@@ -895,7 +905,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'temba.api.authentication.APITokenAuthentication',
     ),
-    'PAGINATE_BY': 10,
+    'PAGINATE_BY': 250,
     'DEFAULT_RENDERER_CLASSES': (
         'temba.api.renderers.PostFormAPIRenderer',
         'rest_framework.renderers.JSONRenderer',

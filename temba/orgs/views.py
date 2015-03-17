@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import plivo
 import pycountry
 import re
 
@@ -26,7 +27,7 @@ from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from temba.assets import AssetType
 from temba.assets.views import handle_asset_request
-from temba.channels.models import Channel
+from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.formax import FormaxMixin
@@ -426,7 +427,8 @@ class UserSettingsCRUDL(SmartCRUDL):
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
-               'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import')
+               'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
+               'plivo_connect')
 
     model = Org
 
@@ -681,6 +683,52 @@ class OrgCRUDL(SmartCRUDL):
 
             response['Temba-Success'] = self.get_success_url()
             return response
+
+    class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+
+        class PlivoConnectForm(forms.Form):
+            auth_id = forms.CharField(help_text=_("Your Plivo AUTH ID"))
+            auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
+
+            def clean(self):
+                super(OrgCRUDL.PlivoConnect.PlivoConnectForm, self).clean()
+
+                auth_id = self.cleaned_data.get('auth_id', None)
+                auth_token = self.cleaned_data.get('auth_token', None)
+
+                try:
+                    client = plivo.RestAPI(auth_id, auth_token)
+                    validation_response = client.get_account()
+                except:
+                    raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
+
+                if validation_response[0] != 200:
+                    raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
+
+                return self.cleaned_data
+
+        form_class = PlivoConnectForm
+        submit_button_name = "Save"
+        success_url = '@channels.channel_claim_plivo'
+        field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
+        success_message = "Plivo credentials verified. You can now add a Plivo channel."
+
+        def form_valid(self, form):
+
+            auth_id = form.cleaned_data['auth_id']
+            auth_token = form.cleaned_data['auth_token']
+
+            # add the credentials to the session
+            self.request.session[PLIVO_AUTH_ID] = auth_id
+            self.request.session[PLIVO_AUTH_TOKEN] = auth_token
+
+            response = self.render_to_response(self.get_context_data(form=form,
+                                               success_url=self.get_success_url(),
+                                               success_script=getattr(self, 'success_script', None)))
+
+            response['Temba-Success'] = self.get_success_url()
+            return response
+
 
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'created_on')

@@ -22,6 +22,7 @@ from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
+from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.orgs.models import Org
 from temba.tests import TembaTest, MockResponse
 from temba.orgs.models import FREE_PLAN
@@ -878,29 +879,9 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Nexmo")
         self.assertContains(response, reverse('orgs.org_nexmo_connect'))
 
-        # connect nexmo
-        connect_url = reverse('orgs.org_nexmo_connect')
-
-        # simulate invalid credentials
-        with patch('requests.get') as nexmo:
-            nexmo.return_value = MockResponse(401, '{"error-code": "401"}')
-            response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_nexmo())
-
-        # ok, now with a success
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
-
-                # nexmo should now be connected
-                self.org = Org.objects.get(pk=self.org.pk)
-                self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
-                self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
+        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid')
+        self.org.config = json.dumps(nexmo_config)
+        self.org.save()
 
         # hit the claim page, should now have a claim nexmo link
         claim_nexmo = reverse('channels.channel_claim_nexmo')
@@ -923,6 +904,67 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='NX', org=self.org)
+
+    def test_claim_plivo(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        self.org.channels.update(is_active=False, org=None)
+
+        connect_plivo_url = reverse('orgs.org_plivo_connect')
+        claim_plivo_url = reverse('channels.channel_claim_plivo')
+
+        # make sure plivo is on the claim page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, "Connect plivo")
+        self.assertContains(response, reverse('orgs.org_plivo_connect'))
+
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(400, json.dumps(dict()))
+
+            # try hit the claim page, should be redirected; no credentials in session
+            response = self.client.get(claim_plivo_url, follow=True)
+            self.assertContains(response, connect_plivo_url)
+
+        # let's add a number already connected to the account
+        with patch('requests.get') as plivo_get:
+            with patch('requests.post') as plivo_post:
+                plivo_get.return_value = MockResponse(200,
+                                                      json.dumps(dict(objects=[dict(number='16062681435',
+                                                                                    region="California, UNITED STATES"),
+                                                                               dict(number='8080',
+                                                                                    region='GUADALAJARA, MEXICO')])))
+
+                plivo_post.return_value = MockResponse(202, json.dumps(dict(status='changed', app_id='app-id')))
+
+                # make sure our numbers appear on the claim page
+                response = self.client.get(claim_plivo_url)
+                self.assertContains(response, "+1 606-268-1435")
+                self.assertContains(response, "8080")
+                self.assertContains(response, 'US')
+                self.assertContains(response, 'MX')
+
+                # claim it the US number
+                session = self.client.session
+                session[PLIVO_AUTH_ID] = 'auth-id'
+                session[PLIVO_AUTH_TOKEN] = 'auth-token'
+                session.save()
+
+                self.assertTrue(PLIVO_AUTH_ID in self.client.session)
+                self.assertTrue(PLIVO_AUTH_TOKEN in self.client.session)
+
+                response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1435', country='US'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                channel = Channel.objects.get(channel_type='PL', org=self.org)
+                self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
+                                                          PLIVO_AUTH_TOKEN: 'auth-token',
+                                                          PLIVO_APP_ID: 'app-id'})
+                self.assertEquals(channel.address, "+16062681435")
+                # no more credential in the session
+                self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+                self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
     def test_claim_twitter(self):
         # add to this user an org
@@ -1706,10 +1748,6 @@ class ChannelAlertTest(TembaTest):
         Channel.objects.all().delete()
 
         self.login(self.admin)
-
-        # should always see infobip as an option
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Infobip")
 
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_infobip'))

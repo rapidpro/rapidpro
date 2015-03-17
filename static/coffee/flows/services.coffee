@@ -569,7 +569,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             if cat.name.base
               name = cat.name.base
 
-            if name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
+            if name is not undefined and rule_cat is not undefined and name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
               cat.sources.push(rule.uuid)
               if cat.target
                 rule.destination = cat.target

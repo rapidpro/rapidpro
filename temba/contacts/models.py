@@ -375,6 +375,26 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
         contact = None
 
+        # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
+        # it is read only from a contacts perspective, but it is by far the most common case
+        if not uuid and not name and urns and len(urns) == 1:
+            scheme, path = urns[0]
+            norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
+            norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
+            existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+
+            if existing_urn and existing_urn.contact:
+                contact = existing_urn.contact
+
+                # update the channel on this URN if this is an incoming message
+                if incoming_channel and incoming_channel != existing_urn.channel:
+                    existing_urn.channel = incoming_channel
+                    existing_urn.save(update_fields=['channel'])
+
+                # return our contact, mapping our existing urn appropriately
+                contact.urn_objects = {urns[0]: existing_urn}
+                return contact
+
         # if we were passed in a UUID, look it up by that
         if uuid:
             contact = Contact.objects.get(org=org, is_active=True, uuid=uuid)
@@ -405,9 +425,9 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                         existing_orphan_urns[(scheme, path)] = existing_urn
 
                     # update this URN's channel
-                    if incoming_channel:
+                    if incoming_channel and existing_urn.channel != incoming_channel:
                         existing_urn.channel = incoming_channel
-                        existing_urn.save()
+                        existing_urn.save(update_fields=['channel'])
                 else:
                     urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
 
@@ -441,28 +461,30 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                 urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel=incoming_channel)
                 urn_objects[raw] = urn
 
-            # handle group and campaign events
+            # save which urns were updated
             updated_urns = urn_objects.keys()
-            contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
 
             # add remaining already owned URNs and attach to contact object so that calling code can easily fetch the
             # actual URN object for each URN tuple it requested
             urn_objects.update(existing_owned_urns)
             contact.urn_objects = urn_objects
 
-            # record contact creation in analytics
-            if getattr(contact, 'is_new', False):
-                params = dict(name=name)
+        # record contact creation in analytics
+        if getattr(contact, 'is_new', False):
+            params = dict(name=name)
 
-                # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-                # assign them property names with added count
-                urns_for_scheme_counts = dict()
-                for scheme, path in urn_objects.keys():
-                    count = urns_for_scheme_counts.get(scheme, 1)
-                    urns_for_scheme_counts[scheme] = count + 1
-                    params["%s%d" % (scheme, count)] = path
+            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
+            # assign them property names with added count
+            urns_for_scheme_counts = dict()
+            for scheme, path in urn_objects.keys():
+                count = urns_for_scheme_counts.get(scheme, 1)
+                urns_for_scheme_counts[scheme] = count + 1
+                params["%s%d" % (scheme, count)] = path
 
-                analytics.track(user.username, 'temba.contact_created', params)
+            analytics.track(user.username, 'temba.contact_created', params)
+
+        # handle group and campaign updates
+        contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
 
         return contact
 

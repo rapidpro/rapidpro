@@ -1953,14 +1953,13 @@ class Flow(TembaModel, SmartModel):
 
         return flow
 
-    def update(self, json_dict, user=None):
+    def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow.
         """
         try:
-
             # check whether the flow has changed since this flow was last saved
-            if user:
+            if user and not force:
                 saved_on = json_dict.get(Flow.LAST_SAVED, None)
                 org = user.get_org()
                 tz = org.get_tzinfo()
@@ -2166,7 +2165,7 @@ class Flow(TembaModel, SmartModel):
                 user = self.created_by
 
             # remove any versions that were created in the last minute
-            versions = self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
+            self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
 
             # create a new version
             self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)
@@ -3617,7 +3616,7 @@ class AddLabelAction(Action):
                 elif Label.objects.filter(org=org, name=label_name).first():
                     label = Label.objects.filter(org=org, name=label_name).first()
                 else:
-                    label = Label.create_unique(label_name, 'M', org)
+                    label = Label.create_unique(org, org.get_user(), label_name)
 
                 if label:
                     labels.append(label)
@@ -3629,7 +3628,7 @@ class AddLabelAction(Action):
                     if label:
                         labels.append(label[0])
                     else:
-                        labels.append(Label.create_unique(l_data, 'M', org))
+                        labels.append(Label.create_unique(org, org.get_user(), l_data))
 
         return AddLabelAction(labels)
 
@@ -3655,7 +3654,7 @@ class AddLabelAction(Action):
                 try:
                     label = Label.objects.get(org=contact.org, name=value)
                 except:
-                    label = Label.create_unique(value, 'M', contact.org)
+                    label = Label.create_unique(contact.org, contact.org.get_user(), value)
                     if run.contact.is_test:
                         ActionLog.create(run, _("Label '%s' created") % value)
 
