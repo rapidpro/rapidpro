@@ -289,7 +289,7 @@ class ContactCRUDL(SmartCRUDL):
 
             else:
                 export = ExportContactsTask.objects.get(id=export.pk)
-                dl_url = reverse('assets.contact_export', args=[export.pk])
+                dl_url = reverse('assets.read', kwargs=dict(type='contact_export', identifier=export.pk))
                 messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
 
             return HttpResponseRedirect(reverse('contacts.contact_list'))

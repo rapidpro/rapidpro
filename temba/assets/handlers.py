@@ -57,21 +57,14 @@ class BaseAssetHandler(object):
 
         path = self.derive_path(asset_org, identifier)
 
+        if not default_storage.exists(path):
+            raise AssetFileNotFound()
+
         # create a more friendly download filename
         remainder, extension = path.rsplit('.', 1)
         filename = '%s.%s' % (self.asset_type.name, extension)
 
         return default_storage.url(path), filename
-
-    def exists(self, identifier):
-        """
-        Determines whether an asset exists with the given identifier
-        """
-        asset_org = self.derive_org(identifier)
-
-        path = self.derive_path(asset_org, identifier)
-
-        return default_storage.exists(path)
 
     def save(self, identifier, _file, extension):
         """
@@ -93,7 +86,7 @@ class BaseAssetHandler(object):
         try:
             model_instance = self.model.objects.get(pk=identifier)
         except self.model.DoesNotExist:
-            return AssetEntityNotFound()
+            raise AssetEntityNotFound()
 
         return model_instance.org
 
