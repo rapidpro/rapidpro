@@ -3002,33 +3002,30 @@ class ExportFlowResultsTask(SmartModel):
             if row % 1000 == 0:
                 all_messages.flush_row_data()
 
-        # Generate a unique name
-        name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('flow', 'results', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets import AssetType
+        from temba.assets.views import get_asset_url
+
+        handler = AssetType.results_export.handler
+        handler.save(self.pk, File(temp), 'xls')
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
 
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.message_export, self.pk))
 
         # force a gc
         import gc
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(flows=flows, link='https://%s/org/download/flows/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
 
     def queryset_iterator(self, queryset, chunksize=1000):
         pk = 0

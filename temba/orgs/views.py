@@ -12,7 +12,6 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -26,12 +25,8 @@ from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from temba.assets import AssetType
-from temba.assets.views import handle_asset_request
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
-from temba.contacts.models import ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask
 from temba.formax import FormaxMixin
-from temba.msgs.models import ExportMessagesTask
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, build_json_response
 from timezones.forms import TimeZoneField
@@ -1506,84 +1501,27 @@ class OrgCRUDL(SmartCRUDL):
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
     class Download(SmartTemplateView):
-        template_name = 'orgs/org_download.haml'
-
-        def derive_title(self):
-            return _('Download')
-
+        """
+        For backwards compatibility, redirect old org/download style requests to the assets app
+        """
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r'%s/%s/(?P<task_type>\w+)/(?P<pk>\d+)/$' % (path, action)
-
-        def get_export_task(self):
-            export_task = None
-            user = self.request.user
-            user_orgs = user.get_user_orgs()
-
-            task_type = self.kwargs.get('task_type')
-            pk = self.kwargs.get('pk')
-
-            if task_type not in ['contacts', 'flows', 'messages']:
-                return None
-
-            if not pk:
-                return None
-
-            if task_type == 'contacts':
-                export_task = ExportContactsTask.objects.filter(pk=pk, org=user_orgs).first()
-            elif task_type == 'flows':
-                export_task = ExportFlowResultsTask.objects.filter(pk=pk, org=user_orgs).first()
-            elif task_type == 'messages':
-                export_task = ExportMessagesTask.objects.filter(pk=pk, org=user_orgs).first()
-
-            return export_task
 
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated()
 
         def get(self, request, *args, **kwargs):
-            export_task = self.get_export_task()
+            types_to_assets = {'contacts': AssetType.contact_export,
+                               'flows': AssetType.results_export,
+                               'messages': AssetType.message_export}
+
             task_type = self.kwargs.get('task_type')
+            asset_type = types_to_assets[task_type]
+            identifier = self.kwargs.get('pk')
+            return HttpResponseRedirect(reverse('assets.download',
+                                                kwargs=dict(type=asset_type.name, identifier=identifier)))
 
-            if isinstance(export_task, ExportContactsTask):
-                contact_exports = AssetType.contact_export.handler
-                download_exists = contact_exports.exists(export_task.pk)
-            else:
-                download_exists = export_task and export_task.filename and default_storage.exists(export_task.filename)
-
-            if not download_exists:
-                messages.warning(self.request, _("No exported file found"))
-                if self.request.user.is_superuser:
-                    return HttpResponseRedirect(reverse('orgs.org_manage'))
-                return HttpResponseRedirect(reverse('msgs.msg_inbox'))
-
-            user = self.request.user
-            if not user.get_org():
-                user.set_org(export_task.org)
-
-            download = request.REQUEST.get('download', None)
-            if not download:
-                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
-
-            # contact exports use new assets app
-            if isinstance(export_task, ExportContactsTask):
-                return handle_asset_request(request.user, AssetType.contact_export, export_task.pk)
-            else:
-                download_format = export_task.filename[-3:]
-                download_filename = '%s_export.%s' % (task_type, download_format)
-
-                if download_format == 'csv':
-                    content_type = "text/csv"
-                else:
-                    content_type = "application/vnd.ms-excel"
-
-                file = default_storage.open(export_task.filename, 'r')
-
-                response = HttpResponse(file, content_type=content_type)
-                response['Content-Disposition'] = 'attachment; filename=%s' % download_filename
-                file.close()
-
-                return response
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')

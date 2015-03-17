@@ -12,18 +12,23 @@ from . import AssetType
 from .handlers import AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound
 
 
+def get_asset_url(asset_type, identifier, direct=False):
+    view_name = 'assets.stream' if direct else 'assets.download'
+    return reverse(view_name, kwargs=dict(type=asset_type.name, identifier=identifier))
+
+
 def handle_asset_request(user, asset_type, identifier):
     """
     Request handler shared by the asset view and the asset API endpoint
     """
     try:
-        url, filename = asset_type.handler.resolve(user, identifier)
-        asset_type = mimetypes.guess_type(url)[0]
+        asset_org, location, filename = asset_type.handler.resolve(user, identifier)
+        asset_type = mimetypes.guess_type(location)[0]
 
-        if url.startswith('http'):
-            asset_file = urllib2.urlopen(url)
+        if location.startswith('http'):
+            asset_file = urllib2.urlopen(location)
         else:
-            asset_file = open('.' + url, 'rb')
+            asset_file = open('.' + location, 'rb')
 
         response = HttpResponse(asset_file, content_type=asset_type)
         response['Content-Disposition'] = 'attachment; filename=%s' % filename
@@ -52,15 +57,16 @@ class AssetDownloadView(SmartTemplateView):
         identifier = kwargs.pop('identifier')
 
         try:
-            asset_type.handler.resolve(self.request.user, identifier)
+            asset_org, location, filename = asset_type.handler.resolve(self.request.user, identifier)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:
             file_error = _("You do not have permission to access this file")
         else:
             file_error = None
+            self.request.user.set_org(asset_org)
 
-        download_url = reverse('assets.download', kwargs=dict(type=asset_type.name, identifier=identifier))
+        download_url = get_asset_url(asset_type, identifier, direct=True)
 
         context['file_error'] = file_error
         context['download_url'] = download_url

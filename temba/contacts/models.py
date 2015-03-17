@@ -1495,11 +1495,14 @@ class ExportContactsTask(SmartModel):
 
         # save as file asset associated with this task
         from temba.assets import AssetType
+        from temba.assets.views import get_asset_url
+
         handler = AssetType.contact_export.handler
         handler.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.contact_export, self.pk))
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
@@ -1508,8 +1511,4 @@ class ExportContactsTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(link='https://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)

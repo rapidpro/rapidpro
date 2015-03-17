@@ -33,6 +33,7 @@ API_URL = 'https://api.temba.io'
 
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl.temba.io'
+STORAGE_ROOT_DIR = 'test_orgs' if TESTING else 'orgs'
 
 #-----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same

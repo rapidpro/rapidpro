@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import os
 
+from django.conf import settings
 from django.core.files.storage import default_storage
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
@@ -47,8 +48,8 @@ class BaseAssetHandler(object):
 
     def resolve(self, user, identifier):
         """
-        Returns a tuple of the complete URL and download filename of the identified asset. If user does not have access
-        to the asset, an exception is raised
+        Returns a tuple of the org, location and download filename of the identified asset. If user does not have access
+        to the asset, an exception is raised.
         """
         asset_org = self.derive_org(identifier)
 
@@ -64,7 +65,7 @@ class BaseAssetHandler(object):
         remainder, extension = path.rsplit('.', 1)
         filename = '%s.%s' % (self.asset_type.name, extension)
 
-        return default_storage.url(path), filename
+        return asset_org, default_storage.url(path), filename
 
     def save(self, identifier, _file, extension):
         """
@@ -95,7 +96,7 @@ class BaseAssetHandler(object):
         Derives the storage path of an asset, e.g. 'orgs/1/recordings/123.wav'
         """
         base_name = unicode(identifier)
-        directory = os.path.join('orgs', unicode(org.pk), self.directory)
+        directory = os.path.join(settings.STORAGE_ROOT_DIR, unicode(org.pk), self.directory)
 
         if extension:
             return '%s/%s.%s' % (directory, base_name, extension)
@@ -127,14 +128,14 @@ class ResultsExportAssetHandler(BaseAssetHandler):
     model = ExportFlowResultsTask
     directory = 'results_exports'
     permission = 'flows.flow_results_export_asset'
-    extensions = ('xls', 'csv')
+    extensions = ('xls',)
 
 
 class MessageExportAssetHandler(BaseAssetHandler):
     model = ExportMessagesTask
     directory = 'message_exports'
     permission = 'msgs.msg_export_asset'
-    extensions = ('xls', 'csv')
+    extensions = ('xls',)
 
 
 def has_org_permission(org, user, permission):

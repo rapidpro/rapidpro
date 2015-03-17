@@ -835,70 +835,19 @@ class OrgTest(TembaTest):
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
 
     def test_download(self):
-        messages_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                 created_by=self.admin, modified_by=self.admin)
-
-        self.assertLoginRedirect(self.client.get('/org/download/messages/%s/' % messages_export_task.pk))
+        response = self.client.get('/org/download/messages/123/')
+        self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(302, response.status_code)
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk, follow=True)
-        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
+        response = self.client.get('/org/download/messages/123/')
+        self.assertRedirect(response, '/assets/download/message_export/123/')
 
-        messages_export_task.do_export()
+        response = self.client.get('/org/download/contacts/123/')
+        self.assertRedirect(response, '/assets/download/contact_export/123/')
 
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(200, response.status_code)
-
-        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk)
-        self.assertEquals(302, response.status_code)
-        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk, follow=True)
-        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
-
-        contact_export_task = ExportContactsTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
-        contact_export_task.do_export()
-
-        flow = self.create_flow()
-        flow_export_task = ExportFlowResultsTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
-
-        flow_export_task.flows.add(flow)
-        flow_export_task.do_export()
-
-        response = self.client.get('/org/download/contacts/%s/' % contact_export_task.pk, follow=True)
-        self.assertEquals(200, response.status_code)
-
-        response = self.client.get('/org/download/flows/%s/' % flow_export_task.pk, follow=True)
-        self.assertEquals(200, response.status_code)
-
-        self.create_secondary_org()
-        self.org2.administrators.add(self.admin)
-
-        self.admin.set_org(self.org2)
-        s = self.client.session
-        s['org_id'] = self.org2.pk
-        s.save()
-
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(200, response.status_code)
-        user = response.context_data['view'].request.user
-        self.assertEquals(user, self.admin)
-        self.assertEquals(user.get_org(), self.org2)
-
-        self.admin.set_org(None)
-        s = self.client.session
-        s['org_id'] = None
-        s.save()
-
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(200, response.status_code)
-        user = response.context_data['view'].request.user
-        self.assertEquals(user, self.admin)
-        self.assertEquals(user.get_org(), messages_export_task.org)
-        self.assertEquals(user.get_org(), self.org)
+        response = self.client.get('/org/download/flows/123/')
+        self.assertRedirect(response, '/assets/download/results_export/123/')
 
 
 class AnonOrgTest(TembaTest):
