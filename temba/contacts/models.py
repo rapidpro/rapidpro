@@ -159,10 +159,13 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                             help_text=_("The organization that this contact belongs to"))
 
     is_blocked = models.BooleanField(verbose_name=_("Is Blocked"), default=False,
-                                     help_text=_("Whether this contacts has been blocked"))
+                                     help_text=_("Whether this contact has been blocked"))
 
     is_test = models.BooleanField(verbose_name=_("Is Test"), default=False,
                                   help_text=_("Whether this contact is for simulation"))
+
+    is_failed = models.BooleanField(verbose_name=_("Is Failed"), default=False,
+                                    help_text=_("Whether we cannot send messages to this contact"))
 
     status = models.CharField(verbose_name='Contact Status', default=NORMAL, max_length=2)
 

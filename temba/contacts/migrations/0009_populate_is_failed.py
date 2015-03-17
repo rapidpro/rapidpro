@@ -1,0 +1,21 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+from django.db import models, migrations
+
+
+class Migration(migrations.Migration):
+
+    def populate_is_failed(apps, schema_editor):
+        ContactGroup = apps.get_model("contacts", "ContactGroup")
+        ContactGroup.objects.filter(status='F').update(is_failed=True)
+
+    dependencies = [
+        ('contacts', '0008_auto_20150317_2235'),
+    ]
+
+    operations = [
+        migrations.RunPython(
+            populate_is_failed
+        ),
+    ]
