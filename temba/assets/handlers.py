@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
-from temba.msgs.models import Msg, ExportMessagesTask
+from temba.msgs.models import ExportMessagesTask
 
 
 class AssetException(Exception):
@@ -110,31 +110,24 @@ class BaseAssetHandler(object):
         raise AssetFileNotFound()
 
 
-class RecordingAssetHandler(BaseAssetHandler):
-    model = Msg
-    directory = 'recordings'
-    permission = 'msgs.msg_recording_asset'
-    extensions = ('wav',)
-
-
 class ContactExportAssetHandler(BaseAssetHandler):
     model = ExportContactsTask
     directory = 'contact_exports'
-    permission = 'contacts.contact_export_asset'
+    permission = 'contacts.contact_export'
     extensions = ('xls', 'csv')
 
 
 class ResultsExportAssetHandler(BaseAssetHandler):
     model = ExportFlowResultsTask
     directory = 'results_exports'
-    permission = 'flows.flow_results_export_asset'
+    permission = 'flows.flow_export_results'
     extensions = ('xls',)
 
 
 class MessageExportAssetHandler(BaseAssetHandler):
     model = ExportMessagesTask
     directory = 'message_exports'
-    permission = 'msgs.msg_export_asset'
+    permission = 'msgs.msg_export'
     extensions = ('xls',)
 
 
@@ -142,9 +135,17 @@ def has_org_permission(org, user, permission):
     """
     Determines if a user has the given permission in the given org
     """
+    if user.is_superuser:
+        return True
+
+    if user.is_anonymous():
+        return False
+
     org_group = org.get_user_org_group(user)
+
     if not org_group:
         return False
 
     (app_label, codename) = permission.split(".")
+
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()

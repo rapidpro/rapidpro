@@ -340,7 +340,6 @@ PERMISSIONS = {
                          'import',
                          'omnibox',
                          'restore',
-                         'export_asset',
                          ),
 
     'contacts.contactfield': ('api',
@@ -424,7 +423,6 @@ PERMISSIONS = {
                    'json',
                    'read',
                    'results',
-                   'results_export_asset',
                    'simulate',
                    'upload_action_recording',
                    'versions',
@@ -446,8 +444,7 @@ PERMISSIONS = {
                  'inbox',
                  'label',
                  'test',
-                 'export_asset',
-                 'recording_asset'
+                 'export'
                  ),
 
     'msgs.broadcast': ('api',
