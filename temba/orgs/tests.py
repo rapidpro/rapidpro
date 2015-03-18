@@ -16,7 +16,7 @@ from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, Expo
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
 from temba.orgs.models import ORG_ACTIVE_TOPUP_CACHE_KEY, ORG_TOPUP_CREDITS_CACHE_KEY, ORG_TOPUP_EXPIRES_CACHE_KEY
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER
-from temba.flows.models import Flow, ExportFlowResultsTask
+from temba.flows.models import Flow, ExportFlowResultsTask, ActionSet
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
 from temba.tests import TembaTest
 from temba.triggers.models import Trigger
@@ -1193,8 +1193,27 @@ class BulkExportTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals('Triggered Flow', actions[0]['name'])
 
-    def test_export_import(self):
+    def test_missing_flows_on_import(self):
+        # import a flow that starts a missing flow
+        self.import_file('start-missing-flow')
 
+        # the flow that kicks off our missing flow
+        flow = Flow.objects.get(name='Start Missing Flow')
+
+        # make sure our missing flow is indeed not there
+        self.assertIsNone(Flow.objects.filter(name='Missing Flow').first())
+
+        # these two actionsets only have a single action that starts the missing flow
+        # therefore they should not be created on import
+        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=160, x=90).first())
+        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=233, x=395).first())
+
+        # should have this actionset, but only one action now since one was removed
+        other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
+        self.assertEquals(1, len(other_actionset.get_actions()))
+
+
+    def test_export_import(self):
 
         def assert_object_counts():
             self.assertEquals(8, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
