@@ -2077,7 +2077,7 @@ class Flow(TembaModel, SmartModel):
                                                       operand=operand,
                                                       x=x, y=y)
 
-                    existing_rulesets[uuid] = existing
+                existing_rulesets[uuid] = existing
 
                 # update our value type based on our new rules
                 existing.value_type = existing.get_value_type()
