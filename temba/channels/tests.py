@@ -5,8 +5,10 @@ import base64
 import hashlib
 import hmac
 import json
+import phonenumbers
 import time
 import urllib2
+
 
 from datetime import timedelta
 from django.conf import settings
@@ -867,6 +869,12 @@ class ChannelTest(TembaTest):
         response = self.fetch_protected(reverse('channels.channel_claim'), self.user)
         self.assertEquals(200, response.status_code)
         self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, Sweden, United Kingdom or United States")
+
+        # Test both old and new Cameroon phone format
+        number = phonenumbers.parse('+23761234567', 'CM')
+        self.assertTrue(phonenumbers.is_possible_number(number))
+        number = phonenumbers.parse('+237661234567', 'CM')
+        self.assertTrue(phonenumbers.is_possible_number(number))
 
     def test_claim_nexmo(self):
         self.login(self.admin)
