@@ -837,6 +837,11 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 2)
 
+        # viewer also can't block
+        post_data['action'] = 'block'
+        self.client.post(list_url, post_data, follow=True)
+        self.assertFalse(Contact.objects.get(pk=self.joe.id).is_blocked)
+
         # list the contacts as a manager of the organization
         self.login(self.admin)
         response = self.client.get(list_url)
