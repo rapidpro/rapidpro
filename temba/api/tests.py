@@ -2984,7 +2984,7 @@ class MageHandlerTest(TembaTest):
         Creates a contact as if it were created in Mage, i.e. no event/group triggering or cache updating
         """
         contact = Contact.objects.create(org=self.org, name=name, is_active=True, is_blocked=False,
-                                         uuid=uuid.uuid4(), status='N',
+                                         uuid=uuid.uuid4(), is_failed=False,
                                          modified_by=self.user, created_by=self.user,
                                          modified_on=timezone.now(), created_on=timezone.now())
         urn = ContactURN.objects.create(org=self.org, contact=contact,
