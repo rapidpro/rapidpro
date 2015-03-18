@@ -1720,8 +1720,6 @@ class Flow(TembaModel, SmartModel):
         for the runs.
         """
 
-        print "Removing active for %d runs" % len(run_ids)
-
         r = get_redis_connection()
         if run_ids:
             for key in r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
@@ -1992,6 +1990,21 @@ class Flow(TembaModel, SmartModel):
             seen = set()
             destinations = set()
 
+            # action sets that are removed during the update process such as
+            # those with one action to a deleted flow, or deleted group, etc
+            parsed_actions = {}
+
+            # parse our actions, we need these before we can create our rulesets
+            for actionset in json_dict.get(Flow.ACTION_SETS, []):
+
+                uuid = actionset.get(Flow.UUID)
+
+                # validate our actions, normalizing them as JSON after reading them
+                actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
+
+                if actions:
+                    parsed_actions[uuid] = actions
+
             entry = json_dict.get('entry', None)
             if entry:
                 destinations.add(entry)
@@ -2026,10 +2039,17 @@ class Flow(TembaModel, SmartModel):
                     top_uuid = uuid
 
                 # validate we can parse our rules, this will throw if not
-                parsed_rules = Rule.from_json_array(self.org, rules)
-                for rule in parsed_rules:
-                    if rule.destination:
-                        destinations.add(rule.destination)
+                Rule.from_json_array(self.org, rules)
+
+                for rule in rules:
+                    if 'destination' in rule:
+
+                        # if the destination was excluded for not having any actions
+                        # remove the connection for our rule too
+                        if rule['destination'] not in parsed_actions:
+                            rule['destination'] = None
+                        else:
+                            destinations.add(rule['destination'])
 
                 existing = existing_rulesets.get(uuid, None)
 
@@ -2056,7 +2076,8 @@ class Flow(TembaModel, SmartModel):
                                                       response_type=response_type,
                                                       operand=operand,
                                                       x=x, y=y)
-                    existing_rulesets[uuid] = existing
+
+                existing_rulesets[uuid] = existing
 
                 # update our value type based on our new rules
                 existing.value_type = existing.get_value_type()
@@ -2064,11 +2085,15 @@ class Flow(TembaModel, SmartModel):
 
             # now work through our action sets
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
-
                 uuid = actionset.get(Flow.UUID)
-                actions = actionset.get(Flow.ACTIONS)
-                destination = actionset.get(Flow.DESTINATION)
 
+                # skip actionsets without any actions. This happens when there are no valid
+                # actions in an actionset such as when deleted groups or flows are the only actions
+                if uuid not in parsed_actions:
+                    continue
+
+                actions = parsed_actions[uuid]
+                destination = actionset.get('destination')
                 seen.add(uuid)
 
                 (x, y) = (actionset.get(Flow.X), actionset.get(Flow.Y))
@@ -2076,10 +2101,6 @@ class Flow(TembaModel, SmartModel):
                 if not top_uuid or y < top_y:
                     top_y = y
                     top_uuid = uuid
-
-                # validate our actions, normalizing them as JSON after reading them
-                action_array = Action.from_json_array(self.org, actions)
-                actions = [_.as_json() for _ in action_array]
 
                 # validate our destination uuid
                 if destination:
@@ -2089,24 +2110,24 @@ class Flow(TembaModel, SmartModel):
 
                     if not destination:
                         raise FlowException("Destination ruleset '%s' for actionset does not exist" % destination_uuid)
-                else:
-                    destination = None
 
                 existing = existing_actionsets.get(uuid, None)
 
-                if existing:
-                    existing.destination = destination
-                    existing.set_actions_dict(actions)
-                    (existing.x, existing.y) = (x, y)
-                    existing.save()
-                else:
-                    existing = ActionSet.objects.create(flow=self,
-                                                        uuid=uuid,
-                                                        destination=destination,
-                                                        actions=json.dumps(actions),
-                                                        x=x, y=y)
+                # only create actionsets if there are actions
+                if actions:
+                    if existing:
+                        existing.destination = destination
+                        existing.set_actions_dict(actions)
+                        (existing.x, existing.y) = (x, y)
+                        existing.save()
+                    else:
+                        existing = ActionSet.objects.create(flow=self,
+                                                            uuid=uuid,
+                                                            destination=destination,
+                                                            actions=json.dumps(actions),
+                                                            x=x, y=y)
 
-                    existing_actionsets[uuid] = existing
+                        existing_actionsets[uuid] = existing
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():
