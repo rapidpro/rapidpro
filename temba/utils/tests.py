@@ -18,6 +18,7 @@ from .parser import EvaluationError, EvaluationContext, evaluate_template, evalu
 from .parser_functions import *
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json
+from . import datetime_to_json_date, json_date_to_datetime, timezone_to_country_code
 
 
 class InitTest(TembaTest):
@@ -31,6 +32,18 @@ class InitTest(TembaTest):
         d2 = tz.localize(datetime(2014, 1, 2, 3, 4, 5))
         self.assertEqual(datetime_to_ms(d2), 1388624645000)
         self.assertEqual(ms_to_datetime(1388624645000), d2.astimezone(pytz.utc))
+
+    def test_datetime_to_json_date(self):
+        d1 = datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
+        self.assertEqual(datetime_to_json_date(d1), '2014-01-02T03:04:05.000Z')
+        self.assertEqual(json_date_to_datetime('2014-01-02T03:04:05.000Z'), d1)
+        self.assertEqual(json_date_to_datetime('2014-01-02T03:04:05.000'), d1)
+
+        tz = pytz.timezone("Africa/Kigali")
+        d2 = tz.localize(datetime(2014, 1, 2, 3, 4, 5))
+        self.assertEqual(datetime_to_json_date(d2), '2014-01-02T01:04:05.000Z')
+        self.assertEqual(json_date_to_datetime('2014-01-02T01:04:05.000Z'), d2.astimezone(pytz.utc))
+        self.assertEqual(json_date_to_datetime('2014-01-02T01:04:05.000'), d2.astimezone(pytz.utc))
 
     def test_str_to_datetime(self):
         tz = pytz.timezone('Asia/Kabul')
@@ -105,6 +118,15 @@ class InitTest(TembaTest):
         self.assertEqual(dispatch_func1(1, arg2=2), 3)
         self.assertEqual(dispatch_func2(1, arg2=2), 3)
 
+    def test_timezone_country_code(self):
+        self.assertEqual('RW', timezone_to_country_code('Africa/Kigali'))
+        self.assertEqual('US', timezone_to_country_code('America/Chicago'))
+        self.assertEqual('US', timezone_to_country_code('US/Pacific'))
+        # GMT and UTC give empty
+        self.assertEqual('', timezone_to_country_code('GMT'))
+
+        # any invalid timezones should return ""
+        self.assertEqual('', timezone_to_country_code('Nyamirambo'))
 
 class CacheTest(TembaTest):
 
@@ -401,6 +423,15 @@ class ParserTest(TembaTest):
                           evaluate_template("Hello @contact|title_case", context))
         self.assertEquals(("Hello JOE", []),
                           evaluate_template("Hello @contact.first_name|upper_case", context))
+        self.assertEquals(("Hello Joe from info@example.com", []),
+                          evaluate_template("Hello @contact.first_name from info@example.com", context))
+        self.assertEquals(("Joe", []),
+                          evaluate_template("@contact.first_name", context))
+        self.assertEquals(("foo@nicpottier.com", []),
+                          evaluate_template("foo@nicpottier.com", context))
+        self.assertEquals(("@nicpottier is on twitter", []),
+                          evaluate_template("@nicpottier is on twitter", context))
+
 
         # evaluation errors
         self.assertEquals(("Error: =()", ["Syntax error at ')'"]),

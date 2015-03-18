@@ -2,7 +2,7 @@ app = angular.module('temba.services', [])
 
 version = new Date().getTime()
 
-quietPeriod = 5000
+quietPeriod = 500
 errorRetries = 5
 
 app.service "utils", ->
@@ -174,7 +174,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     endpoint: [ "Rectangle", { width: 20, height: 20, hoverClass: 'endpoint-hover' }]
     hoverClass: 'target-hover'
     dropOptions: { tolerance:"touch", hoverClass:"drop-hover" }
-    dragAllowedWhenFull:true
+    dragAllowedWhenFull: false
     deleteEndpointsOnDetach: true
     isTarget:true
 
@@ -182,16 +182,28 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     anchor: "BottomCenter"
     deleteEndpointsOnDetach: true
     maxConnections:1
+    dragAllowedWhenFull:false
     isSource:true
 
   makeSource: (element, scope) ->
     jsPlumb.makeSource element, sourceDefaults,
       scope: scope
-    # source.setElemet(element.parents('.node'))
 
   makeTarget: (element, scope) ->
     jsPlumb.makeTarget element, targetDefaults,
       scope: scope
+
+  getSourceConnection: (source) ->
+    connections = jsPlumb.getConnections({
+      source: source.attr('id'),
+      scope: '*'
+    });
+
+    if connections and connections.length > 0
+      return connections[0]
+
+  detachSingleConnection: (connection) ->
+    jsPlumb.detach(connection)
 
   recalculateOffsets: (nodeId) ->
 
@@ -206,17 +218,25 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
 
   disconnectAllConnections: (id) ->
+
+    # reenable any sources connecting to us
+    jsPlumb.select({target:id}).each (connection) ->
+      jsPlumb.setSourceEnabled($('#' + connection.sourceId), true)
+
+    # now disconnect the existing connections
     jsPlumb.detachAllConnections(id)
 
     $('#' + id + ' .source').each ->
+      jsPlumb.setSourceEnabled($(this), true)
       jsPlumb.detachAllConnections($(this))
 
   disconnectOutboundConnections: (id) ->
     jsPlumb.detachAllConnections($('#' + id + ' .source'))
 
-  connect: (sourceId, targetId, scope, fireEvent = true) ->
+  setSourceEnabled: (source, enabled) ->
+    jsPlumb.setSourceEnabled(source, enabled)
 
-    # $log.debug("connecting: " + sourceId + " -> " + targetId)
+  connect: (sourceId, targetId, scope, fireEvent = true) ->
 
     # remove any existing connections for our source first
     @disconnectOutboundConnections(sourceId)
@@ -237,8 +257,17 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
         targetPoint = jsPlumb.addEndpoint(target, { scope: scope }, targetDefaults)
 
       source = $('#' + sourceId + ' .source')
+
       if jsPlumb.getConnections({source:source, scope:scope}).length == 0
-        jsPlumb.connect({ deleteEndpointsOnDetach:true, editable:false, source: source, target: targetPoint, fireEvent: fireEvent})
+
+        # make sure our source is enabled before attempting connection
+        jsPlumb.setSourceEnabled(source, true)
+
+        jsPlumb.connect({ maxConnections:1, dragAllowedWhenFull:false, deleteEndpointsOnDetach:true, editable:false, source: source, target: targetPoint, fireEvent: fireEvent})
+
+        # now that we are connected, we aren't enabled anymore
+        jsPlumb.setSourceEnabled(source, false)
+
 
   updateConnection: (actionset) ->
     if actionset.destination
@@ -503,6 +532,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     return
 
   deriveCategories: (ruleset, language) ->
+
     ruleset._categories = []
     for rule in ruleset.rules
 
@@ -519,17 +549,27 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       if rule.category
         if $rootScope.flow.base_language
-          rule_cat = rule.category[language]
-          existing = (category.name[language] for category in ruleset._categories)
+          rule_cat = rule.category[language].toLocaleLowerCase()
+          existing = (category.name[language].toLocaleLowerCase() for category in ruleset._categories)
         else
-          rule_cat = rule.category
-          existing = (category.name for category in ruleset._categories)
+          rule_cat = rule.category.toLocaleLowerCase()
+          existing = (category.name.toLocaleLowerCase() for category in ruleset._categories)
 
-        if rule_cat not in existing
+        # don't munge the Other category
+        if rule.test.type == 'true' or rule_cat not in existing
           ruleset._categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
         else
+
           for cat in ruleset._categories
-            if cat.name == rule_cat
+
+            # unlocalized flows just have a string name
+            name = cat.name
+
+            # if we are localized, use the base name
+            if cat.name.base
+              name = cat.name.base
+
+            if name is not undefined and rule_cat is not undefined and name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
               cat.sources.push(rule.uuid)
               if cat.target
                 rule.destination = cat.target
@@ -541,12 +581,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     determineFlowStart($rootScope.flow)
 
   markDirty: ->
-    $log.debug("Marking dirty")
     $timeout ->
       $rootScope.dirty = true
     ,0
 
-  # TODO: we may want to optimize these for constant lookup
   getActionConfig: (action) ->
     for cfg in $rootScope.actions
       if cfg.type == action.type
@@ -584,6 +622,18 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       for lang in data.languages
         if lang.iso_code != flow.base_language
           languages.push(lang)
+
+      # if they don't have our base language in the org, force ourselves as the default
+      if not $rootScope.language and flow.base_language
+        $rootScope.language =
+          iso_code: flow.base_language
+
+      # if we have language choices, make sure our base language is one of them
+      if languages
+        if flow.base_language not in (lang.iso_code for lang in languages)
+          languages.unshift
+            iso_code:flow.base_language
+            name: gettext('Default')
 
       $rootScope.languages = languages
       $rootScope.flow = flow
@@ -654,6 +704,60 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     return
 
+  updateTranslationStats: ->
+
+    if $rootScope.language
+      # look at all translatable bits in our flow and check for completeness
+      flow = $rootScope.flow
+      items = 0
+      missing = 0
+      for actionset in flow.action_sets
+        for action in actionset.actions
+          if action.type in ['send', 'reply', 'say']
+            items++
+            if action._missingTranslation
+              missing++
+
+      for ruleset in flow.rule_sets
+        for category in ruleset._categories
+            items++
+            if category._missingTranslation
+              missing++
+
+      # set our stats and translation status
+      flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
+      flow._missingTranslation = items > 0
+
+      if flow._pctTranslated == 100 and flow.base_language != $rootScope.language.iso_code
+        $rootScope.gearLinks = [
+          {
+            title: 'Default Language'
+            id: 'default_language'
+          },
+          {
+            id: 'divider'
+          }
+        ]
+      else
+        $rootScope.gearLinks = []
+
+      return flow._pctTranslated
+
+  setMissingTranslation: (missing) ->
+    $rootScope.flow._missingTranslation = missing
+
+  removeConnection: (connection) ->
+    node = $(connection.source).parents('.node').attr('id')
+    rule = $(connection.source).parents('.rule').attr('id')
+
+    if connection.scope == 'actions'
+      @updateRuleTarget(node, rule, null)
+
+    if connection.scope == 'rules'
+      @updateActionsTarget(node, null)
+
+    Plumb.detachSingleConnection(connection)
+
   removeRuleset: (ruleset) ->
 
     DragHelper.hide()
@@ -678,6 +782,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     @markDirty()
 
   addNote: (x, y) ->
+
+    if not $rootScope.flow.metadata.notes
+      $rootScope.flow.metadata.notes = []
+
     $rootScope.flow.metadata.notes.push
       x: x
       y: y
@@ -742,7 +850,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     return
 
   updateActionsTarget: (from, to) ->
-    # $log.debug("Updating target:", from, to)
     for actionset in $rootScope.flow.action_sets
       if actionset.uuid == from
         actionset.destination = to
@@ -754,8 +861,23 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     for ruleset in $rootScope.flow.rule_sets
       if ruleset.uuid == node
 
+        # find the rule we are going to update
+        rule_to_update = null
+        category_name = null
         for rule in ruleset.rules
           if rule.uuid == from
+            rule_to_update = rule
+            category_name = rule.category
+            if rule.category.base
+              category_name = rule.category.base
+
+        for rule in ruleset.rules
+          name = rule.category
+          if rule.category.base
+            name = rule.category.base
+
+          # update the destination if its our uuid or if it shares our category name
+          if rule.uuid == from or category_name.toLocaleLowerCase() == name.toLocaleLowerCase()
             rule.destination = to
 
         for category in ruleset._categories
@@ -780,6 +902,20 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       actionset._terminal = terminal
 
   saveAction: (actionset, action) ->
+
+    # link us up if necessary, we need to do this after our element is created
+    if actionset.from
+      for ruleset in $rootScope.flow.rule_sets
+        for rule in ruleset.rules
+          if rule.uuid == actionset.from
+            rule.destination = actionset.uuid
+            break
+
+      $timeout ->
+        Plumb.connect(actionset.from, actionset.uuid, 'actions')
+        actionset.from = null
+      ,10
+
 
     found = false
     for previous, idx in actionset.actions

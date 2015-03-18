@@ -75,7 +75,7 @@
           onFormLoaded: function() { }
         }
         // check if there is no channel, change the primary button behavior to redirect to channel creation
-        if('{{has_outgoing_channel}}' == 'False') {
+        if('{{has_outgoing_channel}}' == 'None') {
           modal.setPrimaryButton(gettext("Add Channel"));
           onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
         }
@@ -133,6 +133,14 @@
         window.wsOffset = $("#flow").offset();
       }, 100)
     });
+
+    $(window).bind('beforeunload', function(e) {
+      scope = $('html').scope();
+      if (scope && scope.saving) {
+        return "Your flow is still saving, are you sure you want to leave?"
+      }
+    });
+
 
 -block page-top
 
@@ -203,11 +211,15 @@
           -blocktrans
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-      .languages{ng-show:'flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
+      .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' ng-class='{active:lang == $root.language}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == $root.language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
+
+        .translated
+          %span.pct{ng-show:'flow.base_language != $root.language.iso_code'}
+            [[flow._pctTranslated]]% translated
 
     #status.hide
       #error
@@ -252,7 +264,6 @@
               %a.btn.btn-primary
                 Receive Message First
 
-
         // Our empty action node shown while dragging
         -if object.flow_type == 'V'
           .ghost.actions.node.action-node.hide
@@ -285,7 +296,8 @@
                   All Responses
 
         .node{ng-repeat:'action_set in flow.action_sets', drop-scope:'actions', node:'action_set', ng-dblclick:'$event.stopPropagation()',
-              id:'[[action_set.uuid]]', class:'action-node', ng-class:'{translate:lastActionMissingTranslation(action_set)}'}
+               ng-attr-id:'[[action_set.uuid]]', class:'action-node', ng-class:'{translate:lastActionMissingTranslation(action_set)}',
+               ng-style:"{left:action_set.x, top:action_set.y}"}
 
           .active{ng-show:'action_set._active > 0', ng-click:'broadcastToStep(action_set.uuid)'}
             [[action_set._active|number]]
@@ -396,14 +408,12 @@
                     [[action.webhook]]
 
           .add.icon-plus-circle2{ng-click:'addAction(action_set);'}
-          .source{drop-scope:'rules', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
+          .source{drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
           .visited{ng-show:'action_set._visited && action_set.destination'}
             .count
               [[action_set._visited|number]]
 
-
-        .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid', node:'ruleset', drop-scope:'rules', ng-dblclick:'$event.stopPropagation()',
-              id:'[[ruleset.uuid]]', class:'rule-node'}
+        .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid', node:'ruleset', drop-scope:'rules', ng-dblclick:'$event.stopPropagation()', class:'rule-node', ng-attr-id:'[[ruleset.uuid]]', ng-style:"{left:ruleset.x, top:ruleset.y}"}
 
           .active{ng-show:'ruleset._active > 0', ng-click:'broadcastToStep(ruleset.uuid)'}
             [[ruleset._active|number]]
@@ -439,13 +449,13 @@
                        ng-class:'{ missing: category._missingTranslation }'}
                 .category
                   [[category._translation]]
-                .source{drop-scope:'actions', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
+                .source{drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
 
                 .visited{ng-show:'category._visited && category.target'}
                   .count
                     [[category._visited|number]]
 
-        .note{ng-repeat:'note in flow.metadata.notes', note:'note'}
+        .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}
           %a.close{ng-click:'removeNote(note);'}
             .glyph.icon-close
           %textarea.msd-elastic.title.note-input{ng-model:'note.title'}

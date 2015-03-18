@@ -52,7 +52,7 @@
             "webhook": null, 
             "label": "Call Me", 
             "operand": "@step.value", 
-            "finished_key": null, 
+            "finished_key": null,
             "y": 165, 
             "x": 204
           }
@@ -147,6 +147,15 @@
       "groups": [], 
       "keyword": "callme", 
       "trigger_type": "K"
+    },
+    {
+      "flow": {
+        "name": "Call me maybe",
+        "id": 12079
+      },
+      "groups": [],
+      "keyword": null,
+      "trigger_type": "V"
     }
   ]
 }

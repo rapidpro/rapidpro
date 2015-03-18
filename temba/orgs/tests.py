@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import json
 
+from mock import patch
+
 from context_processors import GroupPermWrapper
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -12,13 +14,13 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
 from temba.orgs.models import ORG_ACTIVE_TOPUP_CACHE_KEY, ORG_TOPUP_CREDITS_CACHE_KEY, ORG_TOPUP_EXPIRES_CACHE_KEY
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER
-from temba.flows.models import Flow
-from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING
-from temba.tests import TembaTest
+from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
+from temba.flows.models import Flow, ExportFlowResultsTask
+from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
+from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_ms
 
@@ -66,6 +68,31 @@ class OrgTest(TembaTest):
         self.assertEquals("Temba", org.name)
         self.assertEquals("nice-temba", org.slug)
 
+    def test_recommended_channel(self):
+        self.org.timezone = 'Africa/Nairobi'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), 'africastalking')
+
+        self.org.timezone = 'America/Phoenix'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), 'twilio')
+
+        self.org.timezone = 'Asia/Jakarta'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), 'hub9')
+
+        self.org.timezone = 'Africa/Mogadishu'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), 'shaqodoon')
+
+        self.org.timezone = 'Europe/Amsterdam'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), 'nexmo')
+
+        self.org.timezone = 'Africa/Kigali'
+        self.org.save()
+        self.assertEquals(self.org.get_recommended_channel(), 'android')
+
     def test_country(self):
         from temba.locations.models import AdminBoundary
         country_url = reverse('orgs.org_country')
@@ -91,33 +118,6 @@ class OrgTest(TembaTest):
         # assert it has been
         org = Org.objects.get(pk=self.org.pk)
         self.assertFalse(org.country)
-
-    def test_org_create(self):
-        self.login(self.admin)
-
-        response = self.client.get(reverse('orgs.org_create'))
-        self.assertEquals(200, response.status_code)
-        self.assertFalse(Org.objects.filter(name="kLab"))
-
-        data = dict(name="kLab", timezone="Africa/Kigali")
-        response = self.client.post(reverse('orgs.org_create'), data)
-        self.assertEquals(302, response.status_code)
-
-        orgs = Org.objects.filter(name="kLab")
-        self.assertEquals(orgs.count(), 1)
-        self.assertEquals(orgs[0].name, "kLab")
-        self.assertEquals(orgs[0].slug, "klab")
-
-        data = dict(name="kLab", timezone="Africa/Kigali")
-        response = self.client.post(reverse('orgs.org_create'), data)
-        self.assertEquals(302, response.status_code)
-
-        orgs = Org.objects.filter(name="kLab")
-        self.assertEquals(orgs.count(), 2)
-        self.assertEquals(orgs[0].name, "kLab")
-        self.assertEquals(orgs[1].name, "kLab")
-        self.assertEquals(orgs.filter(slug="klab").count(), 1)
-        self.assertEquals(orgs.filter(slug="klab-2").count(), 1)
 
     def test_plans(self):
         self.contact = self.create_contact("Joe", "+250788123123")
@@ -393,12 +393,12 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertEquals(response.context_data['org'], self.org2)
 
-        # a non org user is redirected to create his own org
+        # a non org user get a message to contact their administrator
         self.login(self.non_org_manager)
         response = self.client.get(choose_url)
-        self.assertEquals(302, response.status_code)
-        response = self.client.get(choose_url, follow=True)
-        self.assertEquals(reverse('orgs.org_create'), response.request['PATH_INFO'])
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(0, len(response.context['orgs']))
+        self.assertContains(response, "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization.")
 
         # superuser gets redirected to user management page
         self.login(self.superuser)
@@ -483,12 +483,14 @@ class OrgTest(TembaTest):
         # we should have 1000 minus 10 credits for this org
         with self.assertNumQueries(4):
             self.assertEquals(990, self.org.get_credits_remaining())  # from db
+
         with self.assertNumQueries(0):
             self.assertEquals(1000, self.org.get_credits_total())  # from cache
             self.assertEquals(10, self.org.get_credits_used())
             self.assertEquals(990, self.org.get_credits_remaining())
 
         self.assertEquals(10, welcome_topup.msgs.count())
+        self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).used)
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
@@ -501,6 +503,8 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).msgs.count())
+        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).used)
+
         self.assertFalse(self.org._calculate_active_topup())
 
         with self.assertNumQueries(0):
@@ -516,6 +520,8 @@ class OrgTest(TembaTest):
             self.assertEquals(30, self.org.get_credits_used())
             self.assertEquals(-15, self.org.get_credits_remaining())
 
+        self.assertEquals(15, TopUp.objects.get(pk=welcome_topup.pk).used)
+
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
@@ -525,7 +531,9 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
 
         self.assertEquals(20, welcome_topup.msgs.count())
+        self.assertEquals(20, TopUp.objects.get(pk=welcome_topup.pk).used)
         self.assertEquals(5, new_topup.msgs.count())
+        self.assertEquals(5, TopUp.objects.get(pk=new_topup.pk).used)
         self.assertEquals(25, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(-5, self.org.get_credits_remaining())
@@ -547,6 +555,7 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
         self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).used)
 
         # now we're pro
         self.assertTrue(self.org.is_pro())
@@ -557,6 +566,8 @@ class OrgTest(TembaTest):
         # and new messages use the mega topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
         self.assertEquals(msg.topup, mega_topup)
+
+        self.assertEquals(6, TopUp.objects.get(pk=mega_topup.pk).used)
 
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
@@ -573,7 +584,7 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
@@ -618,6 +629,61 @@ class OrgTest(TembaTest):
         response = self.client.post(twilio_account_url, dict(name="DO NOT CHANGE ME"), follow=True)
         org = Org.objects.get(pk=self.org.pk)
         self.assertEquals(org.name, "Temba")
+
+    def test_connect_nexmo(self):
+        self.login(self.admin)
+
+        # connect nexmo
+        connect_url = reverse('orgs.org_nexmo_connect')
+
+        # simulate invalid credentials
+        with patch('requests.get') as nexmo:
+            nexmo.return_value = MockResponse(401, '{"error-code": "401"}')
+            response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_nexmo())
+
+        # ok, now with a success
+        with patch('requests.get') as nexmo_get:
+            with patch('requests.post') as nexmo_post:
+                # believe it or not nexmo returns 'error-code' 200
+                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
+                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
+
+                # nexmo should now be connected
+                self.org = Org.objects.get(pk=self.org.pk)
+                self.assertTrue(self.org.is_connected_to_nexmo())
+                self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
+                self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
+
+
+    def test_connect_plivo(self):
+        self.login(self.admin)
+
+        # connect plivo
+        connect_url = reverse('orgs.org_plivo_connect')
+
+        # simulate invalid credentials
+        with patch('requests.get') as plivo_mock:
+            plivo_mock.return_value = MockResponse(401,
+                                                   'Could not verify your access level for that URL.'
+                                                   '\nYou have to login with proper credentials')
+            response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+            self.assertContains(response,
+                                "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
+            self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+            self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+
+        # ok, now with a success
+        with patch('requests.get') as plivo_mock:
+            plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
+            self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
+
+            # plivo should be added to the session
+            self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
+            self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
+
 
     def test_patch_folder_queryset(self):
         self.create_contact(name="Bob", number="123")
@@ -693,6 +759,8 @@ class OrgTest(TembaTest):
             self.assertEqual(dict(contacts_all=3, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
 
     def test_message_folder_counts(self):
+        r = get_redis_connection()
+
         folders = (OrgFolder.msgs_inbox, OrgFolder.msgs_archived, OrgFolder.msgs_outbox, OrgFolder.broadcasts_outbox,
                    OrgFolder.calls_all, OrgFolder.msgs_flows, OrgFolder.broadcasts_scheduled, OrgFolder.msgs_failed)
         get_all_counts = lambda org: {key.name: org.get_folder_count(key) for key in folders}
@@ -751,10 +819,10 @@ class OrgTest(TembaTest):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
 
-        Msg.mark_error(msg6)
-        Msg.mark_error(msg6)
-        Msg.mark_error(msg6)
-        Msg.mark_error(msg6)
+        Msg.mark_error(r, msg6)
+        Msg.mark_error(r, msg6)
+        Msg.mark_error(r, msg6)
+        Msg.mark_error(r, msg6)
 
         with self.assertNumQueries(0):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
@@ -765,6 +833,72 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(8):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
+
+    def test_download(self):
+        messages_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                 created_by=self.admin, modified_by=self.admin)
+
+        self.assertLoginRedirect(self.client.get('/org/download/messages/%s/' % messages_export_task.pk))
+
+        self.login(self.admin)
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(302, response.status_code)
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk, follow=True)
+        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
+
+        messages_export_task.do_export()
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(200, response.status_code)
+
+        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk)
+        self.assertEquals(302, response.status_code)
+        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk, follow=True)
+        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
+
+        contact_export_task = ExportContactsTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                created_by=self.admin, modified_by=self.admin)
+        contact_export_task.do_export()
+
+        flow = self.create_flow()
+        flow_export_task = ExportFlowResultsTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                created_by=self.admin, modified_by=self.admin)
+
+        flow_export_task.flows.add(flow)
+        flow_export_task.do_export()
+
+        response = self.client.get('/org/download/contacts/%s/' % contact_export_task.pk, follow=True)
+        self.assertEquals(200, response.status_code)
+
+        response = self.client.get('/org/download/flows/%s/' % flow_export_task.pk, follow=True)
+        self.assertEquals(200, response.status_code)
+
+        self.create_secondary_org()
+        self.org2.administrators.add(self.admin)
+
+        self.admin.set_org(self.org2)
+        s = self.client.session
+        s['org_id'] = self.org2.pk
+        s.save()
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(200, response.status_code)
+        user = response.context_data['view'].request.user
+        self.assertEquals(user, self.admin)
+        self.assertEquals(user.get_org(), self.org2)
+
+        self.admin.set_org(None)
+        s = self.client.session
+        s['org_id'] = None
+        s.save()
+
+        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
+        self.assertEquals(200, response.status_code)
+        user = response.context_data['view'].request.user
+        self.assertEquals(user, self.admin)
+        self.assertEquals(user.get_org(), messages_export_task.org)
+        self.assertEquals(user.get_org(), self.org)
 
 
 class AnonOrgTest(TembaTest):
@@ -1108,12 +1242,7 @@ class BulkExportTest(TembaTest):
 
     def test_trigger_flow(self):
 
-        handle = open('%s/test_imports/triggered-flow.json' % settings.MEDIA_ROOT, 'r+')
-        data = handle.read()
-        handle.close()
-
-        # import all our bits
-        self.org.import_app(json.loads(data), self.admin, site='http://rapidpro.io')
+        self.import_file('triggered-flow')
 
         flow = Flow.objects.filter(name='Trigger a Flow', org=self.org).first()
         definition = flow.as_json()

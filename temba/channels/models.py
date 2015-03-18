@@ -1,10 +1,11 @@
-from __future__ import unicode_literals
-import hashlib
+from __future__ import absolute_import, unicode_literals
 
 import json
 import os
 import phonenumbers
+import plivo
 import requests
+import time
 
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -32,6 +33,7 @@ from twython import Twython
 from uuid import uuid4
 from urllib import quote_plus
 
+
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
 EXTERNAL = 'EX'
@@ -45,12 +47,15 @@ VUMI = 'VM'
 ZENVIA = 'ZV'
 SHAQODOON = 'SQ'
 VERBOICE = 'VB'
+CLICKATELL = 'CT'
+PLIVO = 'PL'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
 USERNAME = 'username'
 PASSWORD = 'password'
 KEY = 'key'
+API_ID = 'api_id'
 
 SEND = 'S'
 RECEIVE = 'R'
@@ -69,6 +74,8 @@ RELAYER_TYPE_CHOICES = ((ANDROID, _("Android")),
                         (KANNEL, _("Kannel")),
                         (EXTERNAL, _("External")),
                         (TWITTER, _("Twitter")),
+                        (CLICKATELL, _("Clickatell")),
+                        (PLIVO, _("Plivo")),
                         (SHAQODOON, _("Shaqodoon")))
 
 # how many outgoing messages we will queue at once
@@ -83,20 +90,26 @@ RELAYER_TYPE_CONFIG = {
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
     ZENVIA: dict(scheme='tel', max_length=150),
     EXTERNAL: dict(scheme='tel', max_length=160),
-    NEXMO: dict(scheme='tel', max_length=1600),
+    NEXMO: dict(scheme='tel', max_length=1600, max_tps=5),
     INFOBIP: dict(scheme='tel', max_length=1600),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
-    HUB9: dict(scheme='tel', max_length=1600, send_batch_size=100, send_queue_depth=100),
+    HUB9: dict(scheme='tel', max_length=1600),
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
+    CLICKATELL: dict(scheme='tel', max_length=420),
+    PLIVO: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
 # Some providers need a static ip to whitelist, route them through our proxy
 proxies = {"http": "http://proxy.rapidpro.io:3128"}
+
+PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
+PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
+PLIVO_APP_ID = 'PLIVO_APP_ID'
 
 
 class Channel(SmartModel):
@@ -174,6 +187,52 @@ class Channel(SmartModel):
         return Channel.objects.create(channel_type=channel_type, country=country, name=phone_number,
                                       address=phone_number, uuid=str(uuid4()), config=json.dumps(config),
                                       role=role, parent=parent,
+                                      org=org, created_by=user, modified_by=user)
+    @classmethod
+    def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
+        plivo_uuid = unicode(uuid4())
+        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
+
+        client = plivo.RestAPI(auth_id, auth_token)
+
+        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler', args=['receive', plivo_uuid])
+        answer_url = "https://" + settings.AWS_STORAGE_BUCKET_NAME + "/plivo_voice_unavailable.xml"
+
+        plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
+                                                                                      answer_url=answer_url,
+                                                                                      message_url=message_url))
+
+        if plivo_response_status in [201, 200, 202]:
+            plivo_app_id = plivo_response['app_id']
+
+        plivo_config = json.dumps({PLIVO_AUTH_ID: auth_id,
+                                   PLIVO_AUTH_TOKEN: auth_token,
+                                   PLIVO_APP_ID: plivo_app_id})
+
+        plivo_number = phone_number.strip('+ ').replace(' ', '')
+
+        plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
+
+        if plivo_response_status != 200:
+            plivo_response_status, plivo_number = client.buy_phone_number(params=dict(number=plivo_number))
+
+            if plivo_response_status != 201:
+                raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
+
+            plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
+
+        if plivo_response_status == 200:
+            plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
+                                                                                     app_id=plivo_app_id))
+            if plivo_response_status != 202:
+                raise Exception(_("There was a problem updating that number, please try again."))
+
+        phone_number = '+' + plivo_number
+        phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
+                                           phonenumbers.PhoneNumberFormat.NATIONAL)
+
+        return Channel.objects.create(channel_type=PLIVO, country=country, name=phone,
+                                      address=phone_number, uuid=plivo_uuid, config=plivo_config,
                                       org=org, created_by=user, modified_by=user)
 
 
@@ -320,9 +379,9 @@ class Channel(SmartModel):
                                                  org=org, role=SEND+RECEIVE, uuid=str(uuid4()),
                                                  config=config, name="Twitter", created_by=user, modified_by=user)
 
-                # notify Mage so that it receives messages for this channel
-                from .tasks import notify_mage_task
-                notify_mage_task.delay(channel.uuid, 'add')
+                # notify Mage so that it activates this channel
+                from .tasks import MageStreamAction, notify_mage_task
+                notify_mage_task.delay(channel.uuid, MageStreamAction.activate)
 
         return channel
 
@@ -619,6 +678,14 @@ class Channel(SmartModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
+        if self.channel_type == PLIVO:
+            import plivo
+            client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+
+            # remove the application
+            client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
+
+
         # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
         if self.channel_type == TWILIO:
             client = self.org.get_twilio_client()
@@ -664,9 +731,9 @@ class Channel(SmartModel):
         Channel.clear_cached_channel(self.id)
 
         if notify_mage and self.channel_type == TWITTER:
-            # notify Mage so that it stops receiving messages for this channel
-            from .tasks import notify_mage_task
-            notify_mage_task.delay(self.uuid, 'remove')
+            # notify Mage so that it deactivates this channel
+            from .tasks import MageStreamAction, notify_mage_task
+            notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
 
         # if we just lost calling capabilities archive our voice flows
         if CALL in self.role:
@@ -780,16 +847,7 @@ class Channel(SmartModel):
         # where current_date is in the format: d/m/y H
         payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
                    'username': channel.config[USERNAME], 'password': channel.config[PASSWORD],
-                   'msg': text, 'key': channel.config[KEY],
-                   'date': '{dt.day}/{dt.month}/{dt.year}'.format(dt=timezone.now())}
-
-        # build our signature
-        fingerprint = "%(username)s|%(password)s|%(from)s|%(to)s|%(msg)s|%(key)s|%(date)s" % payload
-        signing_key = hashlib.md5(fingerprint).hexdigest()
-
-        # remove unused parameters in the our payload
-        del payload['date']
-        del payload['key']
+                   'msg': text}
 
         # build our send URL
         url = channel.config[SEND_URL] + "?" + urlencode(payload)
@@ -1237,6 +1295,108 @@ class Channel(SmartModel):
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
+    def send_clickatell_message(cls, channel, msg, text):
+        """
+        Sends a message to Clickatell, they expect a GET in the following format:
+             https://api.clickatell.com/http/sendmsg?api_id=xxx&user=xxxx&password=xxxx&to=xxxxx&text=xxxx
+        """
+        from temba.msgs.models import Msg, WIRED
+
+        url = 'https://api.clickatell.com/http/sendmsg'
+        payload = {'api_id': channel.config[API_ID],
+                   'user': channel.config[USERNAME],
+                   'password': channel.config[PASSWORD],
+                   'from': channel.address.lstrip('+'),
+                   'concat': 3,
+                   'callback': 7,
+                   'mo': 1,
+                   'to': msg.urn_path.lstrip('+'),
+                   'text': text}
+
+        try:
+            response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
+            log_payload = urlencode(payload)
+
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # parse out the external id for the message, comes in the format: "ID: id12312312312"
+        external_id = None
+        if response.text.startswith("ID: "):
+            external_id = response.text[4:]
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='GET',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_plivo_message(cls, channel, msg, text):
+        import plivo
+        from temba.msgs.models import Msg, WIRED
+
+        # url used for logs and exceptions
+        url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[PLIVO_AUTH_ID]
+
+        client = plivo.RestAPI(channel.config[PLIVO_AUTH_ID], channel.config[PLIVO_AUTH_TOKEN])
+        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler',
+                                                                       args=['status', channel.uuid])
+
+        payload = {'src': channel.address.lstrip('+'),
+                   'dst': msg.urn_path.lstrip('+'),
+                   'text': text,
+                   'url': status_url,
+                   'method': 'POST'}
+
+        try:
+            plivo_response_status, plivo_response = client.send_message(params=payload)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response="",
+                                response_status=503)
+
+        if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:
+            raise SendException("Got non-200 response [%d] from API" % plivo_response_status,
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response=plivo_response,
+                                response_status=plivo_response_status)
+
+        external_id = plivo_response['message_uuid'][0]
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=json.dumps(payload),
+                               response=plivo_response,
+                               response_status=plivo_response_status)
+
+
+    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1262,11 +1422,11 @@ class Channel(SmartModel):
 
     @classmethod
     def send_message(cls, msg): # pragma: no cover
-        from temba.msgs.models import Msg, QUEUED, WIRED
+        from temba.msgs.models import Msg, QUEUED, WIRED, MSG_SENT_KEY
         r = get_redis_connection()
 
         # check whether this message was already sent somehow
-        if r.get('sms_sent_%d' % msg.id):
+        if r.get(MSG_SENT_KEY % msg.id):
             Msg.mark_sent(r, msg, WIRED)
             print "!! [%d] prevented duplicate send" % (msg.id)
             return
@@ -1276,7 +1436,7 @@ class Channel(SmartModel):
 
         # channel can be none in the case where the channel has been removed
         if not channel:
-            Msg.mark_error(msg, fatal=True)
+            Msg.mark_error(r, msg, fatal=True)
             ChannelLog.log_error(msg, _("Message no longer has a way of being sent, marking as failed."))
             return
 
@@ -1291,10 +1451,41 @@ class Channel(SmartModel):
                       KANNEL: Channel.send_kannel_message,
                       NEXMO: Channel.send_nexmo_message,
                       TWILIO: Channel.send_twilio_message,
+                      CLICKATELL: Channel.send_clickatell_message,
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,
                       SHAQODOON: Channel.send_shaqodoon_message,
-                      ZENVIA: Channel.send_zenvia_message}
+                      ZENVIA: Channel.send_zenvia_message,
+                      PLIVO: Channel.send_plivo_message}
+
+        # Check whether we need to throttle ourselves
+        # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
+        # and a low throttle rate, we will have lots of threads waiting, but since throttling is currently
+        # a rare event, this is an ok stopgap.
+        max_tps = type_config.get('max_tps', 0)
+        if max_tps:
+            tps_set_name = 'channel_tps_%d' % channel.id
+            lock_name = '%s_lock' % tps_set_name
+
+            while True:
+                # only one thread should be messing with the map at once
+                with r.lock(lock_name, timeout=5):
+                    # check how many were sent in the last second
+                    now = time.time()
+                    last_second = time.time() - 1
+
+                    # how many have been sent in the past second?
+                    count = r.zcount(tps_set_name, last_second, now)
+
+                    # we're within our tps, add ourselves to the list and go on our way
+                    if count < max_tps:
+                        r.zadd(tps_set_name, now, now)
+                        r.zremrangebyscore(tps_set_name, "-inf", last_second)
+                        r.expire(tps_set_name, 5)
+                        break
+
+                # too many sent in the last second, sleep a bit and try again
+                time.sleep(1 / float(max_tps))
 
         sent_count = 0
         parts = Msg.get_text_parts(msg.text, type_config['max_length'])
@@ -1318,7 +1509,7 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(msg)
+                Msg.mark_error(r, msg)
                 sent_count -= 1
 
             except Exception as e:
@@ -1327,14 +1518,14 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(msg)
+                Msg.mark_error(r, msg)
                 sent_count -= 1
 
             finally:
                 # if we are still in a queued state, mark ourselves as an error
                 if msg.status == QUEUED:
                     print "!! [%d] marking queued message as error" % msg.id
-                    Msg.mark_error(msg)
+                    Msg.mark_error(r, msg)
                     sent_count -= 1
 
         # update the number of sms it took to send this if it was more than 1
@@ -1420,15 +1611,12 @@ class ChannelLog(models.Model):
                                             response=e.response,
                                             response_status=e.response_status))
 
-        cls.trim_for_org(msg.org)
-
     @classmethod
     def log_error(cls, msg, description):
         cls.write(ChannelLog.objects.create(msg_id=msg.id,
                                             is_error=True,
                                             description=description[:255]))
 
-        cls.trim_for_org(msg.org)
 
     @classmethod
     def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None):
@@ -1441,14 +1629,6 @@ class ChannelLog(models.Model):
                                             response=response,
                                             response_status=response_status))
 
-        cls.trim_for_org(msg.org)
-
-    @classmethod
-    def trim_for_org(cls, org_id):
-        # keep only the most recent 100 errors for each org
-        #for error in ChannelLog.objects.filter(msg__channel__org_id=org_id).order_by('-created_on')[100:]: # pragma: no cover
-        #    error.delete()
-        pass
 
 class SyncEvent(SmartModel):
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),

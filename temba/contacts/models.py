@@ -7,6 +7,7 @@ import phonenumbers
 import re
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -56,6 +57,15 @@ class ContactField(models.Model, OrgAssetMixin):
     def make_key(cls, label):
         key = re.sub(r'([^a-z0-9]+)', ' ', label.lower())
         return re.sub(r'([^a-z0-9]+)', '_', key.strip())
+
+    @classmethod
+    def api_make_key(cls, label):
+        key = cls.make_key(label)
+
+        if key in RESERVED_CONTACT_FIELDS:
+            raise ValidationError(_("key for %s is a reserved name for contact fields") % label)
+
+        return key
 
     @classmethod
     def is_valid_label(cls, label):
@@ -234,15 +244,28 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
             if value.category:
                 return value.category
             else:
-                value_type = value.contact_field.value_type
-                if value_type == DATETIME:
-                    return self.org.format_date(value.datetime_value)
-                elif value_type == DECIMAL:
-                    return format_decimal(value.decimal_value)
-                else:
-                    return value.string_value
+                field = value.contact_field
+                return Contact.get_field_display_for_value(field, value)
         else:
             return None
+
+    @classmethod
+    def get_field_display_for_value(cls, field, value):
+        """
+        Utility method to determine best display value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if value.category:
+            return value.category
+        else:
+            if field.value_type == DATETIME:
+                return field.org.format_date(value.datetime_value)
+            elif field.value_type == DECIMAL:
+                return format_decimal(value.decimal_value)
+            else:
+                return value.string_value
 
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
@@ -354,6 +377,26 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
         contact = None
 
+        # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
+        # it is read only from a contacts perspective, but it is by far the most common case
+        if not uuid and not name and urns and len(urns) == 1:
+            scheme, path = urns[0]
+            norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
+            norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
+            existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+
+            if existing_urn and existing_urn.contact:
+                contact = existing_urn.contact
+
+                # update the channel on this URN if this is an incoming message
+                if incoming_channel and incoming_channel != existing_urn.channel:
+                    existing_urn.channel = incoming_channel
+                    existing_urn.save(update_fields=['channel'])
+
+                # return our contact, mapping our existing urn appropriately
+                contact.urn_objects = {urns[0]: existing_urn}
+                return contact
+
         # if we were passed in a UUID, look it up by that
         if uuid:
             contact = Contact.objects.get(org=org, is_active=True, uuid=uuid)
@@ -384,9 +427,9 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                         existing_orphan_urns[(scheme, path)] = existing_urn
 
                     # update this URN's channel
-                    if incoming_channel:
+                    if incoming_channel and existing_urn.channel != incoming_channel:
                         existing_urn.channel = incoming_channel
-                        existing_urn.save()
+                        existing_urn.save(update_fields=['channel'])
                 else:
                     urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
 
@@ -420,28 +463,30 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                 urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel=incoming_channel)
                 urn_objects[raw] = urn
 
-            # handle group and campaign events
+            # save which urns were updated
             updated_urns = urn_objects.keys()
-            contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
 
             # add remaining already owned URNs and attach to contact object so that calling code can easily fetch the
             # actual URN object for each URN tuple it requested
             urn_objects.update(existing_owned_urns)
             contact.urn_objects = urn_objects
 
-            # record contact creation in analytics
-            if getattr(contact, 'is_new', False):
-                params = dict(name=name)
+        # record contact creation in analytics
+        if getattr(contact, 'is_new', False):
+            params = dict(name=name)
 
-                # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-                # assign them property names with added count
-                urns_for_scheme_counts = dict()
-                for scheme, path in urn_objects.keys():
-                    count = urns_for_scheme_counts.get(scheme, 1)
-                    urns_for_scheme_counts[scheme] = count + 1
-                    params["%s%d" % (scheme, count)] = path
+            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
+            # assign them property names with added count
+            urns_for_scheme_counts = dict()
+            for scheme, path in urn_objects.keys():
+                count = urns_for_scheme_counts.get(scheme, 1)
+                urns_for_scheme_counts[scheme] = count + 1
+                params["%s%d" % (scheme, count)] = path
 
-                analytics.track(user.username, 'temba.contact_created', params)
+            analytics.track(user.username, 'temba.contact_created', params)
+
+        # handle group and campaign updates
+        contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
 
         return contact
 
@@ -808,15 +853,17 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         contact_dict['groups'] = ",".join([_.name for _ in self.groups.all()])
         contact_dict['uuid'] = self.uuid
 
-
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
             urn_value = self.get_urn_display(scheme=scheme, org=org)
             contact_dict[scheme] = urn_value if not urn_value is None else ''
 
+        # get all the values for this contact
+        contact_values = {v.contact_field.key: v for v in Value.objects.filter(contact=self).exclude(contact_field=None).select_related('contact_field')}
+
         # add all fields
-        for field in ContactField.objects.filter(org_id=self.org_id):
-            field_value = self.get_field_display(field.key)
+        for field in ContactField.objects.filter(org_id=self.org_id).select_related('org'):
+            field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
             contact_dict[field.key] = field_value if not field_value is None else ''
 
         return contact_dict
@@ -1216,7 +1263,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()
+        full_group_name = name.strip()[:64]
         if not full_group_name:
             raise ValueError("Group name cannot be blank")
 
@@ -1468,5 +1515,8 @@ class ExportContactsTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username, subject,
-                          template, dict(link='http://%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, self.filename)), branding)
+        send_temba_email(self.created_by.username,
+                         subject,
+                         template,
+                         dict(link='https://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         branding)

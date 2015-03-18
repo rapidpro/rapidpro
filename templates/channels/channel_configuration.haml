@@ -50,6 +50,38 @@
 
     %hr
 
+  -elif object.channel_type == 'CT'
+    %h4
+      -blocktrans
+        To finish configuring your Clickatell connection you'll need to set the following callback URLs on the
+        Clickatell website under your account.
+
+    %h4
+      -trans "Primary Callback URL"
+
+    %p
+      -blocktrans
+        You can set the callback URL on your Clickatell account by managing your two way number, then setting your reply
+        path to HTTP GET and your target address to the URL below. (leave username and password blank)
+
+    %code
+      https://{{ domain }}{% url 'api.clickatell_handler' 'receive' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "Message Delivery Notifications URL"
+
+    %p
+      -blocktrans
+        To receive updated statuses on the messages you send you need to edit your HTTP API endpoint on your Clickatell
+        account and set the message delivery notifications to the URL below. (pick HTTP Get as the Method)
+
+    %code
+      https://{{ domain }}{% url 'api.clickatell_handler' 'status' object.uuid %}
+
+    %hr
+
 
   -elif object.channel_type == 'SQ'
     %h4

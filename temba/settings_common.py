@@ -356,6 +356,7 @@ PERMISSIONS = {
     'orgs.org': ('country',
                  'clear_cache',
                  'create_login',
+                 'download',
                  'edit',
                  'export',
                  'grant',
@@ -367,6 +368,7 @@ PERMISSIONS = {
                  'manage_accounts',
                  'nexmo_account',
                  'nexmo_connect',
+                 'plivo_connect',
                  'profile',
                  'signup',
                  'trial',
@@ -383,14 +385,17 @@ PERMISSIONS = {
                          'claim',
                          'claim_africas_talking',
                          'claim_android',
+                         'claim_clickatell',
                          'claim_external',
                          'claim_hub9',
                          'claim_infobip',
                          'claim_kannel',
                          'claim_nexmo',
                          'claim_number',
+                         'claim_plivo',
                          'claim_shaqodoon',
                          'claim_twitter',
+                         'claim_verboice',
                          'claim_vumi',
                          'claim_zenvia',
                          'configuration',
@@ -450,6 +455,8 @@ PERMISSIONS = {
 
     'msgs.call': ('api',),
 
+    'msgs.label': ('api',),
+
     'triggers.trigger': ('archived',
                          'catchall',
                          'follow',
@@ -469,7 +476,6 @@ GROUP_PERMISSIONS = {
     "Alpha": (
     ),
     "Beta": (
-        'channels.channel_claim_twitter',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -509,6 +515,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_country',
+        'orgs.org_download',
         'orgs.org_edit',
         'orgs.org_export',
         'orgs.org_home',
@@ -517,6 +524,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_manage_accounts',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
+        'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
@@ -532,12 +540,16 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim',
         'channels.channel_claim_africas_talking',
         'channels.channel_claim_android',
+        'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_kannel',
         'channels.channel_claim_number',
+        'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
+        'channels.channel_claim_twitter',
+        'channels.channel_claim_verboice',
         'channels.channel_claim_vumi',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
@@ -617,6 +629,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
         'orgs.org_import',
@@ -691,6 +704,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
         'locations.adminboundary_alias',
 
+        'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
         'orgs.org_profile',
@@ -818,6 +832,14 @@ CELERYBEAT_SCHEDULE = {
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
+    },
+    "trim-channel-log": {
+        'task': 'trim_channel_log_task',
+        'schedule': crontab(hour=3, minute=0),
+    },
+    "calculate-credit-caches": {
+        'task': 'calculate_credit_caches',
+        'schedule': timedelta(days=3),
     }
 }
 
@@ -825,6 +847,7 @@ CELERYBEAT_SCHEDULE = {
 CELERY_TASK_MAP = {
     'send_msg_task': 'temba.channels.tasks.send_msg_task',
     'start_msg_flow_batch': 'temba.flows.tasks.start_msg_flow_batch_task',
+    'handle_event_task': 'temba.msgs.tasks.handle_event_task',
 }
 
 #-----------------------------------------------------------------------------------
@@ -869,7 +892,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'temba.api.authentication.APITokenAuthentication',
     ),
-    'PAGINATE_BY': 10,
+    'PAGINATE_BY': 250,
     'DEFAULT_RENDERER_CLASSES': (
         'temba.api.renderers.PostFormAPIRenderer',
         'rest_framework.renderers.JSONRenderer',

@@ -13,7 +13,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, INITIALIZING
+from temba.msgs.models import Msg, Call, Broadcast, Label
 from temba.values.models import Value, VALUE_TYPE_CHOICES
 
 
@@ -115,6 +115,88 @@ class MsgReadSerializer(serializers.ModelSerializer):
         model = Msg
         fields = ('id', 'contact', 'urn', 'status', 'type', 'labels', 'relayer', 'relayer_phone', 'phone', 'direction', 'text', 'created_on', 'sent_on', 'delivered_on')
         read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
+
+
+class LabelReadSerializer(serializers.ModelSerializer):
+    uuid = serializers.Field(source='uuid')
+    name = serializers.Field(source='name')
+    parent = serializers.SerializerMethodField('get_parent')
+    count = serializers.SerializerMethodField('get_count')
+
+    def get_parent(self, obj):
+        return obj.parent.uuid if obj.parent_id else None
+
+    def get_count(self, obj):
+        return obj.get_message_count()
+
+    class Meta:
+        model = Label
+        fields = ('uuid', 'name', 'parent', 'count')
+
+
+class LabelWriteSerializer(serializers.Serializer):
+    uuid = serializers.CharField(required=False)
+    name = serializers.CharField(required=True)
+    parent = serializers.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        if 'user' in kwargs:
+            self.user = kwargs.pop('user')
+
+        super(LabelWriteSerializer, self).__init__(*args, **kwargs)
+
+    def validate_uuid(self, attrs, source):
+        org = self.user.get_org()
+        uuid = attrs.get(source, None)
+
+        if uuid and not Label.objects.filter(org=org, uuid=uuid).exists():
+            raise ValidationError("No such message label with UUID: %s" % uuid)
+
+        return attrs
+
+    def validate_name(self, attrs, source):
+        org = self.user.get_org()
+        uuid = attrs.get('uuid', None)
+        name = attrs.get(source, None)
+        parent = attrs.get('parent', None)
+
+        if Label.objects.filter(org=org, name=name, parent__uuid=parent).exclude(uuid=uuid).exists():
+            raise ValidationError("Label name must be unique")
+
+        return attrs
+
+    def validate_parent(self, attrs, source):
+        org = self.user.get_org()
+        parent = attrs.get(source, None)
+
+        if parent:
+            parent_obj = Label.objects.filter(org=org, uuid=parent).first()
+            if not parent_obj:
+                raise ValidationError("No such message label with UUID: %s" % parent)
+            if parent_obj.parent_id:
+                raise ValidationError("Message labels can only be nested one-level deep")
+
+            attrs[source] = parent_obj
+
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        org = self.user.get_org()
+        uuid = attrs.get('uuid', None)
+        name = attrs.get('name', None)
+        parent = attrs.get('parent', None)
+
+        if uuid:
+            existing = Label.objects.get(org=org, uuid=uuid)
+            existing.name = name
+            existing.parent = parent
+            existing.save()
+            return existing
+        else:
+            return Label.create(org, self.user, name, parent)
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):
@@ -425,6 +507,18 @@ class ContactFieldWriteSerializer(serializers.Serializer):
                 raise ValidationError("Invalid field value type")
         return attrs
 
+    def validate(self, attrs):
+
+        key = attrs.get('key', None)
+        label = attrs.get('label')
+
+        if not key:
+            key = ContactField.api_make_key(label)
+
+        attrs['key'] = key
+        return attrs
+
+
     def restore_object(self, attrs, instance=None):
         """
         Update our contact field
@@ -433,12 +527,9 @@ class ContactFieldWriteSerializer(serializers.Serializer):
             raise ValidationError("Invalid operation")
 
         org = self.user.get_org()
-        key = attrs.get('key', None)
+        key = attrs.get('key')
         label = attrs.get('label')
         value_type = attrs.get('value_type')
-
-        if not key:
-            key = ContactField.make_key(label)
 
         return ContactField.get_or_create(org, key, label, value_type=value_type)
 
@@ -605,7 +696,8 @@ class CampaignEventWriteSerializer(serializers.Serializer):
         existing_field = ContactField.objects.filter(label=relative_to, org=org, is_active=True)
 
         if not existing_field:
-            relative_to_field = ContactField.get_or_create(org, ContactField.make_key(relative_to), relative_to)
+            key = ContactField.api_make_key(relative_to)
+            relative_to_field = ContactField.get_or_create(org, key, relative_to)
         else:
             relative_to_field = existing_field[0]
 
@@ -746,7 +838,10 @@ class FlowReadSerializer(serializers.ModelSerializer):
     def get_rulesets(self, obj):
         rulesets = list()
         for ruleset in obj.rule_sets.all().order_by('y'):
-            rulesets.append(dict(label=ruleset.label, id=ruleset.id, node=ruleset.uuid))
+            rulesets.append(dict(node=ruleset.uuid,
+                                 label=ruleset.label,
+                                 response_type=ruleset.response_type,
+                                 id=ruleset.id))  # deprecated
 
         return rulesets
 
@@ -754,6 +849,60 @@ class FlowReadSerializer(serializers.ModelSerializer):
         model = Flow
         fields = ('uuid', 'archived', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
                   'created_on', 'flow')
+
+
+class FlowWriteSerializer(serializers.Serializer):
+    uuid = serializers.CharField(required=False, max_length=36)
+    name = serializers.CharField(required=True)
+    flow_type = serializers.CharField(required=True)
+    definition = serializers.WritableField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        if 'user' in kwargs:
+            self.user = kwargs.pop('user')
+
+        super(FlowWriteSerializer, self).__init__(*args, **kwargs)
+
+    def validate_uuid(self, attrs, source):
+        org = self.user.get_org()
+        uuid = attrs.get(source, None)
+
+        if uuid and not Flow.objects.filter(org=org, uuid=uuid).exists():
+            raise ValidationError("No such flow with UUID: %s" % uuid)
+        return attrs
+
+    def validate_flow_type(self, attrs, source):
+        flow_type = attrs.get(source, None)
+
+        if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
+            raise ValidationError("Invalid flow type: %s" % flow_type)
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        """
+        Update our flow
+        """
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        org = self.user.get_org()
+        uuid = attrs.get('uuid', None)
+        name = attrs['name']
+        flow_type = attrs['flow_type']
+        definition = attrs.get('definition', None)
+
+        if uuid:
+            flow = Flow.objects.get(org=org, uuid=uuid)
+            flow.name = name
+            flow.flow_type = flow_type
+            flow.save()
+        else:
+            flow = Flow.create(org, self.user, name, flow_type)
+
+        if definition:
+            flow.update(definition, self.user, force=True)
+
+        return flow
 
 
 class FlowField(serializers.PrimaryKeyRelatedField):
@@ -793,6 +942,7 @@ class FlowRunStartSerializer(serializers.Serializer):
     groups = StringArrayField(required=False)
     contacts = StringArrayField(required=False)
     extra = DictionaryField(required=False)
+    restart_participants = serializers.BooleanField(required=False, default=True)
     flow = FlowField(required=False, queryset=Flow.objects.filter(pk=-1))  # deprecated, use flow_uuid
     contact = StringArrayField(required=False)  # deprecated, use contacts
     phone = PhoneField(required=False)  # deprecated
@@ -884,20 +1034,22 @@ class FlowRunStartSerializer(serializers.Serializer):
         if org.is_anon:
             raise ValidationError("Cannot start flows for anonymous organizations")
 
-        # get a channel
-        channel = self.org.get_send_channel(TEL_SCHEME)
+        numbers = attrs.get(source, [])
+        if numbers:
+            # get a channel
+            channel = self.org.get_send_channel(TEL_SCHEME)
 
-        if channel:
-            # check our numbers for validity
-            for tel, phone in attrs.get(source, []):
-                try:
-                    normalized = phonenumbers.parse(phone, channel.country.code)
-                    if not phonenumbers.is_possible_number(normalized):
+            if channel:
+                # check our numbers for validity
+                for tel, phone in numbers:
+                    try:
+                        normalized = phonenumbers.parse(phone, channel.country.code)
+                        if not phonenumbers.is_possible_number(normalized):
+                            raise ValidationError("Invalid phone number: '%s'" % phone)
+                    except:
                         raise ValidationError("Invalid phone number: '%s'" % phone)
-                except:
-                    raise ValidationError("Invalid phone number: '%s'" % phone)
-        else:
-            raise ValidationError("You cannot start flows without at least one channel configured")
+            else:
+                raise ValidationError("You cannot start a flow for a phone number without a phone channel")
 
         return attrs
 
@@ -915,6 +1067,7 @@ class FlowRunStartSerializer(serializers.Serializer):
         groups = attrs.get('groups', [])
         contacts = attrs.get('contacts', [])
         extra = attrs.get('extra', None)
+        restart_participants = attrs.get('restart_participants', True)
 
         # include contacts created/matched via deprecated phone field
         phone_urns = attrs.get('phone', [])
@@ -926,7 +1079,7 @@ class FlowRunStartSerializer(serializers.Serializer):
                 contacts.append(contact)
 
         if contacts or groups:
-            return flow.start(groups, contacts, restart_participants=True, extra=extra)
+            return flow.start(groups, contacts, restart_participants=restart_participants, extra=extra)
         else:
             return []
 
@@ -957,6 +1110,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     values = serializers.SerializerMethodField('get_values')
     steps = serializers.SerializerMethodField('get_steps')
     contact = serializers.SerializerMethodField('get_contact_uuid')
+    completed = serializers.SerializerMethodField('is_completed')
     flow = serializers.SerializerMethodField('get_flow')  # deprecated, use flow_uuid
     phone = serializers.SerializerMethodField('get_phone')  # deprecated, use contact
 
@@ -971,6 +1125,9 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
+
+    def is_completed(self, obj):
+        return obj.is_completed()
 
     def get_values(self, obj):
         results = obj.flow.get_results(obj.contact, run=obj)
@@ -993,7 +1150,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'phone', 'values', 'steps', 'created_on')
+        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'phone', 'values', 'steps', 'created_on')
         read_only_fields = ('created_on',)
 
 
@@ -1010,7 +1167,6 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
     contacts = serializers.SerializerMethodField('get_contacts')
     groups = serializers.SerializerMethodField('get_groups')
     text = serializers.Field(source='text')
-    messages = serializers.SerializerMethodField('get_messages')
     created_on = serializers.Field(source='created_on')
     status = serializers.Field(source='status')
 
@@ -1023,15 +1179,9 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
     def get_groups(self, obj):
         return [group.uuid for group in obj.groups.all()]
 
-    def get_messages(self, obj):
-        if obj.status == INITIALIZING:
-            return []
-        else:
-            return [msg.id for msg in obj.get_messages()]
-
     class Meta:
         model = Broadcast
-        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'messages', 'created_on', 'status')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
 
 
 class BroadcastCreateSerializer(serializers.Serializer):

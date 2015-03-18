@@ -7,6 +7,7 @@ from datetime import datetime, date
 from django.utils import timezone
 
 from django_hstore.apps import register_hstore_handler
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -22,6 +23,7 @@ from temba.orgs.models import Org, OrgFolder
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label
 from temba.tests import AnonymousOrg, TembaTest
+from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import STATE
 
@@ -232,6 +234,48 @@ class ContactGroupTest(TembaTest):
         response = self.client.get(filter_url)
         self.assertFalse('unlabel' in response.context['actions'])
 
+    def test_delete(self):
+        group = ContactGroup.create(self.org, self.user, "one")
+
+        self.login(self.admin)
+
+        response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
+        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+
+        group = ContactGroup.create(self.org, self.user, "one")
+        delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
+
+        trigger = Trigger.objects.create(org=self.org, keyword="join", created_by=self.admin, modified_by=self.admin)
+        trigger.groups.add(group)
+
+        second_trigger = Trigger.objects.create(org=self.org, keyword="register", created_by=self.admin, modified_by=self.admin)
+        second_trigger.groups.add(group)
+
+        response = self.client.post(delete_url, dict())
+        self.assertEquals(302, response.status_code)
+        response = self.client.post(delete_url, dict(), follow=True)
+        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
+
+        # archive a trigger
+        second_trigger.is_archived = True
+        second_trigger.save()
+
+        response = self.client.post(delete_url, dict())
+        self.assertEquals(302, response.status_code)
+        response = self.client.post(delete_url, dict(), follow=True)
+        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
+
+        trigger.is_archived = True
+        trigger.save()
+
+        response = self.client.post(delete_url, dict())
+        # group should have is_active = False and all its triggers
+        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
+        self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
+
 
 class ContactTest(TembaTest):
     def setUp(self):
@@ -279,7 +323,7 @@ class ContactTest(TembaTest):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
         msg3 = self.create_msg(text="Test 3", direction='I', contact=self.joe, msg_type='I', status='H', visibility='A')
-        label = Label.objects.create(org=self.org, name="Interesting")
+        label = Label.create(self.org, self.user, "Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         group = self.create_group("Just Joe", [self.joe])
 
@@ -629,7 +673,7 @@ class ContactTest(TembaTest):
         self.assertEquals(1, len(response['results']))
 
         # lookup by label ids
-        label = Label.objects.create(name="msg label", parent=None, org=self.org)
+        label = Label.create(self.org, self.user, "msg label")
         response = json.loads(self.client.get("%s?l=%s" % (reverse("contacts.contact_omnibox"), label.pk)).content)
         self.assertEquals(0, len(response['results']))
 
@@ -1402,6 +1446,34 @@ class ContactTest(TembaTest):
             self.mary.update_urns([('tel', "54321"), ('twitter', 'mary_mary')])
             self.assertEquals([self.frank, self.joe], list(_123_group.contacts.order_by('name')))
 
+    def test_simulator_contact_views(self):
+        simulator_contact = self.create_contact("Simulator Contact", "+250788123123")
+        simulator_contact.is_test = True
+        simulator_contact.save()
+
+        other_contact = self.create_contact("Will", "+250788987987")
+
+        group = self.create_group("Members", [simulator_contact, other_contact])
+
+        self.login(self.admin)
+        response = self.client.get(reverse('contacts.contact_read', args=[simulator_contact.uuid]))
+        self.assertEquals(response.status_code, 404)
+
+        response = self.client.get(reverse('contacts.contact_update', args=[simulator_contact.pk]))
+        self.assertEquals(response.status_code, 404)
+
+        response = self.client.get(reverse('contacts.contact_list'))
+        self.assertEquals(response.status_code, 200)
+        self.assertFalse(simulator_contact in response.context['object_list'])
+        self.assertTrue(other_contact in response.context['object_list'])
+        self.assertFalse("Simulator Contact" in response.content)
+
+        response = self.client.get(reverse('contacts.contact_filter', args=[group.pk]))
+        self.assertEquals(response.status_code, 200)
+        self.assertFalse(simulator_contact in response.context['object_list'])
+        self.assertTrue(other_contact in response.context['object_list'])
+        self.assertFalse("Simulator Contact" in response.content)
+
 
 class ContactURNTest(TembaTest):
     def setUp(self):
@@ -1496,6 +1568,9 @@ class ContactFieldTest(TembaTest):
         self.assertEquals("first_name", ContactField.make_key("First Name"))
         self.assertEquals("second_name", ContactField.make_key("Second   Name  "))
         self.assertEquals("323_ffsn_slfs_ksflskfs_fk_anfaddgas", ContactField.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "))
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("Name")
 
     def test_export(self):
         from xlrd import open_workbook, xldate_as_tuple, XL_CELL_DATE, XLRDError

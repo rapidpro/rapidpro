@@ -1,0 +1,31 @@
+-extends "smartmin/update.html"
+
+-load smartmin
+
+-block post-form
+  -if perms.auth.user_mimic
+    <form class="smartmin-form form-horizontal" action="{% url 'users.user_mimic' object.id %}" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      .control-group{ style:"margin-top:15px" }
+        %label.control-label
+          Login as
+        .controls
+          %button.btn.btn-primary{type:"submit"}
+            {{object|user_as_string}}
+    </form>
+
+- block extra-style
+  {{block.super}}
+  :css
+    .smartmin-form-buttons button[type="submit"] {
+      margin-left: 0px;
+    }
+
+    .form-horizontal .controls {
+      margin-left: 160px;
+    }
+
+    .controls #id_groups {
+      margin-left: 0px;
+    }
+

@@ -1,0 +1,23 @@
+-extends "smartmin/base.html"
+-load i18n
+
+-block title
+  .title-icon
+    .glyph.icon-download{style:"float:left;"}
+  .title-text
+    %h1
+      {{title}}
+
+- block content
+  .{style:"margin:30px 0;"}
+    -blocktrans
+      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.
+  %a.btn.btn-primary{href:"?download=1"}
+    .glyph.icon-download{style:"margin-right:5px;"}
+    -trans "Download Now"
+
+-block extra-script
+  :javascript
+    $(document).ready(function() {
+      window.location.href += "?download=1";
+    });

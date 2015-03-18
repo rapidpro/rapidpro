@@ -7,9 +7,6 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
 
   link = (scope, element, attrs) ->
 
-    # set our initial location
-    element.css('left', scope.node.x + 'px').css('top', scope.node.y + 'px')
-
     if window.mutable
       # jsplumb can drop on to us
       Plumb.makeTarget(element, attrs.dropScope)
@@ -129,10 +126,6 @@ app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $lo
       else
         source.removeClass('terminal')
 
-    #scope.$watch (->scope.actionset.destination), (now) ->
-    #  $log.debug("Destination has changed: ", now)
-    #  Plumb.connect(scope.actionset.uuid, now, 'rules', false)
-
   return {
     link: link
     scope:
@@ -141,7 +134,7 @@ app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $lo
 ]
 
 # update translations when actions or language
-app.directive "action", [ "Plumb", "Flow", (Plumb, Flow) ->
+app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
   link = (scope, element, attrs) ->
 
     scope.updateTranslationStatus = (action, baseLanguage, currentLanguage) ->
@@ -174,6 +167,7 @@ app.directive "action", [ "Plumb", "Flow", (Plumb, Flow) ->
         if action._translation_recording
           action._translation_recording = window.recordingURL + action._translation_recording
 
+      Flow.updateTranslationStats()
 
       Plumb.repaint(element.parents('.node').find('.source'))
 
@@ -240,6 +234,7 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           else
             category._translation = category.name
 
+      Flow.updateTranslationStats()
       Plumb.repaint(element)
 
     scope.$watch (->scope.ruleset), ->
@@ -249,10 +244,6 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
     scope.$watch (->scope.$root.language), ->
       scope.updateTranslationStatus(scope.ruleset, scope.$root.flow.base_language, scope.$root.language)
-
-    #scope.$watch (->scope.ruleset.destination), (old, now) ->
-    #  $log.debug("Destination has changed: ", scope.ruleset.destination, old, now)
-
 
   return {
     restrict: "A"
@@ -279,10 +270,23 @@ app.directive "operatorName", [ "Flow", (Flow) ->
 ]
 
 # turn an element into a jsplumb source
-app.directive "source", [ 'Plumb', (Plumb) ->
+app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
   link = (scope, element, attrs) ->
     if window.mutable
       Plumb.makeSource(element, attrs.dropScope)
+
+      # don't allow connections to be dragged from connected sources
+      if scope.action_set
+        scope.$watch (->scope.action_set.destination), (destination) ->
+          scope.$evalAsync ->
+            if !scope.action_set._terminal
+              Plumb.setSourceEnabled(element, !destination?)
+
+      else if scope.category
+        scope.$watch (->scope.category.target), (target) ->
+          scope.$evalAsync ->
+            Plumb.setSourceEnabled(element, !target?)
+
   return {
     link: link
     restrict: 'C'

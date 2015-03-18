@@ -183,7 +183,7 @@ class PerformanceTest(TembaTest):
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            label = Label.objects.create(org=self.org, name=name, label_type='M')
+            label = Label.create(self.org, self.user, name)
             labels.append(label)
 
             assign_to = messages[(g % num_bases)::num_bases]

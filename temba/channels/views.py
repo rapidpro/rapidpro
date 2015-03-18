@@ -1,38 +1,43 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import base64
 import hashlib
 import hmac
 import json
-from django.core.exceptions import ValidationError
 import phonenumbers
+import plivo
+import pycountry
 import pytz
 import time
-from collections import OrderedDict
 
+from collections import OrderedDict
 from datetime import datetime, timedelta
+from django import forms
+from django.conf import settings
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
 from django.db.models import Count
-from django.http import Http404
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
-from smartmin.views import *
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
+from smartmin.views import SmartCRUDL, SmartReadView
+from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
+from temba.ivr.models import IVRCall
+from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
 from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, SHAQODOON
-from .models import PASSWORD, RECEIVE, SEND, SEND_METHOD, SEND_URL, USERNAME
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI
-from .models import Channel, SyncEvent, Alert, ChannelLog
-from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME
+from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO
+from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
@@ -41,6 +46,8 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       NEXMO: "icon-channel-nexmo",
                       VERBOICE: "icon-channel-external",
                       TWILIO: "icon-channel-twilio",
+                      PLIVO: "icon-channel-plivo",
+                      CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
@@ -118,6 +125,27 @@ NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
 NEXMO_SUPPORTED_COUNTRY_CODES  = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
                                   60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265]
 
+PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
+                             ('BE', _('Belgium')),
+                             ('CA', _('Canada')),
+                             ('CZ', _('Czech Republic')),
+                             ('EE', _('Estonia')),
+                             ('FI', _('Finland')),
+                             ('DE', _('Germany')),
+                             ('HK', _('Hong Kong')),
+                             ('HU', _('Hungary')),
+                             ('IL', _('Israel')),
+                             ('LT', _('Lithuania')),
+                             ('MX', _('Mexico')),
+                             ('NO', _('Norway')),
+                             ('PK', _('Pakistan')),
+                             ('PL', _('Poland')),
+                             ('SE', _('Sweden')),
+                             ('CH', _('Switzerland')),
+                             ('GB', _('United Kingdom')),
+                             ('US', _('United States')))
+
+PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 46, 41, 44]
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
@@ -461,7 +489,8 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_number',
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
-               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon', 'claim_verboice')
+               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -527,15 +556,17 @@ class ChannelCRUDL(SmartCRUDL):
             if not channel.is_active:
                 raise Http404("No active channel with that id")
 
+            ivr_count = Msg.objects.filter(channel=self.object, msg_type=IVR).exclude(contact__is_test=True).count()
             context['channel_errors'] = ChannelLog.objects.filter(msg__channel=self.object, is_error=True)
-            context['sms_count'] = Msg.objects.filter(channel=self.object).count()
+            context['sms_count'] = Msg.objects.filter(channel=self.object).exclude(msg_type=IVR).exclude(contact__is_test=True).count()
+            context['ivr_count'] = ivr_count
 
             ## power source stats data
-            source_stats = [[_['power_source'], _['count']] for _ in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
+            source_stats = [[event['power_source'], event['count']] for event in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
             context['source_stats'] = source_stats
 
             ## network connected to stats
-            network_stats = [[_['network_type'], _['count']] for _ in sync_events.order_by('network_type').values('network_type').annotate(count=Count('network_type'))]
+            network_stats = [[event['network_type'], event['count']] for event in sync_events.order_by('network_type').values('network_type').annotate(count=Count('network_type'))]
             context['network_stats'] = network_stats
 
             total_network = 0
@@ -577,11 +608,12 @@ class ChannelCRUDL(SmartCRUDL):
                 if unsent_msgs:
                     context['unsent_msgs_count'] = unsent_msgs.count()
 
-            end_date = timezone.now()
-            start_date = end_date - timedelta(days=30)
+            end_date = timezone.now() + timedelta(days=1)
+            start_date = end_date - timedelta(days=31)
 
-            incoming_stats = []
-            outgoing_stats = []
+            context['start_date'] = start_date.date()
+            context['end_date'] = end_date.date()
+
             message_stats = []
 
             # build up the channels we care about for outgoing messages
@@ -589,36 +621,86 @@ class ChannelCRUDL(SmartCRUDL):
             for sender in Channel.objects.filter(parent=channel):
                 outgoing_channels.append(sender)
 
-            # get our incoming messages by date
-            incoming = list(channel.msgs.filter(created_on__gte=start_date, direction='I', contact__is_test=False).extra(
-                {'date_created': "date(msgs_msg.created_on)"}).order_by('date_created').values('date_created').annotate(created_count=Count('id')))
+            # Show sms messages in a stacked column
+            incoming = list(channel.msgs.filter(created_on__gte=start_date, direction='I', contact__is_test=False).exclude(msg_type=IVR).extra(
+                {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-            outgoing = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False).extra(
-                {'date_created': "date(msgs_msg.created_on)"}).order_by('date_created').values('date_created').annotate(created_count=Count('id')))
+            outgoing = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False).exclude(msg_type=IVR).extra(
+                {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-            while start_date <= end_date:
-                day = start_date.date()
+            message_stats.append(dict(name=_('Incoming Text'), data=incoming))
+            message_stats.append(dict(name=_('Outgoing Text'), data=outgoing))
 
-                in_count = 0
-                if incoming and incoming[0]['date_created'] == day:
-                    in_count = incoming[0]['created_count']
-                    incoming.pop(0)
+            # Show ivr messages in the same stack
+            ivr_in = []
+            ivr_out = []
+            if ivr_count:
+                ivr_out = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False, msg_type=IVR).extra(
+                    {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-                out_count = 0
-                if outgoing and outgoing[0]['date_created'] == day:
-                    out_count = outgoing[0]['created_count']
-                    outgoing.pop(0)
+                ivr_in = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='I', contact__is_test=False, msg_type=IVR).extra(
+                    {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
+                message_stats.append(dict(name=_('Incoming IVR'), data=ivr_in))
+                message_stats.append(dict(name=_('Outgoing IVR'), data=ivr_out))
 
-                incoming_stats.append(dict(date=start_date, count=in_count))
-                outgoing_stats.append(dict(date=start_date, count=out_count))
+                from django.db.models import Sum
+                context['call_duration'] = list(IVRCall.objects.filter(
+                    channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False)
+                    .extra({'date': "date(ivr_ivrcall.created_on)"})
+                    .order_by('date').values('date')
+                    .annotate(duration=Sum('duration')))
 
-                start_date += timedelta(days=1)
-
-            message_stats.append(dict(name='Incoming', data=incoming_stats))
-            message_stats.append(dict(name='Outgoing', data=outgoing_stats))
+                print context['call_duration']
 
             context['message_stats'] = message_stats
-            context['has_messages'] = len(incoming_stats) or len(outgoing_stats)
+            context['has_messages'] = len(incoming) or len(outgoing) or len(ivr_in) or len(ivr_out)
+
+            message_stats_table = []
+
+            now = timezone.now()
+            month_end_time = now
+            month_start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            channel_added_on = channel.created_on
+
+            for i in range(12):
+                if month_end_time > channel_added_on:
+                    incoming_messages_count = Msg.objects.filter(channel=self.object,
+                                                                 created_on__lt=month_end_time,
+                                                                 created_on__gte=month_start_time,
+                                                                 contact__is_test=False,
+                                                                 direction='I').exclude(msg_type=IVR).count()
+
+                    outgoing_messages_count = Msg.objects.filter(channel=self.object,
+                                                                 created_on__lt=month_end_time,
+                                                                 created_on__gte=month_start_time,
+                                                                 contact__is_test=False,
+                                                                 direction='O').exclude(msg_type=IVR).count()
+
+                    incoming_ivr_count = Msg.objects.filter(channel=self.object,
+                                                            created_on__lt=month_end_time,
+                                                            created_on__gte=month_start_time,
+                                                            contact__is_test=False,
+                                                            msg_type=IVR,
+                                                            direction='I').count()
+
+                    outgoing_ivr_count = Msg.objects.filter(channel=self.object,
+                                                            created_on__lt=month_end_time,
+                                                            created_on__gte=month_start_time,
+                                                            contact__is_test=False,
+                                                            msg_type=IVR,
+                                                            direction='O').count()
+
+                    message_stats_table.append(dict(month_start=month_start_time,
+                                                    incoming_messages_count=incoming_messages_count,
+                                                    outgoing_messages_count=outgoing_messages_count,
+                                                    incoming_ivr_count=incoming_ivr_count,
+                                                    outgoing_ivr_count=outgoing_ivr_count))
+                month_end_time = month_start_time
+                month_start_time = (month_start_time - timedelta(days=7)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+            context['message_stats_table'] = message_stats_table
 
             return context
 
@@ -709,6 +791,12 @@ class ChannelCRUDL(SmartCRUDL):
                     channel.address = obj.address
                     channel.uuid = e164_phone_number
                     channel.save()
+
+            if obj.channel_type == TWITTER:
+                # notify Mage so that it refreshes this channel
+                from .tasks import MageStreamAction, notify_mage_task
+                notify_mage_task.delay(obj.uuid, MageStreamAction.refresh)
+
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
@@ -722,6 +810,9 @@ class ChannelCRUDL(SmartCRUDL):
             twilio_countries_str += ' ' + unicode(_('or')) + ' ' + twilio_countries[-1]
 
             context['twilio_countries'] = twilio_countries_str
+
+            org = self.request.user.get_org()
+            context['recommended_channel'] = org.get_recommended_channel()
 
             return context
 
@@ -1143,6 +1234,55 @@ class ChannelCRUDL(SmartCRUDL):
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
 
+    class ClaimClickatell(ClaimAuthenticatedExternal):
+        class ClickatellForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
+            api_id = forms.CharField(label=_("API ID"),
+                                     help_text=_("Your API ID as provided by Clickatell"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username for your Clickatell account"))
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password for your Clickatell account"))
+
+            def clean_number(self):
+                # if this is a long number, try to normalize it
+                number = self.data['number']
+                if len(number) >= 8:
+                    try:
+                        cleaned = phonenumbers.parse(number, self.data['country'])
+                        return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
+                    except:
+                        raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
+                else:
+                    return number
+
+        title = _("Connect Clickatell")
+        channel_type = CLICKATELL
+        form_class = ClickatellForm
+        fields = ('country', 'number', 'api_id', 'username', 'password')
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org:  # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+            self.object = Channel.add_config_external_channel(org, self.request.user,
+                                                              data['country'], data['number'], CLICKATELL,
+                                                              dict(api_id=data['api_id'],
+                                                                   username=data['username'],
+                                                                   password=data['password']))
+
+            # make sure all contacts added before the channel are normalized
+            self.object.ensure_normalized_contacts()
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
+
+
     class ClaimAfricasTalking(OrgPermsMixin, SmartFormView):
         class ATClaimForm(forms.Form):
             shortcode = forms.CharField(max_length=6, min_length=1,
@@ -1489,6 +1629,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return channel
 
+        def remove_api_credentials_from_session(self):
+            pass
+
         def form_valid(self, form, *args, **kwargs):
 
             # must have an org
@@ -1531,6 +1674,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 # make sure all contacts added before the channel are normalized
                 channel.ensure_normalized_contacts()
+                self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
             except Exception as e:
@@ -1640,6 +1784,161 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
                 return HttpResponse(json.dumps(error=str(e)))
+
+    class ClaimPlivo(ClaimNumber):
+        class ClaimPlivoForm(forms.Form):
+            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+            phone_number = forms.CharField(help_text=_("The phone number being added"))
+
+            def clean_phone_number(self):
+                if not self.cleaned_data.get('country', None):
+                    raise ValidationError(_("That number is not currently supported."))
+
+                phone = self.cleaned_data['phone_number']
+                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
+
+                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
+
+        form_class = ClaimPlivoForm
+        template_name = 'channels/channel_claim_plivo.html'
+
+        def pre_process(self, *args, **kwargs):
+            client = self.get_valid_client()
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_valid_client(self):
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            try:
+                client = plivo.RestAPI(auth_id, auth_token)
+                validation_response = client.get_account()
+                if validation_response[0] != 200:
+                    client = None
+            except plivo.PlivoError:
+                client = None
+
+            return client
+
+        def is_valid_country(self, country_code):
+            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+
+        def get_search_url(self):
+            return reverse('channels.channel_search_plivo')
+
+        def get_claim_url(self):
+            return reverse('channels.channel_claim_plivo')
+
+        def get_supported_countries_tuple(self):
+            return PLIVO_SUPPORTED_COUNTRIES
+
+        def get_search_countries_tuple(self):
+            return PLIVO_SUPPORTED_COUNTRIES
+
+        def get_existing_numbers(self, org):
+            client = self.get_valid_client()
+
+            account_numbers = []
+            if client:
+                status, data = client.get_numbers()
+
+                if status == 200:
+                    for number_dict in data['objects']:
+
+                        region = number_dict['region']
+                        country_name = region.split(',')[-1].strip().title()
+                        country = pycountry.countries.get(name=country_name).alpha2
+
+                        if len(number_dict['number']) <= 6:
+                            phone_number = number_dict['number']
+                        else:
+                            parsed = phonenumbers.parse('+' + number_dict['number'], None)
+                            phone_number = phonenumbers.format_number(parsed,
+                                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+
+                        account_numbers.append(dict(number=phone_number, country=country))
+
+            return account_numbers
+
+        def claim_number(self, user, phone_number, country):
+
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            # add this channel
+            channel = Channel.add_plivo_channel(user.get_org(),
+                                                user,
+                                                country,
+                                                phone_number,
+                                                auth_id,
+                                                auth_token)
+
+            analytics.track(user.username, 'temba.channel_claim_plivo', dict(number=phone_number))
+
+            return channel
+
+        def remove_api_credentials_from_session(self):
+            if PLIVO_AUTH_ID in self.request.session:
+                del self.request.session[PLIVO_AUTH_ID]
+            if PLIVO_AUTH_TOKEN in self.request.session:
+                del self.request.session[PLIVO_AUTH_TOKEN]
+
+    class SearchPlivo(SearchNumbers):
+        class SearchPlivoForm(forms.Form):
+            area_code = forms.CharField(max_length=3, min_length=3, required=False,
+                                        help_text=_("The area code you want to search for a new number in"))
+            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+
+        form_class = SearchPlivoForm
+
+        def pre_process(self, *args, **kwargs):
+            client = self.get_valid_client()
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_valid_client(self):
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            try:
+                client = plivo.RestAPI(auth_id, auth_token)
+                validation_response = client.get_account()
+
+                if validation_response[0] != 200:
+                    client = None
+            except:
+                client = None
+
+            return client
+
+        def form_valid(self, form, *args, **kwargs):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            client = self.get_valid_client()
+
+            results_numbers = []
+            try:
+                status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
+
+                if status == 200:
+                    for number_dict in response_data['objects']:
+                        results_numbers.append('+' + number_dict['number'])
+
+                numbers = []
+                for number in results_numbers:
+                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
+                                                              phonenumbers.PhoneNumberFormat.INTERNATIONAL))
+                return HttpResponse(json.dumps(numbers))
+            except Exception as e:
+                return HttpResponse(json.dumps(dict(error=str(e))))
 
 
 class ChannelLogCRUDL(SmartCRUDL):

@@ -18,6 +18,23 @@ from django.http import HttpResponse
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 
+# these are not mapped by pytz.country_timezones
+INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
+                            'US/Alaska': 'US',
+                            'Canada/Pacific': 'CA',
+                            'US/Pacific': 'US',
+                            'Canada/Mountain': 'CA',
+                            'US/Arizona': 'US',
+                            'US/Mountain': 'US',
+                            'Canada/Central': 'CA',
+                            'US/Central': 'US',
+                            'America/Montreal': 'CA',
+                            'Canada/Eastern': 'CA',
+                            'US/Eastern': 'US',
+                            'Canada/Atlantic': 'CA',
+                            'Canada/Newfoundland': 'CA',
+                            'GMT': '',
+                            'UTC': ''}
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
     if not date_obj:
@@ -90,8 +107,23 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
+def datetime_to_json_date(dt):
+    """
+    Formats a datetime as a string for inclusion in JSON
+    """
+    # always output as UTC / Z and always include milliseconds
+    as_utc = dt.astimezone(pytz.utc)
+    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+
 def json_date_to_datetime(date_str):
-    return datetime.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
+    """
+    Parses a datetime from a JSON string value
+    """
+    iso_format = '%Y-%m-%dT%H:%M:%S.%f'
+    if date_str.endswith('Z'):
+        iso_format += 'Z'
+    return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
 
 
 def datetime_to_ms(dt):
@@ -194,7 +226,7 @@ class DictStruct(object):
         for field in datetime_fields:
             value = self._values.get(field, None)
             if value:
-                self._values[field] = datetime.datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc)
+                self._values[field] = json_date_to_datetime(value)
 
         self._initialized = True
 
@@ -235,10 +267,7 @@ class DateTimeJsonEncoder(json.JSONEncoder):
     def default(self, o):
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime.datetime):
-            # always output as UTC / Z and always include milliseconds
-            as_utc = o.astimezone(pytz.utc)
-            r = as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-            return r
+            return datetime_to_json_date(o)
         elif isinstance(o, datetime.date):
             return o.isoformat()
         elif isinstance(o, datetime.time):
@@ -278,7 +307,7 @@ def datetime_decoder(d):
                 # For Python <= 2.5 strip off microseconds
                 # v = datetime.datetime.strptime(v.rsplit('.', 1)[0],
                 #     '%Y-%m-%dT%H:%M:%S')
-                v = datetime.datetime.strptime(v, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.utc)
+                v = json_date_to_datetime(v)
             except ValueError:
                 pass
         elif isinstance(v, (dict, list)):
@@ -359,3 +388,21 @@ def non_atomic_when_eager(view_func):
         return transaction.non_atomic_requests(view_func)
     else:
         return view_func
+
+def timezone_to_country_code(tz):
+    country_timezones = pytz.country_timezones
+
+    timezone_country = INITIAL_TIMEZONE_COUNTRY
+    for countrycode in country_timezones:
+        timezones = country_timezones[countrycode]
+        for timezone in timezones:
+            timezone_country[timezone] = countrycode
+
+    return timezone_country.get(tz, '')
+
+def splitting_getlist(request, name, default=None):
+    vals = request.QUERY_PARAMS.getlist(name, default)
+    if vals and len(vals) == 1:
+        return vals[0].split(',')
+    else:
+        return vals

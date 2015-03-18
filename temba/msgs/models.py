@@ -5,7 +5,6 @@ import logging
 import os
 import pytz
 import re
-import string
 import time
 import traceback
 
@@ -19,19 +18,19 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Q, Count
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
 from django.utils.html import escape
+from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
+from temba.channels.models import Channel, ANDROID, SEND, CALL
 from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
-from temba.channels.models import Channel, ANDROID, SEND
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
 from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from unidecode import unidecode
 from uuid import uuid4
 from .handler import MessageHandler
 
@@ -40,6 +39,11 @@ __message_handlers = None
 
 MSG_QUEUE = 'msgs'
 SEND_MSG_TASK = 'send_msg_task'
+
+HANDLER_QUEUE = 'handler'
+HANDLE_EVENT_TASK = 'handle_event_task'
+MSG_EVENT = 'msg'
+FIRE_EVENT = 'fire'
 
 BATCH_SIZE = 500
 
@@ -63,12 +67,15 @@ DELETED = 'D'
 
 INBOX = 'I'
 FLOW = 'F'
+IVR = 'V'
 
 SMS_HIGH_PRIORITY = 1000
 SMS_NORMAL_PRIORITY = 500
 SMS_BULK_PRIORITY = 100
 
 BULK_THRESHOLD = 50
+
+MSG_SENT_KEY = 'msg_sent_%d'
 
 STATUS_CHOICES = (
     # special state for flows that is used to hold off sending the message until the flow is ready to receive a response
@@ -377,7 +384,6 @@ class Broadcast(models.Model):
             text = self.text
 
             if self.language_dict:
-
                 # prepend the contact language if we have one
                 if isinstance(recipient, Contact) and recipient.language:
                     preferred_languages.insert(0, recipient.language)
@@ -498,7 +504,8 @@ class Msg(models.Model, OrgAssetMixin):
                          (OUTGOING, _("Outgoing")))
 
     MSG_TYPES = ((INBOX, _("Inbox Message")),
-                 (FLOW, _("Flow Message")))
+                 (FLOW, _("Flow Message")),
+                 (IVR, _("IVR Message")))
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -575,6 +582,9 @@ class Msg(models.Model, OrgAssetMixin):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
+    recording_url = models.URLField(null=True, blank=True, max_length=255,
+                                    help_text=_("The url for any recording associated with this message"))
+
     @classmethod
     def send_messages(cls, msgs):
         """
@@ -589,13 +599,13 @@ class Msg(models.Model, OrgAssetMixin):
 
         # update them to queued
         send_messages = Msg.objects.filter(id__in=msg_ids)
-        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(topup=None).exclude(contact__is_test=True)
+        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(msg_type=IVR).exclude(topup=None).exclude(contact__is_test=True)
         send_messages.update(status=QUEUED, queued_on=queued_on)
 
         # now push each onto our queue
         for msg in msgs:
             # skip over non-android channels, messages with no top up and test contacts
-            if (msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
+            if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
                 # serialize the model to a dictionary
                 msg.queued_on = queued_on
                 task = msg.as_task_json()
@@ -712,7 +722,7 @@ class Msg(models.Model, OrgAssetMixin):
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
     @classmethod
-    def mark_error(cls, msg, fatal=False):
+    def mark_error(cls, r, msg, fatal=False):
         """
         Marks an outgoing message as FAILED or ERRORED
         :param msg: a JSON representation of the message or a Msg object
@@ -732,6 +742,9 @@ class Msg(models.Model, OrgAssetMixin):
             else:
                 Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
 
+            # clear that we tried to send this message (otherwise we'll ignore it when we retry)
+            r.delete(MSG_SENT_KEY % msg.id)
+
     @classmethod
     def mark_sent(cls, r, msg, status, external_id=None):
         """
@@ -744,7 +757,7 @@ class Msg(models.Model, OrgAssetMixin):
             msg.external_id = external_id
 
         # use redis to mark this message sent
-        r.set('sms_sent_%d' % msg.id, str(msg.sent_on), ex=86400)
+        r.set(MSG_SENT_KEY % msg.id, str(msg.sent_on), ex=86400)
 
         if external_id:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
@@ -771,7 +784,6 @@ class Msg(models.Model, OrgAssetMixin):
         msg_json = self.as_json()
         msg_json['text'] = escape(self.text).replace('\n', "<br/>")
         return msg_json
-
 
     @classmethod
     def get_text_parts(cls, text, max_length=160):
@@ -807,9 +819,6 @@ class Msg(models.Model, OrgAssetMixin):
                 parts.append(part)
 
             return parts
-
-    def get_message_labels(self):
-        return self.labels.filter(label_type='M')
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, response_to=self, message_context=message_context)
@@ -863,8 +872,8 @@ class Msg(models.Model, OrgAssetMixin):
 
         # others do in celery
         else:
-            from temba.msgs.tasks import process_message_task
-            process_message_task.apply_async(args=[self.id], queue='handler')
+            push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                      dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
 
     def build_message_context(self):
         message_context = dict()
@@ -914,6 +923,24 @@ class Msg(models.Model, OrgAssetMixin):
     def get_flow_step(self):
         return self.steps.all().first()
 
+    def get_flow_id(self):
+        step = self.get_flow_step()
+        flow_id = None
+        if step:
+            flow_id = step.run.flow.id
+
+        return flow_id
+
+
+    def get_flow_name(self):
+        flow_name = ""
+
+        step = self.get_flow_step()
+        if step:
+            flow_name = step.run.flow.name
+
+        return flow_name
+
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
@@ -931,7 +958,9 @@ class Msg(models.Model, OrgAssetMixin):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None):
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+                        status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
+
         from temba.api.models import WebHookEvent, SMS_RECEIVED
 
         if not org and channel:
@@ -955,7 +984,9 @@ class Msg(models.Model, OrgAssetMixin):
 
         # costs 1 credit to receive a message
         topup_id = None
-        if not contact.is_test:
+        if topup:
+            topup_id = topup.pk
+        elif not contact.is_test:
             topup_id = org.decrement_credit()
 
         # we limit text messages to 640 characters
@@ -969,7 +1000,9 @@ class Msg(models.Model, OrgAssetMixin):
                         created_on=date,
                         queued_on=timezone.now(),
                         direction=INCOMING,
-                        status=PENDING)
+                        msg_type=msg_type,
+                        recording_url=recording_url,
+                        status=status)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -980,10 +1013,11 @@ class Msg(models.Model, OrgAssetMixin):
         if channel:
             analytics.track('System', 'temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        msg.handle()
+        if status == PENDING:
+            msg.handle()
 
-        # fire an event off for this message
-        WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
+            # fire an event off for this message
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
 
         return msg
 
@@ -1003,6 +1037,10 @@ class Msg(models.Model, OrgAssetMixin):
 
         if contact:
             message_context['contact'] = contact.build_message_context()
+
+        # add 'step.contact' if it isn't already populated (like in flow batch starts)
+        if 'step' not in message_context or not 'contact' in message_context['step']:
+            message_context['step'] = dict(contact=message_context['contact'])
 
         if not org:
             dayfirst = True
@@ -1031,18 +1069,30 @@ class Msg(models.Model, OrgAssetMixin):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True):
+                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        recording_url=None, topup_id=None, msg_type=INBOX):
 
         if not org or not user:
             raise ValueError("Trying to create outgoing message with no org or user")
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel)
+        # normally we care about message sending urns
+        scheme = SEND
+
+        # if its an IVR message, we want the call urn instead
+        if msg_type == IVR:
+            scheme = CALL
+
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, scheme=scheme)
 
         if not contact_urn:
-            raise UnreachableException("No send-able URN found for contact")
+            raise UnreachableException("No suitable URN found for contact")
 
         if not channel:
-            channel = org.get_send_channel(contact_urn=contact_urn)
+            if msg_type == IVR:
+                channel = org.get_call_channel()
+            else:
+                channel = org.get_send_channel(contact_urn=contact_urn)
+
             if not channel and not contact.is_test:
                 raise ValueError("No suitable channel available for this org")
 
@@ -1063,6 +1113,7 @@ class Msg(models.Model, OrgAssetMixin):
             same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
                                                 contact__is_test=False,
                                                 channel=channel,
+                                                recording_url=recording_url,
                                                 text=text,
                                                 direction=OUTGOING,
                                                 created_on__gte=created_on - timedelta(minutes=10)).count()
@@ -1081,11 +1132,9 @@ class Msg(models.Model, OrgAssetMixin):
                     return None
 
         # costs 1 credit to send a message
-        topup_id = None
-        if not contact.is_test:
+        if not topup_id and not contact.is_test:
             topup_id = org.decrement_credit()
 
-        msg_type = 'I'
         if response_to:
             msg_type = response_to.msg_type
 
@@ -1107,6 +1156,7 @@ class Msg(models.Model, OrgAssetMixin):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
+                        recording_url=recording_url,
                         has_template_error=has_template_error)
 
         if topup_id is not None:
@@ -1118,14 +1168,15 @@ class Msg(models.Model, OrgAssetMixin):
         return msg
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel):
+    def resolve_recipient(org, user, recipient, channel, scheme=SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
         """
         contact = None
         contact_urn = None
-        sendable_schemes = {channel.get_scheme()} if channel else org.get_schemes(SEND)
+
+        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(scheme)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1133,13 +1184,13 @@ class Msg(models.Model, OrgAssetMixin):
                 contact_urn = contact.urns.all().first()
             else:
                 contact = recipient
-                contact_urn = contact.get_urn(schemes=sendable_schemes)  # use highest priority URN we can send to
+                contact_urn = contact.get_urn(schemes=resolved_schemes)  # use highest priority URN we can send to
         elif isinstance(recipient, ContactURN):
-            if recipient.scheme in sendable_schemes:
+            if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, tuple) and len(recipient) == 2:
-            if recipient[0] in sendable_schemes:
+            if recipient[0] in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:
@@ -1152,6 +1203,28 @@ class Msg(models.Model, OrgAssetMixin):
         Fails this message, provided it is currently not failed
         """
         self._update_state(None, dict(status=FAILED), OrgEvent.msg_failed)
+        Channel.track_status(self.channel, "Failed")
+
+    def status_sent(self):
+        """
+        Update the message status to SENT
+        """
+        self.status = SENT
+        self.sent_on = timezone.now()
+        self.save(update_fields=('status', 'sent_on'))
+        Channel.track_status(self.channel, "Sent")
+
+    def status_delivered(self):
+        """
+        Update the message status to DELIVERED
+        """
+        self.status = DELIVERED
+        self.delivered_on = timezone.now()
+        if not self.sent_on:
+            self.sent_on = timezone.now()
+        self.save(update_fields=('status', 'delivered_on', 'sent_on'))
+        Channel.track_status(self.channel, "Delivered")
+
 
     def archive(self):
         """
@@ -1288,28 +1361,32 @@ class Call(SmartModel):
         return Call.objects.filter(org=org)
 
 
-LABEL_TYPES = (('M', _("Message")),)
-
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class Label(models.Model):
+class Label(TembaModel, SmartModel):
     """
     Labels are simple labels that can be applied to messages much the same way labels or tags apply
     to messages in web-based email services.
 
     Labels can be created as one-level deep hierarchy.
     """
+    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
 
-    name = models.CharField(max_length=64, verbose_name=_("Name"),
-                            help_text=_("The name of this label"))
     parent = models.ForeignKey('Label', verbose_name=_("Parent"), null=True, related_name="children")
-    label_type = models.CharField(max_length=1, default='M', verbose_name=_("Label Type"),
-                                  help_text=_("What type of label this is"))
+
     org = models.ForeignKey(Org)
 
     @classmethod
-    def create_unique(cls, base, label_type, org, parent=None):
+    def create(cls, org, user, name, parent=None):
+        # only allow 1 level of nesting
+        if parent and parent.parent_id:  # pragma: no cover
+            raise ValueError("Only one level of nesting is allowed")
+
+        return Label.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
+
+    @classmethod
+    def create_unique(cls, org, user, base, parent=None):
 
         # truncate if necessary
         if len(base) > 32:
@@ -1317,7 +1394,7 @@ class Label(models.Model):
 
         # find the next available label by appending numbers
         count = 2
-        while Label.objects.filter(name=base, org=org, parent=parent):
+        while Label.objects.filter(org=org, name=base, parent=parent):
             # make room for the number
             if len(base) >= 32:
                 base = base[:30]
@@ -1327,7 +1404,7 @@ class Label(models.Model):
             base = "%s %d" % (base.strip(), count)
             count += 1
 
-        return Label.objects.create(name=base, org=org, label_type=label_type, parent=parent)
+        return Label.create(org, user, base, parent)
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
@@ -1345,45 +1422,6 @@ class Label(models.Model):
     def get_message_count_cache_key(self):
         return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
 
-    @classmethod
-    def generate_label(cls, org, label_type, text, fallback):
-
-        # TODO: POS tagging might be better here using nltk
-        # tags = nltk.pos_tag(nltk.word_tokenize(str(obj.question).lower()))
-
-        # remove punctuation and split into words
-        words = unidecode(text).lower().translate(string.maketrans("",""), string.punctuation)
-        words = words.split(' ')
-
-        # now look for some label candidates based on word length
-        labels = []
-        take_next = False
-        for word in words:
-
-            # ignore stop words
-            if word.lower() in STOP_WORDS:
-                continue
-
-            if not labels:
-                labels.append(word)
-                take_next = True
-            elif len(word) == len(labels[0]):
-                labels.append(word)
-                take_next = True
-            elif len(word) > len(labels[0]):
-                labels = [word]
-                take_next = True
-            elif take_next:
-                labels.append(word)
-                take_next = False
-
-        label = " ".join(labels)
-
-        if not label:
-            label = fallback
-
-        label = Label.create_unique(label, label_type, org)
-        return label
 
     def toggle_label(self, msgs, add):
         """
@@ -1529,5 +1567,8 @@ class ExportMessagesTask(SmartModel):
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username, subject,
-                          template, dict(link='http://%s/%s' % (settings.AWS_STORAGE_BUCKET_NAME, self.filename)), branding)
+        send_temba_email(self.created_by.username,
+                         subject,
+                         template,
+                         dict(link='https://%s/org/download/messages/%s/' % (settings.TEMBA_HOST, self.pk)),
+                         branding)

@@ -130,7 +130,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.msgs_failed), label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
         # fetch all top-level labels with their children
-        label_qs = Label.objects.filter(org=org, parent=None, label_type='M')
+        label_qs = Label.objects.filter(org=org, parent=None)
         label_qs = label_qs.prefetch_related('children').order_by('name')
         labels = [dict(pk=l.pk, label=l.name, count=l.get_message_count(), children=l.children.all()) for l in label_qs]
 
@@ -627,7 +627,7 @@ class MsgCRUDL(SmartCRUDL):
 
             except IntegrityError as e:  # pragma: no cover
                 message = str(e).capitalize()
-                errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.util.ErrorList())
+                errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(message)
                 return self.render_to_response(self.get_context_data(form=form))
 
@@ -712,7 +712,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('labels', 'steps', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Flow, self).get_context_data(*args, **kwargs)
@@ -811,7 +811,7 @@ class LabelForm(forms.ModelForm):
             del kwargs['label']
 
         super(LabelForm, self).__init__(*args, **kwargs)
-        qs = Label.objects.filter(org=self.org, parent=None, label_type='M')
+        qs = Label.objects.filter(org=self.org, parent=None)
 
         if label:
             qs = qs.exclude(id=label.pk)

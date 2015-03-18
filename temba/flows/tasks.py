@@ -5,7 +5,7 @@ from djcelery_transactions import task
 from temba.utils.queues import pop_task
 from temba.contacts.models import Contact
 from temba.msgs.models import Broadcast, Msg
-from temba.flows.models import FlowCache
+from temba.flows.models import FlowStatsCache
 from redis_cache import get_redis_connection
 from .models import EmailAction, ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 
@@ -94,7 +94,7 @@ def check_flow_stats_accuracy_task(flow_id):
         flow = Flow.objects.get(pk=flow_id)
 
         r = get_redis_connection()
-        runs_started_cached = int(r.get(flow.get_cache_key(FlowCache.runs_started_count)))
+        runs_started_cached = int(r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count)))
         runs_started = flow.runs.filter(contact__is_test=False).count()
 
         if runs_started != runs_started_cached:
@@ -114,5 +114,6 @@ def calculate_flow_stats_task(flow_id):
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
     except Exception as e:
         logger.exception("Error calculating flow stats: %d" % flow_id)
+
 
 

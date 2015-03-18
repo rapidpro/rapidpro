@@ -148,10 +148,17 @@
                         .value-labels
                           %nobr
                             - for label in object.labels.all
-                              -if label.label_type == 'M'
-                                %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                  %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
-                                    ={label.name}
+                              %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                                %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                                  ={label.name}
+
+
+                      %td.value-flow.field_flow
+                        -if object.get_flow_id
+                          %nobr
+                            %span.label.label-success
+                              %a{href:"{% url 'flows.flow_editor' object.get_flow_id %}"}
+                                ={object.get_flow_name}
 
                       %td.value-icon.field_icon
                         {{ object|as_icon }}

@@ -7,6 +7,8 @@ from redis_cache import get_redis_connection
 from .models import Campaign, EventFire
 from django.conf import settings
 import redis
+from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
+from temba.utils.queues import push_task
 
 @task(track_started=True, name='check_campaigns_task')  # pragma: no cover
 def check_campaigns_task(sched_id=None):
@@ -24,16 +26,9 @@ def check_campaigns_task(sched_id=None):
     if not r.get(key):
         with r.lock(key, timeout=3600):
             # for each that needs to be fired
-            for fire in EventFire.objects.filter(fired=None, scheduled__lte=timezone.now()):
+            for fire in EventFire.objects.filter(fired=None, scheduled__lte=timezone.now()).select_related('contact', 'contact.org'):
                 try:
-                    key = 'fire_campaign_%d' % fire.pk
-                    if not r.get(key):
-                        # try to acquire a lock
-                        with r.lock('fire_campaign_%d' % fire.pk, timeout=120):
-                            # reload it
-                            fire = EventFire.objects.get(id=fire.pk)
-                            if not fire.fired:
-                                fire.fire()
+                    push_task(fire.contact.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, id=fire.id))
 
                 except:  # pragma: no cover
                     logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)

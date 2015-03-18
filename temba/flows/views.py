@@ -908,8 +908,11 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, *args, **kwargs):
             analytics.track(self.request.user.username, 'temba.flow_exported')
 
+            user = self.request.user
+            org = user.get_org()
+
             host = self.request.branding['host']
-            export = ExportFlowResultsTask.objects.create(created_by=self.request.user, modified_by=self.request.user, host=host)
+            export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host)
             for flow in self.get_queryset().order_by('created_on'):
                 export.flows.add(flow)
             export_flow_results_task.delay(export.pk)

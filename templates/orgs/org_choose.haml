@@ -1,10 +1,15 @@
 -extends "smartmin/base.html"
+-load i18n
 
 -block title-icon
   %span.title-icon
     .glyph.icon-users
 
 -block content
+  -if not orgs
+    .
+      -trans "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization."
+
   -for org in orgs
     %a.org-choose.posterize{ href: "?organization={{ org.id }}" }
       .icon-home

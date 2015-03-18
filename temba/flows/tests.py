@@ -78,13 +78,28 @@ class RuleTest(TembaTest):
         response = self.flow.update(self.definition)
         self.assertEquals(1, self.flow.versions.all().count())
         self.assertEquals(self.flow.created_by, self.flow.versions.all()[0].created_by)
+        first_save_time = self.flow.versions.all().first().created_on
 
-        # versions should be tited to the user that created them
+        # create a new update
         self.definition['last_saved'] = response['saved_on']
         response = self.flow.update(self.definition, user=self.root)
         versions = self.flow.versions.all().order_by('-pk')
-        self.assertEquals(2, versions.count())
-        self.assertEquals(versions[0].created_by, self.root)
+
+        # since we saved in the same minute, we should still have one version,
+        self.assertEquals(1, versions.count())
+
+        # but it should be the new version, the old one having been removed
+        version = versions.first()
+        self.assertNotEquals(version.created_on, first_save_time)
+
+        # now simulate a save from 1.5m later
+        version.created_on = version.created_on - timedelta(seconds=190)
+        version.save()
+        self.definition['last_saved'] = response['saved_on']
+        self.flow.update(self.definition, user=self.root)
+
+        # now we should have two revisions
+        self.assertEquals(2, self.flow.versions.all().count())
 
     def test_flow_lists(self):
 
@@ -337,9 +352,37 @@ class RuleTest(TembaTest):
         self.assertEquals(3, entries.nrows)
         self.assertEquals(8, entries.ncols)
 
+        self.assertEqual(entries.cell(0, 0).value, "Phone")
+        self.assertEqual(entries.cell(0, 1).value, "Name")
+        self.assertEqual(entries.cell(0, 2).value, "Groups")
+        self.assertEqual(entries.cell(0, 3).value, "First Seen")
+        self.assertEqual(entries.cell(0, 4).value, "Last Seen")
+        self.assertEqual(entries.cell(0, 5).value, "color (Category) - Color Flow")
+        self.assertEqual(entries.cell(0, 6).value, "color (Value) - Color Flow")
+        self.assertEqual(entries.cell(0, 7).value, "color (Text) - Color Flow")
+
+        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
+        self.assertEqual(entries.cell(1, 1).value, "Eric")
+
+        self.assertEqual(entries.cell(2, 0).value, "+250788383383")
+        self.assertEqual(entries.cell(2, 1).value, "Nic")
+
         messages = workbook.sheets()[2]
-        self.assertEquals(6, messages.nrows)
-        self.assertEquals(5, messages.ncols)
+        self.assertEquals(5, messages.nrows)
+        self.assertEquals(6, messages.ncols)
+
+        self.assertEqual(messages.cell(0, 0).value, "Phone")
+        self.assertEqual(messages.cell(0, 1).value, "Name")
+        self.assertEqual(messages.cell(0, 2).value, "Date")
+        self.assertEqual(messages.cell(0, 3).value, "Direction")
+        self.assertEqual(messages.cell(0, 4).value, "Message")
+        self.assertEqual(messages.cell(0, 5).value, "Channel")
+
+        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
+        self.assertEqual(messages.cell(1, 1).value, "Eric")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
 
         # try getting our results
         results = self.flow.get_results()
@@ -1214,7 +1257,7 @@ class RuleTest(TembaTest):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact)
 
-        label = Label.objects.create(name='green label', org=self.org)
+        label = Label.create(self.org, self.user, "green label")
 
         test = AddLabelAction([label, "@step.contact"])
         action_json = test.as_json()
@@ -1673,6 +1716,34 @@ class RuleTest(TembaTest):
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
         self.assertEquals(302, response.status_code)
 
+    def test_flow_start_with_start_msg(self):
+        # set our flow
+        self.flow.update(self.definition)
+
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        self.flow.start([], [self.contact], start_msg=sms)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact))
+        run = FlowRun.objects.filter(contact=self.contact).first()
+
+        self.assertEquals(run.steps.all().count(), 2)
+        actionset_step = run.steps.filter(step_type=ACTION_SET).first()
+        ruleset_step = run.steps.filter(step_type=RULE_SET).first()
+
+        # no messages on the ruleset step
+        self.assertFalse(ruleset_step.messages.all())
+
+        # should have 2 messages on the actionset step
+        self.assertEquals(actionset_step.messages.all().count(), 2)
+
+        # one is the start msg
+        self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
+
+        # sms msg_type should be FLOW
+        self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
+
+
+
     def test_multiple(self):
         # set our flow
         self.flow.update(self.definition)
@@ -2087,7 +2158,7 @@ class FlowsTest(FlowFileTest):
 
     def clear_activity(self, flow):
         r = get_redis_connection()
-        flow.clear_cache()
+        flow.clear_stats_cache()
 
     def test_activity(self):
 
@@ -2163,9 +2234,20 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
 
+        # we are going to expire, but we want runs across two different flows
+        # to make sure that our optimization for expiration is working properly
+        number_flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 3!", self.send_message(number_flow, "3"))
+        self.assertEquals(1, len(number_flow.get_activity()[0]))
+
         # expire the first contact's runs
-        for run in FlowRun.objects.filter(contact=self.contact):
-            run.expire()
+        FlowRun.do_expire_runs(FlowRun.objects.filter(contact=self.contact))
+
+        # no active runs for our contact
+        self.assertEquals(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # both of our flows should have reduced active contacts
+        self.assertEquals(0, len(number_flow.get_activity()[0]))
 
         # now we should only have one node with active runs, but the paths stay
         # the same since those are historical
@@ -2182,8 +2264,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(50, flow.get_completed_percentage())
 
         # check that we have the right number of steps and runs
-        self.assertEquals(17, FlowStep.objects.all().count())
-        self.assertEquals(2, FlowRun.objects.all().count())
+        self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
+        self.assertEquals(2, FlowRun.objects.filter(flow=flow).count())
 
         # now let's delete our contact, we'll still have one active node, but
         # our visit path counts will go down by two since he went there twice
@@ -2245,8 +2327,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, flow.get_completed_percentage())
 
         # runs and steps all gone too
-        self.assertEquals(0, FlowStep.objects.filter(contact__is_test=False).count())
-        self.assertEquals(0, FlowRun.objects.filter(contact__is_test=False).count())
+        self.assertEquals(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
+        self.assertEquals(0, FlowRun.objects.filter(flow=flow, contact__is_test=False).count())
 
         # test that expirations remove activity when triggered from the cron in the same way
         tupac = self.create_contact('Tupac Shakur', '+12065550725')
@@ -2283,9 +2365,20 @@ class FlowsTest(FlowFileTest):
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
+
+        self.contact.name = "Ben Haggerty"
+        self.contact.save()
+
+        runs = flow.start_msg_flow([self.contact])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('Hi Ben Haggerty, what is your phone number?', self.contact.msgs.all()[0].text)
+
         self.assertEquals("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
+
+    test_substitution.active = True
 
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
@@ -2350,7 +2443,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
 
         # export the flow
-        task = ExportFlowResultsTask.objects.create(created_by=self.admin, modified_by=self.admin)
+        task = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         task.flows.add(registration_flow)
         task.do_export()
 
@@ -2388,7 +2481,20 @@ class FlowsTest(FlowFileTest):
 
         messages = workbook.sheets()[2]
         self.assertEquals(10, messages.nrows)
-        self.assertEquals(5, messages.ncols)
+        self.assertEquals(6, messages.ncols)
+
+        self.assertEqual(messages.cell(0, 0).value, "Phone")
+        self.assertEqual(messages.cell(0, 1).value, "Name")
+        self.assertEqual(messages.cell(0, 2).value, "Date")
+        self.assertEqual(messages.cell(0, 3).value, "Direction")
+        self.assertEqual(messages.cell(0, 4).value, "Message")
+        self.assertEqual(messages.cell(0, 5).value, "Channel")
+
+        self.assertEqual(messages.cell(1, 0).value, "+12065552020")
+        self.assertEqual(messages.cell(1, 1).value, "Ben Haggerty")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "Thanks for registering a new mother, what is her name?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
 
         # assert the time is correct here as well
         self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 3).value, 0)[3])
@@ -2432,6 +2538,41 @@ class FlowsTest(FlowFileTest):
 
         Flow.import_flows(definition, trey_org, trey)
         self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="new_mother").first())
+
+    def test_cross_language_import(self):
+
+        # import our localized flow into an org with no languages
+        self.import_file('multi-language-flow')
+        flow = Flow.objects.get(name='Multi Language Flow')
+
+        # even tho we don't have a language, our flow has enough info to function
+        self.assertEquals('eng', flow.base_language)
+
+        # now try executing this flow on our org, should use the flow base language
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        replies = self.send_message(flow, 'blue')
+        self.assertEquals('Thank you! I like blue.', replies[0])
+        self.assertEquals('This message was not translated.', replies[1])
+
+        # now add a primary language to our org
+        self.org.primary_language = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
+                                                            created_by=self.admin, modified_by=self.admin)
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # with our org in spanish, we should get the spanish version
+        self.assertEquals('\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        # but set our contact's language explicity should get us back to english
+        self.contact.language = 'eng'
+        self.contact.save()
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+
 
     def test_different_expiration(self):
         flow = self.get_flow('favorites')
@@ -2532,7 +2673,7 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
-    def test_tanslations_rule_first(self):
+    def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
         # this rule first does not depend on @step.value for the first rule, so

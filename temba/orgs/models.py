@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, F
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -29,6 +29,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, datetime_to_ms, random_string
+from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
 from uuid import uuid4
@@ -94,7 +95,7 @@ ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
 ORG_LOCK_TTL = 60  # 1 minute
-ORG_CREDITS_CACHE_TTL = 24 * 60 * 60  # 1 day
+ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 ORG_DISPLAY_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
@@ -519,7 +520,9 @@ class Org(SmartModel):
 
             # if URN has a previously used channel that is still active, use that
             if contact_urn.channel and contact_urn.channel.is_active:
-                return self.get_channel_delegate(contact_urn.channel, SEND)
+                previous_sender = self.get_channel_delegate(contact_urn.channel, SEND)
+                if previous_sender:
+                    return previous_sender
 
             if contact_urn.scheme == TEL_SCHEME:
                 # we don't have a channel for this contact yet, let's try to pick one from the same carrier
@@ -735,10 +738,13 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-
     def get_verboice_client(self):
         from temba.ivr.clients import VerboiceClient
-        return VerboiceClient()
+        channel = self.get_call_channel()
+        from temba.channels.models import VERBOICE
+        if channel.channel_type == VERBOICE:
+            return VerboiceClient(channel)
+        return None
 
     def get_twilio_client(self):
         config = self.config_json()
@@ -981,9 +987,34 @@ class Org(SmartModel):
 
         # get how many messages were used on those topups
         expired_msgs = self.msgs.filter(topup__in=expired_topups).count()
-        expired_ivrs = self.ivr_actions.filter(topup__in=expired_topups).count()
 
-        return active_credits + expired_msgs + expired_ivrs
+        return active_credits + expired_msgs
+
+    def _calculate_credit_caches(self):
+        """
+        Calculates both our total as well as our active topup
+        """
+        r = get_redis_connection()
+
+        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                             self._calculate_credits_total, force_dirty=True)
+        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                             self._calculate_credits_used, force_dirty=True)
+
+        active_topup = self._calculate_active_topup()
+
+        active_topup_key = ORG_ACTIVE_TOPUP_CACHE_KEY % self.pk
+        topup_credits_key = ORG_TOPUP_CREDITS_CACHE_KEY % self.pk
+        topup_expires_key = ORG_TOPUP_EXPIRES_CACHE_KEY % self.pk
+
+        if active_topup:
+            expires_on = datetime_to_ms(active_topup.expires_on)
+            r.set(active_topup_key, active_topup.pk, ORG_CREDITS_CACHE_TTL)
+            r.set(topup_credits_key, active_topup.used, ORG_CREDITS_CACHE_TTL)
+            r.set(topup_expires_key, expires_on, ORG_CREDITS_CACHE_TTL)
+        else:
+            # delete the existing cache values
+            r.delete(active_topup_key, topup_credits_key, topup_expires_key)
 
     def get_credits_used(self):
         """
@@ -993,9 +1024,12 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        total_msgs = self.msgs.filter(org=self, contact__is_test=False).count()
-        total_ivrs = self.ivr_actions.filter(org=self, call__contact__is_test=False).count()
-        return total_msgs + total_ivrs
+        used_credits_sum = self.topups.filter(is_active=True).aggregate(Sum('used')).get('used__sum')
+        used_credits_sum = used_credits_sum if used_credits_sum else 0
+
+        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
+
+        return used_credits_sum + unassigned_sum
 
     def get_credits_remaining(self):
         """
@@ -1032,7 +1066,7 @@ class Org(SmartModel):
 
                 if active_topup:
                     active_topup_id = active_topup.pk
-                    decremented_credit = (active_topup.credits - active_topup.num_msgs) - 1
+                    decremented_credit = (active_topup.credits - active_topup.used) - 1
                     expires_on = datetime_to_ms(active_topup.expires_on)
 
                     # cache it, the decremented credit value and expires timestamp
@@ -1055,28 +1089,20 @@ class Org(SmartModel):
         Calculates the oldest non-expired topup that still has credits
         """
         non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now())
-        non_expired_topups = non_expired_topups.annotate(num_msgs=Count('msgs')).order_by('expires_on')
-
-        # find the first one that has credits remaining
-        for topup in non_expired_topups:
-            if topup.num_msgs < topup.credits:
-                return topup
-
-        return None
+        active_topups = non_expired_topups.filter(credits__gt=F('used')).order_by('expires_on')
+        return active_topups.first()
 
     def apply_topups(self):
         """
         We allow users to receive messages even if they're out of credit. Once they re-add credit, this function
         retro-actively applies topups to any messages or IVR actions that don't have a topup
         """
-        from temba.ivr.models import IVRAction
         from temba.msgs.models import Msg
 
         with self.lock_on(OrgLock.credits):
             # get all items that haven't been credited
             msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False).order_by('created_on')
-            ivr_uncredited = self.ivr_actions.filter(topup=None, call__contact__is_test=False).order_by('created_on')
-            all_uncredited = list(msg_uncredited) + list(ivr_uncredited)
+            all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
             unexpired_topups = list(self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('-expires_on'))
@@ -1095,7 +1121,7 @@ class Org(SmartModel):
                         break
 
                     current_topup = unexpired_topups.pop()
-                    current_topup_remaining = current_topup.credits - current_topup.used()
+                    current_topup_remaining = current_topup.credits - current_topup.used
 
                 if current_topup_remaining:
                     # if we found some credit, assign the item to the current topup
@@ -1108,7 +1134,6 @@ class Org(SmartModel):
             # update items in the database with their new topups
             for topup, items in new_topup_items.iteritems():
                 Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
-                IVRAction.objects.filter(id__in=[item.pk for item in items if isinstance(item, IVRAction)]).update(topup=topup)
 
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)
@@ -1311,8 +1336,29 @@ class Org(SmartModel):
         from temba.flows.models import Flow
         flows = self.flows.all().exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
         if not include_archived:
-            flows= flows.filter(is_archived=False)
+            flows = flows.filter(is_archived=False)
         return flows
+
+    def get_recommended_channel(self):
+        from temba.channels.views import TWILIO_SEARCH_COUNTRIES
+        NEXMO_RECOMMEND_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'AT', 'FI', 'DE', 'HK', 'HU',
+                                     'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
+
+        countrycode = timezone_to_country_code(self.timezone)
+
+        recommended = 'android'
+        if countrycode in NEXMO_RECOMMEND_COUNTRIES:
+            recommended = 'nexmo'
+        if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
+            recommended = 'twilio'
+        if countrycode == 'KE':
+            recommended = 'africastalking'
+        if countrycode == 'ID':
+            recommended = 'hub9'
+        if countrycode == 'SO':
+            recommended = 'shaqodoon'
+
+        return recommended
 
     @classmethod
     def create_user(cls, email, password):
@@ -1501,6 +1547,8 @@ class TopUp(SmartModel):
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
+    used = models.IntegerField(verbose_name=_("Number of Credits used"), default=0,
+                               help_text=_("The number of credits used in this top up"))
     expires_on = models.DateTimeField(verbose_name=("Expiration Date"),
                                       help_text=_("The date that this top up will expire"))
     stripe_charge = models.CharField(verbose_name=_("Stripe Charge Id"), max_length=32, null=True, blank=True,
@@ -1530,13 +1578,9 @@ class TopUp(SmartModel):
         else:
             return Decimal(self.price) / Decimal(100)
 
-    def used(self):
-        return self.msgs.count() + self.ivr.count()
-
     def revert_topup(self):
         # unwind any items that were assigned to this topup
         self.msgs.update(topup=None)
-        self.ivr.update(topup=None)
 
         # mark this topup as inactive
         self.is_active = False

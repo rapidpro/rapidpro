@@ -91,6 +91,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
     def get_queryset(self, **kwargs):
         qs = super(ContactListView, self).get_queryset(**kwargs)
+        qs = qs.filter(is_test=False)
         org = self.request.user.get_org()
 
         # contact list views don't use regular field searching but use more complex contact searching
@@ -98,13 +99,13 @@ class ContactListView(OrgPermsMixin, SmartListView):
         if query:
             qs, self.request.compiled_query = Contact.search(org, query, qs)
 
-        return qs.prefetch_related('groups')
+        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('groups')
 
     def order_queryset(self, queryset):
         """
         Order contacts by name, case insensitive
         """
-        return queryset.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk')
+        return queryset
             
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -514,7 +515,7 @@ class ContactCRUDL(SmartCRUDL):
             if self.request.user.is_superuser:
                 contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
             else:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True, org=self.request.user.get_org()).first()
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
 
             if contact is None:
                 raise Http404("No active contact with that id")
@@ -740,6 +741,10 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ''
         submit_button_name = _("Save Changes")
 
+        def derive_queryset(self):
+            qs = super(ContactCRUDL.Update, self).derive_queryset()
+            return qs.filter(is_test=False)
+
         def derive_exclude(self):
             exclude = []
             for ex in self.exclude:
@@ -901,7 +906,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             group = self.get_object()
-            triggers = group.trigger_set.all()
+            triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
                 trigger_list = ', '.join([trigger.__unicode__() for trigger in triggers])
                 messages.error(self.request, _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
@@ -911,6 +916,9 @@ class ContactGroupCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             group = self.get_object()
             group.release()
+
+            # make is_active False for all its triggers too
+            group.trigger_set.all().update(is_active=False)
 
             return HttpResponseRedirect(reverse("contacts.contact_list"))
 
@@ -1038,6 +1046,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             except IntegrityError as e:  # pragma: no cover
                 message = str(e).capitalize()
-                errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.util.ErrorList())
+                errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(message)
                 return self.render_to_response(self.get_context_data(form=form))

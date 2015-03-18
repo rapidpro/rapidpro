@@ -5,8 +5,10 @@ import base64
 import hashlib
 import hmac
 import json
+import phonenumbers
 import time
 import urllib2
+
 
 from datetime import timedelta
 from django.conf import settings
@@ -22,6 +24,7 @@ from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
+from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.orgs.models import Org
 from temba.tests import TembaTest, MockResponse
 from temba.orgs.models import FREE_PLAN
@@ -140,8 +143,12 @@ class ChannelTest(TembaTest):
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
         self.assertEquals(tigo, sms.channel)
 
-        # clear the affinity for our channel
-        ContactURN.objects.filter(path='+250788382382').update(channel=None)
+        # add a voice caller
+        caller = Channel.add_call_channel(self.org, self.user, self.tel_channel)
+
+        # set our affinity to the caller (ie, they were on an ivr call)
+        ContactURN.objects.filter(path='+250788382382').update(channel=caller)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=ContactURN.objects.get(path='+250788382382')))
 
         # change channel numbers to be shortcodes, i.e. no overlap with contact numbers
         mtn.address = '1234'
@@ -163,6 +170,8 @@ class ChannelTest(TembaTest):
 
         # calling without scheme or urn should raise exception
         self.assertRaises(ValueError, self.org.get_send_channel)
+
+
 
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars
@@ -563,12 +572,15 @@ class ChannelTest(TembaTest):
         postdata['auto_follow'] = False
         postdata['address'] = "billy_bob"
 
-        self.fetch_protected(update_url, self.user, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEquals(channel.name, "Twitter2")
-        self.assertEquals(channel.alert_email, "bob@example.com")
-        self.assertEquals(channel.address, "billy_bob")
-        self.assertFalse(json.loads(channel.config)['auto_follow'])
+        with patch('temba.utils.mage.MageClient.refresh_twitter_stream') as refresh_twitter_stream:
+            refresh_twitter_stream.return_value = dict()
+
+            self.fetch_protected(update_url, self.user, postdata)
+            channel = Channel.objects.get(pk=self.tel_channel.id)
+            self.assertEquals(channel.name, "Twitter2")
+            self.assertEquals(channel.alert_email, "bob@example.com")
+            self.assertEquals(channel.address, "billy_bob")
+            self.assertFalse(json.loads(channel.config)['auto_follow'])
 
     def test_read(self):
         post_data = dict(cmds=[
@@ -643,8 +655,20 @@ class ChannelTest(TembaTest):
         test_contact.is_test = True
         test_contact.save()
 
-        r_incomings = response.context['message_stats'][0]['data'][-1]['count']
-        r_outgoings = response.context['message_stats'][1]['data'][-1]['count']
+        # should have two series, one for incoming one for outgoing
+        self.assertEquals(2, len(response.context['message_stats']))
+
+        # but only an outgoing message so far
+        self.assertEquals(0, len(response.context['message_stats'][0]['data']))
+        self.assertEquals(1, response.context['message_stats'][1]['data'][-1]['count'])
+
+        # we have one row for the message stats table
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        # only one outgoing message
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a test contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'This incoming message will not be counted')
@@ -652,17 +676,67 @@ class ChannelTest(TembaTest):
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['message_stats'][0]['data'][-1]['count'], r_incomings)
-        self.assertEquals(response.context['message_stats'][1]['data'][-1]['count'], r_outgoings)
+
+        # nothing should change since it's a test contact
+        self.assertEquals(0, len(response.context['message_stats'][0]['data']))
+        self.assertEquals(1, response.context['message_stats'][1]['data'][-1]['count'])
+
+        # no change on the table starts too
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a normal contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn(TEL_SCHEME).path), 'This incoming message will be counted')
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
+        # now we have an inbound message and two outbounds
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['message_stats'][0]['data'][-1]['count'], r_incomings+1)
-        self.assertEquals(response.context['message_stats'][1]['data'][-1]['count'], r_outgoings+1)
+        self.assertEquals(1, response.context['message_stats'][0]['data'][-1]['count'])
+        self.assertEquals(2, response.context['message_stats'][1]['data'][-1]['count'])
+
+        # message stats table have an inbound and two outbounds in the last month
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(2, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
+
+        # test cases for IVR messaging, make our relayer accept calls
+        self.tel_channel.role = 'SCAR'
+        self.tel_channel.save()
+
+        from temba.msgs.models import IVR
+        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'incoming ivr as a test contact', msg_type=IVR)
+        Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+
+        # nothing should have changed
+        self.assertEquals(2, len(response.context['message_stats']))
+
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(2, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
+
+        # now let's create an ivr interaction from a real contact
+        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn().path), 'incoming ivr', msg_type=IVR)
+        Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+
+        self.assertEquals(4, len(response.context['message_stats']))
+        self.assertEquals(1, response.context['message_stats'][2]['data'][0]['count'])
+        self.assertEquals(1, response.context['message_stats'][3]['data'][0]['count'])
+
+        self.assertEquals(1, len(response.context['message_stats_table']))
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_messages_count'])
+        self.assertEquals(2, response.context['message_stats_table'][0]['outgoing_messages_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['incoming_ivr_count'])
+        self.assertEquals(1, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
     def test_invalid(self):
 
@@ -796,6 +870,12 @@ class ChannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, Sweden, United Kingdom or United States")
 
+        # Test both old and new Cameroon phone format
+        number = phonenumbers.parse('+23761234567', 'CM')
+        self.assertTrue(phonenumbers.is_possible_number(number))
+        number = phonenumbers.parse('+237661234567', 'CM')
+        self.assertTrue(phonenumbers.is_possible_number(number))
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
@@ -807,29 +887,9 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Nexmo")
         self.assertContains(response, reverse('orgs.org_nexmo_connect'))
 
-        # connect nexmo
-        connect_url = reverse('orgs.org_nexmo_connect')
-
-        # simulate invalid credentials
-        with patch('requests.get') as nexmo:
-            nexmo.return_value = MockResponse(401, '{"error-code": "401"}')
-            response = self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_nexmo())
-
-        # ok, now with a success
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                self.client.post(connect_url, dict(api_key='key', api_secret='secret'))
-
-                # nexmo should now be connected
-                self.org = Org.objects.get(pk=self.org.pk)
-                self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
-                self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
+        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid')
+        self.org.config = json.dumps(nexmo_config)
+        self.org.save()
 
         # hit the claim page, should now have a claim nexmo link
         claim_nexmo = reverse('channels.channel_claim_nexmo')
@@ -853,6 +913,67 @@ class ChannelTest(TembaTest):
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='NX', org=self.org)
 
+    def test_claim_plivo(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        self.org.channels.update(is_active=False, org=None)
+
+        connect_plivo_url = reverse('orgs.org_plivo_connect')
+        claim_plivo_url = reverse('channels.channel_claim_plivo')
+
+        # make sure plivo is on the claim page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, "Connect plivo")
+        self.assertContains(response, reverse('orgs.org_plivo_connect'))
+
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(400, json.dumps(dict()))
+
+            # try hit the claim page, should be redirected; no credentials in session
+            response = self.client.get(claim_plivo_url, follow=True)
+            self.assertContains(response, connect_plivo_url)
+
+        # let's add a number already connected to the account
+        with patch('requests.get') as plivo_get:
+            with patch('requests.post') as plivo_post:
+                plivo_get.return_value = MockResponse(200,
+                                                      json.dumps(dict(objects=[dict(number='16062681435',
+                                                                                    region="California, UNITED STATES"),
+                                                                               dict(number='8080',
+                                                                                    region='GUADALAJARA, MEXICO')])))
+
+                plivo_post.return_value = MockResponse(202, json.dumps(dict(status='changed', app_id='app-id')))
+
+                # make sure our numbers appear on the claim page
+                response = self.client.get(claim_plivo_url)
+                self.assertContains(response, "+1 606-268-1435")
+                self.assertContains(response, "8080")
+                self.assertContains(response, 'US')
+                self.assertContains(response, 'MX')
+
+                # claim it the US number
+                session = self.client.session
+                session[PLIVO_AUTH_ID] = 'auth-id'
+                session[PLIVO_AUTH_TOKEN] = 'auth-token'
+                session.save()
+
+                self.assertTrue(PLIVO_AUTH_ID in self.client.session)
+                self.assertTrue(PLIVO_AUTH_TOKEN in self.client.session)
+
+                response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1435', country='US'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                channel = Channel.objects.get(channel_type='PL', org=self.org)
+                self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
+                                                          PLIVO_AUTH_TOKEN: 'auth-token',
+                                                          PLIVO_APP_ID: 'app-id'})
+                self.assertEquals(channel.address, "+16062681435")
+                # no more credential in the session
+                self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+                self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+
     def test_claim_twitter(self):
         # add to this user an org
         org = Org.objects.create(name="otherOrg", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
@@ -873,8 +994,8 @@ class ChannelTest(TembaTest):
             self.assertEqual(self.client.session['twitter_oauth_token'], 'abcde')
             self.assertEqual(self.client.session['twitter_oauth_token_secret'], '12345')
 
-        with patch('temba.utils.mage.MageClient.add_twitter_stream') as add_twitter_stream:
-            add_twitter_stream.return_value = dict()
+        with patch('temba.utils.mage.MageClient.activate_twitter_stream') as activate_twitter_stream:
+            activate_twitter_stream.return_value = dict()
 
             with patch('twython.Twython.get_authorized_tokens') as get_authorized_tokens:
                 get_authorized_tokens.return_value = dict(screen_name='billy_bob',
@@ -1376,6 +1497,50 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
                           channel.build_send_url(url, { 'from':"5080", 'text':u"Reply “1” for good", 'to':"+250788383383" }))
 
+    def test_clickatell(self):
+        from temba.channels.models import CLICKATELL
+
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+
+        # should see the general channel claim page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, reverse('channels.channel_claim_clickatell'))
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_clickatell'))
+        post_data = response.context['form'].initial
+
+        post_data['api_id'] = '12345'
+        post_data['username'] = 'uname'
+        post_data['password'] = 'pword'
+        post_data['country'] = 'US'
+        post_data['number'] = '(206) 555-1212'
+
+        response = self.client.post(reverse('channels.channel_claim_clickatell'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('US', channel.country)
+        self.assertTrue(channel.uuid)
+        self.assertEquals('+12065551212', channel.address)
+        self.assertEquals(post_data['api_id'], channel.config_json()['api_id'])
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals(CLICKATELL, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('api.clickatell_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('api.clickatell_handler', args=['receive', channel.uuid]))
+
+    test_clickatell.active = True
+
     def test_shaqodoon(self):
         from temba.channels.models import SHAQODOON
 
@@ -1591,10 +1756,6 @@ class ChannelAlertTest(TembaTest):
         Channel.objects.all().delete()
 
         self.login(self.admin)
-
-        # should always see infobip as an option
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Infobip")
 
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_infobip'))
