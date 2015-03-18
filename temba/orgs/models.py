@@ -1426,6 +1426,26 @@ def get_org_group(obj):
     return org_group
 
 
+def _user_has_org_perm(user, org, permission):
+    """
+    Determines if a user has the given permission in this org
+    """
+    if user.is_superuser:
+        return True
+
+    if user.is_anonymous():
+        return False
+
+    org_group = org.get_user_org_group(user)
+
+    if not org_group:
+        return False
+
+    (app_label, codename) = permission.split(".")
+
+    return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
+
+
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
@@ -1433,6 +1453,7 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.has_org_perm = _user_has_org_perm
 
 
 USER_GROUPS = (('A', _("Administrator")),

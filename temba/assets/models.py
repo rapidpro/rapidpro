@@ -54,7 +54,7 @@ class BaseAssetStore(object):
         """
         asset_org = self.derive_org(identifier)
 
-        if not has_org_permission(asset_org, user, self.permission):
+        if not user.has_org_perm(asset_org, self.permission):
             raise AssetAccessDenied()
 
         path = self.derive_path(asset_org, identifier)
@@ -139,23 +139,3 @@ class AssetType(Enum):
 
     def __init__(self, store_class):
         self.store = store_class(self)
-
-
-def has_org_permission(org, user, permission):
-    """
-    Determines if a user has the given permission in the given org
-    """
-    if user.is_superuser:
-        return True
-
-    if user.is_anonymous():
-        return False
-
-    org_group = org.get_user_org_group(user)
-
-    if not org_group:
-        return False
-
-    (app_label, codename) = permission.split(".")
-
-    return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()

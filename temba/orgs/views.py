@@ -79,18 +79,8 @@ class OrgPermsMixin(object):
         return None
 
     def has_org_perm(self, permission):
-
-        (app_label, codename) = permission.split(".")
-
-        if self.get_user().is_superuser:
-            return True
-
-        if self.get_user().is_anonymous():
-            return False
-
         if self.org:
-            if self.get_user().get_org_group().permissions.filter(content_type__app_label=app_label, codename=codename):
-                return True
+            return self.get_user().has_org_perm(self.org, permission)
 
         return False
 
