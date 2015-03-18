@@ -1551,11 +1551,11 @@ class ExportMessagesTask(SmartModel):
         temp.flush()
 
         # save as file asset associated with this task
-        from temba.assets import AssetType
+        from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
 
-        handler = AssetType.message_export.handler
-        handler.save(self.pk, File(temp), 'xls')
+        store = AssetType.message_export.store
+        store.save(self.pk, File(temp), 'xls')
 
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'

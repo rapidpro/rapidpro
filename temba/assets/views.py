@@ -8,8 +8,7 @@ from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidde
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from smartmin.views import SmartTemplateView
-from . import AssetType
-from .handlers import AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound
+from .models import AssetType, AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound
 
 
 def get_asset_url(asset_type, identifier, direct=False):
@@ -22,7 +21,7 @@ def handle_asset_request(user, asset_type, identifier):
     Request handler shared by the asset view and the asset API endpoint
     """
     try:
-        asset_org, location, filename = asset_type.handler.resolve(user, identifier)
+        asset_org, location, filename = asset_type.store.resolve(user, identifier)
         asset_type = mimetypes.guess_type(location)[0]
 
         if location.startswith('http'):
@@ -43,7 +42,7 @@ def handle_asset_request(user, asset_type, identifier):
 
 class AssetDownloadView(SmartTemplateView):
     """
-    Provides a landing page for an asset, e.g. {% url 'assets.download' 'recording' msg.pk %}
+    Provides a landing page for an asset, e.g. /assets/download/contact_export/123/
     """
     template_name = 'assets/asset_read.haml'
 
@@ -57,7 +56,7 @@ class AssetDownloadView(SmartTemplateView):
         identifier = kwargs.pop('identifier')
 
         try:
-            asset_org, location, filename = asset_type.handler.resolve(self.request.user, identifier)
+            asset_org, location, filename = asset_type.store.resolve(self.request.user, identifier)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:
@@ -76,7 +75,7 @@ class AssetDownloadView(SmartTemplateView):
 
 class AssetStreamView(View):
     """
-    Provides a direct download stream to an asset, e.g. {% url 'assets.stream' 'recording' msg.pk %}
+    Provides a direct download stream to an asset, e.g. /assets/stream/contact_export/123/
     """
     def get(self, request, *args, **kwargs):
         asset_type = AssetType[kwargs.pop('type')]

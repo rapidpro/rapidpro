@@ -3007,11 +3007,11 @@ class ExportFlowResultsTask(SmartModel):
         temp.flush()
 
         # save as file asset associated with this task
-        from temba.assets import AssetType
+        from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
 
-        handler = AssetType.results_export.handler
-        handler.save(self.pk, File(temp), 'xls')
+        store = AssetType.results_export.store
+        store.save(self.pk, File(temp), 'xls')
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)

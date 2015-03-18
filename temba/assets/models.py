@@ -4,6 +4,7 @@ import os
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from enum import Enum
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
@@ -34,7 +35,7 @@ class AssetFileNotFound(AssetException):
     pass
 
 
-class BaseAssetHandler(object):
+class BaseAssetStore(object):
     """
     Base class for asset handlers. Assumes that identifier is primary key of a db object with an associated asset.
     """
@@ -110,25 +111,34 @@ class BaseAssetHandler(object):
         raise AssetFileNotFound()
 
 
-class ContactExportAssetHandler(BaseAssetHandler):
+class ContactExportAssetStore(BaseAssetStore):
     model = ExportContactsTask
     directory = 'contact_exports'
     permission = 'contacts.contact_export'
     extensions = ('xls', 'csv')
 
 
-class ResultsExportAssetHandler(BaseAssetHandler):
+class ResultsExportAssetStore(BaseAssetStore):
     model = ExportFlowResultsTask
     directory = 'results_exports'
     permission = 'flows.flow_export_results'
     extensions = ('xls',)
 
 
-class MessageExportAssetHandler(BaseAssetHandler):
+class MessageExportAssetStore(BaseAssetStore):
     model = ExportMessagesTask
     directory = 'message_exports'
     permission = 'msgs.msg_export'
     extensions = ('xls',)
+
+
+class AssetType(Enum):
+    contact_export = (ContactExportAssetStore,)
+    results_export = (ResultsExportAssetStore,)
+    message_export = (MessageExportAssetStore,)
+
+    def __init__(self, store_class):
+        self.store = store_class(self)
 
 
 def has_org_permission(org, user, permission):

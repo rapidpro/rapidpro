@@ -24,7 +24,7 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
-from temba.assets import AssetType
+from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.nexmo import NexmoClient

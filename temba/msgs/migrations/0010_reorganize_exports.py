@@ -5,13 +5,13 @@ import os
 
 from django.core.files.storage import default_storage
 from django.db import migrations
-from temba.assets import AssetType
+from temba.assets.models import AssetType
 
 
 def migrate_message_exports(apps, schema_editor):
     ExportMessagesTask = apps.get_model('msgs', 'ExportMessagesTask')
 
-    handler = AssetType.message_export.handler
+    store = AssetType.message_export.store
 
     num_copied = 0
     num_missing = 0
@@ -27,7 +27,7 @@ def migrate_message_exports(apps, schema_editor):
 
         try:
             existing_file = default_storage.open(task.filename)
-            new_path = handler.derive_path(task.org, identifier, extension)
+            new_path = store.derive_path(task.org, identifier, extension)
             default_storage.save(new_path, existing_file)
             num_copied += 1
         except Exception:

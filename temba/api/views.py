@@ -31,7 +31,7 @@ from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, Flo
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
-from temba.assets import AssetType
+from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
