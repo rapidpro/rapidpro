@@ -271,7 +271,10 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FieldsEndpoint.get_write_explorer())
 
         endpoints.append(MessagesEndpoint.get_read_explorer())
-        endpoints.append(MessagesEndpoint.get_write_explorer())
+        #endpoints.append(MessagesEndpoint.get_write_explorer())
+
+        endpoints.append(BroadcastsEndpoint.get_read_explorer())
+        endpoints.append(BroadcastsEndpoint.get_write_explorer())
 
         endpoints.append(LabelsEndpoint.get_read_explorer())
         endpoints.append(LabelsEndpoint.get_write_explorer())
@@ -316,7 +319,7 @@ def api(request, format=None):
 
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
-     * [/api/v1/messages](/api/v1/messages) - To list and create new messages.
+     * [/api/v1/messages](/api/v1/messages) - To list messages.
      * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
@@ -331,7 +334,7 @@ def api(request, format=None):
 
     ## Web Hook
 
-    Your application can be notified when new SMS messages are received, sent or delivered.  You can
+    Your application can be notified when new messages are received, sent or delivered.  You can
     configure a URL for those events to be delivered to.  Visit the [Web Hook Documentation](/api/v1/webhook/) and
     [Simulator](/api/v1/webhook/simulator/) for more details.
 
@@ -373,10 +376,10 @@ def api(request, format=None):
 
     All pages that return a list of items support filtering by one or more attributes. You define how you want the list
     filtered via request parameters.  Note that when filtering by phone number you will need to use the E164 format
-    and URL encode the + character as %2B. An example to retrieve all the outgoing SMS messages since January 1st, 2013
+    and URL encode the + character as %2B. An example to retrieve all the outgoing messages since January 1st, 2013
     that are in a state of Q or S for the number +250788123123:
 
-        /api/v1/sms.json?after=2013-01-01T00:00:00.000&status=Q,S&direction=O&phone=%2B250788123123
+        /api/v1/messages.json?after=2013-01-01T00:00:00.000&status=Q,S&direction=O&urn=tel:%2B250788123123
 
     ## Authentication
 
@@ -390,15 +393,19 @@ def api(request, format=None):
     **Note that all calls made through this web interface are against the live API, please exercise the appropriate caution.**
     """
     return Response({
-        'contacts': reverse('api.contacts', request=request),
-        'fields': reverse('api.contactfields', request=request),
-        'relayers': reverse('api.channels', request=request),
-        'messages': reverse('api.messages', request=request),
-        'labels': reverse('api.labels', request=request),
-        'sms': reverse('api.sms', request=request),
+        'boundaries': reverse('api.boundaries', request=request),
+        'broadcasts': reverse('api.broadcasts', request=request),
         'calls': reverse('api.calls', request=request),
         'campaigns': reverse('api.campaigns', request=request),
+        'contacts': reverse('api.contacts', request=request),
         'events': reverse('api.campaignevents', request=request),
+        'fields': reverse('api.contactfields', request=request),
+        'flows': reverse('api.flows', request=request),
+        'labels': reverse('api.labels', request=request),
+        'messages': reverse('api.messages', request=request),
+        'relayers': reverse('api.channels', request=request),
+        'runs': reverse('api.runs', request=request),
+        'sms': reverse('api.sms', request=request),
     })
 
 
@@ -447,9 +454,8 @@ class BroadcastsEndpoint(generics.ListAPIView):
       * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
       * **groups** - the UUIDs of groups that received the broadcast (array of strings)
       * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
-      * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
+      * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **status** - the status of this broadcast, a string one of: (filterable: ```status``` repeatable)
-
             I - no messages have been sent yet
             Q - some messages are still queued
             S - all messages have been sent
@@ -575,6 +581,9 @@ class MessagesEndpoint(generics.ListAPIView):
 
     ## Sending Messages
 
+    ** Note that sending messages using this endpoint is deprecated, you should instead use the Broadcasts endpoint to
+       send new messages **
+
     You can create new messages by making a **POST** request to this URL with the following JSON data:
 
       * **channel** - the id of the channel that should send the messages (int, optional)
@@ -590,7 +599,7 @@ class MessagesEndpoint(generics.ListAPIView):
             "text": "hello world"
         }
 
-    You will receive a response containing the ids of the SMS messages created:
+    You will receive a response containing the ids of the messages created:
 
         {
             "messages": [
@@ -609,7 +618,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
       * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
-      * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
+      * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
@@ -794,14 +803,14 @@ class MessagesEndpoint(generics.ListAPIView):
                     title="Send one or more messages",
                     url=reverse('api.messages'),
                     slug='sms-send',
-                    request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first SMS message", "relayer": 1 }')
+                    request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first message", "relayer": 1 }')
 
         spec['fields'] = [dict(name='urn', required=False,
                                help="A JSON array of one or more strings, each a contact URN."),
                           dict(name='contact', required=False,
                                help="A JSON array of one or more strings, each a contact UUID."),
                           dict(name='text', required=True,
-                               help="The text of the SMS message you want to send (max length 480 chars)"),
+                               help="The text of the message you want to send (max length 480 chars)"),
                           dict(name='relayer', required=False,
                                help="The id of the channel that should send this message, if not specified we will "
                                     "choose what it thinks is the best channel to deliver this message.")]
@@ -1702,8 +1711,8 @@ class FieldsEndpoint(generics.ListAPIView):
                     slug='contactfield-update',
                     request='{ "key": "nick_name", "label": "Nick name", "value_type": "T" }')
 
-        spec['fields'] = [dict(name='key', required=True,
-                               help='The unique key of the field.  ex: "nick_name"'),
+        spec['fields'] = [dict(name='key',
+                               help='The unique key of the field, required when updating a field, generated for new fields.  ex: "nick_name"'),
                           dict(name='label', required=False,
                                help='The label of the field.  ex: "Nick name"'),
                           dict(name='value_type', required=False,
@@ -2496,10 +2505,12 @@ class FlowEndpoint(generics.ListAPIView):
                 "labels": [ "Polls" ],
                 "rulesets": [
                    {
+                    "id": 17122,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
                     "label": "Age"
                    },
                    {
+                    "id": 17128,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
                     "label": "Gender"
                    }
