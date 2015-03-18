@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import os
 import phonenumbers
+import plivo
 import requests
 import time
 
@@ -47,6 +48,7 @@ ZENVIA = 'ZV'
 SHAQODOON = 'SQ'
 VERBOICE = 'VB'
 CLICKATELL = 'CT'
+PLIVO = 'PL'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -73,6 +75,7 @@ RELAYER_TYPE_CHOICES = ((ANDROID, _("Android")),
                         (EXTERNAL, _("External")),
                         (TWITTER, _("Twitter")),
                         (CLICKATELL, _("Clickatell")),
+                        (PLIVO, _("Plivo")),
                         (SHAQODOON, _("Shaqodoon")))
 
 # how many outgoing messages we will queue at once
@@ -95,13 +98,18 @@ RELAYER_TYPE_CONFIG = {
     HUB9: dict(scheme='tel', max_length=1600),
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
-    CLICKATELL: dict(scheme='tel', max_length=420)
+    CLICKATELL: dict(scheme='tel', max_length=420),
+    PLIVO: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
 # Some providers need a static ip to whitelist, route them through our proxy
 proxies = {"http": "http://proxy.rapidpro.io:3128"}
+
+PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
+PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
+PLIVO_APP_ID = 'PLIVO_APP_ID'
 
 
 class Channel(SmartModel):
@@ -179,6 +187,52 @@ class Channel(SmartModel):
         return Channel.objects.create(channel_type=channel_type, country=country, name=phone_number,
                                       address=phone_number, uuid=str(uuid4()), config=json.dumps(config),
                                       role=role, parent=parent,
+                                      org=org, created_by=user, modified_by=user)
+    @classmethod
+    def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
+        plivo_uuid = unicode(uuid4())
+        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
+
+        client = plivo.RestAPI(auth_id, auth_token)
+
+        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler', args=['receive', plivo_uuid])
+        answer_url = "https://" + settings.AWS_STORAGE_BUCKET_NAME + "/plivo_voice_unavailable.xml"
+
+        plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
+                                                                                      answer_url=answer_url,
+                                                                                      message_url=message_url))
+
+        if plivo_response_status in [201, 200, 202]:
+            plivo_app_id = plivo_response['app_id']
+
+        plivo_config = json.dumps({PLIVO_AUTH_ID: auth_id,
+                                   PLIVO_AUTH_TOKEN: auth_token,
+                                   PLIVO_APP_ID: plivo_app_id})
+
+        plivo_number = phone_number.strip('+ ').replace(' ', '')
+
+        plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
+
+        if plivo_response_status != 200:
+            plivo_response_status, plivo_number = client.buy_phone_number(params=dict(number=plivo_number))
+
+            if plivo_response_status != 201:
+                raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
+
+            plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
+
+        if plivo_response_status == 200:
+            plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
+                                                                                     app_id=plivo_app_id))
+            if plivo_response_status != 202:
+                raise Exception(_("There was a problem updating that number, please try again."))
+
+        phone_number = '+' + plivo_number
+        phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
+                                           phonenumbers.PhoneNumberFormat.NATIONAL)
+
+        return Channel.objects.create(channel_type=PLIVO, country=country, name=phone,
+                                      address=phone_number, uuid=plivo_uuid, config=plivo_config,
                                       org=org, created_by=user, modified_by=user)
 
 
@@ -623,6 +677,14 @@ class Channel(SmartModel):
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
+
+        if self.channel_type == PLIVO:
+            import plivo
+            client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+
+            # remove the application
+            client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
+
 
         # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
         if self.channel_type == TWILIO:
@@ -1287,6 +1349,54 @@ class Channel(SmartModel):
                                response_status=response.status_code)
 
     @classmethod
+    def send_plivo_message(cls, channel, msg, text):
+        import plivo
+        from temba.msgs.models import Msg, WIRED
+
+        # url used for logs and exceptions
+        url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[PLIVO_AUTH_ID]
+
+        client = plivo.RestAPI(channel.config[PLIVO_AUTH_ID], channel.config[PLIVO_AUTH_TOKEN])
+        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler',
+                                                                       args=['status', channel.uuid])
+
+        payload = {'src': channel.address.lstrip('+'),
+                   'dst': msg.urn_path.lstrip('+'),
+                   'text': text,
+                   'url': status_url,
+                   'method': 'POST'}
+
+        try:
+            plivo_response_status, plivo_response = client.send_message(params=payload)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response="",
+                                response_status=503)
+
+        if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:
+            raise SendException("Got non-200 response [%d] from API" % plivo_response_status,
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response=plivo_response,
+                                response_status=plivo_response_status)
+
+        external_id = plivo_response['message_uuid'][0]
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=json.dumps(payload),
+                               response=plivo_response,
+                               response_status=plivo_response_status)
+
+
+    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1345,7 +1455,8 @@ class Channel(SmartModel):
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,
                       SHAQODOON: Channel.send_shaqodoon_message,
-                      ZENVIA: Channel.send_zenvia_message}
+                      ZENVIA: Channel.send_zenvia_message,
+                      PLIVO: Channel.send_plivo_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
