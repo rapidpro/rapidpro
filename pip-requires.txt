@@ -23,7 +23,7 @@ django-redis==3.1.5
 redis==2.10.1
 BeautifulSoup
 xlutils
-phonenumbers==7.0.0
+phonenumbers==7.0.2
 django-countries==3.0.1
 djangorestframework==2.2.1
 django-ttag
