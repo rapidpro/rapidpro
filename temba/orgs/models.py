@@ -157,7 +157,7 @@ class OrgCache(Enum):
     credits = 2
 
 
-class OrgAssetMixin(object):
+class OrgModelMixin(object):
     """
     Mixin for objects like contacts, messages which are owned by orgs and affect org caches
     """

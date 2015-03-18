@@ -18,7 +18,7 @@ from django_hstore.fields import DictionaryField
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.cache import get_cacheable_result, incrby_existing
@@ -33,7 +33,7 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 
-class ContactField(models.Model, OrgAssetMixin):
+class ContactField(models.Model, OrgModelMixin):
     """
     Represents a type of field that can be put on Contacts.  We store uuids as the keys in our HSTORE
     field so that we don't have to worry about renaming fields with the user.  This takes care of that
@@ -149,7 +149,7 @@ CONTACT_STATUS_CHOICES = ((NORMAL, _("Normal")),
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel, OrgAssetMixin):
+class Contact(TembaModel, SmartModel, OrgModelMixin):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 

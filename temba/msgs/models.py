@@ -23,7 +23,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
@@ -479,7 +479,7 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class Msg(models.Model, OrgAssetMixin):
+class Msg(models.Model, OrgModelMixin):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
