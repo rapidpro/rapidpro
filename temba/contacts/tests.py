@@ -819,7 +819,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Joe and Frank")
-        self.assertEquals(response.context['actions'], ('label', 'archive'))
+        self.assertEquals(response.context['actions'], ('label', 'block'))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -843,7 +843,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Joe and Frank")
-        self.assertEquals(response.context['actions'], ('label', 'archive'))
+        self.assertEquals(response.context['actions'], ('label', 'block'))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -926,7 +926,7 @@ class ContactTest(TembaTest):
 
         # Now archive Joe
         post_data = dict()
-        post_data['action'] = 'archive'
+        post_data['action'] = 'block'
         post_data['objects'] = self.joe.id
         self.client.post(list_url, post_data, follow=True)
 
@@ -962,20 +962,20 @@ class ContactTest(TembaTest):
         self.assertEquals(0, response.context['object_list'].count())  # from cache
 
         # Now let's visit the archived contacts page
-        archived_url = reverse('contacts.contact_archived')
+        blocked_url = reverse('contacts.contact_blocked')
 
         # archived contact are not on the list page
         # Now Let's restore Joe to the contacts
         post_data = dict()
         post_data['action'] = 'restore'
         post_data['objects'] = self.joe.id
-        self.client.post(archived_url, post_data, follow=True)
+        self.client.post(blocked_url, post_data, follow=True)
 
         # and check that Joe is restored to the contact list but the group not restored
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEquals(response.context['actions'], ('label', 'archive'))
+        self.assertEquals(response.context['actions'], ('label', 'block'))
         self.assertEquals(len(self.just_joe.contacts.all()), 0)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 1)
 

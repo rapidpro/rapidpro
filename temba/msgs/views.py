@@ -405,7 +405,7 @@ class BaseActionForm(forms.Form):
         resend_allowed = self.user.get_org_group().permissions.filter(codename="broadcast_send")
 
 
-        if action in ['label', 'unlabel', 'archive', 'restore'] and not update_allowed:
+        if action in ['label', 'unlabel', 'archive', 'restore', 'archive'] and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
         if action == 'delete' and not delete_allowed:
@@ -449,6 +449,10 @@ class BaseActionForm(forms.Form):
 
         elif action == 'archive':
             changed = self.OBJECT_CLASS.apply_action_archive(objects)
+            return dict(changed=changed)
+
+        elif action == 'block':
+            changed = self.OBJECT_CLASS.apply_action_block(objects)
             return dict(changed=changed)
 
         elif action == 'restore':

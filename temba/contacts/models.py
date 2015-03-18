@@ -142,12 +142,6 @@ class ContactField(models.Model, OrgAssetMixin):
     def __unicode__(self):
         return "%s" % self.label
 
-NORMAL = 'N'
-FAILED = 'F'
-
-CONTACT_STATUS_CHOICES = ((NORMAL, _("Normal")),
-                          (FAILED, _("Failed")))
-
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
@@ -166,8 +160,6 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
     is_failed = models.BooleanField(verbose_name=_("Is Failed"), default=False,
                                     help_text=_("Whether we cannot send messages to this contact"))
-
-    status = models.CharField(verbose_name='Contact Status', default=NORMAL, max_length=2)
 
     fields = DictionaryField(db_index=True)
 
@@ -724,7 +716,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         return group.update_contacts(contacts, add)
 
     @classmethod
-    def apply_action_archive(cls, contacts):
+    def apply_action_block(cls, contacts):
         changed = []
 
         for contact in contacts:
@@ -752,7 +744,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
     def block(self):
         """
-        Blocks (i.e. archives) this contact removing it from all groups, and marking it as archived
+        Blocks this contact removing it from all groups, and marking it as archived
         """
         if self._update_state(dict(is_blocked=False), dict(is_blocked=True), OrgEvent.contact_blocked):
             for group in self.groups.all():
@@ -760,7 +752,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
     def unblock(self):
         """
-        Unlocks (i.e. un-archives) this contact and marking it as not archived
+        Unlocks this contact and marking it as not archived
         """
         self._update_state(dict(is_blocked=True), dict(is_blocked=False), OrgEvent.contact_unblocked)
 
@@ -768,13 +760,13 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         """
         Fails this contact, provided it is currently normal
         """
-        self._update_state(dict(status=NORMAL), dict(status=FAILED), OrgEvent.contact_failed)
+        self._update_state(dict(is_failed=False), dict(is_failed=True), OrgEvent.contact_failed)
 
     def unfail(self):
         """
         Un-fails this contact, provided it is currently failed
         """
-        self._update_state(dict(status=FAILED), dict(status=NORMAL), OrgEvent.contact_unfailed)
+        self._update_state(dict(is_failed=True), dict(is_failed=False), OrgEvent.contact_unfailed)
 
     def release(self):
         """

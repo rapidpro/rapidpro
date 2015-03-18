@@ -119,7 +119,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         folders = [dict(count=org.get_folder_count(OrgFolder.contacts_all), label=_("All Contacts"), url=reverse('contacts.contact_list')),
                    dict(count=org.get_folder_count(OrgFolder.contacts_failed), label=_("Failed"), url=reverse('contacts.contact_failed')),
-                   dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_archived'))]
+                   dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
         groups_qs = ContactGroup.objects.filter(org=org, is_active=True).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
@@ -141,7 +141,7 @@ class ContactActionForm(BaseActionForm):
     ALLOWED_ACTIONS = (('label', _("Add to Group")),
                        ('unlabel', _("Remove from Group")),
                        ('restore', _("Restore Contacts")),
-                       ('archive', _("Archive Contacts")),
+                       ('block', _("Block Contacts")),
                        ('delete', _("Delete Contacts")))
 
     OBJECT_CLASS = Contact
@@ -257,8 +257,8 @@ class UpdateContactForm(ContactForm):
 
 class ContactCRUDL(SmartCRUDL):
     model = Contact
-    actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'archived', 'omnibox',
-               'customize', 'export', 'archive', 'restore', 'delete')
+    actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
+               'customize', 'export', 'block', 'restore', 'delete')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -623,7 +623,7 @@ class ContactCRUDL(SmartCRUDL):
             context = super(ContactCRUDL.List, self).get_context_data(*args, **kwargs)
             org = self.request.user.get_org()
 
-            context['actions'] = ('label', 'archive')
+            context['actions'] = ('label', 'block')
             context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
 
             if 'compiled_query' in self.request.__dict__:
@@ -637,7 +637,7 @@ class ContactCRUDL(SmartCRUDL):
         folder = OrgFolder.contacts_blocked
 
         def get_context_data(self, *args, **kwargs):
-            context = super(ContactCRUDL.Archived, self).get_context_data(*args, **kwargs)
+            context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
             context['actions'] = ('restore', 'delete') if self.has_org_perm("contacts.contact_delete") else ('restore',)
             return context
 
@@ -648,7 +648,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Failed, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['archive']
+            context['actions'] = ['block']
             return context
 
     class Filter(ContactActionMixin, ContactListView):
@@ -688,9 +688,9 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             if group.is_dynamic:
-                actions = ('archive', 'label')
+                actions = ('block', 'label')
             else:
-                actions = ('archive', 'label', 'unlabel')
+                actions = ('block', 'label', 'unlabel')
 
             context['actions'] = actions
             context['current_group'] = group
@@ -706,7 +706,8 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'created_by', 'modified_by', 'is_test', 'status', 'channel')
+        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'is_failed',
+                   'created_by', 'modified_by', 'is_test', 'channel')
         success_message = ''
         submit_button_name = _("Create")
 
@@ -736,7 +737,8 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'created_by', 'modified_by', 'is_test', 'status', 'channel')
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_failed',
+                   'created_by', 'modified_by', 'is_test', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
         submit_button_name = _("Save Changes")

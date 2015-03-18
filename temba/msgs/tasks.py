@@ -140,7 +140,6 @@ def check_messages_task():
     """
     from django.utils import timezone
     from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, FAILED, WIRED, SENT, DELIVERED
-    from temba.contacts.models import NORMAL
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
 
@@ -155,14 +154,14 @@ def check_messages_task():
 
             # get any contacts that are currently normal that had a failed message in the past five minutes
             for contact in Contact.objects.filter(msgs__created_on__gte=five_minutes_ago, msgs__direction=OUTGOING,
-                                                  msgs__status=FAILED, status=NORMAL):
+                                                  msgs__status=FAILED, is_failed=False):
                 # if the last message from this contact is failed, then fail this contact
                 if contact.msgs.all().order_by('-created_on').first().status == FAILED:
                     contact.fail()
 
             # get any contacts that are currently failed that had a normal message in the past five minutes
             for contact in Contact.objects.filter(msgs__created_on__gte=five_minutes_ago, msgs__direction=OUTGOING,
-                                                  msgs__status__in=[WIRED, SENT, DELIVERED], status=FAILED):
+                                                  msgs__status__in=[WIRED, SENT, DELIVERED], is_failed=True):
                 # if the last message from this contact is ok, then mark them as normal
                 if contact.msgs.all().order_by('-created_on').first().status in [WIRED, SENT, DELIVERED]:
                     contact.unfail()
