@@ -682,7 +682,7 @@ class MessagesEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = splitting_getlist(self.request, 'sms')
+        ids = splitting_getlist(self.request, 'id')
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
