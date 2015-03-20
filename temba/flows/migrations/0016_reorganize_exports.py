@@ -40,7 +40,7 @@ def migrate_export_tasks(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0014_auto_20150310_1806'),
+        ('flows', '0015_auto_20150320_0417'),
     ]
 
     operations = [
