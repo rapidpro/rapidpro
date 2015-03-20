@@ -8,20 +8,14 @@ from django.db import migrations
 from temba.assets.models import AssetType
 
 
-def migrate_message_exports(apps, schema_editor):
-    ExportMessagesTask = apps.get_model('msgs', 'ExportMessagesTask')
-
+def migrate_export_tasks(apps, schema_editor):
+    task_model = apps.get_model('msgs', 'ExportMessagesTask')
     store = AssetType.message_export.store
 
-    num_copied = 0
-    num_missing = 0
-    num_failed = 0
+    copied_task_ids = []
+    failed_task_ids = []
 
-    for task in ExportMessagesTask.objects.select_related('created_by').all():
-        if not task.filename:
-            num_missing += 1
-            continue
-
+    for task in task_model.objects.exclude(filename=None):
         identifier = task.pk
         extension = os.path.splitext(task.filename)[1][1:]
 
@@ -29,12 +23,18 @@ def migrate_message_exports(apps, schema_editor):
             existing_file = default_storage.open(task.filename)
             new_path = store.derive_path(task.org, identifier, extension)
             default_storage.save(new_path, existing_file)
-            num_copied += 1
-        except Exception:
-            print "Unable to open %s" % task.filename
-            num_failed += 1
+            copied_task_ids.append(task.pk)
 
-    print 'Copied %d message export files (%d tasks have no file, %d could not be opened)' % (num_copied, num_missing, num_failed)
+            task.filename = None
+            task.save()
+        except Exception:
+            print "Unable to copy %s" % task.filename
+            failed_task_ids.append(task.pk)
+
+    # clear filename for tasks that were successfully copied so we don't try to migrate them again
+    task_model.objects.filter(pk__in=copied_task_ids).update(filename=None)
+
+    print 'Copied %d export task files (%d could not be copied)' % (len(copied_task_ids), len(failed_task_ids))
 
 
 class Migration(migrations.Migration):
@@ -44,5 +44,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_message_exports)
+        migrations.RunPython(migrate_export_tasks)
     ]
