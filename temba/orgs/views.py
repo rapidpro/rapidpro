@@ -1377,7 +1377,7 @@ class OrgCRUDL(SmartCRUDL):
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class LanguagesForm(forms.ModelForm):
-            primary_lang = forms.CharField(required=True, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
+            primary_lang = forms.CharField(required=False, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
             languages = forms.CharField(required=False, label=_('Additional Languages'), help_text=('Add any other languages you would like to provide translations for.'))
 
             def __init__(self, *args, **kwargs):
@@ -1483,6 +1483,11 @@ class OrgCRUDL(SmartCRUDL):
                     if iso_code == primary:
                         self.object.primary_language = language
                         self.object.save(update_fields=['primary_language'])
+
+            # remove our primary language if necessary
+            if org.primary_language and org.primary_language.iso_code not in iso_codes:
+                org.primary_language = None
+                org.save()
 
             # remove any languages that are not in our new list
             org.languages.exclude(iso_code__in=iso_codes).delete()

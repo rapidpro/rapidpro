@@ -2164,9 +2164,7 @@ class Flow(TembaModel, SmartModel):
                     self.entry_type = None
 
             # if we have a base language, set that
-            json_language = json_dict.get('base_language', None)
-            if json_language:
-                self.base_language = json_language
+            self.base_language = json_dict.get('base_language', None)
 
             # set our metadata
             self.metadata = None

@@ -2572,6 +2572,32 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Hello friend! What is your favorite color?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
 
+    def test_reimport_over_localized_flow(self):
+
+        # a non-localized flow
+        flow = self.get_flow('favorites')
+        self.assertIsNone(flow.base_language)
+
+        # that gets localized
+        flow.base_language = 'spa'
+        flow.save()
+        flow.update_base_language()
+        self.assertEqual('spa', Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertTrue(isinstance(action.msg, dict))
+
+        # now update with the old definition
+        self.update_flow(flow, 'favorites')
+
+        # should no longer be localized
+        self.assertIsNone(Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertFalse(isinstance(action.msg, dict))
+
 
 
     def test_different_expiration(self):
