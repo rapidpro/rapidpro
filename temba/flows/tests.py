@@ -2557,20 +2557,61 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('This message was not translated.', replies[1])
 
         # now add a primary language to our org
-        self.org.primary_language = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
-                                                            created_by=self.admin, modified_by=self.admin)
+        spanish = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
+                                          created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = spanish
         self.org.save()
+
         flow = Flow.objects.get(pk=flow.pk)
 
         # with our org in spanish, we should get the spanish version
         self.assertEquals('\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
 
-        # but set our contact's language explicity should get us back to english
+        self.org.primary_language = None
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # no longer spanish on our org
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        # back to spanish
+        self.org.primary_language = spanish
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # but set our contact's language explicitly should keep us at english
         self.contact.language = 'eng'
         self.contact.save()
         self.assertEquals('Hello friend! What is your favorite color?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+    def test_reimport_over_localized_flow(self):
+
+        # a non-localized flow
+        flow = self.get_flow('favorites')
+        self.assertIsNone(flow.base_language)
+
+        # that gets localized
+        flow.base_language = 'spa'
+        flow.save()
+        flow.update_base_language()
+        self.assertEqual('spa', Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertTrue(isinstance(action.msg, dict))
+
+        # now update with the old definition
+        self.update_flow(flow, 'favorites')
+
+        # should no longer be localized
+        self.assertIsNone(Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertFalse(isinstance(action.msg, dict))
 
 
 
