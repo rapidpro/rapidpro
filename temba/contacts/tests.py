@@ -16,7 +16,7 @@ from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
-from temba.contacts.models import ExportContactsTask
+from temba.contacts.models import ExportContactsTask, USER_DEFINED_GROUP
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgFolder
@@ -42,6 +42,7 @@ class ContactCRUDLTest(_CRUDLTest):
                                       created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
+        self.org.initialize()
 
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'home', "Home", value_type='S')
@@ -115,6 +116,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
+
         self.user.set_org(self.org)
         self.channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
                                               org=self.org, created_by=self.user, modified_by=self.user,
@@ -144,8 +147,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
 
         response = self.client.post(create_url, dict(name="first  "))
         self.assertNoFormErrors(response)
-        group = ContactGroup.objects.all()[0]
-        self.assertEquals(group.name, "first")
+        self.assertTrue(ContactGroup.objects.get(org=self.org, group_type=USER_DEFINED_GROUP, name="first"))
 
     def test_update_url(self):
         group = ContactGroup.create(self.org, self.user, "one")
@@ -159,8 +161,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
 
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
-        group = ContactGroup.objects.all()[0]
-        self.assertEquals(group.name, "new name")
+        self.assertTrue(ContactGroup.objects.get(org=self.org, group_type=USER_DEFINED_GROUP, name="new name"))
 
 
 class ContactGroupTest(TembaTest):
@@ -178,44 +179,35 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, ContactGroup.create, self.org, self.admin, "   ")
 
         ContactGroup.create(self.org, self.admin, " group one ")
-        self.assertEquals(1, ContactGroup.objects.all().count())
-        group = ContactGroup.objects.all()[0]
-        self.assertEquals(group.name, "group one")
+        self.assertEquals(1, ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP).count())
+        self.assertTrue(ContactGroup.objects.get(org=self.org, group_type=USER_DEFINED_GROUP, name="group one"))
 
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
         group.contacts.add(self.joe, self.frank)
 
-        with self.assertNumQueries(1):
-            self.assertEquals(group.get_member_count(), 2)  # from db
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 2)  # from cache
+        self.assertEquals(ContactGroup.objects.get(pk=group.pk).count, 2)
 
         group.update_contacts([self.mary], add=True)
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 3)
+        self.assertEquals(ContactGroup.objects.get(pk=group.pk).count, 3)
 
         group.update_contacts([self.mary], add=False)
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 2)
+        self.assertEquals(ContactGroup.objects.get(pk=group.pk).count, 2)
 
         self.joe.block()
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 1)
+        self.assertEquals(ContactGroup.objects.get(pk=group.pk).count, 1)
 
-        self.joe.unblock()
+        self.joe.restore()
         self.frank.release()
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 0)
+        self.assertEquals(ContactGroup.objects.get(pk=group.pk).count, 0)
 
         self.clear_cache()
 
-        with self.assertNumQueries(1):
-            self.assertEquals(group.get_member_count(), 0)
+        self.assertEquals(ContactGroup.objects.get(pk=group.pk).count, 0)
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, 'age')
@@ -296,8 +288,7 @@ class ContactTest(TembaTest):
 
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
-        self.jim.is_active = False
-        self.jim.save()
+        self.jim.release()
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -328,7 +319,6 @@ class ContactTest(TembaTest):
         group = self.create_group("Just Joe", [self.joe])
 
         self.clear_cache()
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
@@ -353,8 +343,8 @@ class ContactTest(TembaTest):
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
 
-        # unblock and re-add to group
-        self.joe.unblock()
+        # restore and re-add to group
+        self.joe.restore()
         group.update_contacts([self.joe], add=True)
 
         # check this contact object but also that changes were persisted
@@ -365,6 +355,8 @@ class ContactTest(TembaTest):
         self.assertFalse(self.joe.is_blocked)
 
         self.joe.release()
+
+        import pdb; pdb.set_trace()
 
         self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
 
@@ -1130,8 +1122,8 @@ class ContactTest(TembaTest):
         records = self.do_import(user, 'sample_contacts.xls')
         self.assertEquals(3, len(records))
 
-        self.assertEquals(1, len(ContactGroup.objects.all()))
-        group = ContactGroup.objects.all()[0]
+        self.assertEquals(1, len(ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP)))
+        group = ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP)[0]
         self.assertEquals('Sample Contacts', group.name)
         self.assertEquals(3, group.contacts.count())
 
@@ -1146,14 +1138,14 @@ class ContactTest(TembaTest):
         self.assertEquals(3, len(records))
 
         # But there should be another group
-        self.assertEquals(2, len(ContactGroup.objects.all()))
+        self.assertEquals(2, len(ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP)))
         self.assertEquals(1, ContactGroup.objects.filter(name="Sample Contacts 2").count())
 
         # update file changes a name, and adds one more
         records = self.do_import(user, 'sample_contacts_update.csv')
 
         # now there are three groups
-        self.assertEquals(3, len(ContactGroup.objects.all()))
+        self.assertEquals(3, len(ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP)))
         self.assertEquals(1, ContactGroup.objects.filter(name="Sample Contacts Update").count())
 
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
@@ -1179,7 +1171,7 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['group'], None)
 
         Contact.objects.all().delete()
-        ContactGroup.objects.all().delete()
+        ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP).delete()
 
         # import sample contact spreadsheet with valid headers
         csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
@@ -1203,7 +1195,7 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1))
 
         Contact.objects.all().delete()
-        ContactGroup.objects.all().delete()
+        ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP).delete()
 
         # try importing invalid spreadsheets with missing headers
         csv_file = open('%s/test_imports/sample_contacts_missing_name_header.xls' % settings.MEDIA_ROOT, 'rb')
@@ -1226,7 +1218,7 @@ class ContactTest(TembaTest):
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
-        self.assertEquals(ContactGroup.objects.all().count(), 0)
+        self.assertEquals(ContactGroup.objects.filter(group_type=USER_DEFINED_GROUP).count(), 0)
 
         # import spreadsheet with extra columns
         csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
@@ -1552,6 +1544,8 @@ class ContactFieldTest(TembaTest):
         self.admin = self.create_user("ben")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.admin, modified_by=self.admin)
         self.org.administrators.add(self.admin)
+        self.org.initialize()
+
         self.user.set_org(self.org)
         self.admin.set_org(self.org)
 

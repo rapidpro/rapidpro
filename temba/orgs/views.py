@@ -1199,8 +1199,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            obj.create_sample_flows()
-            obj.create_welcome_topup(self.user, self.get_welcome_size())
+            obj.initialize(topup_size=self.get_welcome_size())
 
             return obj
 

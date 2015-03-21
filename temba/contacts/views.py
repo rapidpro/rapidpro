@@ -20,7 +20,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
-from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
+from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS, USER_DEFINED_GROUP
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -121,7 +121,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.contacts_failed), label=_("Failed"), url=reverse('contacts.contact_failed')),
                    dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
-        groups_qs = ContactGroup.objects.filter(org=org, is_active=True).select_related('org')
+        groups_qs = ContactGroup.objects.filter(org=org, is_active=True, group_type=USER_DEFINED_GROUP).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
         groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
