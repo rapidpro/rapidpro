@@ -218,6 +218,10 @@ class Org(SmartModel):
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
     webhook = models.CharField(verbose_name=_("Webhook"), max_length=255, blank=True, null=True)
+    webhook_header_field_name = models.CharField(verbose_name=_("Webhook Header Field Name"), max_length=255, blank=True, null=True,
+                                                 help_text=_("Optional header field name to include with Webhook requests"))
+    webhook_header_value = models.CharField(verbose_name=_("Webhook Header Value"), max_length=255, blank=True, null=True,
+                                            help_text=("Optional header value to include with Webhook requests"))
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
 

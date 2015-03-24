@@ -8,6 +8,13 @@
 -block fields
   .field.webhook-url
     {% render_field 'webhook' %}
+  .fieldset.webhook-header
+    %a.expand
+      -trans "Additional options"
+    .field.webhook-header-field-name.hide
+      {% render_field 'webhook_header_field_name' %}
+    .field.webhook-header-value.hide
+      {% render_field 'webhook_header_value' %}
 
   API Token: {{user.api_token}}
 
@@ -105,6 +112,18 @@
           }
         });
       });
+      $(function() {
+        $(".expand").on('click', function(){
+          var fieldset = $(this).parent(".fieldset");
+          var fields = fieldset.children("div");
+
+          if (fields.hasClass("hide")) {
+            fields.removeClass("hide");
+          } else {
+            fields.addClass("hide");
+          }
+        });
+      });
 
 
 -block extra-style
@@ -118,6 +137,20 @@
 
     .field.webhook-url .controls {
       margin-left: 0px;
+    }
+
+    .field.webhook-header-field-name .control-label {
+       display: block;
+       float: none;
+       text-align: left;
+       width: auto;
+    }
+
+    .field.webhook-header-value .control-label {
+       display: block;
+       float: none;
+       text-align: left;
+       width: auto;
     }
 
     .subscribed-events {
@@ -141,5 +174,3 @@
       height: 22px;
       margin-top: 0px;
     }
-
-    

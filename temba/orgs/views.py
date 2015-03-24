@@ -55,7 +55,7 @@ def check_login(request):
 
 class OrgPermsMixin(object):
     """
-    Get the organisation and the user within the inheriting view so that it be come easy to decide 
+    Get the organisation and the user within the inheriting view so that it be come easy to decide
     whether this user has a certain permission for that particular organization to perform the view's actions
     """
     def get_user(self):
@@ -134,7 +134,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
 
     def has_permission(self, request, *args, **kwargs):
         has_perm = super(OrgObjPermsMixin, self).has_permission(request, *args, **kwargs)
-        
+
         if has_perm:
             user = self.get_user()
 
@@ -143,7 +143,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
                 return True
 
             return user.get_org() == self.get_object_org()
-        
+
         return False
 
 
@@ -366,7 +366,7 @@ class UserCRUDL(SmartCRUDL):
 
                 if user in org_users:
                     return True
-            
+
             return False
 
 
@@ -812,7 +812,7 @@ class OrgCRUDL(SmartCRUDL):
                         except ValidationError:
                             raise forms.ValidationError(_("One of the emails you entered is invalid."))
                 return emails
-                
+
             class Meta:
                 model = Invitation
                 fields = ('emails', 'user_group')
@@ -916,7 +916,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.get_object().editors.remove(user)
             for user in self.get_object().get_org_viewers():
                 self.get_object().viewers.remove(user)
-        
+
             # now update the org accounts
             for field in self.form.fields:
                 if self.form.cleaned_data[field]:
@@ -950,7 +950,7 @@ class OrgCRUDL(SmartCRUDL):
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all() ,empty_label=None)
-        
+
         form_class = ChooseForm
         success_url = '@msgs.msg_inbox'
         fields = ('organization',)
@@ -1007,13 +1007,13 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             secret = self.kwargs.get('secret')
-            
+
             org = self.get_object()
             if not org:
                 messages.info(request, _("Your invitation link is invalid. Please contact your organization administrator."))
                 return HttpResponseRedirect(reverse('public.public_index'))
             return None
-        
+
         def pre_save(self, obj):
             obj = super(OrgCRUDL.CreateLogin, self).pre_save(obj)
 
@@ -1025,7 +1025,7 @@ class OrgCRUDL(SmartCRUDL):
             user.save()
 
             invitation = self.get_invitation()
-            
+
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data['password'])
             login(self.request, user)
@@ -1066,7 +1066,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.CreateLogin, self).get_context_data(**kwargs)
-            
+
             context['secret'] = self.kwargs.get('secret')
             context['org'] = self.get_object()
 
@@ -1074,7 +1074,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Join(SmartUpdateView):
         class JoinForm(forms.ModelForm):
-            
+
             class Meta:
                 model = Org
                 fields = ()
@@ -1087,7 +1087,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             secret = self.kwargs.get('secret')
-            
+
             org = self.get_object()
             if not org:
                 messages.info(request, _("Your invitation link has expired. Please contact your organization administrator."))
@@ -1111,7 +1111,7 @@ class OrgCRUDL(SmartCRUDL):
                     org.editors.add(self.request.user)
                 else:
                     org.viewers.add(self.request.user)
-                    
+
                 # make the invitation inactive
                 invitation.is_active = False
                 invitation.save()
@@ -1137,7 +1137,7 @@ class OrgCRUDL(SmartCRUDL):
             if invitation:
                 return invitation.org
             return None
-            
+
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Join, self).get_context_data(**kwargs)
 
@@ -1245,6 +1245,8 @@ class OrgCRUDL(SmartCRUDL):
 
         class WebhookForm(forms.ModelForm):
             webhook = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
+            webhook_header_field_name = forms.CharField(required=False, label=_("Webhook Header Field Name"))
+            webhook_header_value = forms.CharField(required=False, label=_("Webhook Header Value"))
             mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
             mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
             mt_call = forms.BooleanField(required=False, label=_("Incoming Calls"))
@@ -1255,7 +1257,7 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
 
         form_class = WebhookForm
-        fields = ('webhook', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
+        fields = ('webhook', 'webhook_header_field_name', 'webhook_header_value', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
         success_url = '@orgs.org_home'
         success_message = ''
 
