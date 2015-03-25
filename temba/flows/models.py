@@ -775,7 +775,7 @@ class Flow(TembaModel, SmartModel):
         if hasattr(kind, 'name'):
             name = kind.name
 
-        cache_key = FLOW_STAT_CACHE_KEY % (self.org.pk, self.pk, name)
+        cache_key = FLOW_STAT_CACHE_KEY % (self.org_id, self.pk, name)
         if item:
             cache_key += (':%s' % item)
         return cache_key
@@ -2403,6 +2403,9 @@ class RuleSet(models.Model):
 
     def get_rules(self):
         return Rule.from_json_array(self.flow.org, json.loads(self.rules))
+
+    def get_rule_uuids(self):
+        return [rule['uuid'] for rule in json.loads(self.rules)]
 
     def set_rules_dict(self, json_dict):
         self.rules = json.dumps(json_dict)

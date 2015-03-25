@@ -1384,7 +1384,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     def analytics_json(self):
         if self.contacts.exists():
-            return dict(name=self.name, id=self.pk, count=self.contacts.all().count())
+            return dict(name=self.name, id=self.pk, count=self.get_member_count())
 
     def __unicode__(self):
         return self.name
