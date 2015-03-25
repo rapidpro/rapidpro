@@ -76,7 +76,7 @@
         .samples.by-responses{ng-model:"flows"}
           %h2
             -trans "Most Active"
-          .flow{ng-repeat:'flow in flows | orderBy:"-stats.messages" | limitTo:4 '}
+          .flow{ng-repeat:'flow in flows | orderBy:"-stats.contacts" | limitTo:4 '}
             .message-count{ ng-click: 'addFlowFields(flow)' }
               [[flow.stats.contacts]]
               .message-label
