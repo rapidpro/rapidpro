@@ -586,7 +586,7 @@ class Flow(TembaModel, SmartModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg):
+    def find_and_handle(cls, msg, started_flows=[]):
 
         start_time = time.time()
         org = msg.org
@@ -666,7 +666,7 @@ class Flow(TembaModel, SmartModel):
         return False
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, start_time=None):
+    def handle_ruleset(cls, ruleset, step, run, msg, started_flows=[], start_time=None):
         if not start_time:
             start_time = time.time()
 
@@ -711,7 +711,7 @@ class Flow(TembaModel, SmartModel):
             return True
 
         # execute this step
-        msgs = action_set.execute_actions(run, msg, [])
+        msgs = action_set.execute_actions(run, msg, started_flows)
         step = flow.add_step(run, action_set, msgs, rule=rule.uuid, category=rule.category, previous_step=step)
 
         # and onto the destination
@@ -1656,13 +1656,13 @@ class Flow(TembaModel, SmartModel):
 
                 # if we have a start message, go and handle the rule
                 if start_msg:
-                    self.find_and_handle(start_msg)
+                    self.find_and_handle(start_msg, started_flows)
 
                 # otherwise, if this ruleset doesn't operate on a step, then evaluate it immediately
                 elif not entry_rules.requires_step():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    self.handle_ruleset(entry_rules, step, run, msg)
+                    self.handle_ruleset(entry_rules, step, run, msg, started_flows)
 
             if start_msg:
                 step.add_message(start_msg)

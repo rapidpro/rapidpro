@@ -2693,6 +2693,18 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
         self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
 
+    def test_ruleset_loops(self):
+        self.import_file('ruleset_loop')
+
+        flow1=Flow.objects.all()[1]
+        flow2=Flow.objects.all()[0]
+
+        # start the flow, should not get into a loop
+        flow1.start([], [self.contact])
+
+        self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
+        self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
+
     def test_parent_child(self):
         from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 
