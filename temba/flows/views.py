@@ -338,54 +338,27 @@ class RuleCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             org = self.request.user.get_org()
-            rule_ids = [r.uuid for r in RuleSet.objects.filter(flow__is_active=True, flow__org=org).order_by('uuid')]
-
-            # create a lookup table so we can augment our values below
-            rule_stats = {}
-            for rule_id in rule_ids:
-                rule = FlowStep.objects.filter(step_uuid=rule_id).exclude(rule_category=None).values('step_uuid').annotate(contacts=Count('contact', distinct=True),
-                                                                                                                           categories=Count('rule_category', distinct=True),
-                                                                                                                           last_message=Max('arrived_on'),
-                                                                                                                           message_count=Count('pk'))
-
-                if rule:
-                    rule = rule[0]
-                    rule_stats[rule_id] = dict(categories=rule['categories'], messages=rule['message_count'], contacts=rule['contacts'], last_message=rule['last_message'])
-
-            flows = Flow.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('name')
-            flow_json = []
-            for flow in flows:
-                rules = flow.rule_sets.all().order_by('y').exclude(label=None)
-
-                # aggregate our flow status from the rule sets
-                # note that flow_contacts is a summation across unique contacts
-                # at each rule which is pretty meaningless except as a proxy
-                flow_messages = 0
-                flow_contacts = 0
-                flow_categories = 0
-                flow_last = None
-
-                children = []
-                for rule in rules:
-                    rule_dict = dict(text=rule.label, id=rule.pk, flow=flow.pk)
-                    if rule.uuid in rule_stats:
-                        rule_dict['stats'] = rule_stats[rule.uuid]
-                    else:
-                        rule_dict['stats'] = dict(categories=0, messages=0, contacts=0, last_message=None)
-
-                    flow_messages += rule_dict['stats']['messages']
-                    flow_contacts += rule_dict['stats']['contacts']
-                    flow_categories += rule_dict['stats']['categories']
-
-                    if not flow_last or rule_dict['stats']['last_message'] and rule_dict['stats']['last_message'] > flow_last:
-                        flow_last = rule_dict['stats']['last_message']
-                    children.append(rule_dict)
-
-                if rules:
-                    flow_json.insert(len(flow_json) - len(rules), dict(text=flow.name, id=flow.pk, rules=children,
-                                                                       stats=dict(categories=flow_categories, messages=flow_messages, contacts=flow_contacts, last_message=flow_last)))
-
             dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime) else obj
+
+            rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).order_by('flow__created_on', 'y').select_related('flow')
+            current_flow = None
+            flow_json = []
+
+            # group our rules by flow, calculating # of contacts participating in each flow
+            for rule in rules:
+                if current_flow is None or current_flow['id'] != rule.flow_id:
+                    if current_flow != None and len(current_flow['rules']) > 0:
+                        flow_json.append(current_flow)
+
+                    flow = rule.flow
+                    current_flow = dict(id=flow.id,
+                                        text=flow.name,
+                                        rules=[],
+                                        stats=dict(contacts=flow.get_total_contacts(),
+                                                   created_on=flow.created_on))
+
+                current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
+                                                  stats=dict(created_on=rule.created_on)))
 
             groups = ContactGroup.objects.filter(is_active=True, org=org).order_by('name').prefetch_related('contacts')
             groups_json = []
