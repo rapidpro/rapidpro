@@ -2622,8 +2622,6 @@ class HighConnectionTest(TembaTest):
         msg = Msg.objects.get()
         self.assertEquals(DELIVERED, msg.status)
 
-    test_handler.active = True
-
     def test_send(self):
         self.channel.config = json.dumps(dict(username='hcnx-user', password='hcnx-password'))
         self.channel.channel_type = 'HX'
@@ -2666,8 +2664,6 @@ class HighConnectionTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
-
-    test_send.active = True
 
 
 class TwilioTest(TembaTest):
