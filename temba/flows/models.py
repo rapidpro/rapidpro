@@ -775,7 +775,7 @@ class Flow(TembaModel, SmartModel):
         if hasattr(kind, 'name'):
             name = kind.name
 
-        cache_key = FLOW_STAT_CACHE_KEY % (self.org.pk, self.pk, name)
+        cache_key = FLOW_STAT_CACHE_KEY % (self.org_id, self.pk, name)
         if item:
             cache_key += (':%s' % item)
         return cache_key
@@ -1720,8 +1720,6 @@ class Flow(TembaModel, SmartModel):
         for the runs.
         """
 
-        print "Removing active for %d runs" % len(run_ids)
-
         r = get_redis_connection()
         if run_ids:
             for key in r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
@@ -1992,6 +1990,21 @@ class Flow(TembaModel, SmartModel):
             seen = set()
             destinations = set()
 
+            # action sets that are removed during the update process such as
+            # those with one action to a deleted flow, or deleted group, etc
+            parsed_actions = {}
+
+            # parse our actions, we need these before we can create our rulesets
+            for actionset in json_dict.get(Flow.ACTION_SETS, []):
+
+                uuid = actionset.get(Flow.UUID)
+
+                # validate our actions, normalizing them as JSON after reading them
+                actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
+
+                if actions:
+                    parsed_actions[uuid] = actions
+
             entry = json_dict.get('entry', None)
             if entry:
                 destinations.add(entry)
@@ -2026,10 +2039,17 @@ class Flow(TembaModel, SmartModel):
                     top_uuid = uuid
 
                 # validate we can parse our rules, this will throw if not
-                parsed_rules = Rule.from_json_array(self.org, rules)
-                for rule in parsed_rules:
-                    if rule.destination:
-                        destinations.add(rule.destination)
+                Rule.from_json_array(self.org, rules)
+
+                for rule in rules:
+                    if 'destination' in rule:
+
+                        # if the destination was excluded for not having any actions
+                        # remove the connection for our rule too
+                        if rule['destination'] not in parsed_actions:
+                            rule['destination'] = None
+                        else:
+                            destinations.add(rule['destination'])
 
                 existing = existing_rulesets.get(uuid, None)
 
@@ -2056,7 +2076,8 @@ class Flow(TembaModel, SmartModel):
                                                       response_type=response_type,
                                                       operand=operand,
                                                       x=x, y=y)
-                    existing_rulesets[uuid] = existing
+
+                existing_rulesets[uuid] = existing
 
                 # update our value type based on our new rules
                 existing.value_type = existing.get_value_type()
@@ -2064,11 +2085,15 @@ class Flow(TembaModel, SmartModel):
 
             # now work through our action sets
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
-
                 uuid = actionset.get(Flow.UUID)
-                actions = actionset.get(Flow.ACTIONS)
-                destination = actionset.get(Flow.DESTINATION)
 
+                # skip actionsets without any actions. This happens when there are no valid
+                # actions in an actionset such as when deleted groups or flows are the only actions
+                if uuid not in parsed_actions:
+                    continue
+
+                actions = parsed_actions[uuid]
+                destination = actionset.get('destination')
                 seen.add(uuid)
 
                 (x, y) = (actionset.get(Flow.X), actionset.get(Flow.Y))
@@ -2076,10 +2101,6 @@ class Flow(TembaModel, SmartModel):
                 if not top_uuid or y < top_y:
                     top_y = y
                     top_uuid = uuid
-
-                # validate our actions, normalizing them as JSON after reading them
-                action_array = Action.from_json_array(self.org, actions)
-                actions = [_.as_json() for _ in action_array]
 
                 # validate our destination uuid
                 if destination:
@@ -2089,24 +2110,24 @@ class Flow(TembaModel, SmartModel):
 
                     if not destination:
                         raise FlowException("Destination ruleset '%s' for actionset does not exist" % destination_uuid)
-                else:
-                    destination = None
 
                 existing = existing_actionsets.get(uuid, None)
 
-                if existing:
-                    existing.destination = destination
-                    existing.set_actions_dict(actions)
-                    (existing.x, existing.y) = (x, y)
-                    existing.save()
-                else:
-                    existing = ActionSet.objects.create(flow=self,
-                                                        uuid=uuid,
-                                                        destination=destination,
-                                                        actions=json.dumps(actions),
-                                                        x=x, y=y)
+                # only create actionsets if there are actions
+                if actions:
+                    if existing:
+                        existing.destination = destination
+                        existing.set_actions_dict(actions)
+                        (existing.x, existing.y) = (x, y)
+                        existing.save()
+                    else:
+                        existing = ActionSet.objects.create(flow=self,
+                                                            uuid=uuid,
+                                                            destination=destination,
+                                                            actions=json.dumps(actions),
+                                                            x=x, y=y)
 
-                    existing_actionsets[uuid] = existing
+                        existing_actionsets[uuid] = existing
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():
@@ -2143,9 +2164,7 @@ class Flow(TembaModel, SmartModel):
                     self.entry_type = None
 
             # if we have a base language, set that
-            json_language = json_dict.get('base_language', None)
-            if json_language:
-                self.base_language = json_language
+            self.base_language = json_dict.get('base_language', None)
 
             # set our metadata
             self.metadata = None
@@ -2384,6 +2403,9 @@ class RuleSet(models.Model):
 
     def get_rules(self):
         return Rule.from_json_array(self.flow.org, json.loads(self.rules))
+
+    def get_rule_uuids(self):
+        return [rule['uuid'] for rule in json.loads(self.rules)]
 
     def set_rules_dict(self, json_dict):
         self.rules = json.dumps(json_dict)
@@ -3002,33 +3024,30 @@ class ExportFlowResultsTask(SmartModel):
             if row % 1000 == 0:
                 all_messages.flush_row_data()
 
-        # Generate a unique name
-        name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('flow', 'results', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets.models import AssetType
+        from temba.assets.views import get_asset_url
+
+        store = AssetType.results_export.store
+        store.save(self.pk, File(temp), 'xls')
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
 
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.pk))
 
         # force a gc
         import gc
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(flows=flows, link='https://%s/org/download/flows/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
 
     def queryset_iterator(self, queryset, chunksize=1000):
         pk = 0

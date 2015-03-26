@@ -23,7 +23,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
@@ -479,7 +479,7 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class Msg(models.Model, OrgAssetMixin):
+class Msg(models.Model, OrgModelMixin):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
@@ -1546,18 +1546,20 @@ class ExportMessagesTask(SmartModel):
 
             messages_sheet_number += 1
 
-        name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('messages', 'exports', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets.models import AssetType
+        from temba.assets.views import get_asset_url
+
+        store = AssetType.message_export.store
+        store.save(self.pk, File(temp), 'xls')
 
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.message_export, self.pk))
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
@@ -1566,9 +1568,4 @@ class ExportMessagesTask(SmartModel):
         import gc
         gc.collect()
 
-        # only send the email if this is production
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(link='https://%s/org/download/messages/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)
