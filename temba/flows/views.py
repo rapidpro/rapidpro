@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import Counter
 
 import json
 import re
@@ -32,7 +33,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg
 from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
-from temba.utils import analytics, build_json_response
+from temba.utils import analytics, build_json_response, percentage
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
@@ -172,166 +173,89 @@ class RuleCRUDL(SmartCRUDL):
     class Choropleth(OrgPermsMixin, SmartReadView):
 
         def get_context_data(self, **kwargs):
-            from temba.values.models import Value
+            from temba.values.models import Value, STATE, DISTRICT
             from temba.locations.models import AdminBoundary
 
             context = dict()
 
-            country = self.derive_org().country
-            parentOsmId = self.request.GET.get('boundary', country.osm_id)
-            parent = AdminBoundary.objects.get(osm_id=parentOsmId)
-
             filters = json.loads(self.request.GET.get('filters', '[]'))
-            filtering_categories = list()
 
-            for filter in filters:
-                if 'ruleset' in filter and filter['ruleset'] == self.get_object().pk:
-                    for category in filter['categories']:
-                        filtering_categories.append(category)
+            ruleset = self.get_object()
+            flow = ruleset.flow
+            org = flow.org
 
-            # get the rules for this ruleset
-            # TODO: this should actually merge across all rules, we might set the field in two different places
-            flow = self.get_object().flow
-            rules = self.get_object().get_rules()
-            category_order = list()
+            country = self.derive_org().country
+            parent_osm_id = self.request.GET.get('boundary', country.osm_id)
+            parent = AdminBoundary.objects.get(osm_id=parent_osm_id)
 
-            all_uuid_to_category = dict()
+            # figure out our state and district contact fields
+            state_field = ContactField.objects.filter(org=org, value_type=STATE).first()
+            district_field = ContactField.objects.filter(org=org, value_type=DISTRICT).first()
 
-            # first build a map of uuid->category based on the values we have (this will give us category names for
-            # uuid's that don't exist anymore)
-            for value in Value.objects.filter(ruleset=self.get_object()).distinct('rule_uuid', 'category'):
-                all_uuid_to_category[value.rule_uuid] = value.category
+            # by default, segment by states
+            segment = dict(location=state_field.label)
+            if parent.level == 1:
+                segment = dict(location=district_field.label, parent=parent.osm_id)
 
-            # now override any of those based on the current set of rules, these take precedence
-            for rule in rules:
-                rule_category = rule.get_category_name(flow.base_language)
+            results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
 
-                # this is n*n, but for a really small n, we want to preserve order
-                if rule_category != 'Other' and rule_category not in category_order:
-                    category_order.append(rule_category)
+            # build our totals
+            category_counts = Counter()
+            for result in results:
+                for category in result['categories']:
+                    category_counts[category['label']] += category['count']
 
-                # overwrite any category for this
-                all_uuid_to_category[rule.uuid] = rule_category
+            # find our primary category
+            prime_category = None
+            for category, count in category_counts.items():
+                if not prime_category or count > prime_category['count']:
+                    prime_category = dict(label=category, count=count)
 
-            # trim our uuids to only those that have categories we care about
-            uuid_to_category = dict()
-            valid_uuids = list()
-            for uuid, category in all_uuid_to_category.items():
-                if category in category_order:
-                    uuid_to_category[uuid] = category
-                    valid_uuids.append(uuid)
+            # build our secondary category, possibly grouping all secondary categories in Others
+            other_category = None
+            for category, count in category_counts.items():
+                if category != prime_category['label']:
+                    if not other_category:
+                        other_category = dict(label=category, count=count)
+                    else:
+                        other_category['label'] = "Others"
+                        other_category['count'] += count
 
-            if not filters:
-                filtering_categories = uuid_to_category.values()
+            total = prime_category['count'] + other_category['count']
+            prime_category['percentage'] = percentage(prime_category['count'], total)
+            other_category['percentage'] = percentage(other_category['count'], total)
 
-            filtering_categories_uuids = [k for k,v in uuid_to_category.items() if v in filtering_categories]
+            totals = dict(name=parent.name,
+                          count=total,
+                          results=[prime_category, other_category])
+            categories = [prime_category['label'], other_category['label']]
 
-            # if there are more than two rules, then we need to determine the most popular
-            # cross it against all others
-            if len(category_order) > 2:
-                category_counts = dict()
-                uuid_counts = Value.objects.filter(ruleset=self.get_object()).values('rule_uuid').annotate(Count('rule_uuid'))
+            # calculate our percentages per segment
+            scores = dict()
+            for result in results:
+                prime_count = 0
+                other_count = 0
+                for category in result['categories']:
+                    if category['label'] == prime_category['label']:
+                        prime_count = category['count']
+                    else:
+                        other_count += category['count']
 
-                for uuid_count in uuid_counts:
-                    category = uuid_to_category.get(uuid_count['rule_uuid'], None)
-                    if category:
-                        if not category in category_counts:
-                            category_counts[category] = uuid_count['rule_uuid__count']
-                        else:
-                            category_count = category_counts[category]
-                            category_counts[category] = uuid_count['rule_uuid__count'] + category_count
-
-
-                # get the most popular category
-                pop_category = category_order[0]
-                pop_category_count = 0
-                for category, count in category_counts.items():
-                    if count > pop_category_count:
-                        pop_category = category
-                        pop_category_count = count
-
-                # now remap our uuids to be only care about our popular category and everything else
-                category_order = [pop_category, unicode(_("Others"))]
-
-                remapped_uuid_to_category = dict()
-                for uuid, category in uuid_to_category.items():
-                    if category != pop_category:
-                        category = unicode(_("Others"))
-
-                    remapped_uuid_to_category[uuid] = category
-
-                uuid_to_category = remapped_uuid_to_category
-
-            # for each boundary
-            boundary_scores = dict()
-            country_total_count = 0
-
-            for boundary in AdminBoundary.objects.filter(parent=parent).order_by('-name'):
-                # get our category counts
-                uuid_counts = Value.objects.filter(ruleset=self.get_object(), contact__values__location_value=boundary)
-                uuid_counts = uuid_counts.filter(rule_uuid__in=valid_uuids).values('rule_uuid').annotate(Count('rule_uuid'))
-
-                boundary_categories = dict()
-
-                # for each uuid, sum it up for the category
-                for uuid_count in uuid_counts:
-                    category = uuid_to_category[uuid_count['rule_uuid']]
-                    category_stats = boundary_categories.get(category, dict(count=0))
-                    boundary_categories[category] = category_stats
-                    category_stats['count'] = category_stats['count'] + uuid_count['rule_uuid__count']
-                    category_stats['count_for_totals'] = category_stats['count']
-
-                    if uuid_count['rule_uuid'] not in filtering_categories_uuids:
-                        category_stats['count'] = 0
-
-                total_count = sum([s['count_for_totals'] for s in boundary_categories.values()])
-                country_total_count += total_count
-
-                category_stats = boundary_categories.get(category_order[0], dict(count=0))
-                count = category_stats['count']
-                boundary_score = (count / (total_count * 1.0)) if total_count > 0 else 0
-
-                # build a list of our category results
-                results = []
-                for category in category_order:
-                    count = boundary_categories.get(category, dict(count=0))['count']
-                    percentage = int(round(count * 100.0 / total_count)) if count else 0
-
-                    results.append(dict(label=category, count=count, percentage=percentage))
-
-                boundary_scores[boundary] = dict(name=boundary.name, score=boundary_score, count=total_count, results=results)
-
-            points = []
-            osm_to_score = dict()
-            for (boundary, scores) in boundary_scores.items():
-                osm_to_score[boundary.osm_id] = boundary_scores[boundary]
-                points.append(boundary_scores[boundary]['score'])
-
-            from temba.flows.stats import get_jenks_breaks
-            breaks = get_jenks_breaks(sorted(points), 11)
+                total = prime_count + other_count
+                score = 1.0 * prime_count / total if total else 0
+                results = [dict(count=prime_count,
+                                percentage=percentage(prime_count, total),
+                                label=prime_category['label']),
+                           dict(count=other_count,
+                                percentage=percentage(other_count, total),
+                                label=other_category['label'])]
+                scores[result['boundary']] = dict(count=total,
+                                                  score=score,
+                                                  results=results,
+                                                  name=result['label'])
 
             breaks = [.2, .3, .35, .40, .45, .55, .60, .65, .7, .8, 1]
-
-            # calculate totals for entire country
-            total_category_results = dict()
-            for score in boundary_scores.values():
-                for result in score['results']:
-                    category = result['label']
-                    count = total_category_results.get(category, 0) + result['count']
-                    total_category_results[category] = count
-
-            total_results = []
-
-            for c in category_order:
-                count = total_category_results[c]
-                total_results.append(dict(count=count, label=c, percentage=int(round(count * 100.0 / country_total_count)) if count else 0))
-
-            context['breaks'] = breaks
-            context['scores'] = osm_to_score
-            context['categories'] = category_order
-            context['totals'] = dict(name=parent.name, count=country_total_count, results=total_results)
-
-            return context
+            return dict(breaks=breaks, totals=totals, scores=scores, categories=categories)
 
     class Analytics(OrgPermsMixin, SmartTemplateView):
         title = "Analytics"
@@ -360,10 +284,10 @@ class RuleCRUDL(SmartCRUDL):
                 current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
                                                   stats=dict(created_on=rule.created_on)))
 
-            groups = ContactGroup.objects.filter(is_active=True, org=org).order_by('name').prefetch_related('contacts')
+            groups = ContactGroup.objects.filter(is_active=True, org=org).order_by('name')
             groups_json = []
             for group in groups:
-                if group.contacts.exists():
+                if group.get_member_count() > 0:
                     groups_json.append(group.analytics_json())
 
             reports = Report.objects.filter(is_active=True, org=org).order_by('title')
@@ -378,7 +302,8 @@ class RuleCRUDL(SmartCRUDL):
                 if request_report:
                     current_report = json.dumps(request_report.as_json())
 
-            return dict(flows=json.dumps(flow_json, default=dthandler), groups=json.dumps(groups_json), reports=json.dumps(reports_json), current_report=current_report)
+            return dict(flows=json.dumps(flow_json, default=dthandler),
+                        groups=json.dumps(groups_json), reports=json.dumps(reports_json), current_report=current_report)
 
 
 def msg_log_cmp(a, b):

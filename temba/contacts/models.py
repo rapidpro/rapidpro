@@ -1383,7 +1383,7 @@ class ContactGroup(TembaModel, SmartModel):
         return self.query is not None
 
     def analytics_json(self):
-        if self.contacts.exists():
+        if self.get_member_count() > 0:
             return dict(name=self.name, id=self.pk, count=self.get_member_count())
 
     def __unicode__(self):
