@@ -2565,6 +2565,111 @@ class Hub9Test(TembaTest):
         finally:
             settings.SEND_MESSAGES = False
 
+
+class HighConnectionTest(TembaTest):
+
+    def test_handler(self):
+        # change our channel to high connection channel
+        self.channel.channel_type = 'HX'
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.address = '5151'
+        self.channel.country = 'FR'
+        self.channel.save()
+
+        # http://localhost:8000/api/v1/hcnx/receive/asdf-asdf-asdf-asdf/?FROM=+33610346460&TO=5151&MESSAGE=Hello+World
+        data = {'FROM': '+33610346460', 'TO': '5151', 'MESSAGE': 'Hello World'}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.hcnx_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals('+33610346460', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
+
+        # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
+        data['TO'] = '6289881131111'
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.hcnx_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
+
+        # create an outgoing message instead
+        contact = msg.contact
+        Msg.objects.all().delete()
+
+        contact.send("outgoing message", self.admin)
+        msg = Msg.objects.get()
+
+        # now update the status via a callback
+        data = {'ret_id': msg.id, 'status': '6'}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.hcnx_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        msg = Msg.objects.get()
+        self.assertEquals(DELIVERED, msg.status)
+
+    test_handler.active = True
+
+    def test_send(self):
+        self.channel.config = json.dumps(dict(username='hcnx-user', password='hcnx-password'))
+        self.channel.channel_type = 'HX'
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        msg = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                r = get_redis_connection()
+                r.delete(MSG_SENT_KEY % msg.id)
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(400, "Error")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+        finally:
+            settings.SEND_MESSAGES = False
+
+    test_send.active = True
+
+
 class TwilioTest(TembaTest):
 
     def test_receive(self):
