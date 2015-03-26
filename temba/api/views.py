@@ -10,10 +10,11 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
+from redis_cache import get_redis_connection
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.mixins import DestroyModelMixin
@@ -26,24 +27,28 @@ from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, C
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
+from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
+from temba.assets.models import AssetType
+from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, PLIVO
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
-from urlparse import parse_qs
 from temba.utils.queues import push_task
 from twilio import twiml
-from redis_cache import get_redis_connection
+from urlparse import parse_qs
+
+
 
 def webhook_status_processor(request):
     status = dict()
@@ -247,6 +252,7 @@ class WebHookSimulatorView(SmartTemplateView):
         context['endpoints'] = endpoints
         return context
 
+
 class ApiExplorerView(SmartTemplateView):
     template_name = "api/api_explorer.html"
 
@@ -268,7 +274,13 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FieldsEndpoint.get_write_explorer())
 
         endpoints.append(MessagesEndpoint.get_read_explorer())
-        endpoints.append(MessagesEndpoint.get_write_explorer())
+        #endpoints.append(MessagesEndpoint.get_write_explorer())
+
+        endpoints.append(BroadcastsEndpoint.get_read_explorer())
+        endpoints.append(BroadcastsEndpoint.get_write_explorer())
+
+        endpoints.append(LabelsEndpoint.get_read_explorer())
+        endpoints.append(LabelsEndpoint.get_write_explorer())
 
         endpoints.append(BroadcastsEndpoint.get_read_explorer())
         endpoints.append(BroadcastsEndpoint.get_write_explorer())
@@ -310,7 +322,8 @@ def api(request, format=None):
 
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
-     * [/api/v1/messages](/api/v1/messages) - To list and create new SMS messages.
+     * [/api/v1/messages](/api/v1/messages) - To list messages.
+     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
      * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
@@ -324,7 +337,7 @@ def api(request, format=None):
 
     ## Web Hook
 
-    Your application can be notified when new SMS messages are received, sent or delivered.  You can
+    Your application can be notified when new messages are received, sent or delivered.  You can
     configure a URL for those events to be delivered to.  Visit the [Web Hook Documentation](/api/v1/webhook/) and
     [Simulator](/api/v1/webhook/simulator/) for more details.
 
@@ -366,10 +379,10 @@ def api(request, format=None):
 
     All pages that return a list of items support filtering by one or more attributes. You define how you want the list
     filtered via request parameters.  Note that when filtering by phone number you will need to use the E164 format
-    and URL encode the + character as %2B. An example to retrieve all the outgoing SMS messages since January 1st, 2013
+    and URL encode the + character as %2B. An example to retrieve all the outgoing messages since January 1st, 2013
     that are in a state of Q or S for the number +250788123123:
 
-        /api/v1/sms.json?after=2013-01-01T00:00:00.000&status=Q,S&direction=O&phone=%2B250788123123
+        /api/v1/messages.json?after=2013-01-01T00:00:00.000&status=Q,S&direction=O&urn=tel:%2B250788123123
 
     ## Authentication
 
@@ -383,14 +396,19 @@ def api(request, format=None):
     **Note that all calls made through this web interface are against the live API, please exercise the appropriate caution.**
     """
     return Response({
-        'contacts': reverse('api.contacts', request=request),
-        'fields': reverse('api.contactfields', request=request),
-        'relayers': reverse('api.channels', request=request),
-        'messages': reverse('api.messages', request=request),
-        'sms': reverse('api.sms', request=request),
+        'boundaries': reverse('api.boundaries', request=request),
+        'broadcasts': reverse('api.broadcasts', request=request),
         'calls': reverse('api.calls', request=request),
         'campaigns': reverse('api.campaigns', request=request),
+        'contacts': reverse('api.contacts', request=request),
         'events': reverse('api.campaignevents', request=request),
+        'fields': reverse('api.contactfields', request=request),
+        'flows': reverse('api.flows', request=request),
+        'labels': reverse('api.labels', request=request),
+        'messages': reverse('api.messages', request=request),
+        'relayers': reverse('api.channels', request=request),
+        'runs': reverse('api.runs', request=request),
+        'sms': reverse('api.sms', request=request),
     })
 
 
@@ -439,9 +457,8 @@ class BroadcastsEndpoint(generics.ListAPIView):
       * **contacts** - the UUIDs of contacts that received the broadcast (array of strings)
       * **groups** - the UUIDs of groups that received the broadcast (array of strings)
       * **text** - the text - note that the sent messages may have been received as multiple text messages (string)
-      * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
+      * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **status** - the status of this broadcast, a string one of: (filterable: ```status``` repeatable)
-
             I - no messages have been sent yet
             Q - some messages are still queued
             S - all messages have been sent
@@ -567,6 +584,9 @@ class MessagesEndpoint(generics.ListAPIView):
 
     ## Sending Messages
 
+    ** Note that sending messages using this endpoint is deprecated, you should instead use the Broadcasts endpoint to
+       send new messages **
+
     You can create new messages by making a **POST** request to this URL with the following JSON data:
 
       * **channel** - the id of the channel that should send the messages (int, optional)
@@ -582,7 +602,7 @@ class MessagesEndpoint(generics.ListAPIView):
             "text": "hello world"
         }
 
-    You will receive a response containing the ids of the SMS messages created:
+    You will receive a response containing the ids of the messages created:
 
         {
             "messages": [
@@ -601,7 +621,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
       * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
-      * **created_on** - the datetime when this sms was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
+      * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
@@ -665,7 +685,7 @@ class MessagesEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = splitting_getlist(self.request, 'sms')
+        ids = splitting_getlist(self.request, 'id')
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
@@ -786,17 +806,163 @@ class MessagesEndpoint(generics.ListAPIView):
                     title="Send one or more messages",
                     url=reverse('api.messages'),
                     slug='sms-send',
-                    request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first SMS message", "relayer": 1 }')
+                    request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first message", "relayer": 1 }')
 
         spec['fields'] = [dict(name='urn', required=False,
                                help="A JSON array of one or more strings, each a contact URN."),
                           dict(name='contact', required=False,
                                help="A JSON array of one or more strings, each a contact UUID."),
                           dict(name='text', required=True,
-                               help="The text of the SMS message you want to send (max length 480 chars)"),
+                               help="The text of the message you want to send (max length 480 chars)"),
                           dict(name='relayer', required=False,
                                help="The id of the channel that should send this message, if not specified we will "
                                     "choose what it thinks is the best channel to deliver this message.")]
+        return spec
+
+
+class LabelsEndpoint(generics.ListAPIView):
+    """
+    ## Listing Message Labels
+
+    A **GET** returns the list of message labels for your organization, in the order of last created.
+
+    * **uuid** - the UUID of the label (string) (filterable: ```uuid``` repeatable)
+    * **name** - the name of the label (string) (filterable: ```name```)
+    * **parent** - the UUID of the parent label (string) (filterable: ```parent```)
+    * **count** - the number of messages with the label (int)
+
+    Example:
+
+        GET /api/v1/labels.json
+
+    Response containing the groups for your organization:
+
+        {
+            "count": 1,
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+                    "name": "Screened",
+                    "parent": null,
+                    "count": 315
+                },
+                ...
+            ]
+        }
+
+    ## Adding a Label
+
+    A **POST** can be used to create a new message label. Don't specify a UUID as this will be generated for you.
+
+    * **name** - the label name (string)
+    * **parent** - the UUID of an existing label which will be the parent (string, optional)
+
+    Example:
+
+        POST /api/v1/labels.json
+        {
+            "name": "Screened",
+            "parent": null
+        }
+
+    You will receive a label object (with the new UUID) as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Screened",
+            "parent": null,
+            "count": 0
+        }
+
+    ## Updating a Label
+
+    A **POST** can also be used to update an message label if you do specify it's UUID.
+
+    * **uuid** - the label UUID
+    * **name** - the label name (string)
+    * **parent** - the UUID of an existing label which will be the parent (string, optional)
+
+    Example:
+
+        POST /api/v1/labels.json
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Checked",
+            "parent": null
+        }
+
+    You will receive the updated label object as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Checked",
+            "parent": null,
+            "count": 0
+        }
+    """
+    permission = 'msgs.label_api'
+    model = Label
+    serializer_class = LabelReadSerializer
+    permission_classes = (SSLPermission, ApiPermission)
+    form_serializer_class = LabelWriteSerializer
+
+    def post(self, request, format=None):
+        user = request.user
+        serializer = LabelWriteSerializer(user=user, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = LabelReadSerializer(instance=serializer.object)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        queryset = Label.objects.filter(org=self.request.user.get_org()).order_by('-pk')
+
+        name = self.request.QUERY_PARAMS.get('name', None)
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+
+        parents = self.request.QUERY_PARAMS.getlist('parent', None)
+        if parents:
+            queryset = queryset.filter(parent__uuid__in=parents)
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        spec = dict(method="GET",
+                    title="List Message Labels",
+                    url=reverse('api.labels'),
+                    slug='label-list',
+                    request="")
+        spec['fields'] = [dict(name='name', required=False,
+                               help="The name of the message label to return.  ex: Priority"),
+                          dict(name='uuid', required=False,
+                               help="The UUID of the message label to return. (repeatable) ex: fdd156ca-233a-48c1-896d-a9d594d59b95")]
+
+        return spec
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Add or Update a Message Label",
+                    url=reverse('api.labels'),
+                    slug='label-update',
+                    request='{ "name": "Screened", "parent": null }')
+
+        spec['fields'] = [dict(name='uuid', required=True,
+                               help='The UUID of the message label.  ex: "fdd156ca-233a-48c1-896d-a9d594d59b95"'),
+                          dict(name='name', required=False,
+                               help='The name of the message label.  ex: "Screened"'),
+                          dict(name='parent', required=False,
+                               help='The UUID of the parent label. ex: "34914a7c-911d-4768-8adb-ac75fb6e9b94"')]
         return spec
 
 
@@ -1495,7 +1661,7 @@ class FieldsEndpoint(generics.ListAPIView):
             "value_type": "T"
         }
 
-    You will receive a field object (with the new field key) as a response if successful:
+    You will receive the updated field object as a response if successful:
 
         {
             "key": "nick_name",
@@ -1548,8 +1714,8 @@ class FieldsEndpoint(generics.ListAPIView):
                     slug='contactfield-update',
                     request='{ "key": "nick_name", "label": "Nick name", "value_type": "T" }')
 
-        spec['fields'] = [dict(name='key', required=True,
-                               help='The unique key of the field.  ex: "nick_name"'),
+        spec['fields'] = [dict(name='key',
+                               help='The unique key of the field, required when updating a field, generated for new fields.  ex: "nick_name"'),
                           dict(name='label', required=False,
                                help='The label of the field.  ex: "Nick name"'),
                           dict(name='value_type', required=False,
@@ -1776,6 +1942,7 @@ class FlowRunEndpoint(generics.ListAPIView):
     model = FlowRun
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowRunReadSerializer
+
 
     def post(self, request, format=None):
         user = request.user
@@ -2341,10 +2508,12 @@ class FlowEndpoint(generics.ListAPIView):
                 "labels": [ "Polls" ],
                 "rulesets": [
                    {
+                    "id": 17122,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
                     "label": "Age"
                    },
                    {
+                    "id": 17128,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
                     "label": "Gender"
                    }
@@ -2358,6 +2527,17 @@ class FlowEndpoint(generics.ListAPIView):
     model = Flow
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowReadSerializer
+    form_serializer_class = FlowWriteSerializer
+
+    def post(self, request, format=None):
+        user = request.user
+        serializer = FlowWriteSerializer(user=user, data=request.DATA)
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = FlowReadSerializer(instance=serializer.object)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -2417,6 +2597,27 @@ class FlowEndpoint(generics.ListAPIView):
                            ]
 
         return spec
+
+
+class AssetEndpoint(generics.RetrieveAPIView):
+    """
+    This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
+    """
+    def retrieve(self, request, *args, **kwargs):
+        type_name = request.GET.get('type')
+        identifier = request.GET.get('identifier')
+        if not type_name or not identifier:
+            return HttpResponseBadRequest("Must provide type and identifier")
+
+        if type_name not in AssetType.__members__:
+            return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
+
+        return handle_asset_request(request.user, AssetType[type_name], identifier)
+
+
+# ====================================================================================================================
+# Channel handlers
+# ====================================================================================================================
 
 
 class TwilioHandler(View):
@@ -2515,18 +2716,11 @@ class TwilioHandler(View):
 
             # queued, sending, sent, failed, or received.
             if status == 'sent':
-                sms.status = SENT
-                sms.sent_on = timezone.now()
-                sms.save(update_fields=('status', 'sent_on'))
-                Channel.track_status(sms.channel, "Sent")
+                sms.status_sent()
             elif status == 'delivered':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(sms.channel, "Delivered")
+                sms.status_delivered()
             elif status == 'failed':
                 sms.fail()
-                Channel.track_status(sms.channel, "Failed")
 
             sms.broadcast.update()
 
@@ -2662,17 +2856,11 @@ class AfricasTalkingHandler(View):
                 return HttpResponse("No SMS message with id: %s" % external_id, status=404)
 
             if status == 'Success':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status == 'Sent' or status == 'Buffered':
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             elif status == 'Rejected' or status == 'Failed':
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
 
@@ -2728,19 +2916,11 @@ class ZenviaHandler(View):
 
             # delivered
             if status == 120:
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                if not sms.sent_on:
-                    sms.sent_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on', 'sent_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status == 111:
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             else:
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             # update our broadcast status
             sms.broadcast.update()
@@ -2805,17 +2985,11 @@ class ExternalHandler(View):
                 return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
 
             if action == 'delivered':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif action == 'sent':
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             elif action == 'failed':
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
 
@@ -2884,19 +3058,13 @@ class InfobipHandler(View):
             return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
         if status == 'DELIVERED':
-            sms.status = DELIVERED
-            sms.delivered_on = timezone.now()
-            sms.save(update_fields=('status', 'delivered_on'))
-            Channel.track_status(channel, "Delivered")
+            sms.status_delivered()
         elif status == 'SENT':
-            sms.status = SENT
-            sms.save(update_fields=('status',))
-            Channel.track_status(channel, "Sent")
+            sms.status_sent()
         elif status in ['NOT_SENT', 'NOT_ALLOWED', 'INVALID_DESTINATION_ADDRESS',
                         'INVALID_SOURCE_ADDRESS', 'ROUTE_NOT_AVAILABLE', 'NOT_ENOUGH_CREDITS',
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
             sms.fail()
-            Channel.track_status(channel, "Failed")
 
         sms.broadcast.update()
 
@@ -2964,17 +3132,11 @@ class Hub9Handler(View):
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
             if 10 <= status <= 12:
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status > 20:
                 sms.fail()
-                Channel.track_status(channel, "Failed")
             elif status != -1:
-                sms.status = SENT
-                sms.save(update_fields=('status',))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
 
             sms.broadcast.update()
             return HttpResponse("000")
@@ -3039,18 +3201,11 @@ class NexmoHandler(View):
             status = request.REQUEST['status']
 
             if status == 'delivered':
-                sms.status = DELIVERED
-                sms.delivered_on = timezone.now()
-                sms.save(update_fields=('status', 'delivered_on'))
-                Channel.track_status(channel, "Delivered")
+                sms.status_delivered()
             elif status == 'accepted' or status == 'buffered':
-                sms.status = SENT
-                sms.sent_on = timezone.now()
-                sms.save(update_fields=('status', 'sent_on'))
-                Channel.track_status(channel, "Sent")
+                sms.status_sent()
             elif status == 'expired' or status == 'failed':
                 sms.fail()
-                Channel.track_status(channel, "Failed")
 
             sms.broadcast.update()
 
@@ -3166,9 +3321,7 @@ class VumiHandler(View):
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our
                         # delivery failures if any part of the message comes back as failed
                         if sms.status == WIRED:
-                            sms.status = DELIVERED
-                            sms.delivered_on = timezone.now()
-                            sms.save(update_fields=('delivered_on', 'status'))
+                            sms.status_delivered()
 
             # disabled for performance reasons
             # sms.first().broadcast.update()
@@ -3246,11 +3399,14 @@ class KannelHandler(View):
 
             # only update to SENT status if still in WIRED state
             if status == SENT:
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
             elif status == DELIVERED:
-                sms.update(status=status, delivered_on=timezone.now())
-            else:
-                sms.update(status=status)
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
+            elif status == FAILED:
+                for sms_obj in sms:
+                    sms_obj.fail()
 
             # update the broadcast status
             sms.first().broadcast.update()
@@ -3341,11 +3497,15 @@ class ClickatellHandler(View):
 
             # only update to SENT status if still in WIRED state
             if status == SENT:
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=status)
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
             elif status == DELIVERED:
-                sms.update(status=status, delivered_on=timezone.now())
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
             elif status == FAILED:
-                sms.update(status=status)
+                for sms_obj in sms:
+                    sms_obj.fail()
+                    Channel.track_status(sms_obj.channel, "Failed")
             else:
                 # ignore wired, we are wired by default
                 pass
@@ -3375,6 +3535,114 @@ class ClickatellHandler(View):
             Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
+        else:
+            return HttpResponse("Not handled", status=400)
+
+
+class PlivoHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(PlivoHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        if not all(k in request.REQUEST for k in ['From', 'To', 'MessageUUID']):
+                return HttpResponse("Missing one of 'From', 'To', or 'MessageUUID' in request parameters.",
+                                    status=400)
+
+        channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type=PLIVO).first()
+
+        if action == 'status':
+            plivo_channel_address = request.REQUEST['From']
+
+            if not 'Status' in request.REQUEST:
+                return HttpResponse("Missing 'Status' in request parameters.", status=400)
+
+            if not channel:
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
+
+            channel_address = plivo_channel_address
+            if channel_address[0] != '+':
+                channel_address = '+' + channel_address
+
+            if channel.address != channel_address:
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
+
+            sms_id = request.REQUEST['MessageUUID']
+
+            if 'ParentMessageUUID' in request.REQUEST:
+                sms_id = request.REQUEST['ParentMessageUUID']
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
+            if not sms:
+                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
+
+            STATUS_CHOICES = {'queued': WIRED,
+                              'sent': SENT,
+                              'delivered': DELIVERED,
+                              'undelivered': SENT,
+                              'rejected': FAILED}
+
+            plivo_status = request.REQUEST['Status']
+            status = STATUS_CHOICES.get(plivo_status, None)
+
+            if not status:
+                return HttpResponse("Unrecognized status: '%s', ignoring message." % plivo_status, status=401)
+
+            # only update to SENT status if still in WIRED state
+            if status == SENT:
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
+            elif status == DELIVERED:
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
+            elif status == FAILED:
+                for sms_obj in sms:
+                    sms_obj.fail()
+                    Channel.track_status(sms_obj.channel, "Failed")
+            else:
+                # ignore wired, we are wired by default
+                pass
+
+            # update the broadcast status
+            bcast = sms.first().broadcast
+            if bcast:
+                bcast.update()
+
+            return HttpResponse("Status Updated")
+
+        elif action == 'receive':
+            if not 'Text' in request.REQUEST:
+                return HttpResponse("Missing 'Text' in request parameters.", status=400)
+
+            plivo_channel_address = request.REQUEST['To']
+
+            if not channel:
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
+
+            channel_address = plivo_channel_address
+            if channel_address[0] != '+':
+                channel_address = '+' + channel_address
+
+            if channel.address != channel_address:
+                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
+
+            sms = Msg.create_incoming(channel,
+                                      (TEL_SCHEME, request.REQUEST['From']),
+                                      request.REQUEST['Text'])
+
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
+
+            return HttpResponse("SMS accepted: %d" % sms.id)
         else:
             return HttpResponse("Not handled", status=400)
 

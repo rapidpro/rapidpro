@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 from datetime import timedelta
+import json
+from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.contacts.models import ContactField
 from temba.flows.models import RuleSet
@@ -278,6 +280,35 @@ class ResultTest(FlowFileTest):
         self.assertResult(kigali_result, 0, "Red", 0)
         self.assertResult(kigali_result, 1, "Blue", 2)
         self.assertResult(kigali_result, 2, "Green", 0)
+
+        # do a sanity check on our choropleth view
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.ruleset_choropleth', args=[color.pk]) +
+                                   "?_format=json&boundary=" + self.org.country.osm_id)
+
+        # response should be valid json
+        response = json.loads(response.content)
+
+        # should have breaks
+        self.assertTrue('breaks' in response)
+
+        # should have two categories, Blue and Others
+        self.assertEquals(2, len(response['categories']))
+        self.assertEquals("Blue", response['categories'][0])
+        self.assertEquals("Others", response['categories'][1])
+
+        # assert our kigali result
+        kigali_result = response['scores']['1708283']
+        self.assertEquals(1, kigali_result['score'])
+        self.assertEquals("Kigali City", kigali_result['name'])
+        self.assertEquals("Blue", kigali_result['results'][0]['label'])
+        self.assertEquals("Others", kigali_result['results'][1]['label'])
+
+        self.assertEquals(1, kigali_result['results'][0]['count'])
+        self.assertEquals(0, kigali_result['results'][1]['count'])
+
+        self.assertEquals(100, kigali_result['results'][0]['percentage'])
+        self.assertEquals(0, kigali_result['results'][1]['percentage'])
 
     def test_open_ended_word_frequencies(self):
         flow = self.get_flow('random_word')

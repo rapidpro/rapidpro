@@ -1101,6 +1101,12 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # if we have a language, add it to our language dict
     if flow.base_language
+
+      # if for some reason we don't have an other rule
+      # create an empty category (this really shouldn't happen)
+      if not category
+        category = {}
+
       category[flow.base_language] = allCategory
     else
       category = allCategory

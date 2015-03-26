@@ -5,6 +5,8 @@ import hashlib
 import hmac
 import json
 import phonenumbers
+import plivo
+import pycountry
 import pytz
 import time
 
@@ -34,7 +36,7 @@ from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog
+from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
@@ -44,6 +46,8 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       NEXMO: "icon-channel-nexmo",
                       VERBOICE: "icon-channel-external",
                       TWILIO: "icon-channel-twilio",
+                      PLIVO: "icon-channel-plivo",
+                      CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
@@ -121,6 +125,27 @@ NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
 NEXMO_SUPPORTED_COUNTRY_CODES  = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
                                   60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265]
 
+PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
+                             ('BE', _('Belgium')),
+                             ('CA', _('Canada')),
+                             ('CZ', _('Czech Republic')),
+                             ('EE', _('Estonia')),
+                             ('FI', _('Finland')),
+                             ('DE', _('Germany')),
+                             ('HK', _('Hong Kong')),
+                             ('HU', _('Hungary')),
+                             ('IL', _('Israel')),
+                             ('LT', _('Lithuania')),
+                             ('MX', _('Mexico')),
+                             ('NO', _('Norway')),
+                             ('PK', _('Pakistan')),
+                             ('PL', _('Poland')),
+                             ('SE', _('Sweden')),
+                             ('CH', _('Switzerland')),
+                             ('GB', _('United Kingdom')),
+                             ('US', _('United States')))
+
+PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 46, 41, 44]
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
@@ -465,7 +490,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell')
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1604,6 +1629,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return channel
 
+        def remove_api_credentials_from_session(self):
+            pass
+
         def form_valid(self, form, *args, **kwargs):
 
             # must have an org
@@ -1646,6 +1674,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 # make sure all contacts added before the channel are normalized
                 channel.ensure_normalized_contacts()
+                self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
             except Exception as e:
@@ -1755,6 +1784,161 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
                 return HttpResponse(json.dumps(error=str(e)))
+
+    class ClaimPlivo(ClaimNumber):
+        class ClaimPlivoForm(forms.Form):
+            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+            phone_number = forms.CharField(help_text=_("The phone number being added"))
+
+            def clean_phone_number(self):
+                if not self.cleaned_data.get('country', None):
+                    raise ValidationError(_("That number is not currently supported."))
+
+                phone = self.cleaned_data['phone_number']
+                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
+
+                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
+
+        form_class = ClaimPlivoForm
+        template_name = 'channels/channel_claim_plivo.html'
+
+        def pre_process(self, *args, **kwargs):
+            client = self.get_valid_client()
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_valid_client(self):
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            try:
+                client = plivo.RestAPI(auth_id, auth_token)
+                validation_response = client.get_account()
+                if validation_response[0] != 200:
+                    client = None
+            except plivo.PlivoError:
+                client = None
+
+            return client
+
+        def is_valid_country(self, country_code):
+            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+
+        def get_search_url(self):
+            return reverse('channels.channel_search_plivo')
+
+        def get_claim_url(self):
+            return reverse('channels.channel_claim_plivo')
+
+        def get_supported_countries_tuple(self):
+            return PLIVO_SUPPORTED_COUNTRIES
+
+        def get_search_countries_tuple(self):
+            return PLIVO_SUPPORTED_COUNTRIES
+
+        def get_existing_numbers(self, org):
+            client = self.get_valid_client()
+
+            account_numbers = []
+            if client:
+                status, data = client.get_numbers()
+
+                if status == 200:
+                    for number_dict in data['objects']:
+
+                        region = number_dict['region']
+                        country_name = region.split(',')[-1].strip().title()
+                        country = pycountry.countries.get(name=country_name).alpha2
+
+                        if len(number_dict['number']) <= 6:
+                            phone_number = number_dict['number']
+                        else:
+                            parsed = phonenumbers.parse('+' + number_dict['number'], None)
+                            phone_number = phonenumbers.format_number(parsed,
+                                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+
+                        account_numbers.append(dict(number=phone_number, country=country))
+
+            return account_numbers
+
+        def claim_number(self, user, phone_number, country):
+
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            # add this channel
+            channel = Channel.add_plivo_channel(user.get_org(),
+                                                user,
+                                                country,
+                                                phone_number,
+                                                auth_id,
+                                                auth_token)
+
+            analytics.track(user.username, 'temba.channel_claim_plivo', dict(number=phone_number))
+
+            return channel
+
+        def remove_api_credentials_from_session(self):
+            if PLIVO_AUTH_ID in self.request.session:
+                del self.request.session[PLIVO_AUTH_ID]
+            if PLIVO_AUTH_TOKEN in self.request.session:
+                del self.request.session[PLIVO_AUTH_TOKEN]
+
+    class SearchPlivo(SearchNumbers):
+        class SearchPlivoForm(forms.Form):
+            area_code = forms.CharField(max_length=3, min_length=3, required=False,
+                                        help_text=_("The area code you want to search for a new number in"))
+            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+
+        form_class = SearchPlivoForm
+
+        def pre_process(self, *args, **kwargs):
+            client = self.get_valid_client()
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_valid_client(self):
+            auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
+            auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)
+
+            try:
+                client = plivo.RestAPI(auth_id, auth_token)
+                validation_response = client.get_account()
+
+                if validation_response[0] != 200:
+                    client = None
+            except:
+                client = None
+
+            return client
+
+        def form_valid(self, form, *args, **kwargs):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            client = self.get_valid_client()
+
+            results_numbers = []
+            try:
+                status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
+
+                if status == 200:
+                    for number_dict in response_data['objects']:
+                        results_numbers.append('+' + number_dict['number'])
+
+                numbers = []
+                for number in results_numbers:
+                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
+                                                              phonenumbers.PhoneNumberFormat.INTERNATIONAL))
+                return HttpResponse(json.dumps(numbers))
+            except Exception as e:
+                return HttpResponse(json.dumps(dict(error=str(e))))
 
 
 class ChannelLogCRUDL(SmartCRUDL):

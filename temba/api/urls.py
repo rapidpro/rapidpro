@@ -22,6 +22,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VumiHandler.as_view(), name='api.vumi_handler'),
                        url(r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', KannelHandler.as_view(), name='api.kannel_handler'),
                        url(r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', ClickatellHandler.as_view(), name='api.clickatell_handler'),
+                       url(r'^/plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', PlivoHandler.as_view(), name='api.plivo_handler'),
 
                        url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='api.mage_handler'),
 
@@ -37,6 +38,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/broadcasts$', BroadcastsEndpoint.as_view(), name='api.broadcasts'),
                        url(r'^/messages$', MessagesEndpoint.as_view(), name='api.messages'),
                        url(r'^/sms$', MessagesEndpoint.as_view(), name='api.sms'),  # deprecated
+                       url(r'^/labels$', LabelsEndpoint.as_view(), name='api.labels'),
                        url(r'^/flows$', FlowEndpoint.as_view(), name='api.flows'),
                        url(r'^/results', FlowResultsEndpoint.as_view(), name='api.results'),
                        url(r'^/runs$', non_atomic_requests(FlowRunEndpoint.as_view()), name='api.runs'),
@@ -48,7 +50,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/campaigns$', CampaignEndpoint.as_view(), name='api.campaigns'),
                        url(r'^/events$', CampaignEventEndpoint.as_view(), name='api.campaignevents'),
                        url(r'^/boundaries$', BoundaryEndpoint.as_view(), name='api.boundaries'),
-                       )
+                       url(r'^/assets$', AssetEndpoint.as_view(), name='api.assets'))
 
 # Format suffixes
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'xml', 'api'])

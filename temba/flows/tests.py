@@ -345,7 +345,8 @@ class RuleTest(TembaTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
@@ -421,7 +422,8 @@ class RuleTest(TembaTest):
         task = ExportFlowResultsTask.objects.all()[0]
 
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(2, len(workbook.sheets()))
 
@@ -1257,7 +1259,7 @@ class RuleTest(TembaTest):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact)
 
-        label = Label.objects.create(name='green label', org=self.org)
+        label = Label.create(self.org, self.user, "green label")
 
         test = AddLabelAction([label, "@step.contact"])
         action_json = test.as_json()
@@ -2328,9 +2330,20 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
 
+        # we are going to expire, but we want runs across two different flows
+        # to make sure that our optimization for expiration is working properly
+        number_flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 3!", self.send_message(number_flow, "3"))
+        self.assertEquals(1, len(number_flow.get_activity()[0]))
+
         # expire the first contact's runs
-        for run in FlowRun.objects.filter(contact=self.contact):
-            run.expire()
+        FlowRun.do_expire_runs(FlowRun.objects.filter(contact=self.contact))
+
+        # no active runs for our contact
+        self.assertEquals(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # both of our flows should have reduced active contacts
+        self.assertEquals(0, len(number_flow.get_activity()[0]))
 
         # now we should only have one node with active runs, but the paths stay
         # the same since those are historical
@@ -2347,8 +2360,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(50, flow.get_completed_percentage())
 
         # check that we have the right number of steps and runs
-        self.assertEquals(17, FlowStep.objects.all().count())
-        self.assertEquals(2, FlowRun.objects.all().count())
+        self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
+        self.assertEquals(2, FlowRun.objects.filter(flow=flow).count())
 
         # now let's delete our contact, we'll still have one active node, but
         # our visit path counts will go down by two since he went there twice
@@ -2410,8 +2423,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, flow.get_completed_percentage())
 
         # runs and steps all gone too
-        self.assertEquals(0, FlowStep.objects.filter(contact__is_test=False).count())
-        self.assertEquals(0, FlowRun.objects.filter(contact__is_test=False).count())
+        self.assertEquals(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
+        self.assertEquals(0, FlowRun.objects.filter(flow=flow, contact__is_test=False).count())
 
         # test that expirations remove activity when triggered from the cron in the same way
         tupac = self.create_contact('Tupac Shakur', '+12065550725')
@@ -2534,7 +2547,8 @@ class FlowsTest(FlowFileTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
@@ -2640,20 +2654,61 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('This message was not translated.', replies[1])
 
         # now add a primary language to our org
-        self.org.primary_language = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
-                                                            created_by=self.admin, modified_by=self.admin)
+        spanish = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
+                                          created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = spanish
         self.org.save()
+
         flow = Flow.objects.get(pk=flow.pk)
 
         # with our org in spanish, we should get the spanish version
         self.assertEquals('\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
 
-        # but set our contact's language explicity should get us back to english
+        self.org.primary_language = None
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # no longer spanish on our org
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        # back to spanish
+        self.org.primary_language = spanish
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # but set our contact's language explicitly should keep us at english
         self.contact.language = 'eng'
         self.contact.save()
         self.assertEquals('Hello friend! What is your favorite color?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+    def test_reimport_over_localized_flow(self):
+
+        # a non-localized flow
+        flow = self.get_flow('favorites')
+        self.assertIsNone(flow.base_language)
+
+        # that gets localized
+        flow.base_language = 'spa'
+        flow.save()
+        flow.update_base_language()
+        self.assertEqual('spa', Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertTrue(isinstance(action.msg, dict))
+
+        # now update with the old definition
+        self.update_flow(flow, 'favorites')
+
+        # should no longer be localized
+        self.assertIsNone(Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertFalse(isinstance(action.msg, dict))
 
 
 
@@ -2727,6 +2782,18 @@ class FlowsTest(FlowFileTest):
                                             actions=[dict(type='flow', id=flow1.pk)])]))
 
         # start the flow, shouldn't get into a loop, but both should get started
+        flow1.start([], [self.contact])
+
+        self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
+        self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
+
+    def test_ruleset_loops(self):
+        self.import_file('ruleset_loop')
+
+        flow1=Flow.objects.all()[1]
+        flow2=Flow.objects.all()[0]
+
+        # start the flow, should not get into a loop
         flow1.start([], [self.contact])
 
         self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))

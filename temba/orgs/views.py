@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import plivo
 import pycountry
 import re
 
@@ -11,7 +12,6 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -24,11 +24,9 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
-from temba.channels.models import Channel
-from temba.contacts.models import ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask
+from temba.assets.models import AssetType
+from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
-from temba.msgs.models import ExportMessagesTask
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, build_json_response
 from timezones.forms import TimeZoneField
@@ -81,18 +79,8 @@ class OrgPermsMixin(object):
         return None
 
     def has_org_perm(self, permission):
-
-        (app_label, codename) = permission.split(".")
-
-        if self.get_user().is_superuser:
-            return True
-
-        if self.get_user().is_anonymous():
-            return False
-
         if self.org:
-            if self.get_user().get_org_group().permissions.filter(content_type__app_label=app_label, codename=codename):
-                return True
+            return self.get_user().has_org_perm(self.org, permission)
 
         return False
 
@@ -424,7 +412,8 @@ class UserSettingsCRUDL(SmartCRUDL):
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
-               'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import')
+               'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
+               'plivo_connect')
 
     model = Org
 
@@ -679,6 +668,52 @@ class OrgCRUDL(SmartCRUDL):
 
             response['Temba-Success'] = self.get_success_url()
             return response
+
+    class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+
+        class PlivoConnectForm(forms.Form):
+            auth_id = forms.CharField(help_text=_("Your Plivo AUTH ID"))
+            auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
+
+            def clean(self):
+                super(OrgCRUDL.PlivoConnect.PlivoConnectForm, self).clean()
+
+                auth_id = self.cleaned_data.get('auth_id', None)
+                auth_token = self.cleaned_data.get('auth_token', None)
+
+                try:
+                    client = plivo.RestAPI(auth_id, auth_token)
+                    validation_response = client.get_account()
+                except:
+                    raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
+
+                if validation_response[0] != 200:
+                    raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
+
+                return self.cleaned_data
+
+        form_class = PlivoConnectForm
+        submit_button_name = "Save"
+        success_url = '@channels.channel_claim_plivo'
+        field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
+        success_message = "Plivo credentials verified. You can now add a Plivo channel."
+
+        def form_valid(self, form):
+
+            auth_id = form.cleaned_data['auth_id']
+            auth_token = form.cleaned_data['auth_token']
+
+            # add the credentials to the session
+            self.request.session[PLIVO_AUTH_ID] = auth_id
+            self.request.session[PLIVO_AUTH_TOKEN] = auth_token
+
+            response = self.render_to_response(self.get_context_data(form=form,
+                                               success_url=self.get_success_url(),
+                                               success_script=getattr(self, 'success_script', None)))
+
+            response['Temba-Success'] = self.get_success_url()
+            return response
+
 
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'created_on')
@@ -1329,7 +1364,7 @@ class OrgCRUDL(SmartCRUDL):
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class LanguagesForm(forms.ModelForm):
-            primary_lang = forms.CharField(required=True, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
+            primary_lang = forms.CharField(required=False, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
             languages = forms.CharField(required=False, label=_('Additional Languages'), help_text=('Add any other languages you would like to provide translations for.'))
 
             def __init__(self, *args, **kwargs):
@@ -1436,6 +1471,11 @@ class OrgCRUDL(SmartCRUDL):
                         self.object.primary_language = language
                         self.object.save(update_fields=['primary_language'])
 
+            # remove our primary language if necessary
+            if org.primary_language and org.primary_language.iso_code not in iso_codes:
+                org.primary_language = None
+                org.save()
+
             # remove any languages that are not in our new list
             org.languages.exclude(iso_code__in=iso_codes).delete()
 
@@ -1456,75 +1496,27 @@ class OrgCRUDL(SmartCRUDL):
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
     class Download(SmartTemplateView):
-        template_name = 'orgs/org_download.haml'
-
-        def derive_title(self):
-            return _('Download')
-
+        """
+        For backwards compatibility, redirect old org/download style requests to the assets app
+        """
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r'%s/%s/(?P<task_type>\w+)/(?P<pk>\d+)/$' % (path, action)
-
-        def get_export_task(self):
-            export_task = None
-            user = self.request.user
-            user_orgs = user.get_user_orgs()
-
-            task_type = self.kwargs.get('task_type')
-            pk = self.kwargs.get('pk')
-
-            if task_type not in ['contacts', 'flows', 'messages']:
-                return None
-
-            if not pk:
-                return None
-
-            if task_type == 'contacts':
-                export_task = ExportContactsTask.objects.filter(pk=pk, org=user_orgs).first()
-            elif task_type == 'flows':
-                export_task = ExportFlowResultsTask.objects.filter(pk=pk, org=user_orgs).first()
-            elif task_type == 'messages':
-                export_task = ExportMessagesTask.objects.filter(pk=pk, org=user_orgs).first()
-
-            return export_task
 
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated()
 
         def get(self, request, *args, **kwargs):
-            export_task = self.get_export_task()
+            types_to_assets = {'contacts': AssetType.contact_export,
+                               'flows': AssetType.results_export,
+                               'messages': AssetType.message_export}
+
             task_type = self.kwargs.get('task_type')
+            asset_type = types_to_assets[task_type]
+            identifier = self.kwargs.get('pk')
+            return HttpResponseRedirect(reverse('assets.download',
+                                                kwargs=dict(type=asset_type.name, identifier=identifier)))
 
-            if not export_task or not export_task.filename or not default_storage.exists(export_task.filename):
-                messages.warning(self.request, _("No exported file found"))
-                if self.request.user.is_superuser:
-                    return HttpResponseRedirect(reverse('orgs.org_manage'))
-                return HttpResponseRedirect(reverse('msgs.msg_inbox'))
-
-            user = self.request.user
-            if not user.get_org():
-                user.set_org(export_task.org)
-
-            download = request.REQUEST.get('download', None)
-
-            if not download:
-                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
-
-            download_format = export_task.filename[-3:]
-            download_filename = '%s_export.%s' % (task_type, download_format)
-
-            if download_format == 'csv':
-                content_type = "text/csv"
-            else:
-                content_type = "application/vnd.ms-excel"
-
-            file = default_storage.open(export_task.filename, 'r')
-
-            response = HttpResponse(file, content_type=content_type)
-            response['Content-Disposition'] = 'attachment; filename=%s' % download_filename
-            file.close()
-
-            return response
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')

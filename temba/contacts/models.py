@@ -9,7 +9,6 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils.translation import ugettext
@@ -18,15 +17,14 @@ from django_hstore import hstore
 from django_hstore.fields import DictionaryField
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.channels.models import Channel
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
 from urlparse import urlparse, urlunparse, ParseResult
-from uuid import uuid4
 
 # don't allow custom contact fields with these keys
 RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
@@ -35,7 +33,7 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 
-class ContactField(models.Model, OrgAssetMixin):
+class ContactField(models.Model, OrgModelMixin):
     """
     Represents a type of field that can be put on Contacts.  We store uuids as the keys in our HSTORE
     field so that we don't have to worry about renaming fields with the user.  This takes care of that
@@ -151,7 +149,7 @@ CONTACT_STATUS_CHOICES = ((NORMAL, _("Normal")),
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel, OrgAssetMixin):
+class Contact(TembaModel, SmartModel, OrgModelMixin):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -377,6 +375,26 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
         contact = None
 
+        # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
+        # it is read only from a contacts perspective, but it is by far the most common case
+        if not uuid and not name and urns and len(urns) == 1:
+            scheme, path = urns[0]
+            norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
+            norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
+            existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+
+            if existing_urn and existing_urn.contact:
+                contact = existing_urn.contact
+
+                # update the channel on this URN if this is an incoming message
+                if incoming_channel and incoming_channel != existing_urn.channel:
+                    existing_urn.channel = incoming_channel
+                    existing_urn.save(update_fields=['channel'])
+
+                # return our contact, mapping our existing urn appropriately
+                contact.urn_objects = {urns[0]: existing_urn}
+                return contact
+
         # if we were passed in a UUID, look it up by that
         if uuid:
             contact = Contact.objects.get(org=org, is_active=True, uuid=uuid)
@@ -407,9 +425,9 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                         existing_orphan_urns[(scheme, path)] = existing_urn
 
                     # update this URN's channel
-                    if incoming_channel:
+                    if incoming_channel and existing_urn.channel != incoming_channel:
                         existing_urn.channel = incoming_channel
-                        existing_urn.save()
+                        existing_urn.save(update_fields=['channel'])
                 else:
                     urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
 
@@ -443,28 +461,30 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
                 urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel=incoming_channel)
                 urn_objects[raw] = urn
 
-            # handle group and campaign events
+            # save which urns were updated
             updated_urns = urn_objects.keys()
-            contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
 
             # add remaining already owned URNs and attach to contact object so that calling code can easily fetch the
             # actual URN object for each URN tuple it requested
             urn_objects.update(existing_owned_urns)
             contact.urn_objects = urn_objects
 
-            # record contact creation in analytics
-            if getattr(contact, 'is_new', False):
-                params = dict(name=name)
+        # record contact creation in analytics
+        if getattr(contact, 'is_new', False):
+            params = dict(name=name)
 
-                # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
-                # assign them property names with added count
-                urns_for_scheme_counts = dict()
-                for scheme, path in urn_objects.keys():
-                    count = urns_for_scheme_counts.get(scheme, 1)
-                    urns_for_scheme_counts[scheme] = count + 1
-                    params["%s%d" % (scheme, count)] = path
+            # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
+            # assign them property names with added count
+            urns_for_scheme_counts = dict()
+            for scheme, path in urn_objects.keys():
+                count = urns_for_scheme_counts.get(scheme, 1)
+                urns_for_scheme_counts[scheme] = count + 1
+                params["%s%d" % (scheme, count)] = path
 
-                analytics.track(user.username, 'temba.contact_created', params)
+            analytics.track(user.username, 'temba.contact_created', params)
+
+        # handle group and campaign updates
+        contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
 
         return contact
 
@@ -1363,8 +1383,8 @@ class ContactGroup(TembaModel, SmartModel):
         return self.query is not None
 
     def analytics_json(self):
-        if self.contacts.exists():
-            return dict(name=self.name, id=self.pk, count=self.contacts.all().count())
+        if self.get_member_count() > 0:
+            return dict(name=self.name, id=self.pk, count=self.get_member_count())
 
     def __unicode__(self):
         return self.name
@@ -1394,10 +1414,12 @@ class ExportContactsTask(SmartModel):
         if self.group:
             all_contacts = all_contacts.filter(groups=self.group)
 
+        # if we have too many fields, Export using csv Otherwise use Excel
+        use_csv = len(fields) > 256
+
         temp = NamedTemporaryFile(delete=True)
 
-        # if we have too many fields, Export using csv Otherwise use Excel
-        if len(fields) > 256:
+        if use_csv:
             import csv
 
             writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
@@ -1423,9 +1445,6 @@ class ExportContactsTask(SmartModel):
                     row_data.append(value)
 
                 writer.writerow([s.encode("utf-8") for s in row_data])
-
-            name = '%s_%s.csv' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         else:
             contact_sheet_number = 1
             all_contacts = list(all_contacts)
@@ -1468,23 +1487,23 @@ class ExportContactsTask(SmartModel):
                         # skip the header
                         current_contact_sheet.write(row + 1, col, value)
 
-
                 contact_sheet_number += 1
                 current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
-
-
-            name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
 
             book.save(temp)
 
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('contacts', 'exports', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets.models import AssetType
+        from temba.assets.views import get_asset_url
+
+        store = AssetType.contact_export.store
+        store.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.contact_export, self.pk))
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
@@ -1493,8 +1512,4 @@ class ExportContactsTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(link='https://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)

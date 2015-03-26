@@ -323,7 +323,7 @@ class ContactTest(TembaTest):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
         msg3 = self.create_msg(text="Test 3", direction='I', contact=self.joe, msg_type='I', status='H', visibility='A')
-        label = Label.objects.create(org=self.org, name="Interesting")
+        label = Label.create(self.org, self.user, "Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         group = self.create_group("Just Joe", [self.joe])
 
@@ -673,7 +673,7 @@ class ContactTest(TembaTest):
         self.assertEquals(1, len(response['results']))
 
         # lookup by label ids
-        label = Label.objects.create(name="msg label", parent=None, org=self.org)
+        label = Label.create(self.org, self.user, "msg label")
         response = json.loads(self.client.get("%s?l=%s" % (reverse("contacts.contact_omnibox"), label.pk)).content)
         self.assertEquals(0, len(response['results']))
 
@@ -1573,7 +1573,7 @@ class ContactFieldTest(TembaTest):
             ContactField.api_make_key("Name")
 
     def test_export(self):
-        from xlrd import open_workbook, xldate_as_tuple, XL_CELL_DATE, XLRDError
+        from xlrd import open_workbook
 
         self.login(self.admin)
         self.user = self.admin
@@ -1591,8 +1591,7 @@ class ContactFieldTest(TembaTest):
         self.client.get(reverse('contacts.contact_export'), dict())
         task = ExportContactsTask.objects.get()
 
-        filename = "/%s/%s" % (settings.MEDIA_ROOT, task.filename)
-
+        filename = "%s/test_orgs/%d/contact_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
