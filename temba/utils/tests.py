@@ -16,7 +16,8 @@ from .cache import get_cacheable_result, incrby_existing
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
+    percentage
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json
 from . import datetime_to_json_date, json_date_to_datetime, timezone_to_country_code
 
@@ -776,3 +777,13 @@ class PageableQueryTest(TembaTest):
         paginator = Paginator(query, 2)
         assertPage(["Billy Joel", "Joe Blow"], True, paginator.page(1))
         assertPage(["Mary Jo"], False, paginator.page(2))
+
+
+class PercentageTest(TembaTest):
+
+    def test_percentage(self):
+        self.assertEquals(0, percentage(0, 100))
+        self.assertEquals(0, percentage(0, 0))
+        self.assertEquals(0, percentage(100, 0))
+        self.assertEquals(75, percentage(75, 100))
+        self.assertEquals(76, percentage(759, 1000))
