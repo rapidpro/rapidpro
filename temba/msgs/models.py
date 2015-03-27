@@ -962,7 +962,6 @@ class Msg(models.Model, OrgModelMixin):
                         status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
-
         if not org and channel:
             org = channel.org
 
@@ -987,7 +986,9 @@ class Msg(models.Model, OrgModelMixin):
         if topup:
             topup_id = topup.pk
         elif not contact.is_test:
-            topup_id = org._calculate_active_topup()
+            topup = org._calculate_active_topup()
+            if topup:
+                topup_id = topup.pk
 
         # we limit text messages to 640 characters
         text = text[:640]
