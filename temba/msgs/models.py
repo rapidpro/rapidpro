@@ -987,7 +987,7 @@ class Msg(models.Model, OrgModelMixin):
         if topup:
             topup_id = topup.pk
         elif not contact.is_test:
-            topup_id = org.decrement_credit()
+            topup_id = org._calculate_active_topup()
 
         # we limit text messages to 640 characters
         text = text[:640]
