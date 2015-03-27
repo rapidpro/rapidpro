@@ -302,7 +302,7 @@ class Value(models.Model):
 
         # blow away any redis items that contain our key as a dependency
         r = get_redis_connection()
-        keys = r.keys(VALUE_SUMMARY_CACHE_KEY + "*" + key + "*")
+        keys = [k for k in r.scan_iter(VALUE_SUMMARY_CACHE_KEY + "*" + key + "*")]
         if keys:
             invalidated = r.delete(*keys)
         else:

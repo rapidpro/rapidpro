@@ -829,7 +829,7 @@ class Flow(TembaModel, SmartModel):
             (active, visits) = self._calculate_activity()
 
             # remove our old active cache
-            keys = r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))
+            keys = [k for k in r.scan_iter(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))]
             if keys:
                 r.delete(*keys)
             r.delete(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
@@ -924,7 +924,7 @@ class Flow(TembaModel, SmartModel):
         r = get_redis_connection()
 
         # we can do two queries to the db, or just one to redis
-        keys = r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))
+        keys = [k for k in r.scan_iter(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))]
         active = {}
         for key in keys:
             active[key[key.rfind(':') + 1:]] = r.scard(key)
@@ -1722,7 +1722,7 @@ class Flow(TembaModel, SmartModel):
 
         r = get_redis_connection()
         if run_ids:
-            for key in r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
+            for key in r.scan_iter(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
                 r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):
