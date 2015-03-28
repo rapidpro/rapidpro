@@ -327,7 +327,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         groups_changed = False
 
-        if 'name' in attrs or field:
+        if 'name' in attrs or field or urns:
             # ensure dynamic groups are up to date
             groups_changed = ContactGroup.update_groups_for_contact(self, field)
 
