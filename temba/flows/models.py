@@ -586,7 +586,9 @@ class Flow(TembaModel, SmartModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=[]):
+    def find_and_handle(cls, msg, started_flows=None):
+        if started_flows is None:
+            started_flows = []
 
         start_time = time.time()
         org = msg.org
@@ -666,9 +668,12 @@ class Flow(TembaModel, SmartModel):
         return False
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, started_flows=[], start_time=None):
+    def handle_ruleset(cls, ruleset, step, run, msg, started_flows=None, start_time=None):
         if not start_time:
             start_time = time.time()
+
+        if started_flows is None:
+            started_flows = []
 
         # find a matching rule
         rule, value = ruleset.find_matching_rule(step, run, msg)
@@ -1461,8 +1466,11 @@ class Flow(TembaModel, SmartModel):
                                        started_flows=started_flows,
                                        start_msg=start_msg, extra=extra, flow_start=flow_start)
 
-    def start_call_flow(self, all_contacts, started_flows=[], start_msg=None, extra=None, flow_start=None):
+    def start_call_flow(self, all_contacts, started_flows=None, start_msg=None, extra=None, flow_start=None):
         from temba.ivr.models import IVRCall
+
+        if started_flows is None:
+            started_flows = []
 
         runs = []
         channel = self.org.get_call_channel()
@@ -1503,9 +1511,12 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def start_msg_flow(self, all_contacts, started_flows=[], start_msg=None, extra=None, flow_start=None):
+    def start_msg_flow(self, all_contacts, started_flows=None, start_msg=None, extra=None, flow_start=None):
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
+
+        if started_flows is None:
+            started_flows = []
 
         # create the broadcast for this flow
         send_actions = self.get_entry_send_actions()
@@ -1558,9 +1569,15 @@ class Flow(TembaModel, SmartModel):
 
             return []
 
-    def start_msg_flow_batch(self, batch_contacts, broadcasts=[], started_flows=[], start_msg=None,
+    def start_msg_flow_batch(self, batch_contacts, broadcasts=None, started_flows=None, start_msg=None,
                              extra=None, flow_start=None):
         batch_contact_ids = [c.id for c in batch_contacts]
+
+        if started_flows is None:
+            started_flows = []
+
+        if broadcasts is None:
+            broadcasts = []
 
         # these fields are the initial state for our flow run
         run_fields = None
