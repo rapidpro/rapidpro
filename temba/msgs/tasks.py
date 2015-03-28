@@ -191,7 +191,7 @@ def check_messages_task():
 
             if unhandled_count:
                 print "** Found %d unhandled messages" % unhandled_count
-                for msg in unhandled_messages:
+                for msg in unhandled_messages[:100]:
                     msg.handle()
 
 @celeryd_init.connect

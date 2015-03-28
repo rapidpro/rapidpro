@@ -785,6 +785,20 @@ class Flow(TembaModel, SmartModel):
             cache_key += (':%s' % item)
         return cache_key
 
+    def calculate_active_step_keys(self):
+        """
+        Returns a list of UUIDs for all ActionSets and RuleSets on this flow.
+        :return:
+        """
+        # first look up any action set uuids
+        steps = list(self.action_sets.values('uuid'))
+
+        # then our ruleset uuids
+        steps += list(self.rule_sets.values('uuid'))
+
+        # extract just the uuids
+        return [self.get_stats_cache_key(FlowStatsCache.step_active_set, step['uuid']) for step in steps]
+
     def lock_on(self, lock, qualifier=None, lock_ttl=None):
         """
         Creates the requested type of flow-level lock
@@ -834,7 +848,7 @@ class Flow(TembaModel, SmartModel):
             (active, visits) = self._calculate_activity()
 
             # remove our old active cache
-            keys = [k for k in r.scan_iter(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))]
+            keys = self.calculate_active_step_keys()
             if keys:
                 r.delete(*keys)
             r.delete(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
@@ -928,11 +942,14 @@ class Flow(TembaModel, SmartModel):
 
         r = get_redis_connection()
 
-        # we can do two queries to the db, or just one to redis
-        keys = [k for k in r.scan_iter(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))]
+        # get all possible active keys
+        keys = self.calculate_active_step_keys()
         active = {}
         for key in keys:
-            active[key[key.rfind(':') + 1:]] = r.scard(key)
+            count = r.scard(key)
+            # only include stats for steps that actually have people there
+            if count:
+                active[key[key.rfind(':') + 1:]] = count
 
         # visited path
         visited = r.hgetall(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
@@ -1738,15 +1755,7 @@ class Flow(TembaModel, SmartModel):
         """
         r = get_redis_connection()
         if run_ids:
-            # first look up any action set uuids
-            uuids = list(self.action_sets.values('uuid'))
-
-            # then our ruleset uuids
-            uuids += list(self.rule_sets.values('uuid'))
-
-            # for each possible active node, remove our run ids from them
-            for uuid in uuids:
-                key = self.get_stats_cache_key(FlowStatsCache.step_active_set, uuid['uuid'])
+            for key in self.calculate_active_step_keys():
                 r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):
