@@ -1719,10 +1719,17 @@ class Flow(TembaModel, SmartModel):
         from the active step, but does not remove the visited (path) data
         for the runs.
         """
-
         r = get_redis_connection()
         if run_ids:
-            for key in r.scan_iter(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
+            # first look up any action set uuids
+            uuids = list(self.action_sets.values('uuid'))
+
+            # then our ruleset uuids
+            uuids += list(self.rule_sets.values('uuid'))
+
+            # for each possible active node, remove our run ids from them
+            for uuid in uuids:
+                key = self.get_stats_cache_key(FlowStatsCache.step_active_set, uuid['uuid'])
                 r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):

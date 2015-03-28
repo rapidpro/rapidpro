@@ -293,6 +293,9 @@ class Value(models.Model):
         if not contact_field and not ruleset and not group:
             raise Exception("You must specify a contact field, ruleset or group to invalidate results for")
 
+        # for now, turn off cache
+        return 0
+
         if contact_field:
             key = ':' + (CONTACT_KEY % contact_field.id) + ':'
         elif group:
@@ -380,7 +383,7 @@ class Value(models.Model):
 
         # does our value exist?
         r = get_redis_connection()
-        cached = r.get(key)
+        cached = None # turn off cache
 
         if not cached is None:
             try:
@@ -528,7 +531,7 @@ class Value(models.Model):
             results.append(dict(label=unicode(_("All")), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
         # cache this result set
-        r.set(key, dict_to_json(results), VALUE_SUMMARY_CACHE_TIME)
+        #r.set(key, dict_to_json(results), VALUE_SUMMARY_CACHE_TIME)
 
         # leave me: nice for profiling..
         # from django.db import connection as db_connection, reset_queries

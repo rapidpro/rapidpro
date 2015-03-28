@@ -14,6 +14,7 @@ from temba.urls import init_analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from .models import Msg, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT, FIRE_EVENT
 from temba.utils.queues import pop_task
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     if not msg:
         return
 
+    print "[%09d] Processing - %s" % (msg.id, msg.text)
+    start = time.time()
+
     # if message was created in Mage...
     if from_mage:
         mage_handle_new_message(msg.org, msg)
@@ -35,6 +39,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
             mage_handle_new_contact(msg.org, msg.contact)
 
     Msg.process_message(msg)
+    print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
 
 @task(track_started=True, name='send_broadcast')
 def send_broadcast_task(broadcast_id):
