@@ -258,9 +258,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.getSource = (category) ->
     return category.sources[0]
 
-  $scope.getJoinedCategoryRulesUUID = (category) ->
-    return category.sources.join()
-
   $scope.onConnectorDrop = (connection) ->
 
     $(connection.source).parent().removeClass('reconnecting')
@@ -702,7 +699,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       ruleset._showMessages = true
       category._showMessages = true
 
-      categoryFrom = category.sources[0]
+      # use all rules as the source so we see all matched messages for the path
+      categoryFrom = category.sources.join()
       categoryTo = category.target
 
       Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
