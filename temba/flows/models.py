@@ -3491,6 +3491,8 @@ class EmailAction(Action):
         if not settings.SEND_EMAILS:
             print "!! Skipping email send, SEND_EMAILS set to False"
         else:
+            # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
+            subject = re.sub('\s+', ' ', subject)
             send_mail(subject, message, from_email, emails)
 
 class APIAction(Action):

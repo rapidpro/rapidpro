@@ -1095,6 +1095,17 @@ class RuleTest(TembaTest):
         self.assertEquals(mail.outbox[1].body, 'In the body; Eric uses phone 0788 382 382')
         self.assertEquals(mail.outbox[1].recipients(), recipients)
 
+        test = EmailAction(recipients, "Allo \n allo\tmessage", "Email notification for allo allo")
+        action_json = test.as_json()
+
+        test = EmailAction.from_json(self.org, action_json)
+        test.execute(run, None, sms)
+
+        self.assertEquals(len(mail.outbox), 3)
+        self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
+        self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
+        self.assertEquals(mail.outbox[2].recipients(), recipients)
+
     def test_decimal_values(self):
         flow = self.flow
         flow.update(self.definition)
