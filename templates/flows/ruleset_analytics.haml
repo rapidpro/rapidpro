@@ -139,7 +139,7 @@
             [[field.label]]
 
           .chart-options
-            -if user_org.country
+            -if org_supports_map
               .chart-table.glyph.chart-button.icon-earth{ ng-click:'toggleChoropleth(field)', ng-class:'{active:field.showChoropleth==true}'}
             .chart-table.glyph.chart-button.icon-menu-2{ ng-click:'toggleDataTable(field)', ng-class:'{active:field.showDataTable==true}'}
 
@@ -150,7 +150,7 @@
               %span.chart-size.chart-size-1{ ng-click:'setChartSize(field, 1)', ng-class:"{active:field.chartSize==1}" } &nbsp;
               %span.chart-size.chart-size-2{ ng-click:'setChartSize(field, 2)', ng-class:"{active:field.chartSize==2}" } &nbsp;
 
-          -if user_org.country
+          -if org_supports_map
             .choropleth-map{ng-show:'field.showChoropleth', choropleth:'', id:'choropleth-[[field.id]]', show-choropleth:'field.showChoropleth', chart-size:'field.chartSize', osm-id:'"{{user_org.country.osm_id}}"', rule-id:'[[field.id]]'}
 
           %chart{config:'field.chart'}

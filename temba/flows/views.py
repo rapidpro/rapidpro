@@ -34,7 +34,7 @@ from temba.msgs.models import Msg
 from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import analytics, build_json_response, percentage
-from temba.values.models import Value
+from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
 def flow_unread_response_count_processor(request):
@@ -302,7 +302,10 @@ class RuleCRUDL(SmartCRUDL):
                 if request_report:
                     current_report = json.dumps(request_report.as_json())
 
-            return dict(flows=json.dumps(flow_json, default=dthandler),
+            org_supports_map = org.country and org.contactfields.filter(value_type=STATE).first() and \
+                               org.contactfields.filter(value_type=DISTRICT).first()
+
+            return dict(flows=json.dumps(flow_json, default=dthandler), org_supports_map=org_supports_map,
                         groups=json.dumps(groups_json), reports=json.dumps(reports_json), current_report=current_report)
 
 
