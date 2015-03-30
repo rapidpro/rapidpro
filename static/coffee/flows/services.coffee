@@ -596,14 +596,8 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if cfg.type == operatorType
         return cfg
 
-  fetchRecentMessages: (stepUUID, nextUUID, ruleUUID='') ->
-    $http.get('/flow/recent_messages/' + $rootScope.flowId + '/?step=' + stepUUID + '&destination=' + nextUUID + '&rule=' + ruleUUID).success (data) ->
-      tooltipContent = '<ul class="activity-recent-messages">'
-      for msgText in data
-        tooltipContent += '<li>' + msgText + '</li>'
-      tooltipContent += '</ul>'
-
-      $rootScope.recentMessages = tooltipContent
+  fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
+    return $http.get('/flow/recent_messages/' + $rootScope.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
 
   fetch: (onComplete = null) ->
 

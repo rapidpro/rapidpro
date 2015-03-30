@@ -33,7 +33,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
-from temba.utils import analytics, build_json_response, percentage
+from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
@@ -351,7 +351,7 @@ class FlowCRUDL(SmartCRUDL):
                                                      steps__step_type=RULE_SET,
                                                      steps__run__contact__is_test=Contact.get_simulation(),
                                                      direction=INCOMING,
-                                                     visibility=VISIBLE).order_by('-created_on').values_list('text', flat=True)[:5]
+                                                     visibility=VISIBLE).order_by('-created_on').values('created_on', 'text')[:5]
 
             elif next_uuid and step_uuid:
                 recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
@@ -360,9 +360,9 @@ class FlowCRUDL(SmartCRUDL):
                                                      steps__step_type=ACTION_SET,
                                                      steps__run__contact__is_test=Contact.get_simulation(),
                                                      direction=OUTGOING,
-                                                     visibility=VISIBLE).order_by('-created_on').values_list('text', flat=True)[:5]
+                                                     visibility=VISIBLE).order_by('-created_on').values('created_on', 'text')[:5]
 
-            recent_messages = [str(elt) for elt in recent_messages]
+            recent_messages = [dict(sent=datetime_to_str(msg['created_on']), text=msg['text']) for msg in recent_messages]
             return build_json_response(recent_messages)
 
     class Versions(OrgObjPermsMixin, SmartReadView):

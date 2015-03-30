@@ -25,11 +25,13 @@
 @z-sticky-notes: 990;
 @z-endpoint: 997;
 @z-status-message: 998;
+@z-recent-messages: 999;
 @z-drop-overlay: 1000;
 @z-node-dragging: 1100;
 @z-connection-dragging: 1200;
 @z-mask: 2000;
 @z-versions: 2100;
+
 
 [ng-cloak] {
   display:none;
@@ -186,6 +188,52 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+
+    &.recents {
+      z-index: @z-recent-messages;
+    }
+
+    .recent-messages {
+      position:absolute;
+      background: white;
+      width:200px;
+      z-index:@z-recent-messages;
+      margin-top: 40px;
+      margin-left:-95px;
+      padding-bottom: 10px;
+      .drop-shadow(0,0, 2px, 2px, .07);
+
+      .loading {
+        width: 100%;
+        text-align: center;
+      }
+
+      .title {
+        padding: 5px;
+        color: white;
+        background:rgb(113,113,113);
+        margin-bottom: 5px;
+      }
+
+      .message{
+
+        line-height: 14px;
+        color: black;
+        padding: 5px 12px;
+        text-align: left;
+        .text {
+          font-size:13px;
+          color: grey;
+          padding-bottom:2px;
+        }
+
+        .date {
+          font-size:11px;
+          color: darkgrey;
+        }
+      }
+    }
+
 
     .active {
       text-align: center;
@@ -1420,8 +1468,18 @@
   }
 }
 
+
+.visited {
+  .count {
+    cursor: pointer;
+  }
+}
+
+
+
 .tooltip {
   z-index: 1030;
+  margin-left: -100px;
 
   &.bottom {
     .tooltip-arrow {
@@ -1430,13 +1488,15 @@
   }
 
   .tooltip-inner {
-    background: @color-font-lightestgrey + #222;
+    background: white;
     border: 1px solid @color-font-lightestgrey;
     color: @color-font-black;
     font-size: 12px;
 
     ul.activity-recent-messages {
       margin:0px;
+      width: 200px; 
+      text-align: left;
 
       li:not(:last-child) {
         border-bottom: 1px solid;
