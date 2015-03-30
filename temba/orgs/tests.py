@@ -16,9 +16,8 @@ from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
-from temba.orgs.models import ORG_ACTIVE_TOPUP_CACHE_KEY, ORG_TOPUP_CREDITS_CACHE_KEY, ORG_TOPUP_EXPIRES_CACHE_KEY
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
-from temba.flows.models import Flow, ExportFlowResultsTask
+from temba.flows.models import Flow, ExportFlowResultsTask, ActionSet
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
@@ -405,34 +404,6 @@ class OrgTest(TembaTest):
         response = self.client.get(choose_url, follow=True)
         self.assertContains(response, "Organizations")
 
-    def test_decrement_topups(self):
-        # we start with 1000 credits, try decrementing it
-        active = self.org._calculate_active_topup()
-
-        topup_id = self.org.decrement_credit()
-        self.assertEquals(active.pk, topup_id)
-
-        # we should have a key that is saving our topup and number of credits
-        r = get_redis_connection()
-        self.assertEquals(topup_id, int(r.get(ORG_ACTIVE_TOPUP_CACHE_KEY % self.org.pk)))
-        self.assertEquals(999, int(r.get(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk)))
-
-        # to test it is truly using the cache, decrement our topup_credits in redis
-        # and see if it goes down
-        r.set(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk, 501)
-
-        topup_id = self.org.decrement_credit()
-        self.assertEquals(active.pk, topup_id)
-        self.assertEquals(500, int(r.get(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk)))
-
-        # and that we properly recalculate for the 0 credit case
-        r.set(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk, 0)
-
-        topup_id = self.org.decrement_credit()
-        self.assertEquals(active.pk, topup_id)
-        self.assertEquals(topup_id, int(r.get(ORG_ACTIVE_TOPUP_CACHE_KEY % self.org.pk)))
-        self.assertEquals(999, int(r.get(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk)))
-
     def test_topup_admin(self):
         self.login(self.admin)
 
@@ -572,10 +543,7 @@ class OrgTest(TembaTest):
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
         mega_topup.expires_on = yesterday
-        mega_topup.save()
-
-        r = get_redis_connection()
-        r.set(ORG_TOPUP_EXPIRES_CACHE_KEY % self.org.pk, datetime_to_ms(yesterday))
+        mega_topup.save(update_fields=['expires_on'])
 
         # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
@@ -584,12 +552,10 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
-
-    test_topups.active = True
 
     def test_twilio_connect(self):
         connect_url = reverse("orgs.org_twilio_connect")
@@ -835,70 +801,19 @@ class OrgTest(TembaTest):
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
 
     def test_download(self):
-        messages_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                 created_by=self.admin, modified_by=self.admin)
-
-        self.assertLoginRedirect(self.client.get('/org/download/messages/%s/' % messages_export_task.pk))
+        response = self.client.get('/org/download/messages/123/')
+        self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(302, response.status_code)
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk, follow=True)
-        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
+        response = self.client.get('/org/download/messages/123/')
+        self.assertRedirect(response, '/assets/download/message_export/123/')
 
-        messages_export_task.do_export()
+        response = self.client.get('/org/download/contacts/123/')
+        self.assertRedirect(response, '/assets/download/contact_export/123/')
 
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(200, response.status_code)
-
-        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk)
-        self.assertEquals(302, response.status_code)
-        response = self.client.get('/org/download/contacts/%s/' % messages_export_task.pk, follow=True)
-        self.assertEquals(reverse('msgs.msg_inbox'), response.request['PATH_INFO'])
-
-        contact_export_task = ExportContactsTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
-        contact_export_task.do_export()
-
-        flow = self.create_flow()
-        flow_export_task = ExportFlowResultsTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
-
-        flow_export_task.flows.add(flow)
-        flow_export_task.do_export()
-
-        response = self.client.get('/org/download/contacts/%s/' % contact_export_task.pk, follow=True)
-        self.assertEquals(200, response.status_code)
-
-        response = self.client.get('/org/download/flows/%s/' % flow_export_task.pk, follow=True)
-        self.assertEquals(200, response.status_code)
-
-        self.create_secondary_org()
-        self.org2.administrators.add(self.admin)
-
-        self.admin.set_org(self.org2)
-        s = self.client.session
-        s['org_id'] = self.org2.pk
-        s.save()
-
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(200, response.status_code)
-        user = response.context_data['view'].request.user
-        self.assertEquals(user, self.admin)
-        self.assertEquals(user.get_org(), self.org2)
-
-        self.admin.set_org(None)
-        s = self.client.session
-        s['org_id'] = None
-        s.save()
-
-        response = self.client.get('/org/download/messages/%s/' % messages_export_task.pk)
-        self.assertEquals(200, response.status_code)
-        user = response.context_data['view'].request.user
-        self.assertEquals(user, self.admin)
-        self.assertEquals(user.get_org(), messages_export_task.org)
-        self.assertEquals(user.get_org(), self.org)
+        response = self.client.get('/org/download/flows/123/')
+        self.assertRedirect(response, '/assets/download/results_export/123/')
 
 
 class AnonOrgTest(TembaTest):
@@ -1250,8 +1165,27 @@ class BulkExportTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals('Triggered Flow', actions[0]['name'])
 
-    def test_export_import(self):
+    def test_missing_flows_on_import(self):
+        # import a flow that starts a missing flow
+        self.import_file('start-missing-flow')
 
+        # the flow that kicks off our missing flow
+        flow = Flow.objects.get(name='Start Missing Flow')
+
+        # make sure our missing flow is indeed not there
+        self.assertIsNone(Flow.objects.filter(name='Missing Flow').first())
+
+        # these two actionsets only have a single action that starts the missing flow
+        # therefore they should not be created on import
+        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=160, x=90).first())
+        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=233, x=395).first())
+
+        # should have this actionset, but only one action now since one was removed
+        other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
+        self.assertEquals(1, len(other_actionset.get_actions()))
+
+
+    def test_export_import(self):
 
         def assert_object_counts():
             self.assertEquals(8, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())

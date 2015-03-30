@@ -381,6 +381,18 @@ class ContactWriteSerializer(WriteSerializer):
 
         return attrs
 
+    def validate_groups(self, attrs, source):
+        group_names = attrs.get(source, None)
+        if group_names is not None:
+            groups = []
+            for name in group_names:
+                if not name.strip():
+                    raise ValidationError(_("Invalid group name: '%s'") % name)
+                groups.append(name)
+
+            attrs['groups'] = groups
+        return attrs
+
     def validate_group_uuids(self, attrs, source):
         group_uuids = attrs.get(source, None)
         if group_uuids is not None:

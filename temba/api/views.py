@@ -10,10 +10,11 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
+from redis_cache import get_redis_connection
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.mixins import DestroyModelMixin
@@ -30,6 +31,8 @@ from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, Flo
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
+from temba.assets.models import AssetType
+from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
@@ -41,10 +44,10 @@ from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HA
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
 from temba.utils.middleware import disable_middleware
-from urlparse import parse_qs
 from temba.utils.queues import push_task
 from twilio import twiml
-from redis_cache import get_redis_connection
+from urlparse import parse_qs
+
 
 
 def webhook_status_processor(request):
@@ -682,7 +685,7 @@ class MessagesEndpoint(generics.ListAPIView):
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
 
-        ids = splitting_getlist(self.request, 'sms')
+        ids = splitting_getlist(self.request, 'id')
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
@@ -2596,6 +2599,27 @@ class FlowEndpoint(generics.ListAPIView):
         return spec
 
 
+class AssetEndpoint(generics.RetrieveAPIView):
+    """
+    This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
+    """
+    def retrieve(self, request, *args, **kwargs):
+        type_name = request.GET.get('type')
+        identifier = request.GET.get('identifier')
+        if not type_name or not identifier:
+            return HttpResponseBadRequest("Must provide type and identifier")
+
+        if type_name not in AssetType.__members__:
+            return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
+
+        return handle_asset_request(request.user, AssetType[type_name], identifier)
+
+
+# ====================================================================================================================
+# Channel handlers
+# ====================================================================================================================
+
+
 class TwilioHandler(View):
 
     @disable_middleware
@@ -3384,8 +3408,8 @@ class KannelHandler(View):
                 for sms_obj in sms:
                     sms_obj.fail()
 
-            # update the broadcast status
-            sms.first().broadcast.update()
+            # disabled for performance reasons
+            # sms.first().broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 

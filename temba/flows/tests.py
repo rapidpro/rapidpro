@@ -345,7 +345,8 @@ class RuleTest(TembaTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
@@ -421,7 +422,8 @@ class RuleTest(TembaTest):
         task = ExportFlowResultsTask.objects.all()[0]
 
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(2, len(workbook.sheets()))
 
@@ -2378,8 +2380,6 @@ class FlowsTest(FlowFileTest):
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
 
-    test_substitution.active = True
-
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
         registration_flow = self.get_flow('mama_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
@@ -2451,7 +2451,8 @@ class FlowsTest(FlowFileTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, task.filename), 'rb')
+        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
@@ -2557,20 +2558,61 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('This message was not translated.', replies[1])
 
         # now add a primary language to our org
-        self.org.primary_language = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
-                                                            created_by=self.admin, modified_by=self.admin)
+        spanish = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
+                                          created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = spanish
         self.org.save()
+
         flow = Flow.objects.get(pk=flow.pk)
 
         # with our org in spanish, we should get the spanish version
         self.assertEquals('\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
 
-        # but set our contact's language explicity should get us back to english
+        self.org.primary_language = None
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # no longer spanish on our org
+        self.assertEquals('Hello friend! What is your favorite color?',
+                          self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+        # back to spanish
+        self.org.primary_language = spanish
+        self.org.save()
+        flow = Flow.objects.get(pk=flow.pk)
+
+        # but set our contact's language explicitly should keep us at english
         self.contact.language = 'eng'
         self.contact.save()
         self.assertEquals('Hello friend! What is your favorite color?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
+
+    def test_reimport_over_localized_flow(self):
+
+        # a non-localized flow
+        flow = self.get_flow('favorites')
+        self.assertIsNone(flow.base_language)
+
+        # that gets localized
+        flow.base_language = 'spa'
+        flow.save()
+        flow.update_base_language()
+        self.assertEqual('spa', Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertTrue(isinstance(action.msg, dict))
+
+        # now update with the old definition
+        self.update_flow(flow, 'favorites')
+
+        # should no longer be localized
+        self.assertIsNone(Flow.objects.get(pk=flow.pk).base_language)
+
+        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
+        action = actionset.get_actions()[0]
+        self.assertFalse(isinstance(action.msg, dict))
 
 
 
@@ -2644,6 +2686,18 @@ class FlowsTest(FlowFileTest):
                                             actions=[dict(type='flow', id=flow1.pk)])]))
 
         # start the flow, shouldn't get into a loop, but both should get started
+        flow1.start([], [self.contact])
+
+        self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
+        self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
+
+    def test_ruleset_loops(self):
+        self.import_file('ruleset_loop')
+
+        flow1=Flow.objects.all()[1]
+        flow2=Flow.objects.all()[0]
+
+        # start the flow, should not get into a loop
         flow1.start([], [self.contact])
 
         self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
