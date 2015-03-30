@@ -3408,8 +3408,8 @@ class KannelHandler(View):
                 for sms_obj in sms:
                     sms_obj.fail()
 
-            # update the broadcast status
-            sms.first().broadcast.update()
+            # disabled for performance reasons
+            # sms.first().broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 

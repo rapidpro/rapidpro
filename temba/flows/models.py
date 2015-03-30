@@ -586,7 +586,9 @@ class Flow(TembaModel, SmartModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=[]):
+    def find_and_handle(cls, msg, started_flows=None):
+        if started_flows is None:
+            started_flows = []
 
         start_time = time.time()
         org = msg.org
@@ -666,9 +668,12 @@ class Flow(TembaModel, SmartModel):
         return False
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, started_flows=[], start_time=None):
+    def handle_ruleset(cls, ruleset, step, run, msg, started_flows=None, start_time=None):
         if not start_time:
             start_time = time.time()
+
+        if started_flows is None:
+            started_flows = []
 
         # find a matching rule
         rule, value = ruleset.find_matching_rule(step, run, msg)
@@ -780,6 +785,20 @@ class Flow(TembaModel, SmartModel):
             cache_key += (':%s' % item)
         return cache_key
 
+    def calculate_active_step_keys(self):
+        """
+        Returns a list of UUIDs for all ActionSets and RuleSets on this flow.
+        :return:
+        """
+        # first look up any action set uuids
+        steps = list(self.action_sets.values('uuid'))
+
+        # then our ruleset uuids
+        steps += list(self.rule_sets.values('uuid'))
+
+        # extract just the uuids
+        return [self.get_stats_cache_key(FlowStatsCache.step_active_set, step['uuid']) for step in steps]
+
     def lock_on(self, lock, qualifier=None, lock_ttl=None):
         """
         Creates the requested type of flow-level lock
@@ -829,7 +848,7 @@ class Flow(TembaModel, SmartModel):
             (active, visits) = self._calculate_activity()
 
             # remove our old active cache
-            keys = r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))
+            keys = self.calculate_active_step_keys()
             if keys:
                 r.delete(*keys)
             r.delete(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
@@ -923,11 +942,14 @@ class Flow(TembaModel, SmartModel):
 
         r = get_redis_connection()
 
-        # we can do two queries to the db, or just one to redis
-        keys = r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*'))
+        # get all possible active keys
+        keys = self.calculate_active_step_keys()
         active = {}
         for key in keys:
-            active[key[key.rfind(':') + 1:]] = r.scard(key)
+            count = r.scard(key)
+            # only include stats for steps that actually have people there
+            if count:
+                active[key[key.rfind(':') + 1:]] = count
 
         # visited path
         visited = r.hgetall(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
@@ -1461,8 +1483,11 @@ class Flow(TembaModel, SmartModel):
                                        started_flows=started_flows,
                                        start_msg=start_msg, extra=extra, flow_start=flow_start)
 
-    def start_call_flow(self, all_contacts, started_flows=[], start_msg=None, extra=None, flow_start=None):
+    def start_call_flow(self, all_contacts, started_flows=None, start_msg=None, extra=None, flow_start=None):
         from temba.ivr.models import IVRCall
+
+        if started_flows is None:
+            started_flows = []
 
         runs = []
         channel = self.org.get_call_channel()
@@ -1503,9 +1528,12 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def start_msg_flow(self, all_contacts, started_flows=[], start_msg=None, extra=None, flow_start=None):
+    def start_msg_flow(self, all_contacts, started_flows=None, start_msg=None, extra=None, flow_start=None):
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
+
+        if started_flows is None:
+            started_flows = []
 
         # create the broadcast for this flow
         send_actions = self.get_entry_send_actions()
@@ -1558,9 +1586,15 @@ class Flow(TembaModel, SmartModel):
 
             return []
 
-    def start_msg_flow_batch(self, batch_contacts, broadcasts=[], started_flows=[], start_msg=None,
+    def start_msg_flow_batch(self, batch_contacts, broadcasts=None, started_flows=None, start_msg=None,
                              extra=None, flow_start=None):
         batch_contact_ids = [c.id for c in batch_contacts]
+
+        if started_flows is None:
+            started_flows = []
+
+        if broadcasts is None:
+            broadcasts = []
 
         # these fields are the initial state for our flow run
         run_fields = None
@@ -1719,10 +1753,9 @@ class Flow(TembaModel, SmartModel):
         from the active step, but does not remove the visited (path) data
         for the runs.
         """
-
         r = get_redis_connection()
         if run_ids:
-            for key in r.keys(self.get_stats_cache_key(FlowStatsCache.step_active_set, '*')):
+            for key in self.calculate_active_step_keys():
                 r.srem(key, *run_ids)
 
     def remove_active_for_step(self, step):

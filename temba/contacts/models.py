@@ -327,7 +327,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         groups_changed = False
 
-        if 'name' in attrs or urns or field:
+        if 'name' in attrs or field or urns:
             # ensure dynamic groups are up to date
             groups_changed = ContactGroup.update_groups_for_contact(self, field)
 
@@ -485,7 +485,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
-
         return contact
 
     @classmethod
@@ -1305,8 +1304,9 @@ class ContactGroup(TembaModel, SmartModel):
                 changed.add(contact.pk)
                 contact.handle_update(group=self)
 
-        # invalidate our result cache for anybody depending on this group
-        Value.invalidate_cache(group=self)
+        # invalidate our result cache for anybody depending on this group if it changed
+        if changed:
+            Value.invalidate_cache(group=self)
 
         # if there is a cached members count, update it
         count_delta = len(changed) if add else -len(changed)

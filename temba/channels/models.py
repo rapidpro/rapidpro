@@ -90,7 +90,7 @@ RELAYER_TYPE_CONFIG = {
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
     ZENVIA: dict(scheme='tel', max_length=150),
     EXTERNAL: dict(scheme='tel', max_length=160),
-    NEXMO: dict(scheme='tel', max_length=1600, max_tps=5),
+    NEXMO: dict(scheme='tel', max_length=1600, max_tps=4),
     INFOBIP: dict(scheme='tel', max_length=1600),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),

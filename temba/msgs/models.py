@@ -962,7 +962,6 @@ class Msg(models.Model, OrgModelMixin):
                         status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
-
         if not org and channel:
             org = channel.org
 
