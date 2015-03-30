@@ -1426,7 +1426,12 @@ class Channel(SmartModel):
         r = get_redis_connection()
 
         # check whether this message was already sent somehow
-        if r.get(MSG_SENT_KEY % msg.id):
+        pipe = r.pipeline()
+        pipe.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
+        pipe.sismember((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+        (sent_today, sent_yesterday) = pipe.execute()
+
+        if sent_today or sent_yesterday:
             Msg.mark_sent(r, msg, WIRED)
             print "!! [%d] prevented duplicate send" % (msg.id)
             return

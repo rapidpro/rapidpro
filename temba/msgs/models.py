@@ -75,7 +75,7 @@ SMS_BULK_PRIORITY = 100
 
 BULK_THRESHOLD = 50
 
-MSG_SENT_KEY = 'msg_sent_%d'
+MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
 STATUS_CHOICES = (
     # special state for flows that is used to hold off sending the message until the flow is ready to receive a response
@@ -743,7 +743,10 @@ class Msg(models.Model, OrgModelMixin):
                 Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
-            r.delete(MSG_SENT_KEY % msg.id)
+            pipe = r.pipeline()
+            pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.execute()
 
     @classmethod
     def mark_sent(cls, r, msg, status, external_id=None):
@@ -757,7 +760,11 @@ class Msg(models.Model, OrgModelMixin):
             msg.external_id = external_id
 
         # use redis to mark this message sent
-        r.set(MSG_SENT_KEY % msg.id, str(msg.sent_on), ex=86400)
+        pipe = r.pipeline()
+        sent_key = timezone.now().strftime(MSG_SENT_KEY)
+        pipe.sadd(sent_key, str(msg.id))
+        pipe.expire(sent_key, 86400)
+        pipe.execute()
 
         if external_id:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)

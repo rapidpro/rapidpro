@@ -1733,8 +1733,7 @@ class AfricasTalkingTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('msg1', msg.external_id)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -1841,9 +1840,7 @@ class ExternalTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
-
+                self.clear_cache()
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -1911,9 +1908,7 @@ class ShaqodoonTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
-
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2014,9 +2009,7 @@ class KannelTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
-
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2123,6 +2116,7 @@ class NexmoTest(TembaTest):
 
         try:
             settings.SEND_MESSAGES = True
+            r = get_redis_connection()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status':0, 'message-id':12}])), method='POST')
@@ -2136,14 +2130,13 @@ class NexmoTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
                 # test some throttling by sending six messages right after another
                 start = time.time()
                 for i in range(6):
                     Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
-                    r.delete(MSG_SENT_KEY % msg.id)
+                    r.delete(timezone.now().strftime(MSG_SENT_KEY))
 
                     msg = bcast.get_messages()[0]
                     self.assertEquals(SENT, msg.status)
@@ -2246,9 +2239,16 @@ class VumiTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
 
                 # should have a failsafe that it was sent
-                self.assertIsNotNone(r.get(MSG_SENT_KEY % msg.id))
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # try sending again, our failsafe should kick in
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # we shouldn't have been called again
+                self.assertEquals(1, mock.call_count)
 
                 # simulate Vumi calling back to us telling us it failed
                 data = dict(event_type='delivery_report',
@@ -2263,7 +2263,7 @@ class VumiTest(TembaTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(ERRORED, msg.status)
                 self.assertTrue(msg.next_attempt)
-                self.assertIsNone(r.get(MSG_SENT_KEY % msg.id))
+                self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
             with patch('requests.put') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2276,6 +2276,7 @@ class VumiTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+                self.assertEquals(1, mock.call_count)
         finally:
             settings.SEND_MESSAGES = False
 
@@ -2370,8 +2371,7 @@ class ZenviaTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2450,8 +2450,7 @@ class InfobipTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2548,8 +2547,7 @@ class Hub9Test(TembaTest):
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2683,8 +2681,7 @@ class TwilioTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
@@ -2791,8 +2788,7 @@ class ClickatellTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2908,8 +2904,7 @@ class PlivoTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2957,8 +2952,7 @@ class TwitterTest(TembaTest):
                 self.assertEquals('1234567890', msg.external_id)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("Failed to send message")
