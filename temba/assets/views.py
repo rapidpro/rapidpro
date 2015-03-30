@@ -22,7 +22,7 @@ def handle_asset_request(user, asset_type, identifier):
     """
     try:
         asset_org, location, filename = asset_type.store.resolve(user, identifier)
-        asset_type = mimetypes.guess_type(location)[0]
+        asset_type = mimetypes.guess_type(filename)[0]
 
         if location.startswith('http'):
             asset_file = urllib2.urlopen(location)
