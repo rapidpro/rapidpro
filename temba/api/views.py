@@ -522,7 +522,7 @@ class BroadcastsEndpoint(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -530,7 +530,7 @@ class BroadcastsEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -715,7 +715,7 @@ class MessagesEndpoint(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -723,7 +723,7 @@ class MessagesEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -1015,7 +1015,7 @@ class Calls(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -1023,7 +1023,7 @@ class Calls(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -1209,7 +1209,7 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(last_seen__lte=before)
+                queryset = queryset.filter(last_seen__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -1217,7 +1217,7 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(last_seen__gte=after)
+                queryset = queryset.filter(last_seen__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -1975,7 +1975,7 @@ class FlowRunEndpoint(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -1983,7 +1983,7 @@ class FlowRunEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2132,7 +2132,7 @@ class CampaignEndpoint(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2140,7 +2140,7 @@ class CampaignEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2314,7 +2314,7 @@ class CampaignEventEndpoint(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2322,7 +2322,7 @@ class CampaignEventEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2551,7 +2551,7 @@ class FlowEndpoint(generics.ListAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(created_on__lt=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2559,7 +2559,7 @@ class FlowEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(created_on__gt=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
