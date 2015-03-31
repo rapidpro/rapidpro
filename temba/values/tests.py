@@ -336,6 +336,14 @@ class ResultTest(FlowFileTest):
             self.assertEquals("", response['totals']['results'][0]['label'])
             self.assertEquals("", response['totals']['results'][1]['label'])
 
+        # also check our analytics view
+        response = self.client.get(reverse('flows.ruleset_analytics'))
+
+        # make sure we have only one flow in it
+        flows = json.loads(response.context['flows'])
+        self.assertEquals(1, len(flows))
+        self.assertEquals(3, len(flows[0]['rules']))
+
     def test_open_ended_word_frequencies(self):
         flow = self.get_flow('random_word')
 
