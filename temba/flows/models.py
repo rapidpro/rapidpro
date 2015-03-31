@@ -3141,7 +3141,7 @@ class FlowStep(models.Model):
     rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
                                              help_text=_("The decimal value that was matched in our category for this ruleset, null on ActionSets or if a non numeric rule was matched"))
 
-    next_uuid = models.CharField(max_length=36, null=True,
+    next_uuid = models.CharField(max_length=36, null=True, db_index=True,
                                  help_text=_("The uuid of the next step type we took"))
 
     arrived_on = models.DateTimeField(auto_now_add=True,

@@ -338,35 +338,35 @@ class FlowCRUDL(SmartCRUDL):
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
-            flow = self.get_object()
-
             step_uuid = request.REQUEST.get('step', None)
             next_uuid = request.REQUEST.get('destination', None)
             rule_uuid = request.REQUEST.get('rule', None)
 
             recent_messages = []
+            msg_direction_filter = None
+
             if rule_uuid and next_uuid and step_uuid:
                 rule_uuids = rule_uuid.split(',')
-                recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
-                                                     steps__next_uuid=next_uuid,
-                                                     steps__rule_uuid__in=rule_uuids,
-                                                     steps__run__flow=flow,
-                                                     steps__step_type=RULE_SET,
-                                                     steps__run__contact__is_test=Contact.get_simulation(),
-                                                     direction=INCOMING,
-                                                     visibility=VISIBLE).order_by('-created_on').values('created_on', 'text')[:5]
+                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
+                                                       next_uuid=next_uuid,
+                                                       rule_uuid__in=rule_uuids,
+                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:25].prefetch_related('messages')
+                msg_direction_filter = INCOMING
 
             elif next_uuid and step_uuid:
-                recent_messages = Msg.objects.filter(steps__step_uuid=step_uuid,
-                                                     steps__next_uuid=next_uuid,
-                                                     steps__run__flow=flow,
-                                                     steps__step_type=ACTION_SET,
-                                                     steps__run__contact__is_test=Contact.get_simulation(),
-                                                     direction=OUTGOING,
-                                                     visibility=VISIBLE).order_by('-created_on').values('created_on', 'text')[:5]
+                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
+                                                       next_uuid=next_uuid,
+                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:25].prefetch_related('messages')
+                msg_direction_filter = OUTGOING
 
-            recent_messages = [dict(sent=datetime_to_str(msg['created_on']), text=msg['text']) for msg in recent_messages]
-            return build_json_response(recent_messages)
+            for step in recent_steps:
+                for msg in step.messages.all():
+                    if msg.visibility == VISIBLE and msg.direction == msg_direction_filter:
+                        recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
+                                                    text=msg.text))
+
+
+            return build_json_response(recent_messages[:10])
 
     class Versions(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
