@@ -240,7 +240,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Outbox(FolderListView):
         title = _("Outbox")
         fields = ('contacts', 'msgs', 'sent', 'status',)
-        search_fields = ('contacts__name__icontains', 'msgs__text__icontains', 'groups__name__icontains', 'contacts__urns__path__contains')
+        search_fields = ('msgs__text__icontains',)
         template_name = 'msgs/broadcast_outbox.haml'
         default_order = ('-created_on')
         folder = OrgFolder.broadcasts_outbox
@@ -253,7 +253,7 @@ class BroadcastCRUDL(SmartCRUDL):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
-        search_fields = ('contacts__name__icontains', 'text__icontains', 'groups__name__icontains')
+        search_fields = ('text__icontains',)
         template_name = 'msgs/broadcast_schedule_list.haml'
         default_order = ('schedule__status', 'schedule__next_fire', '-created_on')
         folder = OrgFolder.broadcasts_scheduled
