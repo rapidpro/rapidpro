@@ -33,7 +33,7 @@ from .omnibox import omnibox_query, omnibox_results_to_dict
 
 class RemoveContactForm(forms.Form):
     contact = forms.ModelChoiceField(Contact.objects.all())
-    group = forms.ModelChoiceField(ContactGroup.objects.all())
+    group = forms.ModelChoiceField(ContactGroup.user_groups.all())
 
     def __init__(self, *args, **kwargs):
         org = kwargs['org']
@@ -42,7 +42,7 @@ class RemoveContactForm(forms.Form):
         super(RemoveContactForm, self).__init__(*args, **kwargs)
 
         self.fields['contact'].queryset = Contact.objects.filter(org=org)
-        self.fields['group'].queryset = ContactGroup.objects.filter(org=org)
+        self.fields['group'].queryset = ContactGroup.user_groups.filter(org=org)
 
     def clean(self):
         return self.cleaned_data
@@ -121,7 +121,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.contacts_failed), label=_("Failed"), url=reverse('contacts.contact_failed')),
                    dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
-        groups_qs = ContactGroup.objects.filter(org=org, is_active=True, group_type=USER_DEFINED_GROUP).select_related('org')
+        groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True, group_type=USER_DEFINED_GROUP).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
         groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
@@ -232,7 +232,7 @@ class ContactForm(forms.ModelForm):
 
 
 class UpdateContactForm(ContactForm):
-    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.objects.filter(pk__lt=0),
+    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                             required=False, label=_("Groups"),
                                             help_text=_("Add or remove groups this contact belongs to"))
 
@@ -252,7 +252,7 @@ class UpdateContactForm(ContactForm):
         self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
 
         self.fields['groups'].initial = self.instance.groups.all()
-        self.fields['groups'].queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
 
 
 class ContactCRUDL(SmartCRUDL):
@@ -272,7 +272,7 @@ class ContactCRUDL(SmartCRUDL):
             group = None
             group_id = self.request.REQUEST.get('g', None)
             if group_id:
-                groups = ContactGroup.objects.filter(pk=group_id, org=org)
+                groups = ContactGroup.user_groups.filter(pk=group_id, org=org)
 
                 if groups:
                     group = groups[0]
@@ -445,7 +445,7 @@ class ContactCRUDL(SmartCRUDL):
                     context['show_form'] = False
                     context['results'] = json.loads(task.import_results) if task.import_results else dict()
 
-                    groups = ContactGroup.objects.filter(import_task=task)
+                    groups = ContactGroup.user_groups.filter(import_task=task)
 
                     if groups:
                         context['group'] = groups[0]
@@ -702,7 +702,7 @@ class ContactCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<group>\d+)/$' % (path, action)
 
         def derive_group(self):
-            return ContactGroup.objects.get(pk=self.kwargs['group'])
+            return ContactGroup.user_groups.get(pk=self.kwargs['group'])
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm

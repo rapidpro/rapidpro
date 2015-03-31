@@ -1225,7 +1225,7 @@ class RuleTest(TembaTest):
         self.assertEquals(1, group.contacts.all().count())
 
         # we should have acreated a group with the name of the contact
-        replace_group = ContactGroup.objects.get(name=self.contact.name)
+        replace_group = ContactGroup.user_groups.get(name=self.contact.name)
         self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, replace_group.contacts.all().count())
 

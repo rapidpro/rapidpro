@@ -386,7 +386,7 @@ class ContactWriteSerializer(WriteSerializer):
         if group_uuids is not None:
             groups = []
             for uuid in group_uuids:
-                group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
                 if not group:
                     raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
@@ -992,7 +992,7 @@ class FlowRunStartSerializer(serializers.Serializer):
     def validate_groups(self, attrs, source):
         groups = []
         for uuid in attrs.get(source, []):
-            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
             if not group:
                 raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
@@ -1237,7 +1237,7 @@ class BroadcastCreateSerializer(serializers.Serializer):
     def validate_groups(self, attrs, source):
         groups = []
         for uuid in attrs.get(source, []):
-            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
             if not group:
                 raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
             groups.append(group)

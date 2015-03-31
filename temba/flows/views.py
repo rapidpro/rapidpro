@@ -387,7 +387,7 @@ class RuleCRUDL(SmartCRUDL):
 
             dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime) else obj
 
-            groups = ContactGroup.objects.filter(is_active=True, org=org).order_by('name').prefetch_related('contacts')
+            groups = ContactGroup.user_groups.filter(is_active=True, org=org).order_by('name').prefetch_related('contacts')
             groups_json = []
             for group in groups:
                 if group.contacts.exists():

@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     def set_group_type(apps, schema_editor):
         ContactGroup = apps.get_model('contacts', 'ContactGroup')
-        ContactGroup.objects.all().update(group_type='U')
+        ContactGroup.objects.filter(group_type=None).update(group_type='U')
 
     dependencies = [
         ('contacts', '0011_install_group_triggers'),

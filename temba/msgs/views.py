@@ -529,7 +529,7 @@ class TestMessageForm(forms.Form):
 
 
 class ExportForm(Form):
-    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.objects.filter(pk__lt=0),
+    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                             required=False, label=_("Groups"))
     start_date = forms.DateField(required=False,
                                  help_text=_("The date for the oldest message to export. (Leave blank to export from the oldest message)."))
@@ -539,7 +539,7 @@ class ExportForm(Form):
     def __init__(self, user, *args, **kwargs):
         super(ExportForm, self).__init__(*args, **kwargs)
         self.user = user
-        self.fields['groups'].queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
         self.fields['groups'].help_text = _("Export only messages from these contact groups. (Leave blank to export all messages).")
 
     def clean(self):

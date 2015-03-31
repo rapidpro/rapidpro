@@ -444,7 +444,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
                 # add it to our All Contacts group
                 if not contact.is_test:
-                    ContactGroup.objects.get(org=org, group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
+                    ContactGroup.system_groups.get(org=org, group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
 
                 org.update_caches(OrgEvent.contact_new, contact)
 
@@ -754,7 +754,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         for group in self.groups.all():
             group.update_contacts([self], False)
 
-        ContactGroup.objects.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
 
     def restore(self):
         """
@@ -763,8 +763,8 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-        ContactGroup.objects.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
-        ContactGroup.objects.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
 
     def fail(self):
         """
@@ -773,7 +773,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         self.is_failed = True
         self.save(update_fields=['is_failed'])
 
-        ContactGroup.objects.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
 
     def unfail(self):
         """
@@ -782,7 +782,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         self.is_failed = False
         self.save(update_fields=['is_failed'])
 
-        ContactGroup.objects.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.remove(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.remove(self)
 
     def release(self):
         """
@@ -1262,6 +1262,14 @@ GROUP_TYPE_CHOICES = (('A', "All Contacts"),
                       ('F', "Failed Contacts"),
                       ('U', "User Defined Groups"))
 
+class SystemContactGroupManager(models.Manager):
+    def get_queryset(self):
+        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=USER_DEFINED_GROUP)
+
+class UserContactGroupManager(models.Manager):
+    def get_queryset(self):
+        return super(UserContactGroupManager, self).get_queryset().filter(group_type=USER_DEFINED_GROUP)
+
 class ContactGroup(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
 
@@ -1282,9 +1290,14 @@ class ContactGroup(TembaModel, SmartModel):
 
     query_fields = models.ManyToManyField(ContactField, verbose_name=_("Query Fields"))
 
+    # define some custom managers to do the filtering of user / system groups for us
+    all_groups = models.Manager()
+    system_groups = SystemContactGroupManager()
+    user_groups = UserContactGroupManager()
+
     @classmethod
     def get_or_create(cls, org, user, name):
-        existing = ContactGroup.objects.filter(name=name, org=org, is_active=True).first()
+        existing = ContactGroup.user_groups.filter(name=name, org=org, is_active=True).first()
         if existing:
             return existing
         else:
@@ -1297,16 +1310,16 @@ class ContactGroup(TembaModel, SmartModel):
             raise ValueError("Group name cannot be blank")
 
         # look for name collision and append count if necessary
-        existing = ContactGroup.objects.filter(name=full_group_name, org=org, is_active=True).count() > 0
+        existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
 
         count = 2
         while existing:
             full_group_name = "%s %d" % (name, count)
-            existing = ContactGroup.objects.filter(name=full_group_name, org=org, is_active=True).count() > 0
+            existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
             count += 1
 
-        group = ContactGroup.objects.create(name=full_group_name, org=org, import_task=task,
-                                            created_by=user, modified_by=user)
+        group = ContactGroup.user_groups.create(name=full_group_name, org=org, import_task=task,
+                                                created_by=user, modified_by=user)
         if query:
             group.update_query(query)
 
@@ -1351,7 +1364,7 @@ class ContactGroup(TembaModel, SmartModel):
         self.query_fields.clear()
 
         for match in re.finditer(r'\w+', self.query):
-            field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
+            field = ContactField.user_groups.filter(key=match.group(), org=self.org, is_active=True).first()
             if field:
                 self.query_fields.add(field)
 
@@ -1371,7 +1384,7 @@ class ContactGroup(TembaModel, SmartModel):
 
         group_change = False
 
-        for group in ContactGroup.objects.filter(**qs_args).exclude(query=None).select_related("contacts"):
+        for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None).select_related("contacts"):
             qs, is_complex = Contact.search(group.org, group.query)  # re-run group query
             qualifies = qs.filter(pk=contact.id).count() == 1        # should contact now be in group?
             changed = group.update_contacts([contact], qualifies)

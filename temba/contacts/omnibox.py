@@ -51,7 +51,7 @@ def omnibox_query(org, **kwargs):
 
     # this lookup returns a ContactGroup queryset
     elif group_ids:
-        qs = ContactGroup.objects.filter(org=org, id__in=group_ids.split(","))
+        qs = ContactGroup.user_groups.filter(org=org, id__in=group_ids.split(","))
         return qs.annotate(members=Count('contacts')).order_by('name')
 
     # this lookup returns a ContactURN queryset
@@ -159,7 +159,7 @@ def omnibox_results_to_dict(org, results):
             if obj['type'] == RESULT_TYPE_GROUP:
                 result['id'] = 'g-%d' % _id
                 result['text'] = text
-                result['extra'] = ContactGroup.objects.get(pk=_id).get_member_count()
+                result['extra'] = ContactGroup.user_groups.get(pk=_id).get_member_count()
             elif obj['type'] == RESULT_TYPE_CONTACT:
                 result['id'] = 'c-%d' % _id
                 if not text:

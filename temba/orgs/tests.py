@@ -1262,7 +1262,7 @@ class BulkExportTest(TembaTest):
             self.assertEquals(2, Trigger.objects.filter(org=self.org, trigger_type='K', is_archived=False).count())
             self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='C', is_archived=False).count())
             self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
-            self.assertEquals(3, ContactGroup.objects.filter(org=self.org).count())
+            self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
             self.assertEquals(1, Label.objects.filter(org=self.org).count())
 
         # import all our bits
@@ -1355,7 +1355,7 @@ class BulkExportTest(TembaTest):
         campaign.name = "A new campagin"
         campaign.save()
 
-        group = ContactGroup.objects.filter(name='Pending Appointments').first()
+        group = ContactGroup.user_groups.filter(name='Pending Appointments').first()
         group.name = "A new group"
         group.save()
 
@@ -1366,7 +1366,7 @@ class BulkExportTest(TembaTest):
         # and our objets should have the same names as before
         self.assertEquals('Confirm Appointment', Flow.objects.get(pk=flow.pk).name)
         self.assertEquals('Appointment Schedule', Campaign.objects.all().first().name)
-        self.assertEquals('Pending Appointments', ContactGroup.objects.get(pk=group.pk).name)
+        self.assertEquals('Pending Appointments', ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
         flow.name = "A new name"
@@ -1384,7 +1384,7 @@ class BulkExportTest(TembaTest):
         # the newly named objects won't get updated in this case and we'll create new ones instead
         self.assertEquals(9, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
         self.assertEquals(2, Campaign.objects.filter(org=self.org, is_archived=False).count())
-        self.assertEquals(4, ContactGroup.objects.filter(org=self.org).count())
+        self.assertEquals(4, ContactGroup.user_groups.filter(org=self.org).count())
 
         # now archive a flow
         register = Flow.objects.filter(name='Register Patient').first()

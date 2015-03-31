@@ -55,7 +55,7 @@ class Campaign(SmartModel):
 
                 # first check if we have the objects by id
                 if site and site == exported_json.get('site', None):
-                    group = ContactGroup.objects.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
+                    group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
                     if group:
                         group.name = campaign_spec['group']['name']
                         group.save()
@@ -67,7 +67,7 @@ class Campaign(SmartModel):
 
                 # fall back to lookups by name
                 if not group:
-                    group = ContactGroup.objects.filter(name=campaign_spec['group']['name'], org=org).first()
+                    group = ContactGroup.user_groups.filter(name=campaign_spec['group']['name'], org=org).first()
 
                 if not campaign:
                     campaign = Campaign.objects.filter(org=org, name=name).first()

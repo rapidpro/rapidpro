@@ -71,13 +71,13 @@ class DefaultTriggerForm(BaseTriggerForm):
 
 class GroupBasedTriggerForm(BaseTriggerForm):
 
-    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.objects.filter(pk__lt=0),
+    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                             required=False, label=_("Only Groups"))
 
     def __init__(self, user, flows, *args, **kwargs):
         super(GroupBasedTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
-        self.fields['groups'].queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
         self.fields['groups'].help_text = _("Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)")
 
     def get_existing_triggers(self, cleaned_data):
@@ -146,7 +146,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                groups = ContactGroup.objects.filter(name=value, org=self.user.get_org())
+                groups = ContactGroup.user_groups.filter(name=value, org=self.user.get_org())
                 if groups:
                     group = groups[0]
                 else:
@@ -158,7 +158,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     keyword = forms.CharField(max_length=16, required=True,
                               help_text=_("The first word of the message text"))
 
-    action_join_group = AddNewGroupChoiceField(ContactGroup.objects.filter(pk__lt=0), required=True, label=_("Group to Join"),
+    action_join_group = AddNewGroupChoiceField(ContactGroup.user_groups.filter(pk__lt=0), required=True, label=_("Group to Join"),
                                    help_text=_("The group the contact will join when they send the above keyword"))
 
     response = forms.CharField(widget=forms.Textarea(attrs=dict(rows=3)), required=False, label=_("Response"),
@@ -170,7 +170,7 @@ class RegisterTriggerForm(BaseTriggerForm):
 
         self.fields['flow'].required = False
         group_field = self.fields['action_join_group']
-        group_field.queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True).order_by('name')
+        group_field.queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True).order_by('name')
         group_field.user = user
 
     class Meta(BaseTriggerForm.Meta):

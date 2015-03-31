@@ -1926,7 +1926,7 @@ class Flow(TembaModel, SmartModel):
 
             # load them all
             contacts = dict((_.pk, _) for _ in Contact.all().filter(org=self.org, pk__in=contacts))
-            groups = dict((_.pk, _) for _ in ContactGroup.objects.filter(org=self.org, pk__in=groups))
+            groups = dict((_.pk, _) for _ in ContactGroup.user_groups.filter(org=self.org, pk__in=groups))
 
             # and replace them
             for actionset in actionsets:
@@ -3506,13 +3506,13 @@ class AddToGroupAction(Action):
                 except:
                     group_id = -1
 
-                if group_id and ContactGroup.objects.filter(org=org, id=group_id).first():
-                    group = ContactGroup.objects.filter(org=org, id=group_id).first()
+                if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
+                    group = ContactGroup.user_groups.filter(org=org, id=group_id).first()
                     if not group.is_active:
                         group.is_active = True
                         group.save(update_fields=['is_active'])
-                elif ContactGroup.objects.filter(org=org, name=group_name, is_active=True).first():
-                    group = ContactGroup.objects.filter(org=org, name=group_name, is_active=True).first()
+                elif ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True).first():
+                    group = ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True).first()
                 else:
                     group = ContactGroup.create(org, org.created_by, group_name)
 
@@ -3522,7 +3522,7 @@ class AddToGroupAction(Action):
                 if g and g[0] == '@':
                     groups.append(g)
                 else:
-                    group = ContactGroup.objects.filter(org=org, name=g, is_active=True)
+                    group = ContactGroup.user_groups.filter(org=org, name=g, is_active=True)
                     if group:
                         groups.append(group[0])
                     else:
@@ -3552,7 +3552,7 @@ class AddToGroupAction(Action):
                     message_context = run.flow.build_message_context(contact, sms)
                     (value, missing) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     try:
-                        group = ContactGroup.objects.get(org=contact.org, name=value, is_active=True)
+                        group = ContactGroup.user_groups.get(org=contact.org, name=value, is_active=True)
                     except:
                         user = get_flow_user()
                         group = ContactGroup.create(contact.org, user, name=value)
@@ -3808,10 +3808,10 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.objects.filter(org=org, id=group_id):
-                group = ContactGroup.objects.get(org=org, id=group_id)
-            elif ContactGroup.objects.filter(org=org, name=group_name):
-                group = ContactGroup.objects.get(org=org, name=group_name)
+            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id):
+                group = ContactGroup.user_groups.get(org=org, id=group_id)
+            elif ContactGroup.user_groups.filter(org=org, name=group_name):
+                group = ContactGroup.user_groups.get(org=org, name=group_name)
             else:
                 group = ContactGroup.create(org, org.get_user(), group_name)
 
@@ -3870,7 +3870,7 @@ class VariableContactAction(Action):
                 (variable, missing) = Msg.substitute_variables(variable, contact=run.contact,
                                                                message_context=message_context, org=run.flow.org)
 
-                variable_group = ContactGroup.objects.filter(org=run.flow.org, is_active=True, name=variable).first()
+                variable_group = ContactGroup.user_groups.filter(org=run.flow.org, is_active=True, name=variable).first()
                 if variable_group:
                     groups.append(variable_group)
                 else:

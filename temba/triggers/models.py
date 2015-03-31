@@ -105,10 +105,10 @@ class Trigger(SmartModel):
                     group = None
 
                     if site and site == exported_json.get('site', None):
-                        group = ContactGroup.objects.filter(org=org, pk=group_spec['id']).first()
+                        group = ContactGroup.user_groups.filter(org=org, pk=group_spec['id']).first()
 
                     if not group:
-                        group = ContactGroup.objects.filter(org=org, name=group_spec['name']).first()
+                        group = ContactGroup.user_groups.filter(org=org, name=group_spec['name']).first()
 
                     if not group:
                         group = ContactGroup.create(org, user, group_spec['name'])

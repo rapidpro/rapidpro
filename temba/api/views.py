@@ -1311,7 +1311,7 @@ class Groups(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
 
     def get_queryset(self):
-        queryset = ContactGroup.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
+        queryset = ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
