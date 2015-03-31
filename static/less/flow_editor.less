@@ -195,13 +195,14 @@
 
     .recent-messages {
       position:absolute;
-      background: white;
+      background: rgba(240,240,240,.95);
       width:200px;
       z-index:@z-recent-messages;
       margin-top: 40px;
       margin-left:-95px;
       padding-bottom: 10px;
-      .drop-shadow(0,0, 2px, 2px, .07);
+      .drop-shadow(0,0, 2px, 2px, .1);
+      .rounded-corners(5px);
 
       .loading {
         width: 100%;
@@ -213,6 +214,7 @@
         color: white;
         background:rgb(113,113,113);
         margin-bottom: 5px;
+        .border-radius(5px,5px,0,0);
       }
 
       .message{
@@ -223,13 +225,13 @@
         text-align: left;
         .text {
           font-size:13px;
-          color: grey;
+          color: #717171;
           padding-bottom:2px;
         }
 
         .date {
           font-size:11px;
-          color: darkgrey;
+          color: rgba(113, 113, 113, 0.73);
         }
       }
     }
