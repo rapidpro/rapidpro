@@ -951,7 +951,7 @@ class Channel(SmartModel):
         }
 
         # build our send URL
-        url = Channel.build_send_url('https://highpushapi.hcnx.eu/api', payload)
+        url = 'https://highpushapi.hcnx.eu/api' + '?' + urlencode(payload)
         log_payload = None
 
         try:
