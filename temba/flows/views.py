@@ -221,6 +221,12 @@ class RuleCRUDL(SmartCRUDL):
                         other_category['label'] = "Others"
                         other_category['count'] += count
 
+            if prime_category is None:
+                prime_category = dict(label="", count=0)
+
+            if other_category is None:
+                other_category = dict(label="", count=0)
+
             total = prime_category['count'] + other_category['count']
             prime_category['percentage'] = percentage(prime_category['count'], total)
             other_category['percentage'] = percentage(other_category['count'], total)
