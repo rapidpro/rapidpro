@@ -1,4 +1,5 @@
 # Karma configuration
+
 module.exports = (config) ->
   config.set
 
