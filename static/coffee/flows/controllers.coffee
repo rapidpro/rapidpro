@@ -671,7 +671,13 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         top: $event.pageY
     return false
 
+
+  # allow use to cancel display of recent messages
+  showRecentDelay = null
+
   $scope.hideRecentMessages = ->
+
+    $timeout.cancel(showRecentDelay)
 
     if this.category
       this.category._showMessages = false
@@ -680,32 +686,35 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     if this.action_set
       this.action_set._showMessages = false
 
-
   $scope.showRecentMessages = ->
 
-    if this.action_set
-      action_set = this.action_set
-      action_set._showMessages = true
-      Flow.fetchRecentMessages(action_set.uuid, action_set.destination).then (response) ->
-        action_set._messages = response.data
 
-    if this.category
+    hovered = this
+    showRecentDelay = $timeout ->
 
-      # We are looking at recent messages through a rule
-      category = this.category
-      ruleset = this.$parent.ruleset
+      if hovered.action_set
+        action_set = hovered.action_set
+        action_set._showMessages = true
+        Flow.fetchRecentMessages(action_set.uuid, action_set.destination).then (response) ->
+          action_set._messages = response.data
 
-      # our node and rule should be marked as showing messages
-      ruleset._showMessages = true
-      category._showMessages = true
+      if hovered.category
 
-      # use all rules as the source so we see all matched messages for the path
-      categoryFrom = category.sources.join()
-      categoryTo = category.target
+        # We are looking at recent messages through a rule
+        category = hovered.category
+        ruleset = hovered.$parent.ruleset
 
-      Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
-        category._messages = response.data
+        # our node and rule should be marked as showing messages
+        ruleset._showMessages = true
+        category._showMessages = true
 
+        # use all rules as the source so we see all matched messages for the path
+        categoryFrom = category.sources.join()
+        categoryTo = category.target
+
+        Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
+          category._messages = response.data
+    , 500
 
 ]
 
