@@ -310,6 +310,14 @@ class ResultTest(FlowFileTest):
         self.assertEquals(100, kigali_result['results'][0]['percentage'])
         self.assertEquals(0, kigali_result['results'][1]['percentage'])
 
+        # also check our analytics view
+        response = self.client.get(reverse('flows.ruleset_analytics'))
+
+        # make sure we have only one flow in it
+        flows = json.loads(response.context['flows'])
+        self.assertEquals(1, len(flows))
+        self.assertEquals(3, len(flows[0]['rules']))
+
     def test_open_ended_word_frequencies(self):
         flow = self.get_flow('random_word')
 
