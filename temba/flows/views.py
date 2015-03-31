@@ -350,13 +350,13 @@ class FlowCRUDL(SmartCRUDL):
                 recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
                                                        next_uuid=next_uuid,
                                                        rule_uuid__in=rule_uuids,
-                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:25].prefetch_related('messages')
+                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:15].prefetch_related('messages')
                 msg_direction_filter = INCOMING
 
             elif next_uuid and step_uuid:
                 recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
                                                        next_uuid=next_uuid,
-                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:25].prefetch_related('messages')
+                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:15].prefetch_related('messages')
                 msg_direction_filter = OUTGOING
 
             for step in recent_steps:
@@ -366,7 +366,7 @@ class FlowCRUDL(SmartCRUDL):
                                                     text=msg.text))
 
 
-            return build_json_response(recent_messages[:10])
+            return build_json_response(recent_messages[:5])
 
     class Versions(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
