@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from datetime import timedelta
+from mock import patch
 import json
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -309,6 +310,31 @@ class ResultTest(FlowFileTest):
 
         self.assertEquals(100, kigali_result['results'][0]['percentage'])
         self.assertEquals(0, kigali_result['results'][1]['percentage'])
+
+        with patch('temba.values.models.Value.get_value_summary') as mock:
+            mock.return_value = []
+
+            response = self.client.get(reverse('flows.ruleset_choropleth', args=[color.pk]) +
+                                   "?_format=json&boundary=" + self.org.country.osm_id)
+
+            # response should be valid json
+            response = json.loads(response.content)
+
+            # should have two categories, Blue and Others
+            self.assertEquals(2, len(response['categories']))
+            self.assertEquals("", response['categories'][0])
+            self.assertEquals("", response['categories'][1])
+
+            # all counts and percentage are 0
+            self.assertEquals(0, response['totals']['count'])
+            self.assertEquals(0, response['totals']['results'][0]['count'])
+            self.assertEquals(0, response['totals']['results'][0]['percentage'])
+            self.assertEquals(0, response['totals']['results'][1]['count'])
+            self.assertEquals(0, response['totals']['results'][1]['percentage'])
+
+            # and empty string labels
+            self.assertEquals("", response['totals']['results'][0]['label'])
+            self.assertEquals("", response['totals']['results'][1]['label'])
 
     def test_open_ended_word_frequencies(self):
         flow = self.get_flow('random_word')
