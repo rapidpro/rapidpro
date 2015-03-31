@@ -2551,6 +2551,27 @@ class FlowsTest(FlowFileTest):
         Flow.import_flows(definition, trey_org, trey)
         self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="new_mother").first())
 
+    def test_start_flow_action(self):
+        self.import_file('flow-starts')
+        parent = Flow.objects.get(name='Parent Flow')
+        child = Flow.objects.get(name='Child Flow')
+
+        contacts = []
+        for i in range(10):
+            contacts.append(self.create_contact("Fred", '+25078812312%d' % i))
+
+        # start the flow for our contacts
+        start = FlowStart.objects.create(flow=parent, created_by=self.admin, modified_by=self.admin)
+        for contact in contacts:
+            start.contacts.add(contact)
+        start.start()
+
+        # all our contacts should have a name of Greg now (set in the child flow)
+        for contact in contacts:
+            self.assertTrue(FlowRun.objects.filter(flow=parent, contact=contact))
+            self.assertTrue(FlowRun.objects.filter(flow=child, contact=contact))
+            self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
+
     def test_cross_language_import(self):
 
         # import our localized flow into an org with no languages
