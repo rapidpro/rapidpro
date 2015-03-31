@@ -103,7 +103,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
     refresh = 10000
     add_button = True
     fields = ('from', 'message', 'received')
-    search_fields = ('text__icontains', 'contact__urns__path__icontains', 'contact__name__icontains')
+    search_fields = ('text__icontains',)
     paginate_by = 100
 
     def pre_process(self, request, *args, **kwargs):
@@ -136,7 +136,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
 
         context['folders'] = folders
         context['labels'] = labels
-        context['has_messages'] = self.object_list.count() > 0 or org.has_messages()
+        context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
 
