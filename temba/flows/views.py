@@ -352,23 +352,24 @@ class FlowCRUDL(SmartCRUDL):
                 rule_uuids = rule_uuid.split(',')
                 recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
                                                        next_uuid=next_uuid,
-                                                       rule_uuid__in=rule_uuids,
-                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:15].prefetch_related('messages')
+                                                       rule_uuid__in=rule_uuids).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
                 msg_direction_filter = INCOMING
 
             else:
                 recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
                                                        next_uuid=next_uuid,
-                                                       contact__is_test=Contact.get_simulation()).order_by('-id')[:15].prefetch_related('messages')
+                                                       rule_uuid=None).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
+
                 msg_direction_filter = OUTGOING
 
             # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
             # prefetch related above and do the filtering ourselves
             for step in recent_steps:
-                for msg in step.messages.all():
-                    if msg.visibility == VISIBLE and msg.direction == msg_direction_filter:
-                        recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
-                                                    text=msg.text))
+                if not step.contact.is_test:
+                    for msg in step.messages.all():
+                        if msg.visibility == VISIBLE and msg.direction == msg_direction_filter:
+                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
+                                                        text=msg.text))
 
             return build_json_response(recent_messages[:5])
 

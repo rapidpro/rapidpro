@@ -3141,12 +3141,12 @@ class FlowStep(models.Model):
     rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
                                              help_text=_("The decimal value that was matched in our category for this ruleset, null on ActionSets or if a non numeric rule was matched"))
 
-    next_uuid = models.CharField(max_length=36, null=True, db_index=True,
+    next_uuid = models.CharField(max_length=36, null=True,
                                  help_text=_("The uuid of the next step type we took"))
 
     arrived_on = models.DateTimeField(auto_now_add=True,
                                       help_text=_("When the user arrived at this step in the flow"))
-    left_on = models.DateTimeField(null=True, db_index=True,
+    left_on = models.DateTimeField(null=True,
                                    help_text=_("When the user left this step in the flow"))
 
     messages = models.ManyToManyField(Msg,
@@ -3216,6 +3216,9 @@ class FlowStep(models.Model):
 
     def __unicode__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
+
+    class Meta:
+        index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
 
 
 
