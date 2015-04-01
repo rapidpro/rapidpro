@@ -1095,6 +1095,17 @@ class RuleTest(TembaTest):
         self.assertEquals(mail.outbox[1].body, 'In the body; Eric uses phone 0788 382 382')
         self.assertEquals(mail.outbox[1].recipients(), recipients)
 
+        test = EmailAction(recipients, "Allo \n allo\tmessage", "Email notification for allo allo")
+        action_json = test.as_json()
+
+        test = EmailAction.from_json(self.org, action_json)
+        test.execute(run, None, sms)
+
+        self.assertEquals(len(mail.outbox), 3)
+        self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
+        self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
+        self.assertEquals(mail.outbox[2].recipients(), recipients)
+
     def test_decimal_values(self):
         flow = self.flow
         flow.update(self.definition)
@@ -2380,8 +2391,6 @@ class FlowsTest(FlowFileTest):
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
 
-    test_substitution.active = True
-
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
         registration_flow = self.get_flow('mama_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
@@ -2541,6 +2550,27 @@ class FlowsTest(FlowFileTest):
 
         Flow.import_flows(definition, trey_org, trey)
         self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="new_mother").first())
+
+    def test_start_flow_action(self):
+        self.import_file('flow-starts')
+        parent = Flow.objects.get(name='Parent Flow')
+        child = Flow.objects.get(name='Child Flow')
+
+        contacts = []
+        for i in range(10):
+            contacts.append(self.create_contact("Fred", '+25078812312%d' % i))
+
+        # start the flow for our contacts
+        start = FlowStart.objects.create(flow=parent, created_by=self.admin, modified_by=self.admin)
+        for contact in contacts:
+            start.contacts.add(contact)
+        start.start()
+
+        # all our contacts should have a name of Greg now (set in the child flow)
+        for contact in contacts:
+            self.assertTrue(FlowRun.objects.filter(flow=parent, contact=contact))
+            self.assertTrue(FlowRun.objects.filter(flow=child, contact=contact))
+            self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
 
     def test_cross_language_import(self):
 

@@ -16,7 +16,6 @@ from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
-from temba.orgs.models import ORG_ACTIVE_TOPUP_CACHE_KEY, ORG_TOPUP_CREDITS_CACHE_KEY, ORG_TOPUP_EXPIRES_CACHE_KEY
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.flows.models import Flow, ExportFlowResultsTask, ActionSet
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
@@ -405,34 +404,6 @@ class OrgTest(TembaTest):
         response = self.client.get(choose_url, follow=True)
         self.assertContains(response, "Organizations")
 
-    def test_decrement_topups(self):
-        # we start with 1000 credits, try decrementing it
-        active = self.org._calculate_active_topup()
-
-        topup_id = self.org.decrement_credit()
-        self.assertEquals(active.pk, topup_id)
-
-        # we should have a key that is saving our topup and number of credits
-        r = get_redis_connection()
-        self.assertEquals(topup_id, int(r.get(ORG_ACTIVE_TOPUP_CACHE_KEY % self.org.pk)))
-        self.assertEquals(999, int(r.get(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk)))
-
-        # to test it is truly using the cache, decrement our topup_credits in redis
-        # and see if it goes down
-        r.set(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk, 501)
-
-        topup_id = self.org.decrement_credit()
-        self.assertEquals(active.pk, topup_id)
-        self.assertEquals(500, int(r.get(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk)))
-
-        # and that we properly recalculate for the 0 credit case
-        r.set(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk, 0)
-
-        topup_id = self.org.decrement_credit()
-        self.assertEquals(active.pk, topup_id)
-        self.assertEquals(topup_id, int(r.get(ORG_ACTIVE_TOPUP_CACHE_KEY % self.org.pk)))
-        self.assertEquals(999, int(r.get(ORG_TOPUP_CREDITS_CACHE_KEY % self.org.pk)))
-
     def test_topup_admin(self):
         self.login(self.admin)
 
@@ -572,10 +543,7 @@ class OrgTest(TembaTest):
         # but now it expires
         yesterday = timezone.now() - relativedelta(days=1)
         mega_topup.expires_on = yesterday
-        mega_topup.save()
-
-        r = get_redis_connection()
-        r.set(ORG_TOPUP_EXPIRES_CACHE_KEY % self.org.pk, datetime_to_ms(yesterday))
+        mega_topup.save(update_fields=['expires_on'])
 
         # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")
@@ -584,12 +552,10 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
-
-    test_topups.active = True
 
     def test_twilio_connect(self):
         connect_url = reverse("orgs.org_twilio_connect")
