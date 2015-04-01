@@ -2181,6 +2181,7 @@ class FlowsTest(FlowFileTest):
         blue_rule_destination = '2469ada5-3c36-4d74-bf73-daab0a56c37c'
 
         # use the right get params
+        self.send_message(flow, 'chartreuse')
         get_params_entry = "?step=%s&destination=%s&rule=%s" % (first_action_set_uuid, first_action_set_destination, '')
         response = self.client.get(recent_messages_url + get_params_entry)
         response_json = json.loads(response.content)
