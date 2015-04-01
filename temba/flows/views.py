@@ -343,9 +343,12 @@ class FlowCRUDL(SmartCRUDL):
             rule_uuid = request.REQUEST.get('rule', None)
 
             recent_messages = []
-            msg_direction_filter = None
 
-            if rule_uuid and next_uuid and step_uuid:
+            # noop if we are missing needed parameters
+            if not step_uuid or not next_uuid:
+                return build_json_response(recent_messages)
+
+            if rule_uuid:
                 rule_uuids = rule_uuid.split(',')
                 recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
                                                        next_uuid=next_uuid,
@@ -353,18 +356,19 @@ class FlowCRUDL(SmartCRUDL):
                                                        contact__is_test=Contact.get_simulation()).order_by('-id')[:15].prefetch_related('messages')
                 msg_direction_filter = INCOMING
 
-            elif next_uuid and step_uuid:
+            else:
                 recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
                                                        next_uuid=next_uuid,
                                                        contact__is_test=Contact.get_simulation()).order_by('-id')[:15].prefetch_related('messages')
                 msg_direction_filter = OUTGOING
 
+            # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
+            # prefetch related above and do the filtering ourselves
             for step in recent_steps:
                 for msg in step.messages.all():
                     if msg.visibility == VISIBLE and msg.direction == msg_direction_filter:
                         recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
                                                     text=msg.text))
-
 
             return build_json_response(recent_messages[:5])
 

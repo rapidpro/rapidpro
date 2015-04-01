@@ -2167,11 +2167,6 @@ class FlowsTest(FlowFileTest):
 
         self.login(self.admin)
         recent_messages_url = reverse('flows.flow_recent_messages', args=[flow.pk])
-
-        response = self.client.get(recent_messages_url)
-        self.assertEquals([], json.loads(response.content))
-
-        self.send_message(flow, 'chartreuse')
         response = self.client.get(recent_messages_url)
         self.assertEquals([], json.loads(response.content))
 
