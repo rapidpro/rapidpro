@@ -145,6 +145,8 @@ class Channel(SmartModel):
                             help_text=_("The roles this channel can fulfill"))
     parent = models.ForeignKey('self', blank=True, null=True,
                                help_text=_("The channel this channel is working on behalf of"))
+    bod = models.TextField(verbose_name=_("Optional Data"), null=True,
+                           help_text=_("Any channel specific state data"))
 
     def get_scheme(self):
         return RELAYER_TYPE_CONFIG[self.channel_type]['scheme']
