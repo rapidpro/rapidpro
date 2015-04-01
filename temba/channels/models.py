@@ -542,12 +542,6 @@ class Channel(SmartModel):
         else:
             return dict()
 
-    def bod_json(self):
-        if self.bod:
-            return json.loads(self.bod)
-        else:
-            return dict()
-
     @classmethod
     def get_cached_channel(cls, channel_id):
         """
