@@ -3196,7 +3196,6 @@ class HighConnectionHandler(View):
             to_number = request.REQUEST.get('TO', None)
             from_number = request.REQUEST.get('FROM', None)
             message = request.REQUEST.get('MESSAGE', None)
-            message_date = request.REQUEST.get('RECEPTION_DATE', None)
 
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)

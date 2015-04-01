@@ -947,7 +947,8 @@ class Channel(SmartModel):
             'text': text,
             'to': msg.urn_path,
             'ret_id': msg.id,
-            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['status', channel.uuid]))
+            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['status', channel.uuid])),
+            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['receive', channel.uuid]))
         }
 
         # build our send URL
