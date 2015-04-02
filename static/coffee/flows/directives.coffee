@@ -292,4 +292,3 @@ app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
     restrict: 'C'
   }
 ]
-
