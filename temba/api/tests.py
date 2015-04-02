@@ -2575,11 +2575,10 @@ class HighConnectionTest(TembaTest):
         self.channel.save()
 
         # http://localhost:8000/api/v1/hcnx/receive/asdf-asdf-asdf-asdf/?FROM=+33610346460&TO=5151&MESSAGE=Hello+World
-        data = {'FROM': '+33610346460', 'TO': '5151', 'MESSAGE': 'Hello World'}
-        encoded_message = urlencode(data)
+        data = {'FROM': '+33610346460', 'TO': '5151', 'MESSAGE': 'Hello World', 'RECEPTION_DATE': '2015-04-02T14:26:06'}
 
-        callback_url = reverse('api.hcnx_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
-        response = self.client.get(callback_url)
+        callback_url = reverse('api.hcnx_handler', args=['receive', self.channel.uuid])
+        response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
 
@@ -2590,13 +2589,11 @@ class HighConnectionTest(TembaTest):
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World", msg.text)
+        self.assertEquals(14, msg.delivered_on.hour)
 
-        # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
-        data['TO'] = '6289881131111'
-        encoded_message = urlencode(data)
-
-        callback_url = reverse('api.hcnx_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
-        response = self.client.get(callback_url)
+        # try it with an invalid receiver, should fail as UUID isn't known
+        callback_url = reverse('api.hcnx_handler', args=['receive', uuid.uuid4()])
+        response = self.client.post(callback_url, data)
 
         # should get 400 as the channel wasn't found
         self.assertEquals(400, response.status_code)
@@ -2646,8 +2643,7 @@ class HighConnectionTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                r = get_redis_connection()
-                r.delete(MSG_SENT_KEY % msg.id)
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
