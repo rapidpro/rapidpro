@@ -68,9 +68,6 @@ describe 'Services:', ->
       test.http.flush()
       test.http.verifyNoOutstandingRequest()
 
-    it 'should always fail', ->
-      expect(true).toBe(false)
-
     it 'should set flow defintion after fetching', ->
       test.window.flowId = test.flows.rules_first.id
       rootScope = test.rootScope
