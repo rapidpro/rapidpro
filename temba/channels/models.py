@@ -954,11 +954,11 @@ class Channel(SmartModel):
         }
 
         # build our send URL
-        url = 'https://highpushapi.hcnx.eu/api' + '?' + urlencode(payload)
+        url = 'https://highpushfastapi-v2.hcnx.eu/api' + '?' + urlencode(payload)
         log_payload = None
 
         try:
-            response = requests.get(url, headers=TEMBA_HEADERS, proxies=OUTGOING_PROXIES, timeout=30)
+            response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
             log_payload = urlencode(payload)
         except Exception as e:
             raise SendException(unicode(e),
