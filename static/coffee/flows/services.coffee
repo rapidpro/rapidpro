@@ -339,8 +339,8 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
 app.service "Versions", ['$rootScope', '$http', '$log', ($rootScope, $http, $log) ->
   updateVersions: ->
-    $http.get('/flow/versions/' + $rootScope.flowId).success (data, status, headers) ->
 
+    $http.get('/flow/versions/' + $rootScope.flowId + '/').success (data, status, headers) ->
       # only set the versions if we get back json, if we don't have permission we'll get a login page
       if headers('content-type') == 'application/json'
         $rootScope.versions = data
@@ -481,25 +481,24 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       , quietPeriod
 
   determineFlowStart = (flow) ->
-    topX = null
-    topY = null
-    entry = null
-    $('#flow > .node').each ->
-      ele = $(this)
-      if not ele.hasClass('ghost')
-        x = ele[0].offsetLeft
-        y = ele[0].offsetTop
-        if topY == null || y < topY
-          topY = y
-          topX = x
-          entry = ele.attr('id')
+    topNode = null
 
-        else if topY == y
-          if topX == null || x < topX
-            topY = y
-            topX = x
-            entry = ele.attr('id')
-    flow.entry = entry
+    # see if this node is higher than our last one
+    checkTop = (node) ->
+      if topNode == null || node.y < topNode.y
+        topNode = node
+      else if topNode == null || topNode.y == node.y
+        if node.x < topNode.x
+          topNode = node
+
+    # check each node to see if they are the top
+    for actionset in flow.action_sets
+      checkTop(actionset)
+    for ruleset in flow.rule_sets
+      checkTop(ruleset)
+
+    if topNode
+      flow.entry = topNode.uuid
 
   applyActivity: (node, activity) ->
 
