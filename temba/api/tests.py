@@ -6,6 +6,7 @@ import calendar
 import json
 import time
 import uuid
+import pytz
 
 from datetime import timedelta
 from django.conf import settings
@@ -2589,7 +2590,7 @@ class HighConnectionTest(TembaTest):
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World", msg.text)
-        self.assertEquals(14, msg.delivered_on.hour)
+        self.assertEquals(14, msg.created_on.astimezone(pytz.utc).hour)
 
         # try it with an invalid receiver, should fail as UUID isn't known
         callback_url = reverse('api.hcnx_handler', args=['receive', uuid.uuid4()])

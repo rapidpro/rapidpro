@@ -3206,7 +3206,7 @@ class HighConnectionHandler(View):
                 received = timezone.now()
             else:
                 raw_date = datetime.strptime(received, "%Y-%m-%dT%H:%M:%S")
-                received = pytz.utc.localize(raw_date)
+                received = raw_date.replace(tzinfo=pytz.utc)
 
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)
