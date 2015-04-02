@@ -27,6 +27,7 @@ module.exports = (config) ->
       'static/angular/sortable.js',
       'static/js/jasmine-jquery.js',
       'static/js/uuid.js',
+      'karma/flows/helpers.coffee',
 
       # the code we are testing
       'static/coffee/flows/*.coffee',
@@ -35,7 +36,6 @@ module.exports = (config) ->
       { pattern: 'media/test_flows/*.json', watched: true, served: true, included: false },
 
       # our test files
-      'karma/flows/helpers.coffee',
       'karma/flows/test_services.coffee',
       'karma/flows/test_directives.coffee',
 
@@ -49,7 +49,8 @@ module.exports = (config) ->
     # preprocess matching files before serving them to the browser
     # available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      '**/*.coffee': ['coffee']
+      'karma/**/*.coffee': ['coffee']
+      'static/**/*.coffee': ['coverage']
     }
 
     # this makes sure that we get coffeescript line numbers instead
@@ -64,8 +65,11 @@ module.exports = (config) ->
     # test results reporter to use
     # possible values: 'dots', 'progress'
     # available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress']
+    reporters: ['progress', 'coverage']
 
+    coverageReporter:
+      type: 'html'
+      dir: 'js-coverage/'
 
     # web server port
     port: 9876
@@ -97,3 +101,4 @@ module.exports = (config) ->
     # Continuous Integration mode
     # if true, Karma captures browsers, runs the tests and exits
     singleRun: true
+
