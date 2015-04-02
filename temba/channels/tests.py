@@ -1541,7 +1541,40 @@ class ChannelAlertTest(TembaTest):
         self.assertContains(response, reverse('api.clickatell_handler', args=['status', channel.uuid]))
         self.assertContains(response, reverse('api.clickatell_handler', args=['receive', channel.uuid]))
 
-    test_clickatell.active = True
+    def test_high_connection(self):
+        from temba.channels.models import HIGH_CONNECTION
+
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_high_connection'))
+        post_data = response.context['form'].initial
+
+        post_data['username'] = 'uname'
+        post_data['password'] = 'pword'
+        post_data['number'] = '5151'
+        post_data['country'] = 'FR'
+
+        response = self.client.post(reverse('channels.channel_claim_high_connection'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('FR', channel.country)
+        self.assertTrue(channel.uuid)
+        self.assertEquals(post_data['number'], channel.address)
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals(HIGH_CONNECTION, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('api.hcnx_handler', args=['receive', channel.uuid]))
 
     def test_shaqodoon(self):
         from temba.channels.models import SHAQODOON

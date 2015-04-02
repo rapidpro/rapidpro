@@ -49,6 +49,7 @@ SHAQODOON = 'SQ'
 VERBOICE = 'VB'
 CLICKATELL = 'CT'
 PLIVO = 'PL'
+HIGH_CONNECTION = 'HX'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -62,21 +63,22 @@ RECEIVE = 'R'
 CALL = 'C'
 ANSWER = 'A'
 
-RELAYER_TYPE_CHOICES = ((ANDROID, _("Android")),
-                        (TWILIO, _("Twilio")),
-                        (AFRICAS_TALKING, _("Africa's Talking")),
-                        (ZENVIA, _("Zenvia")),
-                        (NEXMO, _("Nexmo")),
-                        (INFOBIP, _("Infobip")),
-                        (VERBOICE, _("Verboice")),
-                        (HUB9, _("Hub9")),
-                        (VUMI, _("Vumi")),
-                        (KANNEL, _("Kannel")),
-                        (EXTERNAL, _("External")),
-                        (TWITTER, _("Twitter")),
-                        (CLICKATELL, _("Clickatell")),
-                        (PLIVO, _("Plivo")),
-                        (SHAQODOON, _("Shaqodoon")))
+RELAYER_TYPE_CHOICES = ((ANDROID, "Android"),
+                        (TWILIO, "Twilio"),
+                        (AFRICAS_TALKING, "Africa's Talking"),
+                        (ZENVIA, "Zenvia"),
+                        (NEXMO, "Nexmo"),
+                        (INFOBIP, "Infobip"),
+                        (VERBOICE, "Verboice"),
+                        (HUB9, "Hub9"),
+                        (VUMI, "Vumi"),
+                        (KANNEL, "Kannel"),
+                        (EXTERNAL, "External"),
+                        (TWITTER, "Twitter"),
+                        (CLICKATELL, "Clickatell"),
+                        (PLIVO, "Plivo"),
+                        (SHAQODOON, "Shaqodoon"),
+                        (HIGH_CONNECTION, "High Connection"))
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -99,18 +101,18 @@ RELAYER_TYPE_CONFIG = {
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     CLICKATELL: dict(scheme='tel', max_length=420),
-    PLIVO: dict(scheme='tel', max_length=1600)
+    PLIVO: dict(scheme='tel', max_length=1600),
+    HIGH_CONNECTION: dict(scheme='tel', max_length=320),
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
 # Some providers need a static ip to whitelist, route them through our proxy
-proxies = {"http": "http://proxy.rapidpro.io:3128"}
+OUTGOING_PROXIES = settings.OUTGOING_PROXIES
 
 PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
-
 
 class Channel(SmartModel):
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
@@ -781,7 +783,7 @@ class Channel(SmartModel):
     @classmethod
     def build_send_url(cls, url, variables):
         for key in variables.keys():
-            url = url.replace("{{%s}}" % key, quote_plus(variables[key].encode('utf-8')))
+            url = url.replace("{{%s}}" % key, quote_plus(unicode(variables[key]).encode('utf-8')))
 
         return url
 
@@ -889,7 +891,13 @@ class Channel(SmartModel):
     @classmethod
     def send_external_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
-        payload = {'id': str(msg.id), 'text': text, 'to': msg.urn_path, 'from': channel.address, 'channel': str(channel.id)}
+        payload = {
+            'id': str(msg.id),
+            'text': text,
+            'to': msg.urn_path,
+            'from': channel.address,
+            'channel': str(channel.id)
+        }
 
         # build our send URL
         url = Channel.build_send_url(channel.config[SEND_URL], payload)
@@ -927,6 +935,52 @@ class Channel(SmartModel):
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
                                method=method,
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_high_connection_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        payload = {
+            'accountid': channel.config[USERNAME],
+            'password': channel.config[PASSWORD],
+            'text': text,
+            'to': msg.urn_path,
+            'ret_id': msg.id,
+            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['status', channel.uuid])),
+            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['receive', channel.uuid]))
+        }
+
+        # build our send URL
+        url = 'https://highpushfastapi-v2.hcnx.eu/api' + '?' + urlencode(payload)
+        log_payload = None
+
+        try:
+            response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
+            log_payload = urlencode(payload)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='GET',
                                url=url,
                                request=log_payload,
                                response=response.text,
@@ -1107,7 +1161,7 @@ class Channel(SmartModel):
         masked_url = "%s?%s" % (url, urlencode(payload))
 
         try:
-            response = requests.get(send_url, proxies=proxies, headers=TEMBA_HEADERS, timeout=15)
+            response = requests.get(send_url, proxies=OUTGOING_PROXIES, headers=TEMBA_HEADERS, timeout=15)
             if not response:
                 raise SendException("Unable to send message",
                                     url=masked_url,
@@ -1463,7 +1517,8 @@ class Channel(SmartModel):
                       VUMI: Channel.send_vumi_message,
                       SHAQODOON: Channel.send_shaqodoon_message,
                       ZENVIA: Channel.send_zenvia_message,
-                      PLIVO: Channel.send_plivo_message}
+                      PLIVO: Channel.send_plivo_message,
+                      HIGH_CONNECTION: Channel.send_high_connection_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
