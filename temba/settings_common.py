@@ -170,7 +170,6 @@ SITEMAP = ('public.public_index', 'public.video_list', 'public.public_blog',
            'api.sms', 'api.flows', 'api.runs', 'api.calls', 'api.channels')
 
 INSTALLED_APPS = (
-
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -389,6 +388,7 @@ PERMISSIONS = {
                          'claim_android',
                          'claim_clickatell',
                          'claim_external',
+                         'claim_high_connection',
                          'claim_hub9',
                          'claim_infobip',
                          'claim_kannel',
@@ -545,6 +545,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_android',
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
+        'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_kannel',
@@ -648,7 +649,18 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim',
         'channels.channel_claim_africas_talking',
         'channels.channel_claim_android',
+        'channels.channel_claim_clickatell',
+        'channels.channel_claim_external',
+        'channels.channel_claim_high_connection',
+        'channels.channel_claim_hub9',
+        'channels.channel_claim_infobip',
+        'channels.channel_claim_kannel',
         'channels.channel_claim_number',
+        'channels.channel_claim_plivo',
+        'channels.channel_claim_shaqodoon',
+        'channels.channel_claim_twitter',
+        'channels.channel_claim_verboice',
+        'channels.channel_claim_vumi',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
@@ -870,6 +882,9 @@ CELERY_RESULT_BACKEND = BROKER_URL
 
 IS_PROD = False
 HOSTNAME = "localhost"
+
+# The URL and port of the proxy server to use when needed (if any, in requests format)
+OUTGOING_PROXIES = {}
 
 #-----------------------------------------------------------------------------------
 # Cache to Redis

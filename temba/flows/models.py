@@ -1475,7 +1475,7 @@ class Flow(TembaModel, SmartModel):
             return
 
         if self.flow_type == Flow.VOICE:
-            return self.start_call_flow(all_contacts, started_flows=started_flows, start_msg=start_msg,
+            return self.start_call_flow(all_contacts, start_msg=start_msg,
                                         extra=extra, flow_start=flow_start)
 
         else:
@@ -1483,12 +1483,8 @@ class Flow(TembaModel, SmartModel):
                                        started_flows=started_flows,
                                        start_msg=start_msg, extra=extra, flow_start=flow_start)
 
-    def start_call_flow(self, all_contacts, started_flows=None, start_msg=None, extra=None, flow_start=None):
+    def start_call_flow(self, all_contacts, start_msg=None, extra=None, flow_start=None):
         from temba.ivr.models import IVRCall
-
-        if started_flows is None:
-            started_flows = []
-
         runs = []
         channel = self.org.get_call_channel()
 
@@ -1669,11 +1665,15 @@ class Flow(TembaModel, SmartModel):
         optimize_sending_action = len(broadcasts) > 0
 
         for contact in batch_contacts:
+            # each contact maintain it's own list of started flows
+            started_flows_by_contact = list(started_flows)
+
             run = run_map[contact.id]
             run_msgs = message_map.get(contact.id, [])
 
             if entry_actions:
-                run_msgs += entry_actions.execute_actions(run, start_msg, started_flows, execute_reply_action=not optimize_sending_action)
+                run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
+                                                          execute_reply_action=not optimize_sending_action)
 
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True)
 
@@ -1690,13 +1690,13 @@ class Flow(TembaModel, SmartModel):
 
                 # if we have a start message, go and handle the rule
                 if start_msg:
-                    self.find_and_handle(start_msg, started_flows)
+                    self.find_and_handle(start_msg, started_flows_by_contact)
 
                 # otherwise, if this ruleset doesn't operate on a step, then evaluate it immediately
                 elif not entry_rules.requires_step():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    self.handle_ruleset(entry_rules, step, run, msg, started_flows)
+                    self.handle_ruleset(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
                 step.add_message(start_msg)
@@ -1721,7 +1721,9 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step, msgs=[], rule=None, category=None, call=None, is_start=False, previous_step=None):
+    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None):
+        if msgs is None:
+            msgs = []
 
         # if we were previously marked complete, activate again
         run.set_completed(False)
@@ -3494,6 +3496,8 @@ class EmailAction(Action):
         if not settings.SEND_EMAILS:
             print "!! Skipping email send, SEND_EMAILS set to False"
         else:
+            # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
+            subject = re.sub('\s+', ' ', subject)
             send_mail(subject, message, from_email, emails)
 
 class APIAction(Action):

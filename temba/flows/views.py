@@ -221,6 +221,12 @@ class RuleCRUDL(SmartCRUDL):
                         other_category['label'] = "Others"
                         other_category['count'] += count
 
+            if prime_category is None:
+                prime_category = dict(label="", count=0)
+
+            if other_category is None:
+                other_category = dict(label="", count=0)
+
             total = prime_category['count'] + other_category['count']
             prime_category['percentage'] = percentage(prime_category['count'], total)
             other_category['percentage'] = percentage(other_category['count'], total)
@@ -271,7 +277,7 @@ class RuleCRUDL(SmartCRUDL):
             # group our rules by flow, calculating # of contacts participating in each flow
             for rule in rules:
                 if current_flow is None or current_flow['id'] != rule.flow_id:
-                    if current_flow != None and len(current_flow['rules']) > 0:
+                    if current_flow and len(current_flow['rules']) > 0:
                         flow_json.append(current_flow)
 
                     flow = rule.flow
@@ -283,6 +289,10 @@ class RuleCRUDL(SmartCRUDL):
 
                 current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
                                                   stats=dict(created_on=rule.created_on)))
+
+            # append our last flow if appropriate
+            if current_flow and len(current_flow['rules']) > 0:
+                flow_json.append(current_flow)
 
             groups = ContactGroup.objects.filter(is_active=True, org=org).order_by('name')
             groups_json = []

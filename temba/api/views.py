@@ -3154,6 +3154,68 @@ class Hub9Handler(View):
         return HttpResponse("Unreconized action: %s" % action, status=404)
 
 
+class HighConnectionHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(HighConnectionHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import HIGH_CONNECTION
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=HIGH_CONNECTION).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # Update on the status of a sent message
+        if action == 'status':
+            msg_id = request.REQUEST.get('ret_id', None)
+            status = int(request.REQUEST.get('status', 0))
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, pk=msg_id).first()
+            if not sms:
+                return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
+
+            if status == 4:
+                sms.status_sent()
+            elif status == 6:
+                sms.status_delivered()
+            elif status in [2, 11, 12, 13, 14, 15, 16]:
+                sms.fail()
+
+            sms.broadcast.update()
+            return HttpResponse(json.dumps(dict(msg="Status Updated")))
+
+        # An MO message
+        elif action == 'receive':
+            to_number = request.REQUEST.get('TO', None)
+            from_number = request.REQUEST.get('FROM', None)
+            message = request.REQUEST.get('MESSAGE', None)
+            received = request.REQUEST.get('RECEPTION_DATE', None)
+
+            # dateformat for reception date is 2015-04-02T14:26:06 in UTC
+            if received is None:
+                received = timezone.now()
+            else:
+                raw_date = datetime.strptime(received, "%Y-%m-%dT%H:%M:%S")
+                received = raw_date.replace(tzinfo=pytz.utc)
+
+            if to_number is None or from_number is None or message is None:
+                return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)
+
+            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message, date=received)
+            return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)
+
 class NexmoHandler(View):
 
     @disable_middleware
