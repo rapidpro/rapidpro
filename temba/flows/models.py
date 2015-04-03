@@ -3146,7 +3146,7 @@ class FlowStep(models.Model):
 
     arrived_on = models.DateTimeField(auto_now_add=True,
                                       help_text=_("When the user arrived at this step in the flow"))
-    left_on = models.DateTimeField(null=True,
+    left_on = models.DateTimeField(null=True, db_index=True,
                                    help_text=_("When the user left this step in the flow"))
 
     messages = models.ManyToManyField(Msg,
