@@ -595,6 +595,9 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if cfg.type == operatorType
         return cfg
 
+  fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
+    return $http.get('/flow/recent_messages/' + $rootScope.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
+
   fetch: (onComplete = null) ->
 
     # here's where we bridge from our initial load into angular land

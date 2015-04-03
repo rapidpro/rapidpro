@@ -28,12 +28,12 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, STARTING, PENDING
+from temba.flows.models import Flow, FlowReferenceException, FlowRun, STARTING, PENDING, ACTION_SET, RULE_SET
 from temba.flows.tasks import export_flow_results_task
-from temba.msgs.models import Msg
+from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
-from temba.utils import analytics, build_json_response, percentage
+from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
@@ -340,10 +340,48 @@ class PartialTemplate(SmartTemplateView):
         return "partials/%s.html" % self.template
 
 class FlowCRUDL(SmartCRUDL):
-    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results', 'upload_action_recording',
-               'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter', 'completion', 'versions')
+    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
+               'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
+               'completion', 'versions', 'recent_messages')
 
     model = Flow
+
+    class RecentMessages(OrgObjPermsMixin, SmartReadView):
+        def get(self, request, *args, **kwargs):
+            step_uuid = request.REQUEST.get('step', None)
+            next_uuid = request.REQUEST.get('destination', None)
+            rule_uuid = request.REQUEST.get('rule', None)
+
+            recent_messages = []
+
+            # noop if we are missing needed parameters
+            if not step_uuid or not next_uuid:
+                return build_json_response(recent_messages)
+
+            if rule_uuid:
+                rule_uuids = rule_uuid.split(',')
+                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
+                                                       next_uuid=next_uuid,
+                                                       rule_uuid__in=rule_uuids).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
+                msg_direction_filter = INCOMING
+
+            else:
+                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
+                                                       next_uuid=next_uuid,
+                                                       rule_uuid=None).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
+
+                msg_direction_filter = OUTGOING
+
+            # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
+            # prefetch related above and do the filtering ourselves
+            for step in recent_steps:
+                if not step.contact.is_test:
+                    for msg in step.messages.all():
+                        if msg.visibility == VISIBLE and msg.direction == msg_direction_filter:
+                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
+                                                        text=msg.text))
+
+            return build_json_response(recent_messages[:5])
 
     class Versions(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):

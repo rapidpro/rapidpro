@@ -422,6 +422,7 @@ PERMISSIONS = {
                    'filter',
                    'json',
                    'read',
+                   'recent_messages',
                    'results',
                    'simulate',
                    'upload_action_recording',
