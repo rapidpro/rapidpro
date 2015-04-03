@@ -739,7 +739,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_read',
         'flows.flow_editor',
         'flows.flow_json',
-        'flows.recent_messages',
+        'flows.flow_recent_messages',
         'flows.flow_results',
         'flows.flow_simulate',
         'flows.ruleset_analytics',
