@@ -132,10 +132,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
     def getUpdatePostData(self):
         return dict(name="My Updated Group", contacts="%s" % self.frank.pk, join_keyword="updated", join_response="Thanks for joining the group")
 
+    def getManager(self):
+        return ContactGroup.user_groups
+
     def testDelete(self):
         obj = self.getTestObject()
         self._do_test_view('delete', obj, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.objects.get(pk=obj.pk).is_active)
+        self.assertFalse(self.getCRUDL().model.user_groups.get(pk=obj.pk).is_active)
 
     def test_create(self):
         create_url = reverse('contacts.contactgroup_create')
@@ -765,7 +768,7 @@ class ContactTest(TembaTest):
         response = self.client.post(read_url, post_data, follow=True)
 
         # this manager cannot operate on this organization
-        self.assertEquals(len(self.joe.groups.all()), 1)
+        self.assertEquals(len(self.joe.user_groups.all()), 1)
         self.client.logout()
 
         # login as a manager of kLab
@@ -773,7 +776,7 @@ class ContactTest(TembaTest):
 
         # remove this contact form kLab group
         response = self.client.post(read_url, post_data, follow=True)
-        self.assertFalse(self.joe.groups.all())
+        self.assertFalse(self.joe.user_groups.all())
 
         # try removing it again, should fail
         response = self.client.post(read_url, post_data, follow=True)
@@ -903,21 +906,21 @@ class ContactTest(TembaTest):
         joe_and_frank_filter_url = reverse('contacts.contact_filter', args=[self.joe_and_frank.pk])
 
         # now test when the action with some data missing
-        self.assertEquals(self.joe.groups.filter(is_active=True).count(), 2)
+        self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
         post_data = dict()
         post_data['action'] = 'label'
         post_data['objects'] = self.joe.id
         post_data['add'] = True
         self.client.post(joe_and_frank_filter_url, post_data)
-        self.assertEquals(self.joe.groups.filter(is_active=True).count(), 2)
+        self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
         post_data = dict()
         post_data['action'] = 'unlabel'
         post_data['objects'] = self.joe.id
         post_data['add'] = True
         self.client.post(joe_and_frank_filter_url, post_data)
-        self.assertEquals(self.joe.groups.filter(is_active=True).count(), 2)
+        self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
         # Now archive Joe
         post_data = dict()
@@ -1027,14 +1030,14 @@ class ContactTest(TembaTest):
         post_data = dict(name="Joe Gashyantare", __urn__tel="12345", groups=[self.just_joe.id])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
         self.assertEquals(response.context['contact'].name, "Joe Gashyantare")
-        self.assertIn(self.just_joe, response.context['contact'].groups.all())
+        self.assertIn(self.just_joe, response.context['contact'].user_groups.all())
 
         # Now remove him from  this group "Just joe"
         post_data = dict(name="Joe Gashyantare", __urn__tel="12345", groups=[])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
 
         # Done!
-        self.assertFalse(response.context['contact'].groups.all())
+        self.assertFalse(response.context['contact'].user_groups.all())
 
         # check updating when org is anon
         self.org.is_anon = True

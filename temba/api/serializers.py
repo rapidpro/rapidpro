@@ -224,10 +224,10 @@ class ContactReadSerializer(serializers.ModelSerializer):
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
 
     def get_groups(self, obj):
-        return [_.name for _ in obj.groups.all()]
+        return [_.name for _ in obj.user_groups.all()]
 
     def get_group_uuids(self, obj):
-        return [_.uuid for _ in obj.groups.all()]
+        return [_.uuid for _ in obj.user_groups.all()]
 
     def get_urns(self, obj):
         if obj.org.is_anon:

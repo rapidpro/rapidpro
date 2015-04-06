@@ -181,6 +181,13 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         """
         return "%010d" % self.id
 
+    @property
+    def user_groups(self):
+        """
+        Define Contact.user_groups to only refer to user groups
+        """
+        return self.all_groups.filter(group_type=USER_DEFINED_GROUP)
+
     def as_json(self):
         obj = dict(id=self.pk, name=unicode(self))
 
@@ -193,7 +200,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         return obj
 
     def groups_as_text(self):
-        groups = self.groups.all().order_by('name')
+        groups = self.user_groups.all().order_by('name')
         groups_name_list = [group.name for group in groups]
         return ", ".join(groups_name_list)
 
@@ -751,7 +758,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
-        for group in self.groups.all():
+        for group in self.all_groups.all():
             group.update_contacts([self], False)
 
         ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
@@ -797,7 +804,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
             self.urns.update(contact=None)
 
             # remove contact from all groups
-            for group in self.groups.all():
+            for group in self.all_groups.all():
                 group.update_contacts((self,), False)
 
             # delete all messages with this contact
@@ -863,7 +870,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         contact_dict['name'] = self.name if self.name else ''
         contact_dict['first_name'] = self.first_name(org)
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
-        contact_dict['groups'] = ",".join([_.name for _ in self.groups.all()])
+        contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
 
         # add all URNs
@@ -977,7 +984,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         """
         Updates the groups for this contact to match the provided list, i.e. leaves any existing not included
         """
-        current_groups = self.groups.filter(group_type=USER_DEFINED_GROUP)
+        current_groups = self.user_groups.all()
 
         # figure out our diffs, what groups need to be added or removed
         remove_groups = [g for g in current_groups if g not in groups]
@@ -1276,7 +1283,7 @@ class ContactGroup(TembaModel, SmartModel):
     group_type = models.CharField(max_length=1, choices=GROUP_TYPE_CHOICES, default=USER_DEFINED_GROUP,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='groups')
+    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
 
     count = models.IntegerField(default=0,
                                 verbose_name=_("Count"), help_text=_("The number of contacts in this group"))
@@ -1364,7 +1371,7 @@ class ContactGroup(TembaModel, SmartModel):
         self.query_fields.clear()
 
         for match in re.finditer(r'\w+', self.query):
-            field = ContactField.user_groups.filter(key=match.group(), org=self.org, is_active=True).first()
+            field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
             if field:
                 self.query_fields.add(field)
 

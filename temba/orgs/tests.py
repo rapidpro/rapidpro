@@ -698,30 +698,16 @@ class OrgTest(TembaTest):
         self.org.patch_folder_queryset(contact_qs, OrgFolder.contacts_all, None)
 
         with self.assertNumQueries(1):
-            self.assertEquals(3, contact_qs.count())  # count not yet in cache
-        with self.assertNumQueries(0):
-            self.assertEquals(3, contact_qs.count())  # count taken from cache
-
-        # simulate a wrong number for the cached count
-        r = get_redis_connection()
-        cache_key = self.org._get_folder_count_cache_key(OrgFolder.contacts_all)
-
-        r.set(cache_key, 10)
-        self.assertEquals(10, contact_qs.count())  # wrong but no way of knowing
-
-        r.set(cache_key, -7)
-        self.assertEquals(3, contact_qs.count())  # negative so recognized as wrong and ignored
+            self.assertEquals(3, contact_qs.count())
 
     def test_contact_folder_counts(self):
         folders = (OrgFolder.contacts_all, OrgFolder.contacts_failed, OrgFolder.contacts_blocked)
         get_all_counts = lambda org: {key.name: org.get_folder_count(key) for key in folders}
 
-        with self.assertNumQueries(3):  # from db
-            self.assertEqual(dict(contacts_all=0, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
-        with self.assertNumQueries(0):  # from cache
+        with self.assertNumQueries(3):
             self.assertEqual(dict(contacts_all=0, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
 
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(2):
             self.assertFalse(self.org.has_contacts())
 
         hannibal = self.create_contact("Hannibal", number="0783835001")
@@ -729,7 +715,7 @@ class OrgTest(TembaTest):
         ba = self.create_contact("B.A.", number="0783835003")
         murdock = self.create_contact("Murdock", number="0783835004")
 
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(5):
             self.assertTrue(self.org.has_contacts())
             self.assertEqual(dict(contacts_all=4, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
 
@@ -740,17 +726,17 @@ class OrgTest(TembaTest):
         ba.fail()
         ba.fail()
 
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(3):
             self.assertEqual(dict(contacts_all=2, contacts_failed=1, contacts_blocked=2), get_all_counts(self.org))
 
         murdock.release()
         murdock.release()
-        face.unblock()
-        face.unblock()
+        face.restore()
+        face.restore()
         ba.unfail()
         ba.unfail()
 
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(3):
             self.assertEqual(dict(contacts_all=3, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
 
         self.org.clear_caches([OrgCache.display])

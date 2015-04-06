@@ -1156,6 +1156,8 @@ class BroadcastCRUDLTest(_CRUDLTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
+
         self.user.set_org(self.org)
 
         self.channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
@@ -1204,6 +1206,7 @@ class MsgCRUDLTest(_CRUDLTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
 
     def test_folders(self):
         self.login(self.getUser())
@@ -1398,7 +1401,10 @@ class CallTest(SmartminTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
+
         self.user.set_org(self.org)
+
 
         self.channel = Channel.objects.create(name="Test Channel", address="0785551212",
                                               org=self.org, created_by=self.user, modified_by=self.user,

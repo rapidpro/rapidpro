@@ -112,7 +112,7 @@ def omnibox_mixed_search(org, search, types):
     if 'g' in types:
         clauses = ["""SELECT 1 AS type, g.id AS id, g.name AS text, NULL AS owner, NULL AS scheme
                       FROM contacts_contactgroup g
-                      WHERE g.is_active = TRUE AND g.org_id = %s"""]
+                      WHERE g.is_active = TRUE AND g.group_type = 'U' AND g.org_id = %s"""]
         params = [org.pk]
         if search_terms:
             add_search('name', clauses, params)

@@ -198,7 +198,7 @@ class Trigger(SmartModel):
         if active_run and active_run.flow.ignore_triggers and not active_run.is_completed():
             return False
 
-        groups_ids = msg.contact.groups.values_list('pk', flat=True)
+        groups_ids = msg.contact.user_groups.values_list('pk', flat=True)
 
         # Check first if we have a trigger for the contact groups
         matching = Trigger.objects.filter(is_archived=False, is_active=True, org=msg.org, keyword__iexact=keyword,
@@ -228,7 +228,7 @@ class Trigger(SmartModel):
     @classmethod
     def find_flow_for_inbound_call(cls, contact):
 
-        groups_ids = contact.groups.values_list('pk', flat=True)
+        groups_ids = contact.user_groups.values_list('pk', flat=True)
 
         # Check first if we have a trigger for the contact groups
         matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org, trigger_type=INBOUND_CALL_TRIGGER,

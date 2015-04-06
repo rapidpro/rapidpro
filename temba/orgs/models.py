@@ -428,8 +428,6 @@ class Org(SmartModel):
         if OrgCache.display in caches:
             for folder in OrgFolder.__members__.values():
                 keys.append(self._get_folder_count_cache_key(folder))
-            for group in self.contactgroup_set.all():
-                keys.append(group.get_member_count_cache_key())
             for label in self.label_set.all():
                 keys.append(label.get_message_count_cache_key())
 

@@ -372,10 +372,11 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
+    LABEL_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
-    label = forms.ModelChoiceField(LABEL_CLASS.objects.all(), required=False)
+    label = forms.ModelChoiceField(getattr(LABEL_CLASS, LABEL_CLASS_MANAGER).all(), required=False)
     objects = forms.ModelMultipleChoiceField(OBJECT_CLASS.objects.all())
     add = forms.BooleanField(required=False)
     number = forms.BooleanField(required=False)
@@ -388,7 +389,7 @@ class BaseActionForm(forms.Form):
         super(BaseActionForm, self).__init__(*args, **kwargs)
 
         self.fields['action'].choices = self.ALLOWED_ACTIONS
-        self.fields['label'].queryset = self.LABEL_CLASS.objects.filter(org=org)
+        self.fields['label'].queryset = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
 
         self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org)
         if self.HAS_IS_ACTIVE:
@@ -484,6 +485,7 @@ class MsgActionForm(BaseActionForm):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
+
     HAS_IS_ACTIVE = False
 
     class Meta:

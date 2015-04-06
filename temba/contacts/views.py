@@ -99,7 +99,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         if query:
             qs, self.request.compiled_query = Contact.search(org, query, qs)
 
-        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('groups')
+        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('all_groups')
 
     def order_queryset(self, queryset):
         """
@@ -146,6 +146,7 @@ class ContactActionForm(BaseActionForm):
 
     OBJECT_CLASS = Contact
     LABEL_CLASS = ContactGroup
+    LABEL_CLASS_MANAGER = 'user_groups'
     HAS_IS_ACTIVE = True
 
     class Meta:
@@ -251,7 +252,7 @@ class UpdateContactForm(ContactForm):
 
         self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
 
-        self.fields['groups'].initial = self.instance.groups.all()
+        self.fields['groups'].initial = self.instance.user_groups.all()
         self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
 
 
@@ -560,7 +561,7 @@ class ContactCRUDL(SmartCRUDL):
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
             context['contact_fields'] = ContactField.objects.filter(org=contact.org, is_active=True).order_by('pk')
-            context['contact_groups'] = contact.groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
+            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
             context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
             return context
 
@@ -679,7 +680,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             group = self.derive_group()
-            return Contact.objects.filter(groups=group, is_active=True, org=self.request.user.get_org())
+            return Contact.objects.filter(all_groups=group, is_active=True, org=self.request.user.get_org())
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Filter, self).get_context_data(*args, **kwargs)
