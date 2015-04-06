@@ -7,7 +7,7 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0005_auto_20141210_0208'),
+        ('contacts', '0006_reorganize_exports')
     ]
 
     operations = [

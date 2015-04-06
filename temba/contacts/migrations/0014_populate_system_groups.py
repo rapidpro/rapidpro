@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
                                                                  is_blocked=False, is_failed=True))
     dependencies = [
         ('orgs', '0003_auto_20150313_1624'),
-        ('contacts', '0012_contactgroup_group_type'),
+        ('contacts', '0013_remove_contact_status')
     ]
 
     operations = [

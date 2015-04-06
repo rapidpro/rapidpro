@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         Contact.objects.filter(status='F').update(is_failed=True)
 
     dependencies = [
-        ('contacts', '0008_auto_20150317_2235'),
+        ('contacts', '0009_auto_20150317_2235'),
     ]
 
     operations = [
