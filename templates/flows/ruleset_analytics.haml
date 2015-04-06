@@ -76,11 +76,11 @@
         .samples.by-responses{ng-model:"flows"}
           %h2
             -trans "Most Active"
-          .flow{ng-repeat:'flow in flows | orderBy:"-stats.messages" | limitTo:4 '}
+          .flow{ng-repeat:'flow in flows | orderBy:"-stats.contacts" | limitTo:4 '}
             .message-count{ ng-click: 'addFlowFields(flow)' }
-              [[flow.stats.messages]]
+              [[flow.stats.contacts]]
               .message-label
-                <ng-pluralize count="flow.stats.messages" when="{'0': '{% trans "msgs" %}', 'one': '{% trans "msg" %}', 'other': '{% trans "msgs" %}' }">
+                <ng-pluralize count="flow.stats.contacts" when="{'0': '{% trans "contacts" %}', 'one': '{% trans "contact" %}', 'other': '{% trans "contacts" %}' }">
                 </ng-pluralize>
 
             .flow-name{ ng-click: 'addFlowFields(flow)' }
@@ -89,18 +89,17 @@
               <ng-pluralize count="flow.rules.length" when="{'0': '{% trans "No fields." %}', 'one': '{% trans "1 field" %}', 'other': '{% trans "{} fields" %}' }">
               </ng-pluralize>
             .last-message
-              <ng-pluralize count="flow.stats.messages" when="{'0': '{% trans "No messages yet" %}', 'one': '{% trans "Last message on" %}', 'other': '{% trans "Last message on" %}' }">
-              </ng-pluralize>
-              [[ flow.stats.last_message | date:'mediumDate']]
+              {% trans "Created on" %}
+              [[ flow.stats.created_on | date:'mediumDate']]
 
         .samples.by-recency{ng-model:"flows"}
           %h2
             -trans "Most Recent"
-          .flow{ng-repeat:'flow in flows | orderBy:"-stats.last_message" | limitTo:4 ', data:'[[flow.id]]'}
+          .flow{ng-repeat:'flow in flows | orderBy:"-stats.created_on" | limitTo:4 ', data:'[[flow.id]]'}
             .message-count{ ng-click: 'addFlowFields(flow)' }
-              [[flow.stats.messages]]
+              [[flow.stats.contacts]]
               .message-label
-                <ng-pluralize count="flow.stats.messages" when="{'0': '{% trans "msgs" %}', 'one': '{% trans "msg" %}', 'other': '{% trans "msgs" %}' }">
+                <ng-pluralize count="flow.stats.contacts" when="{'0': '{% trans "contacts" %}', 'one': '{% trans "contact" %}', 'other': '{% trans "contacts" %}' }">
                 </ng-pluralize>
 
             .flow-name{ ng-click: 'addFlowFields(flow)' }
@@ -109,9 +108,8 @@
               <ng-pluralize count="flow.rules.length" when="{'0': '{% trans "No fields." %}', 'one': '{% trans "1 field" %}', 'other': '{% trans "{} fields" %}' }">
               </ng-pluralize>
             .last-message
-              <ng-pluralize count="flow.stats.messages" when="{'0': '{% trans "No messages yet" %}', 'one': '{% trans "Last message on" %}', 'other': '{% trans "Last message on" %}' }">
-              </ng-pluralize>
-              [[ flow.stats.last_message | date:'mediumDate']]
+              {% trans "Created on" %}
+              [[ flow.stats.created_on | date:'mediumDate']]
 
       - if org_perms.reports.report_create
         %h2.current-report-title{ ng-show:"currentReport"}
@@ -141,7 +139,7 @@
             [[field.label]]
 
           .chart-options
-            -if user_org.country
+            -if org_supports_map
               .chart-table.glyph.chart-button.icon-earth{ ng-click:'toggleChoropleth(field)', ng-class:'{active:field.showChoropleth==true}'}
             .chart-table.glyph.chart-button.icon-menu-2{ ng-click:'toggleDataTable(field)', ng-class:'{active:field.showDataTable==true}'}
 
@@ -152,7 +150,7 @@
               %span.chart-size.chart-size-1{ ng-click:'setChartSize(field, 1)', ng-class:"{active:field.chartSize==1}" } &nbsp;
               %span.chart-size.chart-size-2{ ng-click:'setChartSize(field, 2)', ng-class:"{active:field.chartSize==2}" } &nbsp;
 
-          -if user_org.country
+          -if org_supports_map
             .choropleth-map{ng-show:'field.showChoropleth', choropleth:'', id:'choropleth-[[field.id]]', show-choropleth:'field.showChoropleth', chart-size:'field.chartSize', osm-id:'"{{user_org.country.osm_id}}"', rule-id:'[[field.id]]'}
 
           %chart{config:'field.chart'}

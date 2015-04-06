@@ -23,7 +23,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
@@ -75,7 +75,7 @@ SMS_BULK_PRIORITY = 100
 
 BULK_THRESHOLD = 50
 
-MSG_SENT_KEY = 'msg_sent_%d'
+MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
 STATUS_CHOICES = (
     # special state for flows that is used to hold off sending the message until the flow is ready to receive a response
@@ -479,7 +479,7 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class Msg(models.Model, OrgAssetMixin):
+class Msg(models.Model, OrgModelMixin):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
@@ -743,7 +743,10 @@ class Msg(models.Model, OrgAssetMixin):
                 Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
-            r.delete(MSG_SENT_KEY % msg.id)
+            pipe = r.pipeline()
+            pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.execute()
 
     @classmethod
     def mark_sent(cls, r, msg, status, external_id=None):
@@ -757,7 +760,11 @@ class Msg(models.Model, OrgAssetMixin):
             msg.external_id = external_id
 
         # use redis to mark this message sent
-        r.set(MSG_SENT_KEY % msg.id, str(msg.sent_on), ex=86400)
+        pipe = r.pipeline()
+        sent_key = timezone.now().strftime(MSG_SENT_KEY)
+        pipe.sadd(sent_key, str(msg.id))
+        pipe.expire(sent_key, 86400)
+        pipe.execute()
 
         if external_id:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
@@ -962,7 +969,6 @@ class Msg(models.Model, OrgAssetMixin):
                         status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
-
         if not org and channel:
             org = channel.org
 
@@ -1546,18 +1552,20 @@ class ExportMessagesTask(SmartModel):
 
             messages_sheet_number += 1
 
-        name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('messages', 'exports', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets.models import AssetType
+        from temba.assets.views import get_asset_url
+
+        store = AssetType.message_export.store
+        store.save(self.pk, File(temp), 'xls')
 
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.message_export, self.pk))
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
@@ -1566,9 +1574,4 @@ class ExportMessagesTask(SmartModel):
         import gc
         gc.collect()
 
-        # only send the email if this is production
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(link='https://%s/org/download/messages/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)

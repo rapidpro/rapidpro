@@ -9,7 +9,6 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils.translation import ugettext
@@ -18,15 +17,14 @@ from django_hstore import hstore
 from django_hstore.fields import DictionaryField
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
-from temba.orgs.models import Org, OrgAssetMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.channels.models import Channel
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
 from urlparse import urlparse, urlunparse, ParseResult
-from uuid import uuid4
 
 # don't allow custom contact fields with these keys
 RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
@@ -35,7 +33,7 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 
-class ContactField(models.Model, OrgAssetMixin):
+class ContactField(models.Model, OrgModelMixin):
     """
     Represents a type of field that can be put on Contacts.  We store uuids as the keys in our HSTORE
     field so that we don't have to worry about renaming fields with the user.  This takes care of that
@@ -145,7 +143,7 @@ class ContactField(models.Model, OrgAssetMixin):
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel, OrgAssetMixin):
+class Contact(TembaModel, SmartModel, OrgModelMixin):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -324,7 +322,7 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
         """
         groups_changed = False
 
-        if 'name' in attrs or urns or field:
+        if 'name' in attrs or field or urns:
             # ensure dynamic groups are up to date
             groups_changed = ContactGroup.update_groups_for_contact(self, field)
 
@@ -482,7 +480,6 @@ class Contact(TembaModel, SmartModel, OrgAssetMixin):
 
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
-
         return contact
 
     @classmethod
@@ -1299,8 +1296,9 @@ class ContactGroup(TembaModel, SmartModel):
                 changed.add(contact.pk)
                 contact.handle_update(group=self)
 
-        # invalidate our result cache for anybody depending on this group
-        Value.invalidate_cache(group=self)
+        # invalidate our result cache for anybody depending on this group if it changed
+        if changed:
+            Value.invalidate_cache(group=self)
 
         # if there is a cached members count, update it
         count_delta = len(changed) if add else -len(changed)
@@ -1377,8 +1375,8 @@ class ContactGroup(TembaModel, SmartModel):
         return self.query is not None
 
     def analytics_json(self):
-        if self.contacts.exists():
-            return dict(name=self.name, id=self.pk, count=self.contacts.all().count())
+        if self.get_member_count() > 0:
+            return dict(name=self.name, id=self.pk, count=self.get_member_count())
 
     def __unicode__(self):
         return self.name
@@ -1408,10 +1406,12 @@ class ExportContactsTask(SmartModel):
         if self.group:
             all_contacts = all_contacts.filter(groups=self.group)
 
+        # if we have too many fields, Export using csv Otherwise use Excel
+        use_csv = len(fields) > 256
+
         temp = NamedTemporaryFile(delete=True)
 
-        # if we have too many fields, Export using csv Otherwise use Excel
-        if len(fields) > 256:
+        if use_csv:
             import csv
 
             writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
@@ -1437,9 +1437,6 @@ class ExportContactsTask(SmartModel):
                     row_data.append(value)
 
                 writer.writerow([s.encode("utf-8") for s in row_data])
-
-            name = '%s_%s.csv' % (str(self.pk), re.sub('-', '', str(uuid4())))
-
         else:
             contact_sheet_number = 1
             all_contacts = list(all_contacts)
@@ -1482,23 +1479,23 @@ class ExportContactsTask(SmartModel):
                         # skip the header
                         current_contact_sheet.write(row + 1, col, value)
 
-
                 contact_sheet_number += 1
                 current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
-
-
-            name = '%s_%s.xls' % (str(self.pk), re.sub('-', '', str(uuid4())))
 
             book.save(temp)
 
         temp.flush()
 
-        # print our filename if we aren't prod
-        self.filename = default_storage.save(os.path.join('contacts', 'exports', name), File(temp))
-        self.save()
+        # save as file asset associated with this task
+        from temba.assets.models import AssetType
+        from temba.assets.views import get_asset_url
+
+        store = AssetType.contact_export.store
+        store.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.contact_export, self.pk))
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
@@ -1507,8 +1504,4 @@ class ExportContactsTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username,
-                         subject,
-                         template,
-                         dict(link='https://%s/org/download/contacts/%s/' % (settings.TEMBA_HOST, self.pk)),
-                         branding)
+        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)

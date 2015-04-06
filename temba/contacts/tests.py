@@ -1578,7 +1578,7 @@ class ContactFieldTest(TembaTest):
             ContactField.api_make_key("Name")
 
     def test_export(self):
-        from xlrd import open_workbook, xldate_as_tuple, XL_CELL_DATE, XLRDError
+        from xlrd import open_workbook
 
         self.login(self.admin)
         self.user = self.admin
@@ -1596,8 +1596,7 @@ class ContactFieldTest(TembaTest):
         self.client.get(reverse('contacts.contact_export'), dict())
         task = ExportContactsTask.objects.get()
 
-        filename = "/%s/%s" % (settings.MEDIA_ROOT, task.filename)
-
+        filename = "%s/test_orgs/%d/contact_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 

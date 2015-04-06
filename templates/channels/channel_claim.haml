@@ -274,6 +274,21 @@
                 Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
                 the steps necessary to get your SMSC connection working in a few minutes.
 
+    -if user_org.timezone == 'Europe/Paris'
+      .claim-row.highconnection-channel
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_high_connection' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "High Connection Number"
+          .span9.no-margin
+            .claim-description
+              %div
+                -blocktrans
+                  If you are based in France, you can purchase use a number you have been provided by
+                  <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
+
     -if False
       .claim-row.infobip-channel
         .recommendation.hide

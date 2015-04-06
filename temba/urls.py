@@ -28,6 +28,7 @@ urlpatterns = patterns('',
     url(r'^users/', include('smartmin.users.urls')),
     url(r'^imports/', include('smartmin.csv_imports.urls')),
     url(r'^api/v1', include('temba.api.urls')),
+    url(r'^assets/', include('temba.assets.urls')),
     url(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict)
 )
 

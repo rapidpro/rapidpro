@@ -103,7 +103,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
     refresh = 10000
     add_button = True
     fields = ('from', 'message', 'received')
-    search_fields = ('text__icontains', 'contact__urns__path__icontains', 'contact__name__icontains')
+    search_fields = ('text__icontains',)
     paginate_by = 100
 
     def pre_process(self, request, *args, **kwargs):
@@ -136,7 +136,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
 
         context['folders'] = folders
         context['labels'] = labels
-        context['has_messages'] = self.object_list.count() > 0 or org.has_messages()
+        context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
 
@@ -240,7 +240,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Outbox(FolderListView):
         title = _("Outbox")
         fields = ('contacts', 'msgs', 'sent', 'status',)
-        search_fields = ('contacts__name__icontains', 'msgs__text__icontains', 'groups__name__icontains', 'contacts__urns__path__contains')
+        search_fields = ('msgs__text__icontains',)
         template_name = 'msgs/broadcast_outbox.haml'
         default_order = ('-created_on')
         folder = OrgFolder.broadcasts_outbox
@@ -253,7 +253,7 @@ class BroadcastCRUDL(SmartCRUDL):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
-        search_fields = ('contacts__name__icontains', 'text__icontains', 'groups__name__icontains')
+        search_fields = ('text__icontains',)
         template_name = 'msgs/broadcast_schedule_list.haml'
         default_order = ('schedule__status', 'schedule__next_fire', '-created_on')
         folder = OrgFolder.broadcasts_scheduled
