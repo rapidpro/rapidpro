@@ -339,7 +339,7 @@
           accepted-smsc = YOUR-SMSC
 
   -elif object.channel_type == 'VB'
-      %h4
+    %h4
       -blocktrans
         To finish configuring your connection you'll need to set the following status callback URL for your Verboice project
 
@@ -349,8 +349,22 @@
       -trans "Status Callback URL"
 
     %code
-        https://{{ domain }}{% url 'api.verboice_handler' 'status' object.uuid %}
+      https://{{ domain }}{% url 'api.verboice_handler' 'status' object.uuid %}
 
+
+  -elif object.channel_type == 'HX'
+    %h4
+      -blocktrans
+        To finish configuring your connection you'll need to notify HighConnection of the following URL for
+        incoming (MO) messages
+
+    %hr
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'api.hcnx_handler' 'receive' object.uuid %}
 
   -elif object.channel_type == 'EX'
     %h4

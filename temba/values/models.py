@@ -24,9 +24,9 @@ VALUE_TYPE_CHOICES = ((TEXT, "Text"),
                       (DISTRICT, "District"))
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
-CONTACT_KEY = 'vsc%d'
-GROUP_KEY = 'vsg%d'
-RULESET_KEY = 'vsr%d'
+CONTACT_KEY = 'vsd::vsc%d'
+GROUP_KEY = 'vsd::vsg%d'
+RULESET_KEY = 'vsd::vsr%d'
 
 # cache for up to 30 days (we will invalidate manually when dependencies change)
 VALUE_SUMMARY_CACHE_TIME = 60 * 60 * 24 * 30
@@ -294,21 +294,25 @@ class Value(models.Model):
             raise Exception("You must specify a contact field, ruleset or group to invalidate results for")
 
         if contact_field:
-            key = ':' + (CONTACT_KEY % contact_field.id) + ':'
+            key = CONTACT_KEY % contact_field.id
         elif group:
-            key = ':' + (GROUP_KEY % group.id) + ':'
+            key = GROUP_KEY % group.id
         elif ruleset:
-            key = ':' + (RULESET_KEY % ruleset.id) + ':'
+            key = RULESET_KEY % ruleset.id
 
         # blow away any redis items that contain our key as a dependency
         r = get_redis_connection()
-        keys = r.keys(VALUE_SUMMARY_CACHE_KEY + "*" + key + "*")
-        if keys:
-            invalidated = r.delete(*keys)
-        else:
-            invalidated = 0
+        dependent_results = r.smembers(key)
 
-        return invalidated
+        # save ourselves a roundtrip if there are no matches
+        if dependent_results:
+            # clear all our dependencies
+            pipe = r.pipeline()
+            pipe.srem(key, *dependent_results)
+            pipe.delete(*dependent_results)
+            pipe.execute()
+
+        return len(dependent_results)
 
     @classmethod
     def get_value_summary(cls, ruleset=None, contact_field=None, filters=None, segment=None):
@@ -354,7 +358,8 @@ class Value(models.Model):
             dependencies.add(CONTACT_KEY % contact_field.id)
 
         for filter in filters:
-            if 'ruleset' in filter: dependencies.add('vsr%d' % filter['ruleset'])
+            if 'ruleset' in filter:
+                dependencies.add(RULESET_KEY % filter['ruleset'])
             if 'groups' in filter:
                 for group_id in filter['groups']:
                     dependencies.add(GROUP_KEY % group_id)
@@ -363,7 +368,8 @@ class Value(models.Model):
                 dependencies.add(CONTACT_KEY % field.id)
 
         if segment:
-            if 'ruleset' in segment: dependencies.add('vsr%d' % segment['ruleset'])
+            if 'ruleset' in segment:
+                dependencies.add(RULESET_KEY % segment['ruleset'])
             if 'groups' in segment:
                 for group_id in segment['groups']:
                     dependencies.add(GROUP_KEY % group_id)
@@ -376,13 +382,13 @@ class Value(models.Model):
         fingerprint = hash(dict_to_json(fingerprint_dict))
 
         # generate our key
-        key = VALUE_SUMMARY_CACHE_KEY + ":" + ":".join(sorted(list(dependencies))) + ":" + str(fingerprint)
+        key = VALUE_SUMMARY_CACHE_KEY + ":" + str(org.id) + ":".join(sorted(list(dependencies))) + ":" + str(fingerprint)
 
         # does our value exist?
         r = get_redis_connection()
         cached = r.get(key)
 
-        if not cached is None:
+        if cached is not None:
             try:
                 return json_to_dict(cached)
             except:
@@ -527,8 +533,15 @@ class Value(models.Model):
 
             results.append(dict(label=unicode(_("All")), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
-        # cache this result set
-        r.set(key, dict_to_json(results), VALUE_SUMMARY_CACHE_TIME)
+        # for each of our dependencies, add our key as something that depends on it
+        pipe = r.pipeline()
+        for dependency in dependencies:
+            pipe.sadd(dependency, key)
+            pipe.expire(dependency, VALUE_SUMMARY_CACHE_TIME)
+
+        # and finally set our result
+        pipe.set(key, dict_to_json(results), VALUE_SUMMARY_CACHE_TIME)
+        pipe.execute()
 
         # leave me: nice for profiling..
         # from django.db import connection as db_connection, reset_queries

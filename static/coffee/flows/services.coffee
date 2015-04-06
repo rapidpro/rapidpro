@@ -339,8 +339,8 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
 app.service "Versions", ['$rootScope', '$http', '$log', ($rootScope, $http, $log) ->
   updateVersions: ->
-    $http.get('/flow/versions/' + $rootScope.flowId).success (data, status, headers) ->
 
+    $http.get('/flow/versions/' + $rootScope.flowId + '/').success (data, status, headers) ->
       # only set the versions if we get back json, if we don't have permission we'll get a login page
       if headers('content-type') == 'application/json'
         $rootScope.versions = data
@@ -481,25 +481,24 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       , quietPeriod
 
   determineFlowStart = (flow) ->
-    topX = null
-    topY = null
-    entry = null
-    $('#flow > .node').each ->
-      ele = $(this)
-      if not ele.hasClass('ghost')
-        x = ele[0].offsetLeft
-        y = ele[0].offsetTop
-        if topY == null || y < topY
-          topY = y
-          topX = x
-          entry = ele.attr('id')
+    topNode = null
 
-        else if topY == y
-          if topX == null || x < topX
-            topY = y
-            topX = x
-            entry = ele.attr('id')
-    flow.entry = entry
+    # see if this node is higher than our last one
+    checkTop = (node) ->
+      if topNode == null || node.y < topNode.y
+        topNode = node
+      else if topNode == null || topNode.y == node.y
+        if node.x < topNode.x
+          topNode = node
+
+    # check each node to see if they are the top
+    for actionset in flow.action_sets
+      checkTop(actionset)
+    for ruleset in flow.rule_sets
+      checkTop(ruleset)
+
+    if topNode
+      flow.entry = topNode.uuid
 
   applyActivity: (node, activity) ->
 
@@ -533,6 +532,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
   deriveCategories: (ruleset, language) ->
 
+    base_language = $rootScope.flow.base_language
     ruleset._categories = []
     for rule in ruleset.rules
 
@@ -541,14 +541,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       if rule.test.type == "between"
         if not rule.category
-          if $rootScope.flow.base_language
+          if base_language
             rule.category = {}
             rule.category[language] = rule.test.min + " - " + rule.test.max
           else
             rule.category = rule.test.min + " - " + rule.test.max
 
       if rule.category
-        if $rootScope.flow.base_language
+        if base_language
           rule_cat = rule.category[language].toLocaleLowerCase()
           existing = (category.name[language].toLocaleLowerCase() for category in ruleset._categories)
         else
@@ -566,8 +566,8 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             name = cat.name
 
             # if we are localized, use the base name
-            if cat.name.base
-              name = cat.name.base
+            if base_language and base_language of cat.name
+              name = cat.name[base_language]
 
             if name is not undefined and rule_cat is not undefined and name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
               cat.sources.push(rule.uuid)
@@ -594,6 +594,9 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     for cfg in $rootScope.operators
       if cfg.type == operatorType
         return cfg
+
+  fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
+    return $http.get('/flow/recent_messages/' + $rootScope.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
 
   fetch: (onComplete = null) ->
 
@@ -858,9 +861,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
   updateRuleTarget: (node, from, to) ->
 
+    base_language = $rootScope.flow.base_language
+
     for ruleset in $rootScope.flow.rule_sets
       if ruleset.uuid == node
-
         # find the rule we are going to update
         rule_to_update = null
         category_name = null
@@ -868,13 +872,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           if rule.uuid == from
             rule_to_update = rule
             category_name = rule.category
-            if rule.category.base
-              category_name = rule.category.base
+
+            if base_language and base_language of rule.category
+              category_name = rule.category[base_language]
 
         for rule in ruleset.rules
           name = rule.category
-          if rule.category.base
-            name = rule.category.base
+          if base_language and base_language of rule.category
+            name = rule.category[base_language]
 
           # update the destination if its our uuid or if it shares our category name
           if rule.uuid == from or category_name.toLocaleLowerCase() == name.toLocaleLowerCase()

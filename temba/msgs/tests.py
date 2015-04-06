@@ -596,6 +596,17 @@ class MsgTest(TembaTest):
         response = self.client.post(inbox_url, post_data, follow=True)
         self.assertEquals(Msg.objects.get(pk=self.msg6.pk).visibility, VISIBLE)
 
+        # search on inbox just on the message text
+        response = self.client.get("%s?search=message" % inbox_url)
+        self.assertEquals(5, len(response.context_data['object_list']))
+
+        response = self.client.get("%s?search=5" % inbox_url)
+        self.assertEquals(1, len(response.context_data['object_list']))
+
+        # no more search on msg contact fields
+        response = self.client.get("%s?search=joe" % inbox_url)
+        self.assertEquals(0, len(response.context_data['object_list']))
+
     def test_survey_messages(self):
         survey_msg_url = reverse('msgs.msg_flow')
         

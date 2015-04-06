@@ -37,7 +37,7 @@ from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
 from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO
-from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL
+from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
@@ -490,7 +490,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo')
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1062,6 +1062,12 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_number(self):
                 number = self.data['number']
+
+                # number is a shortcode, accept as is
+                if len(number) > 0 and len(number) < 7:
+                    return number
+
+                # otherwise, try to parse into an international format
                 if number and number[0] != '+':
                     number = '+' + number
 
@@ -1076,6 +1082,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = AEClaimForm
         success_url = "id@channels.channel_configuration"
         channel_type = "AE"
+        template_name = 'channels/channel_claim_authenticated.html'
 
         def get_submitted_country(self, data):
             return data['country']
@@ -1148,6 +1155,10 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_submitted_country(self, data):
             return "ID"
+
+    class ClaimHighConnection(ClaimAuthenticatedExternal):
+        title = _("Claim High Connection")
+        channel_type = HIGH_CONNECTION
 
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):

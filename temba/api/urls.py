@@ -23,6 +23,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', KannelHandler.as_view(), name='api.kannel_handler'),
                        url(r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', ClickatellHandler.as_view(), name='api.clickatell_handler'),
                        url(r'^/plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', PlivoHandler.as_view(), name='api.plivo_handler'),
+                       url(r'^/hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', HighConnectionHandler.as_view(), name='api.hcnx_handler'),
 
                        url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='api.mage_handler'),
 
@@ -50,7 +51,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/campaigns$', CampaignEndpoint.as_view(), name='api.campaigns'),
                        url(r'^/events$', CampaignEventEndpoint.as_view(), name='api.campaignevents'),
                        url(r'^/boundaries$', BoundaryEndpoint.as_view(), name='api.boundaries'),
-                       )
+                       url(r'^/assets$', AssetEndpoint.as_view(), name='api.assets'))
 
 # Format suffixes
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'xml', 'api'])

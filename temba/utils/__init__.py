@@ -148,6 +148,14 @@ def build_json_response(json_dict, status=200):
     """
     return HttpResponse(json.dumps(json_dict), status=status, content_type='application/json')
 
+def percentage(numerator, denominator):
+    """
+    Returns an integer percentage as an integer for the passed in numerator and denominator.
+    """
+    if not denominator or not numerator:
+        return 0
+
+    return int(100.0 * numerator / denominator + .5)
 
 def format_decimal(val):
     """

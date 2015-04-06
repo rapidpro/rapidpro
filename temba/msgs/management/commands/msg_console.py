@@ -73,7 +73,6 @@ class MessageConsole(cmd.Cmd):
         urn = self.contact.get_urn()
 
         incoming = Msg.create_incoming(None, (urn.scheme, urn.path), line, date=timezone.now(), org=self.org)
-        Msg.process_message(incoming)
 
         print((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, incoming.text))
 
