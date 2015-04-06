@@ -7,7 +7,7 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0006_contactgroup_count'),
+        ('contacts', '0007_contactgroup_count'),
     ]
 
     operations = [
