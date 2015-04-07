@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
         ContactGroup.objects.filter(group_type=None).update(group_type='U')
 
     dependencies = [
-        ('contacts', '0011_install_group_triggers'),
+        ('contacts', '0012_install_group_triggers'),
     ]
 
     operations = [

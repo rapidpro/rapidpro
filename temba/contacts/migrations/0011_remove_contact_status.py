@@ -7,7 +7,7 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0012_contactgroup_group_type')
+        ('contacts', '0010_populate_is_failed'),
     ]
 
     operations = [

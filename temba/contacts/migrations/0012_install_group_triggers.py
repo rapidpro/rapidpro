@@ -75,7 +75,7 @@ class Migration(migrations.Migration):
         cursor.execute(install_trigger)
 
     dependencies = [
-        ('contacts', '0010_remove_contact_status'),
+        ('contacts', '0011_remove_contact_status'),
     ]
 
     operations = [
