@@ -62,7 +62,6 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
       ,0
 
       scope.$on '$destroy', ->
-        $log.debug('destroying node', scope.node)
         Plumb.removeElement(scope.node.uuid)
 
   return {
@@ -247,8 +246,6 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       Plumb.repaint(element)
 
     scope.$watch (->scope.ruleset), ->
-
-      $log.debug('ruleset changed', scope.ruleset)
       scope.updateTranslationStatus(scope.ruleset, scope.$root.flow.base_language, scope.$root.language)
       Plumb.updateConnections(scope.ruleset)
 
@@ -301,7 +298,6 @@ app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
             Plumb.setSourceEnabled(attrs.id, !target?)
 
     scope.$on '$destroy', ->
-      $log.debug('destroying source', attrs.id)
       Plumb.removeElement(attrs.id)
 
   return {

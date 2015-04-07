@@ -222,13 +222,10 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
       jsPlumb.repaint(id)
 
   removeElement: (id) ->
-    $log.debug('removing', id)
     jsPlumb.remove(id)
 
 
   disconnectAllConnections: (id) ->
-
-    $log.debug('[remove] disconnect all connections', id)
 
     # reenable any sources connecting to us
     jsPlumb.select({target:id}).each (connection) ->
@@ -242,7 +239,6 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
       jsPlumb.detachAllConnections(id)
 
   disconnectOutboundConnections: (id) ->
-    $log.debug('disconnecting:', id)
     jsPlumb.detachAllConnections(id)
     if jsPlumb.isSource(id)
       jsPlumb.setSourceEnabled(id, true)
@@ -252,7 +248,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
   connect: (sourceId, targetId, scope, fireEvent = true) ->
 
-    $log.debug(sourceId + ' > ' + targetId)
+    # $log.debug(sourceId + ' > ' + targetId)
 
     sourceId += '_source'
 
@@ -711,8 +707,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
 
   replaceRuleset: (ruleset, markDirty=true) ->
-
-    $log.debug('replace ruleset', ruleset)
 
     # find the ruleset we are replacing by uuid
     found = false
