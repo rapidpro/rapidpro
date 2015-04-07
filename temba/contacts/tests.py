@@ -789,6 +789,8 @@ class ContactTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
+        self.joe_and_frank = ContactGroup.user_groups.get(pk=self.joe_and_frank.pk)
+
         self.assertEquals(self.joe.groups_as_text(), "Joe and Frank, Just Joe")
         group_analytic_json = self.joe_and_frank.analytics_json()
         self.assertEquals(group_analytic_json['id'], self.joe_and_frank.pk)
@@ -801,8 +803,7 @@ class ContactTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # list the contacts as a viewer
-        #create a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
