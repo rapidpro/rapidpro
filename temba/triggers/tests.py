@@ -381,7 +381,7 @@ class TriggerTest(TembaTest):
         self.assertEquals(sms.msg_type, 'F')
 
         # we should be in the group now
-        self.assertEquals(1, contact.groups.count())
+        self.assertEquals(1, contact.user_groups.count())
 
         # and have one incoming and one outgoing message
         self.assertEquals(2, contact.msgs.count())
@@ -409,7 +409,7 @@ class TriggerTest(TembaTest):
         self.assertTrue(Trigger.find_and_handle(sms))
 
         # we should be in the group now
-        self.assertEquals(1, contact.groups.count())
+        self.assertEquals(1, contact.user_groups.count())
 
     def test_join_group_no_response(self):
 
@@ -435,7 +435,7 @@ class TriggerTest(TembaTest):
         Trigger.find_and_handle(sms)
 
         # we should be in the group now
-        self.assertEquals(1, contact.groups.count())
+        self.assertEquals(1, contact.user_groups.count())
 
     def test_missed_call_trigger(self):
         self.login(self.admin)
