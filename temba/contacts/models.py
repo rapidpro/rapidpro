@@ -1450,7 +1450,7 @@ class ExportContactsTask(SmartModel):
         all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_blocked=False).order_by('name', 'pk')
 
         if self.group:
-            all_contacts = all_contacts.filter(groups=self.group)
+            all_contacts = all_contacts.filter(all_groups=self.group)
 
         # if we have too many fields, Export using csv Otherwise use Excel
         use_csv = len(fields) > 256
