@@ -260,37 +260,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.onConnectorDrop = (connection) ->
 
-    $(connection.source).parent().removeClass('reconnecting')
+    $(connection.sourceId).parent().removeClass('reconnecting')
 
-    # keep our targets up to date
-    if connection.scope == 'actions'
+    scope = jsPlumb.getSourceScope(connection.sourceId)
+    source = connection.sourceId.split('_')
 
-      node = $('#' + connection.sourceId).parents('.node').attr('id')
-      from = $('#' + connection.sourceId).parents('.rule').attr('id')
-      to = connection.targetId
-
-      # When we make a bad drop, jsplumb will give us a sourceId but no source
-      # (this is counter-intuitive, i would expect that to be true of the target).
-      # If the source element isn't there we need to clear out the 'to'.
-      if not connection.source
-        to = null
-
-      Flow.updateRuleTarget(node, from, to)
-
-    if connection.scope == 'rules'
-
-      node = $('#' + connection.sourceId).parents('.node').attr('id')
-      to = connection.targetId
-      window.connection = connection
-
-      # When we make a bad drop, jsplumb will give us a sourceId but no source
-      # (this is counter-intuitive, i would expect that to be true of the target).
-      # If the source element isn't there we need to clear out the 'to'.
-      if not connection.source
-        to = null
-
-      Flow.updateActionsTarget(node, to)
-
+    createdNewNode = false
     if $rootScope.ghost
       ghost = $rootScope.ghost
       targetId = uuid()
@@ -304,7 +279,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             msg[$rootScope.flow.base_language] = ''
 
           actionset =
-            from: $('#' + connection.sourceId).parents('.rule').attr('id')
+            from: connection.sourceId
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId
@@ -315,6 +290,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             ]
 
           $scope.clickAction(actionset, actionset.actions[0])
+          createdNewNode = true
 
         else
 
@@ -324,7 +300,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             category[$rootScope.flow.base_language] = "All Responses"
 
           ruleset =
-            from: $('#' + connection.sourceId).parents('.node').attr('id')
+            from: source[0]
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId,
@@ -340,10 +316,33 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             ]
 
           $scope.clickRuleset(ruleset)
+          createdNewNode = true
 
       # TODO: temporarily let ghost stay on screen with connector until dialog is closed
       $rootScope.ghost.hide()
       $rootScope.ghost = null
+
+    if not createdNewNode
+
+      # keep our targets up to date
+      if scope == 'actions'
+        to = connection.targetId
+
+        # When we make a bad drop, jsplumb will give us a sourceId but no source
+        if not connection.source
+          to = null
+
+        Flow.updateRuleTarget(source[0], source[1], to)
+
+      if scope == 'rules'
+        to = connection.targetId
+        window.connection = connection
+
+        # When we make a bad drop, jsplumb will give us a sourceId but no source
+        if not connection.source
+          to = null
+
+        Flow.updateActionsTarget(source[0], to)
 
     $timeout ->
       $rootScope.dirty = true
@@ -354,9 +353,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     # add some css to our source so we can style during moves
-    $(connection.source).parent().addClass('reconnecting')
+    $(connection.sourceId).parent().addClass('reconnecting')
 
-    $rootScope.ghost = $('.ghost.' + connection.scope)
+    scope = jsPlumb.getSourceScope(connection.sourceId)
+    $rootScope.ghost = $('.ghost.' + scope)
     $timeout ->
       $rootScope.ghost.show()
     ,0
@@ -1160,19 +1160,14 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     $modalInstance.close ""
 
-    # update in the next cycle so we don't see effects in the dialog on close
-    $timeout ->
+    stopWatching()
+    $scope.updateRules()
 
-      stopWatching()
+    # unplumb any rules that were explicity removed
+    Plumb.disconnectRules($scope.removed)
 
-      $scope.updateRules()
-
-      # unplumb any rules that were explicity removed
-      Plumb.disconnectRules($scope.removed)
-
-      # splice in our new ruleset
-      Flow.replaceRuleset($scope.ruleset)
-    ,0
+    # splice in our new ruleset
+    Flow.replaceRuleset($scope.ruleset)
 
     # link us up if necessary, we need to do this after our element is created
     if $scope.ruleset.from
@@ -1181,12 +1176,14 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       for actionset in $scope.flow.action_sets
         if actionset.uuid == $scope.ruleset.from
           actionset.destination = $scope.ruleset.uuid
+          Plumb.updateConnection(actionset)
+          $scope.ruleset.from = null
           break
 
-      $timeout ->
-        Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid, 'rules')
-        $scope.ruleset.from = null
-      ,10
+      #$timeout ->
+      #  Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid, 'rules')
+
+      #,0
 
   $scope.cancel = ->
     stopWatching()

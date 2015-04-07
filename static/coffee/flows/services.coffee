@@ -184,14 +184,18 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     maxConnections:1
     dragAllowedWhenFull:false
     isSource:true
+    paintStyle:{ fillStyle:"blue", outlineColor:"black", outlineWidth:1 }
 
-  makeSource: (element, scope) ->
-    jsPlumb.makeSource element, sourceDefaults,
-      scope: scope
+  makeSource: (sourceId, scope) ->
+    # we do this in the next cycle to make sure our id is set
+    $timeout ->
+      jsPlumb.makeSource sourceId, angular.extend({scope:scope}, sourceDefaults)
+    ,0
 
-  makeTarget: (element, scope) ->
-    jsPlumb.makeTarget element, targetDefaults,
-      scope: scope
+  makeTarget: (targetId, scope) ->
+    $timeout ->
+      jsPlumb.makeTarget targetId, angular.extend({scope:scope}, targetDefaults)
+    ,0
 
   getSourceConnection: (source) ->
     connections = jsPlumb.getConnections({
@@ -213,39 +217,53 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
     # do the same for all of our sources
     $('#' + nodeId + ' .source').each ->
-      jsPlumb.recalculateOffsets(this)
-      jsPlumb.repaint(this)
+      id = $(this).attr('id')
+      jsPlumb.recalculateOffsets(id)
+      jsPlumb.repaint(id)
+
+  removeElement: (id) ->
+    $log.debug('removing', id)
+    jsPlumb.remove(id)
 
 
   disconnectAllConnections: (id) ->
 
+    $log.debug('[remove] disconnect all connections', id)
+
     # reenable any sources connecting to us
     jsPlumb.select({target:id}).each (connection) ->
-      jsPlumb.setSourceEnabled($('#' + connection.sourceId), true)
+      jsPlumb.setSourceEnabled(connection.sourceId, true)
 
     # now disconnect the existing connections
     jsPlumb.detachAllConnections(id)
 
     $('#' + id + ' .source').each ->
-      jsPlumb.setSourceEnabled($(this), true)
-      jsPlumb.detachAllConnections($(this))
+      id = $(this).attr('id')
+      jsPlumb.detachAllConnections(id)
 
   disconnectOutboundConnections: (id) ->
-    jsPlumb.detachAllConnections($('#' + id + ' .source'))
+    $log.debug('disconnecting:', id)
+    jsPlumb.detachAllConnections(id)
+    if jsPlumb.isSource(id)
+      jsPlumb.setSourceEnabled(id, true)
 
   setSourceEnabled: (source, enabled) ->
     jsPlumb.setSourceEnabled(source, enabled)
 
   connect: (sourceId, targetId, scope, fireEvent = true) ->
 
+    $log.debug(sourceId + ' > ' + targetId)
+
+    sourceId += '_source'
+
     # remove any existing connections for our source first
-    @disconnectOutboundConnections(sourceId)
+    Plumb = @
+
+    $('html').scope().plumb = Plumb
 
     # connect to our new target if we have one
     if targetId != null
-
-      target = $('#' + targetId)
-      existing = jsPlumb.getEndpoints(target)
+      existing = jsPlumb.getEndpoints(targetId)
       targetPoint = null
       if existing
         for endpoint in existing
@@ -254,34 +272,55 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
             break
 
       if not targetPoint
-        targetPoint = jsPlumb.addEndpoint(target, { scope: scope }, targetDefaults)
+        targetPoint = jsPlumb.addEndpoint(targetId, { scope: scope }, targetDefaults)
 
-      source = $('#' + sourceId + ' .source')
+      if jsPlumb.getConnections({source:sourceId, scope:scope}).length == 0
 
-      if jsPlumb.getConnections({source:source, scope:scope}).length == 0
+        if jsPlumb.isSource(sourceId)
+          Plumb.setSourceEnabled(sourceId, true)
 
-        # make sure our source is enabled before attempting connection
-        jsPlumb.setSourceEnabled(source, true)
+        jsPlumb.connect
+          maxConnections:1
+          dragAllowedWhenFull:false
+          deleteEndpointsOnDetach:true
+          editable:false
+          source: sourceId
+          target: targetPoint
+          fireEvent: fireEvent
 
-        jsPlumb.connect({ maxConnections:1, dragAllowedWhenFull:false, deleteEndpointsOnDetach:true, editable:false, source: source, target: targetPoint, fireEvent: fireEvent})
+        $timeout ->
+          Plumb.setSourceEnabled(sourceId, false)
+          Plumb.repaint(sourceId)
+        ,0
 
-        # now that we are connected, we aren't enabled anymore
-        jsPlumb.setSourceEnabled(source, false)
 
-
+  # Update the connections according to the destination. Peforms update
+  # after $digest to make sure DOM element is ready for jsPlumb.
   updateConnection: (actionset) ->
-    if actionset.destination
-      @connect(actionset.uuid, actionset.destination, 'rules')
-
+    Plumb = @
     $timeout ->
+      if actionset.destination
+
+        Plumb.disconnectOutboundConnections(actionset.uuid + '_source')
+
+        Plumb.connect(actionset.uuid, actionset.destination, 'rules')
+
       jsPlumb.recalculateOffsets(actionset.uuid)
       jsPlumb.repaint(actionset.uuid)
     , 0
 
+  # Update the connections according to the category targets. Performs update
+  # after $digest to make sure DOM elements are ready for jsPlumb.
   updateConnections: (ruleset) ->
-    for category in ruleset._categories
-      if category.target
-        @connect(category.sources[0], category.target, 'actions')
+    Plumb = @
+    $timeout ->
+      for category in ruleset._categories
+        if category.target
+          Plumb.connect(ruleset.uuid + '_' + category.source, category.target, 'actions')
+      jsPlumb.recalculateOffsets(ruleset.uuid)
+      jsPlumb.repaint(ruleset.uuid)
+    ,0
+
 
   setPageHeight: ->
     $("#flow").each ->
@@ -303,10 +342,8 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     $timeout ->
 
       if element
-        #$log.debug("Plumb.repaint(ele)")
         jsPlumb.repaint(element)
       else
-        #$log.debug("Plumb.repaint()")
         jsPlumb.repaintEverything()
 
       service.setPageHeight()
@@ -314,25 +351,18 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
   disconnectRules: (rules) ->
     for rule in rules
-      jsPlumb.remove(rule.uuid)
+      jsPlumb.remove(rule.uuid + '_source')
 
   getConnectionMap: (selector = {}) ->
 
     # get the current connections as a map
     connections = {}
     jsPlumb.select(selector).each (connection) ->
-
       # only count legitimate targets
       if connection.targetId and connection.targetId.length > 24
-        # find the source
-        ele = $(connection.source)
-        source = ele.parents('.rule')
-        if not source.length
-          source = ele.parents('.node')
-
-        # if we found a source add it to our map
-        if source.length
-          connections[source.attr('id')] = connection.targetId
+        # strip off _source suffix
+        source = connection.sourceId.substr(0, connection.sourceId.lastIndexOf('_'))
+        connections[source] = connection.targetId
 
     return connections
 ]
@@ -530,10 +560,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     return
 
-  deriveCategories: (ruleset, language) ->
+  deriveCategories: (ruleset, base_language) ->
 
-    base_language = $rootScope.flow.base_language
     ruleset._categories = []
+
     for rule in ruleset.rules
 
       if not rule.uuid
@@ -543,14 +573,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if not rule.category
           if base_language
             rule.category = {}
-            rule.category[language] = rule.test.min + " - " + rule.test.max
+            rule.category[base_language] = rule.test.min + " - " + rule.test.max
           else
             rule.category = rule.test.min + " - " + rule.test.max
 
       if rule.category
         if base_language
-          rule_cat = rule.category[language].toLocaleLowerCase()
-          existing = (category.name[language].toLocaleLowerCase() for category in ruleset._categories)
+          rule_cat = rule.category[base_language].toLocaleLowerCase()
+          existing = (category.name[base_language].toLocaleLowerCase() for category in ruleset._categories)
         else
           rule_cat = rule.category.toLocaleLowerCase()
           existing = (category.name.toLocaleLowerCase() for category in ruleset._categories)
@@ -565,14 +595,19 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             # unlocalized flows just have a string name
             name = cat.name
 
-            # if we are localized, use the base name
             if base_language and base_language of cat.name
               name = cat.name[base_language]
 
-            if name is not undefined and rule_cat is not undefined and name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
+            # if we are localized, use the base name
+            if name?.toLocaleLowerCase() == rule_cat?.toLocaleLowerCase()
               cat.sources.push(rule.uuid)
+
               if cat.target
                 rule.destination = cat.target
+
+    # shortcut our first source
+    for cat in ruleset._categories
+      cat.source = cat.sources[0]
 
     @applyActivity(ruleset, $rootScope.activity)
     return
@@ -673,20 +708,23 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         Plumb.repaint()
       , 0
 
+
+
   replaceRuleset: (ruleset, markDirty=true) ->
 
-    # $log.debug("Replacing ruleset: ", ruleset)
+    $log.debug('replace ruleset', ruleset)
 
     # find the ruleset we are replacing by uuid
     found = false
+
     for previous, idx in $rootScope.flow.rule_sets
       if ruleset.uuid == previous.uuid
 
         # remove the existing connections from the rules, these will
         # be recreated by our watcher when the ruleset changes below
-        for rule in previous.rules
-          oldSource = $('#' + rule.uuid + " .source")
-          jsPlumb.detachAllConnections(oldSource)
+        #for rule in previous.rules
+        #  $log.debug('removing', ruleset.uuid + '_' + rule.uuid + '_source')
+        #  jsPlumb.detachAllConnections(ruleset.uuid + '_' + rule.uuid + '_source')
 
         # group our rules by category and update the master ruleset
         @deriveCategories(ruleset, $rootScope.flow.base_language)
@@ -750,14 +788,15 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     $rootScope.flow._missingTranslation = missing
 
   removeConnection: (connection) ->
-    node = $(connection.source).parents('.node').attr('id')
-    rule = $(connection.source).parents('.rule').attr('id')
 
-    if connection.scope == 'actions'
-      @updateRuleTarget(node, rule, null)
+    scope = jsPlumb.getSourceScope(connection.sourceId)
+    source = connection.sourceId.split('_')
 
-    if connection.scope == 'rules'
-      @updateActionsTarget(node, null)
+    if scope == 'actions'
+      @updateRuleTarget(source[0], source[1], null)
+
+    if scope == 'rules'
+      @updateActionsTarget(source[0], null)
 
     Plumb.detachSingleConnection(connection)
 
@@ -777,7 +816,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         service.updateActionsTarget(from, null)
 
       # disconnect our connections, then remove it from the flow
-      Plumb.disconnectAllConnections(ruleset.uuid)
+      # Plumb.disconnectAllConnections(ruleset.uuid)
       idx = flow.rule_sets.indexOf(ruleset)
       flow.rule_sets.splice(idx, 1)
     ,0
@@ -830,15 +869,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           # update our model to nullify rules that point to us
           connections = Plumb.getConnectionMap({ target: actionset.uuid })
-          for from of connections
-            node = $("#" + from).parents('.node').attr('id')
-            service.updateRuleTarget(node, from, null)
+          for source of connections
+            source = source.split('_')
+            service.updateRuleTarget(source[0], source[1], null)
 
           # disconnect our connections, then remove it from the flow
-          Plumb.disconnectAllConnections(actionset.uuid)
+          # Plumb.disconnectAllConnections(actionset.uuid)
           idx = flow.action_sets.indexOf(actionset)
           flow.action_sets.splice(idx, 1)
-
         ,0
 
       else
@@ -856,41 +894,52 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     for actionset in $rootScope.flow.action_sets
       if actionset.uuid == from
         actionset.destination = to
+
+        $timeout ->
+          jsPlumb.setSourceEnabled(actionset.uuid + '_source', to==null)
+        ,0
+
         @applyActivity(actionset, $rootScope.activity)
         break
 
-  updateRuleTarget: (node, from, to) ->
+  updateRuleTarget: (rulesetId, from, to) ->
 
     base_language = $rootScope.flow.base_language
 
     for ruleset in $rootScope.flow.rule_sets
-      if ruleset.uuid == node
-        # find the rule we are going to update
+
+      # find our ruleset
+      if ruleset.uuid == rulesetId
+
+        # find our rule and category name
         rule_to_update = null
         category_name = null
         for rule in ruleset.rules
           if rule.uuid == from
             rule_to_update = rule
             category_name = rule.category
-
             if base_language and base_language of rule.category
               category_name = rule.category[base_language]
 
-        for rule in ruleset.rules
-          name = rule.category
-          if base_language and base_language of rule.category
-            name = rule.category[base_language]
+            name = rule.category
+            if base_language and base_language of rule.category
+              name = rule.category[base_language]
 
-          # update the destination if its our uuid or if it shares our category name
-          if rule.uuid == from or category_name.toLocaleLowerCase() == name.toLocaleLowerCase()
-            rule.destination = to
+            # update the destination if its our uuid or if it shares our category name
+            if rule.uuid == from or category_name.toLocaleLowerCase() == name.toLocaleLowerCase()
+              rule.destination = to
 
         for category in ruleset._categories
           for source in category.sources
             if source == from
               category.target = to
+              sourceId = ruleset.uuid + '_' + category.source + '_source'
 
-        @applyActivity(ruleset, $rootScope.activity)
+              $timeout ->
+                jsPlumb.setSourceEnabled(sourceId, to == null)
+              ,0
+
+    @applyActivity(ruleset, $rootScope.activity)
 
   checkTerminal: (actionset) ->
     terminal = true
@@ -910,16 +959,19 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # link us up if necessary, we need to do this after our element is created
     if actionset.from
+
+      source = actionset.from.split('_')
       for ruleset in $rootScope.flow.rule_sets
-        for rule in ruleset.rules
-          if rule.uuid == actionset.from
-            rule.destination = actionset.uuid
-            break
+        if ruleset.uuid == source[0]
+          for rule in ruleset.rules
+            if rule.uuid == source[1]
+              rule.destination = actionset.uuid
+              break
 
       $timeout ->
-        Plumb.connect(actionset.from, actionset.uuid, 'actions')
+        Plumb.connect(source[0] + '_' + source[1], actionset.uuid, 'actions')
         actionset.from = null
-      ,10
+      ,0
 
 
     found = false

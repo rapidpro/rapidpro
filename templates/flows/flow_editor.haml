@@ -31,6 +31,7 @@
 -block extra-script
   {{ block.super }}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.jsPlumb-1.6.3.js'}
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/dom.jsPlumb-1.7.5.js'}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}angular/sortable.js'}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}angular/ui-bootstrap-tpls-0.11.0.js'}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.caret.min.js'}
@@ -408,7 +409,7 @@
                     [[action.webhook]]
 
           .add.icon-plus-circle2{ng-click:'addAction(action_set);'}
-          .source{drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
+          .source{ng-attr-id:'[[action_set.uuid]]_source', drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
             .recent-messages{ng-show:'action_set._showMessages'}
               .title
                 -trans "Recent Messages"
@@ -419,12 +420,9 @@
                   [[message.text]]
                 .date
                   [[message.sent|date:'medium']]
-
           .visited{ng-show:'action_set._visited && action_set.destination'}
             .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
               [[action_set._visited|number]]
-
-
 
 
         .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid',
@@ -463,11 +461,11 @@
 
           %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
             %tr.rules
-              %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', id:'[[getSource(category)]]',
+              %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', ng-attr-id:'[[category.source]]',
                        ng-class:'{ missing: category._missingTranslation }'}
                 .category
                   [[category._translation]]
-                .source{drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
+                .source{ng-attr-id:'[[ruleset.uuid]]_[[category.source]]_source', drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
                   .recent-messages{ng-show:'category._showMessages'}
                     .title
                       -trans "Recent Messages"
@@ -478,7 +476,6 @@
                         [[message.text]]
                       .date
                         [[message.sent|date:'medium']]
-
                 .visited{ng-show:'category._visited && category.target'}
                   .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
                     [[category._visited|number]]
