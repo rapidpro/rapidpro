@@ -79,9 +79,9 @@
                 - if org_perms.contacts.contact_update
                   .list-buttons-container
                     .list-buttons.hide
-                      - if 'archive' in actions
+                      - if 'block' in actions
                         %span.btn-group
-                          %a.object-btn-archive{'href':'#'}
+                          %a.object-btn-block{'href':'#'}
                             %button.btn
                               .glyph.icon-user-block
                               -trans "Block"

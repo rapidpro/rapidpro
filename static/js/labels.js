@@ -211,6 +211,10 @@ $(document).ready(function() {
 	runActionOnObjectRows("archive");
     });
 
+    $(".page-content").on('click', ".object-btn-block", function() {
+	runActionOnObjectRows("block");
+    });
+
     $(".page-content").on('click', ".object-btn-delete", function() {
 	runActionOnObjectRows("delete");
     });
