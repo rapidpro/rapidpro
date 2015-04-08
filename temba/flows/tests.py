@@ -1621,8 +1621,6 @@ class RuleTest(TembaTest):
         self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[language_flow.pk]))
         self.assertEquals(language_flow.base_language, language.iso_code)
 
-    test_views.active = True
-
     def test_views_viewers(self):
         #create a viewer
         self.viewer = self.create_user("Viewer")

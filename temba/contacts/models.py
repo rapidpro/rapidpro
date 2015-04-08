@@ -1261,10 +1261,10 @@ BLOCKED_CONTACTS_GROUP = 'B'
 FAILED_CONTACTS_GROUP = 'F'
 ALL_CONTACTS_GROUP = 'A'
 
-GROUP_TYPE_CHOICES = (('A', "All Contacts"),
-                      ('B', "Blocked Contacts"),
-                      ('F', "Failed Contacts"),
-                      ('U', "User Defined Groups"))
+GROUP_TYPE_CHOICES = ((ALL_CONTACTS_GROUP, "All Contacts"),
+                      (BLOCKED_CONTACTS_GROUP, "Blocked Contacts"),
+                      (FAILED_CONTACTS_GROUP, "Failed Contacts"),
+                      (USER_DEFINED_GROUP, "User Defined Groups"))
 
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
@@ -1285,7 +1285,7 @@ class ContactGroup(TembaModel, SmartModel):
     count = models.IntegerField(default=0,
                                 verbose_name=_("Count"), help_text=_("The number of contacts in this group"))
 
-    org = models.ForeignKey(Org, related_name='groups',
+    org = models.ForeignKey(Org, related_name='all_groups',
                             verbose_name=_("Org"), help_text=_("The organization this group is part of"))
 
     import_task = models.ForeignKey(ImportTask, null=True, blank=True)

@@ -271,11 +271,11 @@ class Org(SmartModel):
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
-            return self.groups.get(group_type=ALL_CONTACTS_GROUP).contacts.all()
+            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_failed:
-            return self.groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
+            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_blocked:
-            return self.groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
+            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.msgs_inbox:
             return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX).exclude(status=PENDING)
         elif folder == OrgFolder.msgs_archived:
@@ -300,11 +300,11 @@ class Org(SmartModel):
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
-            return self.groups.get(group_type=ALL_CONTACTS_GROUP).count
+            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).count
         elif folder == OrgFolder.contacts_blocked:
-            return self.groups.get(group_type=BLOCKED_CONTACTS_GROUP).count
+            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).count
         elif folder == OrgFolder.contacts_failed:
-            return self.groups.get(group_type=FAILED_CONTACTS_GROUP).count
+            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).count
         else:
             def calculate(_folder):
                 return self.get_folder_queryset(_folder).count()
@@ -886,12 +886,12 @@ class Org(SmartModel):
         """
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
-        self.groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
-                           created_by=self.created_by, modified_by=self.modified_by)
-        self.groups.create(name='Blocked Contacts', group_type=BLOCKED_CONTACTS_GROUP,
-                           created_by=self.created_by, modified_by=self.modified_by)
-        self.groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
-                           created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='Blocked Contacts', group_type=BLOCKED_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self):
         from temba.flows.models import Flow

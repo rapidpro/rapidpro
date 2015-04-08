@@ -11,8 +11,6 @@ class Migration(migrations.Migration):
         ContactGroup = apps.get_model('contacts', 'ContactGroup')
         Contact = apps.get_model('contacts', 'Contact')
 
-        print "Creating group.."
-
         # creates and populates all our system groups
         for org in Org.objects.all():
             print "Populating groups for: %s" % org.name

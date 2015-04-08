@@ -3174,8 +3174,6 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(message_id='xx'), **headers)
         self.assertEqual(400, response.status_code)
 
-    test_handle_message.active = True
-
     def test_follow_notification(self):
         url = reverse('api.mage_handler', args=['follow_notification'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
