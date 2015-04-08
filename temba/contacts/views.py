@@ -587,7 +587,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 links.append(dict(title=_('Edit'), style='btn-primary', js_class='update-contact', href="#"))
 
-                if self.has_org_perm("contacts.contact_archive") and not self.object.is_blocked:
+                if self.has_org_perm("contacts.contact_block") and not self.object.is_blocked:
                     links.append(dict(title=_('Block'), style='btn-primary', js_class='posterize',
                                       href=reverse('contacts.contact_block', args=(self.object.pk,))))
 

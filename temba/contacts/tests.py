@@ -87,17 +87,47 @@ class ContactCRUDLTest(_CRUDLTest):
     def testRead(self):
         self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
 
-        url = reverse('contacts.contact_read', args=[self.joe.uuid])
-        response = self.client.get(url)
+        read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
+        response = self.client.get(read_url)
         self.assertRedirect(response, '/users/login/')
 
         self.login(self.user)
-        response = self.client.get(url)
+        response = self.client.get(read_url)
         self.assertContains(response, "Joe")
+
+        # make sure the block link is present
+        block_url = reverse('contacts.contact_block', args=[self.joe.id])
+        self.assertContains(response, block_url)
+
+        # and that it works
+        self.client.post(block_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=True))
+
+        # try unblocking now
+        response = self.client.get(read_url)
+        restore_url = reverse('contacts.contact_restore', args=[self.joe.id])
+        self.assertContains(response, restore_url)
+
+        self.client.post(restore_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
+
+        # ok, what about deleting?
+        response = self.client.get(read_url)
+        delete_url = reverse('contacts.contact_delete', args=[self.joe.id])
+        self.assertContains(response, delete_url)
+
+        self.client.post(delete_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_active=False))
+
+        # can no longer access
+        response = self.client.get(read_url)
+        self.assertEquals(response.status_code, 404)
 
         # invalid uuid should return 404
         response = self.client.get(reverse('contacts.contact_read', args=['invalid-uuid']))
         self.assertEquals(response.status_code, 404)
+
+    testRead.active = True
 
     def testDelete(self):
         object = self.getTestObject()
@@ -808,7 +838,6 @@ class ContactTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # list the contacts as a viewer
-        #create a viewer
         self.viewer= self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
@@ -1011,7 +1040,6 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, "Eastern Province")
 
-        self.admin.groups.add(Group.objects.get(name="Alpha"))  # enable alpha features
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertEquals(6, len(response.context['form'].fields.keys()))  # now includes twitter
 
