@@ -1301,7 +1301,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def get_or_create(cls, org, user, name):
-        existing = ContactGroup.user_groups.filter(name=name, org=org, is_active=True).first()
+        existing = ContactGroup.user_groups.filter(name__iexact=name.strip()[:64], org=org, is_active=True).first()
         if existing:
             return existing
         else:

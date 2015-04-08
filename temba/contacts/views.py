@@ -857,7 +857,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.org = self.request.user.get_org()
-            self.object = ContactGroup.create(obj.org, self.request.user, obj.name)
+            self.object = ContactGroup.get_or_create(obj.org, self.request.user, obj.name)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super(ContactGroupCRUDL.Create, self).post_save(self.object, *args, **kwargs)

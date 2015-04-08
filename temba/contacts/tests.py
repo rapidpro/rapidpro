@@ -144,13 +144,25 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         create_url = reverse('contacts.contactgroup_create')
         self.login(self.user)
 
+        # clear our current groups
+        ContactGroup.user_groups.filter(org=self.org).delete()
+
         response = self.client.post(create_url, dict(name="  "))
         self.assertEquals(1, len(response.context['form'].errors))
         self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
 
         response = self.client.post(create_url, dict(name="first  "))
         self.assertNoFormErrors(response)
-        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="first"))
+        group = ContactGroup.user_groups.get(org=self.org, name="first")
+
+        # try to create another with the same name, nothing happens
+        response = self.client.post(create_url, dict(name="First"))
+        self.assertNoFormErrors(response)
+        self.assertEquals(1, ContactGroup.user_groups.filter(org=self.org).count())
+
+        # direct calls are the same thing
+        existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
+        self.assertEquals(group, existing_group)
 
     def test_update_url(self):
         group = ContactGroup.create(self.org, self.user, "one")
