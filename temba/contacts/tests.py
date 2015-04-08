@@ -127,8 +127,6 @@ class ContactCRUDLTest(_CRUDLTest):
         response = self.client.get(reverse('contacts.contact_read', args=['invalid-uuid']))
         self.assertEquals(response.status_code, 404)
 
-    testRead.active = True
-
     def testDelete(self):
         object = self.getTestObject()
         self._do_test_view('delete', object, post_data=dict())
@@ -1028,7 +1026,7 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals(5, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
+        self.assertEquals(6, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
         self.assertEquals("Joe Blow", response.context['form'].initial['name'])
         self.assertEquals("123", response.context['form'].fields['__urn__tel'].initial)
         self.assertEquals("Kigali City", response.context['form'].fields['__field__state'].initial)  # parsed name
@@ -1039,9 +1037,6 @@ class ContactTest(TembaTest):
         # check the read page
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, "Eastern Province")
-
-        response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals(6, len(response.context['form'].fields.keys()))  # now includes twitter
 
         # update joe - change his tel URN and state field (to something invalid)
         data = dict(name="Joe Blow", __urn__tel="12345", __field__state="newyork")

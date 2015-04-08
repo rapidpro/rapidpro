@@ -186,10 +186,6 @@ class ContactForm(forms.ModelForm):
             for urn_options in URN_SCHEME_CHOICES:
                 scheme, label = urn_options
 
-                # limit non-tel URN editing to ALPHA users
-                if scheme != TEL_SCHEME and not self.user.is_alpha():
-                    continue
-
                 urn = self.instance.get_urn(scheme) if self.instance else None
                 initial = urn.path if urn else None
                 help_text = '%s for this contact (@contact.%s)' % (label, scheme)

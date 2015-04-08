@@ -567,7 +567,6 @@ class MsgTest(TembaTest):
 
         self.msg6 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "message number 6")
 
-        #create a viewer
         self.viewer= self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
@@ -603,9 +602,9 @@ class MsgTest(TembaTest):
         response = self.client.get("%s?search=5" % inbox_url)
         self.assertEquals(1, len(response.context_data['object_list']))
 
-        # no more search on msg contact fields
+        # can search on contact field
         response = self.client.get("%s?search=joe" % inbox_url)
-        self.assertEquals(0, len(response.context_data['object_list']))
+        self.assertEquals(6, len(response.context_data['object_list']))
 
     def test_survey_messages(self):
         survey_msg_url = reverse('msgs.msg_flow')
