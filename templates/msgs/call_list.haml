@@ -6,6 +6,16 @@
   %span.title-icon
     .glyph.icon-phone
 
+-block action-buttons
+
+-block search-details
+  .search-details
+    -if search
+      -blocktrans count results_count=paginator.count
+        Found {{ results_count }} call in last 90 days for <i>{{search}}</i>.
+        -plural
+          Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
+
 -block message-list
   %table.list-table.list_rsms_message.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send  %}margin-top:10px{% endif %}'}
     %tbody
