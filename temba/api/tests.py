@@ -28,7 +28,7 @@ from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
-from temba.msgs.models import MSG_SENT_KEY, Label
+from temba.msgs.models import MSG_SENT_KEY, Label, VISIBLE, ARCHIVED, DELETED
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
 from temba.utils import dict_to_struct, datetime_to_json_date
@@ -88,7 +88,8 @@ class APITest(TembaTest):
 
     def postJSON(self, url, data):
         response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
-        response.json = json.loads(response.content)
+        if response.content:
+            response.json = json.loads(response.content)
         return response
 
     def deleteJSON(self, url, query=None):
@@ -1304,6 +1305,71 @@ class APITest(TembaTest):
         # can't send
         response = self.postJSON(url, dict(phone=['250788123123'], text='test1'))
         self.assertEquals(400, response.status_code)
+
+    def test_api_message_actions(self):
+        url = reverse('api.message_actions')
+
+        # 403 if not logged in
+        self.assert403(url)
+
+        # log in
+        self.login(self.user)
+        self.assert403(url)
+
+        # manager
+        self.login(self.admin)
+
+        # create some messages to act on
+        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #1')
+        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #2')
+        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #3')
+
+        # add label by name to messages 1 and 2
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label='Test'))
+        self.assertEquals(204, response.status_code)
+
+        # check that new label was created and applied to messages 1 and 2
+        label = Label.objects.get(name='Test')
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
+
+        # apply new label by its UUID to message 3
+        response = self.postJSON(url, dict(messages=[msg3.pk], action='label', label_uuid=label.uuid))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
+
+        # remove label from message 2 by name
+        response = self.postJSON(url, dict(messages=[msg2.pk], action='unlabel', label='Test'))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(label.get_messages()), {msg1, msg3})
+
+        # and remove from messages 1 and 3 by UUID
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg3.pk], action='unlabel', label_uuid=label.uuid))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(label.get_messages()), set())
+
+        # archive all messages
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk], action='archive'))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), set())
+        self.assertEqual(set(Msg.objects.filter(visibility=ARCHIVED)), {msg1, msg2, msg3})
+
+        # un-archive message 1
+        response = self.postJSON(url, dict(messages=[msg1.pk], action='unarchive'))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg1})
+        self.assertEqual(set(Msg.objects.filter(visibility=ARCHIVED)), {msg2, msg3})
+
+        # delete message 2
+        response = self.postJSON(url, dict(messages=[msg2.pk], action='delete'))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg1})
+        self.assertEqual(set(Msg.objects.filter(visibility=ARCHIVED)), {msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=DELETED)), {msg2})
+
+        # can't un-archive a deleted message
+        response = self.postJSON(url, dict(messages=[msg2.pk], action='unarchive'))
+        self.assertEquals(204, response.status_code)
+        self.assertEqual(set(Msg.objects.filter(visibility=DELETED)), {msg2})
 
     def test_api_labels(self):
         url = reverse('api.labels')

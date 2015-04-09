@@ -28,7 +28,7 @@ from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializ
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
-from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
+from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
 from temba.assets.models import AssetType
@@ -275,6 +275,8 @@ class ApiExplorerView(SmartTemplateView):
 
         endpoints.append(MessagesEndpoint.get_read_explorer())
         #endpoints.append(MessagesEndpoint.get_write_explorer())
+
+        endpoints.append(MessagesBulkActionEndpoint.get_write_explorer())
 
         endpoints.append(BroadcastsEndpoint.get_read_explorer())
         endpoints.append(BroadcastsEndpoint.get_write_explorer())
@@ -817,6 +819,68 @@ class MessagesEndpoint(generics.ListAPIView):
                           dict(name='relayer', required=False,
                                help="The id of the channel that should send this message, if not specified we will "
                                     "choose what it thinks is the best channel to deliver this message.")]
+        return spec
+
+
+class MessagesBulkActionEndpoint(generics.GenericAPIView):
+    """
+    ## Bulk Message Updating
+
+    A **POST** can be used to perform an action on a set of messages in bulk.
+
+    * **messages** - either a single message id or a JSON array of message ids (int or array of ints)
+    * **action** - the action to perform, a string one of:
+
+            label - Apply the given label to the messages
+            unlabel - Remove the given label from the messages
+            archive - Archive the messages
+            unarchive - Un-archive the messages
+            delete - Permanently delete the messages
+
+    * **label** - the name of a label (string, optional)
+    * **label_uuid** - the UUID of a label (string, optional)
+
+    Example:
+
+        POST /api/v1/message_actions.json
+        {
+            "messages": [1234, 2345, 3456],
+            "action": "label",
+            "label": "Testing"
+        }
+
+    You will receive an empty response if successful.
+    """
+    permission = 'msgs.msg_api'
+    permission_classes = (SSLPermission, ApiPermission)
+    serializer_class = MsgBulkActionSerializer
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.serializer_class(user=user, data=request.DATA)
+
+        if serializer.is_valid():
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Update one or more messages",
+                    url=reverse('api.message_actions'),
+                    slug='msg-actions',
+                    request='{ "messages": [12345, 23456], "action": "label", '
+                            '"label_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
+
+        spec['fields'] = [dict(name='messages', required=True,
+                               help="A JSON array of one or more integers, each a message id."),
+                          dict(name='action', required=True,
+                               help="One of the following strings: label, unlabel, archive, unarchive, delete"),
+                          dict(name='label', required=False,
+                               help="The name of a label if the action is label or unlabel"),
+                          dict(name='label_uuid', required=False,
+                               help="The UUID of a label if the action is label or unlabel")]
         return spec
 
 
