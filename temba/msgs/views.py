@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import json
 
-from datetime import date
+from datetime import date, timedelta
 from django import forms
 from django.conf import settings
 from django.core.urlresolvers import reverse
@@ -103,13 +103,23 @@ class FolderListView(OrgPermsMixin, SmartListView):
     refresh = 10000
     add_button = True
     fields = ('from', 'message', 'received')
-    search_fields = ('text__icontains',)
+    search_fields = ('text__icontains', 'contact__name__icontains', 'contact__urns__path__icontains')
     paginate_by = 100
 
     def pre_process(self, request, *args, **kwargs):
         if hasattr(self, 'folder'):
             org = request.user.get_org()
             self.queryset = org.get_folder_queryset(self.folder)
+
+    def get_queryset(self, **kwargs):
+        queryset = super(FolderListView, self).get_queryset(**kwargs)
+
+        # if we are searching, limit to last 90
+        if 'search' in self.request.REQUEST:
+            last_90 = timezone.now() - timedelta(days=90)
+            queryset = queryset.filter(created_on__gte=last_90)
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -240,7 +250,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Outbox(FolderListView):
         title = _("Outbox")
         fields = ('contacts', 'msgs', 'sent', 'status',)
-        search_fields = ('msgs__text__icontains',)
+        search_fields = ('msgs__text__icontains', 'contacts__urns__path__icontains')
         template_name = 'msgs/broadcast_outbox.haml'
         default_order = ('-created_on')
         folder = OrgFolder.broadcasts_outbox
@@ -253,7 +263,7 @@ class BroadcastCRUDL(SmartCRUDL):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
-        search_fields = ('text__icontains',)
+        search_fields = ('text__icontains', 'contacts__urns__path__icontains')
         template_name = 'msgs/broadcast_schedule_list.haml'
         default_order = ('schedule__status', 'schedule__next_fire', '-created_on')
         folder = OrgFolder.broadcasts_scheduled
@@ -405,7 +415,7 @@ class BaseActionForm(forms.Form):
         resend_allowed = self.user.get_org_group().permissions.filter(codename="broadcast_send")
 
 
-        if action in ['label', 'unlabel', 'archive', 'restore'] and not update_allowed:
+        if action in ['label', 'unlabel', 'archive', 'restore', 'block'] and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
         if action == 'delete' and not delete_allowed:
@@ -449,6 +459,10 @@ class BaseActionForm(forms.Form):
 
         elif action == 'archive':
             changed = self.OBJECT_CLASS.apply_action_archive(objects)
+            return dict(changed=changed)
+
+        elif action == 'block':
+            changed = self.OBJECT_CLASS.apply_action_block(objects)
             return dict(changed=changed)
 
         elif action == 'restore':

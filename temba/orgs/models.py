@@ -266,13 +266,13 @@ class Org(SmartModel):
         """
         Gets the queryset for the given contact or message folder for this org
         """
-        from temba.contacts.models import Contact, FAILED as C_FAILED
+        from temba.contacts.models import Contact
         from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, PENDING, FLOW, FAILED as M_FAILED
 
         if folder == OrgFolder.contacts_all:
             return Contact.get_contacts(self, blocked=False)
         elif folder == OrgFolder.contacts_failed:
-            return Contact.get_contacts(self, blocked=False).filter(status=C_FAILED)
+            return Contact.get_contacts(self, blocked=False).filter(is_failed=True)
         elif folder == OrgFolder.contacts_blocked:
             return Contact.get_contacts(self, blocked=True)
         elif folder == OrgFolder.msgs_inbox:
@@ -341,7 +341,6 @@ class Org(SmartModel):
         """
         Update org-level caches in response to an event
         """
-        from temba.contacts.models import FAILED as C_FAILED
         from temba.msgs.models import INCOMING, INBOX, FAILED as M_FAILED
 
         #print "ORG EVENT: %s for %s #%d" % (event.name, type(entity).__name__, entity.pk)
@@ -365,13 +364,13 @@ class Org(SmartModel):
         elif event == OrgEvent.contact_blocked:
             decrement_count(OrgFolder.contacts_all)
             increment_count(OrgFolder.contacts_blocked)
-            if entity.status == C_FAILED:
+            if entity.is_failed:
                 decrement_count(OrgFolder.contacts_failed)
 
         elif event == OrgEvent.contact_unblocked:
             increment_count(OrgFolder.contacts_all)
             decrement_count(OrgFolder.contacts_blocked)
-            if entity.status == C_FAILED:
+            if entity.is_failed:
                 increment_count(OrgFolder.contacts_failed)
 
         elif event == OrgEvent.contact_failed:
@@ -381,8 +380,8 @@ class Org(SmartModel):
             decrement_count(OrgFolder.contacts_failed)
 
         elif event == OrgEvent.contact_deleted:
-            decrement_count(OrgFolder.contacts_blocked if entity.is_archived else OrgFolder.contacts_all)
-            if entity.status == C_FAILED:
+            decrement_count(OrgFolder.contacts_blocked if entity.is_blocked else OrgFolder.contacts_all)
+            if entity.is_failed:
                 decrement_count(OrgFolder.contacts_failed)
 
         elif event == OrgEvent.broadcast_new:

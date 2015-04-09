@@ -205,7 +205,7 @@ class MsgTest(TembaTest):
 
         # test blocked contacts are skipped from inbox and are not handled by flows
         contact = self.create_contact("Blocked contact", "250728739305")
-        contact.is_archived = True
+        contact.is_blocked = True
         contact.save()
         ignored_msg = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
@@ -567,8 +567,7 @@ class MsgTest(TembaTest):
 
         self.msg6 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "message number 6")
 
-        #create a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
@@ -603,9 +602,9 @@ class MsgTest(TembaTest):
         response = self.client.get("%s?search=5" % inbox_url)
         self.assertEquals(1, len(response.context_data['object_list']))
 
-        # no more search on msg contact fields
+        # can search on contact field
         response = self.client.get("%s?search=joe" % inbox_url)
-        self.assertEquals(0, len(response.context_data['object_list']))
+        self.assertEquals(5, len(response.context_data['object_list']))
 
     def test_survey_messages(self):
         survey_msg_url = reverse('msgs.msg_flow')
@@ -642,13 +641,13 @@ class MsgTest(TembaTest):
         failed_url = reverse('msgs.msg_failed')
 
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
-        self.assertEquals('N', msg1.contact.status)
+        self.assertFalse(msg1.contact.is_failed)
         msg1.status = 'F'
         msg1.save()
 
         # check that our contact updates accordingly
         check_messages_task()
-        self.assertEquals('F', Contact.objects.get(pk=msg1.contact.pk).status)
+        self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
         # create broadcast and fail the only message
         broadcast = Broadcast.create(self.org, self.root, "message number 2", [self.joe])
@@ -730,7 +729,7 @@ class MsgTest(TembaTest):
         resent_msg.save()
 
         check_messages_task()
-        self.assertEquals('N', Contact.objects.get(pk=msg1.contact.pk).status)
+        self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
     def test_filter_export(self):
         # try exporting the messages

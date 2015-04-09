@@ -330,8 +330,8 @@ PERMISSIONS = {
 
 
     'contacts.contact': ('api',
-                         'archive',
-                         'archived',
+                         'block',
+                         'blocked',
                          'customize',
                          'export',
                          'failed',
@@ -491,8 +491,8 @@ GROUP_PERMISSIONS = {
         'campaigns.campaignevent.*',
 
         'contacts.contact_api',
-        'contacts.contact_archive',
-        'contacts.contact_archived',
+        'contacts.contact_block',
+        'contacts.contact_blocked',
         'contacts.contact_create',
         'contacts.contact_customize',
         'contacts.contact_delete',
@@ -607,8 +607,8 @@ GROUP_PERMISSIONS = {
         'campaigns.campaignevent.*',
 
         'contacts.contact_api',
-        'contacts.contact_archive',
-        'contacts.contact_archived',
+        'contacts.contact_block',
+        'contacts.contact_blocked',
         'contacts.contact_create',
         'contacts.contact_customize',
         'contacts.contact_delete',
@@ -708,7 +708,7 @@ GROUP_PERMISSIONS = {
         'campaigns.campaign_read',
         'campaigns.campaignevent_read',
 
-        'contacts.contact_archived',
+        'contacts.contact_blocked',
         'contacts.contact_export',
         'contacts.contact_failed',
         'contacts.contact_filter',

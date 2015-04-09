@@ -87,13 +87,41 @@ class ContactCRUDLTest(_CRUDLTest):
     def testRead(self):
         self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
 
-        url = reverse('contacts.contact_read', args=[self.joe.uuid])
-        response = self.client.get(url)
+        read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
+        response = self.client.get(read_url)
         self.assertRedirect(response, '/users/login/')
 
         self.login(self.user)
-        response = self.client.get(url)
+        response = self.client.get(read_url)
         self.assertContains(response, "Joe")
+
+        # make sure the block link is present
+        block_url = reverse('contacts.contact_block', args=[self.joe.id])
+        self.assertContains(response, block_url)
+
+        # and that it works
+        self.client.post(block_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=True))
+
+        # try unblocking now
+        response = self.client.get(read_url)
+        restore_url = reverse('contacts.contact_restore', args=[self.joe.id])
+        self.assertContains(response, restore_url)
+
+        self.client.post(restore_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
+
+        # ok, what about deleting?
+        response = self.client.get(read_url)
+        delete_url = reverse('contacts.contact_delete', args=[self.joe.id])
+        self.assertContains(response, delete_url)
+
+        self.client.post(delete_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_active=False))
+
+        # can no longer access
+        response = self.client.get(read_url)
+        self.assertEquals(response.status_code, 404)
 
         # invalid uuid should return 404
         response = self.client.get(reverse('contacts.contact_read', args=['invalid-uuid']))
@@ -339,10 +367,10 @@ class ContactTest(TembaTest):
 
         # check this contact object but also that changes were persisted
         self.assertTrue(self.joe.is_active)
-        self.assertTrue(self.joe.is_archived)
+        self.assertTrue(self.joe.is_blocked)
         self.joe = Contact.objects.get(pk=self.joe.pk)
         self.assertTrue(self.joe.is_active)
-        self.assertTrue(self.joe.is_archived)
+        self.assertTrue(self.joe.is_blocked)
 
         # that he was removed from the group
         self.assertEqual(0, ContactGroup.objects.get(pk=group.pk).contacts.count())
@@ -359,10 +387,10 @@ class ContactTest(TembaTest):
 
         # check this contact object but also that changes were persisted
         self.assertTrue(self.joe.is_active)
-        self.assertFalse(self.joe.is_archived)
+        self.assertFalse(self.joe.is_blocked)
         self.joe = Contact.objects.get(pk=self.joe.pk)
         self.assertTrue(self.joe.is_active)
-        self.assertFalse(self.joe.is_archived)
+        self.assertFalse(self.joe.is_blocked)
 
         self.joe.release()
 
@@ -469,7 +497,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
 
         # block the default contacts, these should be ignored in our searches
-        Contact.objects.all().update(is_active=False, is_archived=True)
+        Contact.objects.all().update(is_active=False, is_blocked=True)
 
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
@@ -808,7 +836,6 @@ class ContactTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # list the contacts as a viewer
-        #create a viewer
         self.viewer= self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
@@ -819,7 +846,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Joe and Frank")
-        self.assertEquals(response.context['actions'], ('label', 'archive'))
+        self.assertEquals(response.context['actions'], ('label', 'block'))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -837,13 +864,18 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 2)
 
+        # viewer also can't block
+        post_data['action'] = 'block'
+        self.client.post(list_url, post_data, follow=True)
+        self.assertFalse(Contact.objects.get(pk=self.joe.id).is_blocked)
+
         # list the contacts as a manager of the organization
         self.login(self.admin)
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Joe and Frank")
-        self.assertEquals(response.context['actions'], ('label', 'archive'))
+        self.assertEquals(response.context['actions'], ('label', 'block'))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -926,12 +958,12 @@ class ContactTest(TembaTest):
 
         # Now archive Joe
         post_data = dict()
-        post_data['action'] = 'archive'
+        post_data['action'] = 'block'
         post_data['objects'] = self.joe.id
         self.client.post(list_url, post_data, follow=True)
 
         self.joe = Contact.objects.filter(pk=self.joe.pk)[0]
-        self.assertEquals(self.joe.is_archived, True)
+        self.assertEquals(self.joe.is_blocked, True)
         self.assertEquals(len(self.just_joe.contacts.all()), 0)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 1)
 
@@ -962,20 +994,20 @@ class ContactTest(TembaTest):
         self.assertEquals(0, response.context['object_list'].count())  # from cache
 
         # Now let's visit the archived contacts page
-        archived_url = reverse('contacts.contact_archived')
+        blocked_url = reverse('contacts.contact_blocked')
 
         # archived contact are not on the list page
         # Now Let's restore Joe to the contacts
         post_data = dict()
         post_data['action'] = 'restore'
         post_data['objects'] = self.joe.id
-        self.client.post(archived_url, post_data, follow=True)
+        self.client.post(blocked_url, post_data, follow=True)
 
         # and check that Joe is restored to the contact list but the group not restored
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEquals(response.context['actions'], ('label', 'archive'))
+        self.assertEquals(response.context['actions'], ('label', 'block'))
         self.assertEquals(len(self.just_joe.contacts.all()), 0)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 1)
 
@@ -994,7 +1026,7 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals(5, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
+        self.assertEquals(6, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
         self.assertEquals("Joe Blow", response.context['form'].initial['name'])
         self.assertEquals("123", response.context['form'].fields['__urn__tel'].initial)
         self.assertEquals("Kigali City", response.context['form'].fields['__field__state'].initial)  # parsed name
@@ -1005,10 +1037,6 @@ class ContactTest(TembaTest):
         # check the read page
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, "Eastern Province")
-
-        self.admin.groups.add(Group.objects.get(name="Alpha"))  # enable alpha features
-        response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals(6, len(response.context['form'].fields.keys()))  # now includes twitter
 
         # update joe - change his tel URN and state field (to something invalid)
         data = dict(name="Joe Blow", __urn__tel="12345", __field__state="newyork")
@@ -1581,7 +1609,7 @@ class ContactFieldTest(TembaTest):
         flow = self.create_flow()
 
         # archive all our current contacts
-        Contact.objects.filter(org=self.org).update(is_archived=True)
+        Contact.objects.filter(org=self.org).update(is_blocked=True)
 
         # start one of our contacts down it
         contact = self.create_contact("Ben Haggerty", '+12067799294')
