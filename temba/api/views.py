@@ -42,7 +42,7 @@ from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
 from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
+from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -683,7 +683,7 @@ class MessagesEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
+        queryset = Msg.objects.filter(org=self.request.user.get_org())
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
@@ -766,7 +766,10 @@ class MessagesEndpoint(generics.ListAPIView):
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
 
-        return queryset.order_by('-created_on').select_related('labels')
+        reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
+        order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
+
+        return queryset.order_by(order).prefetch_related('labels')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2577,11 +2580,10 @@ class FlowEndpoint(generics.ListAPIView):
             queryset = queryset.filter(labels__name__in=label)
 
         archived = self.request.QUERY_PARAMS.get('archived', None)
-        if not archived is None:
-            archived = True if archived.lower() in ['true', 'y', 'yes', '1'] else False
-            queryset = queryset.filter(is_archived=archived)
+        if archived is not None:
+            queryset = queryset.filter(is_archived=str_to_bool(archived))
 
-        return queryset.select_related('label')
+        return queryset.prefetch_related('labels')
 
     @classmethod
     def get_read_explorer(cls):
