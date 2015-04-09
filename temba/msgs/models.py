@@ -1385,6 +1385,7 @@ class Label(TembaModel, SmartModel):
 
     @classmethod
     def get_or_create(cls, org, user, name, parent=None):
+        name = name.strip()
         label = Label.objects.filter(org=org, name__iexact=name).first()
         if label:
             return label
