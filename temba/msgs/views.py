@@ -812,25 +812,28 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class LabelForm(forms.ModelForm):
-    parent = forms.ModelChoiceField(Label.objects.all(), required=False, label=_("Parent"))
+    parent = forms.ModelChoiceField(Label.objects.none(), required=False, label=_("Parent"))
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
-        self.org = kwargs['org']
-        del kwargs['org']
-
-        label = None
-        if 'label' in kwargs:
-            label = kwargs['label']
-            del kwargs['label']
+        self.org = kwargs.pop('org')
+        self.existing = kwargs.pop('label', None)
 
         super(LabelForm, self).__init__(*args, **kwargs)
-        qs = Label.objects.filter(org=self.org, parent=None)
+        parent_qs = Label.objects.filter(org=self.org, parent=None)
 
-        if label:
-            qs = qs.exclude(id=label.pk)
+        # can't be your own parent
+        if self.existing:
+            parent_qs = parent_qs.exclude(id=self.existing.pk)
 
-        self.fields['parent'].queryset = qs
+        self.fields['parent'].queryset = parent_qs
+
+    def clean_name(self):
+        data = self.cleaned_data['name']
+        existing_id = self.existing.pk if self.existing else None
+        if Label.objects.filter(org=self.org, name__iexact=data).exclude(pk=existing_id).exists():
+            raise forms.ValidationError("Label name must be unique")
+        return data
 
     class Meta:
         model = Label
@@ -853,10 +856,32 @@ class LabelCRUDL(SmartCRUDL):
                 results.append(result)
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
-        redirect_url = "@msgs.msg_inbox"
-        cancel_url = "@msgs.msg_inbox"
+    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+        fields = ('name', 'parent', 'messages')
+        success_url = '@msgs.msg_inbox'
+        form_class = LabelForm
         success_message = ''
+        submit_button_name = _("Create")
+
+        def get_form_kwargs(self):
+            kwargs = super(LabelCRUDL.Create, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
+
+        def save(self, obj):
+            user = self.request.user
+            self.object = Label.create(user.get_org(), user, obj.name, obj.parent)
+
+        def post_save(self, obj, *args, **kwargs):
+            obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
+
+            if self.form.cleaned_data['messages']:
+                msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
+                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
+                if messages:
+                    obj.toggle_label(messages, add=True)
+
+            return obj
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = LabelForm
@@ -872,37 +897,10 @@ class LabelCRUDL(SmartCRUDL):
         def derive_fields(self):
             return ('name', 'parent')
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ('name', 'parent', 'messages')
-        success_url = '@msgs.msg_inbox'
-        form_class = LabelForm
+    class Delete(OrgObjPermsMixin, SmartDeleteView):
+        redirect_url = "@msgs.msg_inbox"
+        cancel_url = "@msgs.msg_inbox"
         success_message = ''
-        submit_button_name = _("Create")
-
-
-        def get_form_kwargs(self):
-            kwargs = super(LabelCRUDL.Create, self).get_form_kwargs()
-            kwargs['org'] = self.request.user.get_org()
-            return kwargs
-
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super(LabelCRUDL.Create, self).pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            return obj
-
-        def post_save(self, obj, *args, **kwargs):
-            obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
-
-            msg_ids = []
-            if self.form.cleaned_data['messages']:
-                msg_ids = [ int(_) for _ in self.form.cleaned_data['messages'].split(',') if _.isdigit() ]
-
-            messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
-
-            if messages:
-                obj.toggle_label(messages, add=True)
-
-            return obj
 
 
 class CallCRUDL(SmartCRUDL):

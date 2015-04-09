@@ -1320,31 +1320,42 @@ class LabelTest(TembaTest):
 
 class LabelCRUDLTest(TembaTest):
 
-    def test_label_create(self):
+    def test_create_and_update(self):
         create_url = reverse('msgs.label_create')
 
-        post_data = dict(name="label_one")
-
         self.login(self.admin)
-        response = self.client.post(create_url, post_data, follow=True)
-        self.assertEquals(Label.objects.all().count(), 1)
-        self.assertEquals(Label.objects.all()[0].parent, None)
 
-        label_one = Label.objects.all()[0]
-        post_data = dict(name="sub_label", parent=label_one.pk)
-        response = self.client.post(create_url, post_data, follow=True)
+        # create a new label
+        self.client.post(create_url, dict(name="label_one"), follow=True)
 
-        self.assertEquals(Label.objects.all().count(), 2)
-        self.assertEquals(Label.objects.filter(parent=None).count(), 1)
+        label_one = Label.objects.get()
+        self.assertEquals(label_one.name, "label_one")
+        self.assertEquals(label_one.parent, None)
 
-        post_data = dict(name="label from modal")
-        response = self.client.post("%s?format=modal" % create_url, post_data, follow=True)
-        self.assertEquals(Label.objects.all().count(), 3)
+        # check that we can't create another with same name
+        response = self.client.post(create_url, dict(name="label_one"))
+        self.assertFormError(response, 'form', 'name', "Label name must be unique")
+
+        # create a child label
+        self.client.post(create_url, dict(name="sub_label", parent=label_one.pk), follow=True)
+
+        sub_label = Label.objects.get(name="sub_label")
+        self.assertEquals(sub_label.parent, label_one)
 
         # check that viewing the parent label shows the child too
-        self.login(self.admin)
         response = self.client.get(reverse('msgs.msg_filter', args=[label_one.pk]))
         self.assertContains(response, "sub_label")
+
+        # update the parent label
+        self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="label_1"))
+
+        label_one = Label.objects.get(pk=label_one.pk)
+        self.assertEquals(label_one.name, "label_1")
+        self.assertEquals(label_one.parent, None)
+
+        # check can't take name of existing label, even a child
+        response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="sub_label"))
+        self.assertFormError(response, 'form', 'name', "Label name must be unique")
 
     def test_label_delete(self):
         label_one = Label.create_unique(self.org, self.user, "label1")

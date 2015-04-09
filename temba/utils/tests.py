@@ -18,7 +18,7 @@ from .parser import EvaluationError, EvaluationContext, evaluate_template, evalu
 from .parser_functions import *
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
     percentage
-from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json
+from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import datetime_to_json_date, json_date_to_datetime, timezone_to_country_code
 
 
@@ -73,6 +73,15 @@ class InitTest(TembaTest):
             self.assertEqual(time(3, 4), str_to_time('3:4'))  # not zero padded
             self.assertEqual(time(3, 4), str_to_time('01-02-2013 03:04'))  # with date
             self.assertEqual(time(15, 4), str_to_time('3:04 PM'))  # as PM
+
+    def test_str_to_bool(self):
+        self.assertFalse(str_to_bool(None))
+        self.assertFalse(str_to_bool(''))
+        self.assertFalse(str_to_bool('x'))
+        self.assertTrue(str_to_bool('Y'))
+        self.assertTrue(str_to_bool('Yes'))
+        self.assertTrue(str_to_bool('TRUE'))
+        self.assertTrue(str_to_bool('1'))
 
     def test_format_decimal(self):
         self.assertEquals('', format_decimal(None))

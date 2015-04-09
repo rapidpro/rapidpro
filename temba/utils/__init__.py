@@ -142,11 +142,19 @@ def ms_to_datetime(ms):
     return dt.replace(microsecond=(ms % 1000) * 1000).replace(tzinfo=pytz.utc)
 
 
+def str_to_bool(text):
+    """
+    Parses a boolean value from the given text
+    """
+    return text and text.lower() in ['true', 'y', 'yes', '1']
+
+
 def build_json_response(json_dict, status=200):
     """
     Helper function to build JSON responses form dictionaries.
     """
     return HttpResponse(json.dumps(json_dict), status=status, content_type='application/json')
+
 
 def percentage(numerator, denominator):
     """
@@ -156,6 +164,7 @@ def percentage(numerator, denominator):
         return 0
 
     return int(100.0 * numerator / denominator + .5)
+
 
 def format_decimal(val):
     """
@@ -197,6 +206,7 @@ def truncate(text, max_len):
         return "%s..." % text[:(max_len - 3)]
     else:
         return text
+
 
 def get_preferred_language(language_dict, preferred_languages):
 
