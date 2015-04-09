@@ -620,7 +620,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
       * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
-      * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string) (filterable: ```text```)
+      * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
@@ -794,8 +794,6 @@ class MessagesEndpoint(generics.ListAPIView):
                                help="One or more URNs to filter messages by. (repeatable) ex: tel:+250788123123"),
                           dict(name='label', required=False,
                                help="One or more message labels to filter by. (repeatable) ex: Clogged Filter"),
-                          dict(name='text', required=False,
-                               help="Only return messages containing this text. ex: water"),
                           dict(name='flow', required=False,
                                help="One or more flow ids to filter by. (repeatable) ex: 11851"),
                           dict(name='broadcast', required=False,
