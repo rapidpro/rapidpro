@@ -1,0 +1,20 @@
+-load i18n
+
+.flip
+  .card{ ng-class:'{"flipped":isFlipped}'}
+    .face{ng-class:'{"back":nodeType=="actions","front":nodeType!="actions"}'}
+      .rule-editor.modal.translation.wide-dialog
+        .flip-button{ng-click:'isFlipped=!isFlipped'}
+          .icon-loop
+        .rules{ng-show:'ivr'}
+          -include 'partials/ivr_editor.haml'
+        .rules{ng-show:'!ivr'}
+          -include 'partials/rule_editor.haml'
+
+    .face{ng-class:'{"front":nodeType=="actions","back":nodeType!="actions"}'}
+      .action-editor.modal{ class:'[[config.type]]', data-dismiss:'modal'}
+        .flip-button{ng-click:'isFlipped=!isFlipped'}
+          .icon-loop
+        -include 'partials/action_editor.haml'
+        // .test{ng-include:'partials/action_editor.haml'}
+

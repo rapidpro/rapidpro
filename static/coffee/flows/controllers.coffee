@@ -427,12 +427,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     if $scope.$parent.flow.base_language and $scope.$parent.flow.base_language != $scope.$parent.language.iso_code
-      modal = $modal.open
+      $modal.open
         templateUrl: "/partials/translate_rules?v=" + version
         controller: TranslateRulesController
         resolve:
-          Flow: -> Flow
-          utils: -> utils
           languages: ->
             from: $scope.$parent.flow.base_language
             to: $scope.$parent.language.iso_code
@@ -440,23 +438,22 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     else
 
       if window.ivr
-        modal = $modal.open
-          templateUrl: "/partials/ivr_editor?v=" + version
-          controller: RuleEditorController
+        $modal.open
+          templateUrl: "/partials/node_editor?v=" + version
+          controller: NodeEditorController
           resolve:
-            ruleset: -> ruleset
-            utils: -> utils
-            Flow: -> Flow
-            Plumb: -> Plumb
+            options: ->
+              nodeType: 'ivr'
+              ruleset: ruleset
+
       else
-        modal = $modal.open
-          templateUrl: "/partials/rule_editor?v=" + version
-          controller: RuleEditorController
+        $modal.open
+          templateUrl: "/partials/node_editor?v=" + version
+          controller: NodeEditorController
           resolve:
-            ruleset: -> ruleset
-            utils: -> utils
-            Flow: -> Flow
-            Plumb: -> Plumb
+            options: ->
+              nodeType: 'rules'
+              ruleset: ruleset
 
   $scope.confirmRemoveWebhook = (event, ruleset) ->
 
@@ -556,16 +553,15 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       return
 
     $modal.open
-      templateUrl: "/partials/action_editor?v=" + version
-      controller: ActionEditorController
+      templateUrl: "/partials/node_editor?v=" + version
+      controller: NodeEditorController
       resolve:
-        $timeout: -> $timeout
-        Flow: -> Flow
-        utils: -> utils
-        actionset: -> actionset
-        action: ->
-          type: if window.ivr then 'say' else 'reply'
-          uuid: uuid()
+        options: ->
+          nodeType: 'actions'
+          actionset: actionset
+          action:
+            type: if window.ivr then 'say' else 'reply'
+            uuid: uuid()
 
   $scope.moveActionUp = (actionset, action) ->
     Flow.moveActionUp(actionset, action)
@@ -642,14 +638,13 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     else
 
       $modal.open
-        templateUrl: "/partials/action_editor?v=" + version
-        controller: ActionEditorController
+        templateUrl: "/partials/node_editor?v=" + version
+        controller: NodeEditorController
         resolve:
-          $timeout: -> $timeout
-          Flow: -> Flow
-          utils: -> utils
-          actionset: -> actionset
-          action: -> action
+          options: ->
+            nodeType: 'actions'
+            actionset: actionset
+            action: action
 
   $scope.mouseMove = ($event) ->
 
@@ -799,10 +794,56 @@ RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, $time
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
 
-RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $log, Flow, Plumb, utils, ruleset) ->
+NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
+
+  # let our template know our editor type
+  $scope.nodeType = options.nodeType
+  $scope.ivr = window.ivr
+
+  if options.nodeType == 'rules' or options.nodeType == 'ivr'
+
+    ruleset = options.ruleset
+
+    # our placeholder actions if they flip
+    action =
+      type: if window.ivr then 'say' else 'reply'
+      uuid: uuid()
+
+    actionset =
+      created: true
+      x: ruleset.x
+      y: ruleset.y
+      uuid: uuid()
+      actions: [ action ]
+
+  else if options.nodeType == 'actions'
+
+    actionset = options.actionset
+    action = options.action
+
+    #our place holder ruleset if the flip
+    ruleset =
+      created: true
+      x: actionset.x
+      y: actionset.y
+      uuid: uuid(),
+      label: "Response " + ($rootScope.flow.rule_sets.length + 1)
+      operand: "@step.value"
+      webhook_action: null,
+      rules: [
+        test:
+          test: "true"
+          type: "true"
+        category: { eng: 'Other' }
+        uuid: uuid()
+      ]
+
+
+  #-----------------------------------------------------------------
+  # Rule editor
+  #-----------------------------------------------------------------
 
   $scope.ruleset = utils.clone(ruleset)
-
   $scope.removed = []
   flow = $rootScope.flow
 
@@ -1156,7 +1197,7 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     $scope.ruleset.rules = rules
 
-  $scope.ok = ->
+  $scope.okRules = ->
 
     $modalInstance.close ""
 
@@ -1166,8 +1207,27 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # unplumb any rules that were explicity removed
     Plumb.disconnectRules($scope.removed)
 
-    # splice in our new ruleset
+    # switching from an actionset means removing it and hijacking its connections
+    connections = Plumb.getConnectionMap({ target: actionset.uuid })
+    if $scope.ruleset.created
+      Flow.removeActionSet($scope.actionset)
+
+    # save our new ruleset
     Flow.replaceRuleset($scope.ruleset)
+
+    # steal the old connections if we are replacing an actionset with ourselves
+    if $scope.ruleset.created
+      $timeout ->
+        ruleset_uuid = $scope.ruleset.uuid
+        for source of connections
+          source = source.split('_')
+          Flow.updateRuleTarget(source[0], source[1], ruleset_uuid)
+          Plumb.connect(source[0] + '_' + source[1], ruleset_uuid, 'actions')
+
+        jsPlumb.recalculateOffsets(ruleset_uuid)
+        jsPlumb.repaint(ruleset_uuid)
+      ,0
+
 
     # link us up if necessary, we need to do this after our element is created
     if $scope.ruleset.from
@@ -1189,35 +1249,9 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     stopWatching()
     $modalInstance.dismiss "cancel"
 
-
-
-SimpleMessageController = ($scope, $modalInstance, $log, title, body, okButton, hideCancel=true) ->
-  $scope.title = title
-  $scope.body = body
-  $scope.okButton = okButton
-  $scope.hideCancel = hideCancel
-
-  $scope.ok = ->
-    $modalInstance.close "ok"
-
-  $scope.cancel = ->
-    $modalInstance.close "cancel"
-
-  return
-
-TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowController) ->
-  $scope.title = "End of Flow"
-  $scope.body = "You must first add a response to this branch in order to extend it."
-  $scope.okButton = "Add Response"
-
-  $scope.ok = ->
-    $modalInstance.close "ok"
-    flowController.addAction(actionset)
-
-  $scope.cancel = ->
-    $modalInstance.dismiss "cancel"
-
-ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Flow, Plumb, utils, actionset, action) ->
+  #-----------------------------------------------------------------
+  # Actions editor
+  #-----------------------------------------------------------------
 
   $scope.action = utils.clone(action)
   $scope.actionset = actionset
@@ -1398,8 +1432,55 @@ ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Fl
   $scope.ok = ->
     $timeout ->
       $('.submit').click()
-    , 0
+    ,0
+
+    # switching from an ruleset means removing it and hijacking its connections
+    connections = Plumb.getConnectionMap({ target: $scope.ruleset.uuid })
+
+    # steal the old connections if we are replacing a node with ourselves
+    if actionset.created
+      Flow.removeRuleset($scope.ruleset)
+
+      $timeout ->
+        for source of connections
+          source = source.split('_')
+          # only rules can go to us, actions cant connect to actions
+          if source.length > 1
+            Flow.updateRuleTarget(source[0], source[1], actionset.uuid)
+            Plumb.connect(source[0] + '_' + source[1], actionset.uuid, 'actions')
+
+        jsPlumb.recalculateOffsets(actionset.uuid)
+        jsPlumb.repaint(actionset.uuid)
+      ,0
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
 
+
+
+
+SimpleMessageController = ($scope, $modalInstance, $log, title, body, okButton, hideCancel=true) ->
+  $scope.title = title
+  $scope.body = body
+  $scope.okButton = okButton
+  $scope.hideCancel = hideCancel
+
+  $scope.ok = ->
+    $modalInstance.close "ok"
+
+  $scope.cancel = ->
+    $modalInstance.close "cancel"
+
+  return
+
+TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowController) ->
+  $scope.title = "End of Flow"
+  $scope.body = "You must first add a response to this branch in order to extend it."
+  $scope.okButton = "Add Response"
+
+  $scope.ok = ->
+    $modalInstance.close "ok"
+    flowController.addAction(actionset)
+
+  $scope.cancel = ->
+    $modalInstance.dismiss "cancel"

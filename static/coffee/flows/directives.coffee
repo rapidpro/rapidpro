@@ -298,7 +298,8 @@ app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
             Plumb.setSourceEnabled(attrs.id, !target?)
 
     scope.$on '$destroy', ->
-      Plumb.removeElement(attrs.id)
+      if jsPlumb.isSource(attrs.id)
+        Plumb.removeElement(attrs.id)
 
   return {
     link: link

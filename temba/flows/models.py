@@ -704,6 +704,14 @@ class Flow(TembaModel, SmartModel):
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
             return True
 
+        # if our next destination is ruleset (rule2rule), hit that
+        next_ruleset = RuleSet.get(rule.destination)
+        if next_ruleset:
+            print "Going to %s" % next_ruleset.__dict__
+            step = flow.add_step(run, next_ruleset, rule=rule.uuid, category=rule.category, previous_step=step)
+            return Flow.handle_ruleset(next_ruleset, step, run, msg, started_flows, start_time)
+
+        # otherwise, we are looking for an action set
         action_set = ActionSet.get(rule.destination)
 
         # not found, escape out, but we still handled this message, user is now out of the flow
@@ -2044,6 +2052,9 @@ class Flow(TembaModel, SmartModel):
             if entry:
                 destinations.add(entry)
 
+            for ruleset in json_dict.get(Flow.RULE_SETS, []):
+                seen.add(ruleset.get(Flow.UUID))
+
             # create all our rule sets
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
 
@@ -2055,8 +2066,6 @@ class Flow(TembaModel, SmartModel):
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 response_type = ruleset.get(Flow.RESPONSE_TYPE)
-
-                seen.add(uuid)
 
                 # cap our lengths
                 label = label[:64]
@@ -2078,10 +2087,9 @@ class Flow(TembaModel, SmartModel):
 
                 for rule in rules:
                     if 'destination' in rule:
-
                         # if the destination was excluded for not having any actions
                         # remove the connection for our rule too
-                        if rule['destination'] not in parsed_actions:
+                        if rule['destination'] not in parsed_actions and rule['destination'] not in seen:
                             rule['destination'] = None
                         else:
                             destinations.add(rule['destination'])

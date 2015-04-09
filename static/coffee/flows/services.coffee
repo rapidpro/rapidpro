@@ -248,7 +248,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
   connect: (sourceId, targetId, scope, fireEvent = true) ->
 
-    # $log.debug(sourceId + ' > ' + targetId)
+    #$log.debug(sourceId + ' > ' + targetId)
 
     sourceId += '_source'
 
@@ -806,13 +806,19 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # update our model to nullify rules that point to us
       connections = Plumb.getConnectionMap({ target: ruleset.uuid })
-      for from of connections
-        service.updateActionsTarget(from, null)
+      for source of connections
+        source = source.split('_')
+        if source.length > 1
+          service.updateRuleTarget(source[0], source[1], null)
+        else
+          service.updateActionsTarget(source[0], null)
 
       # disconnect our connections, then remove it from the flow
       # Plumb.disconnectAllConnections(ruleset.uuid)
-      idx = flow.rule_sets.indexOf(ruleset)
-      flow.rule_sets.splice(idx, 1)
+      for rs, idx in flow.rule_sets
+        if rs.uuid == ruleset.uuid
+          flow.rule_sets.splice(idx, 1)
+          break
     ,0
 
     @markDirty()
@@ -840,6 +846,28 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     @markDirty()
 
 
+  removeActionSet: (actionset) ->
+    flow = $rootScope.flow
+
+    service = @
+    # disconnect all of our connections to and from action node
+    $timeout ->
+
+      # update our model to nullify rules that point to us
+      connections = Plumb.getConnectionMap({ target: actionset.uuid })
+      for source of connections
+        source = source.split('_')
+        service.updateRuleTarget(source[0], source[1], null)
+
+      # disconnect our connections, then remove it from the flow
+      # Plumb.disconnectAllConnections(actionset.uuid)
+      for as, idx in flow.action_sets
+        if as.uuid == actionset.uuid
+          flow.action_sets.splice(idx, 1)
+          break
+    ,0
+
+
   removeAction: (actionset, action) ->
 
     DragHelper.hide()
@@ -855,24 +883,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # if there are no actions left, remove our node
       if actionset.actions.length == 0
-        flow = $rootScope.flow
-
-        service = @
-        # disconnect all of our connections to and from action node
-        $timeout ->
-
-          # update our model to nullify rules that point to us
-          connections = Plumb.getConnectionMap({ target: actionset.uuid })
-          for source of connections
-            source = source.split('_')
-            service.updateRuleTarget(source[0], source[1], null)
-
-          # disconnect our connections, then remove it from the flow
-          # Plumb.disconnectAllConnections(actionset.uuid)
-          idx = flow.action_sets.indexOf(actionset)
-          flow.action_sets.splice(idx, 1)
-        ,0
-
+        @removeActionSet(actionset)
       else
         # if we still have actions, make sure our connection offsets are correct
         $timeout ->

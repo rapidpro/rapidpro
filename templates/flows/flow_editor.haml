@@ -426,7 +426,7 @@
 
 
         .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid',
-              node:'ruleset', drop-scope:'rules', ng-dblclick:'$event.stopPropagation()',
+              node:'ruleset', drop-scope:'rules actions', ng-dblclick:'$event.stopPropagation()',
               class:'rule-node', ng-attr-id:'[[ruleset.uuid]]',
               ng-class:"{recents:ruleset._showMessages}",
               ng-style:"{left:ruleset.x, top:ruleset.y}"}
