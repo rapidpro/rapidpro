@@ -731,11 +731,11 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         return changed
 
     @classmethod
-    def apply_action_restore(cls, contacts):
+    def apply_action_unblock(cls, contacts):
         changed = []
 
         for contact in contacts:
-            contact.restore()
+            contact.unblock()
             changed.append(contact.pk)
         return changed
 
@@ -760,7 +760,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
 
-    def restore(self):
+    def unblock(self):
         """
         Unlocks this contact and marking it as not archived
         """

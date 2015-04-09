@@ -215,7 +215,7 @@ class ContactGroupTest(TembaTest):
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 1)
 
-        self.joe.restore()
+        self.joe.unblock()
         self.frank.release()
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
@@ -359,7 +359,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
 
         # restore and re-add to group
-        self.joe.restore()
+        self.joe.unblock()
         group.update_contacts([self.joe], add=True)
 
         # check this contact object but also that changes were persisted
@@ -978,7 +978,7 @@ class ContactTest(TembaTest):
         # archived contact are not on the list page
         # Now Let's restore Joe to the contacts
         post_data = dict()
-        post_data['action'] = 'restore'
+        post_data['action'] = 'unblock'
         post_data['objects'] = self.joe.id
         self.client.post(blocked_url, post_data, follow=True)
 

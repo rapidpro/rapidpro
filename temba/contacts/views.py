@@ -140,7 +140,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 class ContactActionForm(BaseActionForm):
     ALLOWED_ACTIONS = (('label', _("Add to Group")),
                        ('unlabel', _("Remove from Group")),
-                       ('restore', _("Restore Contacts")),
+                       ('unblock', _("Unblock Contacts")),
                        ('block', _("Block Contacts")),
                        ('delete', _("Delete Contacts")))
 
@@ -259,7 +259,7 @@ class UpdateContactForm(ContactForm):
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
-               'customize', 'export', 'block', 'restore', 'delete')
+               'customize', 'export', 'block', 'unblock', 'delete')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -592,9 +592,9 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(dict(title=_('Block'), style='btn-primary', js_class='posterize',
                                       href=reverse('contacts.contact_block', args=(self.object.pk,))))
 
-                if self.has_org_perm("contacts.contact_restore") and self.object.is_blocked:
+                if self.has_org_perm("contacts.contact_unblock") and self.object.is_blocked:
                     links.append(dict(title=_('Unblock'), style='btn-primary', js_class='posterize',
-                                      href=reverse('contacts.contact_restore', args=(self.object.pk,))))
+                                      href=reverse('contacts.contact_unblock', args=(self.object.pk,))))
 
                 if self.has_org_perm("contacts.contact_delete"):
                     links.append(dict(title=_('Delete'), style='btn-primary',
@@ -639,7 +639,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
-            context['actions'] = ('restore', 'delete') if self.has_org_perm("contacts.contact_delete") else ('restore',)
+            context['actions'] = ('unblock', 'delete') if self.has_org_perm("contacts.contact_delete") else ('unblock',)
             return context
 
     class Failed(ContactActionMixin, ContactListView):
@@ -806,7 +806,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.block()
             return obj
 
-    class Restore(OrgPermsMixin, SmartUpdateView):
+    class Unblock(OrgPermsMixin, SmartUpdateView):
         """
         Unblock this contact
         """

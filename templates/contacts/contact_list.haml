@@ -86,9 +86,9 @@
                               .glyph.icon-user-block
                               -trans "Block"
 
-                      - if 'restore' in actions
+                      - if 'unblock' in actions
                         %span.btn-group
-                          %a.object-btn-restore{'href':'#'}
+                          %a.object-btn-unblock{'href':'#'}
                             %button.btn
                               -trans "Unblock"
 
@@ -345,6 +345,15 @@
       modal.setPrimaryButton('{% trans "Delete" %}');
       modal.show();
     });
+    {% endif %}
+
+    {% if org_perms.contacts.contact_unblock %}
+      $(".page-content").on('click', ".object-btn-unblock", function() {
+	    runActionOnObjectRows("unblock");
+      });
+      $(".page-content").on('click', ".object-btn-block", function() {
+	    runActionOnObjectRows("block");
+      });
     {% endif %}
 
     {% if org_perms.contacts.contactgroup_create %}
