@@ -1384,6 +1384,14 @@ class Label(TembaModel, SmartModel):
     org = models.ForeignKey(Org)
 
     @classmethod
+    def get_or_create(cls, org, user, name, parent=None):
+        label = Label.objects.filter(org=org, name__iexact=name).first()
+        if label:
+            return label
+
+        return Label.create(org, user, name, parent)
+
+    @classmethod
     def create(cls, org, user, name, parent=None):
         # only allow 1 level of nesting
         if parent and parent.parent_id:  # pragma: no cover

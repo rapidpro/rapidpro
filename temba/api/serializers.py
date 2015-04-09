@@ -164,10 +164,7 @@ class MsgBulkActionSerializer(serializers.Serializer):
     def validate_label(self, attrs, source):
         label_name = attrs.get(source, None)
         if label_name:
-            label = Label.objects.filter(org=self.user.get_org(), name=label_name).first()
-            if not label:
-                label = Label.create_unique(self.user.get_org(), self.user, label_name, None)
-            attrs['label'] = label
+            attrs['label'] = Label.get_or_create(self.user.get_org(), self.user, label_name, None)
         return attrs
 
     def validate_label_uuid(self, attrs, source):
@@ -248,9 +245,8 @@ class LabelWriteSerializer(serializers.Serializer):
         org = self.user.get_org()
         uuid = attrs.get('uuid', None)
         name = attrs.get(source, None)
-        parent = attrs.get('parent', None)
 
-        if Label.objects.filter(org=org, name=name, parent__uuid=parent).exclude(uuid=uuid).exists():
+        if Label.objects.filter(org=org, name=name).exclude(uuid=uuid).exists():
             raise ValidationError("Label name must be unique")
 
         return attrs
