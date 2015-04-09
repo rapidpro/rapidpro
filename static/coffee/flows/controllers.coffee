@@ -79,6 +79,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   # inject into our gear menu
   $rootScope.gearLinks = []
+  $rootScope.ivr = window.ivr
 
   # when they click on an injected gear item
   $scope.clickGearMenuItem = (id) ->
@@ -111,6 +112,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         body: -> body
         okButton: -> okButton
         hideCancel: -> hideCancel
+
+
+  $scope.getAcceptedScopes = (nodeType) ->
+    if nodeType == "ruleset"
+      if window.ivr
+        return 'rules'
+      else
+        return 'actions rules'
+    else
+      return 'actions'
 
 
   $scope.showRevisionHistory = ->
