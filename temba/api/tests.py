@@ -1098,15 +1098,15 @@ class APITest(TembaTest):
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        sms = Msg.objects.get()
-        self.assertEquals("test1", sms.text)
-        self.assertEquals("+250788123123", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(self.admin.get_org(), sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals(broadcast, sms.broadcast)
+        msg1 = Msg.objects.get()
+        self.assertEquals("test1", msg1.text)
+        self.assertEquals("+250788123123", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(self.admin.get_org(), msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals(broadcast, msg1.broadcast)
         
         # fetch by message id
-        response = self.fetchJSON(url, "id=%d" % sms.pk)
+        response = self.fetchJSON(url, "id=%d" % msg1.pk)
         self.assertResultCount(response, 1)
         self.assertContains(response, "test1")
 
@@ -1157,7 +1157,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         label = Label.create_unique(self.org, self.user, "Goo")
-        label.toggle_label([sms], add=True)
+        label.toggle_label([msg1], add=True)
 
         response = self.fetchJSON(url, "label=Goo")
         self.assertEquals(200, response.status_code)
@@ -1166,6 +1166,12 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&urn=%2B250788123123&channel=-1")
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
+
+        # search by text
+        response = self.fetchJSON(url, "text=TEST")
+        self.assertResultCount(response, 1)
+        response = self.fetchJSON(url, "text=XXX")
+        self.assertResultCount(response, 0)
 
         # search by group
         response = self.fetchJSON(url, "group=Players")
@@ -1195,6 +1201,7 @@ class APITest(TembaTest):
         # associate one of our messages with a flow run
         flow = self.create_flow()
         flow.start([], [contact])
+        msg2 = Msg.objects.get(msg_type='F')
 
         response = self.fetchJSON(url, "type=F")
         self.assertEquals(200, response.status_code)
@@ -1212,6 +1219,15 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "broadcast=%d" % broadcast.pk)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
+
+        # check default ordering is -created_on
+        msg3 = Msg.create_outgoing(self.org, self.user, self.joe, "test2")
+        response = self.fetchJSON(url, "")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk, msg2.pk, msg1.pk])
+
+        # test reversing ordering
+        response = self.fetchJSON(url, "reverse=1")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk])
 
         # check anon org case
         with AnonymousOrg(self.org):
