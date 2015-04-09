@@ -620,7 +620,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
       * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
-      * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
+      * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string) (filterable: ```text```)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
@@ -754,6 +754,10 @@ class MessagesEndpoint(generics.ListAPIView):
         if labels:
             queryset = queryset.filter(labels__name__in=labels)
 
+        text = self.request.QUERY_PARAMS.get('text', None)
+        if text:
+            queryset = queryset.filter(text__icontains=text)
+
         flows = splitting_getlist(self.request, 'flow')
         if flows:
             queryset = queryset.filter(steps__run__flow__in=flows)
@@ -771,32 +775,34 @@ class MessagesEndpoint(generics.ListAPIView):
                     url=reverse('api.messages'),
                     slug='sms-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
-        spec['fields'] = [ dict(name='id', required=False,
-                                help="One or more message ids to filter by. (repeatable)  ex: 234235,230420"),
-                           dict(name='contact', required=False,
-                                help="One or more contact UUIDs to filter by. (repeatable)  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
-                           dict(name='group_uuids', required=False,
-                                help="One or more contact group UUIDs to filter by. (repeatable) ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
-                           dict(name='status', required=False,
-                                help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
-                           dict(name='direction', required=False,
-                                help="One or more directions to filter by. (repeatable) ex: I,O"),
-                           dict(name='type', required=False,
-                                help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
-                           dict(name='urn', required=False,
-                                help="One or more URNs to filter messages by. (repeatable) ex: tel:+250788123123"),
-                           dict(name='label', required=False,
-                                help="One or more message labels to filter by. (repeatable) ex: Clogged Filter"),
-                           dict(name='flow', required=False,
-                                help="One or more flow ids to filter by. (repeatable) ex: 11851"),
-                           dict(name='broadcast', required=False,
-                                help="One or more broadcast ids to filter by. (repeatable) ex: 23432,34565"),
-                           dict(name='before', required=False,
-                                help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='relayer', required=False,
-                                help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
+        spec['fields'] = [dict(name='id', required=False,
+                               help="One or more message ids to filter by. (repeatable)  ex: 234235,230420"),
+                          dict(name='contact', required=False,
+                               help="One or more contact UUIDs to filter by. (repeatable)  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                          dict(name='group_uuids', required=False,
+                               help="One or more contact group UUIDs to filter by. (repeatable) ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
+                          dict(name='status', required=False,
+                               help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
+                          dict(name='direction', required=False,
+                               help="One or more directions to filter by. (repeatable) ex: I,O"),
+                          dict(name='type', required=False,
+                               help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
+                          dict(name='urn', required=False,
+                               help="One or more URNs to filter messages by. (repeatable) ex: tel:+250788123123"),
+                          dict(name='label', required=False,
+                               help="One or more message labels to filter by. (repeatable) ex: Clogged Filter"),
+                          dict(name='text', required=False,
+                               help="Only return messages containing this text. ex: water"),
+                          dict(name='flow', required=False,
+                               help="One or more flow ids to filter by. (repeatable) ex: 11851"),
+                          dict(name='broadcast', required=False,
+                               help="One or more broadcast ids to filter by. (repeatable) ex: 23432,34565"),
+                          dict(name='before', required=False,
+                               help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='relayer', required=False,
+                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
 
         return spec
 

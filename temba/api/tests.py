@@ -1166,6 +1166,12 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
 
+        # search by text
+        response = self.fetchJSON(url, "text=TEST")
+        self.assertResultCount(response, 1)
+        response = self.fetchJSON(url, "text=XXX")
+        self.assertResultCount(response, 0)
+
         # search by group
         response = self.fetchJSON(url, "group=Players")
         self.assertEquals(200, response.status_code)
