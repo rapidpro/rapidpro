@@ -157,9 +157,10 @@ class WebHookEvent(SmartModel):
 
             # some hosts deny generic user agents, use Temba as our user agent
             headers = TEMBA_HEADERS
+
             # also include any optional headers
-            if org.webhook_header_field_name and org.webhook_header_value:
-                headers.update({org.webhook_header_field_name: org.webhook_header_value})
+            if org.get_webhook_headers():
+                headers.update(org.get_webhook_headers())
 
             if action == 'GET':
                 response = requests.get(webhook_url, headers=headers, timeout=10)

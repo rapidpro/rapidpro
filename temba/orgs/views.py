@@ -1244,25 +1244,39 @@ class OrgCRUDL(SmartCRUDL):
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class WebhookForm(forms.ModelForm):
-            webhook = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
-            webhook_header_field_name = forms.CharField(required=False, label=_("Webhook Header Field Name"))
-            webhook_header_value = forms.CharField(required=False, label=_("Webhook Header Value"))
+            webhook = forms.CharField(required=False, label=_("Webhook URL"), help_text="")
+            headers = forms.CharField(required=False)
             mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
             mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
             mt_call = forms.BooleanField(required=False, label=_("Incoming Calls"))
             mo_call = forms.BooleanField(required=False, label=_("Outgoing Calls"))
             alarm = forms.BooleanField(required=False, label=_("Channel Alarms"))
 
+
             class Meta:
                 model = Org
 
         form_class = WebhookForm
-        fields = ('webhook', 'webhook_header_field_name', 'webhook_header_value', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
+        fields = ('webhook', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
         success_url = '@orgs.org_home'
         success_message = ''
 
+
         def pre_save(self, obj):
             obj = super(OrgCRUDL.Webhook, self).pre_save(obj)
+
+            # grab all submitted headers
+            # discard any key with a falsy value or whitespace value
+            headers = {k: v for k, v in self.form.data.items() if k.startswith('header_') and bool(v.strip())}
+
+            # ensure each header _value_ has a corresponding key
+            # (technically, its ok to have a valueless header key)
+            for n in xrange((len(headers) / 2)):
+                pair = {k: v for k, v in headers.items() if k.startswith('header_' + str(n + 1))}
+                if len({k for k in headers if 'key' in k}) == 0:
+                    raise ValidationError('Headers must include a key')
+
+            self.form.cleaned_data['headers'] = headers
             data = self.form.cleaned_data
 
             webhook_events = 0
@@ -1275,6 +1289,18 @@ class OrgCRUDL(SmartCRUDL):
             analytics.track(self.request.user.username, 'temba.org_configured_webhook')
 
             obj.webhook_events = webhook_events
+
+            webhook_data = {}
+            if data['webhook']:
+                webhook_data.update({'url': data['webhook']})
+                webhook_data.update({'method': 'POST'})
+
+            if data['headers']:
+                for k, v in data['headers'].iteritems():
+                    webhook_data.update({k: v})
+
+            obj.webhook = webhook_data
+
             return obj
 
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
