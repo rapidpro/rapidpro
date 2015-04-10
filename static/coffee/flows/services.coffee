@@ -212,18 +212,13 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
   recalculateOffsets: (nodeId) ->
 
     # update ourselves
-    jsPlumb.recalculateOffsets(nodeId)
-    jsPlumb.repaint(nodeId)
-
-    # do the same for all of our sources
-    $('#' + nodeId + ' .source').each ->
-      id = $(this).attr('id')
-      jsPlumb.recalculateOffsets(id)
-      jsPlumb.repaint(id)
+    $timeout ->
+      jsPlumb.recalculateOffsets(nodeId)
+      jsPlumb.repaint(nodeId)
+    ,0
 
   removeElement: (id) ->
     jsPlumb.remove(id)
-
 
   disconnectAllConnections: (id) ->
 
@@ -605,7 +600,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     for cat in ruleset._categories
       cat.source = cat.sources[0]
 
-    @applyActivity(ruleset, $rootScope.activity)
+    @applyActivity(ruleset, $rootScope.visibleActivity)
     return
 
   determineFlowStart: ->
@@ -713,12 +708,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     for previous, idx in $rootScope.flow.rule_sets
       if ruleset.uuid == previous.uuid
-
-        # remove the existing connections from the rules, these will
-        # be recreated by our watcher when the ruleset changes below
-        #for rule in previous.rules
-        #  $log.debug('removing', ruleset.uuid + '_' + rule.uuid + '_source')
-        #  jsPlumb.detachAllConnections(ruleset.uuid + '_' + rule.uuid + '_source')
 
         # group our rules by category and update the master ruleset
         @deriveCategories(ruleset, $rootScope.flow.base_language)
@@ -886,9 +875,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         @removeActionSet(actionset)
       else
         # if we still have actions, make sure our connection offsets are correct
-        $timeout ->
-          Plumb.recalculateOffsets(actionset.uuid)
-        ,0
+        Plumb.recalculateOffsets(actionset.uuid)
 
       @checkTerminal(actionset)
       @markDirty()
@@ -990,8 +977,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     if not found
       action.uuid = uuid()
       actionset.actions.push(action)
-
-    #$log.debug("Adding new action", actionset)
+      Plumb.recalculateOffsets(actionset.uuid)
 
     # finally see if our actionset exists or if it needs to be added
     found = false

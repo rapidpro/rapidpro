@@ -5838,8 +5838,10 @@
             return this.dragManager;
         },
 
-        recalculateOffsets:function() {
-            this.getDragManager().updateOffsets();
+        // Likely jsPlumb bug
+        // See https://github.com/sporritt/jsPlumb/issues/350
+        recalculateOffsets:function(el) {
+            this.getDragManager().updateOffsets(el);
         },
 
         createElement:function(tag, style, clazz, atts) {

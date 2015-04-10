@@ -1459,9 +1459,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
           if source.length > 1
             Flow.updateRuleTarget(source[0], source[1], actionset.uuid)
             Plumb.connect(source[0] + '_' + source[1], actionset.uuid, 'actions')
-
-        jsPlumb.recalculateOffsets(actionset.uuid)
-        jsPlumb.repaint(actionset.uuid)
       ,0
 
   $scope.cancel = ->

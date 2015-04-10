@@ -283,19 +283,7 @@ app.directive "operatorName", [ "Flow", (Flow) ->
 app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
   link = (scope, element, attrs) ->
     if window.mutable
-
       Plumb.makeSource(attrs.id, attrs.dropScope)
-
-      if false
-        # don't allow connections to be dragged from connected sources
-        if scope.action_set
-          scope.$watch (->scope.action_set.destination), (destination) ->
-            if !scope.action_set._terminal
-              Plumb.setSourceEnabled(attrs.id, !destination?)
-
-        else if scope.category
-          scope.$watch (->scope.category.target), (target) ->
-            Plumb.setSourceEnabled(attrs.id, !target?)
 
     scope.$on '$destroy', ->
       if jsPlumb.isSource(attrs.id)
