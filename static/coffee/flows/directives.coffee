@@ -42,7 +42,7 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
               element.offset(element.data('previous'))
               element.data('previous', null)
               element.removeClass('collision')
-              jsPlumb.repaintEverything()
+              Plumb.repaint()
 
             else
 
@@ -55,10 +55,7 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
               $timeout ->
                 window.dragging = false
                 Flow.markDirty()
-                #jsPlumb.recalculateOffsets(element);
               , 0
-
-            # Plumb.repaint()
       ,0
 
       scope.$on '$destroy', ->

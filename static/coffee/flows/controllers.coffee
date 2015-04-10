@@ -273,7 +273,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     $(connection.sourceId).parent().removeClass('reconnecting')
 
-    scope = jsPlumb.getSourceScope(connection.sourceId)
     source = connection.sourceId.split('_')
 
     createdNewNode = false
@@ -290,7 +289,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             msg[$rootScope.flow.base_language] = ''
 
           actionset =
-            from: connection.sourceId
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId
@@ -300,7 +298,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               uuid: uuid()
             ]
 
-          $scope.clickAction(actionset, actionset.actions[0])
+          $scope.clickAction(actionset, actionset.actions[0], connection.sourceId)
           createdNewNode = true
 
         else
@@ -311,7 +309,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             category[$rootScope.flow.base_language] = "All Responses"
 
           ruleset =
-            from: source[0]
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId,
@@ -326,7 +323,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               uuid: uuid()
             ]
 
-          $scope.clickRuleset(ruleset)
+          $scope.clickRuleset(ruleset, source[0])
           createdNewNode = true
 
       # TODO: temporarily let ghost stay on screen with connector until dialog is closed
@@ -335,28 +332,15 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     if not createdNewNode
 
-      # keep our targets up to date
-      if scope == 'actions'
-        to = connection.targetId
+      to = connection.targetId
 
-        # When we make a bad drop, jsplumb will give us a sourceId but no source
-        if not connection.source
-          to = null
-
-        Flow.updateRuleTarget(source[0], source[1], to)
-
-      if scope == 'rules'
-        to = connection.targetId
-        window.connection = connection
-
-        # When we make a bad drop, jsplumb will give us a sourceId but no source
-        if not connection.source
-          to = null
-
-        Flow.updateActionsTarget(source[0], to)
+      # When we make a bad drop, jsplumb will give us a sourceId but no source
+      if not connection.source
+        to = null
 
     $timeout ->
-      $rootScope.dirty = true
+      Flow.updateDestination(connection.sourceId, to)
+      Flow.markDirty()
     ,0
 
   $scope.onConnectorDrag = (connection) ->
@@ -431,7 +415,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         methods: -> ['GET', 'POST']
         ruleset: -> ruleset
 
-  $scope.clickRuleset = (ruleset) ->
+  $scope.clickRuleset = (ruleset, dragSource=null) ->
     if window.dragging or not window.mutable
       return
 
@@ -456,6 +440,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             options: ->
               nodeType: 'ivr'
               ruleset: ruleset
+              dragSource: dragSource
 
       else
         $modal.open
@@ -465,6 +450,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             options: ->
               nodeType: 'rules'
               ruleset: ruleset
+              dragSource: dragSource
 
   $scope.confirmRemoveWebhook = (event, ruleset) ->
 
@@ -609,7 +595,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     $('#' + action_uuid + "_audio")[0].play()
 
-  $scope.clickAction = (actionset, action) ->
+  $scope.clickAction = (actionset, action, dragSource=null) ->
+
+
+    $log.debug("dragSource", dragSource)
 
     if window.dragging or not window.mutable
       return
@@ -656,6 +645,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             nodeType: 'actions'
             actionset: actionset
             action: action
+            dragSource: dragSource
 
   $scope.mouseMove = ($event) ->
 
@@ -677,10 +667,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         top: $event.pageY
     return false
 
-
   # allow use to cancel display of recent messages
   showRecentDelay = null
-
   $scope.hideRecentMessages = ->
 
     $timeout.cancel(showRecentDelay)
@@ -693,7 +681,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       this.action_set._showMessages = false
 
   $scope.showRecentMessages = ->
-
 
     hovered = this
     showRecentDelay = $timeout ->
@@ -770,7 +757,6 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
 # The controller for our translation modal
 TranslationController = ($scope, $modalInstance, languages, translation) ->
-  #console.log("Translating from " + languages.from + " to " + languages.to)
   $scope.translation = translation
   $scope.languages = languages
 
@@ -810,6 +796,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   # let our template know our editor type
   $scope.nodeType = options.nodeType
   $scope.ivr = window.ivr
+  $scope.options = options
 
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
@@ -821,7 +808,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       uuid: uuid()
 
     actionset =
-      created: true
+      _switchedFromRule: true
       x: ruleset.x
       y: ruleset.y
       uuid: uuid()
@@ -834,7 +821,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     #our place holder ruleset if the flip
     ruleset =
-      created: true
+      _switchedFromAction: true
       x: actionset.x
       y: actionset.y
       uuid: uuid(),
@@ -1220,41 +1207,25 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # switching from an actionset means removing it and hijacking its connections
     connections = Plumb.getConnectionMap({ target: actionset.uuid })
-    if $scope.ruleset.created
+    if $scope.ruleset._switchedFromAction
       Flow.removeActionSet($scope.actionset)
 
     # save our new ruleset
     Flow.replaceRuleset($scope.ruleset)
 
     # steal the old connections if we are replacing an actionset with ourselves
-    if $scope.ruleset.created
+    if $scope.ruleset._switchedFromAction
       $timeout ->
         ruleset_uuid = $scope.ruleset.uuid
         for source of connections
-          source = source.split('_')
-          Flow.updateRuleTarget(source[0], source[1], ruleset_uuid)
-          Plumb.connect(source[0] + '_' + source[1], ruleset_uuid, 'actions')
-
-        jsPlumb.recalculateOffsets(ruleset_uuid)
-        jsPlumb.repaint(ruleset_uuid)
+          Flow.updateDestination(source, ruleset_uuid)
       ,0
 
 
     # link us up if necessary, we need to do this after our element is created
-    if $scope.ruleset.from
+    if $scope.options.dragSource
+      Flow.updateDestination($scope.options.dragSource, $scope.ruleset.uuid)
 
-      # keep our destination up to date
-      for actionset in $scope.flow.action_sets
-        if actionset.uuid == $scope.ruleset.from
-          actionset.destination = $scope.ruleset.uuid
-          Plumb.updateConnection(actionset)
-          $scope.ruleset.from = null
-          break
-
-      #$timeout ->
-      #  Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid, 'rules')
-
-      #,0
 
   $scope.cancel = ->
     stopWatching()
@@ -1443,22 +1414,23 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.ok = ->
     $timeout ->
       $('.submit').click()
+      # link us up if necessary, we need to do this after our element is created
+      if options.dragSource
+        Flow.updateDestination(options.dragSource, actionset.uuid)
     ,0
 
-    # switching from an ruleset means removing it and hijacking its connections
-    connections = Plumb.getConnectionMap({ target: $scope.ruleset.uuid })
-
-    # steal the old connections if we are replacing a node with ourselves
-    if actionset.created
+    # switching from a ruleset means removing it and hijacking its connections
+    if actionset._switchedFromRule
+      connections = Plumb.getConnectionMap({ target: $scope.ruleset.uuid })
       Flow.removeRuleset($scope.ruleset)
 
       $timeout ->
         for source of connections
-          source = source.split('_')
           # only rules can go to us, actions cant connect to actions
-          if source.length > 1
-            Flow.updateRuleTarget(source[0], source[1], actionset.uuid)
-            Plumb.connect(source[0] + '_' + source[1], actionset.uuid, 'actions')
+          if source.split('_').length > 1
+            Flow.updateDestination(source, actionset.uuid)
+          else
+            Flow.updateDestination(source, null)
       ,0
 
   $scope.cancel = ->
