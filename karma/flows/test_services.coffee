@@ -38,7 +38,7 @@ describe 'Services:', ->
       $http.whenGET('/flow/completion/?flow=' + config.id).respond([])
   )
 
-  describe 'Flow service', ->
+  describe 'Flow', ->
 
     $window = null
     $rootScope = null
@@ -169,3 +169,87 @@ describe 'Services:', ->
       ruleOther.category = {eng:'b'}
       flowService.deriveCategories(ruleset, 'eng')
       expect(ruleOther.destination).toBe(null)
+
+    describe 'updateDestination()', ->
+
+      colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
+      colorRulesId = '1a08ec37-2218-48fd-b6b0-846b14407041'
+      redRuleId = 'e82dfba9-aaf3-438c-b52d-5dee50b1260c'
+      greenRuleId = '6ac83530-aab5-423f-809e-56b6657dd543'
+      beerActionsId = '2469ada5-3c36-4d74-bf73-daab0a56c37c'
+      nameActionsId = 'e990c809-62f3-44e7-b50a-e127324a6cde'
+
+      flow = null
+
+      beforeEach ->
+        $window.flowId = flows.favorites.id
+        flowService.fetch().then ->
+          # derive all our categories
+          flow = $rootScope.flow
+          for ruleset in flow.rule_sets
+            flowService.deriveCategories(ruleset)
+        $http.flush()
+
+      it 'should handle null action destinations', ->
+
+        # check our test rule is going to the right place first
+        question = getNode(flow, colorActionsId)
+        expect(question.destination).toBe(colorRulesId)
+
+        # update to no destination
+        flowService.updateDestination(colorActionsId, null)
+        expect(question.destination).toBe(null)
+
+      it 'should handle null ruleset destinations', ->
+
+        # check our test rule is going to the right place first
+        color = getRule(flow, colorRulesId, redRuleId)
+        expect(color.destination).toBe(beerActionsId)
+
+        # update to no destination
+        flowService.updateDestination(colorRulesId + '_' + redRuleId, null)
+        expect(color.destination).toBe(null)
+
+      it 'should allow _source suffix', ->
+
+        # actions with _source suffix
+        question = getNode(flow, colorActionsId)
+        flowService.updateDestination(colorActionsId + '_source', null)
+        expect(question.destination).toBe(null)
+
+        # rule with _source suffix
+        color = getRule(flow, colorRulesId, redRuleId)
+        flowService.updateDestination(colorRulesId + '_' + redRuleId + '_source', null)
+        expect(color.destination).toBe(null)
+
+      it 'should connect actions to a new rule', ->
+        flowService.updateDestination(colorRulesId + '_' + greenRuleId, nameActionsId)
+        green = getRule(flow, colorRulesId, greenRuleId)
+        expect(green.destination).toBe(nameActionsId, 'couldnt update rule to valid action')
+
+        # make sure our category updated too
+        colors = getNode(flow, colorRulesId)
+        expect(colors._categories[1].name).toBe('Green')
+        expect(colors._categories[1].target).toBe(nameActionsId)
+
+      it 'should update joined rules', ->
+
+        # check we have the right number of categories to start
+        colors = getNode(flow, colorRulesId)
+        expect(colors._categories.length).toBe(4, 'categories were not derived properly')
+
+        # now set the green category name to the same as red
+        green = getRule(flow, colorRulesId, greenRuleId)
+        green.category = 'red'
+        flowService.deriveCategories(colors)
+        expect(colors._categories.length).toBe(3, 'like named category did not get merged')
+
+        # change red to skip a question
+        flowService.updateDestination(colorRulesId + '_' + redRuleId, nameActionsId)
+
+        # green should have moved there too automatically
+        red = getRule(flow, colorRulesId, redRuleId)
+        green = getRule(flow, colorRulesId, greenRuleId)
+        expect(green.destination).toBe(nameActionsId, 'green rule didnt update')
+        expect(red.destination).toBe(nameActionsId, 'red rule didnt update')
+
