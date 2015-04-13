@@ -28,7 +28,7 @@ from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializ
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
-from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer
+from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
 from temba.assets.models import AssetType
@@ -42,7 +42,7 @@ from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
 from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist
+from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -275,6 +275,8 @@ class ApiExplorerView(SmartTemplateView):
 
         endpoints.append(MessagesEndpoint.get_read_explorer())
         #endpoints.append(MessagesEndpoint.get_write_explorer())
+
+        endpoints.append(MessagesBulkActionEndpoint.get_write_explorer())
 
         endpoints.append(BroadcastsEndpoint.get_read_explorer())
         endpoints.append(BroadcastsEndpoint.get_write_explorer())
@@ -620,7 +622,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
       * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
-      * **text** - the text of the message received, not this is the logical view, this message may have been received as multiple text messages (string)
+      * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
@@ -683,7 +685,7 @@ class MessagesEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = Msg.objects.filter(org=self.request.user.get_org()).order_by('-created_on')
+        queryset = Msg.objects.filter(org=self.request.user.get_org())
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
@@ -756,6 +758,10 @@ class MessagesEndpoint(generics.ListAPIView):
         if labels:
             queryset = queryset.filter(labels__name__in=labels)
 
+        text = self.request.QUERY_PARAMS.get('text', None)
+        if text:
+            queryset = queryset.filter(text__icontains=text)
+
         flows = splitting_getlist(self.request, 'flow')
         if flows:
             queryset = queryset.filter(steps__run__flow__in=flows)
@@ -764,7 +770,10 @@ class MessagesEndpoint(generics.ListAPIView):
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
 
-        return queryset.order_by('-created_on').select_related('labels')
+        reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
+        order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
+
+        return queryset.order_by(order).prefetch_related('labels')
 
     @classmethod
     def get_read_explorer(cls):
@@ -773,32 +782,32 @@ class MessagesEndpoint(generics.ListAPIView):
                     url=reverse('api.messages'),
                     slug='sms-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
-        spec['fields'] = [ dict(name='id', required=False,
-                                help="One or more message ids to filter by. (repeatable)  ex: 234235,230420"),
-                           dict(name='contact', required=False,
-                                help="One or more contact UUIDs to filter by. (repeatable)  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
-                           dict(name='group_uuids', required=False,
-                                help="One or more contact group UUIDs to filter by. (repeatable) ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
-                           dict(name='status', required=False,
-                                help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
-                           dict(name='direction', required=False,
-                                help="One or more directions to filter by. (repeatable) ex: I,O"),
-                           dict(name='type', required=False,
-                                help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
-                           dict(name='urn', required=False,
-                                help="One or more URNs to filter messages by. (repeatable) ex: tel:+250788123123"),
-                           dict(name='label', required=False,
-                                help="One or more message labels to filter by. (repeatable) ex: Clogged Filter"),
-                           dict(name='flow', required=False,
-                                help="One or more flow ids to filter by. (repeatable) ex: 11851"),
-                           dict(name='broadcast', required=False,
-                                help="One or more broadcast ids to filter by. (repeatable) ex: 23432,34565"),
-                           dict(name='before', required=False,
-                                help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='relayer', required=False,
-                                help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
+        spec['fields'] = [dict(name='id', required=False,
+                               help="One or more message ids to filter by. (repeatable)  ex: 234235,230420"),
+                          dict(name='contact', required=False,
+                               help="One or more contact UUIDs to filter by. (repeatable)  ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"),
+                          dict(name='group_uuids', required=False,
+                               help="One or more contact group UUIDs to filter by. (repeatable) ex: 0ac92789-89d6-466a-9b11-95b0be73c683"),
+                          dict(name='status', required=False,
+                               help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
+                          dict(name='direction', required=False,
+                               help="One or more directions to filter by. (repeatable) ex: I,O"),
+                          dict(name='type', required=False,
+                               help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
+                          dict(name='urn', required=False,
+                               help="One or more URNs to filter messages by. (repeatable) ex: tel:+250788123123"),
+                          dict(name='label', required=False,
+                               help="One or more message labels to filter by. (repeatable) ex: Clogged Filter"),
+                          dict(name='flow', required=False,
+                               help="One or more flow ids to filter by. (repeatable) ex: 11851"),
+                          dict(name='broadcast', required=False,
+                               help="One or more broadcast ids to filter by. (repeatable) ex: 23432,34565"),
+                          dict(name='before', required=False,
+                               help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='relayer', required=False,
+                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
 
         return spec
 
@@ -819,6 +828,68 @@ class MessagesEndpoint(generics.ListAPIView):
                           dict(name='relayer', required=False,
                                help="The id of the channel that should send this message, if not specified we will "
                                     "choose what it thinks is the best channel to deliver this message.")]
+        return spec
+
+
+class MessagesBulkActionEndpoint(generics.GenericAPIView):
+    """
+    ## Bulk Message Updating
+
+    A **POST** can be used to perform an action on a set of messages in bulk.
+
+    * **messages** - either a single message id or a JSON array of message ids (int or array of ints)
+    * **action** - the action to perform, a string one of:
+
+            label - Apply the given label to the messages
+            unlabel - Remove the given label from the messages
+            archive - Archive the messages
+            unarchive - Un-archive the messages
+            delete - Permanently delete the messages
+
+    * **label** - the name of a label (string, optional)
+    * **label_uuid** - the UUID of a label (string, optional)
+
+    Example:
+
+        POST /api/v1/message_actions.json
+        {
+            "messages": [1234, 2345, 3456],
+            "action": "label",
+            "label": "Testing"
+        }
+
+    You will receive an empty response if successful.
+    """
+    permission = 'msgs.msg_api'
+    permission_classes = (SSLPermission, ApiPermission)
+    serializer_class = MsgBulkActionSerializer
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.serializer_class(user=user, data=request.DATA)
+
+        if serializer.is_valid():
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Update one or more messages",
+                    url=reverse('api.message_actions'),
+                    slug='msg-actions',
+                    request='{ "messages": [12345, 23456], "action": "label", '
+                            '"label_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
+
+        spec['fields'] = [dict(name='messages', required=True,
+                               help="A JSON array of one or more integers, each a message id."),
+                          dict(name='action', required=True,
+                               help="One of the following strings: label, unlabel, archive, unarchive, delete"),
+                          dict(name='label', required=False,
+                               help="The name of a label if the action is label or unlabel"),
+                          dict(name='label_uuid', required=False,
+                               help="The UUID of a label if the action is label or unlabel")]
         return spec
 
 
@@ -2577,11 +2648,10 @@ class FlowEndpoint(generics.ListAPIView):
             queryset = queryset.filter(labels__name__in=label)
 
         archived = self.request.QUERY_PARAMS.get('archived', None)
-        if not archived is None:
-            archived = True if archived.lower() in ['true', 'y', 'yes', '1'] else False
-            queryset = queryset.filter(is_archived=archived)
+        if archived is not None:
+            queryset = queryset.filter(is_archived=str_to_bool(archived))
 
-        return queryset.select_related('label')
+        return queryset.prefetch_related('labels')
 
     @classmethod
     def get_read_explorer(cls):

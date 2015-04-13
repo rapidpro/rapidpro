@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import json
 
-from datetime import date
+from datetime import date, timedelta
 from django import forms
 from django.conf import settings
 from django.core.urlresolvers import reverse
@@ -103,13 +103,23 @@ class FolderListView(OrgPermsMixin, SmartListView):
     refresh = 10000
     add_button = True
     fields = ('from', 'message', 'received')
-    search_fields = ('text__icontains',)
+    search_fields = ('text__icontains', 'contact__name__icontains', 'contact__urns__path__icontains')
     paginate_by = 100
 
     def pre_process(self, request, *args, **kwargs):
         if hasattr(self, 'folder'):
             org = request.user.get_org()
             self.queryset = org.get_folder_queryset(self.folder)
+
+    def get_queryset(self, **kwargs):
+        queryset = super(FolderListView, self).get_queryset(**kwargs)
+
+        # if we are searching, limit to last 90
+        if 'search' in self.request.REQUEST:
+            last_90 = timezone.now() - timedelta(days=90)
+            queryset = queryset.filter(created_on__gte=last_90)
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -240,7 +250,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Outbox(FolderListView):
         title = _("Outbox")
         fields = ('contacts', 'msgs', 'sent', 'status',)
-        search_fields = ('msgs__text__icontains',)
+        search_fields = ('msgs__text__icontains', 'contacts__urns__path__icontains')
         template_name = 'msgs/broadcast_outbox.haml'
         default_order = ('-created_on')
         folder = OrgFolder.broadcasts_outbox
@@ -253,7 +263,7 @@ class BroadcastCRUDL(SmartCRUDL):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
-        search_fields = ('text__icontains',)
+        search_fields = ('text__icontains', 'contacts__urns__path__icontains')
         template_name = 'msgs/broadcast_schedule_list.haml'
         default_order = ('schedule__status', 'schedule__next_fire', '-created_on')
         folder = OrgFolder.broadcasts_scheduled
@@ -808,25 +818,28 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class LabelForm(forms.ModelForm):
-    parent = forms.ModelChoiceField(Label.objects.all(), required=False, label=_("Parent"))
+    parent = forms.ModelChoiceField(Label.objects.none(), required=False, label=_("Parent"))
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
-        self.org = kwargs['org']
-        del kwargs['org']
-
-        label = None
-        if 'label' in kwargs:
-            label = kwargs['label']
-            del kwargs['label']
+        self.org = kwargs.pop('org')
+        self.existing = kwargs.pop('label', None)
 
         super(LabelForm, self).__init__(*args, **kwargs)
-        qs = Label.objects.filter(org=self.org, parent=None)
+        parent_qs = Label.objects.filter(org=self.org, parent=None)
 
-        if label:
-            qs = qs.exclude(id=label.pk)
+        # can't be your own parent
+        if self.existing:
+            parent_qs = parent_qs.exclude(id=self.existing.pk)
 
-        self.fields['parent'].queryset = qs
+        self.fields['parent'].queryset = parent_qs
+
+    def clean_name(self):
+        data = self.cleaned_data['name']
+        existing_id = self.existing.pk if self.existing else None
+        if Label.objects.filter(org=self.org, name__iexact=data).exclude(pk=existing_id).exists():
+            raise forms.ValidationError("Label name must be unique")
+        return data
 
     class Meta:
         model = Label
@@ -849,10 +862,32 @@ class LabelCRUDL(SmartCRUDL):
                 results.append(result)
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
-        redirect_url = "@msgs.msg_inbox"
-        cancel_url = "@msgs.msg_inbox"
+    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+        fields = ('name', 'parent', 'messages')
+        success_url = '@msgs.msg_inbox'
+        form_class = LabelForm
         success_message = ''
+        submit_button_name = _("Create")
+
+        def get_form_kwargs(self):
+            kwargs = super(LabelCRUDL.Create, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
+
+        def save(self, obj):
+            user = self.request.user
+            self.object = Label.create(user.get_org(), user, obj.name, obj.parent)
+
+        def post_save(self, obj, *args, **kwargs):
+            obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
+
+            if self.form.cleaned_data['messages']:
+                msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
+                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
+                if messages:
+                    obj.toggle_label(messages, add=True)
+
+            return obj
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = LabelForm
@@ -868,37 +903,10 @@ class LabelCRUDL(SmartCRUDL):
         def derive_fields(self):
             return ('name', 'parent')
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ('name', 'parent', 'messages')
-        success_url = '@msgs.msg_inbox'
-        form_class = LabelForm
+    class Delete(OrgObjPermsMixin, SmartDeleteView):
+        redirect_url = "@msgs.msg_inbox"
+        cancel_url = "@msgs.msg_inbox"
         success_message = ''
-        submit_button_name = _("Create")
-
-
-        def get_form_kwargs(self):
-            kwargs = super(LabelCRUDL.Create, self).get_form_kwargs()
-            kwargs['org'] = self.request.user.get_org()
-            return kwargs
-
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super(LabelCRUDL.Create, self).pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            return obj
-
-        def post_save(self, obj, *args, **kwargs):
-            obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
-
-            msg_ids = []
-            if self.form.cleaned_data['messages']:
-                msg_ids = [ int(_) for _ in self.form.cleaned_data['messages'].split(',') if _.isdigit() ]
-
-            messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
-
-            if messages:
-                obj.toggle_label(messages, add=True)
-
-            return obj
 
 
 class CallCRUDL(SmartCRUDL):

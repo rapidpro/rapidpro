@@ -708,7 +708,7 @@ GROUP_PERMISSIONS = {
         'campaigns.campaign_read',
         'campaigns.campaignevent_read',
 
-        'contacts.contact_archived',
+        'contacts.contact_blocked',
         'contacts.contact_export',
         'contacts.contact_failed',
         'contacts.contact_filter',
