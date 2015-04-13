@@ -744,8 +744,9 @@ class OrgCRUDL(SmartCRUDL):
             return "<div class='num-credits'>%d</div>" % obj.credits
 
         def get_owner(self, obj):
-            url = reverse('users.user_mimic', args=[obj.created_by.pk])
-            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, obj.created_by.first_name, obj.created_by.last_name, obj.created_by)
+            owner = obj.latest_admin()
+            url = reverse('users.user_mimic', args=[owner.pk])
+            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, owner.first_name, owner.last_name, owner)
 
         def get_name(self, obj):
             return "<div class='org-name'>%s</div><div class='org-timezone'>%s</div>" % (obj.name, obj.timezone)
@@ -759,7 +760,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
-            context['searches'] = ['Nyaruka', 'Unicef', 'Boston University', 'JH', 'University of Chicago']
+            context['searches'] = ['Nyaruka', ]
             return context
 
         def lookup_field_link(self, context, field, obj):

@@ -845,6 +845,9 @@ class Org(SmartModel):
         org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers()
         return org_users.distinct()
 
+    def latest_admin(self):
+        return self.get_org_admins().last()
+
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
