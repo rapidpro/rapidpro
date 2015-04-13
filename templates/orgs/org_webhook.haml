@@ -9,37 +9,39 @@
   .field.webhook-url
     %label{ for:'webhook' }
       -trans "Webhook"
-    <input type="text" id="id_webhook" name="webhook" value={{ org.webhook.url }} />
+    <input type="text" id="id_webhook" name="webhook" value="{{ org.get_webhook_url }}" />
   .field.webhook-headers
+
     %a.expand
       -trans "Additional options"
 
-    {% if org.get_webhook_headers_list %}
-      {% for pair in org.get_webhook_headers_list %}
+    .templates
+      .field.webhook-header-pair.hide
+        .field.header-key
+          <label for="header_0_key">
+            -trans "Header key"
+          </label>
+          <input type="text" id="id_header_0_key" name="header_0_key"/>
+        .field.webhook-header-value
+          <label for="header_0_value">
+            -trans "Header value"
+          </label>
+          <input type="text" id="id_header_0_value" name="header_0_value"/>
+
+    {% if org.get_webhook_headers %}
+      {% for key, val in org.get_webhook_headers.items %}
         .field.webhook-header-pair.hide
           .field.header-key
             <label for="header_{{ forloop.counter }}_key">
               -trans "Header key"
             </label>
-            <input type="text" id="id_header_{{ forloop.counter }}_key" name="header_{{ forloop.counter }}_key" value="{{ pair.0.1 }}" />
+            <input type="text" id="id_header_{{ forloop.counter }}_key" name="header_{{ forloop.counter }}_key" value="{{ key }}" />
           .field.webhook-header-value
             <label for="header_{{ forloop.counter }}_value">
               -trans "Header value"
             </label>
-            <input type="text" id="id_header_{{ forloop.counter }}_value" name="header_{{ forloop.counter }}_value" value="{{ pair.1.1 }}" />
+            <input type="text" id="id_header_{{ forloop.counter }}_value" name="header_{{ forloop.counter }}_value" value="{{ val }}" />
       {% endfor %}
-    {% else %}
-        .field.webhook-header-pair.hide
-          .field.header-key
-            <label for="header_1_key">
-              -trans "Header key"
-            </label>
-            <input type="text" id="id_header_1_key" name="header_1_key"/>
-          .field.webhook-header-value
-            <label for="header_1_value">
-              -trans "Header value"
-            </label>
-            <input type="text" id="id_header_1_value" name="header_1_value"/>
     {% endif %}
 
   API Token: {{user.api_token}}
@@ -88,7 +90,7 @@
 -block summary
   -if org.webhook
     -trans "WebHook events are being forwarded to"
-    %span.attn= org.webhook.url
+    %span.attn= org.get_webhook_url
     %div
       -trans "Your API Token is"
       {{user.api_token}}
@@ -151,38 +153,31 @@
         });
       });
 
-      function markupForHeaderPair(num) {
-        // TODO FIXME lacks i18n -- not sure how this should plug into the haml-to-html rendering process
-        var markup = "\
-          <div class=\'field webhook-header-pair\'>\
-            <div class=\'field header-key\'>\
-              <label for=\"header_1_key\">\
-                Header key\
-              </label>\
-              <input type=\"text\" id=\"id_header_1_key\" name=\"header_1_key\"/>\
-            </div>\
-            <div class=\'field webhook-header-value\'>\
-              <label for=\"header_1_value\">\
-                Header value\
-              </label>\
-              <input type=\"text\" id=\"id_header_1_value\" name=\"header_1_value\"/>\
-            </div>\
-          </div>\
-        ";
-        markup = markup.replace(/1/g, num);
-        return markup;
-      };
-
       function addHeaderPair(){
         // check if the last id_header_*_key input element has a value
         if ($("input[id^=id_header]input[id$=key]").last().attr('value')){
           // add markup with incremented ids/names
           var numPairs = $(".field.webhook-headers").children(".field.webhook-header-pair").length
-          $(".field.webhook-headers").append(markupForHeaderPair(numPairs + 1));
+
+          var ele = $('.templates > .webhook-header-pair').clone();
+
+          ele.find('label').each(function(){
+            var label = $(this).attr('for');
+            $(this).attr('for', label.replace(/0/g, numPairs + 1));
+          });
+          ele.find('input').each(function(){
+            var id = $(this).attr('id');
+              $(this).attr('id', id.replace(/0/g, numPairs + 1));
+            var name = $(this).attr('name');
+              $(this).attr('name', name.replace(/0/g, numPairs + 1));
+          });
+
+          $(".field.webhook-headers").append(ele);
+          ele.toggleClass('hide');
 
           // attach event listener to newly created webhook-header-pair, so that
           // another pair can be subsequently added after the new one has a value
-          $(".field.webhook-headers").children().last().on('focusin', addHeaderPair);
+          ele.on('focusin', addHeaderPair);
         };
       };
 

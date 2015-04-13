@@ -159,8 +159,7 @@ class WebHookEvent(SmartModel):
             headers = TEMBA_HEADERS
 
             # also include any optional headers
-            if org.get_webhook_headers():
-                headers.update(org.get_webhook_headers())
+            headers.update(org.get_webhook_headers())
 
             if action == 'GET':
                 response = requests.get(webhook_url, headers=headers, timeout=10)

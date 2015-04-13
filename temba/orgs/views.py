@@ -1267,14 +1267,14 @@ class OrgCRUDL(SmartCRUDL):
 
             # grab all submitted headers
             # discard any key with a falsy value or whitespace value
-            headers = {k: v for k, v in self.form.data.items() if k.startswith('header_') and bool(v.strip())}
+            headers = {k: v for k, v in self.form.data.items() if (k.startswith('header_') and bool(v.strip()))}
 
             # ensure each header _value_ has a corresponding key
             # (technically, its ok to have a valueless header key)
             for n in xrange((len(headers) / 2)):
                 pair = {k: v for k, v in headers.items() if k.startswith('header_' + str(n + 1))}
                 if len({k for k in headers if 'key' in k}) == 0:
-                    raise ValidationError('Headers must include a key')
+                    raise ValidationError(_('Headers must include a key'))
 
             self.form.cleaned_data['headers'] = headers
             data = self.form.cleaned_data
@@ -1296,10 +1296,14 @@ class OrgCRUDL(SmartCRUDL):
                 webhook_data.update({'method': 'POST'})
 
             if data['headers']:
-                for k, v in data['headers'].iteritems():
-                    webhook_data.update({k: v})
+                pairs = []
+                for n in xrange(len({k for k in data['headers'] if 'key' in k})):
+                    pair = {k: v for k, v in data['headers'].items() if k.startswith('header_' + str(n + 1))}
+                    pairs.append(pair.items())
+                as_dict = dict([(p[0][1], p[1][1]) for p in pairs])
+                webhook_data.update({'headers': as_dict})
 
-            obj.webhook = webhook_data
+            obj.webhook = json.dumps(webhook_data)
 
             return obj
 

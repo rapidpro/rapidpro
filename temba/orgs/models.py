@@ -21,8 +21,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
-from django_hstore.fields import DictionaryField
-from django_hstore import hstore
 from django.contrib.auth.models import User, Group
 from enum import Enum
 from redis_cache import get_redis_connection
@@ -219,25 +217,8 @@ class Org(SmartModel):
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
-    webhook = DictionaryField(verbose_name=_("Webhook"), db_index=True, schema=[
-                              {
-                                  'name': 'url',
-                                  'class': 'URLField',
-                                  'kwargs': {
-                                    'blank': True,
-                                    'null': True
-                                  }
-                              },
-                              {
-                                  'name': 'method',
-                                  'class': 'CharField',
-                                  'kwargs': {
-                                    'default': 'POST',
-                                    'max_length': 10,
-                                    'choices': (('POST', 'POST'),)
-                                  }
-                              },
-                              ])
+    webhook = models.TextField(null=True, verbose_name=_("Webhook"),
+                              help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
@@ -260,7 +241,6 @@ class Org(SmartModel):
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
                                          help_text=_('The primary language will be used for contacts with no language preference.'), on_delete=models.SET_NULL)
 
-    objects = hstore.HStoreManager()
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -615,18 +595,11 @@ class Org(SmartModel):
         setattr(self, cache_attr, schemes)
         return schemes
 
-    def get_webhook_headers_list(self):
+    def get_webhook_url(self):
         """
-        Returns a list of tuples containing any webhook headers, e.g.:
-            [[('header_1_key', 'Authorization'), ('header_1_value', 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==')],
-             [('header_2_key', 'X-My-Special-Header'), ('header_2_value', 'woo')]]
+        Returns a string with webhook url.
         """
-        headers = {k: v for k, v in self.webhook.iteritems() if k.startswith('header_')}
-        pairs = []
-        for n in xrange(len({k for k in headers if 'key' in k})):
-            pair = {k: v for k, v in self.webhook.iteritems() if k.startswith('header_' + str(n + 1))}
-            pairs.append(pair.items())
-        return pairs
+        return json.loads(self.webhook).get('url', '') if self.webhook else ''
 
     def get_webhook_headers(self):
         """
@@ -634,10 +607,7 @@ class Org(SmartModel):
         {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
          'X-My-Special-Header': 'woo'}
         """
-        header_pairs = self.get_webhook_headers_list()
-        if len(header_pairs) > 0:
-            return dict([(pair[0][1], pair[1][1]) for pair in self.get_webhook_headers_list()])
-        return {}
+        return json.loads(self.webhook).get('headers', dict()) if self.webhook else dict()
 
     @classmethod
     def get_possible_countries(cls):
