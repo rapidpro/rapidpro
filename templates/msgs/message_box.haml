@@ -69,13 +69,21 @@
 
         -if has_messages
           .span9
-            -block message-list
-              -block buttons
-                .pull-right
-                  -block buttons-right
-                    -block gear-menu
-                      -include "gear_links_include.haml"
+            -block buttons
+              .pull-right
+                -block buttons-right
+                  -block gear-menu
+                    -include "gear_links_include.haml"
 
+              -block search-details
+                .search-details
+                  -if search
+                    -blocktrans count results_count=paginator.count
+                      Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                      -plural
+                        Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
+
+              -block action-buttons
                 -if org_perms.msgs.msg_update
                   .list-buttons-container
                     .list-buttons.hide
@@ -127,11 +135,12 @@
                                         %a.lbl-menu.object-btn-label{'href':'#', 'tabindex':'-1', data-id:'{{child.pk}}'}
                                           .glyph.message-label.label-checkbox
                                           = child.name
-                            - if org_perms.msgs.label_create 
+                            - if org_perms.msgs.label_create
                               %li
                                 %a.lbl-menu.add-label
                                   -trans "Add Label"
 
+            -block message-list
               %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
                 %tbody
                   -for object in object_list
@@ -261,6 +270,10 @@
       $(this).find('td').not(':first-child').each(function(){
         $(this).attr('onClick', "document.location.href=url;");
       });
+    });
+
+    $(document).on('click', 'td.object-row-checkbox', function() {
+      $('.search-details').hide();
     });
 
     {% if org_perms.msgs.msg_export %}

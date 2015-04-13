@@ -13,7 +13,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label
+from temba.msgs.models import Msg, Call, Broadcast, Label, VISIBLE, ARCHIVED, DELETED
 from temba.values.models import Value, VALUE_TYPE_CHOICES
 
 
@@ -32,6 +32,26 @@ class DictionaryField(serializers.WritableField):
             return data
         else:
             raise ValidationError("Invalid, must be dictionary: %s" % data)
+
+
+class IntegerArrayField(serializers.WritableField):
+
+    def to_native(self, obj):  # pragma: no cover
+        raise ValidationError("Reading of integer array field not supported")
+
+    def from_native(self, data):
+        # single number case, this is ok
+        if isinstance(data, int) or isinstance(data, long):
+            return [data]
+        # it's a list, make sure they are all numbers
+        elif isinstance(data, list):
+            for value in data:
+                if not (isinstance(value, int) or isinstance(value, long)):
+                    raise ValidationError("Invalid, values must be integers or longs: %s" % unicode(value))
+            return data
+        # none of the above, error
+        else:
+            raise ValidationError("Invalid, must be array: %s" % data)
 
 
 class StringArrayField(serializers.WritableField):
@@ -53,6 +73,7 @@ class StringArrayField(serializers.WritableField):
         else:
             raise ValidationError("Invalid, must be array: %s" % data)
 
+
 class WriteSerializer(serializers.Serializer):
 
     def restore_fields(self, data, files):
@@ -62,6 +83,7 @@ class WriteSerializer(serializers.Serializer):
             return {}
 
         return super(WriteSerializer, self).restore_fields(data, files)
+
 
 class MsgReadSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField('get_id')
@@ -117,6 +139,71 @@ class MsgReadSerializer(serializers.ModelSerializer):
         read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
 
 
+class MsgBulkActionSerializer(serializers.Serializer):
+    messages = IntegerArrayField(required=True)
+    action = serializers.CharField(required=True)
+    label = serializers.CharField(required=False)
+    label_uuid = serializers.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        if 'user' in kwargs:
+            self.user = kwargs.pop('user')
+
+        super(MsgBulkActionSerializer, self).__init__(*args, **kwargs)
+
+    def validate(self, attrs):
+        if attrs['action'] in ('label', 'unlabel') and not ('label' in attrs or 'label_uuid' in attrs):
+            raise ValidationError("For action %s you must also specify label or label_uuid" % attrs['action'])
+        return attrs
+
+    def validate_action(self, attrs, source):
+        if attrs[source] not in ('label', 'unlabel', 'archive', 'unarchive', 'delete'):
+            raise ValidationError("Invalid action name: %s" % attrs[source])
+        return attrs
+
+    def validate_label(self, attrs, source):
+        label_name = attrs.get(source, None)
+        if label_name:
+            attrs['label'] = Label.get_or_create(self.user.get_org(), self.user, label_name, None)
+        return attrs
+
+    def validate_label_uuid(self, attrs, source):
+        label_uuid = attrs.get(source, None)
+        if label_uuid:
+            label = Label.objects.filter(org=self.user.get_org(), uuid=label_uuid).first()
+            if not label:
+                raise ValidationError("No such label with UUID: %s" % label_uuid)
+            attrs['label'] = label
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        msg_ids = attrs['messages']
+        action = attrs['action']
+
+        msgs = Msg.objects.filter(org=self.user.get_org(), pk__in=msg_ids)
+
+        if action == 'label':
+            attrs['label'].toggle_label(msgs, add=True)
+        elif action == 'unlabel':
+            attrs['label'].toggle_label(msgs, add=False)
+        else:
+            # these are in-efficient but necessary to keep cached counts correct. In future if counts are completely
+            # driven by triggers these could be replaced with queryset bulk update operations.
+            for msg in msgs:
+                if action == 'archive':
+                    msg.archive()
+                elif action == 'unarchive':
+                    msg.restore()
+                elif action == 'delete':
+                    msg.release()
+
+    class Meta:
+        fields = ('messages', 'action', 'label', 'label_uuid')
+
+
 class LabelReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
@@ -158,9 +245,8 @@ class LabelWriteSerializer(serializers.Serializer):
         org = self.user.get_org()
         uuid = attrs.get('uuid', None)
         name = attrs.get(source, None)
-        parent = attrs.get('parent', None)
 
-        if Label.objects.filter(org=org, name=name, parent__uuid=parent).exclude(uuid=uuid).exists():
+        if Label.objects.filter(org=org, name=name).exclude(uuid=uuid).exists():
             raise ValidationError("Label name must be unique")
 
         return attrs
@@ -224,10 +310,10 @@ class ContactReadSerializer(serializers.ModelSerializer):
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
 
     def get_groups(self, obj):
-        return [_.name for _ in obj.groups.all()]
+        return [_.name for _ in obj.user_groups.all()]
 
     def get_group_uuids(self, obj):
-        return [_.uuid for _ in obj.groups.all()]
+        return [_.uuid for _ in obj.user_groups.all()]
 
     def get_urns(self, obj):
         if obj.org.is_anon:
@@ -381,12 +467,24 @@ class ContactWriteSerializer(WriteSerializer):
 
         return attrs
 
+    def validate_groups(self, attrs, source):
+        group_names = attrs.get(source, None)
+        if group_names is not None:
+            groups = []
+            for name in group_names:
+                if not name.strip():
+                    raise ValidationError(_("Invalid group name: '%s'") % name)
+                groups.append(name)
+
+            attrs['groups'] = groups
+        return attrs
+
     def validate_group_uuids(self, attrs, source):
         group_uuids = attrs.get(source, None)
         if group_uuids is not None:
             groups = []
             for uuid in group_uuids:
-                group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
                 if not group:
                     raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
@@ -992,7 +1090,7 @@ class FlowRunStartSerializer(serializers.Serializer):
     def validate_groups(self, attrs, source):
         groups = []
         for uuid in attrs.get(source, []):
-            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
             if not group:
                 raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
@@ -1237,7 +1335,7 @@ class BroadcastCreateSerializer(serializers.Serializer):
     def validate_groups(self, attrs, source):
         groups = []
         for uuid in attrs.get(source, []):
-            group = ContactGroup.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
+            group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
             if not group:
                 raise ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
             groups.append(group)

@@ -79,16 +79,16 @@
                 - if org_perms.contacts.contact_update
                   .list-buttons-container
                     .list-buttons.hide
-                      - if 'archive' in actions
+                      - if 'block' in actions
                         %span.btn-group
-                          %a.object-btn-archive{'href':'#'}
+                          %a.object-btn-block{'href':'#'}
                             %button.btn
                               .glyph.icon-user-block
                               -trans "Block"
 
-                      - if 'restore' in actions
+                      - if 'unblock' in actions
                         %span.btn-group
-                          %a.object-btn-restore{'href':'#'}
+                          %a.object-btn-unblock{'href':'#'}
                             %button.btn
                               -trans "Unblock"
 
@@ -210,12 +210,6 @@
 
 -block extra-style
   :css
-
-    .search-details {
-      float:left;
-      margin-top:10px;
-      width:650px;
-    }
 
     tr.contacts th {
       font-size:11px;
@@ -345,6 +339,15 @@
       modal.setPrimaryButton('{% trans "Delete" %}');
       modal.show();
     });
+    {% endif %}
+
+    {% if org_perms.contacts.contact_unblock %}
+      $(".page-content").on('click', ".object-btn-unblock", function() {
+	    runActionOnObjectRows("unblock");
+      });
+      $(".page-content").on('click', ".object-btn-block", function() {
+	    runActionOnObjectRows("block");
+      });
     {% endif %}
 
     {% if org_perms.contacts.contactgroup_create %}

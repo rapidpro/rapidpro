@@ -12,7 +12,6 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -25,11 +24,9 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
-from temba.contacts.models import ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask
 from temba.formax import FormaxMixin
-from temba.msgs.models import ExportMessagesTask
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, build_json_response
 from timezones.forms import TimeZoneField
@@ -82,18 +79,8 @@ class OrgPermsMixin(object):
         return None
 
     def has_org_perm(self, permission):
-
-        (app_label, codename) = permission.split(".")
-
-        if self.get_user().is_superuser:
-            return True
-
-        if self.get_user().is_anonymous():
-            return False
-
         if self.org:
-            if self.get_user().get_org_group().permissions.filter(content_type__app_label=app_label, codename=codename):
-                return True
+            return self.get_user().has_org_perm(self.org, permission)
 
         return False
 
@@ -757,8 +744,9 @@ class OrgCRUDL(SmartCRUDL):
             return "<div class='num-credits'>%d</div>" % obj.credits
 
         def get_owner(self, obj):
-            url = reverse('users.user_mimic', args=[obj.created_by.pk])
-            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, obj.created_by.first_name, obj.created_by.last_name, obj.created_by)
+            owner = obj.latest_admin()
+            url = reverse('users.user_mimic', args=[owner.pk])
+            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, owner.first_name, owner.last_name, owner)
 
         def get_name(self, obj):
             return "<div class='org-name'>%s</div><div class='org-timezone'>%s</div>" % (obj.name, obj.timezone)
@@ -772,7 +760,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
-            context['searches'] = ['Nyaruka', 'Unicef', 'Boston University', 'JH', 'University of Chicago']
+            context['searches'] = ['Nyaruka', ]
             return context
 
         def lookup_field_link(self, context, field, obj):
@@ -1199,8 +1187,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            obj.create_sample_flows()
-            obj.create_welcome_topup(self.user, self.get_welcome_size())
+            obj.initialize(topup_size=self.get_welcome_size())
 
             return obj
 
@@ -1377,7 +1364,7 @@ class OrgCRUDL(SmartCRUDL):
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class LanguagesForm(forms.ModelForm):
-            primary_lang = forms.CharField(required=True, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
+            primary_lang = forms.CharField(required=False, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
             languages = forms.CharField(required=False, label=_('Additional Languages'), help_text=('Add any other languages you would like to provide translations for.'))
 
             def __init__(self, *args, **kwargs):
@@ -1484,6 +1471,11 @@ class OrgCRUDL(SmartCRUDL):
                         self.object.primary_language = language
                         self.object.save(update_fields=['primary_language'])
 
+            # remove our primary language if necessary
+            if org.primary_language and org.primary_language.iso_code not in iso_codes:
+                org.primary_language = None
+                org.save()
+
             # remove any languages that are not in our new list
             org.languages.exclude(iso_code__in=iso_codes).delete()
 
@@ -1504,75 +1496,27 @@ class OrgCRUDL(SmartCRUDL):
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
     class Download(SmartTemplateView):
-        template_name = 'orgs/org_download.haml'
-
-        def derive_title(self):
-            return _('Download')
-
+        """
+        For backwards compatibility, redirect old org/download style requests to the assets app
+        """
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r'%s/%s/(?P<task_type>\w+)/(?P<pk>\d+)/$' % (path, action)
-
-        def get_export_task(self):
-            export_task = None
-            user = self.request.user
-            user_orgs = user.get_user_orgs()
-
-            task_type = self.kwargs.get('task_type')
-            pk = self.kwargs.get('pk')
-
-            if task_type not in ['contacts', 'flows', 'messages']:
-                return None
-
-            if not pk:
-                return None
-
-            if task_type == 'contacts':
-                export_task = ExportContactsTask.objects.filter(pk=pk, org=user_orgs).first()
-            elif task_type == 'flows':
-                export_task = ExportFlowResultsTask.objects.filter(pk=pk, org=user_orgs).first()
-            elif task_type == 'messages':
-                export_task = ExportMessagesTask.objects.filter(pk=pk, org=user_orgs).first()
-
-            return export_task
 
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated()
 
         def get(self, request, *args, **kwargs):
-            export_task = self.get_export_task()
+            types_to_assets = {'contacts': AssetType.contact_export,
+                               'flows': AssetType.results_export,
+                               'messages': AssetType.message_export}
+
             task_type = self.kwargs.get('task_type')
+            asset_type = types_to_assets[task_type]
+            identifier = self.kwargs.get('pk')
+            return HttpResponseRedirect(reverse('assets.download',
+                                                kwargs=dict(type=asset_type.name, identifier=identifier)))
 
-            if not export_task or not export_task.filename or not default_storage.exists(export_task.filename):
-                messages.warning(self.request, _("No exported file found"))
-                if self.request.user.is_superuser:
-                    return HttpResponseRedirect(reverse('orgs.org_manage'))
-                return HttpResponseRedirect(reverse('msgs.msg_inbox'))
-
-            user = self.request.user
-            if not user.get_org():
-                user.set_org(export_task.org)
-
-            download = request.REQUEST.get('download', None)
-
-            if not download:
-                return super(OrgCRUDL.Download, self).get(request, *args, **kwargs)
-
-            download_format = export_task.filename[-3:]
-            download_filename = '%s_export.%s' % (task_type, download_format)
-
-            if download_format == 'csv':
-                content_type = "text/csv"
-            else:
-                content_type = "application/vnd.ms-excel"
-
-            file = default_storage.open(export_task.filename, 'r')
-
-            response = HttpResponse(file, content_type=content_type)
-            response['Content-Disposition'] = 'attachment; filename=%s' % download_filename
-            file.close()
-
-            return response
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')
