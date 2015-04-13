@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
         # creates and populates all our system groups
         for org in Org.objects.all():
-            print "Populating groups for: %s" % org.name
+            #print "Populating groups for: %s" % org.name
 
             all_contacts = ContactGroup.objects.create(name="All Contacts",
                                                        group_type='A',
