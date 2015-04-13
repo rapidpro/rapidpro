@@ -804,7 +804,7 @@ class APITest(TembaTest):
 
         # add contact to a new group by name (deprecated)
         response = self.postJSON(url, dict(phone='+250788123456', groups=["Music Artists"]))
-        artists = ContactGroup.objects.get(name="Music Artists")
+        artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
         self.assertEquals("Music Artists", artists.name)
         self.assertEqual(1, artists.contacts.count())
@@ -812,14 +812,14 @@ class APITest(TembaTest):
 
         # remove contact from a group by name (deprecated)
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
-        artists = ContactGroup.objects.get(name="Music Artists")
+        artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
         self.assertEqual(0, artists.contacts.count())
         self.assertEqual(0, artists.get_member_count())
 
         # add contact to a existing group by UUID
         response = self.postJSON(url, dict(phone='+250788123456', group_uuids=[artists.uuid]))
-        artists = ContactGroup.objects.get(name="Music Artists")
+        artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
         self.assertEquals("Music Artists", artists.name)
         self.assertEqual(1, artists.contacts.count())

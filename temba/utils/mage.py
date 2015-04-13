@@ -93,7 +93,12 @@ def mage_handle_new_contact(org, contact):
     """
     # update cached contact count
     from temba.orgs.models import OrgEvent
+    from temba.contacts.models import ALL_CONTACTS_GROUP
+
     org.update_caches(OrgEvent.contact_new, contact)
+
+    # add the contact to our all contacts group
+    org.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
 
     # possible to have dynamic groups based on name
     contact.handle_update(attrs=('name',))

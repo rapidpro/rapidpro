@@ -157,11 +157,11 @@ class Value(models.Model):
                     if ruleset and ruleset.pk == filter_ruleset.pk:
                         self_filter_uuids = uuids
 
-                # we are filtering by one or more group
+                # we are filtering by one or more groups
                 elif 'groups' in filter:
                     # filter our contacts by that group
                     for group_id in filter['groups']:
-                        contacts = contacts.filter(groups__pk=group_id)
+                        contacts = contacts.filter(all_groups__pk=group_id)
 
                 # we are filtering by one or more admin boundaries
                 elif 'boundary':
@@ -414,7 +414,7 @@ class Value(models.Model):
             elif 'groups' in segment:
                 for group_id in segment['groups']:
                     # load our group
-                    group = ContactGroup.objects.get(is_active=True, org=org, pk=group_id)
+                    group = ContactGroup.user_groups.get(is_active=True, org=org, pk=group_id)
 
                     category_filter = list(filters)
                     category_filter.append(dict(groups=[group_id]))

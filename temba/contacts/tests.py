@@ -42,6 +42,7 @@ class ContactCRUDLTest(_CRUDLTest):
                                       created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
+        self.org.initialize()
 
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'home', "Home", value_type='S')
@@ -143,6 +144,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
+
         self.user.set_org(self.org)
         self.channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
                                               org=self.org, created_by=self.user, modified_by=self.user,
@@ -157,14 +160,20 @@ class ContactGroupCRUDLTest(_CRUDLTest):
     def getUpdatePostData(self):
         return dict(name="My Updated Group", contacts="%s" % self.frank.pk, join_keyword="updated", join_response="Thanks for joining the group")
 
+    def getManager(self):
+        return ContactGroup.user_groups
+
     def testDelete(self):
         obj = self.getTestObject()
         self._do_test_view('delete', obj, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.objects.get(pk=obj.pk).is_active)
+        self.assertFalse(self.getCRUDL().model.user_groups.get(pk=obj.pk).is_active)
 
     def test_create(self):
         create_url = reverse('contacts.contactgroup_create')
         self.login(self.user)
+
+        # clear our current groups
+        ContactGroup.user_groups.filter(org=self.org).delete()
 
         response = self.client.post(create_url, dict(name="  "))
         self.assertEquals(1, len(response.context['form'].errors))
@@ -172,8 +181,16 @@ class ContactGroupCRUDLTest(_CRUDLTest):
 
         response = self.client.post(create_url, dict(name="first  "))
         self.assertNoFormErrors(response)
-        group = ContactGroup.objects.all()[0]
-        self.assertEquals(group.name, "first")
+        group = ContactGroup.user_groups.get(org=self.org, name="first")
+
+        # try to create another with the same name, nothing happens
+        response = self.client.post(create_url, dict(name="First"))
+        self.assertNoFormErrors(response)
+        self.assertEquals(1, ContactGroup.user_groups.filter(org=self.org).count())
+
+        # direct calls are the same thing
+        existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
+        self.assertEquals(group, existing_group)
 
     def test_update_url(self):
         group = ContactGroup.create(self.org, self.user, "one")
@@ -187,8 +204,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
 
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
-        group = ContactGroup.objects.all()[0]
-        self.assertEquals(group.name, "new name")
+        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="new name"))
 
 
 class ContactGroupTest(TembaTest):
@@ -206,44 +222,35 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, ContactGroup.create, self.org, self.admin, "   ")
 
         ContactGroup.create(self.org, self.admin, " group one ")
-        self.assertEquals(1, ContactGroup.objects.all().count())
-        group = ContactGroup.objects.all()[0]
-        self.assertEquals(group.name, "group one")
+        self.assertEquals(1, ContactGroup.user_groups.count())
+        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="group one"))
 
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
         group.contacts.add(self.joe, self.frank)
 
-        with self.assertNumQueries(1):
-            self.assertEquals(group.get_member_count(), 2)  # from db
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 2)  # from cache
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
 
         group.update_contacts([self.mary], add=True)
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 3)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 3)
 
         group.update_contacts([self.mary], add=False)
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 2)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
 
         self.joe.block()
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 1)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 1)
 
         self.joe.unblock()
         self.frank.release()
 
-        with self.assertNumQueries(0):
-            self.assertEquals(group.get_member_count(), 0)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
 
         self.clear_cache()
 
-        with self.assertNumQueries(1):
-            self.assertEquals(group.get_member_count(), 0)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, 'age')
@@ -251,10 +258,10 @@ class ContactGroupTest(TembaTest):
         group = ContactGroup.create(self.org, self.admin, "Group 1")
 
         group.update_query('(age < 18 and gender = "male") or (age > 18 and gender = "female")')
-        self.assertEqual([age, gender], list(ContactGroup.objects.get(pk=group.id).query_fields.all().order_by('key')))
+        self.assertEqual([age, gender], list(ContactGroup.user_groups.get(pk=group.id).query_fields.all().order_by('key')))
 
         group.update_query('height > 100')
-        self.assertEqual(0, ContactGroup.objects.get(pk=group.id).query_fields.count())
+        self.assertEqual(0, ContactGroup.user_groups.get(pk=group.id).query_fields.count())
 
         # dynamic group should not have remove to group button
         self.login(self.admin)
@@ -268,7 +275,7 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
-        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
 
         group = ContactGroup.create(self.org, self.user, "one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
@@ -282,7 +289,7 @@ class ContactGroupTest(TembaTest):
         response = self.client.post(delete_url, dict())
         self.assertEquals(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
-        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertTrue(ContactGroup.user_groups.get(pk=group.pk).is_active)
         self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
 
         # archive a trigger
@@ -292,7 +299,7 @@ class ContactGroupTest(TembaTest):
         response = self.client.post(delete_url, dict())
         self.assertEquals(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
-        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertTrue(ContactGroup.user_groups.get(pk=group.pk).is_active)
         self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
 
         trigger.is_archived = True
@@ -300,7 +307,7 @@ class ContactGroupTest(TembaTest):
 
         response = self.client.post(delete_url, dict())
         # group should have is_active = False and all its triggers
-        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
+        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
@@ -324,8 +331,7 @@ class ContactTest(TembaTest):
 
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
-        self.jim.is_active = False
-        self.jim.save()
+        self.jim.release()
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -356,7 +362,6 @@ class ContactTest(TembaTest):
         group = self.create_group("Just Joe", [self.joe])
 
         self.clear_cache()
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
@@ -373,7 +378,7 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_blocked)
 
         # that he was removed from the group
-        self.assertEqual(0, ContactGroup.objects.get(pk=group.pk).contacts.count())
+        self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
 
         # but his messages are unchanged
         self.assertEqual(2, Msg.objects.filter(contact=self.joe, visibility='V').count())
@@ -381,7 +386,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
 
-        # unblock and re-add to group
+        # restore and re-add to group
         self.joe.unblock()
         group.update_contacts([self.joe], add=True)
 
@@ -405,7 +410,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_archived))
 
         # and he shouldn't be in any groups
-        self.assertEqual(0, ContactGroup.objects.get(pk=group.pk).contacts.count())
+        self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
 
         # or have any URNs
         self.assertEqual(0, ContactURN.objects.filter(contact=self.joe).count())
@@ -803,7 +808,7 @@ class ContactTest(TembaTest):
         response = self.client.post(read_url, post_data, follow=True)
 
         # this manager cannot operate on this organization
-        self.assertEquals(len(self.joe.groups.all()), 1)
+        self.assertEquals(len(self.joe.user_groups.all()), 1)
         self.client.logout()
 
         # login as a manager of kLab
@@ -811,7 +816,7 @@ class ContactTest(TembaTest):
 
         # remove this contact form kLab group
         response = self.client.post(read_url, post_data, follow=True)
-        self.assertFalse(self.joe.groups.all())
+        self.assertFalse(self.joe.user_groups.all())
 
         # try removing it again, should fail
         response = self.client.post(read_url, post_data, follow=True)
@@ -824,6 +829,8 @@ class ContactTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
+        self.joe_and_frank = ContactGroup.user_groups.get(pk=self.joe_and_frank.pk)
+
         self.assertEquals(self.joe.groups_as_text(), "Joe and Frank, Just Joe")
         group_analytic_json = self.joe_and_frank.analytics_json()
         self.assertEquals(group_analytic_json['id'], self.joe_and_frank.pk)
@@ -835,8 +842,7 @@ class ContactTest(TembaTest):
         response = self.client.get(list_url)
         self.assertEquals(302, response.status_code)
 
-        # list the contacts as a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
@@ -901,7 +907,7 @@ class ContactTest(TembaTest):
         response = self.client.post(update_url, dict(name="New Test"))
         self.assertRedirect(response, filter_url)
 
-        group = ContactGroup.objects.get(pk=group.pk)
+        group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEquals("New Test", group.name)
 
         # post to our delete url
@@ -909,7 +915,7 @@ class ContactTest(TembaTest):
         self.assertRedirect(response, reverse('contacts.contact_list'))
 
         # make sure it is inactive
-        self.assertFalse(ContactGroup.objects.get(name="New Test").is_active)
+        self.assertFalse(ContactGroup.user_groups.get(name="New Test").is_active)
 
         # remove Joe from the group
         post_data = dict()
@@ -940,21 +946,21 @@ class ContactTest(TembaTest):
         joe_and_frank_filter_url = reverse('contacts.contact_filter', args=[self.joe_and_frank.pk])
 
         # now test when the action with some data missing
-        self.assertEquals(self.joe.groups.filter(is_active=True).count(), 2)
+        self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
         post_data = dict()
         post_data['action'] = 'label'
         post_data['objects'] = self.joe.id
         post_data['add'] = True
         self.client.post(joe_and_frank_filter_url, post_data)
-        self.assertEquals(self.joe.groups.filter(is_active=True).count(), 2)
+        self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
         post_data = dict()
         post_data['action'] = 'unlabel'
         post_data['objects'] = self.joe.id
         post_data['add'] = True
         self.client.post(joe_and_frank_filter_url, post_data)
-        self.assertEquals(self.joe.groups.filter(is_active=True).count(), 2)
+        self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
         # Now archive Joe
         post_data = dict()
@@ -999,7 +1005,7 @@ class ContactTest(TembaTest):
         # archived contact are not on the list page
         # Now Let's restore Joe to the contacts
         post_data = dict()
-        post_data['action'] = 'restore'
+        post_data['action'] = 'unblock'
         post_data['objects'] = self.joe.id
         self.client.post(blocked_url, post_data, follow=True)
 
@@ -1060,14 +1066,14 @@ class ContactTest(TembaTest):
         post_data = dict(name="Joe Gashyantare", __urn__tel="12345", groups=[self.just_joe.id])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
         self.assertEquals(response.context['contact'].name, "Joe Gashyantare")
-        self.assertIn(self.just_joe, response.context['contact'].groups.all())
+        self.assertIn(self.just_joe, response.context['contact'].user_groups.all())
 
         # Now remove him from  this group "Just joe"
         post_data = dict(name="Joe Gashyantare", __urn__tel="12345", groups=[])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
 
         # Done!
-        self.assertFalse(response.context['contact'].groups.all())
+        self.assertFalse(response.context['contact'].user_groups.all())
 
         # check updating when org is anon
         self.org.is_anon = True
@@ -1153,8 +1159,8 @@ class ContactTest(TembaTest):
         records = self.do_import(user, 'sample_contacts.xls')
         self.assertEquals(3, len(records))
 
-        self.assertEquals(1, len(ContactGroup.objects.all()))
-        group = ContactGroup.objects.all()[0]
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
         self.assertEquals('Sample Contacts', group.name)
         self.assertEquals(3, group.contacts.count())
 
@@ -1169,15 +1175,15 @@ class ContactTest(TembaTest):
         self.assertEquals(3, len(records))
 
         # But there should be another group
-        self.assertEquals(2, len(ContactGroup.objects.all()))
-        self.assertEquals(1, ContactGroup.objects.filter(name="Sample Contacts 2").count())
+        self.assertEquals(2, len(ContactGroup.user_groups.all()))
+        self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts 2").count())
 
         # update file changes a name, and adds one more
         records = self.do_import(user, 'sample_contacts_update.csv')
 
         # now there are three groups
-        self.assertEquals(3, len(ContactGroup.objects.all()))
-        self.assertEquals(1, ContactGroup.objects.filter(name="Sample Contacts Update").count())
+        self.assertEquals(3, len(ContactGroup.user_groups.all()))
+        self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Update").count())
 
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
         self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
@@ -1191,7 +1197,7 @@ class ContactTest(TembaTest):
 
         # Empty import file, shouldn't create a contact group
         self.do_import(user, 'empty.csv')
-        self.assertEquals(3, len(ContactGroup.objects.all()))
+        self.assertEquals(3, len(ContactGroup.user_groups.all()))
 
         import_url = reverse('contacts.contact_import')
 
@@ -1202,7 +1208,7 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['group'], None)
 
         Contact.objects.all().delete()
-        ContactGroup.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
 
         # import sample contact spreadsheet with valid headers
         csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
@@ -1226,7 +1232,7 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1))
 
         Contact.objects.all().delete()
-        ContactGroup.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
 
         # try importing invalid spreadsheets with missing headers
         csv_file = open('%s/test_imports/sample_contacts_missing_name_header.xls' % settings.MEDIA_ROOT, 'rb')
@@ -1249,7 +1255,7 @@ class ContactTest(TembaTest):
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
-        self.assertEquals(ContactGroup.objects.all().count(), 0)
+        self.assertEquals(ContactGroup.user_groups.all().count(), 0)
 
         # import spreadsheet with extra columns
         csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
@@ -1281,8 +1287,8 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
         self.assertEquals(Contact.objects.all().count(), 3)
-        self.assertEquals(ContactGroup.objects.all().count(), 1)
-        self.assertEquals(ContactGroup.objects.all()[0].name, 'Sample Contacts With Extra Fields')
+        self.assertEquals(ContactGroup.user_groups.all().count(), 1)
+        self.assertEquals(ContactGroup.user_groups.all()[0].name, 'Sample Contacts With Extra Fields')
         
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('location'), 'Rwanda')  # renamed from 'Country'
@@ -1575,6 +1581,8 @@ class ContactFieldTest(TembaTest):
         self.admin = self.create_user("ben")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.admin, modified_by=self.admin)
         self.org.administrators.add(self.admin)
+        self.org.initialize()
+
         self.user.set_org(self.org)
         self.admin.set_org(self.org)
 

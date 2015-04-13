@@ -1238,7 +1238,7 @@ class RuleTest(TembaTest):
         self.assertEquals(1, group.contacts.all().count())
 
         # we should have acreated a group with the name of the contact
-        replace_group = ContactGroup.objects.get(name=self.contact.name)
+        replace_group = ContactGroup.user_groups.get(name=self.contact.name)
         self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, replace_group.contacts.all().count())
 
@@ -1372,7 +1372,7 @@ class RuleTest(TembaTest):
         self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow_with_keywords.pk]))
         self.assertEquals(response.context['object'].triggers.count(), 3)
 
-        #update flow triggers
+        # update flow triggers
         post_data = dict()
         post_data['name'] = "Flow With Keyword Triggers"
         post_data['keyword_triggers'] = "it,changes,everything"
@@ -1413,7 +1413,7 @@ class RuleTest(TembaTest):
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
 
         # create some rules on it
-        self.assertEquals(0, ActionSet.objects.all().count())
+        ActionSet.objects.all().delete()
         flow.update(self.definition)
         self.assertEquals(4, ActionSet.objects.all().count())
 
@@ -1623,7 +1623,7 @@ class RuleTest(TembaTest):
 
     def test_views_viewers(self):
         #create a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)        
         
@@ -2520,7 +2520,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Judy Pottier", mother.name)
         self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('31-01-2014'))
         self.assertEquals("+12065552020", mother.get_field_raw('chw'))
-        self.assertTrue(mother.groups.filter(name="Expecting Mothers"))
+        self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 
         pain_flow = self.get_flow('pain_flow')
         self.assertEquals("Your CHW will be in contact soon!", self.send_message(pain_flow, "yes", contact=mother))

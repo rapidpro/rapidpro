@@ -35,7 +35,7 @@ from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, USER_DEFINED_GROUP
 from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
@@ -742,11 +742,13 @@ class MessagesEndpoint(generics.ListAPIView):
 
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups)
+            queryset = queryset.filter(contact__all_groups__name__in=groups,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
+            queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         types = splitting_getlist(self.request, 'type')
         if types:
@@ -1394,7 +1396,7 @@ class Groups(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
 
     def get_queryset(self):
-        queryset = ContactGroup.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
+        queryset = ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1578,11 +1580,13 @@ class Contacts(generics.ListAPIView):
 
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(groups__name__in=groups)
+            queryset = queryset.filter(all_groups__name__in=groups,
+                                       all_groups__group_type=USER_DEFINED_GROUP)
 
         group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
         if group_uuids:
-            queryset = queryset.filter(groups__uuid__in=group_uuids)
+            queryset = queryset.filter(all_groups__uuid__in=group_uuids,
+                                       all_groups__group_type=USER_DEFINED_GROUP)
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
@@ -2067,11 +2071,13 @@ class FlowRunEndpoint(generics.ListAPIView):
 
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups)
+            queryset = queryset.filter(contact__all_groups__name__in=groups,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
+            queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         contacts = splitting_getlist(self.request, 'contact')
         if contacts:

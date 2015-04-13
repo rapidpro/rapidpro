@@ -268,13 +268,14 @@ class Org(SmartModel):
         """
         from temba.contacts.models import Contact
         from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, PENDING, FLOW, FAILED as M_FAILED
+        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
-            return Contact.get_contacts(self, blocked=False)
+            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_failed:
-            return Contact.get_contacts(self, blocked=False).filter(is_failed=True)
+            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_blocked:
-            return Contact.get_contacts(self, blocked=True)
+            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.msgs_inbox:
             return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX).exclude(status=PENDING)
         elif folder == OrgFolder.msgs_archived:
@@ -296,11 +297,20 @@ class Org(SmartModel):
         """
         Gets the (cached) count for the given contact folder
         """
-        def calculate(_folder):
-            return self.get_folder_queryset(_folder).count()
+        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
-        cache_key = self._get_folder_count_cache_key(folder)
-        return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
+        if folder == OrgFolder.contacts_all:
+            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).count
+        elif folder == OrgFolder.contacts_blocked:
+            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).count
+        elif folder == OrgFolder.contacts_failed:
+            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).count
+        else:
+            def calculate(_folder):
+                return self.get_folder_queryset(_folder).count()
+
+            cache_key = self._get_folder_count_cache_key(folder)
+            return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
 
     def _get_folder_count_cache_key(self, folder):
         return ORG_FOLDER_COUNT_CACHE_KEY % (self.pk, folder.name)
@@ -358,33 +368,7 @@ class Org(SmartModel):
         increment_count = lambda folder: update_folder_count(folder, 1)
         decrement_count = lambda folder: update_folder_count(folder, -1)
 
-        if event == OrgEvent.contact_new:
-            increment_count(OrgFolder.contacts_all)
-
-        elif event == OrgEvent.contact_blocked:
-            decrement_count(OrgFolder.contacts_all)
-            increment_count(OrgFolder.contacts_blocked)
-            if entity.is_failed:
-                decrement_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_unblocked:
-            increment_count(OrgFolder.contacts_all)
-            decrement_count(OrgFolder.contacts_blocked)
-            if entity.is_failed:
-                increment_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_failed:
-            increment_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_unfailed:
-            decrement_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_deleted:
-            decrement_count(OrgFolder.contacts_blocked if entity.is_blocked else OrgFolder.contacts_all)
-            if entity.is_failed:
-                decrement_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.broadcast_new:
+        if event == OrgEvent.broadcast_new:
             if entity.schedule:
                 increment_count(OrgFolder.broadcasts_scheduled)
             else:
@@ -437,8 +421,6 @@ class Org(SmartModel):
         if OrgCache.display in caches:
             for folder in OrgFolder.__members__.values():
                 keys.append(self._get_folder_count_cache_key(folder))
-            for group in self.contactgroup_set.all():
-                keys.append(group.get_member_count_cache_key())
             for label in self.label_set.all():
                 keys.append(label.get_message_count_cache_key())
 
@@ -895,8 +877,21 @@ class Org(SmartModel):
         from temba.channels.models import NEXMO
         return self.channels.filter(channel_type=NEXMO)
 
-    def create_welcome_topup(self, user, topup_size=WELCOME_TOPUP_SIZE):
-        return TopUp.create(user, price=0, credits=topup_size, org=self)
+    def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
+        return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+
+    def create_system_groups(self):
+        """
+        Initializes our system groups for this organization so that we can keep track of counts etc..
+        """
+        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
+
+        self.all_groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='Blocked Contacts', group_type=BLOCKED_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self):
         from temba.flows.models import Flow
@@ -1293,6 +1288,15 @@ class Org(SmartModel):
             recommended = 'shaqodoon'
 
         return recommended
+
+
+    def initialize(self, topup_size=WELCOME_TOPUP_SIZE):
+        """
+        Initializes an organization, creating all the dependent objects we need for it to work properly.
+        """
+        self.create_system_groups()
+        self.create_sample_flows()
+        self.create_welcome_topup(topup_size)
 
     @classmethod
     def create_user(cls, email, password):

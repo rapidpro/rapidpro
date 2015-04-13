@@ -382,10 +382,11 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
+    LABEL_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
-    label = forms.ModelChoiceField(LABEL_CLASS.objects.all(), required=False)
+    label = forms.ModelChoiceField(getattr(LABEL_CLASS, LABEL_CLASS_MANAGER).all(), required=False)
     objects = forms.ModelMultipleChoiceField(OBJECT_CLASS.objects.all())
     add = forms.BooleanField(required=False)
     number = forms.BooleanField(required=False)
@@ -398,7 +399,7 @@ class BaseActionForm(forms.Form):
         super(BaseActionForm, self).__init__(*args, **kwargs)
 
         self.fields['action'].choices = self.ALLOWED_ACTIONS
-        self.fields['label'].queryset = self.LABEL_CLASS.objects.filter(org=org)
+        self.fields['label'].queryset = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
 
         self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org)
         if self.HAS_IS_ACTIVE:
@@ -415,7 +416,7 @@ class BaseActionForm(forms.Form):
         resend_allowed = self.user.get_org_group().permissions.filter(codename="broadcast_send")
 
 
-        if action in ['label', 'unlabel', 'archive', 'restore', 'block'] and not update_allowed:
+        if action in ['label', 'unlabel', 'archive', 'restore', 'block', 'unblock'] and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
         if action == 'delete' and not delete_allowed:
@@ -465,6 +466,10 @@ class BaseActionForm(forms.Form):
             changed = self.OBJECT_CLASS.apply_action_block(objects)
             return dict(changed=changed)
 
+        elif action == 'unblock':
+            changed = self.OBJECT_CLASS.apply_action_unblock(objects)
+            return dict(changed=changed)
+
         elif action == 'restore':
             changed = self.OBJECT_CLASS.apply_action_restore(objects)
             return dict(changed=changed)
@@ -494,6 +499,7 @@ class MsgActionForm(BaseActionForm):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
+
     HAS_IS_ACTIVE = False
 
     class Meta:
@@ -539,7 +545,7 @@ class TestMessageForm(forms.Form):
 
 
 class ExportForm(Form):
-    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.objects.filter(pk__lt=0),
+    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                             required=False, label=_("Groups"))
     start_date = forms.DateField(required=False,
                                  help_text=_("The date for the oldest message to export. (Leave blank to export from the oldest message)."))
@@ -549,7 +555,7 @@ class ExportForm(Form):
     def __init__(self, user, *args, **kwargs):
         super(ExportForm, self).__init__(*args, **kwargs)
         self.user = user
-        self.fields['groups'].queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
         self.fields['groups'].help_text = _("Export only messages from these contact groups. (Leave blank to export all messages).")
 
     def clean(self):

@@ -20,7 +20,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
-from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
+from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS, USER_DEFINED_GROUP
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -33,7 +33,7 @@ from .omnibox import omnibox_query, omnibox_results_to_dict
 
 class RemoveContactForm(forms.Form):
     contact = forms.ModelChoiceField(Contact.objects.all())
-    group = forms.ModelChoiceField(ContactGroup.objects.all())
+    group = forms.ModelChoiceField(ContactGroup.user_groups.all())
 
     def __init__(self, *args, **kwargs):
         org = kwargs['org']
@@ -42,7 +42,7 @@ class RemoveContactForm(forms.Form):
         super(RemoveContactForm, self).__init__(*args, **kwargs)
 
         self.fields['contact'].queryset = Contact.objects.filter(org=org)
-        self.fields['group'].queryset = ContactGroup.objects.filter(org=org)
+        self.fields['group'].queryset = ContactGroup.user_groups.filter(org=org)
 
     def clean(self):
         return self.cleaned_data
@@ -99,7 +99,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         if query:
             qs, self.request.compiled_query = Contact.search(org, query, qs)
 
-        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('groups')
+        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('all_groups')
 
     def order_queryset(self, queryset):
         """
@@ -121,7 +121,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.contacts_failed), label=_("Failed"), url=reverse('contacts.contact_failed')),
                    dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
-        groups_qs = ContactGroup.objects.filter(org=org, is_active=True).select_related('org')
+        groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
         groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
@@ -140,12 +140,13 @@ class ContactListView(OrgPermsMixin, SmartListView):
 class ContactActionForm(BaseActionForm):
     ALLOWED_ACTIONS = (('label', _("Add to Group")),
                        ('unlabel', _("Remove from Group")),
-                       ('restore', _("Restore Contacts")),
+                       ('unblock', _("Unblock Contacts")),
                        ('block', _("Block Contacts")),
                        ('delete', _("Delete Contacts")))
 
     OBJECT_CLASS = Contact
     LABEL_CLASS = ContactGroup
+    LABEL_CLASS_MANAGER = 'user_groups'
     HAS_IS_ACTIVE = True
 
     class Meta:
@@ -228,7 +229,7 @@ class ContactForm(forms.ModelForm):
 
 
 class UpdateContactForm(ContactForm):
-    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.objects.filter(pk__lt=0),
+    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                             required=False, label=_("Groups"),
                                             help_text=_("Add or remove groups this contact belongs to"))
 
@@ -247,14 +248,14 @@ class UpdateContactForm(ContactForm):
 
         self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
 
-        self.fields['groups'].initial = self.instance.groups.all()
-        self.fields['groups'].queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].initial = self.instance.user_groups.all()
+        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
 
 
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
-               'customize', 'export', 'block', 'restore', 'delete')
+               'customize', 'export', 'block', 'unblock', 'delete')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -268,7 +269,7 @@ class ContactCRUDL(SmartCRUDL):
             group = None
             group_id = self.request.REQUEST.get('g', None)
             if group_id:
-                groups = ContactGroup.objects.filter(pk=group_id, org=org)
+                groups = ContactGroup.user_groups.filter(pk=group_id, org=org)
 
                 if groups:
                     group = groups[0]
@@ -441,7 +442,7 @@ class ContactCRUDL(SmartCRUDL):
                     context['show_form'] = False
                     context['results'] = json.loads(task.import_results) if task.import_results else dict()
 
-                    groups = ContactGroup.objects.filter(import_task=task)
+                    groups = ContactGroup.user_groups.filter(import_task=task)
 
                     if groups:
                         context['group'] = groups[0]
@@ -556,7 +557,7 @@ class ContactCRUDL(SmartCRUDL):
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
             context['contact_fields'] = ContactField.objects.filter(org=contact.org, is_active=True).order_by('pk')
-            context['contact_groups'] = contact.groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
+            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
             context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
             return context
 
@@ -587,9 +588,9 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(dict(title=_('Block'), style='btn-primary', js_class='posterize',
                                       href=reverse('contacts.contact_block', args=(self.object.pk,))))
 
-                if self.has_org_perm("contacts.contact_restore") and self.object.is_blocked:
+                if self.has_org_perm("contacts.contact_unblock") and self.object.is_blocked:
                     links.append(dict(title=_('Unblock'), style='btn-primary', js_class='posterize',
-                                      href=reverse('contacts.contact_restore', args=(self.object.pk,))))
+                                      href=reverse('contacts.contact_unblock', args=(self.object.pk,))))
 
                 if self.has_org_perm("contacts.contact_delete"):
                     links.append(dict(title=_('Delete'), style='btn-primary',
@@ -634,7 +635,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
-            context['actions'] = ('restore', 'delete') if self.has_org_perm("contacts.contact_delete") else ('restore',)
+            context['actions'] = ('unblock', 'delete') if self.has_org_perm("contacts.contact_delete") else ('unblock',)
             return context
 
     class Failed(ContactActionMixin, ContactListView):
@@ -675,7 +676,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             group = self.derive_group()
-            return Contact.objects.filter(groups=group, is_active=True, org=self.request.user.get_org())
+            return Contact.objects.filter(all_groups=group, is_active=True, org=self.request.user.get_org())
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Filter, self).get_context_data(*args, **kwargs)
@@ -698,7 +699,7 @@ class ContactCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<group>\d+)/$' % (path, action)
 
         def derive_group(self):
-            return ContactGroup.objects.get(pk=self.kwargs['group'])
+            return ContactGroup.user_groups.get(pk=self.kwargs['group'])
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
@@ -801,7 +802,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.block()
             return obj
 
-    class Restore(OrgPermsMixin, SmartUpdateView):
+    class Unblock(OrgPermsMixin, SmartUpdateView):
         """
         Unblock this contact
         """
@@ -852,7 +853,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.org = self.request.user.get_org()
-            self.object = ContactGroup.create(obj.org, self.request.user, obj.name)
+            self.object = ContactGroup.get_or_create(obj.org, self.request.user, obj.name)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super(ContactGroupCRUDL.Create, self).post_save(self.object, *args, **kwargs)

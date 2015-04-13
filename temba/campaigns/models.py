@@ -55,7 +55,7 @@ class Campaign(SmartModel):
 
                 # first check if we have the objects by id
                 if site and site == exported_json.get('site', None):
-                    group = ContactGroup.objects.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
+                    group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
                     if group:
                         group.name = campaign_spec['group']['name']
                         group.save()
@@ -67,7 +67,7 @@ class Campaign(SmartModel):
 
                 # fall back to lookups by name
                 if not group:
-                    group = ContactGroup.objects.filter(name=campaign_spec['group']['name'], org=org).first()
+                    group = ContactGroup.user_groups.filter(name=campaign_spec['group']['name'], org=org).first()
 
                 if not campaign:
                     campaign = Campaign.objects.filter(org=org, name=name).first()
@@ -388,7 +388,7 @@ class EventFire(Model):
         EventFire.objects.filter(contact=contact, fired=None).delete()
 
         # get all the groups this user is in
-        groups = [g.id for g in contact.groups.all()]
+        groups = [g.id for g in contact.user_groups.all()]
 
         # for each campaign that might effect us
         for campaign in Campaign.objects.filter(group__in=groups, org=contact.org,
@@ -404,7 +404,7 @@ class EventFire(Model):
         Should be called anytime a contact field or contact group membership changes.
         """
         # get all the groups this user is in
-        groups = [_.id for _ in contact.groups.all()]
+        groups = [_.id for _ in contact.user_groups.all()]
 
         # get all events which are in one of these groups and on this field
         for event in CampaignEvent.objects.filter(campaign__group__in=groups, relative_to__key=key,
