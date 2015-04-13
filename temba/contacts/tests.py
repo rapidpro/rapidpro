@@ -106,10 +106,10 @@ class ContactCRUDLTest(_CRUDLTest):
 
         # try unblocking now
         response = self.client.get(read_url)
-        restore_url = reverse('contacts.contact_restore', args=[self.joe.id])
-        self.assertContains(response, restore_url)
+        unblock_url = reverse('contacts.contact_unblock', args=[self.joe.id])
+        self.assertContains(response, unblock_url)
 
-        self.client.post(restore_url, dict(id=self.joe.id))
+        self.client.post(unblock_url, dict(id=self.joe.id))
         self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
 
         # ok, what about deleting?
@@ -386,7 +386,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
 
-        # restore and re-add to group
+        # unblock and re-add to group
         self.joe.unblock()
         group.update_contacts([self.joe], add=True)
 
@@ -1003,7 +1003,7 @@ class ContactTest(TembaTest):
         blocked_url = reverse('contacts.contact_blocked')
 
         # archived contact are not on the list page
-        # Now Let's restore Joe to the contacts
+        # Now Let's unblock Joe
         post_data = dict()
         post_data['action'] = 'unblock'
         post_data['objects'] = self.joe.id

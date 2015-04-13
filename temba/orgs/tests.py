@@ -697,8 +697,8 @@ class OrgTest(TembaTest):
 
         murdock.release()
         murdock.release()
-        face.restore()
-        face.restore()
+        face.unblock()
+        face.unblock()
         ba.unfail()
         ba.unfail()
 
