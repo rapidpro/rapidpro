@@ -846,7 +846,17 @@ class Org(SmartModel):
         return org_users.distinct()
 
     def latest_admin(self):
-        return self.get_org_admins().last()
+        admin = self.get_org_admins().last()
+
+        # no admins? try editors
+        if not admin:
+            admin = self.get_org_editors().last()
+
+        # no editors? try viewers
+        if not admin:
+            admin = self.get_org_viewers().last()
+
+        return admin
 
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
