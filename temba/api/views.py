@@ -773,7 +773,7 @@ class MessagesEndpoint(generics.ListAPIView):
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
-        return queryset.order_by(order).prefetch_related('labels')
+        return queryset.order_by(order).prefetch_related('labels').distinct()
 
     @classmethod
     def get_read_explorer(cls):
