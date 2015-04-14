@@ -1156,10 +1156,12 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
-        label = Label.create_unique(self.org, self.user, "Goo")
-        label.toggle_label([msg1], add=True)
+        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1.toggle_label([msg1], add=True)
+        label2 = Label.create_unique(self.org, self.user, "Boo")
+        label2.toggle_label([msg1], add=True)
 
-        response = self.fetchJSON(url, "label=Goo")
+        response = self.fetchJSON(url, "label=Goo&label=Boo")
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
