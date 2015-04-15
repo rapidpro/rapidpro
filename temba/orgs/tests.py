@@ -1014,7 +1014,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
-        self.assertEquals("http://www.foo.com/", org.webhook['url'])
+        self.assertEquals("http://www.foo.com/", org.get_webhook_url())
         self.assertTrue(org.is_notified_of_mt_sms())
         self.assertFalse(org.is_notified_of_mo_sms())
         self.assertFalse(org.is_notified_of_mt_call())
