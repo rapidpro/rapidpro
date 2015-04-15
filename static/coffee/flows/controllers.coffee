@@ -670,11 +670,56 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         left: $event.pageX - ($rootScope.ghost.width() / 2)
         top: $event.pageY
     return false
+
+
+  # allow use to cancel display of recent messages
+  showRecentDelay = null
+
+  $scope.hideRecentMessages = ->
+
+    $timeout.cancel(showRecentDelay)
+
+    if this.category
+      this.category._showMessages = false
+      this.$parent.ruleset._showMessages = false
+
+    if this.action_set
+      this.action_set._showMessages = false
+
+  $scope.showRecentMessages = ->
+
+
+    hovered = this
+    showRecentDelay = $timeout ->
+
+      if hovered.action_set
+        action_set = hovered.action_set
+        action_set._showMessages = true
+        Flow.fetchRecentMessages(action_set.uuid, action_set.destination).then (response) ->
+          action_set._messages = response.data
+
+      if hovered.category
+
+        # We are looking at recent messages through a rule
+        category = hovered.category
+        ruleset = hovered.$parent.ruleset
+
+        # our node and rule should be marked as showing messages
+        ruleset._showMessages = true
+        category._showMessages = true
+
+        # use all rules as the source so we see all matched messages for the path
+        categoryFrom = category.sources.join()
+        categoryTo = category.target
+
+        Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
+          category._messages = response.data
+    , 500
+
 ]
 
 # translating rules
 TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, ruleset) ->
-  #console.log("Translating from " + languages.from + " to " + languages.to)
 
   # clone our ruleset
   ruleset = utils.clone(ruleset)

@@ -82,11 +82,7 @@ $ ->
             text += "<div class='field-count'>" + gettext("Add all ") + obj.rules.length + gettext(" fields") + "</div>"
           return text
 
-        text = "<div class='field-rule'>" + obj.text + "</div><div class='field-contacts'>("
-        text += obj.stats.contacts + gettext(" contact")
-        if obj.stats.contacts.length != 1
-          text += "s"
-        text += ")</div>"
+        text = "<div class='field-rule'>" + obj.text + "</div>"
 
       escapeMarkup: (m) -> m
       matcher: (term, text, opt) ->
@@ -331,7 +327,7 @@ FieldController = ($scope, $http) ->
 
             data.total = total
             data.chartType = chartType
-            data.isVisible = data.categories.length > 1
+            data.isVisible = true
             if visible?
               data.isVisible = visible
 

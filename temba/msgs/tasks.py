@@ -14,6 +14,7 @@ from temba.urls import init_analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from .models import Msg, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT, FIRE_EVENT
 from temba.utils.queues import pop_task
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     if not msg:
         return
 
+    print "[%09d] Processing - %s" % (msg.id, msg.text)
+    start = time.time()
+
     # if message was created in Mage...
     if from_mage:
         mage_handle_new_message(msg.org, msg)
@@ -35,6 +39,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
             mage_handle_new_contact(msg.org, msg.contact)
 
     Msg.process_message(msg)
+    print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
 
 @task(track_started=True, name='send_broadcast')
 def send_broadcast_task(broadcast_id):
@@ -140,7 +145,6 @@ def check_messages_task():
     """
     from django.utils import timezone
     from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, FAILED, WIRED, SENT, DELIVERED
-    from temba.contacts.models import NORMAL
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
 
@@ -155,14 +159,14 @@ def check_messages_task():
 
             # get any contacts that are currently normal that had a failed message in the past five minutes
             for contact in Contact.objects.filter(msgs__created_on__gte=five_minutes_ago, msgs__direction=OUTGOING,
-                                                  msgs__status=FAILED, status=NORMAL):
+                                                  msgs__status=FAILED, is_failed=False):
                 # if the last message from this contact is failed, then fail this contact
                 if contact.msgs.all().order_by('-created_on').first().status == FAILED:
                     contact.fail()
 
             # get any contacts that are currently failed that had a normal message in the past five minutes
             for contact in Contact.objects.filter(msgs__created_on__gte=five_minutes_ago, msgs__direction=OUTGOING,
-                                                  msgs__status__in=[WIRED, SENT, DELIVERED], status=FAILED):
+                                                  msgs__status__in=[WIRED, SENT, DELIVERED], is_failed=True):
                 # if the last message from this contact is ok, then mark them as normal
                 if contact.msgs.all().order_by('-created_on').first().status in [WIRED, SENT, DELIVERED]:
                     contact.unfail()
@@ -186,7 +190,7 @@ def check_messages_task():
 
             if unhandled_count:
                 print "** Found %d unhandled messages" % unhandled_count
-                for msg in unhandled_messages:
+                for msg in unhandled_messages[:100]:
                     msg.handle()
 
 @celeryd_init.connect
@@ -203,7 +207,7 @@ def export_sms_task(id):
         export_task = tasks[0]
         export_task.do_export()
 
-@task(track_started=True, name="handle_event_task")
+@task(track_started=True, name="handle_event_task", time_limit=90, soft_time_limit=60)
 def handle_event_task():
     """
     Priority queue task that handles both event fires (when fired) and new incoming

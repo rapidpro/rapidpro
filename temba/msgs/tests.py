@@ -205,7 +205,7 @@ class MsgTest(TembaTest):
 
         # test blocked contacts are skipped from inbox and are not handled by flows
         contact = self.create_contact("Blocked contact", "250728739305")
-        contact.is_archived = True
+        contact.is_blocked = True
         contact.save()
         ignored_msg = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
@@ -567,8 +567,7 @@ class MsgTest(TembaTest):
 
         self.msg6 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "message number 6")
 
-        #create a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
@@ -595,6 +594,17 @@ class MsgTest(TembaTest):
 
         response = self.client.post(inbox_url, post_data, follow=True)
         self.assertEquals(Msg.objects.get(pk=self.msg6.pk).visibility, VISIBLE)
+
+        # search on inbox just on the message text
+        response = self.client.get("%s?search=message" % inbox_url)
+        self.assertEquals(5, len(response.context_data['object_list']))
+
+        response = self.client.get("%s?search=5" % inbox_url)
+        self.assertEquals(1, len(response.context_data['object_list']))
+
+        # can search on contact field
+        response = self.client.get("%s?search=joe" % inbox_url)
+        self.assertEquals(5, len(response.context_data['object_list']))
 
     def test_survey_messages(self):
         survey_msg_url = reverse('msgs.msg_flow')
@@ -631,13 +641,13 @@ class MsgTest(TembaTest):
         failed_url = reverse('msgs.msg_failed')
 
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
-        self.assertEquals('N', msg1.contact.status)
+        self.assertFalse(msg1.contact.is_failed)
         msg1.status = 'F'
         msg1.save()
 
         # check that our contact updates accordingly
         check_messages_task()
-        self.assertEquals('F', Contact.objects.get(pk=msg1.contact.pk).status)
+        self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
         # create broadcast and fail the only message
         broadcast = Broadcast.create(self.org, self.root, "message number 2", [self.joe])
@@ -719,7 +729,7 @@ class MsgTest(TembaTest):
         resent_msg.save()
 
         check_messages_task()
-        self.assertEquals('N', Contact.objects.get(pk=msg1.contact.pk).status)
+        self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
     def test_filter_export(self):
         # try exporting the messages
@@ -1156,6 +1166,8 @@ class BroadcastCRUDLTest(_CRUDLTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
+
         self.user.set_org(self.org)
 
         self.channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
@@ -1204,6 +1216,7 @@ class MsgCRUDLTest(_CRUDLTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
 
     def test_folders(self):
         self.login(self.getUser())
@@ -1310,31 +1323,42 @@ class LabelTest(TembaTest):
 
 class LabelCRUDLTest(TembaTest):
 
-    def test_label_create(self):
+    def test_create_and_update(self):
         create_url = reverse('msgs.label_create')
 
-        post_data = dict(name="label_one")
-
         self.login(self.admin)
-        response = self.client.post(create_url, post_data, follow=True)
-        self.assertEquals(Label.objects.all().count(), 1)
-        self.assertEquals(Label.objects.all()[0].parent, None)
 
-        label_one = Label.objects.all()[0]
-        post_data = dict(name="sub_label", parent=label_one.pk)
-        response = self.client.post(create_url, post_data, follow=True)
+        # create a new label
+        self.client.post(create_url, dict(name="label_one"), follow=True)
 
-        self.assertEquals(Label.objects.all().count(), 2)
-        self.assertEquals(Label.objects.filter(parent=None).count(), 1)
+        label_one = Label.objects.get()
+        self.assertEquals(label_one.name, "label_one")
+        self.assertEquals(label_one.parent, None)
 
-        post_data = dict(name="label from modal")
-        response = self.client.post("%s?format=modal" % create_url, post_data, follow=True)
-        self.assertEquals(Label.objects.all().count(), 3)
+        # check that we can't create another with same name
+        response = self.client.post(create_url, dict(name="label_one"))
+        self.assertFormError(response, 'form', 'name', "Label name must be unique")
+
+        # create a child label
+        self.client.post(create_url, dict(name="sub_label", parent=label_one.pk), follow=True)
+
+        sub_label = Label.objects.get(name="sub_label")
+        self.assertEquals(sub_label.parent, label_one)
 
         # check that viewing the parent label shows the child too
-        self.login(self.admin)
         response = self.client.get(reverse('msgs.msg_filter', args=[label_one.pk]))
         self.assertContains(response, "sub_label")
+
+        # update the parent label
+        self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="label_1"))
+
+        label_one = Label.objects.get(pk=label_one.pk)
+        self.assertEquals(label_one.name, "label_1")
+        self.assertEquals(label_one.parent, None)
+
+        # check can't take name of existing label, even a child
+        response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="sub_label"))
+        self.assertFormError(response, 'form', 'name', "Label name must be unique")
 
     def test_label_delete(self):
         label_one = Label.create_unique(self.org, self.user, "label1")
@@ -1398,7 +1422,10 @@ class CallTest(SmartminTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
+        self.org.initialize()
+
         self.user.set_org(self.org)
+
 
         self.channel = Channel.objects.create(name="Test Channel", address="0785551212",
                                               org=self.org, created_by=self.user, modified_by=self.user,

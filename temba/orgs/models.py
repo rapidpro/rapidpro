@@ -88,9 +88,6 @@ ORG_LOW_CREDIT_THRESHOLD = 500
 # cache keys and TTLs
 ORG_LOCK_KEY = 'org:%d:lock:%s'
 ORG_FOLDER_COUNT_CACHE_KEY = 'org:%d:cache:folder_count:%s'
-ORG_ACTIVE_TOPUP_CACHE_KEY = 'org:%d:cache:active_topup'
-ORG_TOPUP_CREDITS_CACHE_KEY = 'org:%d:cache:topup_credits'
-ORG_TOPUP_EXPIRES_CACHE_KEY = 'org:%d:cache:topup_expires'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
@@ -157,7 +154,7 @@ class OrgCache(Enum):
     credits = 2
 
 
-class OrgAssetMixin(object):
+class OrgModelMixin(object):
     """
     Mixin for objects like contacts, messages which are owned by orgs and affect org caches
     """
@@ -272,15 +269,16 @@ class Org(SmartModel):
         """
         Gets the queryset for the given contact or message folder for this org
         """
-        from temba.contacts.models import Contact, FAILED as C_FAILED
+        from temba.contacts.models import Contact
         from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, PENDING, FLOW, FAILED as M_FAILED
+        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
-            return Contact.get_contacts(self, blocked=False)
+            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_failed:
-            return Contact.get_contacts(self, blocked=False).filter(status=C_FAILED)
+            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_blocked:
-            return Contact.get_contacts(self, blocked=True)
+            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.msgs_inbox:
             return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX).exclude(status=PENDING)
         elif folder == OrgFolder.msgs_archived:
@@ -302,11 +300,20 @@ class Org(SmartModel):
         """
         Gets the (cached) count for the given contact folder
         """
-        def calculate(_folder):
-            return self.get_folder_queryset(_folder).count()
+        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
-        cache_key = self._get_folder_count_cache_key(folder)
-        return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
+        if folder == OrgFolder.contacts_all:
+            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).count
+        elif folder == OrgFolder.contacts_blocked:
+            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).count
+        elif folder == OrgFolder.contacts_failed:
+            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).count
+        else:
+            def calculate(_folder):
+                return self.get_folder_queryset(_folder).count()
+
+            cache_key = self._get_folder_count_cache_key(folder)
+            return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
 
     def _get_folder_count_cache_key(self, folder):
         return ORG_FOLDER_COUNT_CACHE_KEY % (self.pk, folder.name)
@@ -347,7 +354,6 @@ class Org(SmartModel):
         """
         Update org-level caches in response to an event
         """
-        from temba.contacts.models import FAILED as C_FAILED
         from temba.msgs.models import INCOMING, INBOX, FAILED as M_FAILED
 
         #print "ORG EVENT: %s for %s #%d" % (event.name, type(entity).__name__, entity.pk)
@@ -365,33 +371,7 @@ class Org(SmartModel):
         increment_count = lambda folder: update_folder_count(folder, 1)
         decrement_count = lambda folder: update_folder_count(folder, -1)
 
-        if event == OrgEvent.contact_new:
-            increment_count(OrgFolder.contacts_all)
-
-        elif event == OrgEvent.contact_blocked:
-            decrement_count(OrgFolder.contacts_all)
-            increment_count(OrgFolder.contacts_blocked)
-            if entity.status == C_FAILED:
-                decrement_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_unblocked:
-            increment_count(OrgFolder.contacts_all)
-            decrement_count(OrgFolder.contacts_blocked)
-            if entity.status == C_FAILED:
-                increment_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_failed:
-            increment_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_unfailed:
-            decrement_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.contact_deleted:
-            decrement_count(OrgFolder.contacts_blocked if entity.is_archived else OrgFolder.contacts_all)
-            if entity.status == C_FAILED:
-                decrement_count(OrgFolder.contacts_failed)
-
-        elif event == OrgEvent.broadcast_new:
+        if event == OrgEvent.broadcast_new:
             if entity.schedule:
                 increment_count(OrgFolder.broadcasts_scheduled)
             else:
@@ -434,10 +414,6 @@ class Org(SmartModel):
             incrby_existing(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, entity.credits, r)
 
         elif event == OrgEvent.topup_updated:
-            # we don't know how many credits this topup used to have, so can't intelligently update the cache
-            clear_value(ORG_ACTIVE_TOPUP_CACHE_KEY % self.pk)
-            clear_value(ORG_TOPUP_CREDITS_CACHE_KEY % self.pk)
-            clear_value(ORG_TOPUP_EXPIRES_CACHE_KEY % self.pk)
             clear_value(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
 
     def clear_caches(self, caches):
@@ -448,15 +424,10 @@ class Org(SmartModel):
         if OrgCache.display in caches:
             for folder in OrgFolder.__members__.values():
                 keys.append(self._get_folder_count_cache_key(folder))
-            for group in self.contactgroup_set.all():
-                keys.append(group.get_member_count_cache_key())
             for label in self.label_set.all():
                 keys.append(label.get_message_count_cache_key())
 
         if OrgCache.credits in caches:
-            keys.append(ORG_ACTIVE_TOPUP_CACHE_KEY % self.pk)
-            keys.append(ORG_TOPUP_CREDITS_CACHE_KEY % self.pk)
-            keys.append(ORG_TOPUP_EXPIRES_CACHE_KEY % self.pk)
             keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
             keys.append(ORG_CREDITS_USED_CACHE_KEY % self.pk)
 
@@ -891,6 +862,9 @@ class Org(SmartModel):
         org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers()
         return org_users.distinct()
 
+    def latest_admin(self):
+        return self.get_org_admins().last()
+
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
@@ -923,8 +897,21 @@ class Org(SmartModel):
         from temba.channels.models import NEXMO
         return self.channels.filter(channel_type=NEXMO)
 
-    def create_welcome_topup(self, user, topup_size=WELCOME_TOPUP_SIZE):
-        return TopUp.create(user, price=0, credits=topup_size, org=self)
+    def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
+        return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+
+    def create_system_groups(self):
+        """
+        Initializes our system groups for this organization so that we can keep track of counts etc..
+        """
+        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
+
+        self.all_groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='Blocked Contacts', group_type=BLOCKED_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
+        self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
+                               created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self):
         from temba.flows.models import Flow
@@ -999,39 +986,11 @@ class Org(SmartModel):
         active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
         active_credits = active_credits if active_credits else 0
 
-        # get our expired topups
-        expired_topups = [t['id'] for t in self.topups.filter(is_active=True, expires_on__lte=timezone.now()).values('id')]
+        # these are the credits that have been used in expired topups
+        expired_credits = self.topups.filter(is_active=True, expires_on__lte=timezone.now()).aggregate(Sum('used')).get('used__sum')
+        expired_credits = expired_credits if expired_credits else 0
 
-        # get how many messages were used on those topups
-        expired_msgs = self.msgs.filter(topup__in=expired_topups).count()
-
-        return active_credits + expired_msgs
-
-    def _calculate_credit_caches(self):
-        """
-        Calculates both our total as well as our active topup
-        """
-        r = get_redis_connection()
-
-        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                             self._calculate_credits_total, force_dirty=True)
-        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                             self._calculate_credits_used, force_dirty=True)
-
-        active_topup = self._calculate_active_topup()
-
-        active_topup_key = ORG_ACTIVE_TOPUP_CACHE_KEY % self.pk
-        topup_credits_key = ORG_TOPUP_CREDITS_CACHE_KEY % self.pk
-        topup_expires_key = ORG_TOPUP_EXPIRES_CACHE_KEY % self.pk
-
-        if active_topup:
-            expires_on = datetime_to_ms(active_topup.expires_on)
-            r.set(active_topup_key, active_topup.pk, ORG_CREDITS_CACHE_TTL)
-            r.set(topup_credits_key, active_topup.used, ORG_CREDITS_CACHE_TTL)
-            r.set(topup_expires_key, expires_on, ORG_CREDITS_CACHE_TTL)
-        else:
-            # delete the existing cache values
-            r.delete(active_topup_key, topup_credits_key, topup_expires_key)
+        return active_credits + expired_credits
 
     def get_credits_used(self):
         """
@@ -1048,6 +1007,15 @@ class Org(SmartModel):
 
         return used_credits_sum + unassigned_sum
 
+    def _calculate_credit_caches(self):
+        """
+        Calculates both our total as well as our active topup
+        """
+        get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                             self._calculate_credits_total, force_dirty=True)
+        get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                             self._calculate_credits_used, force_dirty=True)
+
     def get_credits_remaining(self):
         """
         Gets the number of credits remaining for this org
@@ -1059,47 +1027,11 @@ class Org(SmartModel):
         Decrements this orgs credit by 1. Returns the id of the active topup which can then be assigned to the message
         or IVR action which is being paid for with this credit
         """
-        active_topup_key = ORG_ACTIVE_TOPUP_CACHE_KEY % self.pk
-        topup_credits_key = ORG_TOPUP_CREDITS_CACHE_KEY % self.pk
-        topup_expires_key = ORG_TOPUP_EXPIRES_CACHE_KEY % self.pk
         total_used_key = ORG_CREDITS_USED_CACHE_KEY % self.pk
+        incrby_existing(total_used_key, 1)
 
-        with self.lock_on(OrgLock.credits):
-            r = get_redis_connection()
-            active_topup_id = r.get(active_topup_key)
-            credits = r.decr(topup_credits_key)
-            expires_on = r.get(topup_expires_key)
-
-            # has this topup's credits expired?
-            if expires_on:
-                expired = datetime_to_ms(datetime.now()) > long(expires_on)
-            else:
-                expired = False
-
-            # if cached topup key has expired or topup is no longer valid, find another..
-            if active_topup_id is None or credits < 0 or expired:
-
-                active_topup = self._calculate_active_topup()
-
-                if active_topup:
-                    active_topup_id = active_topup.pk
-                    decremented_credit = (active_topup.credits - active_topup.used) - 1
-                    expires_on = datetime_to_ms(active_topup.expires_on)
-
-                    # cache it, the decremented credit value and expires timestamp
-                    r.set(active_topup_key, active_topup.pk, ORG_CREDITS_CACHE_TTL)
-                    r.set(topup_credits_key, decremented_credit, ORG_CREDITS_CACHE_TTL)
-                    r.set(topup_expires_key, expires_on, ORG_CREDITS_CACHE_TTL)
-                else:
-                    active_topup_id = None
-
-                    # delete the existing cache values
-                    r.delete(active_topup_key, topup_credits_key, topup_expires_key)
-
-            # update the total used count as well if it exists
-            incrby_existing(total_used_key, 1)
-
-        return int(active_topup_id) if active_topup_id else None
+        active_topup = self._calculate_active_topup()
+        return active_topup.pk if active_topup else None
 
     def _calculate_active_topup(self):
         """
@@ -1377,6 +1309,15 @@ class Org(SmartModel):
 
         return recommended
 
+
+    def initialize(self, topup_size=WELCOME_TOPUP_SIZE):
+        """
+        Initializes an organization, creating all the dependent objects we need for it to work properly.
+        """
+        self.create_system_groups()
+        self.create_sample_flows()
+        self.create_welcome_topup(topup_size)
+
     @classmethod
     def create_user(cls, email, password):
         user = User.objects.create_user(username=email, email=email, password=password)
@@ -1443,6 +1384,26 @@ def get_org_group(obj):
     return org_group
 
 
+def _user_has_org_perm(user, org, permission):
+    """
+    Determines if a user has the given permission in this org
+    """
+    if user.is_superuser:
+        return True
+
+    if user.is_anonymous():
+        return False
+
+    org_group = org.get_user_org_group(user)
+
+    if not org_group:
+        return False
+
+    (app_label, codename) = permission.split(".")
+
+    return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
+
+
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
@@ -1450,6 +1411,7 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.has_org_perm = _user_has_org_perm
 
 
 USER_GROUPS = (('A', _("Administrator")),

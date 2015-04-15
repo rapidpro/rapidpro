@@ -28,7 +28,7 @@ def omnibox_query(org, **kwargs):
 
     # these lookups return a Contact queryset
     if contact_ids or step_uuid or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_archived=False, is_active=True, is_test=simulation)
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_active=True, is_test=simulation)
 
         if contact_ids:
             qs = qs.filter(id__in=contact_ids.split(","))
@@ -51,7 +51,7 @@ def omnibox_query(org, **kwargs):
 
     # this lookup returns a ContactGroup queryset
     elif group_ids:
-        qs = ContactGroup.objects.filter(org=org, id__in=group_ids.split(","))
+        qs = ContactGroup.user_groups.filter(org=org, id__in=group_ids.split(","))
         return qs.annotate(members=Count('contacts')).order_by('name')
 
     # this lookup returns a ContactURN queryset
@@ -112,7 +112,7 @@ def omnibox_mixed_search(org, search, types):
     if 'g' in types:
         clauses = ["""SELECT 1 AS type, g.id AS id, g.name AS text, NULL AS owner, NULL AS scheme
                       FROM contacts_contactgroup g
-                      WHERE g.is_active = TRUE AND g.org_id = %s"""]
+                      WHERE g.is_active = TRUE AND g.group_type = 'U' AND g.org_id = %s"""]
         params = [org.pk]
         if search_terms:
             add_search('name', clauses, params)
@@ -121,7 +121,7 @@ def omnibox_mixed_search(org, search, types):
     if 'c' in types:
         clauses = ["""SELECT 2 AS type, c.id AS id, c.name AS text, NULL AS owner, NULL AS scheme
                       FROM contacts_contact c
-                      WHERE c.is_active = TRUE AND c.is_archived = FALSE AND c.is_test = FALSE AND c.org_id = %s"""]
+                      WHERE c.is_active = TRUE AND c.is_blocked = FALSE AND c.is_test = FALSE AND c.org_id = %s"""]
         params = [org.pk]
         if search_terms:
             add_search('name', clauses, params, org.is_anon)
@@ -159,7 +159,7 @@ def omnibox_results_to_dict(org, results):
             if obj['type'] == RESULT_TYPE_GROUP:
                 result['id'] = 'g-%d' % _id
                 result['text'] = text
-                result['extra'] = ContactGroup.objects.get(pk=_id).get_member_count()
+                result['extra'] = ContactGroup.user_groups.get(pk=_id).get_member_count()
             elif obj['type'] == RESULT_TYPE_CONTACT:
                 result['id'] = 'c-%d' % _id
                 if not text:

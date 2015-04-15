@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import os
 import redis
+import shutil
 import string
 import time
 
@@ -71,6 +72,7 @@ class TembaTest(SmartminTest):
 
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country,
                                       created_by=self.user, modified_by=self.user)
+        self.org.initialize()
 
         # add users to the org
         self.org.administrators.add(self.admin)
@@ -83,7 +85,7 @@ class TembaTest(SmartminTest):
         self.superuser.set_org(self.org)
 
         # welcome topup with 1000 credits
-        self.welcome_topup = self.org.create_welcome_topup(self.admin)
+        self.welcome_topup = self.org.topups.all()[0]
 
         # a single Android channel
         self.channel = Channel.objects.create(org=self.org, name="Test Channel",
@@ -95,10 +97,18 @@ class TembaTest(SmartminTest):
         Contact.set_simulation(False)
 
     def clear_cache(self):
-        # we are extra paranoid here and actually hardcode redis to 'localhost' and '10'
-        # Redis 10 is our testing redis db
+        """
+        Clears the redis cache. We are extra paranoid here and actually hard-code redis to 'localhost' and '10'
+        Redis 10 is our testing redis db
+        """
         r = redis.StrictRedis(host='localhost', db=10)
         r.flushdb()
+
+    def clear_storage(self):
+        """
+        If a test has written files to storage, it should remove them by calling this
+        """
+        shutil.rmtree('media/test_orgs')
 
     def import_file(self, file, site='http://rapidpro.io'):
 
@@ -114,6 +124,8 @@ class TembaTest(SmartminTest):
         self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", created_by=self.admin2, modified_by=self.admin2)
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
+
+        self.org2.initialize()
 
     def create_contact(self, name=None, number=None, twitter=None):
         """
