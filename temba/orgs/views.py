@@ -1244,7 +1244,7 @@ class OrgCRUDL(SmartCRUDL):
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class WebhookForm(forms.ModelForm):
-            webhook = forms.CharField(required=False, label=_("Webhook URL"), help_text="")
+            webhook = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
             headers = forms.CharField(required=False)
             mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
             mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
