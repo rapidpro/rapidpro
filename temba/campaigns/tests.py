@@ -111,6 +111,14 @@ class ScheduleTest(TembaTest):
         response = self.client.get(reverse('campaigns.campaign_list'))
         self.assertContains(response, "Planting Reminders")
 
+        # try searching for the campaign by group name
+        response = self.client.get(reverse('campaigns.campaign_list') + "?search=farmers")
+        self.assertContains(response, "Planting Reminders")
+
+        # test no match
+        response = self.client.get(reverse('campaigns.campaign_list') + "?search=factory")
+        self.assertNotContains(response, "Planting Reminders")
+
         # archive a campaign
         post_data = dict(action='archive', objects=campaign.pk)
         self.client.post(reverse('campaigns.campaign_list'), post_data)

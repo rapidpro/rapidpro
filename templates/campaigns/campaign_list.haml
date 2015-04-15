@@ -56,8 +56,7 @@
                     - if org_perms.campaigns.campaign_update
                       %td.campaign.checkbox.object-row-checkbox
                         .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
-                    %td
-                      %a{ href:"{% url 'campaigns.campaign_read' obj.id %}" }= obj.name
+                    %td= obj.name
 
                     %td
                       {{ obj.group.name }}
@@ -93,6 +92,14 @@
         modal.show();
       });
     {% endif %}
+
+    $('.object-row').live('mouseover', function(){
+      url = '/campaign/read/' + $(this).data('object-id') + '/';
+
+      $(this).find('td').not(':first-child').each(function(){
+        $(this).attr('onClick', "document.location.href=url;");
+      });
+    });
 
     {% if org_perms.campaigns.campaign_update %}
       $(document).on('click', '.update-campaign', function(e){
