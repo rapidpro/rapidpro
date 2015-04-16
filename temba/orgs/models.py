@@ -570,7 +570,7 @@ class Org(SmartModel):
         """
         Returns a string with webhook url.
         """
-        return json.loads(self.webhook).get('url', '') if self.webhook else ''
+        return json.loads(self.webhook).get('url') if self.webhook else None
 
     def get_webhook_headers(self):
         """
