@@ -15,7 +15,7 @@ def cast_json(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0005_auto_20150413_1001'),
+        ('orgs', '0004_auto_20150416_0728'),
     ]
 
     operations = [

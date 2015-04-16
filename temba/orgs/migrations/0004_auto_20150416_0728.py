@@ -7,18 +7,10 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0004_merge'),
+        ('orgs', '0003_auto_20150313_1624'),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='org',
-            name='webhook_header_field_name',
-        ),
-        migrations.RemoveField(
-            model_name='org',
-            name='webhook_header_value',
-        ),
         migrations.AlterField(
             model_name='org',
             name='webhook',
