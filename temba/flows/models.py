@@ -2542,6 +2542,16 @@ class ActionSet(models.Model):
 
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=destination, actions=self.get_actions_dict())
 
+    def get_description(self):
+        """
+        Tries to return a slightly friendly version of the actions in this actionset.
+        """
+        description = ""
+        for action in self.get_actions():
+            description += action.get_description() + "\n"
+
+        return description
+
     def __unicode__(self):
         return "ActionSet: %s" % (self.uuid, )
 
@@ -3216,6 +3226,15 @@ class FlowStep(models.Model):
             msg.msg_type = FLOW
             msg.save(update_fields=['msg_type'])
 
+    def get_step(self):
+        """
+        Returns either the RuleSet or ActionSet associated with this FlowStep
+        """
+        if self.step_type == RULE_SET:
+            return RuleSet.objects.filter(uuid=self.step_uuid).first()
+        else:
+            return ActionSet.objects.filter(uuid=self.step_uuid).first()
+
     def __unicode__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
@@ -3439,6 +3458,10 @@ class Action(object):
     def update_base_language(self, language_iso):
         pass
 
+    def get_description(self):
+        return str(self.__class__)
+
+
 class EmailAction(Action):
     """
     Sends an email to someone
@@ -3500,6 +3523,10 @@ class EmailAction(Action):
             subject = re.sub('\s+', ' ', subject)
             send_mail(subject, message, from_email, emails)
 
+    def get_description(self):
+        return "Email to %s with subject %s" % (",".join(self.emails), self.subject)
+
+
 class APIAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
@@ -3525,6 +3552,9 @@ class APIAction(Action):
                                                     org=run.flow.org, url_encode=True)
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset, run.contact, sms, self.action)
         return []
+
+    def get_description(self):
+        return "API call to %s" % self.webhook
 
 
 class AddToGroupAction(Action):
@@ -3627,6 +3657,9 @@ class AddToGroupAction(Action):
                             ActionLog.create(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
+    def get_description(self):
+        return "Added to group %s" % (", ".join([g.name for g in self.groups]))
+
 
 class DeleteFromGroupAction(AddToGroupAction):
     """
@@ -3641,6 +3674,8 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json))
 
+    def get_description(self):
+        return "Removed from group %s" % ", ".join([g.name for g in self.groups])
 
 class AddLabelAction(Action):
     """
@@ -3723,6 +3758,10 @@ class AddLabelAction(Action):
                     ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, sms.text))
         return []
 
+    def get_description(self):
+        return "Added label %s" % self.labels
+
+
 class SayAction(Action):
     """
     Voice action for reading some text to a user
@@ -3779,6 +3818,9 @@ class SayAction(Action):
         if not isinstance(self.recording, dict):
             self.recording = {language_iso: self.recording}
 
+    def get_description(self):
+        return "Said %s" % self.msg
+
 
 class PlayAction(Action):
     """
@@ -3809,6 +3851,10 @@ class PlayAction(Action):
             ActionLog.create(run, log_txt)
 
         return [msg]
+
+    def get_description(self):
+        return "Played %s" % self.url
+
 
 class ReplyAction(Action):
     """
@@ -3841,6 +3887,10 @@ class ReplyAction(Action):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.msg, dict):
             self.msg = {language_iso: self.msg}
+
+    def get_description(self):
+        return "Replied with %s" % self.msg
+
 
 class VariableContactAction(Action):
     """
@@ -4010,6 +4060,9 @@ class TriggerFlowAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
+    def get_description(self):
+        return "Triggered flow %s" % self.flow
+
 
 class SetLanguageAction(Action):
     """
@@ -4044,6 +4097,10 @@ class SetLanguageAction(Action):
         log_txt = _("Setting language to %s") % self.name
         log = ActionLog.create(run, log_txt)
         return log
+
+    def get_description(self):
+        print "Set language to %s" % self.name
+
 
 class StartFlowAction(Action):
     """
@@ -4085,6 +4142,9 @@ class StartFlowAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
+
+    def get_description(self):
+        return "Started flow %s" % self.flow
 
 
 class SaveToContactAction(Action):
@@ -4175,6 +4235,9 @@ class SaveToContactAction(Action):
 
         return log
 
+    def get_description(self):
+        return "Updated field %s to '%s'" % (self.field, self.value)
+
 
 class SendAction(VariableContactAction):
     """
@@ -4257,6 +4320,10 @@ class SendAction(VariableContactAction):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.msg, dict):
             self.msg = {language_iso: self.msg}
+
+    def get_description(self):
+        return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
+
 
 class Rule(object):
 

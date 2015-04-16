@@ -1,0 +1,82 @@
+-extends "contacts/contact_read.html"
+
+-block contact-groups
+
+-block read-buttons
+
+-block content
+  .row
+    .span12
+      -for event in events
+        -with event.1 as e
+          .history-event
+            .event-header
+              .event-type
+                -if e.direction == 'I'
+                  incoming msg
+                -elif e.direction == 'O'
+                  outgoing msg
+                -elif e.fired
+                  campaign event
+                -elif e.step_type == 'R'
+                  flow ruleset
+                -elif e.step_type == 'A'
+                  flow action
+              .event-time
+                {{ event.0|date:"N j, Y G:i:s" }}
+                &nbsp;
+
+            .event-details
+              -if e.direction == 'I'
+                .event-msg-in
+                  {{ e.text }}
+              -elif e.direction == 'O'
+                .event-msg-out
+                  {{ e.text }}
+              -elif e.fired
+                .event-campaign
+                  Scheduled start of <a href="{% url 'flows.flow_editor' e.event.flow.pk %}">{{ e.event.flow }}</a> from campaign <a href="{% url 'campaigns.campaignevent_read' e.event.pk %}">{{ e.event.campaign.name }}</a>
+              -elif e.step_type
+                .event-flow
+                  -if e.step_type == 'R'
+                    Handled by ruleset in <a href="{% url 'flows.flow_editor' e.run.flow.pk %}">{{ e.run.flow }}</a> categorized as <b>{{ e.rule_category }}</b> with value <b>"{{ e.rule_value }}"</b>
+                  -else
+                    Actions performed in <a href="{% url 'flows.flow_editor' e.run.flow.pk %}">{{ e.run.flow }}</a>
+                  <p>{{ e.get_step.get_description|linebreaks }}</p>
+              -else
+                {{ e }}
+
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .history-event {
+      margin-bottom: 5px;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 5px;
+    }
+
+    .event-type {
+      float: right;
+      font-style: italic;
+      color: #888;
+    }
+
+    .event-time {
+      font-weight: 600;
+    }
+
+    .event-msg-in {
+      font-style: italic;
+      text-align: left;
+
+    }
+
+    .event-msg-out {
+    font-style: italic;
+      text-align: left;
+    }
+
+    .event-campaign, .event-flow {
+      padding-left: 300px;
+    }
