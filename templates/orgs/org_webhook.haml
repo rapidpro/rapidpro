@@ -42,6 +42,18 @@
             </label>
             <input type="text" id="id_header_{{ forloop.counter }}_value" name="header_{{ forloop.counter }}_value" value="{{ val }}" />
       {% endfor %}
+    {% else %}
+      .field.webhook-header-pair.hide
+        .field.header-key
+          <label for="header_1_key">
+            -trans "Header key"
+          </label>
+          <input type="text" id="id_header_1_key" name="header_1_key" value="" />
+        .field.webhook-header-value
+          <label for="header_0_value">
+            -trans "Header value"
+          </label>
+          <input type="text" id="id_header_1_value" name="header_1_value" value="" />
     {% endif %}
 
   API Token: {{user.api_token}}
