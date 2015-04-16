@@ -1243,6 +1243,22 @@ class OrgCRUDL(SmartCRUDL):
             class Meta:
                 model = Org
 
+            def clean_headers(self):
+                idx = 0
+                headers = dict()
+                key = 'header_%d_key' % idx
+                value = 'header_%d_value' % idx
+
+                while key in self.data:
+                    if self.data.get(value, ''):
+                        headers[self.data[key]] = self.data[value]
+
+                    idx += 1
+                    key = 'header_%d_key' % idx
+                    value = 'header_%d_value' % idx
+
+                return headers
+
         form_class = WebhookForm
         fields = ('webhook', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
         success_url = '@orgs.org_home'
@@ -1252,18 +1268,6 @@ class OrgCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super(OrgCRUDL.Webhook, self).pre_save(obj)
 
-            # grab all submitted headers
-            # discard any key with a falsy value or whitespace value
-            headers = {k: v for k, v in self.form.data.items() if (k.startswith('header_') and bool(v.strip()))}
-
-            # ensure each header _value_ has a corresponding key
-            # (technically, its ok to have a valueless header key)
-            for n in xrange((len(headers) / 2)):
-                pair = {k: v for k, v in headers.items() if k.startswith('header_' + str(n + 1))}
-                if len({k for k in headers if 'key' in k}) == 0:
-                    raise ValidationError(_('Headers must include a key'))
-
-            self.form.cleaned_data['headers'] = headers
             data = self.form.cleaned_data
 
             webhook_events = 0
@@ -1277,18 +1281,13 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.webhook_events = webhook_events
 
-            webhook_data = {}
+            webhook_data = dict()
             if data['webhook']:
                 webhook_data.update({'url': data['webhook']})
                 webhook_data.update({'method': 'POST'})
 
             if data['headers']:
-                pairs = []
-                for n in xrange(len({k for k in data['headers'] if 'key' in k})):
-                    pair = {k: v for k, v in data['headers'].items() if k.startswith('header_' + str(n + 1))}
-                    pairs.append(pair.items())
-                as_dict = dict([(p[0][1], p[1][1]) for p in pairs])
-                webhook_data.update({'headers': as_dict})
+                webhook_data.update({'headers': data['headers']})
 
             obj.webhook = json.dumps(webhook_data)
 
