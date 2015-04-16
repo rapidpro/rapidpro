@@ -9,7 +9,7 @@
   .field.webhook-url
     %label{ for:'webhook' }
       -trans "Webhook"
-    <input type="text" id="id_webhook" name="webhook" value="{{ org.get_webhook_url }}" />
+    <input type="text" id="id_webhook" name="webhook" value="{{ org.get_webhook_url|default_if_none:"" }}" />
   .field.webhook-headers
 
     %a.expand
@@ -100,7 +100,7 @@
       -trans "API Log"
 
 -block summary
-  -if org.webhook
+  -if org.get_webhook_url
     -trans "WebHook events are being forwarded to"
     %span.attn= org.get_webhook_url
     %div
