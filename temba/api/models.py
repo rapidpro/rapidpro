@@ -155,16 +155,10 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
-            # some hosts deny generic user agents, use Temba as our user agent
-            headers = TEMBA_HEADERS
-
-            # also include any optional headers
-            headers.update(org.get_webhook_headers())
-
             if action == 'GET':
-                response = requests.get(webhook_url, headers=headers, timeout=10)
+                response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
             else:
-                response = requests.post(webhook_url, data=data, headers=headers, timeout=10)
+                response = requests.post(webhook_url, data=data, headers=TEMBA_HEADERS, timeout=10)
 
             response_text = response.text
             body = response.text
@@ -356,7 +350,13 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
-            r = requests.post(self.org.webhook, data=post_data, headers=TEMBA_HEADERS)
+            # some hosts deny generic user agents, use Temba as our user agent
+            headers = TEMBA_HEADERS
+
+            # also include any user-defined headers
+            headers.update(org.get_webhook_headers())
+
+            r = requests.post(self.org.get_webhook_url(), data=post_data, headers=headers)
             result['status_code'] = r.status_code
             result['body'] = r.text.strip()
 
