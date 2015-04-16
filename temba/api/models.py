@@ -155,6 +155,7 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
+            # some hosts deny generic user agents, use Temba as our user agent
             if action == 'GET':
                 response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
             else:
