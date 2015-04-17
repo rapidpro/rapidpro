@@ -1326,7 +1326,9 @@ class Channel(SmartModel):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 
         callback_url = Channel.build_twilio_callback_url(msg.id)
-        client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+        client = TwilioRestClient(
+            channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN],
+            base=settings.TWILIO_URL)
         message = client.messages.create(to=msg.urn_path,
                                          from_=channel.address,
                                          body=text,
