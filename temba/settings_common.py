@@ -979,3 +979,9 @@ TWITTER_API_KEY = "your twitter api key"
 TWITTER_API_SECRET = "your twitter api secret"
 
 # SEGMENT_IO_KEY = "your segment.io key here"
+
+
+#-----------------------------------------------------------------------------------
+# Twilio settings
+#-----------------------------------------------------------------------------------
+TWILIO_URL = 'https://api.twilio.com'
