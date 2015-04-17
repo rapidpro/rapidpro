@@ -11,6 +11,10 @@ from twilio.util import RequestValidator
 
 
 class TwilioClient(TwilioRestClient):
+    def __init__(self, args, **kwargs):
+        kwargs['base'] = settings.TWILIO_URL
+        super(TwilioClient, self).__init__(*args, **kwargs)
+
     def start_call(self, call, to, from_, status_callback):
 
         twilio_call = self.calls.create(to=to,
