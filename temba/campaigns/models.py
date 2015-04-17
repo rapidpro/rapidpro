@@ -317,7 +317,7 @@ class EventFire(Model):
 
     @classmethod
     def parse_relative_to_date(cls, contact, key):
-        return contact.org.parse_date(contact.get_field_raw(key))
+        return contact.org.parse_date(contact.get_field_raw(key)).replace(second=0, microsecond=0)
 
     def get_relative_to_value(self):
         return EventFire.parse_relative_to_date(self.contact, self.event.relative_to.key)
@@ -326,8 +326,8 @@ class EventFire(Model):
         """
         Actually fires this event for the passed in contact and flow
         """
-        self.event.flow.start([], [self.contact], restart_participants=True)
         self.fired = timezone.now()
+        self.event.flow.start([], [self.contact], restart_participants=True)
         self.save()
 
     @classmethod
@@ -392,7 +392,7 @@ class EventFire(Model):
 
         # for each campaign that might effect us
         for campaign in Campaign.objects.filter(group__in=groups, org=contact.org,
-                                                is_active=True, is_archived=False):
+                                                is_active=True, is_archived=False).distinct():
 
             # update all the events for the campaign
             EventFire.update_campaign_events_for_contact(campaign, contact)

@@ -422,7 +422,7 @@ class Flow(TembaModel, SmartModel):
         # if we are at ruleset, interpret based on our incoming data
         if run.steps.all():
             # find what our next action is
-            step = run.steps.filter(left_on=None, rule_uuid=None, step_type=RULE_SET).order_by('-arrived_on').first()
+            step = run.steps.filter(left_on=None, rule_uuid=None, step_type=RULE_SET).order_by('-arrived_on', '-pk').first()
 
             if step:
                 ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
@@ -611,12 +611,13 @@ class Flow(TembaModel, SmartModel):
 
         for step in steps:
             flow = step.run.flow
+            arrived_on = timezone.now()
 
             action_set = ActionSet.get(step.step_uuid)
 
             # this action set doesn't exist anymore, mark it as left so they leave the flow
             if not action_set:
-                step.left_on = timezone.now()
+                step.left_on = arrived_on
                 step.save(update_fields=['left_on'])
                 flow.remove_active_for_step(step)
                 continue
@@ -626,7 +627,7 @@ class Flow(TembaModel, SmartModel):
                 continue
 
             # otherwise, advance them to the rule set
-            flow.add_step(step.run, action_set.destination, previous_step=step)
+            flow.add_step(step.run, action_set.destination, previous_step=step, arrived_on=arrived_on)
 
             # that ruleset will be handled below
             break
@@ -634,13 +635,13 @@ class Flow(TembaModel, SmartModel):
         # order by most recent first
         steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__flow__is_archived=False,
                                         run__contact=msg.contact, step_type=RULE_SET, left_on=None,
-                                        run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on')
+                                        run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on', '-pk')
 
         # in simulation allow to handle msg even by archived flows
         if msg.contact.is_test:
             steps = FlowStep.objects.filter(run__flow__is_active=True, run__is_active=True,
                                             run__contact=msg.contact, step_type=RULE_SET, left_on=None,
-                                            run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on')
+                                            run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on', '-pk')
 
         # optimization
         steps = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
@@ -716,15 +717,17 @@ class Flow(TembaModel, SmartModel):
             return True
 
         # execute this step
+        arrived_on = timezone.now()
         msgs = action_set.execute_actions(run, msg, started_flows)
-        step = flow.add_step(run, action_set, msgs, rule=rule.uuid, category=rule.category, previous_step=step)
+        step = flow.add_step(run, action_set, msgs, rule=rule.uuid, category=rule.category, previous_step=step, arrived_on=arrived_on)
 
         # and onto the destination
         if action_set.destination:
-            step.left_on = timezone.now()
+            arrived_on = timezone.now()
+            step.left_on = arrived_on
             step.next_uuid = action_set.destination.uuid
             step.save(update_fields=['left_on', 'next_uuid'])
-            flow.add_step(run, action_set.destination, previous_step=step)
+            flow.add_step(run, action_set.destination, previous_step=step, arrived_on=arrived_on)
 
         else:
             run.set_completed()
@@ -1181,7 +1184,7 @@ class Flow(TembaModel, SmartModel):
 
         if runs:
             busiest_run = runs['run']
-            steps = self.steps().filter(run=busiest_run, step_type=RULE_SET).exclude(rule_uuid=None).order_by('arrived_on')
+            steps = self.steps().filter(run=busiest_run, step_type=RULE_SET).exclude(rule_uuid=None).order_by('arrived_on', 'pk')
 
             for step in steps:
                 if step.step_uuid not in existing:
@@ -1348,7 +1351,7 @@ class Flow(TembaModel, SmartModel):
         if filter_ruleset:
             flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
-        flow_steps = flow_steps.order_by('arrived_on').select_related('run').prefetch_related('messages')
+        flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
 
         steps_cache = {}
         for step in flow_steps:
@@ -1670,23 +1673,24 @@ class Flow(TembaModel, SmartModel):
 
             run = run_map[contact.id]
             run_msgs = message_map.get(contact.id, [])
+            arrived_on = timezone.now()
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
                                                           execute_reply_action=not optimize_sending_action)
 
-                step = self.add_step(run, entry_actions, run_msgs, is_start=True)
+                step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
                 # and onto the destination
                 if entry_actions.destination:
-                    self.add_step(run, entry_actions.destination, previous_step=step)
+                    self.add_step(run, entry_actions.destination, previous_step=step, arrived_on=timezone.now())
                 else:
                     run.set_completed()
                     if contact.is_test:
                         ActionLog.create(run, '%s has exited this flow' % run.contact.get_display(self.org, short=True))
 
             elif entry_rules:
-                step = self.add_step(run, entry_rules, run_msgs, is_start=True)
+                step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
 
                 # if we have a start message, go and handle the rule
                 if start_msg:
@@ -1721,9 +1725,12 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None):
+    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
+
+        if not arrived_on:
+            arrived_on = timezone.now()
 
         # if we were previously marked complete, activate again
         run.set_completed(False)
@@ -1733,11 +1740,12 @@ class Flow(TembaModel, SmartModel):
             run.update_expiration(timezone.now())
 
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.steps().filter(run=run, left_on=None).update(left_on=timezone.now(), next_uuid=step.uuid,
+            self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=step.uuid,
                                                               rule_uuid=rule, rule_category=category)
 
         # then add our new step and associate it with our message
-        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=step.get_step_type(), step_uuid=step.uuid)
+        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=step.get_step_type(),
+                                       step_uuid=step.uuid, arrived_on=arrived_on)
 
         # for each message, associate it with this step and set the label on it
         for msg in msgs:
@@ -2856,7 +2864,7 @@ class ExportFlowResultsTask(SmartModel):
                 category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
         all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)
-        all_steps = all_steps.order_by('contact', 'run', 'arrived_on').select_related('run', 'contact').prefetch_related('messages')
+        all_steps = all_steps.order_by('contact', 'run', 'arrived_on', 'pk').select_related('run', 'contact').prefetch_related('messages')
 
         # count of unique flow runs
         all_runs_count = all_steps.values('run').distinct().count()
@@ -3017,7 +3025,7 @@ class ExportFlowResultsTask(SmartModel):
         sheet_count = 0
 
         all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on', 'pk')
-        all_steps = all_steps.select_related('run','contact').prefetch_related('messages')
+        all_steps = all_steps.select_related('run', 'contact').prefetch_related('messages')
 
         # now print out all the raw messages
         all_messages = None
@@ -3062,6 +3070,7 @@ class ExportFlowResultsTask(SmartModel):
                 all_messages.write(row, 3, "IN")
             else:
                 all_messages.write(row, 3, "OUT")
+
             all_messages.write(row, 4, step.get_text())
             all_messages.write(row, 5, step.get_channel_name())
             row += 1
@@ -3156,8 +3165,8 @@ class FlowStep(models.Model):
     next_uuid = models.CharField(max_length=36, null=True,
                                  help_text=_("The uuid of the next step type we took"))
 
-    arrived_on = models.DateTimeField(auto_now_add=True,
-                                      help_text=_("When the user arrived at this step in the flow"))
+    arrived_on = models.DateTimeField(help_text=_("When the user arrived at this step in the flow"))
+
     left_on = models.DateTimeField(null=True, db_index=True,
                                    help_text=_("When the user left this step in the flow"))
 
@@ -3181,7 +3190,6 @@ class FlowStep(models.Model):
         return messages
 
     def release(self):
-
         if not self.contact.is_test:
             self.run.flow.remove_visits_for_step(self)
 
