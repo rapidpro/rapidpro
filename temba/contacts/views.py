@@ -827,7 +827,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # sort by id first, then by pk
             events = sorted(events, key=lambda event: event[1].id, reverse=True)
-            events = sorted(events, key=lambda event: event[0].replace(microsecond=0), reverse=True)
+            events = sorted(events, key=lambda event: event[0], reverse=True)
 
             context['events'] = events
             return context
