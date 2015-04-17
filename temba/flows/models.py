@@ -1184,7 +1184,7 @@ class Flow(TembaModel, SmartModel):
 
         if runs:
             busiest_run = runs['run']
-            steps = self.steps().filter(run=busiest_run, step_type=RULE_SET).exclude(rule_uuid=None).order_by('arrived_on')
+            steps = self.steps().filter(run=busiest_run, step_type=RULE_SET).exclude(rule_uuid=None).order_by('arrived_on', 'pk')
 
             for step in steps:
                 if step.step_uuid not in existing:
@@ -1351,7 +1351,7 @@ class Flow(TembaModel, SmartModel):
         if filter_ruleset:
             flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
-        flow_steps = flow_steps.order_by('arrived_on').select_related('run').prefetch_related('messages')
+        flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
 
         steps_cache = {}
         for step in flow_steps:
@@ -1679,11 +1679,11 @@ class Flow(TembaModel, SmartModel):
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
                                                           execute_reply_action=not optimize_sending_action)
 
-                step = self.add_step(run, entry_actions, run_msgs, is_start=True)
+                step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
                 # and onto the destination
                 if entry_actions.destination:
-                    self.add_step(run, entry_actions.destination, previous_step=step, arrived_on=arrived_on)
+                    self.add_step(run, entry_actions.destination, previous_step=step, arrived_on=timezone.now())
                 else:
                     run.set_completed()
                     if contact.is_test:
@@ -2864,7 +2864,7 @@ class ExportFlowResultsTask(SmartModel):
                 category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
         all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)
-        all_steps = all_steps.order_by('contact', 'run', 'arrived_on').select_related('run', 'contact').prefetch_related('messages')
+        all_steps = all_steps.order_by('contact', 'run', 'arrived_on', 'pk').select_related('run', 'contact').prefetch_related('messages')
 
         # count of unique flow runs
         all_runs_count = all_steps.values('run').distinct().count()
@@ -3025,7 +3025,7 @@ class ExportFlowResultsTask(SmartModel):
         sheet_count = 0
 
         all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on', 'pk')
-        all_steps = all_steps.select_related('run','contact').prefetch_related('messages')
+        all_steps = all_steps.select_related('run', 'contact').prefetch_related('messages')
 
         # now print out all the raw messages
         all_messages = None
@@ -3070,6 +3070,7 @@ class ExportFlowResultsTask(SmartModel):
                 all_messages.write(row, 3, "IN")
             else:
                 all_messages.write(row, 3, "OUT")
+
             all_messages.write(row, 4, step.get_text())
             all_messages.write(row, 5, step.get_channel_name())
             row += 1
