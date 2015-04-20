@@ -17,16 +17,19 @@
 
     .span4
       .pull-right
-        %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" } Export Flow Results
+        %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" }
+          -trans "Export Flow Results"
         %span.btn-group.gear-menu
           %button.btn.dropdown-toggle{ data-toggle:"dropdown" }
             .glyph.icon-cog
             %span.caret
           %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
             %li
-              %a{ href: "{% url 'flows.flow_editor' object.pk %}" } View Flow
+              %a{ href: "{% url 'flows.flow_editor' object.pk %}" }
+                - trans "View Flow"
             %li
-              %a{ href: "{% url 'contacts.contact_read' contact.uuid %}" } View Contact
+              %a{ href: "{% url 'contacts.contact_read' contact.uuid %}" }
+                - trans "View Contact"
 
 -block buttons
 
@@ -52,7 +55,6 @@
               }
             }
           }
-
         }
 
         .to {
@@ -339,7 +341,8 @@
               .most-recent
                 .title
                   -if last_message
-                    Last message sent {{last_message.created_on}}
+                    - blocktrans with created_on=last_message.created_on
+                      Last message sent {{created_on}}
                 -if last_message.text|length > 1 and last_message.text != last_message.recording_url
                   {{last_message}}
 
@@ -352,7 +355,8 @@
           .run.hide{class:'run_{{run.pk}}'}
             .run-messages
               .ilog.from
-                Started {{run.created_on}}
+                -blocktrans with created_on=run.created_on
+                  Started {{created_on}}
                 %br
                 {{messages|length}} message{{messages|pluralize:"s"}}
 
@@ -366,14 +370,14 @@
                         %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
                         .play
                           %a{href:'javascript:void();'}
-                            listen
+                            -trans "listen"
                         .stop.hide
                           %a{href:'javascript:void();'}
-                            stop
+                            -trans "stop"
                 -if msg.direction == 'I'
                   -if msg.text == ''
                     .imsg.to.empty
-                      Empty message
+                      -trans "Empty message"
                   -else
                     .imsg.to
                       -if msg.text != msg.recording_url
@@ -383,33 +387,38 @@
                           %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
                           .play
                             %a{href:'javascript:void();'}
-                              listen
+                              -trans "listen"
                           .stop.hide
                             %a{href:'javascript:void();'}
-                              stop
+                              -trans "stop"
 
 
                 -with msg.get_flow_step as step
                   -if step and step.rule_category
                     .ilog.from
-                      Categorized as {{step.rule_category}}
+                      - blocktrans with category=step.rule_category
+                        Categorized as {{category}}
 
 
               -if not run.is_active
                 .ilog.from
                   -if run.expired_on
-                    This run expired {{ run.expired_on }}
+                    - blocktrans with expired_on=run.expired_on
+                      This run expired {{ expired_on }}
                   -else
-                    {{contact|name_or_urn:user_org}} exited from this flow
+                    - blocktrans with name=contact|name_or_urn:user_org
+                      {{name}} exited from this flow
 
 
 -block post-fields
   - if org_perms.flows.flow_update
     .deletion.hide
       .title
-        Remove Contact Results
+        - trans "Remove Contact Results"
 
       .body
-        %p Are you sure you want to remove the results for this contact?
+        %p
+          - blocktrans
+            Are you sure you want to remove the results for this contact?
 
       %a#delete-form.posterize{}

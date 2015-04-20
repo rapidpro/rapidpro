@@ -92,7 +92,6 @@
                         {{ msg.get_flow_name }}
 
                 .sent-at{title:'{{ msg.created_on }}'}
-
                   -if msg.recording_url
                     .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
                       %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
