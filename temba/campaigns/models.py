@@ -319,9 +319,9 @@ class EventFire(Model):
     def parse_relative_to_date(cls, contact, key):
         relative_date = contact.org.parse_date(contact.get_field_display(key))
 
-        # if we got a date, normalize it to 0 seconds and 0 microseconds
-        #if relative_date:
-        relative_date = relative_date.replace(second=0, microsecond=0)
+        # if we got a date, floor to the minute
+        if relative_date:
+            relative_date = relative_date.replace(second=0, microsecond=0)
 
         return relative_date
 
