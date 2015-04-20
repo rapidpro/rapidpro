@@ -62,7 +62,7 @@ def fix_like_named_destinations(apps, schema_editor):
                     if new_destination is None:
                         print ("*" * 8)+ " WARNING, clearing destination " + ("*" * 8)
 
-                    print "%s->%s [%s] - %d: %s" % (rule.destination, new_destination, flow.org.name, flow.pk, rule.get_category_name(flow.base_language))
+                    # print "%s->%s [%s] - %d: %s" % (rule.destination, new_destination, flow.org.name, flow.pk, rule.get_category_name(flow.base_language))
                     changed = True
                     rule.destination = new_destination
                 new_rules.append(rule)
