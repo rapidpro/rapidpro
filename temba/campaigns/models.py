@@ -317,7 +317,13 @@ class EventFire(Model):
 
     @classmethod
     def parse_relative_to_date(cls, contact, key):
-        return contact.org.parse_date(contact.get_field_display(key)).replace(second=0, microsecond=0)
+        relative_date = contact.org.parse_date(contact.get_field_display(key))
+
+        # if we got a date, normalize it to 0 seconds and 0 microseconds
+        #if relative_date:
+        relative_date = relative_date.replace(second=0, microsecond=0)
+
+        return relative_date
 
     def get_relative_to_value(self):
         return EventFire.parse_relative_to_date(self.contact, self.event.relative_to.key)
