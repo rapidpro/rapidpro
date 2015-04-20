@@ -84,6 +84,13 @@
                     Outgoing Call ({{duration}} seconds)
                 -if msg.call_type == 'mt_miss'
                   -trans "Missed Outgoing Call"
+
+                -if msg.get_flow_id
+                  .msg-flow
+                    %span.label.label-success
+                      %a{href:'{% url "flows.flow_editor" msg.get_flow_id %}'}
+                        {{ msg.get_flow_name }}
+
                 .sent-at{title:'{{ msg.created_on }}'}
                   -if msg.recording_url
                     .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
