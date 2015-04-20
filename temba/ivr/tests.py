@@ -26,7 +26,8 @@ class MockRequestValidator(RequestValidator):
 
 class MockTwilioClient(TwilioClient):
 
-    def __init__(self, sid, token):
+    def __init__(self, sid, token, base=''):
+        self.base = base
         self.applications = MockTwilioClient.MockApplications()
         self.calls = MockTwilioClient.MockCalls()
         self.auth = ['', 'FakeRequestToken']

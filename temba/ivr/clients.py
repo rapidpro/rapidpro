@@ -11,7 +11,7 @@ from twilio.util import RequestValidator
 
 
 class TwilioClient(TwilioRestClient):
-    def __init__(self, args, **kwargs):
+    def __init__(self, *args, **kwargs):
         kwargs['base'] = settings.TWILIO_URL
         super(TwilioClient, self).__init__(*args, **kwargs)
 
