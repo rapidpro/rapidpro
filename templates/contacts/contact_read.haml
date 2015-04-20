@@ -85,12 +85,13 @@
                 -if msg.call_type == 'mt_miss'
                   -trans "Missed Outgoing Call"
 
+                -if msg.get_flow_id
+                  .msg-flow
+                    %span.label.label-success
+                      %a{href:'{% url "flows.flow_editor" msg.get_flow_id %}'}
+                        {{ msg.get_flow_name }}
+
                 .sent-at{title:'{{ msg.created_on }}'}
-                  -if msg.get_flow_id
-                    .msg-flow
-                      %span.label.label-success
-                        %a{href:'{% url "flows.flow_editor" msg.get_flow_id %}'}
-                          {{ msg.get_flow_name }}
 
                   -if msg.recording_url
                     .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
@@ -343,20 +344,12 @@
 
             &.I {
               margin-left:67px;
-
-              .msg-flow {
-                float: right;
-              }
             }
 
             &.O {
               padding-right:-77px;
               text-align:right;
               margin-right:77px;
-
-              .msg-flow {
-                float: left;
-              }
             }
 
             &.A {
@@ -368,10 +361,6 @@
               color:#999;
               font-size:11px;
               margin-top:-3px;
-            }
-
-            .msg-flow {
-              display: inline;
             }
 
             .sent-at {
