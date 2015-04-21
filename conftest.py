@@ -21,8 +21,7 @@ def keep_item(item):
         # The class belongs to the module it was found in.
         return True
     else:
-        # FIXME: Report this better.
-        print "Skipping test from bad module:", item.nodeid
+        return False
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -30,8 +29,14 @@ def pytest_collection_modifyitems(session, config, items):
     Filter out all tests collected from TestCase classes that weren't defined
     in the module they were found in.
     """
-    new_items = []
+    deselected = []
+    remaining = []
     for item in items:
         if keep_item(item):
-            new_items.append(item)
-    items[:] = new_items
+            remaining.append(item)
+        else:
+            deselected.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = remaining
