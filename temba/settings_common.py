@@ -4,7 +4,7 @@ from hamlpy import templatize
 #-----------------------------------------------------------------------------------
 # Sets TESTING to True if this configuration is read during a unit test
 #-----------------------------------------------------------------------------------
-TESTING = sys.argv[1:2] == ['test']
+TESTING = (sys.argv[1:2] == ['test']) or ('py.test' in sys.argv[0])
 
 #-----------------------------------------------------------------------------------
 # Default to debugging
