@@ -86,6 +86,8 @@ class PerformanceTest(TembaTest):
         self.admin = self.create_user("Administrator")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali",
                                       created_by=self.user, modified_by=self.user)
+        self.org.initialize()
+
         self.org.administrators.add(self.admin)
         self.admin.set_org(self.org)
         self.org.administrators.add(self.user)
