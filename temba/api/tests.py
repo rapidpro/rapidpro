@@ -1791,6 +1791,7 @@ class AfricasTalkingTest(TembaTest):
         self.assertEquals("Hello World", sms.text)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.channel_type = 'AT'
         self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key'))
         self.channel.save()
@@ -1817,6 +1818,23 @@ class AfricasTalkingTest(TembaTest):
                 self.assertEquals('msg1', msg.external_id)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.channel_type = 'AT'
+        self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key'))
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -1835,7 +1853,7 @@ class AfricasTalkingTest(TembaTest):
 
 class ExternalTest(TembaTest):
 
-   def test_status(self):
+    def test_status(self):
         # change our channel to an aggregator channel
         self.channel.channel_type = 'EX'
         self.channel.uuid = 'asdf-asdf-asdf-asdf'
@@ -1871,7 +1889,7 @@ class ExternalTest(TembaTest):
         assertStatus(sms, 'sent', SENT)
         assertStatus(sms, 'failed', FAILED)
 
-   def test_receive(self):
+    def test_receive(self):
         # change our channel to an external channel
         self.channel.channel_type = 'EX'
         self.channel.uuid = 'asdf-asdf-asdf-asdf'
@@ -1897,7 +1915,8 @@ class ExternalTest(TembaTest):
 
         self.assertEquals(400, response.status_code)
 
-   def test_send(self):
+    def test_send(self):
+        # This tests a successful send.
         from temba.channels.models import EXTERNAL
         self.channel.channel_type = EXTERNAL
         self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send', SEND_METHOD: 'POST'})
@@ -1924,6 +1943,24 @@ class ExternalTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        from temba.channels.models import EXTERNAL
+        self.channel.channel_type = EXTERNAL
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send', SEND_METHOD: 'POST'})
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -1971,6 +2008,7 @@ class ShaqodoonTest(TembaTest):
         self.assertEquals("Hello World!", sms.text)
 
     def test_send(self):
+        # This tests a successful send.
         joe = self.create_contact("Joe", "+250788383383")
         bcast = joe.send("Test message ☺", self.admin, trigger_send=False)
 
@@ -1992,6 +2030,19 @@ class ShaqodoonTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message ☺", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2067,6 +2118,7 @@ class KannelTest(TembaTest):
         self.assertEquals("Hello World!", sms.text)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.channel_type = KANNEL
         self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass', send_url='http://foo/'))
         self.channel.uuid = uuid.uuid4()
@@ -2093,6 +2145,24 @@ class KannelTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.channel_type = KANNEL
+        self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass', send_url='http://foo/'))
+        self.channel.uuid = uuid.uuid4()
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2107,6 +2177,7 @@ class KannelTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
 
 class NexmoTest(TembaTest):
 
@@ -2182,6 +2253,7 @@ class NexmoTest(TembaTest):
         self.assertEquals('external1', sms.external_id)
 
     def test_send(self):
+        # This tests a successful send.
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
         org_config = self.org.config_json()
         org_config[NEXMO_KEY] = 'nexmo_key'
@@ -2227,6 +2299,29 @@ class NexmoTest(TembaTest):
                 # assert we sent the messages out in a reasonable amount of time
                 end = time.time()
                 self.assertTrue(1.5 > end - start > 1, "Sending of six messages took: %f" % (end - start))
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        org_config = self.org.config_json()
+        org_config[NEXMO_KEY] = 'nexmo_key'
+        org_config[NEXMO_SECRET] = 'nexmo_secret'
+        self.org.config = json.dumps(org_config)
+
+        self.channel.channel_type = NEXMO
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+            r = get_redis_connection()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2297,6 +2392,7 @@ class VumiTest(TembaTest):
         self.assertEquals(DELIVERED, sms.status)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.channel_type = VUMI
         self.channel.config = json.dumps(dict(account_key='vumi-key', access_token='vumi-token', conversation_key='key'))
         self.channel.save()
@@ -2347,6 +2443,24 @@ class VumiTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertTrue(msg.next_attempt)
                 self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.channel_type = VUMI
+        self.channel.config = json.dumps(dict(account_key='vumi-key', access_token='vumi-token', conversation_key='key'))
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.put') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2429,6 +2543,7 @@ class ZenviaTest(TembaTest):
         self.assertEquals("Héllo World!", sms.text)
 
     def test_send(self):
+        # This tests a successful send.
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
         self.channel.config = json.dumps(dict(account='zv-account', code='zv-code'))
         self.channel.channel_type = 'ZV'
@@ -2455,6 +2570,24 @@ class ZenviaTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        self.channel.config = json.dumps(dict(account='zv-account', code='zv-code'))
+        self.channel.channel_type = 'ZV'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2508,6 +2641,7 @@ class InfobipTest(TembaTest):
         self.assertEquals(404, response.status_code)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.config = json.dumps(dict(username='ib-user', password='ib-password'))
         self.channel.channel_type = 'IB'
         self.channel.save()
@@ -2534,6 +2668,23 @@ class InfobipTest(TembaTest):
                 self.assertEquals('12', msg.external_id)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.config = json.dumps(dict(username='ib-user', password='ib-password'))
+        self.channel.channel_type = 'IB'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2548,6 +2699,7 @@ class InfobipTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
 
 class Hub9Test(TembaTest):
 
@@ -2606,6 +2758,7 @@ class Hub9Test(TembaTest):
         self.assertEquals("Hello Jakarta", sms.text)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.config = json.dumps(dict(username='h9-user', password='h9-password'))
         self.channel.channel_type = 'H9'
         self.channel.save()
@@ -2631,6 +2784,23 @@ class Hub9Test(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.config = json.dumps(dict(username='h9-user', password='h9-password'))
+        self.channel.channel_type = 'H9'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2701,6 +2871,7 @@ class HighConnectionTest(TembaTest):
         self.assertEquals(DELIVERED, msg.status)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.config = json.dumps(dict(username='hcnx-user', password='hcnx-password'))
         self.channel.channel_type = 'HX'
         self.channel.uuid = 'asdf-asdf-asdf-asdf'
@@ -2727,6 +2898,24 @@ class HighConnectionTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.config = json.dumps(dict(username='hcnx-user', password='hcnx-password'))
+        self.channel.channel_type = 'HX'
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        msg = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
@@ -2830,6 +3019,7 @@ class TwilioTest(TembaTest):
         self.assertEquals(FAILED, sms.status)
 
     def test_send(self):
+        # This tests a successful send.
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()
         org_config[ACCOUNT_SID] = 'twilio_sid'
@@ -2862,6 +3052,30 @@ class TwilioTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
+        org_config = self.org.config_json()
+        org_config[ACCOUNT_SID] = 'twilio_sid'
+        org_config[ACCOUNT_TOKEN] = 'twilio_token'
+        org_config[APPLICATION_SID] = 'twilio_sid'
+        self.org.config = json.dumps(org_config)
+        self.org.save()
+
+        self.channel.channel_type = TWILIO
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
@@ -2944,6 +3158,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(DELIVERED, sms.status)
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.config = json.dumps(dict(username='uname', password='pword', api_id='api1'))
         self.channel.channel_type = CLICKATELL
         self.channel.save()
@@ -2969,6 +3184,23 @@ class ClickatellTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.config = json.dumps(dict(username='uname', password='pword', api_id='api1'))
+        self.channel.channel_type = CLICKATELL
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -2983,6 +3215,7 @@ class ClickatellTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
 
 class PlivoTest(TembaTest):
     def setUp(self):
@@ -3060,6 +3293,7 @@ class PlivoTest(TembaTest):
         assertStatus(sms, 'rejected', FAILED)
 
     def test_send(self):
+        # This tests a successful send.
 
         bcast = self.joe.send("Test message", self.admin, trigger_send=False)
 
@@ -3085,6 +3319,19 @@ class PlivoTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+
+        bcast = self.joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
@@ -3104,6 +3351,7 @@ class PlivoTest(TembaTest):
 class TwitterTest(TembaTest):
 
     def test_send(self):
+        # This tests a successful send.
         self.channel.config = json.dumps({
             'oauth_token': 'abcdefghijklmnopqrstuvwxyz',
             'oauth_token_secret': '0123456789'
@@ -3133,6 +3381,26 @@ class TwitterTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_error(self):
+        # This tests a send error.
+        self.channel.config = json.dumps({
+            'oauth_token': 'abcdefghijklmnopqrstuvwxyz',
+            'oauth_token_secret': '0123456789'
+        })
+        self.channel.channel_type = 'TT'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
 
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("Failed to send message")
