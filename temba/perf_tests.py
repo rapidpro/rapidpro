@@ -142,7 +142,7 @@ class PerformanceTest(TembaTest):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
             group = ContactGroup.create(self.org, self.user, name)
             group.contacts.add(*contacts[(g % num_bases)::num_bases])
-            groups.append(group)
+            groups.append(ContactGroup.user_groups.get(pk=group.pk))
         return groups
 
     def _create_broadcast(self, text, recipients):
