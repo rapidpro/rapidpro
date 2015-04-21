@@ -1,0 +1,23 @@
+language: python
+python:
+  - "2.7"
+services:
+  - redis-server
+addons:
+  postgresql: "9.3"
+install:
+  - pip install -r pip-freeze.txt
+  - pip install coveralls
+  - npm install less
+  - npm install coffee-script
+before_script:
+  - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
+  - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
+  - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis;"
+  - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
+  - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
+  - psql -U temba postgres -c "CREATE DATABASE temba;"
+script:
+  - python manage.py test --with-coverage
+after_success:
+  - coveralls
