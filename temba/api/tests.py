@@ -2290,6 +2290,8 @@ class NexmoTest(TembaTest):
                 # test some throttling by sending six messages right after another
                 start = time.time()
                 for i in range(6):
+                    bcast = joe.send("Throttle %s" % i, self.admin, trigger_send=False)
+                    sms = bcast.get_messages()[0]
                     Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
                     r.delete(timezone.now().strftime(MSG_SENT_KEY))
 
