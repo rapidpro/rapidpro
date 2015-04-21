@@ -149,6 +149,7 @@ class CampaignCRUDL(SmartCRUDL):
     class List(BaseList):
         fields = ('name', 'group',)
         actions = ('archive',)
+        search_fields = ('name__icontains', 'group__name__icontains')
 
         def get_queryset(self, *args, **kwargs):
             qs = super(CampaignCRUDL.List, self).get_queryset(*args, **kwargs)

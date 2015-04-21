@@ -2022,7 +2022,8 @@ class WebhookTest(TembaTest):
                               Rule(uuid(13), "Invalid", uuid(3), ContainsTest("invalid")).as_json()])
         rules.save()
 
-        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET, step_uuid=rules.uuid)
+        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
+                                       step_uuid=rules.uuid, arrived_on=timezone.now())
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="1001")
 
         (match, value) = rules.find_matching_rule(step, run, incoming)
