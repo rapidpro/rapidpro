@@ -1,4 +1,5 @@
 language: python
+cache: pip
 python:
   - "2.7"
 services:
@@ -17,8 +18,9 @@ before_script:
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
   - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
   - psql -U temba postgres -c "CREATE DATABASE temba;"
+  - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 script:
-  - python manage.py test --with-coverage
+  - coverage run --source="." manage.py test temba/api temba/assets temba/campaigns temba/channels temba/contacts temba/flows temba/ivr temba/locations temba/msgs temba/orgs temba/public temba/reports temba/schedules temba/triggers temba/utils temba/values temba/perf_tests.py --verbosity=2 --noinput
 after_success:
+  - coverage report -m --include="temba/api/*,temba/assets/*,temba/campaigns/*,temba/channels/*,temba/contacts/*,temba/flows/*,temba/ivr/*,temba/locations/*,temba/msgs/*,temba/orgs/*,temba/public/*,temba/reports/*,temba/schedules/*,temba/triggers/*,temba/utils/*,temba/values/*" --omit="*/migrations/*,*/tests" -i
   - coveralls
-

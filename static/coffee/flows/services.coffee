@@ -530,10 +530,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     return
 
-  deriveCategories: (ruleset, language) ->
+  deriveCategories: (ruleset, base_language) ->
 
-    base_language = $rootScope.flow.base_language
-    ruleset._categories = []
+    categories = []
+
     for rule in ruleset.rules
 
       if not rule.uuid
@@ -543,38 +543,44 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if not rule.category
           if base_language
             rule.category = {}
-            rule.category[language] = rule.test.min + " - " + rule.test.max
+            rule.category[base_language] = rule.test.min + " - " + rule.test.max
           else
             rule.category = rule.test.min + " - " + rule.test.max
 
       if rule.category
         if base_language
-          rule_cat = rule.category[language].toLocaleLowerCase()
-          existing = (category.name[language].toLocaleLowerCase() for category in ruleset._categories)
+          rule_cat = rule.category[base_language].toLocaleLowerCase()
+          existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
         else
           rule_cat = rule.category.toLocaleLowerCase()
-          existing = (category.name.toLocaleLowerCase() for category in ruleset._categories)
+          existing = (category.name.toLocaleLowerCase() for category in categories)
 
         # don't munge the Other category
         if rule.test.type == 'true' or rule_cat not in existing
-          ruleset._categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
+          categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
         else
 
-          for cat in ruleset._categories
+          for cat in categories
 
             # unlocalized flows just have a string name
             name = cat.name
 
-            # if we are localized, use the base name
             if base_language and base_language of cat.name
               name = cat.name[base_language]
 
-            if name is not undefined and rule_cat is not undefined and name.toLocaleLowerCase() == rule_cat.toLocaleLowerCase()
+            # if we are localized, use the base name
+            if name?.toLocaleLowerCase() == rule_cat?.toLocaleLowerCase()
               cat.sources.push(rule.uuid)
+
               if cat.target
                 rule.destination = cat.target
 
-    @applyActivity(ruleset, $rootScope.activity)
+    # shortcut our first source
+    for cat in categories
+      cat.source = cat.sources[0]
+
+    ruleset._categories = categories
+    @applyActivity(ruleset, $rootScope.visibleActivity)
     return
 
   determineFlowStart: ->

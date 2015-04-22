@@ -111,6 +111,14 @@ class ScheduleTest(TembaTest):
         response = self.client.get(reverse('campaigns.campaign_list'))
         self.assertContains(response, "Planting Reminders")
 
+        # try searching for the campaign by group name
+        response = self.client.get(reverse('campaigns.campaign_list') + "?search=farmers")
+        self.assertContains(response, "Planting Reminders")
+
+        # test no match
+        response = self.client.get(reverse('campaigns.campaign_list') + "?search=factory")
+        self.assertNotContains(response, "Planting Reminders")
+
         # archive a campaign
         post_data = dict(action='archive', objects=campaign.pk)
         self.client.post(reverse('campaigns.campaign_list'), post_data)
@@ -300,7 +308,12 @@ class ScheduleTest(TembaTest):
         self.assertEquals(self.farmer1, fire.contact)
         self.assertEquals(planting_reminder, fire.event)
 
-        # do it again
+        # set it to something invalid
+        self.farmer1.set_field('planting_date', "what?")
+        EventFire.update_campaign_events_for_contact(campaign, self.farmer1)
+        self.assertFalse(EventFire.objects.all())
+
+        # now something valid again
         self.farmer1.set_field('planting_date', "07-10-2020 12:30:10")
 
         EventFire.update_campaign_events_for_contact(campaign, self.farmer1)
