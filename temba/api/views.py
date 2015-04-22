@@ -1604,7 +1604,10 @@ class Contacts(generics.ListAPIView):
 
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, object_list)
+
+        # convert to list before cache initialization so that these will be the contact objects which get serialized
+        page.object_list = list(page.object_list)
+        Contact.bulk_cache_initialize(org, page.object_list)
 
         return packed
 
