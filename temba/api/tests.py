@@ -1738,6 +1738,9 @@ class ChannelTypeTest(TembaTest):
     def setup_channel(self):
         raise NotImplementedError("Subclasses must implement setup_channel()")
 
+    def allow_message_sending(self):
+        return self.settings(SEND_MESSAGES=True)
+
 
 class AfricasTalkingTest(ChannelTypeTest):
 
@@ -1808,9 +1811,7 @@ class AfricasTalkingTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
 
@@ -1823,9 +1824,6 @@ class AfricasTalkingTest(ChannelTypeTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('msg1', msg.external_id)
 
-        finally:
-            settings.SEND_MESSAGES = False
-
     def test_send_error(self):
         # This tests a send error.
 
@@ -1835,9 +1833,7 @@ class AfricasTalkingTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -1849,8 +1845,6 @@ class AfricasTalkingTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class ExternalTest(ChannelTypeTest):
@@ -1923,9 +1917,7 @@ class ExternalTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, "Sent")
 
@@ -1936,8 +1928,6 @@ class ExternalTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -1948,9 +1938,7 @@ class ExternalTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
@@ -1962,8 +1950,6 @@ class ExternalTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class ShaqodoonTest(ChannelTypeTest):
@@ -2001,9 +1987,7 @@ class ShaqodoonTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "Sent")
 
@@ -2014,8 +1998,6 @@ class ShaqodoonTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2025,9 +2007,7 @@ class ShaqodoonTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
@@ -2039,8 +2019,6 @@ class ShaqodoonTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class KannelTest(ChannelTypeTest):
@@ -2109,9 +2087,7 @@ class KannelTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, 'Accepted 201')
 
@@ -2122,8 +2098,6 @@ class KannelTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2134,9 +2108,7 @@ class KannelTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
@@ -2148,8 +2120,6 @@ class KannelTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class NexmoTest(ChannelTypeTest):
@@ -2229,8 +2199,7 @@ class NexmoTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
+        with self.allow_message_sending():
             r = get_redis_connection()
 
             with patch('requests.get') as mock:
@@ -2259,8 +2228,6 @@ class NexmoTest(ChannelTypeTest):
                 # assert we sent the messages out in a reasonable amount of time
                 end = time.time()
                 self.assertTrue(1.5 > end - start > 1, "Sending of six messages took: %f" % (end - start))
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2270,8 +2237,7 @@ class NexmoTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
+        with self.allow_message_sending():
             r = get_redis_connection()
 
             with patch('requests.get') as mock:
@@ -2285,8 +2251,6 @@ class NexmoTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class VumiTest(ChannelTypeTest):
@@ -2349,9 +2313,7 @@ class VumiTest(ChannelTypeTest):
         sms = bcast.get_messages()[0]
         r = get_redis_connection()
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.put') as mock:
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
@@ -2388,8 +2350,6 @@ class VumiTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertTrue(msg.next_attempt)
                 self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2400,9 +2360,7 @@ class VumiTest(ChannelTypeTest):
         sms = bcast.get_messages()[0]
         r = get_redis_connection()
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.put') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
@@ -2415,8 +2373,6 @@ class VumiTest(ChannelTypeTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
                 self.assertEquals(1, mock.call_count)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class ZenviaTest(ChannelTypeTest):
@@ -2488,9 +2444,7 @@ class ZenviaTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, '000-ok', method='GET')
 
@@ -2501,8 +2455,6 @@ class ZenviaTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2512,9 +2464,7 @@ class ZenviaTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -2526,8 +2476,6 @@ class ZenviaTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class InfobipTest(ChannelTypeTest):
@@ -2576,9 +2524,7 @@ class InfobipTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, json.dumps(dict(results=[{'status':0, 'messageid':12}])))
 
@@ -2590,8 +2536,6 @@ class InfobipTest(ChannelTypeTest):
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2601,9 +2545,7 @@ class InfobipTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -2615,8 +2557,6 @@ class InfobipTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class Hub9Test(ChannelTypeTest):
@@ -2686,9 +2626,7 @@ class Hub9Test(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "000")
 
@@ -2699,8 +2637,6 @@ class Hub9Test(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2710,9 +2646,7 @@ class Hub9Test(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -2724,8 +2658,6 @@ class Hub9Test(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class HighConnectionTest(ChannelTypeTest):
@@ -2791,9 +2723,7 @@ class HighConnectionTest(ChannelTypeTest):
         # our outgoing sms
         msg = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "Sent")
 
@@ -2804,8 +2734,6 @@ class HighConnectionTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2815,9 +2743,7 @@ class HighConnectionTest(ChannelTypeTest):
         # our outgoing sms
         msg = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
@@ -2829,8 +2755,6 @@ class HighConnectionTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class TwilioTest(ChannelTypeTest):
@@ -2936,9 +2860,7 @@ class TwilioTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.return_value = "Sent"
 
@@ -2949,8 +2871,6 @@ class TwilioTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -2960,9 +2880,7 @@ class TwilioTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
 
@@ -2974,8 +2892,6 @@ class TwilioTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class ClickatellTest(ChannelTypeTest):
@@ -3053,9 +2969,7 @@ class ClickatellTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "000")
 
@@ -3066,8 +2980,6 @@ class ClickatellTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -3077,9 +2989,7 @@ class ClickatellTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -3091,8 +3001,6 @@ class ClickatellTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class PlivoTest(ChannelTypeTest):
@@ -3177,9 +3085,7 @@ class PlivoTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(202,
                                                  json.dumps({"message": "message(s) queued",
@@ -3194,8 +3100,6 @@ class PlivoTest(ChannelTypeTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -3205,9 +3109,7 @@ class PlivoTest(ChannelTypeTest):
         # our outgoing sms
         sms = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
@@ -3219,8 +3121,6 @@ class PlivoTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class TwitterTest(ChannelTypeTest):
@@ -3242,9 +3142,7 @@ class TwitterTest(ChannelTypeTest):
         # our outgoing message
         msg = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.return_value = dict(id=1234567890)
 
@@ -3256,8 +3154,6 @@ class TwitterTest(ChannelTypeTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertEquals('1234567890', msg.external_id)
                 self.assertTrue(msg.sent_on)
-        finally:
-            settings.SEND_MESSAGES = False
 
     def test_send_error(self):
         # This tests a send error.
@@ -3267,9 +3163,7 @@ class TwitterTest(ChannelTypeTest):
         # our outgoing message
         msg = bcast.get_messages()[0]
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.allow_message_sending():
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("Failed to send message")
 
@@ -3281,8 +3175,6 @@ class TwitterTest(ChannelTypeTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class MageHandlerTest(TembaTest):
