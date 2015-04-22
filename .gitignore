@@ -27,6 +27,7 @@ static/coffee/formax.js
 static/javascripts/
 temba/smartmin
 temba.db
+temba/settings.py
 
 # Exclude media folder except files used for import testing
 media/*
