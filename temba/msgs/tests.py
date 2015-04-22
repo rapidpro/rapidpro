@@ -1495,13 +1495,13 @@ class ConsoleTest(TembaTest):
         self.assertEquals(self.console.org, self.org)
 
         # try changing entirely
-        self.console.do_org("2")
+        self.console.do_org("%d" % self.org2.id)
         self.assertEchoed("You are now sending messages for Trileet Inc.")
         self.assertEquals(self.console.org, self.org2)
         self.assertEquals(self.console.contact.org, self.org2)
 
         # back to temba
-        self.console.do_org("1")
+        self.console.do_org("%d" % self.org.id)
         self.assertEquals(self.console.org, self.org)
         self.assertEquals(self.console.contact.org, self.org)
 
