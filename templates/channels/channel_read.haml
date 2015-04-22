@@ -9,13 +9,17 @@
   %h2.font_normalize.header-margin.title
 
     -if object.name
-      {{ object.get_channel_type_display }} - {{ object.name }}
+      {{ object.get_channel_type_display }}
+      -if not object.channel_type == 'TT'
+        \- {{ object.name }}
     -else
       {{ object.get_channel_type_display }}
       -trans "Channel"
 
     .number
-      - if not object.channel_type == 'TT'
+      -if object.channel_type == 'TT'
+        @{{ object.get_address_display }}
+      -else
         {{ object.get_address_display }}
       -if object.get_country_display
         ({{ object.get_country_display }})
