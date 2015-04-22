@@ -381,7 +381,8 @@ class Channel(SmartModel):
             else:
                 channel = Channel.objects.create(channel_type=TWITTER, address=screen_name,
                                                  org=org, role=SEND+RECEIVE, uuid=str(uuid4()),
-                                                 config=config, name="Twitter", created_by=user, modified_by=user)
+                                                 config=config, name="@%s" % screen_name,
+                                                 created_by=user, modified_by=user)
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
@@ -519,6 +520,9 @@ class Channel(SmartModel):
             except NumberParseException as e:
                 # the number may be alphanumeric in the case of short codes
                 pass
+
+        if self.channel_type == TWITTER:
+            return '@%s' % self.address
 
         return self.address
 
