@@ -521,6 +521,9 @@ class Channel(SmartModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
+        if self.channel_type == TWITTER:
+            return '@%s' % self.address
+
         return self.address
 
     def build_message_context(self):

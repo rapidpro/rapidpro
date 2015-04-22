@@ -73,9 +73,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['tel_e164'], '+250785551212')
 
         context = self.twitter_channel.build_message_context()
-        self.assertEqual(context['__default__'], 'billy_bob')
+        self.assertEqual(context['__default__'], '@billy_bob')
         self.assertEqual(context['name'], 'Twitter Channel')
-        self.assertEqual(context['address'], 'billy_bob')
+        self.assertEqual(context['address'], '@billy_bob')
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
@@ -557,6 +557,9 @@ class ChannelTest(TembaTest):
         channel.address = 'billy_bob'
         channel.config = json.dumps({'handle_id': 12345, 'auto_follow': True, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
         channel.save()
+
+        self.assertEquals('@billy_bob', channel.get_address_display())
+        self.assertEquals('@billy_bob', channel.get_address_display(e164=True))
 
         response = self.fetch_protected(update_url, self.user)
         self.assertEquals(200, response.status_code)
