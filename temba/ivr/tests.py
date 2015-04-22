@@ -406,3 +406,9 @@ class IVRTests(TembaTest):
         self.assertEquals('+250788382382', call.contact_urn.path)
 
 
+class TestTwilioClient(TembaTest):
+    def test_base_url(self):
+        """The base url should be set by settings.py"""
+        with self.settings(TWILIO_URL='test_url'):
+            client = TwilioClient(account='test_account', token='test_token')
+            self.assertEqual(client.base, 'test_url')
