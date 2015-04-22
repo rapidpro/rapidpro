@@ -255,7 +255,7 @@ class UpdateContactForm(ContactForm):
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
-               'customize', 'export', 'block', 'unblock', 'delete')
+               'customize', 'export', 'block', 'unblock', 'delete', 'history')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -789,6 +789,48 @@ class ContactCRUDL(SmartCRUDL):
                     obj.set_field(key, value)
 
             return obj
+
+    class History(Read):
+        """
+        Displays a history of events that happend on this contact, including messages, event fires, flow
+        starts etc, all in order of when they occurred.
+        """
+        template_name = 'contacts/contact_history.html'
+
+        def get_context_data(self, **kwargs):
+            from temba.campaigns.models import EventFire
+            from temba.flows.models import FlowStep, RULE_SET, ACTION_SET
+
+            context = super(ContactCRUDL.History, self).get_context_data(**kwargs)
+
+            # this will contain all our events as pairs of datetime->event
+            events = []
+
+            # first add all our messages
+            for msg in Msg.objects.filter(contact=self.object):
+                events.append((msg.created_on, msg))
+
+            # now add all our event fires
+            for ef in EventFire.objects.filter(contact=self.object).exclude(fired=None):
+                if ef.fired:
+                    events.append((ef.fired, ef))
+                else:
+                    events.append((ef.scheduled, ef))
+
+            # flow rule steps that got processed
+            for fs in FlowStep.objects.filter(contact=self.object, step_type=RULE_SET).exclude(left_on=None):
+                events.append((fs.left_on, fs))
+
+            # flow action steps that were found
+            for fs in FlowStep.objects.filter(contact=self.object, step_type=ACTION_SET):
+                events.append((fs.arrived_on, fs))
+
+            # sort by id first, then by pk
+            events = sorted(events, key=lambda event: event[1].id, reverse=True)
+            events = sorted(events, key=lambda event: event[0], reverse=True)
+
+            context['events'] = events
+            return context
 
     class Block(OrgPermsMixin, SmartUpdateView):
         """

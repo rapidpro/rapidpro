@@ -1003,7 +1003,6 @@ class ContactTest(TembaTest):
         blocked_url = reverse('contacts.contact_blocked')
 
         # archived contact are not on the list page
-        # Now Let's unblock Joe
         post_data = dict()
         post_data['action'] = 'unblock'
         post_data['objects'] = self.joe.id

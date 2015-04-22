@@ -4,7 +4,7 @@ from hamlpy import templatize
 #-----------------------------------------------------------------------------------
 # Sets TESTING to True if this configuration is read during a unit test
 #-----------------------------------------------------------------------------------
-TESTING = sys.argv[1:2] == ['test']
+TESTING = (sys.argv[1:2] == ['test']) or ('py.test' in sys.argv[0])
 
 #-----------------------------------------------------------------------------------
 # Default to debugging
@@ -336,6 +336,7 @@ PERMISSIONS = {
                          'export',
                          'failed',
                          'filter',
+                         'history',
                          'import',
                          'omnibox',
                          'unblock',
@@ -499,6 +500,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_export',
         'contacts.contact_failed',
         'contacts.contact_filter',
+        'contacts.contact_history',
         'contacts.contact_import',
         'contacts.contact_list',
         'contacts.contact_omnibox',
@@ -615,6 +617,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_export',
         'contacts.contact_failed',
         'contacts.contact_filter',
+        'contacts.contact_history',
         'contacts.contact_import',
         'contacts.contact_list',
         'contacts.contact_omnibox',
@@ -712,6 +715,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_export',
         'contacts.contact_failed',
         'contacts.contact_filter',
+        'contacts.contact_history',
         'contacts.contact_list',
         'contacts.contact_read',
 

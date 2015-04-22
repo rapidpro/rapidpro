@@ -746,6 +746,11 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_owner(self, obj):
             owner = obj.latest_admin()
+
+            # default to the created by if there are no admins
+            if not owner:
+                owner = obj.created_by
+
             url = reverse('users.user_mimic', args=[owner.pk])
             return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, owner.first_name, owner.last_name, owner)
 
