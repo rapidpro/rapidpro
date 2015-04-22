@@ -15,7 +15,8 @@
       -trans "Channel"
 
     .number
-      {{ object.get_address_display }}
+      - if not object.channel_type == 'TT'
+        {{ object.get_address_display }}
       -if object.get_country_display
         ({{ object.get_country_display }})
 

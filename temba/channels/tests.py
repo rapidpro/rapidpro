@@ -1012,6 +1012,7 @@ class ChannelTest(TembaTest):
 
                 channel = response.context['object']
                 self.assertEqual(channel.address, 'billy_bob')
+                self.assertEqual(channel.name, '@billy_bob')
                 config = json.loads(channel.config)
                 self.assertEqual(config['handle_id'], 123)
                 self.assertEqual(config['oauth_token'], 'bcdef')
