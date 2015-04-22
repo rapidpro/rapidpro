@@ -1153,10 +1153,12 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
-        label = Label.create_unique(self.org, self.user, "Goo")
-        label.toggle_label([msg1], add=True)
+        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1.toggle_label([msg1], add=True)
+        label2 = Label.create_unique(self.org, self.user, "Boo")
+        label2.toggle_label([msg1], add=True)
 
-        response = self.fetchJSON(url, "label=Goo")
+        response = self.fetchJSON(url, "label=Goo&label=Boo")
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
@@ -2905,6 +2907,32 @@ class ClickatellTest(ChannelTypeTest):
 
         self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
         self.channel.org.save()
+
+    def test_receive_utf16(self):
+
+        data = {'to': self.channel.address,
+                'from': '250788383383',
+                'timestamp': '2012-10-10 10:10:10',
+                'moMsgId': 'id1234'}
+
+        encoded_message = urlencode(data)
+        encoded_message += "&text=%00m%00e%00x%00i%00c%00o%00+%00k%00+%00m%00i%00s%00+%00p%00a%00p%00a%00s%00+%00n%00o%00+%00t%00e%00n%00%ED%00a%00+%00d%00i%00n%00e%00r%00o%00+%00p%00a%00r%00a%00+%00c%00o%00m%00p%00r%00a%00r%00n%00o%00s%00+%00l%00o%00+%00q%00+%00q%00u%00e%00r%00%ED%00a%00m%00o%00s%00.%00."
+        encoded_message += "&charset=UTF-16BE"
+        receive_url = reverse('api.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
+
+        response = self.client.get(receive_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # and we should have a new message
+        msg1 = Msg.objects.get()
+        self.assertEquals("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals(u"mexico k mis papas no ten\xeda dinero para comprarnos lo q quer\xedamos..", msg1.text)
+        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals('id1234', msg1.external_id)
 
     def test_receive(self):
         data = {'to': self.channel.address,
