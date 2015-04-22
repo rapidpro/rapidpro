@@ -1,5 +1,7 @@
 language: python
-cache: pip
+cache:
+  directories:
+    - $HOME/.cache/pip
 python:
   - "2.7"
 services:
