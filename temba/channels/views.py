@@ -29,7 +29,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
-from temba.orgs.models import Org
+from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager
@@ -1583,6 +1583,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['search_countries'] = self.get_search_countries()
             context['supported_country_iso_codes'] = self.get_supported_country_iso_codes()
+
+            if self.request.resolver_match.url_name == 'channels.channel_claim_number':
+                client = org.get_twilio_client()
+                account = client.accounts.get(org.config_json()[ACCOUNT_SID])
+                context['account_trial'] = account.type.lower() == 'trial'
 
             return context
 

@@ -21,12 +21,13 @@ from django.utils import timezone
 from django.template import loader, Context
 from mock import patch
 from smartmin.tests import SmartminTest
+from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
 from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
-from temba.orgs.models import Org
-from temba.tests import TembaTest, MockResponse
+from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.orgs.models import FREE_PLAN
 from temba.utils import dict_to_struct
 from .tasks import check_channels_task
@@ -170,8 +171,6 @@ class ChannelTest(TembaTest):
 
         # calling without scheme or urn should raise exception
         self.assertRaises(ValueError, self.org.get_send_channel)
-
-
 
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars
@@ -448,7 +447,6 @@ class ChannelTest(TembaTest):
 
         response = self.client.get('/', follow=True)
         #self.assertIn('channel_type', response.context)
-        
 
     def sync(self, channel, post_data=None, signature=None):
         if not post_data:
@@ -881,6 +879,37 @@ class ChannelTest(TembaTest):
         number = phonenumbers.parse('+237661234567', 'CM')
         self.assertTrue(phonenumbers.is_possible_number(number))
 
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_claim_number(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        self.org.channels.update(is_active=False, org=None)
+
+        # make sure nexmo is on the claim page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, "Twilio")
+        self.assertContains(response, reverse('orgs.org_twilio_connect'))
+
+        twilio_config = dict()
+        twilio_config[ACCOUNT_SID] = 'account-sid'
+        twilio_config[ACCOUNT_TOKEN] = 'account-token'
+        twilio_config[APPLICATION_SID] = 'app-sid'
+
+        self.org.config = json.dumps(twilio_config)
+        self.org.save()
+
+        # hit the claim page, should now have a claim nexmo link
+        claim_twilio = reverse('channels.channel_claim_number')
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, claim_twilio)
+
+        response = self.client.get(claim_twilio)
+        self.assertTrue('account_trial' in response.context)
+        self.assertFalse(response.context['account_trial'])
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
@@ -909,6 +938,7 @@ class ChannelTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
+                self.assertFalse('account_trial' in response.context)
                 self.assertContains(response, '360-788-4540')
 
                 # claim it
@@ -937,6 +967,7 @@ class ChannelTest(TembaTest):
 
             # try hit the claim page, should be redirected; no credentials in session
             response = self.client.get(claim_plivo_url, follow=True)
+            self.assertFalse('account_trial' in response.context)
             self.assertContains(response, connect_plivo_url)
 
         # let's add a number already connected to the account

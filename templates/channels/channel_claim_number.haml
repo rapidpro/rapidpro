@@ -35,6 +35,14 @@
           %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
           %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
 
+      -if account_trial
+        .account-trial-warning
+          -blocktrans
+            You connected a Trial Account which has some restrictions.
+          %br
+          %a{href:"https://www.twilio.com/blog/2012/07/new-twilio-free-trial-phone-numbers-for-all.html"}
+            - trans "Read more about the restrictions on this post"
+
       .twilio-numbers-title
 
       #throbber{ style: "display:none;" }
@@ -226,4 +234,13 @@
         .title-icon + .title-text {
           margin-left: 55px;
         }
+
+        .account-trial-warning {
+          font-size: 16px;
+          max-width: 525px;
+          padding: 5px;
+          margin: 10px 0px;
+          background-color: @color-alert-warning;
+        }
+
     {% endlessblock %}
