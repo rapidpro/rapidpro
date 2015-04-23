@@ -624,7 +624,8 @@ class Org(SmartModel):
         return config.get(NEXMO_UUID, None)
 
     def connect_twilio(self, account_sid, account_token):
-        client = TwilioRestClient(account_sid, account_token)
+        client = TwilioRestClient(
+            account_sid, account_token, base=settings.TWILIO_URL)
         app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
         apps = client.applications.list(friendly_name=app_name)
         if apps:

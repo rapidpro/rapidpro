@@ -581,7 +581,8 @@ class OrgCRUDL(SmartCRUDL):
                     raise ValidationError(_("You must enter your Twilio Account Token"))
 
                 try:
-                    client = TwilioRestClient(account_sid, account_token)
+                    client = TwilioRestClient(
+                        account_sid, account_token, base=settings.TWILIO_URL)
                 except:
                     raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
 
