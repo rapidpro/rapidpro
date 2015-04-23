@@ -10,8 +10,11 @@ from temba.contacts.models import Contact, TEL_SCHEME
 from temba.orgs.models import Org
 from temba.msgs.models import Msg, OUTGOING
 
-
 class MessageConsole(cmd.Cmd):
+    """
+    Useful REPL'like utility to simulate sending messages into RapidPro. Mostly useful for testing things
+    with real contacts across multiple flows and contacts where the simulator isn't enough.
+    """
 
     def __init__(self, org, *args, **kwargs):
         cmd.Cmd.__init__(self, *args, **kwargs)
@@ -23,6 +26,14 @@ class MessageConsole(cmd.Cmd):
         self.contact = self.get_contact("+250788123123")
 
         self.update_prompt()
+        self.echoed = []
+
+    def clear_echoed(self):
+        self.echoed = []
+
+    def echo(self, line):
+        print(line)
+        self.echoed.append(line)
 
     def update_prompt(self):
         urn = self.contact.get_urn()
@@ -36,35 +47,35 @@ class MessageConsole(cmd.Cmd):
         Changes to the org with the specified id
         """
         if not line:
-            print("Select org with org id.  ex: org 4")
+            self.echo("Select org with org id.  ex: org 4")
 
             # list all org options
             for org in Org.objects.all().order_by('pk'):
                 user = ""
                 if org.get_org_admins():
                     user = org.get_org_admins()[0].username
-                print((Fore.YELLOW + "[%d]" + Fore.WHITE + " %s % 40s") % (org.pk, org.name, user))
+                self.echo((Fore.YELLOW + "[%d]" + Fore.WHITE + " %s % 40s") % (org.pk, org.name, user))
         else:
             try:
                 self.org = Org.objects.get(pk=line)
                 self.user = self.org.get_org_admins()[0]
                 self.user.set_org(self.org)
                 self.contact = self.get_contact(self.contact.get_urn().path)
-                print("You are now sending messages for %s" % self.org.name)
-                print("You are now sending as %s [%d]" % (self.contact, self.contact.pk))
+                self.echo("You are now sending messages for %s" % self.org.name)
+                self.echo("You are now sending as %s [%d]" % (self.contact, self.contact.pk))
             except Exception as e:
-                print("Error changing org: %s" % e)
+                self.echo("Error changing org: %s" % e)
 
     def do_contact(self, line):
         """
         Sets the current contact by URN
         """
         if not line:
-            print "Set contact by specifying URN.  ex: phone tel:+250788123123"
+            self.echo("Set contact by specifying URN.  ex: phone tel:+250788123123")
         else:
             self.contact = self.get_contact(line)
             self.update_prompt()
-            print("You are now sending as %s [%d]" % (self.contact, self.contact.pk))
+            self.echo("You are now sending as %s [%d]" % (self.contact, self.contact.pk))
 
     def default(self, line):
         """
@@ -74,12 +85,12 @@ class MessageConsole(cmd.Cmd):
 
         incoming = Msg.create_incoming(None, (urn.scheme, urn.path), line, date=timezone.now(), org=self.org)
 
-        print((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, incoming.text))
+        self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, incoming.text))
 
         # look up any message responses
         outgoing = Msg.objects.filter(org=self.org, pk__gt=incoming.pk, direction=OUTGOING)
         for response in outgoing:
-            print((Fore.GREEN + "[%s] " + Fore.YELLOW + "<<" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, response.text))
+            self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + "<<" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, response.text))
 
     def do_EOF(self, line):
         """
@@ -88,7 +99,7 @@ class MessageConsole(cmd.Cmd):
         return True
 
 
-class Command(BaseCommand):
+class Command(BaseCommand):  # pragma: no cover
     option_list = BaseCommand.option_list + (
         make_option('--org',
                     action='store',

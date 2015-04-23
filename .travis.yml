@@ -1,13 +1,17 @@
 language: python
-cache: pip
 python:
   - "2.7"
 services:
   - redis-server
 addons:
   postgresql: "9.3"
+sudo: false
+cache:
+  directories:
+    - $HOME/.cache/pip
 install:
-  - pip install -r pip-freeze.txt
+  - pip install --upgrade pip
+  - pip install -r pip-freeze.txt --upgrade
   - pip install coveralls
   - npm install less
   - npm install coffee-script

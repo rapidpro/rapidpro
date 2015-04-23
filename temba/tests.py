@@ -26,17 +26,6 @@ from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
 
-
-def unix_time(dt):
-    epoch = datetime.datetime.utcfromtimestamp(0)
-    delta = dt - epoch
-    return delta.total_seconds()
-
-
-def unix_time_millis(dt):
-    return unix_time(dt) * 1000.0
-
-
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
@@ -139,7 +128,7 @@ class TembaTest(SmartminTest):
         if twitter:
             urns.append((TWITTER_SCHEME, twitter))
 
-        if not name and not urns:
+        if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
         return Contact.get_or_create(self.org, self.user, name, urns=urns)
@@ -277,7 +266,7 @@ class MLStripper(HTMLParser):
         return ''.join(self.fed)
 
 
-class BrowserTest(LiveServerTestCase):
+class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
     @classmethod
     def setUpClass(cls):
