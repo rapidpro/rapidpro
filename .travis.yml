@@ -5,6 +5,10 @@ services:
   - redis-server
 addons:
   postgresql: "9.3"
+sudo: false
+cache:
+  directories:
+    - $HOME/.cache/pip
 install:
   - pip install -r pip-freeze.txt
   - pip install coveralls
