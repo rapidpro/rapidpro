@@ -79,7 +79,7 @@ class ScheduleTest(TembaTest):
         if next_update.weekday() == THURSDAY:
             next_update += timedelta(days=7)
 
-        else:
+        else:  # pragma: no cover
             # add days until we get to the next thursday
             while next_update.weekday() != THURSDAY:
                 next_update += timedelta(days=1)
