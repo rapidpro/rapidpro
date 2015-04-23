@@ -9,6 +9,7 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from smartmin.tests import SmartminTest, _CRUDLTest
 from temba.contacts.models import ContactField, TEL_SCHEME
+from .management.commands.msg_console import MessageConsole
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
@@ -1450,3 +1451,79 @@ class CallTest(SmartminTest):
         self.assertEquals(response.context['object_list'].count(), 2)
         self.assertContains(response, "Missed Incoming Call")
         self.assertContains(response, "Incoming Call (600 seconds)")
+
+
+class ConsoleTest(TembaTest):
+
+    def setUp(self):
+        from temba.triggers.models import Trigger
+
+        super(ConsoleTest, self).setUp()
+        self.create_secondary_org()
+
+        # create a new console
+        self.console = MessageConsole(self.org)
+
+        # a few test contacts
+        self.john = self.create_contact("John Doe", "0788123123")
+
+        # create a flow and set "color" as its trigger
+        self.flow = self.create_flow()
+        Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
+
+    def assertEchoed(self, needle, clear=True):
+        found = False
+        for line in self.console.echoed:
+            if line.find(needle) >= 0:
+                found = True
+
+        self.assertTrue(found, "Did not find '%s' in '%s'" % (needle, ", ".join(self.console.echoed)))
+
+        if clear:
+            self.console.clear_echoed()
+
+    def test_msg_console(self):
+        # make sure our org is properly set
+        self.assertEquals(self.console.org, self.org)
+
+        # try changing it with something empty
+        self.console.do_org("")
+        self.assertEchoed("Select org", clear=False)
+        self.assertEchoed("Temba")
+
+        # shouldn't have changed current org
+        self.assertEquals(self.console.org, self.org)
+
+        # try changing entirely
+        self.console.do_org("%d" % self.org2.id)
+        self.assertEchoed("You are now sending messages for Trileet Inc.")
+        self.assertEquals(self.console.org, self.org2)
+        self.assertEquals(self.console.contact.org, self.org2)
+
+        # back to temba
+        self.console.do_org("%d" % self.org.id)
+        self.assertEquals(self.console.org, self.org)
+        self.assertEquals(self.console.contact.org, self.org)
+
+        # contact help
+        self.console.do_contact("")
+        self.assertEchoed("Set contact by")
+
+        # switch our contact
+        self.console.do_contact("0788123123")
+        self.assertEchoed("You are now sending as John")
+        self.assertEquals(self.console.contact, self.john)
+
+        # send a message
+        self.console.default("Hello World")
+        self.assertEchoed("Hello World")
+
+        # make sure the message was created for our contact and handled
+        msg = Msg.objects.get()
+        self.assertEquals(msg.text, "Hello World")
+        self.assertEquals(msg.contact, self.john)
+        self.assertEquals(msg.status, HANDLED)
+
+        # now trigger a flow
+        self.console.default("Color")
+        self.assertEchoed("What is your favorite color?")
