@@ -29,7 +29,7 @@ before_script:
 - psql -U temba postgres -c "CREATE DATABASE temba;"
 - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 script:
-- karma start karma.conf.coffee --single-run --browsers PhantomJS
+- node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 - coverage run --source="." manage.py test temba/api temba/assets temba/campaigns
   temba/channels temba/contacts temba/flows temba/ivr temba/locations temba/msgs temba/orgs
   temba/public temba/reports temba/schedules temba/triggers temba/utils temba/values
