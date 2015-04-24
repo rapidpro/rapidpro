@@ -1603,42 +1603,33 @@ class ChannelCRUDL(SmartCRUDL):
             return supported_country_iso_codes
 
         def get_search_countries_tuple(self):
-            return TWILIO_SEARCH_COUNTRIES
+            raise NotImplementedError('method "get_search_countries_tuple" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_supported_countries_tuple(self):
-            return TWILIO_SUPPORTED_COUNTRIES
+            raise NotImplementedError('method "get_supported_countries_tuple" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_search_url(self):
-            return reverse('channels.channel_search_numbers')
+            raise NotImplementedError('method "get_search_url" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_claim_url(self):
-            return reverse('channels.channel_claim_twilio')
+            raise NotImplementedError('method "get_claim_url" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_existing_numbers(self, org):
-            client = org.get_twilio_client()
-            if client:
-                twilio_account_numbers = client.phone_numbers.list()
-
-            numbers = []
-            for number in twilio_account_numbers:
-                parsed = phonenumbers.parse(number.phone_number, None)
-                numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
-                                    country=region_code_for_number(parsed)))
-            return numbers
+            raise NotImplementedError('method "get_existing_numbers" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def is_valid_country(self, country_code):
-            return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
+
+            raise NotImplementedError('method "is_valid_country" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def claim_number(self, user, phone_number, country):
-            analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
-
-            # add this channel
-            channel = Channel.add_twilio_channel(user.get_org(),
-                                                 user,
-                                                 phone_number,
-                                                 country)
-
-            return channel
+            raise NotImplementedError('method "claim_number" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def remove_api_credentials_from_session(self):
             pass
@@ -1707,9 +1698,60 @@ class ChannelCRUDL(SmartCRUDL):
 
             client = org.get_twilio_client()
             account = client.accounts.get(org.config_json()[ACCOUNT_SID])
-            context['account_trial'] = account.type.lower() == 'trial'
+            context['account_trial'] = True #account.type.lower() == 'trial'
 
             return context
+
+        def pre_process(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            try:
+                client = org.get_twilio_client()
+            except:
+                client = None
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+
+        def get_search_countries_tuple(self):
+            return TWILIO_SEARCH_COUNTRIES
+
+        def get_supported_countries_tuple(self):
+            return TWILIO_SUPPORTED_COUNTRIES
+
+        def get_search_url(self):
+            return reverse('channels.channel_search_numbers')
+
+        def get_claim_url(self):
+            return reverse('channels.channel_claim_twilio')
+
+        def get_existing_numbers(self, org):
+            client = org.get_twilio_client()
+            if client:
+                twilio_account_numbers = client.phone_numbers.list()
+
+            numbers = []
+            for number in twilio_account_numbers:
+                parsed = phonenumbers.parse(number.phone_number, None)
+                numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
+                                    country=region_code_for_number(parsed)))
+            return numbers
+
+        def is_valid_country(self, country_code):
+            return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
+
+        def claim_number(self, user, phone_number, country):
+             analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
+
+             # add this channel
+             channel = Channel.add_twilio_channel(user.get_org(),
+                                                  user,
+                                                  phone_number,
+                                                  country)
+
+             return channel
 
     class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):
