@@ -29,7 +29,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
-from temba.orgs.models import Org
+from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager
@@ -486,7 +486,7 @@ class UpdateTwitterForm(UpdateChannelForm):
 
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
-    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_number',
+    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
@@ -1542,7 +1542,7 @@ class ChannelCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(numbers))
 
 
-    class ClaimNumber(OrgPermsMixin, SmartFormView):
+    class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
 
             country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
@@ -1568,7 +1568,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
         def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.ClaimNumber, self).get_context_data(**kwargs)
+            context = super(ChannelCRUDL.BaseClaimNumber, self).get_context_data(**kwargs)
 
             org = self.request.user.get_org()
 
@@ -1603,42 +1603,33 @@ class ChannelCRUDL(SmartCRUDL):
             return supported_country_iso_codes
 
         def get_search_countries_tuple(self):
-            return TWILIO_SEARCH_COUNTRIES
+            raise NotImplementedError('method "get_search_countries_tuple" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_supported_countries_tuple(self):
-            return TWILIO_SUPPORTED_COUNTRIES
+            raise NotImplementedError('method "get_supported_countries_tuple" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_search_url(self):
-            return reverse('channels.channel_search_numbers')
+            raise NotImplementedError('method "get_search_url" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_claim_url(self):
-            return reverse('channels.channel_claim_number')
+            raise NotImplementedError('method "get_claim_url" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def get_existing_numbers(self, org):
-            client = org.get_twilio_client()
-            if client:
-                twilio_account_numbers = client.phone_numbers.list()
-
-            numbers = []
-            for number in twilio_account_numbers:
-                parsed = phonenumbers.parse(number.phone_number, None)
-                numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
-                                    country=region_code_for_number(parsed)))
-            return numbers
+            raise NotImplementedError('method "get_existing_numbers" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def is_valid_country(self, country_code):
-            return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
+
+            raise NotImplementedError('method "is_valid_country" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def claim_number(self, user, phone_number, country):
-            analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
-
-            # add this channel
-            channel = Channel.add_twilio_channel(user.get_org(),
-                                                 user,
-                                                 phone_number,
-                                                 country)
-
-            return channel
+            raise NotImplementedError('method "claim_number" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def remove_api_credentials_from_session(self):
             pass
@@ -1698,7 +1689,71 @@ class ChannelCRUDL(SmartCRUDL):
                                                      "Twilio account, reconnecting it and trying again.")
                 return self.form_invalid(form)
 
-    class ClaimNexmo(ClaimNumber):
+    class ClaimTwilio(BaseClaimNumber):
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimTwilio, self).get_context_data(**kwargs)
+
+            org = self.request.user.get_org()
+
+            client = org.get_twilio_client()
+            account = client.accounts.get(org.config_json()[ACCOUNT_SID])
+            context['account_trial'] = account.type.lower() == 'trial'
+
+            return context
+
+        def pre_process(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            try:
+                client = org.get_twilio_client()
+            except:
+                client = None
+
+            if client:
+                return None
+            else:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+
+        def get_search_countries_tuple(self):
+            return TWILIO_SEARCH_COUNTRIES
+
+        def get_supported_countries_tuple(self):
+            return TWILIO_SUPPORTED_COUNTRIES
+
+        def get_search_url(self):
+            return reverse('channels.channel_search_numbers')
+
+        def get_claim_url(self):
+            return reverse('channels.channel_claim_twilio')
+
+        def get_existing_numbers(self, org):
+            client = org.get_twilio_client()
+            if client:
+                twilio_account_numbers = client.phone_numbers.list()
+
+            numbers = []
+            for number in twilio_account_numbers:
+                parsed = phonenumbers.parse(number.phone_number, None)
+                numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
+                                    country=region_code_for_number(parsed)))
+            return numbers
+
+        def is_valid_country(self, country_code):
+            return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
+
+        def claim_number(self, user, phone_number, country):
+             analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
+
+             # add this channel
+             channel = Channel.add_twilio_channel(user.get_org(),
+                                                  user,
+                                                  phone_number,
+                                                  country)
+
+             return channel
+
+    class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):
             country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
             phone_number = forms.CharField(help_text=_("The phone number being added"))
@@ -1796,7 +1851,7 @@ class ChannelCRUDL(SmartCRUDL):
             except Exception as e:
                 return HttpResponse(json.dumps(error=str(e)))
 
-    class ClaimPlivo(ClaimNumber):
+    class ClaimPlivo(BaseClaimNumber):
         class ClaimPlivoForm(forms.Form):
             country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
             phone_number = forms.CharField(help_text=_("The phone number being added"))
