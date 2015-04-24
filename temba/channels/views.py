@@ -123,7 +123,7 @@ NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('US', _('United States')))
 
 NEXMO_SUPPORTED_COUNTRY_CODES  = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
-                                  60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265]
+                                  60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265, 62]
 
 PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('BE', _('Belgium')),
