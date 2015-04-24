@@ -486,7 +486,7 @@ class UpdateTwitterForm(UpdateChannelForm):
 
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
-    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_number',
+    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
@@ -1542,7 +1542,7 @@ class ChannelCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(numbers))
 
 
-    class ClaimNumber(OrgPermsMixin, SmartFormView):
+    class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
 
             country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
@@ -1568,7 +1568,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
         def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.ClaimNumber, self).get_context_data(**kwargs)
+            context = super(ChannelCRUDL.BaseClaimNumber, self).get_context_data(**kwargs)
 
             org = self.request.user.get_org()
 
@@ -1583,11 +1583,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['search_countries'] = self.get_search_countries()
             context['supported_country_iso_codes'] = self.get_supported_country_iso_codes()
-
-            if self.request.resolver_match.url_name == 'channels.channel_claim_number':
-                client = org.get_twilio_client()
-                account = client.accounts.get(org.config_json()[ACCOUNT_SID])
-                context['account_trial'] = account.type.lower() == 'trial'
 
             return context
 
@@ -1617,7 +1612,7 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse('channels.channel_search_numbers')
 
         def get_claim_url(self):
-            return reverse('channels.channel_claim_number')
+            return reverse('channels.channel_claim_twilio')
 
         def get_existing_numbers(self, org):
             client = org.get_twilio_client()
@@ -1703,7 +1698,20 @@ class ChannelCRUDL(SmartCRUDL):
                                                      "Twilio account, reconnecting it and trying again.")
                 return self.form_invalid(form)
 
-    class ClaimNexmo(ClaimNumber):
+    class ClaimTwilio(BaseClaimNumber):
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimTwilio, self).get_context_data(**kwargs)
+
+            org = self.request.user.get_org()
+
+            client = org.get_twilio_client()
+            account = client.accounts.get(org.config_json()[ACCOUNT_SID])
+            context['account_trial'] = account.type.lower() == 'trial'
+
+            return context
+
+    class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):
             country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
             phone_number = forms.CharField(help_text=_("The phone number being added"))
@@ -1801,7 +1809,7 @@ class ChannelCRUDL(SmartCRUDL):
             except Exception as e:
                 return HttpResponse(json.dumps(error=str(e)))
 
-    class ClaimPlivo(ClaimNumber):
+    class ClaimPlivo(BaseClaimNumber):
         class ClaimPlivoForm(forms.Form):
             country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
             phone_number = forms.CharField(help_text=_("The phone number being added"))

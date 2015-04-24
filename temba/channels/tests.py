@@ -882,13 +882,13 @@ class ChannelTest(TembaTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_claim_number(self):
+    def test_claim_twilio(self):
         self.login(self.admin)
 
         # remove any existing channels
         self.org.channels.update(is_active=False, org=None)
 
-        # make sure nexmo is on the claim page
+        # make sure twilio is on the claim page
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, "Twilio")
         self.assertContains(response, reverse('orgs.org_twilio_connect'))
@@ -901,8 +901,8 @@ class ChannelTest(TembaTest):
         self.org.config = json.dumps(twilio_config)
         self.org.save()
 
-        # hit the claim page, should now have a claim nexmo link
-        claim_twilio = reverse('channels.channel_claim_number')
+        # hit the claim page, should now have a claim twilio link
+        claim_twilio = reverse('channels.channel_claim_twilio')
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_twilio)
 

@@ -19,6 +19,16 @@
         Once you claim a number you will immediately be able to send and receive messages. Users who send messages
         to your number will be charged according to their plan.
 
+      -if account_trial
+        .account-trial-warning
+          -blocktrans
+            You have connected a Twilio Trial Account which has some restrictions.
+          %br
+          %a{href:"https://www.twilio.com/help/faq/twilio-basics/how-does-twilios-free-trial-work"}
+            - trans "Read more about the limits placed on Twilio's Free Trial numbers."
+
+
+
       %form#search-form
         .country
           .country-label
@@ -34,14 +44,6 @@
             -trans "Pattern"
           %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
           %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
-
-      -if account_trial
-        .account-trial-warning
-          -blocktrans
-            You connected a Trial Account which has some restrictions.
-          %br
-          %a{href:"https://www.twilio.com/blog/2012/07/new-twilio-free-trial-phone-numbers-for-all.html"}
-            - trans "Read more about the restrictions on this post"
 
       .twilio-numbers-title
 
