@@ -1698,7 +1698,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             client = org.get_twilio_client()
             account = client.accounts.get(org.config_json()[ACCOUNT_SID])
-            context['account_trial'] = True #account.type.lower() == 'trial'
+            context['account_trial'] = account.type.lower() == 'trial'
 
             return context
 
