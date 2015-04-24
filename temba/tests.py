@@ -491,6 +491,9 @@ class MockTwilioClient(TwilioClient):
         def list(self, phone_number=None):
             return [MockTwilioClient.MockPhoneNumber(phone_number)]
 
+        def update(self, sid, **kwargs):
+            print "Updating phone number with sid %s" % sid
+
     class MockApplications():
         def __init__(self, *args):
             pass

@@ -896,7 +896,7 @@ class ChannelTest(TembaTest):
         twilio_config = dict()
         twilio_config[ACCOUNT_SID] = 'account-sid'
         twilio_config[ACCOUNT_TOKEN] = 'account-token'
-        twilio_config[APPLICATION_SID] = 'app-sid'
+        twilio_config[APPLICATION_SID] = 'TwilioTestSid'
 
         self.org.config = json.dumps(twilio_config)
         self.org.save()
@@ -909,6 +909,26 @@ class ChannelTest(TembaTest):
         response = self.client.get(claim_twilio)
         self.assertTrue('account_trial' in response.context)
         self.assertFalse(response.context['account_trial'])
+
+        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+            mock_get.return_value = MockTwilioClient.MockAccount('Trial')
+
+            response = self.client.get(claim_twilio)
+            self.assertTrue('account_trial' in response.context)
+            self.assertTrue(response.context['account_trial'])
+
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
+
+            response = self.client.get(claim_twilio)
+            self.assertContains(response, '206-234-5678')
+
+            # claim it
+            response = self.client.post(claim_twilio, dict(country='US', phone_number='12062345678'))
+            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+            # make sure it is actually connected
+            Channel.objects.get(channel_type='T', org=self.org)
 
     def test_claim_nexmo(self):
         self.login(self.admin)
