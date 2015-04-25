@@ -33,7 +33,7 @@ class OmniboxWidget(forms.TextInput):
                 urn = contact.urn_objects[urn_tuple]
                 urn_ids.append(urn.pk)
 
-        groups = ContactGroup.objects.filter(id__in=group_ids, org=org, is_active=True)
+        groups = ContactGroup.user_groups.filter(id__in=group_ids, org=org, is_active=True)
         contacts = Contact.objects.filter(id__in=contact_ids, org=org, is_active=True)
         urns = ContactURN.objects.filter(id__in=urn_ids, org=org)
 

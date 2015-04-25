@@ -40,7 +40,7 @@ class CampaignActionMixin(SmartListView):
 
 
 class UpdateCampaignForm(ModelForm):
-    group = forms.ModelChoiceField(queryset=ContactGroup.objects.filter(pk__lt=0),
+    group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                    required=True, label="Group",
                                    help_text="Which group this campaign operates on")
 
@@ -50,7 +50,7 @@ class UpdateCampaignForm(ModelForm):
 
         super(UpdateCampaignForm, self).__init__(*args, **kwargs)
         self.fields['group'].initial = self.instance.group
-        self.fields['group'].queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True)
+        self.fields['group'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
 
     class Meta:
         model = Campaign
@@ -105,7 +105,7 @@ class CampaignCRUDL(SmartCRUDL):
                 super(CampaignCRUDL.Create.CampaignForm, self).__init__(*args, **kwargs)
 
                 group = self.fields['group']
-                group.queryset = ContactGroup.objects.filter(org=self.user.get_org(), is_active=True).order_by('name')
+                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True).order_by('name')
                 group.user = user
 
             class Meta:
@@ -149,6 +149,7 @@ class CampaignCRUDL(SmartCRUDL):
     class List(BaseList):
         fields = ('name', 'group',)
         actions = ('archive',)
+        search_fields = ('name__icontains', 'group__name__icontains')
 
         def get_queryset(self, *args, **kwargs):
             qs = super(CampaignCRUDL.List, self).get_queryset(*args, **kwargs)

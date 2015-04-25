@@ -589,7 +589,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_number'
+        success_url = '@channels.channel_claim_twilio'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
 
@@ -744,8 +744,14 @@ class OrgCRUDL(SmartCRUDL):
             return "<div class='num-credits'>%d</div>" % obj.credits
 
         def get_owner(self, obj):
-            url = reverse('users.user_mimic', args=[obj.created_by.pk])
-            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, obj.created_by.first_name, obj.created_by.last_name, obj.created_by)
+            owner = obj.latest_admin()
+
+            # default to the created by if there are no admins
+            if not owner:
+                owner = obj.created_by
+
+            url = reverse('users.user_mimic', args=[owner.pk])
+            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, owner.first_name, owner.last_name, owner)
 
         def get_name(self, obj):
             return "<div class='org-name'>%s</div><div class='org-timezone'>%s</div>" % (obj.name, obj.timezone)
@@ -759,7 +765,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
-            context['searches'] = ['Nyaruka', 'Unicef', 'Boston University', 'JH', 'University of Chicago']
+            context['searches'] = ['Nyaruka', ]
             return context
 
         def lookup_field_link(self, context, field, obj):
@@ -1186,8 +1192,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            obj.create_sample_flows()
-            obj.create_welcome_topup(self.user, self.get_welcome_size())
+            obj.initialize(topup_size=self.get_welcome_size())
 
             return obj
 

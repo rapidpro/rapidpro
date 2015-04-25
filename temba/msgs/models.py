@@ -1515,7 +1515,7 @@ class ExportMessagesTask(SmartModel):
             all_messages = all_messages.filter(created_on__lte=end_date)
 
         if self.groups.all():
-            all_messages = all_messages.filter(contact__groups__in=self.groups.all())
+            all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
 
         if self.label:
             label_filter = [self.label]

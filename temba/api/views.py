@@ -35,7 +35,7 @@ from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, USER_DEFINED_GROUP
 from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
@@ -742,11 +742,13 @@ class MessagesEndpoint(generics.ListAPIView):
 
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups)
+            queryset = queryset.filter(contact__all_groups__name__in=groups,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
+            queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         types = splitting_getlist(self.request, 'type')
         if types:
@@ -771,7 +773,7 @@ class MessagesEndpoint(generics.ListAPIView):
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
-        return queryset.order_by(order).prefetch_related('labels')
+        return queryset.order_by(order).prefetch_related('labels').distinct()
 
     @classmethod
     def get_read_explorer(cls):
@@ -1394,7 +1396,7 @@ class Groups(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
 
     def get_queryset(self):
-        queryset = ContactGroup.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
+        queryset = ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1578,11 +1580,13 @@ class Contacts(generics.ListAPIView):
 
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(groups__name__in=groups)
+            queryset = queryset.filter(all_groups__name__in=groups,
+                                       all_groups__group_type=USER_DEFINED_GROUP)
 
         group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
         if group_uuids:
-            queryset = queryset.filter(groups__uuid__in=group_uuids)
+            queryset = queryset.filter(all_groups__uuid__in=group_uuids,
+                                       all_groups__group_type=USER_DEFINED_GROUP)
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
@@ -1600,7 +1604,10 @@ class Contacts(generics.ListAPIView):
 
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, object_list)
+
+        # convert to list before cache initialization so that these will be the contact objects which get serialized
+        page.object_list = list(page.object_list)
+        Contact.bulk_cache_initialize(org, page.object_list)
 
         return packed
 
@@ -2067,11 +2074,13 @@ class FlowRunEndpoint(generics.ListAPIView):
 
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
-            queryset = queryset.filter(contact__groups__name__in=groups)
+            queryset = queryset.filter(contact__all_groups__name__in=groups,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
-            queryset = queryset.filter(contact__groups__uuid__in=group_uuids)
+            queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
+                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
 
         contacts = splitting_getlist(self.request, 'contact')
         if contacts:
@@ -3658,10 +3667,21 @@ class ClickatellHandler(View):
             # dates come in the format "2014-04-18 03:54:20" GMT
             sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
             gmt_date = pytz.timezone('GMT').localize(sms_date)
+            text = request.REQUEST['text']
+
+            # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
+            # this into utf-8 through the insane process below, Python is retarded about encodings
+            if request.REQUEST.get('charset', 'utf-8') == 'UTF-16BE':
+                text_bytes = bytearray()
+                for text_byte in text:
+                    text_bytes.append(ord(text_byte))
+
+                # now encode back into utf-8
+                text = text_bytes.decode('utf-16be').encode('utf-8')
 
             sms = Msg.create_incoming(channel,
                                       (TEL_SCHEME, request.REQUEST['from']),
-                                      request.REQUEST['text'],
+                                      text,
                                       date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])

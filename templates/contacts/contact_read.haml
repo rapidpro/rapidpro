@@ -35,16 +35,17 @@
         %i.contact-urn-path
           {{urn|format_urn:user_org}}
 
-  %div.header-margin
-    -for group in contact_groups
-      %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
-        -if org_perms.contacts.contact_update and not group.is_dynamic
-          %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
-            = group.name
-            %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})'} x
-        -else
-          %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
-            = group.name
+  -block contact-groups
+    %div.header-margin
+      -for group in contact_groups
+        %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
+          -if org_perms.contacts.contact_update and not group.is_dynamic
+            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+              = group.name
+              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})'} x
+          -else
+            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+              = group.name
 
 -block read-buttons
 
@@ -83,6 +84,13 @@
                     Outgoing Call ({{duration}} seconds)
                 -if msg.call_type == 'mt_miss'
                   -trans "Missed Outgoing Call"
+
+                -if msg.get_flow_id
+                  .msg-flow
+                    %span.label.label-success
+                      %a{href:'{% url "flows.flow_editor" msg.get_flow_id %}'}
+                        {{ msg.get_flow_name }}
+
                 .sent-at{title:'{{ msg.created_on }}'}
                   -if msg.recording_url
                     .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}

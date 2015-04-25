@@ -21,12 +21,13 @@ from django.utils import timezone
 from django.template import loader, Context
 from mock import patch
 from smartmin.tests import SmartminTest
+from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
 from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
-from temba.orgs.models import Org
-from temba.tests import TembaTest, MockResponse
+from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.orgs.models import FREE_PLAN
 from temba.utils import dict_to_struct
 from .tasks import check_channels_task
@@ -73,9 +74,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['tel_e164'], '+250785551212')
 
         context = self.twitter_channel.build_message_context()
-        self.assertEqual(context['__default__'], 'billy_bob')
+        self.assertEqual(context['__default__'], '@billy_bob')
         self.assertEqual(context['name'], 'Twitter Channel')
-        self.assertEqual(context['address'], 'billy_bob')
+        self.assertEqual(context['address'], '@billy_bob')
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
@@ -170,8 +171,6 @@ class ChannelTest(TembaTest):
 
         # calling without scheme or urn should raise exception
         self.assertRaises(ValueError, self.org.get_send_channel)
-
-
 
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars
@@ -448,7 +447,6 @@ class ChannelTest(TembaTest):
 
         response = self.client.get('/', follow=True)
         #self.assertIn('channel_type', response.context)
-        
 
     def sync(self, channel, post_data=None, signature=None):
         if not post_data:
@@ -557,6 +555,9 @@ class ChannelTest(TembaTest):
         channel.address = 'billy_bob'
         channel.config = json.dumps({'handle_id': 12345, 'auto_follow': True, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
         channel.save()
+
+        self.assertEquals('@billy_bob', channel.get_address_display())
+        self.assertEquals('@billy_bob', channel.get_address_display(e164=True))
 
         response = self.fetch_protected(update_url, self.user)
         self.assertEquals(200, response.status_code)
@@ -878,6 +879,57 @@ class ChannelTest(TembaTest):
         number = phonenumbers.parse('+237661234567', 'CM')
         self.assertTrue(phonenumbers.is_possible_number(number))
 
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_claim_twilio(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        self.org.channels.update(is_active=False, org=None)
+
+        # make sure twilio is on the claim page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, "Twilio")
+        self.assertContains(response, reverse('orgs.org_twilio_connect'))
+
+        twilio_config = dict()
+        twilio_config[ACCOUNT_SID] = 'account-sid'
+        twilio_config[ACCOUNT_TOKEN] = 'account-token'
+        twilio_config[APPLICATION_SID] = 'TwilioTestSid'
+
+        self.org.config = json.dumps(twilio_config)
+        self.org.save()
+
+        # hit the claim page, should now have a claim twilio link
+        claim_twilio = reverse('channels.channel_claim_twilio')
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, claim_twilio)
+
+        response = self.client.get(claim_twilio)
+        self.assertTrue('account_trial' in response.context)
+        self.assertFalse(response.context['account_trial'])
+
+        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+            mock_get.return_value = MockTwilioClient.MockAccount('Trial')
+
+            response = self.client.get(claim_twilio)
+            self.assertTrue('account_trial' in response.context)
+            self.assertTrue(response.context['account_trial'])
+
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
+
+            response = self.client.get(claim_twilio)
+            self.assertContains(response, '206-234-5678')
+
+            # claim it
+            response = self.client.post(claim_twilio, dict(country='US', phone_number='12062345678'))
+            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+            # make sure it is actually connected
+            Channel.objects.get(channel_type='T', org=self.org)
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
@@ -906,6 +958,7 @@ class ChannelTest(TembaTest):
 
                 # make sure our number appears on the claim page
                 response = self.client.get(claim_nexmo)
+                self.assertFalse('account_trial' in response.context)
                 self.assertContains(response, '360-788-4540')
 
                 # claim it
@@ -934,6 +987,7 @@ class ChannelTest(TembaTest):
 
             # try hit the claim page, should be redirected; no credentials in session
             response = self.client.get(claim_plivo_url, follow=True)
+            self.assertFalse('account_trial' in response.context)
             self.assertContains(response, connect_plivo_url)
 
         # let's add a number already connected to the account
@@ -1012,6 +1066,7 @@ class ChannelTest(TembaTest):
 
                 channel = response.context['object']
                 self.assertEqual(channel.address, 'billy_bob')
+                self.assertEqual(channel.name, '@billy_bob')
                 config = json.loads(channel.config)
                 self.assertEqual(config['handle_id'], 123)
                 self.assertEqual(config['oauth_token'], 'bcdef')
