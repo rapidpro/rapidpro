@@ -15,6 +15,11 @@ install:
 - pip install coveralls
 - npm install less
 - npm install coffee-script
+- npm install karma
+- npm install karma-jasmine
+- npm install karma-coverage@0.2.7
+- npm install karma-phantomjs-launcher
+- npm install karma-coffee-preprocessor
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
 - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
@@ -24,6 +29,7 @@ before_script:
 - psql -U temba postgres -c "CREATE DATABASE temba;"
 - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 script:
+- node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 - coverage run --source="." manage.py test temba/api temba/assets temba/campaigns
   temba/channels temba/contacts temba/flows temba/ivr temba/locations temba/msgs temba/orgs
   temba/public temba/reports temba/schedules temba/triggers temba/utils temba/values
@@ -36,3 +42,6 @@ notifications:
   hipchat:
     rooms:
       secure: fm1TYA6NDjo6T59kG1Vj17LDCSNrvR6vWvq/tZj6bjDhAhzhb9THBX4bhQDGg3jEJwD+vfTSred9B9muJrAFkNeZaRvXf3l8e4yx5Qv/zvyZoTVLLv4v7YHEiVxBEj76aGxqUoAVB13ghZAsZ3zYMBav+42zZM4jkivgS7feerU=
+    template:
+      - '%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message} - <a href="%{build_url}">Log</a> | <a href="%{compare_url}">Changes</a>'
+    format: html
