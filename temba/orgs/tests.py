@@ -573,31 +573,33 @@ class OrgTest(TembaTest):
         self.assertIn('account_sid', response.context['form'].fields.keys())
         self.assertIn('account_token', response.context['form'].fields.keys())
 
-        with patch('temba.tests.MockTwilioClient.MockApplications.list') as mock_apps_list:
-            mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
+        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+            with patch('temba.tests.MockTwilioClient.MockApplications.list') as mock_apps_list:
+                mock_get.return_value = MockTwilioClient.MockAccount('Full')
+                mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
                                                                                            self.org.pk))]
 
-            post_data = dict()
-            post_data['account_sid'] = "AccountSid"
-            post_data['account_token'] = "AccountToken"
-
-            response = self.client.post(connect_url, post_data)
-
-            org = Org.objects.get(pk=self.org.pk)
-            self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
-            self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
-            self.assertTrue(org.config_json()['APPLICATION_SID'])
-
-            # when the user submit the secondary token, we use it to get the primary one from the rest API
-            with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
-                mock_get.return_value = MockTwilioClient.MockAccount('Trial', 'PrimaryAccountToken')
+                post_data = dict()
+                post_data['account_sid'] = "AccountSid"
+                post_data['account_token'] = "AccountToken"
 
                 response = self.client.post(connect_url, post_data)
 
                 org = Org.objects.get(pk=self.org.pk)
                 self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
-                self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
                 self.assertTrue(org.config_json()['APPLICATION_SID'])
+
+                # when the user submit the secondary token, we use it to get the primary one from the rest API
+                with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+                    mock_get.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+
+                    response = self.client.post(connect_url, post_data)
+
+                    org = Org.objects.get(pk=self.org.pk)
+                    self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
+                    self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.assertTrue(org.config_json()['APPLICATION_SID'])
 
         twilio_account_url = reverse('orgs.org_twilio_account')
         response = self.client.get(twilio_account_url)
