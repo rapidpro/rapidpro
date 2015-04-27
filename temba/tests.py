@@ -473,8 +473,9 @@ class MockTwilioClient(TwilioClient):
             self.sid = 'PhoneNumberSid'
 
     class MockAccount():
-        def __init__(self, account_type):
+        def __init__(self, account_type, auth_token='AccountToken'):
             self.type = account_type
+            self.auth_token = auth_token
             self.sid = 'AccountSid'
 
     class MockAccounts():

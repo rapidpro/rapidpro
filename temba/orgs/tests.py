@@ -19,7 +19,7 @@ from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitat
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.flows.models import Flow, ExportFlowResultsTask, ActionSet
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
-from temba.tests import TembaTest, MockResponse
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_ms
 
@@ -557,6 +557,9 @@ class OrgTest(TembaTest):
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
 
+    @patch('twilio.rest.TwilioRestClient', MockTwilioClient)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_connect(self):
         connect_url = reverse("orgs.org_twilio_connect")
 
@@ -570,20 +573,35 @@ class OrgTest(TembaTest):
         self.assertIn('account_sid', response.context['form'].fields.keys())
         self.assertIn('account_token', response.context['form'].fields.keys())
 
-        post_data = dict()
-        post_data['account_sid'] = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
-        post_data['account_token'] = "0b14d47901387c03f92253a4e4449d5e"
+        with patch('temba.tests.MockTwilioClient.MockApplications.list') as mock_apps_list:
+            mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
+                                                                                           self.org.pk))]
 
-        response = self.client.post(connect_url, post_data)
+            post_data = dict()
+            post_data['account_sid'] = "AccountSid"
+            post_data['account_token'] = "AccountToken"
 
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals(org.config_json()['ACCOUNT_SID'], "ACe54dc36bfd2a3b483b7ed854b2dd40c1")
-        self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "0b14d47901387c03f92253a4e4449d5e")
-        self.assertTrue(org.config_json()['APPLICATION_SID'])
+            response = self.client.post(connect_url, post_data)
+
+            org = Org.objects.get(pk=self.org.pk)
+            self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
+            self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
+            self.assertTrue(org.config_json()['APPLICATION_SID'])
+
+            # when the user submit the secondary token, we use it to get the primary one from the rest API
+            with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+                mock_get.return_value = MockTwilioClient.MockAccount('Trial', 'PrimaryAccountToken')
+
+                response = self.client.post(connect_url, post_data)
+
+                org = Org.objects.get(pk=self.org.pk)
+                self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
+                self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                self.assertTrue(org.config_json()['APPLICATION_SID'])
 
         twilio_account_url = reverse('orgs.org_twilio_account')
         response = self.client.get(twilio_account_url)
-        self.assertEquals("ACe54dc36bfd2a3b483b7ed854b2dd40c1", response.context['config']['ACCOUNT_SID'])
+        self.assertEquals("AccountSid", response.context['config']['ACCOUNT_SID'])
 
         response = self.client.post(twilio_account_url, dict(), follow=True)
         org = Org.objects.get(pk=self.org.pk)
