@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, ARCHIVED, VISIBLE, DELETED
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
 from temba.utils.middleware import disable_middleware
@@ -621,6 +621,7 @@ class MessagesEndpoint(generics.ListAPIView):
       * **contact** - the UUID of the contact (string) (filterable: ```contact```repeatable )
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
+      * **archived** - whether this message is archived (boolean) (filterable: ```archived```)
       * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
@@ -659,6 +660,7 @@ class MessagesEndpoint(generics.ListAPIView):
                 "relayer": 5,
                 "urn": "tel:+250788123124",
                 "direction": "O",
+                "archived": false,
                 "text": "hello world",
                 "created_on": "2013-03-02T17:28:12",
                 "sent_on": null,
@@ -770,6 +772,13 @@ class MessagesEndpoint(generics.ListAPIView):
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
 
+        archived = self.request.QUERY_PARAMS.get('archived', None)
+        if archived is not None:
+            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            queryset = queryset.filter(visibility=visibility)
+        else:
+            queryset = queryset.exclude(visibility=DELETED)
+
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
@@ -792,6 +801,8 @@ class MessagesEndpoint(generics.ListAPIView):
                                help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
                           dict(name='direction', required=False,
                                help="One or more directions to filter by. (repeatable) ex: I,O"),
+                          dict(name='archived', required=False,
+                               help="Filter returned messages based on whether they are archived. ex: Y"),
                           dict(name='type', required=False,
                                help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
                           dict(name='urn', required=False,
