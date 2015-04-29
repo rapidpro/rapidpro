@@ -1237,7 +1237,7 @@ class APITest(TembaTest):
         msg3.visibility = DELETED
         msg3.save()
         response = self.fetchJSON(url, "")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])  # unspecified means visible and archived
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])
         response = self.fetchJSON(url, "archived=1")
         self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
         response = self.fetchJSON(url, "archived=fALsE")
