@@ -1231,6 +1231,18 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "reverse=1")
         self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk])
 
+        # check archived status
+        msg2.visibility = ARCHIVED
+        msg2.save()
+        msg3.visibility = DELETED
+        msg3.save()
+        response = self.fetchJSON(url, "")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])  # unspecified means visible and archived
+        response = self.fetchJSON(url, "archived=1")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
+        response = self.fetchJSON(url, "archived=fALsE")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk])
+
         # check anon org case
         with AnonymousOrg(self.org):
             response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)

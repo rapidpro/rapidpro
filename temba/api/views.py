@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, ARCHIVED, VISIBLE, DELETED
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
 from temba.utils.middleware import disable_middleware
@@ -769,6 +769,13 @@ class MessagesEndpoint(generics.ListAPIView):
         broadcasts = splitting_getlist(self.request, 'broadcast')
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
+
+        archived = self.request.QUERY_PARAMS.get('archived', None)
+        if archived is not None:
+            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            queryset = queryset.filter(visibility=visibility)
+        else:
+            queryset = queryset.exclude(visibility=DELETED)
 
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
