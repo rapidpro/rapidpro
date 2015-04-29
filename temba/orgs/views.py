@@ -582,6 +582,11 @@ class OrgCRUDL(SmartCRUDL):
 
                 try:
                     client = TwilioRestClient(account_sid, account_token)
+
+                    # get the actual primary auth tokens from twilio and use them
+                    account = client.accounts.get(account_sid)
+                    self.cleaned_data['account_sid'] = account.sid
+                    self.cleaned_data['account_token'] = account.auth_token
                 except:
                     raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
 
