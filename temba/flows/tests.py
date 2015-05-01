@@ -2174,6 +2174,18 @@ class FlowsTest(FlowFileTest):
         r = get_redis_connection()
         flow.clear_stats_cache()
 
+    def test_write_protection(self):
+        flow = self.get_flow('favorites')
+        flow_json = flow.as_json()
+
+        # saving should work
+        response = flow.update(flow_json, self.admin)
+        self.assertEquals(response.get('status'), 'success')
+
+        # but if we save from in the past after our save it should fail
+        response = flow.update(flow_json, self.admin)
+        self.assertEquals(response.get('status'), 'unsaved')
+
     def test_recent_messages(self):
         flow = self.get_flow('favorites')
 
