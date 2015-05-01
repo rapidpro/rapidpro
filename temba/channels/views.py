@@ -36,7 +36,7 @@ from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO
+from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
@@ -122,8 +122,8 @@ NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('GB', _('United Kingdom')),
                              ('US', _('United States')))
 
-NEXMO_SUPPORTED_COUNTRY_CODES  = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
-                                  60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265, 62]
+NEXMO_SUPPORTED_COUNTRY_CODES = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
+                                 60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265, 62]
 
 PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('BE', _('Belgium')),
@@ -490,7 +490,8 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection')
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
+               'claim_blackmyna')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1107,6 +1108,10 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimInfobip(ClaimAuthenticatedExternal):
         title = _("Connect Infobip")
         channel_type = INFOBIP
+
+    class ClaimBlackmyna(ClaimAuthenticatedExternal):
+        title = _("Connect Blackmyna")
+        channel_type = BLACKMYNA
 
     class ClaimVerboice(ClaimAuthenticatedExternal):
         class VerboiceClaimForm(forms.Form):

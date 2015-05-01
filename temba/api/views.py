@@ -3306,6 +3306,66 @@ class HighConnectionHandler(View):
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
+
+class BlackmynaHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(BlackmynaHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import BLACKMYNA
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=BLACKMYNA).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # Update on the status of a sent message
+        if action == 'status':
+            msg_id = request.REQUEST.get('id', None)
+            status = int(request.REQUEST.get('status', 0))
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=msg_id).first()
+            if not sms:
+                return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
+
+            if status == 8:
+                sms.status_sent()
+            elif status == 1:
+                sms.status_delivered()
+            elif status in [2, 16]:
+                sms.fail()
+
+            sms.broadcast.update()
+            return HttpResponse(json.dumps(dict(msg="Status Updated")))
+
+        # An MO message
+        elif action == 'receive':
+            to_number = request.REQUEST.get('to', None)
+            from_number = request.REQUEST.get('from', None)
+            message = request.REQUEST.get('text', None)
+            smsc = request.REQUEST.get('smsc', None)
+
+            if to_number is None or from_number is None or message is None:
+                return HttpResponse("Missing to, from or text parameters", status=400)
+
+            if channel.address != to_number:
+                return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
+
+            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)
+
+
 class NexmoHandler(View):
 
     @disable_middleware
