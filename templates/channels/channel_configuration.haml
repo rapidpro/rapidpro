@@ -203,6 +203,35 @@
     %code
       https://{{ domain }}{% url 'api.infobip_handler' 'delivered' object.uuid %}
 
+  -elif object.channel_type == 'BM'
+    %h4
+      -blocktrans
+        To finish configuring your Blackmyna connection you'll need to notify Blackmyna of the following URLs.
+
+    %hr
+
+    %h4
+      -trans "Inbound URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Blackmyna when new messages are received to your number.
+
+    %code
+      https://{{ domain }}{% url 'api.blackmyna_handler' 'receive' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "DLR URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Blackmyna when the message status changes. (delivery reports)
+
+    %code
+      https://{{ domain }}{% url 'api.blackmyna_handler' 'status' object.uuid %}
+
   -elif object.channel_type == 'H9'
     %h4
       -blocktrans

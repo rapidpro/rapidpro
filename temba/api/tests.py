@@ -1231,6 +1231,18 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "reverse=1")
         self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk])
 
+        # check archived status
+        msg2.visibility = ARCHIVED
+        msg2.save()
+        msg3.visibility = DELETED
+        msg3.save()
+        response = self.fetchJSON(url, "")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])
+        response = self.fetchJSON(url, "archived=1")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
+        response = self.fetchJSON(url, "archived=fALsE")
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk])
+
         # check anon org case
         with AnonymousOrg(self.org):
             response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
@@ -2550,6 +2562,130 @@ class InfobipTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
+
+class BlackmynaTest(TembaTest):
+
+    def test_received(self):
+        self.channel.channel_type = 'BM'
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.address = '1212'
+        self.channel.country = 'NP'
+        self.channel.save()
+
+        data = {'to': '1212', 'from': '+977788123123', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.objects.get()
+        self.assertEquals('+977788123123', sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("Hello World", sms.text)
+
+        # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
+        data['to'] = '1515'
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
+
+    def test_send(self):
+        self.channel.config = json.dumps(dict(username='bm-user', password='bm-password'))
+        self.channel.channel_type = 'BM'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+977788123123")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps([{'recipient': '+977788123123',
+                                                                   'id': 'asdf-asdf-asdf-asdf'}]))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
+
+                self.clear_cache()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_status(self):
+        self.channel.channel_type = 'BM'
+        self.channel.uuid = uuid.uuid4()
+        self.channel.save()
+
+        # an invalid uuid
+        data = dict(id='-1', status='10')
+        response = self.client.get(reverse('api.blackmyna_handler', args=['status', 'not-real-uuid']), data)
+        self.assertEquals(400, response.status_code)
+
+        # a valid uuid, but invalid data
+        status_url = reverse('api.blackmyna_handler', args=['status', self.channel.uuid])
+        response = self.client.get(status_url, dict())
+        self.assertEquals(400, response.status_code)
+
+        response = self.client.get(status_url, data)
+        self.assertEquals(400, response.status_code)
+
+        # ok, lets create an outgoing message to update
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        sms = broadcast.get_messages()[0]
+        sms.external_id = 'msg-uuid'
+        sms.save()
+
+        data['id'] = sms.external_id
+
+        def assertStatus(sms, status, assert_status):
+            sms.status = WIRED
+            sms.save()
+            data['status'] = status
+            response = self.client.get(status_url, data)
+            self.assertEquals(200, response.status_code)
+            sms = Msg.objects.get(external_id=sms.external_id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(sms, '0', WIRED)
+        assertStatus(sms, '1', DELIVERED)
+        assertStatus(sms, '2', FAILED)
+        assertStatus(sms, '3', WIRED)
+        assertStatus(sms, '4', WIRED)
+        assertStatus(sms, '8', SENT)
+        assertStatus(sms, '16', FAILED)
+
 
 class Hub9Test(TembaTest):
 

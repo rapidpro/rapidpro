@@ -20,7 +20,7 @@ from timeit import default_timer
 MAX_QUERIES_PRINT = 15
 
 
-class SegmentProfiler(object):
+class SegmentProfiler(object):  # pragma: no cover
     """
     Used in a with block to profile a segment of code
     """
@@ -76,7 +76,7 @@ class SegmentProfiler(object):
         return message
 
 
-class PerformanceTest(TembaTest):
+class PerformanceTest(TembaTest):  # pragma: no cover
     segments = []
 
     def setUp(self):

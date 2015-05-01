@@ -90,6 +90,7 @@ class MsgReadSerializer(serializers.ModelSerializer):
     contact = serializers.SerializerMethodField('get_contact_uuid')
     urn = serializers.SerializerMethodField('get_urn')
     status = serializers.SerializerMethodField('get_status')
+    archived = serializers.SerializerMethodField('get_archived')
     relayer = serializers.SerializerMethodField('get_relayer')
     relayer_phone = serializers.SerializerMethodField('get_relayer_phone')
     phone = serializers.SerializerMethodField('get_phone')  # deprecated
@@ -130,12 +131,16 @@ class MsgReadSerializer(serializers.ModelSerializer):
             return 'Q'
         return obj.status
 
+    def get_archived(self, obj):
+        return obj.visibility == ARCHIVED
+
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
 
     class Meta:
         model = Msg
-        fields = ('id', 'contact', 'urn', 'status', 'type', 'labels', 'relayer', 'relayer_phone', 'phone', 'direction', 'text', 'created_on', 'sent_on', 'delivered_on')
+        fields = ('id', 'contact', 'urn', 'status', 'type', 'labels', 'relayer', 'relayer_phone', 'phone',
+                  'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
         read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
 
 

@@ -6,66 +6,13 @@ from mock import patch
 import mock
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
 from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
-from temba.ivr.clients import TwilioClient
+
 from temba.msgs.models import Msg
 from temba.channels.models import TWILIO, CALL, ANSWER
-from temba.tests import TembaTest
-from twilio.util import RequestValidator
+from temba.tests import TembaTest, MockTwilioClient, MockRequestValidator
 import os
 from django.conf import settings
 from temba.msgs.models import IVR
-
-
-class MockRequestValidator(RequestValidator):
-
-    def __init__(self, token):
-        pass
-
-    def validate(self, url, post, signature):
-        return True
-
-class MockTwilioClient(TwilioClient):
-
-    def __init__(self, sid, token):
-        self.applications = MockTwilioClient.MockApplications()
-        self.calls = MockTwilioClient.MockCalls()
-        self.auth = ['', 'FakeRequestToken']
-
-    def validate(self, request):
-        return True
-
-    class MockCall():
-        def __init__(self, to=None, from_=None, url=None, status_callback=None):
-            self.to = to
-            self.from_ = from_
-            self.url = url
-            self.status_callback = status_callback
-            self.sid = 'CallSid'
-
-    class MockApplication():
-        def __init__(self, friendly_name):
-            self.friendly_name = friendly_name
-            self.sid = 'TwilioTestSid'
-
-    class MockApplications():
-        def __init__(self, *args):
-            pass
-
-        def list(self, friendly_name=None):
-            return [MockTwilioClient.MockApplication(friendly_name)]
-
-    class MockCalls():
-        def __init__(self):
-            pass
-
-        def create(self, to=None, from_=None, url=None, status_callback=None):
-            return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)
-
-        def hangup(self, external_id):
-            print "Hanging up %s on Twilio" % external_id
-
-        def update(self, external_id, url):
-            print "Updating call for %s to url %s" % (external_id, url)
 
 
 class IVRTests(TembaTest):

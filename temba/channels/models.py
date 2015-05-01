@@ -50,6 +50,7 @@ VERBOICE = 'VB'
 CLICKATELL = 'CT'
 PLIVO = 'PL'
 HIGH_CONNECTION = 'HX'
+BLACKMYNA = 'BM'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -78,7 +79,8 @@ RELAYER_TYPE_CHOICES = ((ANDROID, "Android"),
                         (CLICKATELL, "Clickatell"),
                         (PLIVO, "Plivo"),
                         (SHAQODOON, "Shaqodoon"),
-                        (HIGH_CONNECTION, "High Connection"))
+                        (HIGH_CONNECTION, "High Connection"),
+                        (BLACKMYNA, "Blackmyna"))
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -103,6 +105,7 @@ RELAYER_TYPE_CONFIG = {
     CLICKATELL: dict(scheme='tel', max_length=420),
     PLIVO: dict(scheme='tel', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
+    BLACKMYNA: dict(scheme='tel', max_length=1600),
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -381,7 +384,8 @@ class Channel(SmartModel):
             else:
                 channel = Channel.objects.create(channel_type=TWITTER, address=screen_name,
                                                  org=org, role=SEND+RECEIVE, uuid=str(uuid4()),
-                                                 config=config, name="Twitter", created_by=user, modified_by=user)
+                                                 config=config, name="@%s" % screen_name,
+                                                 created_by=user, modified_by=user)
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
@@ -519,6 +523,9 @@ class Channel(SmartModel):
             except NumberParseException as e:
                 # the number may be alphanumeric in the case of short codes
                 pass
+
+        if self.channel_type == TWITTER:
+            return '@%s' % self.address
 
         return self.address
 
@@ -982,6 +989,61 @@ class Channel(SmartModel):
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
                                method='GET',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_blackmyna_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        payload = {
+            'address': msg.urn_path,
+            'senderaddress': channel.address,
+            'message': text,
+        }
+
+        url = 'http://api.blackmyna.com/2/smsmessaging/outbound'
+        log_payload = None
+        external_id = None
+
+        try:
+            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30,
+                                     auth=(channel.config[USERNAME], channel.config[PASSWORD]))
+
+            # parse our response, should be JSON that looks something like:
+            # [{
+            #   "recipient" : recipient_number_1,
+            #   "id" : Unique_identifier ( universally unique identifier UUID)
+            # }]
+            response_json = response.json()
+
+            # we only care about the first piece
+            if response_json and len(response_json) > 0:
+                external_id = response_json[0].get('id', None)
+
+            log_payload = urlencode(payload)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
                                url=url,
                                request=log_payload,
                                response=response.text,
@@ -1519,7 +1581,8 @@ class Channel(SmartModel):
                       SHAQODOON: Channel.send_shaqodoon_message,
                       ZENVIA: Channel.send_zenvia_message,
                       PLIVO: Channel.send_plivo_message,
-                      HIGH_CONNECTION: Channel.send_high_connection_message}
+                      HIGH_CONNECTION: Channel.send_high_connection_message,
+                      BLACKMYNA: Channel.send_blackmyna_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages

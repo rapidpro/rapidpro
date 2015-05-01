@@ -76,10 +76,10 @@ class ScheduleTest(TembaTest):
         next_update = datetime(now.year, now.month, now.day, hour=10).replace(tzinfo=timezone.pytz.utc)
 
         # make sure we are looking at the following week if it is a thursday
-        if next_update.weekday() == THURSDAY:
+        if next_update.weekday() == THURSDAY:  # pragma: no cover
             next_update += timedelta(days=7)
 
-        else:
+        else:  # pragma: no cover
             # add days until we get to the next thursday
             while next_update.weekday() != THURSDAY:
                 next_update += timedelta(days=1)

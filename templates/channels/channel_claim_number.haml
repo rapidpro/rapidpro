@@ -4,8 +4,6 @@
 -load i18n
 
 -block title-icon
-  .title-icon
-    %span.glyph.icon-channel-twilio
 
 -block title-text
   .title-text
@@ -18,6 +16,8 @@
       -blocktrans
         Once you claim a number you will immediately be able to send and receive messages. Users who send messages
         to your number will be charged according to their plan.
+
+      - block account-trial-warning
 
       %form#search-form
         .country
@@ -226,4 +226,13 @@
         .title-icon + .title-text {
           margin-left: 55px;
         }
+
+        .account-trial-warning {
+          font-size: 16px;
+          max-width: 525px;
+          padding: 5px;
+          margin: 10px 0px;
+          background-color: @color-alert-warning;
+        }
+
     {% endlessblock %}
