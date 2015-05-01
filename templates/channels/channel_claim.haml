@@ -289,6 +289,27 @@
                   If you are based in France, you can purchase use a number you have been provided by
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
 
+
+    -if user_org.timezone == 'Asia/Kathmandu'
+      .claim-row.blackmyna-channel{class:"{% if recommended_channel == 'blackmyna' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using a Blackmyna phone number for SMS in your country, select this option to configure your number.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_blackmyna' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Blackmyna Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs.
+
     -if False
       .claim-row.infobip-channel
         .recommendation.hide
