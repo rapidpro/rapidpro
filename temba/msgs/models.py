@@ -1492,7 +1492,6 @@ class ExportMessagesTask(SmartModel):
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-    filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
     def do_export(self):
