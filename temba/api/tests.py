@@ -1151,20 +1151,6 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
-        # search by label
-        response = self.fetchJSON(url, "label=Goo")
-        self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 0)
-
-        label1 = Label.create_unique(self.org, self.user, "Goo")
-        label1.toggle_label([msg1], add=True)
-        label2 = Label.create_unique(self.org, self.user, "Boo")
-        label2.toggle_label([msg1], add=True)
-
-        response = self.fetchJSON(url, "label=Goo&label=Boo")
-        self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 1)
-
         response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&urn=%2B250788123123&channel=-1")
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
@@ -1200,10 +1186,11 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
-        # associate one of our messages with a flow run
+        # add a new flow message and another regular message
         flow = self.create_flow()
         flow.start([], [contact])
         msg2 = Msg.objects.get(msg_type='F')
+        msg3 = Msg.create_outgoing(self.org, self.user, self.joe, "test2")
 
         response = self.fetchJSON(url, "type=F")
         self.assertEquals(200, response.status_code)
@@ -1217,13 +1204,30 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
+        # search by label
+        response = self.fetchJSON(url, "label=Goo")
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 0)
+
+        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1.toggle_label([msg1, msg2], add=True)
+        label2 = Label.create_unique(self.org, self.user, "Boo")
+        label2.toggle_label([msg1, msg3], add=True)
+
+        response = self.fetchJSON(url, "label=Goo&label=Boo")  # Goo or Boo
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 3)
+
+        response = self.fetchJSON(url, "label_all=Goo&label_all=Boo")  # Goo and Boo
+        self.assertEquals(200, response.status_code)
+        self.assertResultCount(response, 1)
+
         # search by broadcast id
         response = self.fetchJSON(url, "broadcast=%d" % broadcast.pk)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
         # check default ordering is -created_on
-        msg3 = Msg.create_outgoing(self.org, self.user, self.joe, "test2")
         response = self.fetchJSON(url, "")
         self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk, msg2.pk, msg1.pk])
 

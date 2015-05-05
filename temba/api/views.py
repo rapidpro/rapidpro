@@ -760,6 +760,10 @@ class MessagesEndpoint(generics.ListAPIView):
         if labels:
             queryset = queryset.filter(labels__name__in=labels)
 
+        labels_all = self.request.QUERY_PARAMS.getlist('label_all', [])
+        for label_name in labels_all:
+            queryset = queryset.filter(labels__name=label_name)
+
         text = self.request.QUERY_PARAMS.get('text', None)
         if text:
             queryset = queryset.filter(text__icontains=text)
