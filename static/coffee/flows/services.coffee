@@ -243,11 +243,8 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
       jsPlumb.detachAllConnections(id)
 
   disconnectOutboundConnections: (id) ->
-
-    $log.debug('disconnecting outboud', id)
     jsPlumb.detachAllConnections(id)
     if jsPlumb.isSource(id)
-      $log.debug('enabling', id)
       jsPlumb.setSourceEnabled(id, true)
 
   setSourceEnabled: (source, enabled) ->
@@ -427,6 +424,30 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
   $rootScope.errorDelay = quietPeriod
 
+  determineFlowStart = (flow) ->
+
+    if not flow
+      flow = $rootScope.flow
+
+    topNode = null
+
+    # see if this node is higher than our last one
+    checkTop = (node) ->
+      if topNode == null || node.y < topNode.y
+        topNode = node
+      else if topNode == null || topNode.y == node.y
+        if node.x < topNode.x
+          topNode = node
+
+    # check each node to see if they are the top
+    for actionset in flow.action_sets
+      checkTop(actionset)
+    for ruleset in flow.rule_sets
+      checkTop(ruleset)
+
+    if topNode
+      flow.entry = topNode.uuid
+
   $rootScope.$watch (->$rootScope.dirty), (current, prev) ->
 
     # if we just became dirty, trigger a save
@@ -440,6 +461,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # make sure we know our start point
       determineFlowStart($rootScope.flow)
+
 
       # schedule the save for a bit later in case more dirty events come in quick succession
       if $rootScope.saving
@@ -506,25 +528,61 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       , quietPeriod
 
-  determineFlowStart = (flow) ->
-    topNode = null
 
-    # see if this node is higher than our last one
-    checkTop = (node) ->
-      if topNode == null || node.y < topNode.y
-        topNode = node
-      else if topNode == null || topNode.y == node.y
-        if node.x < topNode.x
-          topNode = node
-
-    # check each node to see if they are the top
+  getNode = (flow, uuid) ->
     for actionset in flow.action_sets
-      checkTop(actionset)
-    for ruleset in flow.rule_sets
-      checkTop(ruleset)
+      if actionset.uuid == uuid
+        return actionset
 
-    if topNode
-      flow.entry = topNode.uuid
+    for ruleset in flow.rule_sets
+      if ruleset.uuid == uuid
+        return ruleset
+
+
+  # check if a potential connection would result in an invalid loop
+  detectLoop = (flow, nodeId, targetId, path=[]) ->
+
+    # can't go back on ourselves
+    if nodeId == targetId
+      throw new Error('Loop detected: ' + nodeId)
+
+    # break out if our target is a blocking ruleset
+    node = getNode(flow, targetId)
+    if node?.operand?.indexOf('@step') > -1
+      return
+
+    # check if we just ate our tail
+    if targetId in path
+      throw new Error('Loop detected: ' + path + ',' + targetId)
+
+    # add our selves
+    path.push(targetId)
+
+    # if we have rules, check each one
+    if node?.rules
+      for rule in node.rules
+        if rule.destination
+          detectLoop(flow, node.uuid, rule.destination, path)
+    else
+      if node.destination
+        detectLoop(flow, node.uuid, node.destination, path)
+
+    return true
+
+  isConnectionAllowed: (flow, sourceId, targetId) ->
+
+    source = sourceId.split('_')[0]
+    path = [ source ]
+
+    try
+      detectLoop(flow, source ,targetId, path)
+    catch e
+      $log.debug(e.message)
+      return false
+    return true
+
+  determineFlowStart: (flow=null) ->
+    determineFlowStart(flow)
 
   applyActivity: (node, activity) ->
 
@@ -608,9 +666,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     ruleset._categories = categories
     @applyActivity(ruleset, $rootScope.visibleActivity)
     return
-
-  determineFlowStart: ->
-    determineFlowStart($rootScope.flow)
 
   markDirty: ->
     $timeout ->

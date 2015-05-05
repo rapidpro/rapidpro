@@ -254,6 +254,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     if current
       jsPlumb.bind('connectionDrag', (connection) -> $scope.onConnectorDrag(connection))
       jsPlumb.bind('connectionDragStop', (connection) -> $scope.onConnectorDrop(connection))
+      jsPlumb.bind('beforeDrop', (sourceId, targetId) -> $scope.onBeforeConnectorDrop(sourceId, targetId))
     else
       jsPlumb.unbind('connectionDrag')
       jsPlumb.unbind('connectionDragStop')
@@ -268,6 +269,13 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # we always defer to the first one, this is used for plumbing
   $scope.getSource = (category) ->
     return category.sources[0]
+
+  $scope.onBeforeConnectorDrop = (props) ->
+    if not Flow.isConnectionAllowed($rootScope.flow, props.sourceId, props.targetId)
+      $rootScope.ghost.hide()
+      $rootScope.ghost = null
+      return false
+    return true
 
   $scope.onConnectorDrop = (connection) ->
 
@@ -437,6 +445,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           templateUrl: "/partials/node_editor?v=" + version
           controller: NodeEditorController
           resolve:
+            scope: $scope
             options: ->
               nodeType: 'ivr'
               ruleset: ruleset
@@ -597,9 +606,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.clickAction = (actionset, action, dragSource=null) ->
 
-
-    $log.debug("dragSource", dragSource)
-
     if window.dragging or not window.mutable
       return
 
@@ -607,6 +613,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     # if its the base language, don't show the from text
     if $scope.$parent.flow.base_language and $scope.$parent.flow.base_language != $scope.$parent.language.iso_code
+
       if action.type in ["send", "reply", "say"]
 
         fromText = action.msg[$scope.$parent.flow.base_language]
@@ -832,10 +839,19 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
         test:
           test: "true"
           type: "true"
-        category: { eng: 'Other' }
+        category: 'All Responses'
         uuid: uuid()
       ]
 
+    # localized category name
+    if $rootScope.flow.base_language
+      ruleset.rules[0].category = { base:'All Responses' }
+      ruleset.rules[0].category[$rootScope.flow.base_language] = 'All Responses'
+
+
+  $scope.showFlip = ->
+
+    return !$scope.ivr && actionset.actions.length < 2
 
   #-----------------------------------------------------------------
   # Rule editor

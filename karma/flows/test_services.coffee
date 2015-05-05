@@ -14,6 +14,7 @@ describe 'Services:', ->
     flows = {
       'favorites': { id: 1, languages:[] },
       'rules_first': { id: 2, languages:[] }
+      'loop_detection': { id: 3, languages:[] }
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -170,8 +171,42 @@ describe 'Services:', ->
       flowService.deriveCategories(ruleset, 'eng')
       expect(ruleOther.destination).toBe(null)
 
-    describe 'updateDestination()', ->
 
+    describe 'isConnectionAllowed()', ->
+
+      flow = null
+      beforeEach ->
+        $window.flowId = flows.loop_detection.id
+        flowService.fetch().then ->
+          # derive all our categories
+          flow = $rootScope.flow
+          for ruleset in flow.rule_sets
+            flowService.deriveCategories(ruleset, 'eng')
+        $http.flush()
+
+      messageOne = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
+      groupSplit = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
+      groupOne = '605e4e98-5d85-45e7-a885-9c198977b63c'
+
+      nameSplit = '782e9e71-c116-4195-add3-1867132f95b6'
+      rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
+
+      it 'should detect looping to same rule', ->
+
+        # rule turning back on ourselves
+        ruleSelfLoop = flowService.isConnectionAllowed(flow, groupSplit + '_' + groupOne, groupSplit)
+        expect(ruleSelfLoop).toBe(false, "Rule was able to point to it's parent")
+
+        # non-blocking rule to non-blocking rule and back
+        ruleLoop = flowService.isConnectionAllowed(flow, nameSplit + '_' + rowan, groupSplit)
+        expect(ruleLoop).toBe(false, "Non blocking rule infinite loop")
+
+        # our non-blocking rule to an action and back to us again
+        ruleActionLoop = flowService.isConnectionAllowed(flow, groupSplit, messageOne, groupOne)
+        expect(ruleActionLoop).toBe(false, "Rule to action loop without blocking ruleset")
+
+
+    describe 'updateDestination()', ->
       colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
       colorRulesId = '1a08ec37-2218-48fd-b6b0-846b14407041'
       redRuleId = 'e82dfba9-aaf3-438c-b52d-5dee50b1260c'
@@ -189,6 +224,7 @@ describe 'Services:', ->
           for ruleset in flow.rule_sets
             flowService.deriveCategories(ruleset)
         $http.flush()
+
 
       it 'should handle null action destinations', ->
 

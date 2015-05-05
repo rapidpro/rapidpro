@@ -38,6 +38,7 @@ module.exports = (config) ->
       # our test files
       'karma/flows/test_services.coffee',
       'karma/flows/test_directives.coffee',
+      'karma/flows/test_controllers.coffee',
 
     ]
 
@@ -90,7 +91,7 @@ module.exports = (config) ->
 
 
     # enable / disable watching file and executing tests whenever any file changes
-    autoWatch: false
+    autoWatch: true
 
 
     # start these browsers
@@ -100,5 +101,5 @@ module.exports = (config) ->
 
     # Continuous Integration mode
     # if true, Karma captures browsers, runs the tests and exits
-    singleRun: true
+    singleRun: false
 
