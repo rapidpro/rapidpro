@@ -480,7 +480,7 @@ class ContactWriteSerializer(WriteSerializer):
         if group_names is not None:
             groups = []
             for name in group_names:
-                if not name.strip():
+                if not ContactGroup.is_valid_name(name):
                     raise ValidationError(_("Invalid group name: '%s'") % name)
                 groups.append(name)
 

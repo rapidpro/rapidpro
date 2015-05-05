@@ -798,11 +798,15 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
         self.assertResponseError(response, 'urns', "Unable to parse URN: 'tel250788123456'")
 
-        # try to post a invalid group name (deprecated)
+        # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
         self.assertResponseError(response, 'groups', "Invalid group name: '  '")
 
-        # add contact to a new group by name (deprecated)
+        # try to post a new group with invalid name
+        response = self.postJSON(url, dict(phone='+250788123456', groups=["+People"]))
+        self.assertResponseError(response, 'groups', "Invalid group name: '+People'")
+
+        # add contact to a new group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["Music Artists"]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
@@ -810,7 +814,7 @@ class APITest(TembaTest):
         self.assertEqual(1, artists.contacts.count())
         self.assertEqual(1, artists.get_member_count())  # check cached value
 
-        # remove contact from a group by name (deprecated)
+        # remove contact from a group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
@@ -1371,7 +1375,7 @@ class APITest(TembaTest):
 
         # try to add an invalid label by name
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label='+Test'))
-        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'label', "Label name must not be blank or begin with + or -")
 
         # apply new label by its UUID to message 3
         response = self.postJSON(url, dict(messages=[msg3.pk], action='label', label_uuid=label.uuid))
