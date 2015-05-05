@@ -1331,7 +1331,7 @@ class LabelCRUDLTest(TembaTest):
 
         # try to create label with invalid name
         response = self.client.post(create_url, dict(name="+label_one"))
-        self.assertFormError(response, 'form', 'name', "Label name must not begin with + or -")
+        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
 
         # try again with valid name
         self.client.post(create_url, dict(name="label_one"), follow=True)
@@ -1363,7 +1363,7 @@ class LabelCRUDLTest(TembaTest):
 
         # try to update to invalid label name
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
-        self.assertFormError(response, 'form', 'name', "Label name must not begin with + or -")
+        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
 
         # check can't take name of existing label, even a child
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="sub_label"))
