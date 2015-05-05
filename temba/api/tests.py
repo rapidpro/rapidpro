@@ -1369,6 +1369,10 @@ class APITest(TembaTest):
         label = Label.objects.get(name='Test')
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
+        # try to add an invalid label by name
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label='+Test'))
+        self.assertEquals(400, response.status_code)
+
         # apply new label by its UUID to message 3
         response = self.postJSON(url, dict(messages=[msg3.pk], action='label', label_uuid=label.uuid))
         self.assertEquals(204, response.status_code)

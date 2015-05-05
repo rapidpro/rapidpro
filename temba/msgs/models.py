@@ -1426,7 +1426,7 @@ class Label(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return not (name.startswith('+') or name.startswith('-'))
+        return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
