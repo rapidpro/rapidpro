@@ -69,14 +69,16 @@ class ContactGroupForm(forms.ModelForm):
         super(ContactGroupForm, self).__init__(*args, **kwargs)
 
     def clean_name(self):
-        name = self.cleaned_data['name'].strip()
-        if not name:
-            raise ValidationError("The name of a group cannot contain only whitespaces.")
+        data = self.cleaned_data['name'].strip()
 
-        return name
+        if not ContactGroup.is_valid_name(data):
+            raise forms.ValidationError("Group name must not be blank or begin with + or -")
+
+        return data
 
     class Meta:
         model = ContactGroup
+
 
 class ContactListView(OrgPermsMixin, SmartListView):
     """

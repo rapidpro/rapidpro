@@ -169,6 +169,9 @@ class MsgBulkActionSerializer(serializers.Serializer):
     def validate_label(self, attrs, source):
         label_name = attrs.get(source, None)
         if label_name:
+            if not Label.is_valid_name(label_name):
+                raise ValidationError("Label name must not be blank or begin with + or -")
+
             attrs['label'] = Label.get_or_create(self.user.get_org(), self.user, label_name, None)
         return attrs
 
@@ -477,7 +480,7 @@ class ContactWriteSerializer(WriteSerializer):
         if group_names is not None:
             groups = []
             for name in group_names:
-                if not name.strip():
+                if not ContactGroup.is_valid_name(name):
                     raise ValidationError(_("Invalid group name: '%s'") % name)
                 groups.append(name)
 

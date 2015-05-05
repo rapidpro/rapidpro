@@ -1266,13 +1266,16 @@ GROUP_TYPE_CHOICES = ((ALL_CONTACTS_GROUP, "All Contacts"),
                       (FAILED_CONTACTS_GROUP, "Failed Contacts"),
                       (USER_DEFINED_GROUP, "User Defined Groups"))
 
+
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
         return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=USER_DEFINED_GROUP)
 
+
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
         return super(UserContactGroupManager, self).get_queryset().filter(group_type=USER_DEFINED_GROUP)
+
 
 class ContactGroup(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
@@ -1310,8 +1313,9 @@ class ContactGroup(TembaModel, SmartModel):
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
         full_group_name = name.strip()[:64]
-        if not full_group_name:
-            raise ValueError("Group name cannot be blank")
+
+        if not cls.is_valid_name(full_group_name):
+            raise ValueError("Invalid group name: %s" % name)
 
         # look for name collision and append count if necessary
         existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
@@ -1328,6 +1332,10 @@ class ContactGroup(TembaModel, SmartModel):
             group.update_query(query)
 
         return group
+
+    @classmethod
+    def is_valid_name(cls, name):
+        return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def update_contacts(self, contacts, add):
         """

@@ -1101,7 +1101,7 @@ class ChannelTest(TembaTest):
         if not user:
             user = self.user
 
-        group = ContactGroup.get_or_create(org, user, ",".join(numbers))
+        group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
             contacts.append(Contact.get_or_create(org, user, name=None, urns=[(TEL_SCHEME, number)]))
