@@ -756,13 +756,21 @@ class MessagesEndpoint(generics.ListAPIView):
         if types:
             queryset = queryset.filter(msg_type__in=types)
 
-        labels = self.request.QUERY_PARAMS.getlist('label', None)
-        if labels:
-            queryset = queryset.filter(labels__name__in=labels)
+        labels_included, labels_required, labels_excluded = [], [], []
+        for label in self.request.QUERY_PARAMS.getlist('label', []):
+            if label.startswith('+'):
+                labels_required.append(label[1:])
+            elif label.startswith('-'):
+                labels_excluded.append(label[1:])
+            else:
+                labels_included.append(label)
 
-        labels_all = self.request.QUERY_PARAMS.getlist('label_all', [])
-        for label_name in labels_all:
-            queryset = queryset.filter(labels__name=label_name)
+        if labels_included:
+            queryset = queryset.filter(labels__name__in=labels_included)
+        for label in labels_required:
+            queryset = queryset.filter(labels__name=label)
+        for label in labels_excluded:
+            queryset = queryset.exclude(labels__name=label)
 
         text = self.request.QUERY_PARAMS.get('text', None)
         if text:
