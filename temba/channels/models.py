@@ -822,7 +822,7 @@ class Channel(SmartModel):
             log_url += "?" + urlencode(log_payload)
 
         try:
-            response = requests.get(channel.config[SEND_URL], params=payload)
+            response = requests.get(channel.config[SEND_URL], params=payload, timeout=15)
         except Exception as e:
             payload['password'] = 'x' * len(payload['password'])
             raise SendException(unicode(e),
