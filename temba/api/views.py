@@ -1855,7 +1855,9 @@ class FlowResultsEndpoint(generics.GenericAPIView):
 
         id = self.request.QUERY_PARAMS.get('ruleset', None)
         if id:
-            ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            ruleset = RuleSet.objects.filter(flow__org=org, uuid=id).first()
+            if not ruleset:
+                ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
             if not ruleset:
                 return Response(dict(contact_field="No ruleset found with that id"), status=status.HTTP_400_BAD_REQUEST)
 
