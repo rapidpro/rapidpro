@@ -294,7 +294,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 
-    def test_api(self):
+    def test_api_contacts_and_groups(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
         self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
 
@@ -308,6 +308,18 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler(self, "Fetch groups from API (again)", True):
             self._fetch_json('%s.json' % reverse('api.contactgroups'))
+
+    def test_api_messages(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
+        self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
+
+        broadcast = self._create_broadcast("Hello message #1", contacts)
+        broadcast.send()
+
+        self.login(self.user)
+
+        with SegmentProfiler(self, "Fetch messages from API", True):
+            self._fetch_json('%s.json' % reverse('api.messages'))
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
