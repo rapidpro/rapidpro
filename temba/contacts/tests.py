@@ -1615,6 +1615,15 @@ class ContactFieldTest(TembaTest):
         with self.assertRaises(ValidationError):
             ContactField.api_make_key("Name")
 
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("uuid")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("Groups")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("first_name")
+
     def test_export(self):
         from xlrd import open_workbook
 
