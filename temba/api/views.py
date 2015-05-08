@@ -1878,9 +1878,14 @@ class FlowResultsEndpoint(generics.GenericAPIView):
 
         id = self.request.QUERY_PARAMS.get('ruleset', None)
         if id:
-            ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            try:
+                int(id)
+                ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            except ValueError:
+                ruleset = RuleSet.objects.filter(flow__org=org, uuid=id).first()
+
             if not ruleset:
-                return Response(dict(contact_field="No ruleset found with that id"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(contact_field="No ruleset found with that uuid"), status=status.HTTP_400_BAD_REQUEST)
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
@@ -1897,7 +1902,7 @@ class FlowResultsEndpoint(generics.GenericAPIView):
             try:
                 segment = json.loads(segment)
             except:
-                return Response(dict(segment="Invalid segment format, must be in JSON format"))
+                return Response(dict(segment="Invalid segment format, must be in JSON format"), status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ResultSerializer(ruleset=ruleset, contact_field=contact_field, segment=segment)
         return Response(serializer.data, status=status.HTTP_200_OK)

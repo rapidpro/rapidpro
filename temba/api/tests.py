@@ -324,6 +324,58 @@ class APITest(TembaTest):
         flow = Flow.objects.get(name='Pick a number')
         self.assertEqual(flow.flow_type, 'F')
 
+    def test_flow_results(self):
+        url = reverse('api.results')
+
+        # can't access, get 403
+        self.assert403(url)
+
+        # log in as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # log in a manager
+        self.login(self.admin)
+
+        response = self.fetchHTML(url)
+        self.assertEquals(400, response.status_code)
+
+        # create our test flow and a contact field
+        flow = self.create_flow()
+        contact_field = ContactField.objects.create(key='gender', label="Gender", org=self.org)
+        ruleset = RuleSet.objects.get()
+
+        response = self.fetchHTML(url + "?ruleset=%s" % 'invalid-uuid')
+        self.assertEquals(400, response.status_code)
+
+        response = self.fetchHTML(url + "?contact_field=born")
+        self.assertEquals(400, response.status_code)
+
+        response = self.fetchHTML(url + "?ruleset=%s&contact_field=Gender" % ruleset.uuid)
+        self.assertEquals(400, response.status_code)
+
+        with patch('temba.values.models.Value.get_value_summary') as mock_value_summary:
+            mock_value_summary.return_value = dict(results='RESULTS_DATA')
+
+            response = self.fetchHTML(url + "?ruleset=%d" % ruleset.id)
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
+
+            response = self.fetchHTML(url + "?ruleset=%s" % ruleset.uuid)
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
+
+            response = self.fetchHTML(url + "?contact_field=Gender")
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(contact_field=contact_field, segment=None)
+
+            response = self.fetchHTML(url + "?contact_field=Gender&segment=%7B\"location\"%3A\"State\"%7D")
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
+
+            response = self.fetchHTML(url + "?contact_field=Gender&segment=%7B\"location\"%7D")
+            self.assertEquals(400, response.status_code)
+
     def test_api_runs(self):
         url = reverse('api.runs')
 
