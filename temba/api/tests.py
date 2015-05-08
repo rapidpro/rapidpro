@@ -1344,9 +1344,7 @@ class APITest(TembaTest):
         # fetch our messages list page
         response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
-        self.assertJSON(response, 'phone', '+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123123')
-        self.assertJSON(response, 'phone', '+250788123124')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
         label1 = Label.create_unique(self.org, self.user, "Goo")
