@@ -1164,7 +1164,10 @@ class APITest(TembaTest):
         # fetch by message id
         response = self.fetchJSON(url, "id=%d" % msg1.pk)
         self.assertResultCount(response, 1)
-        self.assertContains(response, "test1")
+        self.assertEqual(response.json['results'][0]['id'], msg1.pk)
+        self.assertEqual(response.json['results'][0]['broadcast'], msg1.broadcast.pk)
+        self.assertEqual(response.json['results'][0]['text'], msg1.text)
+        self.assertEqual(response.json['results'][0]['direction'], 'O')
 
         response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
         self.assertEquals(200, response.status_code)
@@ -1341,9 +1344,7 @@ class APITest(TembaTest):
         # fetch our messages list page
         response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
-        self.assertJSON(response, 'phone', '+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123123')
-        self.assertJSON(response, 'phone', '+250788123124')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
         label1 = Label.create_unique(self.org, self.user, "Goo")
