@@ -628,9 +628,8 @@ class MsgCRUDL(SmartCRUDL):
 
             else:
                 export = ExportMessagesTask.objects.get(id=export.pk)
-                dl_url = "file://%s/%s" % (settings.MEDIA_ROOT, export.filename)
+                dl_url = reverse('assets.download', kwargs=dict(type='message_export', identifier=export.pk))
                 messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
-
 
             try:
                 messages.success(self.request, self.derive_success_message())
@@ -836,9 +835,14 @@ class LabelForm(forms.ModelForm):
 
     def clean_name(self):
         data = self.cleaned_data['name']
+
+        if not Label.is_valid_name(data):
+            raise forms.ValidationError("Label name must not be blank or begin with + or -")
+
         existing_id = self.existing.pk if self.existing else None
         if Label.objects.filter(org=self.org, name__iexact=data).exclude(pk=existing_id).exists():
             raise forms.ValidationError("Label name must be unique")
+
         return data
 
     class Meta:

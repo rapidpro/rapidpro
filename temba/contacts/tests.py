@@ -175,9 +175,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         # clear our current groups
         ContactGroup.user_groups.filter(org=self.org).delete()
 
+        # try to create a contact group whose name is only whitespace
         response = self.client.post(create_url, dict(name="  "))
-        self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to create a contact group whose name begins with reserved character
+        response = self.client.post(create_url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
 
         response = self.client.post(create_url, dict(name="first  "))
         self.assertNoFormErrors(response)
@@ -192,19 +196,23 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
         self.assertEquals(group, existing_group)
 
-    def test_update_url(self):
+    def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
 
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         self.login(self.user)
 
+        # try to update name to only whitespace
         response = self.client.post(update_url, dict(name="   "))
-        self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to update name to start with reserved character
+        response = self.client.post(update_url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
 
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
-        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="new name"))
+        ContactGroup.user_groups.get(org=self.org, name="new name")
 
 
 class ContactGroupTest(TembaTest):

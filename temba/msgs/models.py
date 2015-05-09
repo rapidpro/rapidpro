@@ -1394,6 +1394,9 @@ class Label(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, parent=None):
+        if not cls.is_valid_name(name):
+            raise ValueError("Invalid label name: %s" % name)
+
         # only allow 1 level of nesting
         if parent and parent.parent_id:  # pragma: no cover
             raise ValueError("Only one level of nesting is allowed")
@@ -1420,6 +1423,10 @@ class Label(TembaModel, SmartModel):
             count += 1
 
         return Label.create(org, user, base, parent)
+
+    @classmethod
+    def is_valid_name(cls, name):
+        return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
@@ -1492,7 +1499,6 @@ class ExportMessagesTask(SmartModel):
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-    filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
     def do_export(self):

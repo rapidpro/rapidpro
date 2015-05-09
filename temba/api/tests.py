@@ -798,11 +798,15 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
         self.assertResponseError(response, 'urns', "Unable to parse URN: 'tel250788123456'")
 
-        # try to post a invalid group name (deprecated)
+        # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
         self.assertResponseError(response, 'groups', "Invalid group name: '  '")
 
-        # add contact to a new group by name (deprecated)
+        # try to post a new group with invalid name
+        response = self.postJSON(url, dict(phone='+250788123456', groups=["+People"]))
+        self.assertResponseError(response, 'groups', "Invalid group name: '+People'")
+
+        # add contact to a new group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["Music Artists"]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
@@ -810,7 +814,7 @@ class APITest(TembaTest):
         self.assertEqual(1, artists.contacts.count())
         self.assertEqual(1, artists.get_member_count())  # check cached value
 
-        # remove contact from a group by name (deprecated)
+        # remove contact from a group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
         artists = ContactGroup.user_groups.get(name="Music Artists")
         self.assertEquals(201, response.status_code)
@@ -1151,20 +1155,6 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
-        # search by label
-        response = self.fetchJSON(url, "label=Goo")
-        self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 0)
-
-        label1 = Label.create_unique(self.org, self.user, "Goo")
-        label1.toggle_label([msg1], add=True)
-        label2 = Label.create_unique(self.org, self.user, "Boo")
-        label2.toggle_label([msg1], add=True)
-
-        response = self.fetchJSON(url, "label=Goo&label=Boo")
-        self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 1)
-
         response = self.fetchJSON(url, "status=Q&before=01T00:00:00.000&after=01-01T00:00:00.000&urn=%2B250788123123&channel=-1")
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
@@ -1200,36 +1190,57 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
-        # associate one of our messages with a flow run
+        # add a new flow message and some more regular messages
         flow = self.create_flow()
         flow.start([], [contact])
         msg2 = Msg.objects.get(msg_type='F')
+        msg3 = Msg.create_outgoing(self.org, self.user, self.joe, "test3")
+        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "test4")
 
         response = self.fetchJSON(url, "type=F")
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 1)
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
 
         response = self.fetchJSON(url, "flow=%d" % flow.id)
-        self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 1)
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
 
         response = self.fetchJSON(url, "flow=99999")
-        self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
+
+        # search by label
+        response = self.fetchJSON(url, "label=Goo")
+        self.assertResultCount(response, 0)
+
+        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1.toggle_label([msg1, msg2], add=True)
+        label2 = Label.create_unique(self.org, self.user, "Boo")
+        label2.toggle_label([msg1, msg3], add=True)
+        label3 = Label.create_unique(self.org, self.user, "Roo")
+        label3.toggle_label([msg2, msg3], add=True)
+
+        response = self.fetchJSON(url, "label=Goo&label=Boo")  # Goo or Boo
+        self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk, msg2.pk, msg1.pk])
+
+        response = self.fetchJSON(url, "label=%2BGoo&label=%2BBoo")  # Goo and Boo
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk])
+
+        response = self.fetchJSON(url, "label=%2BGoo&label=Boo&label=Roo")  # Goo and (Boo or Roo)
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])
+
+        response = self.fetchJSON(url, "label=Goo&label=-Boo")  # Goo and not Boo
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
 
         # search by broadcast id
         response = self.fetchJSON(url, "broadcast=%d" % broadcast.pk)
-        self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 1)
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk])
 
         # check default ordering is -created_on
-        msg3 = Msg.create_outgoing(self.org, self.user, self.joe, "test2")
         response = self.fetchJSON(url, "")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk, msg2.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg3.pk, msg2.pk, msg1.pk])
 
         # test reversing ordering
         response = self.fetchJSON(url, "reverse=1")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk, msg4.pk])
 
         # check archived status
         msg2.visibility = ARCHIVED
@@ -1237,11 +1248,11 @@ class APITest(TembaTest):
         msg3.visibility = DELETED
         msg3.save()
         response = self.fetchJSON(url, "")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg2.pk, msg1.pk])
         response = self.fetchJSON(url, "archived=1")
         self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
         response = self.fetchJSON(url, "archived=fALsE")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg1.pk])
 
         # check anon org case
         with AnonymousOrg(self.org):
@@ -1361,6 +1372,10 @@ class APITest(TembaTest):
         # check that new label was created and applied to messages 1 and 2
         label = Label.objects.get(name='Test')
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
+
+        # try to add an invalid label by name
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label='+Test'))
+        self.assertResponseError(response, 'label', "Label name must not be blank or begin with + or -")
 
         # apply new label by its UUID to message 3
         response = self.postJSON(url, dict(messages=[msg3.pk], action='label', label_uuid=label.uuid))
