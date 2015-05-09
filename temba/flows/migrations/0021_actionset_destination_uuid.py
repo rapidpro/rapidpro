@@ -7,7 +7,7 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0019_auto_20150420_1701'),
+        ('flows', '0020_remove_exportflowresultstask_filename'),
     ]
 
     def populate_destination_uuids(apps, schema_editor):
