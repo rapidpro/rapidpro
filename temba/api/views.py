@@ -795,7 +795,7 @@ class MessagesEndpoint(generics.ListAPIView):
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
-        queryset = queryset.select_related('org', 'contact', 'contact_urn', 'channel').prefetch_related('labels')
+        queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
         return queryset.order_by(order).distinct()
 
     @classmethod
