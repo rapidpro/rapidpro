@@ -184,11 +184,11 @@ class RuleTest(TembaTest):
         self.assertEquals(self.flow, step.run.flow)
         self.assertTrue(step.arrived_on)
         self.assertTrue(step.left_on)
-        self.assertEquals(entry.destination.uuid, step.next_uuid)
+        self.assertEquals(entry.destination, step.next_uuid)
 
         step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[1]
 
-        self.assertEquals(entry.destination.uuid, step.step_uuid)
+        self.assertEquals(entry.destination, step.step_uuid)
         self.assertEquals(RULE_SET, step.step_type)
         self.assertEquals(self.contact, step.run.contact)
         self.assertEquals(self.contact, step.contact)
@@ -501,7 +501,7 @@ class RuleTest(TembaTest):
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
-        self.assertEquals(entry.destination.pk, ruleset.pk)
+        self.assertEquals(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
         self.assertEquals(4, len(rules))
 
@@ -554,7 +554,7 @@ class RuleTest(TembaTest):
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
-        self.assertEquals(entry.destination.pk, ruleset.pk)
+        self.assertEquals(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
         self.assertEquals(3, len(rules))
 

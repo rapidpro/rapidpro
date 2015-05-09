@@ -115,13 +115,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
 
   $scope.getAcceptedScopes = (nodeType) ->
+    if not window.ivr
+      return 'actions rules'
+
     if nodeType == "ruleset"
       if window.ivr
         return 'rules'
-      else
-        return 'actions rules'
     else
-      return 'actions'
+        return 'actions'
 
 
   $scope.showRevisionHistory = ->
