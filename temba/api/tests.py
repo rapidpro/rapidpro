@@ -2431,16 +2431,35 @@ class VumiTest(TembaTest):
                 self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
             with patch('requests.put') as mock:
-                mock.return_value = MockResponse(400, "Error")
+                mock.return_value = MockResponse(500, "Error")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
 
-                # message should be marked as an error
+                # message should be marked as errored, we'll retry in a bit
                 msg = bcast.get_messages()[0]
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
-                self.assertTrue(msg.next_attempt)
+                self.assertTrue(msg.next_attempt > timezone.now())
+                self.assertEquals(1, mock.call_count)
+
+                self.clear_cache()
+
+            with patch('requests.put') as mock:
+                # set our next attempt as if we are trying anew
+                msg.next_attempt = timezone.now()
+                msg.save()
+
+                mock.return_value = MockResponse(400, "Permanent Error")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as failed
+                msg = bcast.get_messages()[0]
+                self.assertEquals(FAILED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
         finally:
             settings.SEND_MESSAGES = False
