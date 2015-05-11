@@ -1089,12 +1089,16 @@ class Channel(SmartModel):
                                 response_status=503)
 
         if response.status_code != 200 and response.status_code != 201:
+            # this is a fatal failure, don't retry
+            fatal = response.status_code == 400
+
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='PUT',
                                 url=url,
                                 request=payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                fatal=fatal)
 
         # parse our response
         body = response.json()
@@ -1635,7 +1639,7 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(r, msg)
+                Msg.mark_error(r, msg, fatal=e.fatal)
                 sent_count -= 1
 
             except Exception as e:
@@ -1694,7 +1698,7 @@ STATUS_FULL = "FUL"
 
 class SendException(Exception):
 
-    def __init__(self, description, url, method, request, response, response_status):
+    def __init__(self, description, url, method, request, response, response_status, fatal=False):
         super(SendException, self).__init__(description)
 
         self.description = description
@@ -1703,6 +1707,7 @@ class SendException(Exception):
         self.request = request
         self.response = response
         self.response_status = response_status
+        self.fatal = fatal
 
 
 class ChannelLog(models.Model):
@@ -1911,9 +1916,7 @@ class Alert(SmartModel):
                                              modified_by=alert_user, created_by=alert_user)
                 alert.send_alert()
 
-
         day_ago = timezone.now() - timedelta(days=1)
-        hour_ago = timezone.now() - timedelta(hours=1)
         six_hours_ago = timezone.now() - timedelta(hours=6)
 
         # end any sms alerts that are open and no longer seem valid
@@ -1938,28 +1941,20 @@ class Alert(SmartModel):
             existing['sent'] = sent['latest_sent']
 
         for (channel_id, value) in channels.items():
-            if not value['sent'] or value['sent'] < value['queued']:
+            # we haven't sent any messages in the past six hours
+            if not value['sent'] or value['sent'] < six_hours_ago:
                 channel = Channel.objects.get(pk=channel_id)
 
                 # never alert on channels that have no org
                 if channel.org is None:
                     continue
 
-                if channels[channel_id]['sent']:
-                    if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
-                        host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                        alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
-                                                     modified_by=alert_user, created_by=alert_user)
-                        alert.send_alert()
-
-                else:
-                    # This is for the case if there is no successfully sent message and no open alert 
-                    if not Alert.objects.filter(channel=channel, ended_on=None):
-                        host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                        alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
-                                                     modified_by=alert_user, created_by=alert_user)
-                        alert.send_alert()
-            
+                # if we haven't sent an alert in the past six ours
+                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
+                    host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
+                    alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
+                                                 modified_by=alert_user, created_by=alert_user)
+                    alert.send_alert()
 
     def send_alert(self):
         from .tasks import send_alert_task
