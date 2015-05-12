@@ -656,13 +656,18 @@ class Flow(TembaModel, SmartModel):
             result = {handled: False}
 
             if destination.get_step_type() == RULE_SET:
-                if user_input or not destination.requires_step():
+
+                requires_step = destination.requires_step()
+
+                if user_input or not requires_step:
                     result = Flow.handle_ruleset(destination, step, run, msg)
+
+                if requires_step:
+                    user_input = False
+
             elif destination.get_step_type() == ACTION_SET:
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
-
-            # everythig after this is not directly from user input
-            user_input = False
+                user_input = False
 
             # pull out our current state from the result
             step = result.get('step')

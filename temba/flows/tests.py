@@ -1755,8 +1755,6 @@ class RuleTest(TembaTest):
         # sms msg_type should be FLOW
         self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
 
-
-
     def test_multiple(self):
         # set our flow
         self.flow.update(self.definition)
@@ -2486,7 +2484,10 @@ class FlowsTest(FlowFileTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
-    def test_orphaned_on_action(self):
+    def test_orphaned_action_to_action(self):
+        """
+        Orphaned at an action, then routed to an action
+        """
 
         # run a flow that ends on an action
         flow = self.get_flow('pick_a_number')
@@ -2499,7 +2500,31 @@ class FlowsTest(FlowFileTest):
 
         # now wire up our finished action to the start of our flow
         flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '2f2adf23-87db-41d3-9436-afe48ab5403c')
-        self.assertEquals("Pick a number between 1-10.", self.send_message(flow, "6"))
+        self.assertEquals("Pick a number between 1-10.", self.send_message(flow, "next message please"))
+
+    def test_orphaned_action_to_input_rule(self):
+        """
+        Orphaned at an action, then routed to a rule that evaluates on input
+        """
+
+        flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 6!", self.send_message(flow, "6"))
+
+        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '06bb3899-5de4-4cbc-ad5f-70b9634d80c4')
+        self.assertEquals("You picked 9!", self.send_message(flow, "9"))
+
+    def test_orphaned_action_to_passive_rule(self):
+        """
+        Orphaned at an action, then routed to a rule that doesn't require input which leads
+        to a rule that evaluates on input
+        """
+        flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 6!", self.send_message(flow, "6"))
+
+        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '12610fb2-f841-11e4-a322-1697f925ec7b')
+        self.assertEquals("You picked 9!", self.send_message(flow, "9"))
+
+
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')
