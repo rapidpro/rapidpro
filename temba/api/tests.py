@@ -2606,6 +2606,34 @@ class InfobipTest(TembaTest):
         # should get 404 as the channel wasn't found
         self.assertEquals(404, response.status_code)
 
+        # change our message to incoming
+        sms.direction = 'I'
+        sms.external_id = '254021015120766124'
+        sms.save()
+
+        # mark it as delivered
+        base_body = '<DeliveryReport><message id="254021015120766124" sentdate="2014/02/10 16:12:07" ' \
+                    ' donedate="2014/02/10 16:13:00" status="STATUS" gsmerror="0" price="0.65" /></DeliveryReport>'
+        delivery_url = reverse('api.infobip_handler', args=['delivered', self.channel.uuid])
+
+        # assert our SENT status
+        response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'SENT'), content_type='application/xml')
+        self.assertEquals(200, response.status_code)
+        sms = Msg.objects.get()
+        self.assertEquals(SENT, sms.status)
+
+        # assert our DELIVERED status
+        response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'DELIVERED'), content_type='application/xml')
+        self.assertEquals(200, response.status_code)
+        sms = Msg.objects.get()
+        self.assertEquals(DELIVERED, sms.status)
+
+        # assert our FAILED status
+        response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'NOT_SENT'), content_type='application/xml')
+        self.assertEquals(200, response.status_code)
+        sms = Msg.objects.get()
+        self.assertEquals(FAILED, sms.status)
+
     def test_send(self):
         self.channel.config = json.dumps(dict(username='ib-user', password='ib-password'))
         self.channel.channel_type = 'IB'
