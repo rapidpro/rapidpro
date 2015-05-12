@@ -6,7 +6,6 @@ import pytz
 from datetime import datetime, date
 from django.utils import timezone
 
-from django_hstore.apps import register_hstore_handler
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
@@ -219,8 +218,6 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
 
-        register_hstore_handler(connection)
-
         self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
         self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
         self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
@@ -323,8 +320,6 @@ class ContactGroupTest(TembaTest):
 class ContactTest(TembaTest):
     def setUp(self):
         TembaTest.setUp(self)
-
-        register_hstore_handler(connection)
 
         self.user1 = self.create_user("nash")
         self.manager1 = self.create_user("mike")
@@ -1581,8 +1576,6 @@ class ContactURNTest(TembaTest):
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
-        register_hstore_handler(connection)
-
         self.user = self.create_user("tito")
         self.manager1 = self.create_user("mike")
         self.admin = self.create_user("ben")

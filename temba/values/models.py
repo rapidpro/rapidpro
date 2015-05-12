@@ -4,6 +4,7 @@ import time
 
 from collections import defaultdict
 from django.db import models, connection
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -108,6 +109,7 @@ class Value(models.Model):
             { ruleset: rulesetId, categories: ["Red", "Blue", "Yellow"] }
             { groups: 12,124,15 }
             { location: 1515, boundary: "f1551" }
+            { contact_field: fieldId, values: ["UK", "RW"] }
         """
         from temba.flows.models import RuleSet, FlowRun, FlowStep
         from temba.contacts.models import Contact
@@ -164,7 +166,7 @@ class Value(models.Model):
                         contacts = contacts.filter(all_groups__pk=group_id)
 
                 # we are filtering by one or more admin boundaries
-                elif 'boundary':
+                elif 'boundary' in filter:
                     boundaries = filter['boundary']
                     if not isinstance(boundaries, list):
                         boundaries = [boundaries]
@@ -173,8 +175,19 @@ class Value(models.Model):
                     contacts = contacts.filter(values__contact_field__id=filter['location'],
                                                values__location_value__osm_id__in=boundaries)
 
+                # we are filtering by a contact field
+                elif 'contact_field' in filter:
+                    contact_query = Q()
+
+                    # we can't use __in as we want case insensitive matching
+                    for value in filter['values']:
+                        contact_query |= Q(values__contact_field__id=filter['contact_field'],
+                                           values__string_value__iexact=value)
+
+                    contacts = contacts.filter(contact_query)
+
                 else:
-                    raise Exception("Invalid filter definition, must include 'group', 'ruleset' or 'boundary'")
+                    raise Exception("Invalid filter definition, must include 'group', 'ruleset', 'contact_field' or 'boundary'")
 
             contacts = set([c['id'] for c in contacts.values('id')])
 
@@ -326,6 +339,7 @@ class Value(models.Model):
             { ruleset: 1515, categories: ["Red", "Blue"] }  // segmenting by another field, for those categories
             { groups: 124,151,151 }                         // segment by each each group in the passed in ids
             { location: "State", parent: null }             // segment for each admin boundary within the parent
+            { contact_field: "Gender", values: ["US", "EN", "RW"] } // segment by a contact field for these values
         """
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import TrueTest, OPEN
@@ -398,17 +412,15 @@ class Value(models.Model):
         if segment:
             # segmenting a result is the same as calculating the result with the addition of each
             # category as a filter so we expand upon the passed in filters to do this
-            if 'categories' in segment:
+            if 'ruleset' in segment and 'categories' in segment:
                 for category in segment['categories']:
                     category_filter = list(filters)
                     category_filter.append(dict(ruleset=segment['ruleset'], categories=[category]))
-
 
                     # calculate our results for this segment
                     kwargs['filters'] = category_filter
                     (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
                     results.append(dict(label=category, open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
-
 
             # segmenting by groups instead, same principle but we add group filters
             elif 'groups' in segment:
@@ -424,6 +436,19 @@ class Value(models.Model):
                     (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
                     results.append(dict(label=group.name, open_ended=open_ended, set=set_count, unset_count=unset_count, categories=categories))
 
+            # segmenting by a contact field, only for passed in categories
+            elif 'contact_field' in segment and 'values' in segment:
+                # look up the contact field
+                field = ContactField.objects.get(org=org, label__iexact=segment['contact_field'])
+
+                for value in segment['values']:
+                    value_filter = list(filters)
+                    value_filter.append(dict(contact_field=field.pk, values=[value]))
+
+                    # calculate our results for this segment
+                    kwargs['filters'] = value_filter
+                    (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
+                    results.append(dict(label=value, open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
             # segmenting by a location field
             elif 'location' in segment:

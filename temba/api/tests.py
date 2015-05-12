@@ -15,7 +15,6 @@ from django.core.urlresolvers import reverse
 from django.db import connection
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from djorm_hstore.models import register_hstore_handler
 from mock import patch
 from redis_cache import get_redis_connection
 from rest_framework.authtoken.models import Token
@@ -43,7 +42,6 @@ class APITest(TembaTest):
 
     def setUp(self):
         super(APITest, self).setUp()
-        register_hstore_handler(connection)
 
         self.joe = self.create_contact("Joe Blow", "0788123123")
 

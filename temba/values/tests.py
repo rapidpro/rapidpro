@@ -221,6 +221,18 @@ class ResultTest(FlowFileTest):
         self.assertResult(female_result, 1, "Blue", 1)
         self.assertResult(female_result, 2, "Green", 0)
 
+        # segment by gender again, but use the contact field to do so
+        result = Value.get_value_summary(ruleset=color, filters=[], segment=dict(contact_field="Gender", values=["MALE", "Female"]))
+        male_result = result[0]
+        self.assertResult(male_result, 0, "Red", 0)
+        self.assertResult(male_result, 1, "Blue", 1)
+        self.assertResult(male_result, 2, "Green", 1)
+
+        female_result = result[1]
+        self.assertResult(female_result, 0, "Red", 1)
+        self.assertResult(female_result, 1, "Blue", 1)
+        self.assertResult(female_result, 2, "Green", 0)
+
         # add in a filter at the same time
         result = Value.get_value_summary(ruleset=color, filters=[dict(ruleset=color.pk, categories=["Blue"])],
                                          segment=dict(ruleset=gender.pk, categories=["Male", "Female"]))
