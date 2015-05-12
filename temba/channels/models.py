@@ -50,6 +50,7 @@ VERBOICE = 'VB'
 CLICKATELL = 'CT'
 PLIVO = 'PL'
 HIGH_CONNECTION = 'HX'
+BLACKMYNA = 'BM'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -78,7 +79,8 @@ RELAYER_TYPE_CHOICES = ((ANDROID, "Android"),
                         (CLICKATELL, "Clickatell"),
                         (PLIVO, "Plivo"),
                         (SHAQODOON, "Shaqodoon"),
-                        (HIGH_CONNECTION, "High Connection"))
+                        (HIGH_CONNECTION, "High Connection"),
+                        (BLACKMYNA, "Blackmyna"))
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -103,6 +105,7 @@ RELAYER_TYPE_CONFIG = {
     CLICKATELL: dict(scheme='tel', max_length=420),
     PLIVO: dict(scheme='tel', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
+    BLACKMYNA: dict(scheme='tel', max_length=1600),
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -381,7 +384,8 @@ class Channel(SmartModel):
             else:
                 channel = Channel.objects.create(channel_type=TWITTER, address=screen_name,
                                                  org=org, role=SEND+RECEIVE, uuid=str(uuid4()),
-                                                 config=config, name="Twitter", created_by=user, modified_by=user)
+                                                 config=config, name="@%s" % screen_name,
+                                                 created_by=user, modified_by=user)
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
@@ -519,6 +523,9 @@ class Channel(SmartModel):
             except NumberParseException as e:
                 # the number may be alphanumeric in the case of short codes
                 pass
+
+        if self.channel_type == TWITTER:
+            return '@%s' % self.address
 
         return self.address
 
@@ -815,7 +822,7 @@ class Channel(SmartModel):
             log_url += "?" + urlencode(log_payload)
 
         try:
-            response = requests.get(channel.config[SEND_URL], params=payload)
+            response = requests.get(channel.config[SEND_URL], params=payload, timeout=15)
         except Exception as e:
             payload['password'] = 'x' * len(payload['password'])
             raise SendException(unicode(e),
@@ -988,6 +995,61 @@ class Channel(SmartModel):
                                response_status=response.status_code)
 
     @classmethod
+    def send_blackmyna_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        payload = {
+            'address': msg.urn_path,
+            'senderaddress': channel.address,
+            'message': text,
+        }
+
+        url = 'http://api.blackmyna.com/2/smsmessaging/outbound'
+        log_payload = None
+        external_id = None
+
+        try:
+            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30,
+                                     auth=(channel.config[USERNAME], channel.config[PASSWORD]))
+
+            # parse our response, should be JSON that looks something like:
+            # [{
+            #   "recipient" : recipient_number_1,
+            #   "id" : Unique_identifier ( universally unique identifier UUID)
+            # }]
+            response_json = response.json()
+
+            # we only care about the first piece
+            if response_json and len(response_json) > 0:
+                external_id = response_json[0].get('id', None)
+
+            log_payload = urlencode(payload)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
@@ -1027,12 +1089,16 @@ class Channel(SmartModel):
                                 response_status=503)
 
         if response.status_code != 200 and response.status_code != 201:
+            # this is a fatal failure, don't retry
+            fatal = response.status_code == 400
+
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='PUT',
                                 url=url,
                                 request=payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                fatal=fatal)
 
         # parse our response
         body = response.json()
@@ -1519,7 +1585,8 @@ class Channel(SmartModel):
                       SHAQODOON: Channel.send_shaqodoon_message,
                       ZENVIA: Channel.send_zenvia_message,
                       PLIVO: Channel.send_plivo_message,
-                      HIGH_CONNECTION: Channel.send_high_connection_message}
+                      HIGH_CONNECTION: Channel.send_high_connection_message,
+                      BLACKMYNA: Channel.send_blackmyna_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
@@ -1572,7 +1639,7 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(r, msg)
+                Msg.mark_error(r, msg, fatal=e.fatal)
                 sent_count -= 1
 
             except Exception as e:
@@ -1631,7 +1698,7 @@ STATUS_FULL = "FUL"
 
 class SendException(Exception):
 
-    def __init__(self, description, url, method, request, response, response_status):
+    def __init__(self, description, url, method, request, response, response_status, fatal=False):
         super(SendException, self).__init__(description)
 
         self.description = description
@@ -1640,6 +1707,7 @@ class SendException(Exception):
         self.request = request
         self.response = response
         self.response_status = response_status
+        self.fatal = fatal
 
 
 class ChannelLog(models.Model):
@@ -1848,9 +1916,7 @@ class Alert(SmartModel):
                                              modified_by=alert_user, created_by=alert_user)
                 alert.send_alert()
 
-
         day_ago = timezone.now() - timedelta(days=1)
-        hour_ago = timezone.now() - timedelta(hours=1)
         six_hours_ago = timezone.now() - timedelta(hours=6)
 
         # end any sms alerts that are open and no longer seem valid
@@ -1875,28 +1941,20 @@ class Alert(SmartModel):
             existing['sent'] = sent['latest_sent']
 
         for (channel_id, value) in channels.items():
-            if not value['sent'] or value['sent'] < value['queued']:
+            # we haven't sent any messages in the past six hours
+            if not value['sent'] or value['sent'] < six_hours_ago:
                 channel = Channel.objects.get(pk=channel_id)
 
                 # never alert on channels that have no org
                 if channel.org is None:
                     continue
 
-                if channels[channel_id]['sent']:
-                    if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
-                        host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                        alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
-                                                     modified_by=alert_user, created_by=alert_user)
-                        alert.send_alert()
-
-                else:
-                    # This is for the case if there is no successfully sent message and no open alert 
-                    if not Alert.objects.filter(channel=channel, ended_on=None):
-                        host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                        alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
-                                                     modified_by=alert_user, created_by=alert_user)
-                        alert.send_alert()
-            
+                # if we haven't sent an alert in the past six ours
+                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
+                    host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
+                    alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
+                                                 modified_by=alert_user, created_by=alert_user)
+                    alert.send_alert()
 
     def send_alert(self):
         from .tasks import send_alert_task

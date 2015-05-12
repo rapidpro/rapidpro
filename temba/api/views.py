@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, ARCHIVED, VISIBLE, DELETED
 from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
 from temba.utils.middleware import disable_middleware
@@ -617,17 +617,18 @@ class MessagesEndpoint(generics.ListAPIView):
     Returns the message activity for your organization, listing the most recent messages first.
 
       * **channel** - the id of the channel that sent or received this message (int) (filterable: ```channel``` repeatable)
+      * **broadcast** - the broadcast this message is associated with (filterable as ```broadcast``` repeatable)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn``` repeatable)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```repeatable )
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
-      * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
+      * **archived** - whether this message is archived (boolean) (filterable: ```archived```)
+      * **labels** - any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
-      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast``` repeatable)
       * **status** - the status of this message, a string one of: (filterable: ```status``` repeatable)
 
             Q - Message is queued awaiting to be sent
@@ -654,11 +655,13 @@ class MessagesEndpoint(generics.ListAPIView):
             "results": [
             {
                 "id": 159,
+                "broadcast": 67,
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "status": "Q",
                 "relayer": 5,
                 "urn": "tel:+250788123124",
                 "direction": "O",
+                "archived": false,
                 "text": "hello world",
                 "created_on": "2013-03-02T17:28:12",
                 "sent_on": null,
@@ -754,9 +757,21 @@ class MessagesEndpoint(generics.ListAPIView):
         if types:
             queryset = queryset.filter(msg_type__in=types)
 
-        labels = self.request.QUERY_PARAMS.getlist('label', None)
-        if labels:
-            queryset = queryset.filter(labels__name__in=labels)
+        labels_included, labels_required, labels_excluded = [], [], []
+        for label in self.request.QUERY_PARAMS.getlist('label', []):
+            if label.startswith('+'):
+                labels_required.append(label[1:])
+            elif label.startswith('-'):
+                labels_excluded.append(label[1:])
+            else:
+                labels_included.append(label)
+
+        if labels_included:
+            queryset = queryset.filter(labels__name__in=labels_included)
+        for label in labels_required:
+            queryset = queryset.filter(labels__name=label)
+        for label in labels_excluded:
+            queryset = queryset.exclude(labels__name=label)
 
         text = self.request.QUERY_PARAMS.get('text', None)
         if text:
@@ -770,10 +785,18 @@ class MessagesEndpoint(generics.ListAPIView):
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
 
+        archived = self.request.QUERY_PARAMS.get('archived', None)
+        if archived is not None:
+            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            queryset = queryset.filter(visibility=visibility)
+        else:
+            queryset = queryset.exclude(visibility=DELETED)
+
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
-        return queryset.order_by(order).prefetch_related('labels').distinct()
+        queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
+        return queryset.order_by(order).distinct()
 
     @classmethod
     def get_read_explorer(cls):
@@ -792,6 +815,8 @@ class MessagesEndpoint(generics.ListAPIView):
                                help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
                           dict(name='direction', required=False,
                                help="One or more directions to filter by. (repeatable) ex: I,O"),
+                          dict(name='archived', required=False,
+                               help="Filter returned messages based on whether they are archived. ex: Y"),
                           dict(name='type', required=False,
                                help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
                           dict(name='urn', required=False,
@@ -1604,7 +1629,10 @@ class Contacts(generics.ListAPIView):
 
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, object_list)
+
+        # convert to list before cache initialization so that these will be the contact objects which get serialized
+        page.object_list = list(page.object_list)
+        Contact.bulk_cache_initialize(org, page.object_list)
 
         return packed
 
@@ -1852,9 +1880,14 @@ class FlowResultsEndpoint(generics.GenericAPIView):
 
         id = self.request.QUERY_PARAMS.get('ruleset', None)
         if id:
-            ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            try:
+                int(id)
+                ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            except ValueError:
+                ruleset = RuleSet.objects.filter(flow__org=org, uuid=id).first()
+
             if not ruleset:
-                return Response(dict(contact_field="No ruleset found with that id"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(contact_field="No ruleset found with that uuid"), status=status.HTTP_400_BAD_REQUEST)
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
@@ -1871,7 +1904,7 @@ class FlowResultsEndpoint(generics.GenericAPIView):
             try:
                 segment = json.loads(segment)
             except:
-                return Response(dict(segment="Invalid segment format, must be in JSON format"))
+                return Response(dict(segment="Invalid segment format, must be in JSON format"), status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ResultSerializer(ruleset=ruleset, contact_field=contact_field, segment=segment)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -3291,6 +3324,66 @@ class HighConnectionHandler(View):
             return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
+
+
+class BlackmynaHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(BlackmynaHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import BLACKMYNA
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=BLACKMYNA).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # Update on the status of a sent message
+        if action == 'status':
+            msg_id = request.REQUEST.get('id', None)
+            status = int(request.REQUEST.get('status', 0))
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=msg_id).first()
+            if not sms:
+                return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
+
+            if status == 8:
+                sms.status_sent()
+            elif status == 1:
+                sms.status_delivered()
+            elif status in [2, 16]:
+                sms.fail()
+
+            sms.broadcast.update()
+            return HttpResponse(json.dumps(dict(msg="Status Updated")))
+
+        # An MO message
+        elif action == 'receive':
+            to_number = request.REQUEST.get('to', None)
+            from_number = request.REQUEST.get('from', None)
+            message = request.REQUEST.get('text', None)
+            smsc = request.REQUEST.get('smsc', None)
+
+            if to_number is None or from_number is None or message is None:
+                return HttpResponse("Missing to, from or text parameters", status=400)
+
+            if channel.address != to_number:
+                return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
+
+            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)
+
 
 class NexmoHandler(View):
 

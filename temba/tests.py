@@ -14,26 +14,16 @@ from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import LiveServerTestCase
 from django.utils import timezone
-from djorm_hstore.models import register_hstore_handler
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow
+from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
-
-
-def unix_time(dt):
-    epoch = datetime.datetime.utcfromtimestamp(0)
-    delta = dt - epoch
-    return delta.total_seconds()
-
-
-def unix_time_millis(dt):
-    return unix_time(dt) * 1000.0
-
+from twilio.util import RequestValidator
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -137,7 +127,7 @@ class TembaTest(SmartminTest):
         if twitter:
             urns.append((TWITTER_SCHEME, twitter))
 
-        if not name and not urns:
+        if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
         return Contact.get_or_create(self.org, self.user, name, urns=urns)
@@ -195,7 +185,6 @@ class FlowFileTest(TembaTest):
     def setUp(self):
         super(FlowFileTest, self).setUp()
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
-        register_hstore_handler(connection)
 
     def assertLastResponse(self, message):
         response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
@@ -275,7 +264,7 @@ class MLStripper(HTMLParser):
         return ''.join(self.fed)
 
 
-class BrowserTest(LiveServerTestCase):
+class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
     @classmethod
     def setUpClass(cls):
@@ -441,3 +430,85 @@ class AnonymousOrg(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
         self.org.save()
+
+
+class MockRequestValidator(RequestValidator):
+
+    def __init__(self, token):
+        pass
+
+    def validate(self, url, post, signature):
+        return True
+
+class MockTwilioClient(TwilioClient):
+
+    def __init__(self, sid, token):
+        self.applications = MockTwilioClient.MockApplications()
+        self.calls = MockTwilioClient.MockCalls()
+        self.accounts = MockTwilioClient.MockAccounts()
+        self.phone_numbers = MockTwilioClient.MockPhoneNumbers()
+        self.auth = ['', 'FakeRequestToken']
+
+    def validate(self, request):
+        return True
+
+    class MockCall():
+        def __init__(self, to=None, from_=None, url=None, status_callback=None):
+            self.to = to
+            self.from_ = from_
+            self.url = url
+            self.status_callback = status_callback
+            self.sid = 'CallSid'
+
+    class MockApplication():
+        def __init__(self, friendly_name):
+            self.friendly_name = friendly_name
+            self.sid = 'TwilioTestSid'
+
+    class MockPhoneNumber():
+        def __init__(self, phone_number):
+            self.phone_number = phone_number
+            self.sid = 'PhoneNumberSid'
+
+    class MockAccount():
+        def __init__(self, account_type, auth_token='AccountToken'):
+            self.type = account_type
+            self.auth_token = auth_token
+            self.sid = 'AccountSid'
+
+    class MockAccounts():
+        def __init__(self, *args):
+            pass
+
+        def get(self, account_type):
+            return MockTwilioClient.MockAccount(account_type)
+
+    class MockPhoneNumbers():
+        def __init__(self, *args):
+            pass
+
+        def list(self, phone_number=None):
+            return [MockTwilioClient.MockPhoneNumber(phone_number)]
+
+        def update(self, sid, **kwargs):
+            print "Updating phone number with sid %s" % sid
+
+    class MockApplications():
+        def __init__(self, *args):
+            pass
+        def list(self, friendly_name=None):
+            return [MockTwilioClient.MockApplication(friendly_name)]
+
+    class MockCalls():
+        def __init__(self):
+            pass
+
+        def create(self, to=None, from_=None, url=None, status_callback=None):
+            return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)
+
+        def hangup(self, external_id):
+            print "Hanging up %s on Twilio" % external_id
+
+        def update(self, external_id, url):
+            print "Updating call for %s to url %s" % (external_id, url)
+

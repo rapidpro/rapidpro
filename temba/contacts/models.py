@@ -13,8 +13,6 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
-from django_hstore import hstore
-from django_hstore.fields import DictionaryField
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
@@ -27,7 +25,7 @@ from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETI
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
+RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name']
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
@@ -35,9 +33,7 @@ GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 class ContactField(models.Model, OrgModelMixin):
     """
-    Represents a type of field that can be put on Contacts.  We store uuids as the keys in our HSTORE
-    field so that we don't have to worry about renaming fields with the user.  This takes care of that
-    mapping for us.
+    Represents a type of field that can be put on Contacts.
     """
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
@@ -159,12 +155,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     is_failed = models.BooleanField(verbose_name=_("Is Failed"), default=False,
                                     help_text=_("Whether we cannot send messages to this contact"))
 
-    fields = DictionaryField(db_index=True)
-
     language = models.CharField(max_length=3, verbose_name=_("Language"), null=True, blank=True,
                                 help_text=_("The preferred language for this contact"))
-
-    objects = hstore.HStoreManager()
 
     simulation = False
 
@@ -310,9 +302,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         # cache
         setattr(self, '__field__%s' % key, existing)
-
-        # persist to db
-        self.save(update_fields=['fields'])
 
         # update any groups or campaigns for this contact
         self.handle_update(field=field)
@@ -1266,13 +1255,16 @@ GROUP_TYPE_CHOICES = ((ALL_CONTACTS_GROUP, "All Contacts"),
                       (FAILED_CONTACTS_GROUP, "Failed Contacts"),
                       (USER_DEFINED_GROUP, "User Defined Groups"))
 
+
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
         return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=USER_DEFINED_GROUP)
 
+
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
         return super(UserContactGroupManager, self).get_queryset().filter(group_type=USER_DEFINED_GROUP)
+
 
 class ContactGroup(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
@@ -1310,8 +1302,9 @@ class ContactGroup(TembaModel, SmartModel):
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
         full_group_name = name.strip()[:64]
-        if not full_group_name:
-            raise ValueError("Group name cannot be blank")
+
+        if not cls.is_valid_name(full_group_name):
+            raise ValueError("Invalid group name: %s" % name)
 
         # look for name collision and append count if necessary
         existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
@@ -1328,6 +1321,10 @@ class ContactGroup(TembaModel, SmartModel):
             group.update_query(query)
 
         return group
+
+    @classmethod
+    def is_valid_name(cls, name):
+        return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def update_contacts(self, contacts, add):
         """
@@ -1433,7 +1430,6 @@ class ExportContactsTask(SmartModel):
     org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-    filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
     def do_export(self):

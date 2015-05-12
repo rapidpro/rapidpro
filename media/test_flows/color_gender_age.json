@@ -171,6 +171,12 @@
       "uuid": "5ad1b145-58ba-4b65-8cb5-84d98172b221", 
       "actions": [
         {
+          "type": "save",
+          "field": "gender",
+          "label": "Gender",
+          "value": "@flow.gender"
+        },
+        {
           "msg": "What is your age?", 
           "type": "reply"
         }

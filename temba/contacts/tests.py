@@ -6,7 +6,6 @@ import pytz
 from datetime import datetime, date
 from django.utils import timezone
 
-from django_hstore.apps import register_hstore_handler
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
@@ -175,9 +174,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         # clear our current groups
         ContactGroup.user_groups.filter(org=self.org).delete()
 
+        # try to create a contact group whose name is only whitespace
         response = self.client.post(create_url, dict(name="  "))
-        self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to create a contact group whose name begins with reserved character
+        response = self.client.post(create_url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
 
         response = self.client.post(create_url, dict(name="first  "))
         self.assertNoFormErrors(response)
@@ -192,26 +195,28 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
         self.assertEquals(group, existing_group)
 
-    def test_update_url(self):
+    def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
 
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         self.login(self.user)
 
+        # try to update name to only whitespace
         response = self.client.post(update_url, dict(name="   "))
-        self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to update name to start with reserved character
+        response = self.client.post(update_url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
 
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
-        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="new name"))
+        ContactGroup.user_groups.get(org=self.org, name="new name")
 
 
 class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
-
-        register_hstore_handler(connection)
 
         self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
         self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
@@ -315,8 +320,6 @@ class ContactGroupTest(TembaTest):
 class ContactTest(TembaTest):
     def setUp(self):
         TembaTest.setUp(self)
-
-        register_hstore_handler(connection)
 
         self.user1 = self.create_user("nash")
         self.manager1 = self.create_user("mike")
@@ -1573,8 +1576,6 @@ class ContactURNTest(TembaTest):
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
-        register_hstore_handler(connection)
-
         self.user = self.create_user("tito")
         self.manager1 = self.create_user("mike")
         self.admin = self.create_user("ben")
@@ -1606,6 +1607,15 @@ class ContactFieldTest(TembaTest):
 
         with self.assertRaises(ValidationError):
             ContactField.api_make_key("Name")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("uuid")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("Groups")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("first_name")
 
     def test_export(self):
         from xlrd import open_workbook

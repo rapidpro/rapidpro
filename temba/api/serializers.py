@@ -87,17 +87,20 @@ class WriteSerializer(serializers.Serializer):
 
 class MsgReadSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField('get_id')
+    broadcast = serializers.SerializerMethodField('get_broadcast')
     contact = serializers.SerializerMethodField('get_contact_uuid')
     urn = serializers.SerializerMethodField('get_urn')
     status = serializers.SerializerMethodField('get_status')
+    archived = serializers.SerializerMethodField('get_archived')
     relayer = serializers.SerializerMethodField('get_relayer')
-    relayer_phone = serializers.SerializerMethodField('get_relayer_phone')
-    phone = serializers.SerializerMethodField('get_phone')  # deprecated
     type = serializers.SerializerMethodField('get_type')
     labels = serializers.SerializerMethodField('get_labels')
 
     def get_id(self, obj):
         return obj.pk
+
+    def get_broadcast(self, obj):
+        return obj.broadcast_id
 
     def get_type(self, obj):
         return obj.msg_type
@@ -110,32 +113,24 @@ class MsgReadSerializer(serializers.ModelSerializer):
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
 
-    def get_phone(self, obj):
-        return obj.contact.get_urn_display(org=obj.org, scheme=TEL_SCHEME, full=True)
-
-    def get_relayer_phone(self, obj):
-        if obj.channel and obj.channel.address:
-            return obj.channel.address
-        else:
-            return None
-
     def get_relayer(self, obj):
-        if obj.channel:
-            return obj.channel.pk
-        else:
-            return None
+        return obj.channel_id
 
     def get_status(self, obj):
         if obj.status in ['Q', 'P']:
             return 'Q'
         return obj.status
 
+    def get_archived(self, obj):
+        return obj.visibility == ARCHIVED
+
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
 
     class Meta:
         model = Msg
-        fields = ('id', 'contact', 'urn', 'status', 'type', 'labels', 'relayer', 'relayer_phone', 'phone', 'direction', 'text', 'created_on', 'sent_on', 'delivered_on')
+        fields = ('id', 'broadcast', 'contact', 'urn', 'status', 'type', 'labels', 'relayer',
+                  'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
         read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
 
 
@@ -164,6 +159,9 @@ class MsgBulkActionSerializer(serializers.Serializer):
     def validate_label(self, attrs, source):
         label_name = attrs.get(source, None)
         if label_name:
+            if not Label.is_valid_name(label_name):
+                raise ValidationError("Label name must not be blank or begin with + or -")
+
             attrs['label'] = Label.get_or_create(self.user.get_org(), self.user, label_name, None)
         return attrs
 
@@ -472,7 +470,7 @@ class ContactWriteSerializer(WriteSerializer):
         if group_names is not None:
             groups = []
             for name in group_names:
-                if not name.strip():
+                if not ContactGroup.is_valid_name(name):
                     raise ValidationError(_("Invalid group name: '%s'") % name)
                 groups.append(name)
 

@@ -25,24 +25,29 @@ def sync_channel_task(gcm_id, channel_id=None):  #pragma: no cover
     Channel.sync_channel(gcm_id, channel)
 
 
-@task(track_started=True, name='send_msg_task')
+@task(track_started=True, name='send_msg_task', time_limit=120, soft_time_limit=90)
 def send_msg_task():
     """
     Pops the next message off of our msg queue to send.
     """
-    # pop off the next task
-    task = pop_task(SEND_MSG_TASK)
+    logger = send_msg_task.get_logger()
 
-    # it is possible we have no message to send, if so, just return
-    if not task:
-        return
+    try:
+        # pop off the next task
+        task = pop_task(SEND_MSG_TASK)
 
-    msg = dict_to_struct('MockMsg', task, datetime_fields=['delivered_on', 'sent_on', 'created_on',
-                                                           'queued_on', 'next_attempt'])
+        # it is possible we have no message to send, if so, just return
+        if not task:
+            return
 
-    # send it off
-    Channel.send_message(msg)
+        msg = dict_to_struct('MockMsg', task, datetime_fields=['delivered_on', 'sent_on', 'created_on',
+                             'queued_on', 'next_attempt'])
 
+        # send it off
+        Channel.send_message(msg)
+
+    except Exception as e:
+        logger.exception("Error sending msg: %d" % msg.id)
 
 @task(track_started=True, name='check_channels_task')
 def check_channels_task():
