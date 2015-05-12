@@ -605,7 +605,24 @@ class Flow(TembaModel, SmartModel):
         if started_flows is None:
             started_flows = []
 
-        for step in FlowStep.get_active_steps_for_contact(msg.contact):
+        # normally we just look at steps sitting at rulesets
+        step_type_filter = RULE_SET
+
+        # if we were orphaned at an actionset, advance us to the next node
+        action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
+        for step in action_sets:
+            flow = step.run.flow
+            action_set = ActionSet.get(flow, step.step_uuid)
+            destination = Flow.get_node(flow, action_set.destination)
+            if destination:
+                flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
+
+                # if we pushed then forward, we want to consider any step type
+                # they just arrived at instead of just rulesets
+                step_type_filter = None
+
+        steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
+        for step in steps:
             flow = step.run.flow
             arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid)
@@ -3189,16 +3206,19 @@ class FlowStep(models.Model):
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
     @classmethod
-    def get_active_steps_for_contact(cls, contact, step_type=RULE_SET, is_test_contact=False):
+    def get_active_steps_for_contact(cls, contact, step_type=None, is_test_contact=False):
 
         # test contacts consider archived flows
         if contact.is_test:
             steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                            step_type=step_type, run__flow__flow_type=Flow.FLOW, left_on=None)
+                                            run__flow__flow_type=Flow.FLOW, left_on=None)
         else:
             steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                            step_type=step_type, run__flow__flow_type=Flow.FLOW, left_on=None,
+                                            run__flow__flow_type=Flow.FLOW, left_on=None,
                                             run__flow__is_archived=False)
+
+        if step_type:
+            steps = steps.filter(step_type=step_type)
 
         # optimize lookups
         return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')

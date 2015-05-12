@@ -212,7 +212,7 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                self.assertTrue(flow.find_and_handle(incoming))
+                self.assertTrue(flow.find_and_handle(incoming), "'%s' did not handle message as expected" % flow.name)
 
             # our message should have gotten a reply
             if assert_reply:

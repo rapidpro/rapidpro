@@ -2470,6 +2470,37 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_runs())
         self.assertEquals(1, flow.get_total_contacts())
 
+    def update_destination(self, flow, source, destination):
+        flow_json = flow.as_json()
+
+        for actionset in flow_json.get('action_sets'):
+            if actionset.get('uuid') == source:
+                actionset['destination'] = destination
+                print "Updating actionset: %s -> %s" % (source, destination)
+
+        for ruleset in flow_json.get('rule_sets'):
+            for rule in ruleset.get('rules'):
+                if rule.get('uuid') == source:
+                    rule['destination'] = destination
+
+        flow.update(flow_json)
+        return Flow.objects.get(pk=flow.pk)
+
+    def test_orphaned_on_action(self):
+
+        # run a flow that ends on an action
+        flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 3!", self.send_message(flow, "3"))
+
+        # send a message, no flow should handle us since we are done
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
+        handled = flow.find_and_handle(incoming)
+        self.assertFalse(handled)
+
+        # now wire up our finished action to the start of our flow
+        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '2f2adf23-87db-41d3-9436-afe48ab5403c')
+        self.assertEquals("Pick a number between 1-10.", self.send_message(flow, "6"))
+
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')
         self.assertEquals("You picked 3!", self.send_message(flow, "3"))
