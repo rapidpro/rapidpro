@@ -87,18 +87,20 @@ class WriteSerializer(serializers.Serializer):
 
 class MsgReadSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField('get_id')
+    broadcast = serializers.SerializerMethodField('get_broadcast')
     contact = serializers.SerializerMethodField('get_contact_uuid')
     urn = serializers.SerializerMethodField('get_urn')
     status = serializers.SerializerMethodField('get_status')
     archived = serializers.SerializerMethodField('get_archived')
     relayer = serializers.SerializerMethodField('get_relayer')
-    relayer_phone = serializers.SerializerMethodField('get_relayer_phone')
-    phone = serializers.SerializerMethodField('get_phone')  # deprecated
     type = serializers.SerializerMethodField('get_type')
     labels = serializers.SerializerMethodField('get_labels')
 
     def get_id(self, obj):
         return obj.pk
+
+    def get_broadcast(self, obj):
+        return obj.broadcast_id
 
     def get_type(self, obj):
         return obj.msg_type
@@ -111,20 +113,8 @@ class MsgReadSerializer(serializers.ModelSerializer):
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
 
-    def get_phone(self, obj):
-        return obj.contact.get_urn_display(org=obj.org, scheme=TEL_SCHEME, full=True)
-
-    def get_relayer_phone(self, obj):
-        if obj.channel and obj.channel.address:
-            return obj.channel.address
-        else:
-            return None
-
     def get_relayer(self, obj):
-        if obj.channel:
-            return obj.channel.pk
-        else:
-            return None
+        return obj.channel_id
 
     def get_status(self, obj):
         if obj.status in ['Q', 'P']:
@@ -139,7 +129,7 @@ class MsgReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Msg
-        fields = ('id', 'contact', 'urn', 'status', 'type', 'labels', 'relayer', 'relayer_phone', 'phone',
+        fields = ('id', 'broadcast', 'contact', 'urn', 'status', 'type', 'labels', 'relayer',
                   'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
         read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
 

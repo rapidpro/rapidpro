@@ -27,7 +27,7 @@ from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETI
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org']
+RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name']
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'

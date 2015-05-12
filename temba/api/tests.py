@@ -324,6 +324,58 @@ class APITest(TembaTest):
         flow = Flow.objects.get(name='Pick a number')
         self.assertEqual(flow.flow_type, 'F')
 
+    def test_flow_results(self):
+        url = reverse('api.results')
+
+        # can't access, get 403
+        self.assert403(url)
+
+        # log in as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # log in a manager
+        self.login(self.admin)
+
+        response = self.fetchHTML(url)
+        self.assertEquals(400, response.status_code)
+
+        # create our test flow and a contact field
+        flow = self.create_flow()
+        contact_field = ContactField.objects.create(key='gender', label="Gender", org=self.org)
+        ruleset = RuleSet.objects.get()
+
+        response = self.fetchHTML(url + "?ruleset=%s" % 'invalid-uuid')
+        self.assertEquals(400, response.status_code)
+
+        response = self.fetchHTML(url + "?contact_field=born")
+        self.assertEquals(400, response.status_code)
+
+        response = self.fetchHTML(url + "?ruleset=%s&contact_field=Gender" % ruleset.uuid)
+        self.assertEquals(400, response.status_code)
+
+        with patch('temba.values.models.Value.get_value_summary') as mock_value_summary:
+            mock_value_summary.return_value = dict(results='RESULTS_DATA')
+
+            response = self.fetchHTML(url + "?ruleset=%d" % ruleset.id)
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
+
+            response = self.fetchHTML(url + "?ruleset=%s" % ruleset.uuid)
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
+
+            response = self.fetchHTML(url + "?contact_field=Gender")
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(contact_field=contact_field, segment=None)
+
+            response = self.fetchHTML(url + "?contact_field=Gender&segment=%7B\"location\"%3A\"State\"%7D")
+            self.assertEquals(200, response.status_code)
+            mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
+
+            response = self.fetchHTML(url + "?contact_field=Gender&segment=%7B\"location\"%7D")
+            self.assertEquals(400, response.status_code)
+
     def test_api_runs(self):
         url = reverse('api.runs')
 
@@ -1112,7 +1164,10 @@ class APITest(TembaTest):
         # fetch by message id
         response = self.fetchJSON(url, "id=%d" % msg1.pk)
         self.assertResultCount(response, 1)
-        self.assertContains(response, "test1")
+        self.assertEqual(response.json['results'][0]['id'], msg1.pk)
+        self.assertEqual(response.json['results'][0]['broadcast'], msg1.broadcast.pk)
+        self.assertEqual(response.json['results'][0]['text'], msg1.text)
+        self.assertEqual(response.json['results'][0]['direction'], 'O')
 
         response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
         self.assertEquals(200, response.status_code)
@@ -1289,9 +1344,7 @@ class APITest(TembaTest):
         # fetch our messages list page
         response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
-        self.assertJSON(response, 'phone', '+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123123')
-        self.assertJSON(response, 'phone', '+250788123124')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
         label1 = Label.create_unique(self.org, self.user, "Goo")
@@ -2378,16 +2431,35 @@ class VumiTest(TembaTest):
                 self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
             with patch('requests.put') as mock:
-                mock.return_value = MockResponse(400, "Error")
+                mock.return_value = MockResponse(500, "Error")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
 
-                # message should be marked as an error
+                # message should be marked as errored, we'll retry in a bit
                 msg = bcast.get_messages()[0]
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
-                self.assertTrue(msg.next_attempt)
+                self.assertTrue(msg.next_attempt > timezone.now())
+                self.assertEquals(1, mock.call_count)
+
+                self.clear_cache()
+
+            with patch('requests.put') as mock:
+                # set our next attempt as if we are trying anew
+                msg.next_attempt = timezone.now()
+                msg.save()
+
+                mock.return_value = MockResponse(400, "Permanent Error")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as failed
+                msg = bcast.get_messages()[0]
+                self.assertEquals(FAILED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
         finally:
             settings.SEND_MESSAGES = False

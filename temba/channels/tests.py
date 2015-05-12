@@ -1935,6 +1935,9 @@ class ChannelAlertTest(TembaTest):
         #  no new alert created because we sent one in the past hour
         self.assertEquals(Alert.objects.all().count(), 1)
 
+        sent_msg.sent_on = six_hours_ago
+        sent_msg.save()
+
         alert = Alert.objects.all()[0]
         alert.created_on = six_hours_ago
         alert.save()

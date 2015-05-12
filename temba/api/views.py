@@ -617,18 +617,18 @@ class MessagesEndpoint(generics.ListAPIView):
     Returns the message activity for your organization, listing the most recent messages first.
 
       * **channel** - the id of the channel that sent or received this message (int) (filterable: ```channel``` repeatable)
+      * **broadcast** - the broadcast this message is associated with (filterable as ```broadcast``` repeatable)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn``` repeatable)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```repeatable )
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
       * **archived** - whether this message is archived (boolean) (filterable: ```archived```)
-      * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
+      * **labels** - any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
-      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast``` repeatable)
       * **status** - the status of this message, a string one of: (filterable: ```status``` repeatable)
 
             Q - Message is queued awaiting to be sent
@@ -655,6 +655,7 @@ class MessagesEndpoint(generics.ListAPIView):
             "results": [
             {
                 "id": 159,
+                "broadcast": 67,
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "status": "Q",
                 "relayer": 5,
@@ -794,7 +795,8 @@ class MessagesEndpoint(generics.ListAPIView):
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
-        return queryset.order_by(order).prefetch_related('labels').distinct()
+        queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
+        return queryset.order_by(order).distinct()
 
     @classmethod
     def get_read_explorer(cls):
@@ -1878,9 +1880,14 @@ class FlowResultsEndpoint(generics.GenericAPIView):
 
         id = self.request.QUERY_PARAMS.get('ruleset', None)
         if id:
-            ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            try:
+                int(id)
+                ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+            except ValueError:
+                ruleset = RuleSet.objects.filter(flow__org=org, uuid=id).first()
+
             if not ruleset:
-                return Response(dict(contact_field="No ruleset found with that id"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(contact_field="No ruleset found with that uuid"), status=status.HTTP_400_BAD_REQUEST)
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
@@ -1897,7 +1904,7 @@ class FlowResultsEndpoint(generics.GenericAPIView):
             try:
                 segment = json.loads(segment)
             except:
-                return Response(dict(segment="Invalid segment format, must be in JSON format"))
+                return Response(dict(segment="Invalid segment format, must be in JSON format"), status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ResultSerializer(ruleset=ruleset, contact_field=contact_field, segment=segment)
         return Response(serializer.data, status=status.HTTP_200_OK)
