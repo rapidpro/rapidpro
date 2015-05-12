@@ -179,8 +179,6 @@ INSTALLED_APPS = (
     'django.contrib.humanize',
     'django.contrib.gis',
 
-    'django_hstore',
-
     # django sitemaps
     'django.contrib.sitemaps',
 

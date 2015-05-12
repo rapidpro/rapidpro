@@ -13,8 +13,6 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
-from django_hstore import hstore
-from django_hstore.fields import DictionaryField
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
@@ -35,9 +33,7 @@ GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 class ContactField(models.Model, OrgModelMixin):
     """
-    Represents a type of field that can be put on Contacts.  We store uuids as the keys in our HSTORE
-    field so that we don't have to worry about renaming fields with the user.  This takes care of that
-    mapping for us.
+    Represents a type of field that can be put on Contacts.
     """
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
@@ -159,12 +155,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     is_failed = models.BooleanField(verbose_name=_("Is Failed"), default=False,
                                     help_text=_("Whether we cannot send messages to this contact"))
 
-    fields = DictionaryField(db_index=True)
-
     language = models.CharField(max_length=3, verbose_name=_("Language"), null=True, blank=True,
                                 help_text=_("The preferred language for this contact"))
-
-    objects = hstore.HStoreManager()
 
     simulation = False
 
@@ -310,9 +302,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         # cache
         setattr(self, '__field__%s' % key, existing)
-
-        # persist to db
-        self.save(update_fields=['fields'])
 
         # update any groups or campaigns for this contact
         self.handle_update(field=field)

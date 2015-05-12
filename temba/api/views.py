@@ -3175,7 +3175,8 @@ class InfobipHandler(View):
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
             sms.fail()
 
-        sms.broadcast.update()
+        if sms.broadcast:
+            sms.broadcast.update()
 
         return HttpResponse("SMS Status Updated")
 

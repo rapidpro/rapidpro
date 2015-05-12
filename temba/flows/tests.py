@@ -7,7 +7,6 @@ from xlrd import xldate_as_tuple
 from temba.tests import MockResponse, FlowFileTest
 from django.core import mail
 from django.core.urlresolvers import reverse
-from djorm_hstore.models import register_hstore_handler
 from smartmin.tests import SmartminTest
 
 
@@ -29,8 +28,6 @@ class RuleTest(TembaTest):
 
     def setUp(self):
         super(RuleTest, self).setUp()
-
-        register_hstore_handler(connection)
 
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
