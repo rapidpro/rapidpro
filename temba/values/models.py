@@ -176,7 +176,7 @@ class Value(models.Model):
                                                values__location_value__osm_id__in=boundaries)
 
                 # we are filtering by a contact field
-                elif 'contact_field' in filter:
+                elif 'contact_field' in contact_filter:
                     contact_query = Q()
 
                     # we can't use __in as we want case insensitive matching
