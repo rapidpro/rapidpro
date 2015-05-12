@@ -118,7 +118,7 @@ class Value(models.Model):
 
         # caller may identify either a ruleset or contact field to summarize
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            raise Exception("Must define either a RuleSet or ContactField to summarize values for")
+            raise ValueError("Must define either a RuleSet or ContactField to summarize values for")
 
         if ruleset:
             (categories, uuid_to_category) = ruleset.build_uuid_to_category_map()
@@ -137,20 +137,20 @@ class Value(models.Model):
             else:
                 contacts = Contact.objects.filter(pk__in=filter_contacts)
 
-            for filter in filters:
+            for contact_filter in filters:
                 # empty filters are no-ops
-                if not filter:
+                if not contact_filter:
                     continue
 
                 # we are filtering by another rule
-                if 'ruleset' in filter:
+                if 'ruleset' in contact_filter:
                     # load the ruleset for this filter
-                    filter_ruleset = RuleSet.objects.get(pk=filter['ruleset'])
+                    filter_ruleset = RuleSet.objects.get(pk=contact_filter['ruleset'])
                     (filter_cats, filter_uuids) = filter_ruleset.build_uuid_to_category_map()
 
                     uuids = []
                     for (uuid, category) in filter_uuids.items():
-                        if category in filter['categories']:
+                        if category in contact_filter['categories']:
                             uuids.append(uuid)
 
                     contacts = contacts.filter(values__rule_uuid__in=uuids)
@@ -160,19 +160,19 @@ class Value(models.Model):
                         self_filter_uuids = uuids
 
                 # we are filtering by one or more groups
-                elif 'groups' in filter:
+                elif 'groups' in contact_filter:
                     # filter our contacts by that group
-                    for group_id in filter['groups']:
+                    for group_id in contact_filter['groups']:
                         contacts = contacts.filter(all_groups__pk=group_id)
 
                 # we are filtering by one or more admin boundaries
-                elif 'boundary' in filter:
-                    boundaries = filter['boundary']
+                elif 'boundary' in contact_filter:
+                    boundaries = contact_filter['boundary']
                     if not isinstance(boundaries, list):
                         boundaries = [boundaries]
 
                     # filter our contacts by those that are in that location boundary
-                    contacts = contacts.filter(values__contact_field__id=filter['location'],
+                    contacts = contacts.filter(values__contact_field__id=contact_filter['location'],
                                                values__location_value__osm_id__in=boundaries)
 
                 # we are filtering by a contact field
@@ -180,14 +180,14 @@ class Value(models.Model):
                     contact_query = Q()
 
                     # we can't use __in as we want case insensitive matching
-                    for value in filter['values']:
-                        contact_query |= Q(values__contact_field__id=filter['contact_field'],
+                    for value in contact_filter['values']:
+                        contact_query |= Q(values__contact_field__id=contact_filter['contact_field'],
                                            values__string_value__iexact=value)
 
                     contacts = contacts.filter(contact_query)
 
                 else:
-                    raise Exception("Invalid filter definition, must include 'group', 'ruleset', 'contact_field' or 'boundary'")
+                    raise ValueError("Invalid filter definition, must include 'group', 'ruleset', 'contact_field' or 'boundary'")
 
             contacts = set([c['id'] for c in contacts.values('id')])
 
@@ -287,7 +287,7 @@ class Value(models.Model):
                                                                 return_contacts=return_contacts)
 
             else:
-                raise Exception(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
+                raise ValueError(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
 
         print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
 
@@ -304,7 +304,7 @@ class Value(models.Model):
         :return: how many cached records were invalidated
         """
         if not contact_field and not ruleset and not group:
-            raise Exception("You must specify a contact field, ruleset or group to invalidate results for")
+            raise ValueError("You must specify a contact field, ruleset or group to invalidate results for")
 
         if contact_field:
             key = CONTACT_KEY % contact_field.id
@@ -339,7 +339,7 @@ class Value(models.Model):
             { ruleset: 1515, categories: ["Red", "Blue"] }  // segmenting by another field, for those categories
             { groups: 124,151,151 }                         // segment by each each group in the passed in ids
             { location: "State", parent: null }             // segment for each admin boundary within the parent
-            { contact_field: "Gender", values: ["US", "EN", "RW"] } // segment by a contact field for these values
+            { contact_field: "Country", values: ["US", "EN", "RW"] } // segment by a contact field for these values
         """
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import TrueTest, OPEN
@@ -348,7 +348,7 @@ class Value(models.Model):
         results = []
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            raise Exception("Must specify either a RuleSet or Contact field.")
+            raise ValueError("Must specify either a RuleSet or Contact field.")
 
         org = ruleset.flow.org if ruleset else contact_field.org
 
@@ -371,14 +371,14 @@ class Value(models.Model):
             fingerprint_dict['contact_field'] = contact_field.id
             dependencies.add(CONTACT_KEY % contact_field.id)
 
-        for filter in filters:
-            if 'ruleset' in filter:
-                dependencies.add(RULESET_KEY % filter['ruleset'])
-            if 'groups' in filter:
-                for group_id in filter['groups']:
+        for contact_filter in filters:
+            if 'ruleset' in contact_filter:
+                dependencies.add(RULESET_KEY % contact_filter['ruleset'])
+            if 'groups' in contact_filter:
+                for group_id in contact_filter['groups']:
                     dependencies.add(GROUP_KEY % group_id)
-            if 'location' in filter:
-                field = ContactField.objects.get(org=org, label__iexact=filter['location'])
+            if 'location' in contact_filter:
+                field = ContactField.objects.get(org=org, label__iexact=contact_filter['location'])
                 dependencies.add(CONTACT_KEY % field.id)
 
         if segment:
@@ -456,12 +456,12 @@ class Value(models.Model):
                 field = ContactField.objects.get(org=org, label__iexact=segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if not field.value_type in [STATE, DISTRICT]:
-                    raise Exception(_("Cannot segment on location for field that is not a State or District type"))
+                if field.value_type not in [STATE, DISTRICT]:
+                    raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
                 if not org.country:
-                    raise Exception(_("Cannot segment by location until country has been selected for organization"))
+                    raise ValueError(_("Cannot segment by location until country has been selected for organization"))
 
                 # the boundaries we will segment by
                 parent = org.country
@@ -476,7 +476,7 @@ class Value(models.Model):
 
                 # if the field is a district field, they need to specify the parent state
                 if not parent_osm_id and field.value_type == DISTRICT:
-                    raise Exception(_("You must specify a parent state to segment results by district"))
+                    raise ValueError(_("You must specify a parent state to segment results by district"))
 
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
