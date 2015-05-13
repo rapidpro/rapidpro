@@ -2043,16 +2043,17 @@ class Flow(TembaModel, SmartModel):
             if not node:
                 return []
 
-            operand = node.get('operand', '')
-            if operand and '@step' in operand:
-                return []
-
             rules = node.get('rules', [])
             destinations = []
             if rules:
+                operand = node.get('operand', '@step.value')
+                if not operand or '@step' in operand:
+                    return []
+
                 for rule in rules:
                     if rule.get('destination'):
                         destinations.append(rule.get('destination'))
+
             elif node.get('destination'):
                 destinations.append(node.get('destination'))
             return destinations
