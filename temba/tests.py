@@ -14,7 +14,6 @@ from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import LiveServerTestCase
 from django.utils import timezone
-from djorm_hstore.models import register_hstore_handler
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
@@ -186,7 +185,6 @@ class FlowFileTest(TembaTest):
     def setUp(self):
         super(FlowFileTest, self).setUp()
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
-        register_hstore_handler(connection)
 
     def assertLastResponse(self, message):
         response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
