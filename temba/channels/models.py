@@ -1008,13 +1008,14 @@ class Channel(SmartModel):
         external_id = None
 
         try:
+            log_payload = urlencode(payload)
+
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30,
                                      auth=(channel.config[USERNAME], channel.config[PASSWORD]))
-
             # parse our response, should be JSON that looks something like:
             # [{
             #   "recipient" : recipient_number_1,
-            #   "id" : Unique_identifier ( universally unique identifier UUID)
+            #   "id" : Unique_identifier (universally unique identifier UUID)
             # }]
             response_json = response.json()
 
@@ -1022,13 +1023,12 @@ class Channel(SmartModel):
             if response_json and len(response_json) > 0:
                 external_id = response_json[0].get('id', None)
 
-            log_payload = urlencode(payload)
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
-                                response="",
+                                response=response.text if response else '',
                                 response_status=503)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
