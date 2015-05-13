@@ -2029,18 +2029,22 @@ class Flow(TembaModel, SmartModel):
         nodes = list()
         node_map = {}
 
-        for ruleset in json_dict[Flow.RULE_SETS]:
+        for ruleset in json_dict.get(Flow.RULE_SETS, []):
             nodes.append(ruleset.get('uuid'))
             node_map[ruleset.get('uuid')] = ruleset
 
-        for actionset in json_dict[Flow.ACTION_SETS]:
+        for actionset in json_dict.get(Flow.ACTION_SETS, []):
             nodes.append(actionset.get('uuid'))
             node_map[actionset.get('uuid')] = actionset
 
         def get_destinations(uuid):
             node = node_map.get(uuid)
 
-            if '@step' in node.get('operand', ''):
+            if not node:
+                return []
+
+            operand = node.get('operand', '')
+            if operand and '@step' in operand:
                 return []
 
             rules = node.get('rules', [])
