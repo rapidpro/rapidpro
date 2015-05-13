@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import OrderedDict
 
 import copy
 import json
@@ -2017,10 +2018,74 @@ class Flow(TembaModel, SmartModel):
 
         return flow
 
+    def detect_cycle(self, json_dict):
+
+        # Adapted from a blog post by Guido:
+        # http://neopythonic.blogspot.com/2009/01/detecting-cycles-in-directed-graph.html
+
+        # Maintain path as a a depth-first path in the implicit tree;
+        # path is represented as an OrderedDict of {node: [child,...]} pairs.
+
+        nodes = list()
+        node_map = {}
+
+        for ruleset in json_dict[Flow.RULE_SETS]:
+            nodes.append(ruleset.get('uuid'))
+            node_map[ruleset.get('uuid')] = ruleset
+
+        for actionset in json_dict[Flow.ACTION_SETS]:
+            nodes.append(actionset.get('uuid'))
+            node_map[actionset.get('uuid')] = actionset
+
+        def get_destinations(uuid):
+            node = node_map.get(uuid)
+
+            if '@step' in node.get('operand', ''):
+                return []
+
+            rules = node.get('rules', [])
+            destinations = []
+            if rules:
+                for rule in rules:
+                    if rule.get('destination'):
+                        destinations.append(rule.get('destination'))
+            elif node.get('destination'):
+                destinations.append(node.get('destination'))
+            return destinations
+
+        while nodes:
+            root = nodes.pop()
+            path = OrderedDict({root: get_destinations(root)})
+            while path:
+                # children at the fringe of the tree
+                children = path[next(reversed(path))]
+                while children:
+                    child = children.pop()
+
+                    # found a loop
+                    if child in path:
+                        pathlist = list(path)
+                        return pathlist[pathlist.index(child):] + [child]
+
+                    # new path
+                    if child in nodes:
+                        path[child] = get_destinations(child)
+                        nodes.remove(child)
+                        break
+                else:
+                    # no more children; pop back up a level
+                    path.popitem()
+        return None
+
     def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow.
         """
+
+        cycle = self.detect_cycle(json_dict)
+        if cycle:
+            raise FlowException("Found invalid cycle: %s" % cycle)
+
         try:
             # check whether the flow has changed since this flow was last saved
             if user and not force:
@@ -2210,8 +2275,6 @@ class Flow(TembaModel, SmartModel):
 
                     if not destination:
                         raise FlowException("Destination '%s' for actionset does not exist" % destination_uuid)
-
-
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():

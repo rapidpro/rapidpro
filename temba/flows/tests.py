@@ -2525,6 +2525,27 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("You picked 9!", self.send_message(flow, "9"))
 
 
+    def test_server_cycle_detection(self):
+
+        flow = self.get_flow('loop_detection')
+
+        message_one = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
+        group_split = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
+        group_one = '605e4e98-5d85-45e7-a885-9c198977b63c'
+        rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
+
+        # rule turning back on ourselves
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, group_one, group_split)
+
+        # non-blocking rule to non-blocking rule and back
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, rowan, group_split)
+
+        # our non-blocking rule to an action and back to us again
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, group_one, message_one)
+
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')
