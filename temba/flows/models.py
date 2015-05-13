@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import copy
 import json
 import numbers
-import os
 import phonenumbers
 import pytz
 import re
@@ -1240,14 +1239,12 @@ class Flow(TembaModel, SmartModel):
 
         return counts
 
-    def build_ruleset_caches(self, filter_ruleset=None):
+    def build_ruleset_caches(self, ruleset_list=None):
 
         rulesets = dict()
         rule_categories = dict()
 
-        if filter_ruleset:
-            ruleset_list = [filter_ruleset]
-        else:
+        if not ruleset_list:
             ruleset_list = RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk').select_related('flow', 'flow__org')
 
         for ruleset in ruleset_list:
@@ -1318,40 +1315,46 @@ class Flow(TembaModel, SmartModel):
         return context
 
     def get_results(self, contact=None, filter_ruleset=None, only_last_run=True, run=None):
-        (rulesets, rule_categories) = self.build_ruleset_caches(filter_ruleset=filter_ruleset)
+        if filter_ruleset:
+            ruleset_list = [filter_ruleset]
+        elif run and hasattr(run.flow, 'ruleset_prefetch'):
+            ruleset_list = run.flow.ruleset_prefetch
+        else:
+            ruleset_list = None
+
+        (rulesets, rule_categories) = self.build_ruleset_caches(ruleset_list)
 
         # for each of the contacts that participated
         results = []
 
-        runs = self.runs.all().select_related('contact')
-
-        # hide simulation test contact
-        runs = runs.filter(contact__is_test=Contact.get_simulation())
-
-        if contact:
-            runs = runs.filter(contact=contact)
-
-        runs = runs.order_by('contact', '-created_on')
-
-
-        # if we only want the result for a single run, limit to that
         if run:
-            runs = runs.filter(pk=run.pk)
+            runs = [run]
+            flow_steps = [s for s in run.steps.all() if s.rule_uuid]
+        else:
+            runs = self.runs.all().select_related('contact')
 
-        # or possibly only the last run
-        elif only_last_run:
-            runs = runs.distinct('contact')
+            # hide simulation test contact
+            runs = runs.filter(contact__is_test=Contact.get_simulation())
 
-        flow_steps = FlowStep.objects.filter(step_uuid__in=rulesets.keys()).exclude(rule_uuid=None)
+            if contact:
+                runs = runs.filter(contact=contact)
 
-        # filter our steps to only the runs we care about
-        flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
+            runs = runs.order_by('contact', '-created_on')
 
-        # and the ruleset we care about
-        if filter_ruleset:
-            flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
+            # or possibly only the last run
+            if only_last_run:
+                runs = runs.distinct('contact')
 
-        flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
+            flow_steps = FlowStep.objects.filter(step_uuid__in=rulesets.keys()).exclude(rule_uuid=None)
+
+            # filter our steps to only the runs we care about
+            flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
+
+            # and the ruleset we care about
+            if filter_ruleset:
+                flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
+
+            flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
 
         steps_cache = {}
         for step in flow_steps:
