@@ -551,6 +551,9 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     if node?.operand?.indexOf('@step') > -1
       return
 
+    if node?.webhook?
+      return
+
     # check if we just ate our tail
     if targetId in path
       throw new Error('Loop detected: ' + path + ',' + targetId)

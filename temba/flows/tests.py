@@ -2481,6 +2481,21 @@ class FlowsTest(FlowFileTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
+    def update_destination_no_check(self, flow, node, destination, rule=None):
+        """ Update the destination without doing a cycle check """
+        actionset = ActionSet.get(flow, node)
+        if actionset:
+            actionset.destination = destination
+            actionset.save()
+
+        ruleset = RuleSet.get(flow, node)
+        rules = ruleset.get_rules()
+        for r in rules:
+            if r.uuid == rule:
+                r.destination = destination
+        ruleset.set_rules(rules)
+        ruleset.save()
+
     def test_orphaned_action_to_action(self):
         """
         Orphaned at an action, then routed to an action
@@ -2521,7 +2536,6 @@ class FlowsTest(FlowFileTest):
         flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '12610fb2-f841-11e4-a322-1697f925ec7b')
         self.assertEquals("You picked 9!", self.send_message(flow, "9"))
 
-
     def test_server_cycle_detection(self):
 
         flow = self.get_flow('loop_detection')
@@ -2543,6 +2557,25 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.update_destination(flow, group_one, message_one)
 
+    def test_server_runtime_cycle(self):
+
+        message_one = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
+        group_split = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
+        group_one = '605e4e98-5d85-45e7-a885-9c198977b63c'
+        name_split = '782e9e71-c116-4195-add3-1867132f95b6'
+        rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
+
+        # rule turning back on ourselves
+        flow = self.get_flow('loop_detection')
+        self.update_destination_no_check(flow, group_split, group_split, rule=group_one)
+        self.send_message(flow, "1", assert_reply=False)
+        flow.delete()
+
+        # non-blocking rule to non-blocking rule and back
+        flow = self.get_flow('loop_detection')
+        self.update_destination_no_check(flow, name_split, group_split, rowan)
+        self.send_message(flow, "2", assert_reply=False)
+        flow.delete()
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')

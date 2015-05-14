@@ -647,6 +647,14 @@ class Flow(TembaModel, SmartModel):
     @classmethod
     def handle_destination(cls, uuid, step, run, msg, started_flows=None, is_test_contact=False, user_input=False):
 
+        def add_to_path(path, uuid):
+            if uuid in path:
+                path.append(uuid)
+                raise FlowException("Flow cycle detected at runtime: %s" % path)
+            path.append(uuid)
+
+        path = []
+
         # lookup our next destination
         flow = run.flow
         destination = Flow.get_node(flow, uuid)
@@ -658,17 +666,26 @@ class Flow(TembaModel, SmartModel):
 
             if destination.get_step_type() == RULE_SET:
 
-                requires_step = destination.requires_step()
+                requires_input = False
 
-                if user_input or not requires_step:
+                # if we are a ruleset against @step or we have a webhook we wait
+                if destination.webhook_url or destination.requires_step():
+                    requires_input = True
+
+                if user_input or not requires_input:
                     result = Flow.handle_ruleset(destination, step, run, msg)
+                    add_to_path(path, destination.uuid)
 
-                if requires_step:
+                if requires_input:
                     user_input = False
+
+                    # once we handle user input, reset our path
+                    path = []
 
             elif destination.get_step_type() == ACTION_SET:
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
                 user_input = False
+                add_to_path(path, destination.uuid)
 
             # pull out our current state from the result
             step = result.get('step')
@@ -2046,8 +2063,14 @@ class Flow(TembaModel, SmartModel):
             rules = node.get('rules', [])
             destinations = []
             if rules:
+
+                # rules on @step.value require user input
                 operand = node.get('operand', '@step.value')
                 if not operand or '@step' in operand:
+                    return []
+
+                # webhooks require user input
+                if node.get('webhook', None):
                     return []
 
                 for rule in rules:
