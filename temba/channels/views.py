@@ -680,8 +680,7 @@ class ChannelCRUDL(SmartCRUDL):
                     return 0
 
             summary_months = 12
-            if is_jumbo:
-                summary_months = 3
+            if is_jumbo: summary_months = 3
 
             for i in range(summary_months):
                 if month_end_time > channel_added_on:
