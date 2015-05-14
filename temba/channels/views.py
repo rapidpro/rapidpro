@@ -27,9 +27,9 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
-from temba.ivr.models import IVRCall
-from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR
-from temba.orgs.models import Org, ACCOUNT_SID
+from temba.ivr.models import IVRCall, INCOMING, OUTGOING
+from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR, FLOW, INBOX
+from temba.orgs.models import Org, ACCOUNT_SID, OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager
@@ -557,10 +557,18 @@ class ChannelCRUDL(SmartCRUDL):
             if not channel.is_active:
                 raise Http404("No active channel with that id")
 
-            ivr_count = Msg.objects.filter(channel=self.object, msg_type=IVR).exclude(contact__is_test=True).count()
+            context['sms_count'] = channel.org.get_folder_count(OrgFolder.msgs_inbox) + channel.org.get_folder_count(OrgFolder.msgs_outbox)
+            is_jumbo = context['sms_count'] > 1000000
+
+            # calculate the count for real if it won't be too expensive
+            if not is_jumbo:
+                context['sms_count'] = Msg.objects.filter(channel=self.object).exclude(msg_type=IVR).exclude(contact__is_test=True).count()
+                context['ivr_count'] = Msg.objects.filter(channel=self.object, msg_type=IVR).exclude(contact__is_test=True).count()
+            else:
+                context['sms_count'] = "~%d" % context['sms_count']
+                context['ivr_count'] = 0
+
             context['channel_errors'] = ChannelLog.objects.filter(msg__channel=self.object, is_error=True)
-            context['sms_count'] = Msg.objects.filter(channel=self.object).exclude(msg_type=IVR).exclude(contact__is_test=True).count()
-            context['ivr_count'] = ivr_count
 
             ## power source stats data
             source_stats = [[event['power_source'], event['count']] for event in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
@@ -635,7 +643,7 @@ class ChannelCRUDL(SmartCRUDL):
             # Show ivr messages in the same stack
             ivr_in = []
             ivr_out = []
-            if ivr_count:
+            if context['ivr_count']:
                 ivr_out = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False, msg_type=IVR).extra(
                     {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
@@ -664,39 +672,42 @@ class ChannelCRUDL(SmartCRUDL):
 
             channel_added_on = channel.created_on
 
-            for i in range(12):
+            def get_direction_count(result, direction):
+                filtered = [r for r in result if r['direction'] == direction]
+                if filtered:
+                    return filtered[0]['count']
+                else:
+                    return 0
+
+            summary_months = 12
+            if is_jumbo:
+                summary_months = 3
+
+            for i in range(summary_months):
                 if month_end_time > channel_added_on:
-                    incoming_messages_count = Msg.objects.filter(channel=self.object,
-                                                                 created_on__lt=month_end_time,
-                                                                 created_on__gte=month_start_time,
-                                                                 contact__is_test=False,
-                                                                 direction='I').exclude(msg_type=IVR).count()
+                    msg_counts = Msg.objects.filter(channel=self.object,
+                                                    created_on__lt=month_end_time,
+                                                    created_on__gte=month_start_time,
+                                                    contact__is_test=False,
+                                                    direction__in=[INCOMING, OUTGOING]).exclude(msg_type=IVR)\
+                                                    .order_by('direction').values('direction').annotate(count=Count('direction'))
 
-                    outgoing_messages_count = Msg.objects.filter(channel=self.object,
-                                                                 created_on__lt=month_end_time,
-                                                                 created_on__gte=month_start_time,
-                                                                 contact__is_test=False,
-                                                                 direction='O').exclude(msg_type=IVR).count()
-
-                    incoming_ivr_count = Msg.objects.filter(channel=self.object,
-                                                            created_on__lt=month_end_time,
-                                                            created_on__gte=month_start_time,
-                                                            contact__is_test=False,
-                                                            msg_type=IVR,
-                                                            direction='I').count()
-
-                    outgoing_ivr_count = Msg.objects.filter(channel=self.object,
-                                                            created_on__lt=month_end_time,
-                                                            created_on__gte=month_start_time,
-                                                            contact__is_test=False,
-                                                            msg_type=IVR,
-                                                            direction='O').count()
+                    if context['ivr_count']:
+                        ivr_counts = Msg.objects.filter(channel=self.object,
+                                                        created_on__lt=month_end_time,
+                                                        created_on__gte=month_start_time,
+                                                        contact__is_test=False,
+                                                        direction__in=[INCOMING, OUTGOING],
+                                                        msg_type=IVR).order_by('direction').values('direction')\
+                                                        .annotate(count=Count('direction'))
+                    else:
+                        ivr_counts = []
 
                     message_stats_table.append(dict(month_start=month_start_time,
-                                                    incoming_messages_count=incoming_messages_count,
-                                                    outgoing_messages_count=outgoing_messages_count,
-                                                    incoming_ivr_count=incoming_ivr_count,
-                                                    outgoing_ivr_count=outgoing_ivr_count))
+                                                    incoming_messages_count=get_direction_count(msg_counts, 'I'),
+                                                    outgoing_messages_count=get_direction_count(msg_counts, 'O'),
+                                                    incoming_ivr_count=get_direction_count(ivr_counts, 'I'),
+                                                    outgoing_ivr_count=get_direction_count(ivr_counts, 'O')))
                 month_end_time = month_start_time
                 month_start_time = (month_start_time - timedelta(days=7)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 

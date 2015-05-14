@@ -34,17 +34,19 @@ class Formax(object):
         self.request.META['HTTP_X_FORMAX'] = 1
         self.request.META['HTTP_X_PJAX'] = 1
 
+        start = time.time()
+
         open = self.request.REQUEST.get('open', None)
         if open == name:
             action = 'open'
 
-        start = time.time()
         response = resolver.func(self.request, *resolver.args, **resolver.kwargs)
-        if settings.DEBUG:
-            print "%s took: %f" % (url, time.time() - start)
 
         # redirects don't do us any good
         if not isinstance(response, HttpResponseRedirect):
             response.render()
             self.sections.append(dict(name=name, url=url, response=response.content,
                                       icon=icon, action=action, button=button))
+
+        if settings.DEBUG:
+            print "%s took: %f" % (url, time.time() - start)
