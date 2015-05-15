@@ -3365,7 +3365,7 @@ class BlackmynaHandler(View):
                 sms.fail()
 
             sms.broadcast.update()
-            return HttpResponse(json.dumps(dict(msg="Status Updated")))
+            return HttpResponse("")
 
         # An MO message
         elif action == 'receive':
@@ -3381,7 +3381,7 @@ class BlackmynaHandler(View):
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
             msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
-            return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
+            return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
