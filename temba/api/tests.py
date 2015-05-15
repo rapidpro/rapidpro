@@ -3145,8 +3145,25 @@ class TwilioTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+            # check that our channel log works as well
+            self.login(self.admin)
+
+            response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
+
+            # there should be two log items for the two times we sent
+            self.assertEquals(2, len(response.context['channellog_list']))
+
+            # view the detailed information for one of them
+            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
+
+            # check that it contains the log of our exception
+            self.assertContains(response, "Failed to send message")
+
         finally:
             settings.SEND_MESSAGES = False
+
+    test_send.active = True
 
 
 class ClickatellTest(TembaTest):
