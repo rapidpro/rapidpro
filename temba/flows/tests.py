@@ -435,6 +435,7 @@ class RuleTest(TembaTest):
 
         # pick a really long name so we have to concatenate
         self.flow.name = "Color Flow is a long name to use for something like this"
+        self.flow.expires_after_minutes = 60
         self.flow.save()
 
         # make sure our metadata got saved
@@ -446,6 +447,9 @@ class RuleTest(TembaTest):
 
         metadata = json.loads(copy.metadata)
         self.assertEquals("Ryan Lewis", metadata['author'])
+
+        # expiration should be copied too
+        self.assertEquals(60, copy.expires_after_minutes)
 
         # should have a different id
         self.assertNotEqual(self.flow.pk, copy.pk)

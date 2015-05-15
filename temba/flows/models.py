@@ -285,7 +285,9 @@ class Flow(TembaModel, SmartModel):
                 if len(other_flows):
                     raise FlowReferenceException(other_flows)
 
-            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type, id=flow.pk, definition=flow_definition))
+            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type,
+                                       expires=flow.expires_after_minutes,
+                                       id=flow.pk, definition=flow_definition))
 
         # get all non-schedule based triggers that are active for these flows
         from temba.triggers.models import Trigger
@@ -327,8 +329,9 @@ class Flow(TembaModel, SmartModel):
                 if site and site == exported_json.get('site', None):
                     flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
                     if flow:
+                        flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(name, org, ignore=flow)
-                        flow.save(update_fields=['name'])
+                        flow.save(update_fields=['name', 'expires_after_minutes'])
 
                 # if it's not of our world, let's try by name
                 if not flow:
@@ -336,7 +339,8 @@ class Flow(TembaModel, SmartModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
-                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type)
+                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type,
+                                       expires_after_minutes=flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, definition=flow_spec['definition']))
                 flow_id_map[flow_spec['id']] = flow.pk
@@ -383,6 +387,11 @@ class Flow(TembaModel, SmartModel):
         flow_json = flow.as_json()
 
         copy.import_definition(flow_json)
+
+        # copy our expiration as well
+        copy.expires_after_minutes = flow.expires_after_minutes
+        copy.save()
+
         return copy
 
     @classmethod
