@@ -1104,7 +1104,7 @@ class APITest(TembaTest):
         self.assertEquals(self.admin.get_org(), msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals(broadcast, msg1.broadcast)
-        
+
         # fetch by message id
         response = self.fetchJSON(url, "id=%d" % msg1.pk)
         self.assertResultCount(response, 1)
@@ -3668,6 +3668,24 @@ class WebHookTest(TembaTest):
 
             response = self.client.get(reverse('api.log_read', args=[event.pk]))
             self.assertRedirect(response, reverse('users.user_login'))
+
+        # add a webhook header to the org
+        self.channel.org.webhook = u'{"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}'
+        self.channel.org.save()
+
+        # check that our webhook settings have saved
+        self.assertEquals('http://fake.com/webhook.php', self.channel.org.get_webhook_url())
+        self.assertDictEqual({'X-My-Header': 'foobar', 'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.channel.org.get_webhook_headers())
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, "Boom")
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.get()
+
+            result = WebHookResult.objects.get()
+            # both headers should be in the json-encoded url string
+            self.assertStringContains('"X-My-Header": "foobar"', result.url)
+            self.assertStringContains('"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="', result.url)
 
     def test_webhook(self):
         response = self.client.get(reverse('api.webhook'))
