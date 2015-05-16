@@ -787,7 +787,7 @@ class RuleTest(TembaTest):
         sms.text = "My answer is 4,000rwf"
         self.assertTest(True, Decimal("4000"), test)
 
-        rule = Rule(uuid(4), None, None, test)
+        rule = Rule(uuid(4), None, None, None, test)
         self.assertEquals("1000-5000", rule.get_category_name(None))
 
         test = StartsWithTest(test="Green")
@@ -1110,8 +1110,8 @@ class RuleTest(TembaTest):
         rules = RuleSet.objects.get(uuid=uuid(5))
 
         # update our rule to include decimal parsing
-        rules.set_rules_dict([Rule(uuid(12), "< 10", uuid(2), LtTest(10)).as_json(),
-                              Rule(uuid(13), "> 10", uuid(3), GteTest(10)).as_json()])
+        rules.set_rules_dict([Rule(uuid(12), "< 10", uuid(2), 'A', LtTest(10)).as_json(),
+                              Rule(uuid(13), "> 10", uuid(3),'A', GteTest(10)).as_json()])
 
         rules.save()
 
@@ -2013,8 +2013,8 @@ class WebhookTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact)
 
         rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0)
-        rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), ContainsTest("valid")).as_json(),
-                              Rule(uuid(13), "Invalid", uuid(3), ContainsTest("invalid")).as_json()])
+        rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), 'A', ContainsTest("valid")).as_json(),
+                              Rule(uuid(13), "Invalid", uuid(3), 'A', ContainsTest("invalid")).as_json()])
         rules.save()
 
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
@@ -2270,7 +2270,6 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url + get_params_mixed)
         self.assertEquals([], json.loads(response.content))
 
-
     def test_activity(self):
 
         flow = self.get_flow('favorites')
@@ -2465,36 +2464,23 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_runs())
         self.assertEquals(1, flow.get_total_contacts())
 
-    def update_destination(self, flow, source, destination):
-        flow_json = flow.as_json()
+    def test_destination_type(self):
 
-        for actionset in flow_json.get('action_sets'):
-            if actionset.get('uuid') == source:
-                actionset['destination'] = destination
-                print "Updating actionset: %s -> %s" % (source, destination)
+        flow = self.get_flow('pick_a_number')
 
-        for ruleset in flow_json.get('rule_sets'):
-            for rule in ruleset.get('rules'):
-                if rule.get('uuid') == source:
-                    rule['destination'] = destination
+        # our start points to a ruleset
+        start = ActionSet.objects.get(uuid='2f2adf23-87db-41d3-9436-afe48ab5403c')
+        self.assertEquals(RULE_SET, start.destination_type)
 
-        flow.update(flow_json)
-        return Flow.objects.get(pk=flow.pk)
+        # and that ruleset points to an actionset
+        ruleset = RuleSet.objects.get(uuid=start.destination)
+        rule = ruleset.get_rules()[0]
+        self.assertEquals(ACTION_SET, rule.destination_type)
 
-    def update_destination_no_check(self, flow, node, destination, rule=None):
-        """ Update the destination without doing a cycle check """
-        actionset = ActionSet.get(flow, node)
-        if actionset:
-            actionset.destination = destination
-            actionset.save()
-
-        ruleset = RuleSet.get(flow, node)
-        rules = ruleset.get_rules()
-        for r in rules:
-            if r.uuid == rule:
-                r.destination = destination
-        ruleset.set_rules(rules)
-        ruleset.save()
+        # point our rule to a ruleset
+        self.update_destination(flow, rule.uuid, '12610fb2-f841-11e4-a322-1697f925ec7b')
+        ruleset = RuleSet.objects.get(uuid=start.destination)
+        self.assertEquals(RULE_SET, ruleset.get_rules()[0].destination_type)
 
     def test_orphaned_action_to_action(self):
         """

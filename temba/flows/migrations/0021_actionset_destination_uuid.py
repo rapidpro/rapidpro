@@ -12,17 +12,16 @@ class Migration(migrations.Migration):
 
     def populate_destination_uuids(apps, schema_editor):
         ActionSet = apps.get_model("flows", "ActionSet")
-
         print "%d actionsets to update" % ActionSet.objects.all().count()
 
         for idx, actionset in enumerate(ActionSet.objects.all().select_related('destination')):
-
             if idx % 1000 == 0:
                 print "Processed %d actionsets" % idx
 
             if actionset.destination:
                 actionset.destination_uuid = actionset.destination.uuid
-                actionset.save(update_fields=['destination_uuid'])
+                actionset.destination_type = 'R'
+                actionset.save(update_fields=['destination_uuid', 'destination_type'])
 
     operations = [
 
@@ -31,6 +30,14 @@ class Migration(migrations.Migration):
             model_name='actionset',
             name='destination_uuid',
             field=models.CharField(max_length=36, null=True),
+            preserve_default=True,
+        ),
+
+        # add in our destination type
+        migrations.AddField(
+            model_name='actionset',
+            name='destination_type',
+            field=models.CharField(max_length=1, null=True, choices=[('R', 'RuleSet'), ('A', 'ActionSet')]),
             preserve_default=True,
         ),
 
