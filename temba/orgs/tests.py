@@ -157,6 +157,33 @@ class OrgTest(TembaTest):
         settings = self.admin.get_settings()
         self.assertEquals('pt-br', settings.language)
 
+    def test_webhook_headers(self):
+        update_url = reverse('orgs.org_update', args=[self.org.pk])
+        login_url = reverse('users.user_login')
+
+        # no access if anonymous
+        response = self.client.get(update_url)
+        self.assertRedirect(response, login_url)
+
+        self.login(self.admin)
+        self.admin.set_org(self.org)
+
+        response = self.client.get(update_url)
+        self.assertEquals(200, response.status_code)
+
+        # set a webhook with headers
+        post_data = response.context['form'].initial
+        post_data['webhook'] = 'http://webhooks.uniceflabs.org'
+        post_data['header_1_key'] = 'Authorization'
+        post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
+
+        response = self.client.post(update_url, post_data)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # check that our webhook settings have changed
+        self.assertEquals('http://webhooks.uniceflabs.org', self.org.get_webhook_url())
+        self.assertDictEquals({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.org.get_webhook_headers())
+
     def test_org_administration(self):
         manage_url = reverse('orgs.org_manage')
         update_url = reverse('orgs.org_update', args=[self.org.pk])
