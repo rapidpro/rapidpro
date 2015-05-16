@@ -182,7 +182,7 @@ class WebHookEvent(SmartModel):
             else:
                 webhook_event.status = FAILED
                 message = "Got non 200 response (%d) from webhook." % response.status_code
-                raise Exception("Got non 200 response (%d) from webook." % response.status_code)
+                raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
 
         except Exception as e:
             import traceback
@@ -355,7 +355,7 @@ class WebHookEvent(SmartModel):
             headers = TEMBA_HEADERS
 
             # also include any user-defined headers
-            headers.update(org.get_webhook_headers())
+            headers.update(self.org.get_webhook_headers())
 
             r = requests.post(self.org.get_webhook_url(), data=post_data, headers=headers)
             result['status_code'] = r.status_code
