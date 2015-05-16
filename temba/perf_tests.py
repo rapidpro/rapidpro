@@ -86,6 +86,8 @@ class PerformanceTest(TembaTest):
         self.admin = self.create_user("Administrator")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali",
                                       created_by=self.user, modified_by=self.user)
+        self.org.initialize()
+
         self.org.administrators.add(self.admin)
         self.admin.set_org(self.org)
         self.org.administrators.add(self.user)
@@ -140,7 +142,7 @@ class PerformanceTest(TembaTest):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
             group = ContactGroup.create(self.org, self.user, name)
             group.contacts.add(*contacts[(g % num_bases)::num_bases])
-            groups.append(group)
+            groups.append(ContactGroup.user_groups.get(pk=group.pk))
         return groups
 
     def _create_broadcast(self, text, recipients):
