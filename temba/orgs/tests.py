@@ -169,7 +169,6 @@ class OrgTest(TembaTest):
         self.admin.set_org(self.org)
 
         response = self.client.get(update_url)
-        self.assertEquals(200, response.status_code)
 
         # set a webhook with headers
         post_data = response.context['form'].initial
