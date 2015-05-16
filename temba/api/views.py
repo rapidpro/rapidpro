@@ -773,7 +773,7 @@ class MessagesEndpoint(generics.ListAPIView):
         reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
         order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
 
-        return queryset.order_by(order).prefetch_related('labels')
+        return queryset.order_by(order).prefetch_related('labels').distinct()
 
     @classmethod
     def get_read_explorer(cls):
@@ -3664,10 +3664,21 @@ class ClickatellHandler(View):
             # dates come in the format "2014-04-18 03:54:20" GMT
             sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
             gmt_date = pytz.timezone('GMT').localize(sms_date)
+            text = request.REQUEST['text']
+
+            # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
+            # this into utf-8 through the insane process below, Python is retarded about encodings
+            if request.REQUEST.get('charset', 'utf-8') == 'UTF-16BE':
+                text_bytes = bytearray()
+                for text_byte in text:
+                    text_bytes.append(ord(text_byte))
+
+                # now encode back into utf-8
+                text = text_bytes.decode('utf-16be').encode('utf-8')
 
             sms = Msg.create_incoming(channel,
                                       (TEL_SCHEME, request.REQUEST['from']),
-                                      request.REQUEST['text'],
+                                      text,
                                       date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
