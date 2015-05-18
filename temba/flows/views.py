@@ -933,7 +933,6 @@ class FlowCRUDL(SmartCRUDL):
                     col_map[col] = idx
                     idx += 1
 
-                # category_counts = self.object.get_ruleset_category_counts()
                 runs = FlowRun.objects.filter(flow=self.object).exclude(contact__is_test=True)
 
                 if 'sSearch' in self.request.REQUEST:
