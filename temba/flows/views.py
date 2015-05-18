@@ -1033,9 +1033,6 @@ class FlowCRUDL(SmartCRUDL):
                         context['runs'] = runs
                         context['contact'] = contact
 
-                else:
-                    context['counts'] = self.object.get_ruleset_category_counts()
-
                 return super(FlowCRUDL.Results, self).render_to_response(context, **response_kwargs)
 
         def get_template_names(self):
