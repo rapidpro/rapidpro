@@ -14,7 +14,8 @@ from django.db import connection
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME, \
+    URN_SCHEME_CHOICES
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
@@ -1140,6 +1141,24 @@ class ContactTest(TembaTest):
         self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel', '123'))  # URN with contact
         self.assertIsNone(Contact.from_urn(self.org, 'tel', '8888'))  # URN with no contact
 
+    def test_validate_import_header(self):
+        with self.assertRaises(Exception):
+            Contact.validate_import_header([])
+
+        with self.assertRaises(Exception):
+            Contact.validate_import_header(['name'])
+
+        active_urn_schemes = [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME] + ['phone']
+
+        with self.assertRaises(Exception):
+            Contact.validate_import_header(active_urn_schemes)
+
+        self.assertIsNone(Contact.validate_import_header(active_urn_schemes + ['name']))
+
+        for allowed_urn_scheme in active_urn_schemes:
+            self.assertIsNone(Contact.validate_import_header(['name', allowed_urn_scheme]))
+
+
     def do_import(self, user, filename):
 
         import_params = dict(org_id=self.org.id, timezone=self.org.timezone, extra_fields=[], original_filename=filename)
@@ -1201,6 +1220,30 @@ class ContactTest(TembaTest):
         self.do_import(user, 'empty.csv')
         self.assertEquals(3, len(ContactGroup.user_groups.all()))
 
+        # import twitter urns
+        records = self.do_import(user, 'sample_contacts_twitter.xls')
+        self.assertEquals(3, len(records))
+
+        # now there are three groups
+        self.assertEquals(4, len(ContactGroup.user_groups.all()))
+        self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Twitter").count())
+
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
+
+        # import twitter urns with phone
+        records = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
+        self.assertEquals(3, len(records))
+
+        # now there are three groups
+        self.assertEquals(5, len(ContactGroup.user_groups.all()))
+        self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Twitter And Phone").count())
+
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
+
         import_url = reverse('contacts.contact_import')
 
         self.login(self.admin)
@@ -1233,6 +1276,25 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1))
 
+        csv_file = open('%s/test_imports/sample_contacts_twitter.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
+
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
@@ -1247,13 +1309,15 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing a required header called "Phone".')
+                             'The file you provided is missing a required header. At least one of "Phone", "Twitter" '
+                             'should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing two required headers called "Name" and "Phone".')
+                             'The file you provided is missing required headers called "Name" and one of '
+                             '"Phone", "Twitter".')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
