@@ -526,7 +526,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 value = field_dict[urn_header]
                 del field_dict[urn_header]
 
-            if value is None:
+            if not value:
                 continue
 
             urn_scheme = urn_header

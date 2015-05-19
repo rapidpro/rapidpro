@@ -1306,12 +1306,23 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=1, errors=1, creates=0, updates=1))
 
-        self.assertEquals(4, Contact.objects.all().count())
+        self.assertEquals(3, Contact.objects.all().count())
         self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
         self.assertEquals(1, Contact.objects.filter(name='Textit').count())
         self.assertEquals(0, Contact.objects.filter(name='Nyaruka').count())
         self.assertEquals(1, Contact.objects.filter(name='Kigali').count())
-        self.assertEquals(1, Contact.objects.filter(name='Klab').count())
+        self.assertEquals(0, Contact.objects.filter(name='Klab').count())
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_optional.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
