@@ -533,7 +533,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             if urn_header == 'phone':
                 urn_scheme = TEL_SCHEME
 
-
             if urn_scheme == TEL_SCHEME:
                 # only allow valid numbers
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)

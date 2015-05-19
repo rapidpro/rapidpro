@@ -1224,7 +1224,7 @@ class ContactTest(TembaTest):
         records = self.do_import(user, 'sample_contacts_twitter.xls')
         self.assertEquals(3, len(records))
 
-        # now there are three groups
+        # now there are four groups
         self.assertEquals(4, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Twitter").count())
 
@@ -1236,7 +1236,7 @@ class ContactTest(TembaTest):
         records = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
         self.assertEquals(3, len(records))
 
-        # now there are three groups
+        # now there are five groups
         self.assertEquals(5, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Twitter And Phone").count())
 
@@ -1294,6 +1294,24 @@ class ContactTest(TembaTest):
         self.assertIsNotNone(response.context['group'])
         self.assertFalse(response.context['show_form'])
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
+
+        self.assertEquals(3, Contact.objects.all().count())
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
+
+        # import file with row different urn on different existig contacts should ignore those lines
+        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_conflicts.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertEquals(response.context['results'], dict(records=1, errors=1, creates=0, updates=1))
+
+        self.assertEquals(4, Contact.objects.all().count())
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(0, Contact.objects.filter(name='Nyaruka').count())
+        self.assertEquals(1, Contact.objects.filter(name='Kigali').count())
+        self.assertEquals(1, Contact.objects.filter(name='Klab').count())
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
