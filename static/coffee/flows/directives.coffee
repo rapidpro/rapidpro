@@ -122,13 +122,16 @@ app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $lo
       terminal = false if not terminal?
 
       source = $('#' + scope.actionset.uuid + ' .source')
-      jsPlumb.setSourceEnabled(source, not terminal)
 
       if terminal
         source.addClass('terminal')
-        jsPlumb.detachAllConnections(source)
+        Flow.updateDestination(scope.actionset.uuid, null)
       else
         source.removeClass('terminal')
+
+      $timeout ->
+        jsPlumb.setSourceEnabled(scope.actionset.uuid + '_source', not terminal)
+      ,0
 
   return {
     link: link

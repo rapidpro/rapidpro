@@ -320,7 +320,7 @@
               .remove-warning
                 Remove Action?
 
-              .move-up.icon-arrow-down{ ng-click: 'moveActionUp(action_set, action); $event.stopPropagation()' }
+              .move-up.icon-arrow-down{ ng-show:'isMoveable(action)', ng-click: 'moveActionUp(action_set, action); $event.stopPropagation()' }
 
               .remove.icon-close{ ng-click: 'confirmRemoveAction($event, action_set, action); $event.stopPropagation()' }
 

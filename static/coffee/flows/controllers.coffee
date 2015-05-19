@@ -573,6 +573,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.moveActionUp = (actionset, action) ->
     Flow.moveActionUp(actionset, action)
 
+  $scope.isMoveable = (action) ->
+    return Flow.isMoveableAction(action)
+
   $scope.confirmRemoveAction = (event, actionset, action) ->
 
     if window.dragging or not window.mutable
@@ -1264,6 +1267,13 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.actionset = actionset
   $scope.flowId = $scope.$parent.flowId
 
+  # track whether we already have a flow action
+  startsFlow = false
+  for action in actionset.actions
+    if action.type == 'flow' and $scope.action.uuid != action.uuid
+      startsFlow = true
+      break
+
   # set up language options
   if $scope.$parent.flow.base_language
     $scope.base_language = $scope.$parent.flow.base_language
@@ -1285,6 +1295,10 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   # a simple function to filter out invalid actions
   $scope.validActionFilter = (action) ->
+
+    if startsFlow and action.type == 'flow'
+      return false
+
     if not window.ivr and (action.type == 'say' or action.type == 'play')
       return false
     if not $scope.$parent.flow.base_language and action.type == 'lang'
@@ -1479,13 +1493,26 @@ SimpleMessageController = ($scope, $modalInstance, $log, title, body, okButton, 
   return
 
 TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowController) ->
+
   $scope.title = "End of Flow"
   $scope.body = "You must first add a response to this branch in order to extend it."
   $scope.okButton = "Add Response"
 
+  startsFlow = false
+  for action in actionset.actions
+    if action.type == 'flow'
+      startsFlow = true
+      break
+
+  if startsFlow
+    $scope.body = "Once another flow is started, this flow can no longer continue. To extend this flow, remove any actions that start another flow."
+    $scope.okButton = "Ok"
+
   $scope.ok = ->
     $modalInstance.close "ok"
-    flowController.addAction(actionset)
+
+    if not startsFlow
+      flowController.addAction(actionset)
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"

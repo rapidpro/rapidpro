@@ -984,33 +984,61 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     return
 
   checkTerminal: (actionset) ->
-    terminal = true
+
+    hasMessage = false
+    startsFlow = false
+
     for action in actionset.actions
       if window.ivr and action.type == 'say'
-        terminal = false
-        break
+        hasMessage = true
 
       if not window.ivr and action.type == 'reply'
-        terminal = false
-        break
+        hasMessage = true
+
+      if action.type == 'flow'
+        startsFlow = true
+
+    # if they start another flow or doesn't have a message it's terminal
+    terminal = startsFlow or not hasMessage
 
     if actionset._terminal != terminal
       actionset._terminal = terminal
 
+  isMoveableAction: (action) ->
+    if not action
+      return true
+
+    return action.type != 'flow'
+
   saveAction: (actionset, action) ->
 
     found = false
+    lastAction = null
     for previous, idx in actionset.actions
+      lastAction = previous
       if previous.uuid == action.uuid
-        actionset.actions.splice(idx, 1, action)
-        found = true
+
+        # force immovable actions down
+        if not @isMoveableAction(action)
+          actionset.actions.splice(idx, 1)
+          actionset.actions.push(action)
+          found = true
+        else
+          actionset.actions.splice(idx, 1, action)
+          found = true
         break
 
     # if there isn't one that matches add a new one
     if not found
       action.uuid = uuid()
-      actionset.actions.push(action)
-      Plumb.recalculateOffsets(actionset.uuid)
+
+      # if our last action isn't moveable go above it
+      if not @isMoveableAction(lastAction)
+        actionset.actions.splice(actionset.actions.length-1, 0, action)
+      else
+        actionset.actions.push(action)
+
+    Plumb.recalculateOffsets(actionset.uuid)
 
     # finally see if our actionset exists or if it needs to be added
     found = false
