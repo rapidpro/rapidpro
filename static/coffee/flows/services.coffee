@@ -548,17 +548,24 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # break out if our target is a blocking ruleset
     node = getNode(flow, targetId)
-    if node?.operand?.indexOf('@step') > -1
-      return
 
-    if node?.webhook?
-      return
+    # if its a ruleset, lets check for loop stops
+    if not node?.actions
+
+      if not node?.operand
+        return
+
+      if node?.operand?.indexOf('@step') > -1
+        return
+
+      if node?.webhook?
+        return
 
     # check if we just ate our tail
     if targetId in path
       throw new Error('Loop detected: ' + path + ',' + targetId)
 
-    # add our selves
+    # add ourselves
     path.push(targetId)
 
     # if we have rules, check each one
@@ -578,7 +585,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     path = [ source ]
 
     try
-      detectLoop(flow, source ,targetId, path)
+      detectLoop(flow, source, targetId, path)
     catch e
       $log.debug(e.message)
       return false
@@ -810,6 +817,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # find the ruleset we are replacing by uuid
     found = false
+
+    # if there isn't an operand, infer it
+    if not ruleset.operand
+      ruleset.operand = '@step.value'
 
     for previous, idx in $rootScope.flow.rule_sets
       if ruleset.uuid == previous.uuid

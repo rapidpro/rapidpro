@@ -1228,7 +1228,12 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       Flow.removeActionSet($scope.actionset)
 
     # save our new ruleset
-    Flow.replaceRuleset($scope.ruleset)
+    Flow.replaceRuleset($scope.ruleset, false)
+
+    # remove any connections that shouldn't be allowed
+    for rule in $scope.ruleset.rules
+      if not Flow.isConnectionAllowed(flow, rule.uuid, rule.destination)
+        Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
 
     # steal the old connections if we are replacing an actionset with ourselves
     if $scope.ruleset._switchedFromAction
@@ -1242,6 +1247,9 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # link us up if necessary, we need to do this after our element is created
     if $scope.options.dragSource
       Flow.updateDestination($scope.options.dragSource, $scope.ruleset.uuid)
+
+    # finally, make sure we get saved
+    Flow.markDirty()
 
 
   $scope.cancel = ->
