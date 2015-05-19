@@ -393,14 +393,13 @@ class Flow(TembaModel, SmartModel):
     @classmethod
     def get_node(cls, flow, uuid, destination_type=None):
 
-        if not uuid:
+        if not uuid or not destination_type:
             return None
 
-        ruleset = RuleSet.get(flow, uuid)
-        if ruleset:
-            return ruleset
-
-        return ActionSet.get(flow, uuid)
+        if destination_type == RULE_SET:
+            return RuleSet.get(flow, uuid)
+        else:
+            return ActionSet.get(flow, uuid)
 
     @classmethod
     def get_org_responses_since(cls, org, since):
@@ -605,8 +604,6 @@ class Flow(TembaModel, SmartModel):
     @classmethod
     def find_and_handle(cls, msg, started_flows=None):
 
-        start_time = time.time()
-
         if started_flows is None:
             started_flows = []
 
@@ -623,7 +620,7 @@ class Flow(TembaModel, SmartModel):
             if destination:
                 flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
 
-                # if we pushed then forward, we want to consider any step type
+                # if we pushed them forward, we want to consider any step type
                 # they just arrived at instead of just rulesets
                 step_type_filter = None
 
@@ -643,7 +640,6 @@ class Flow(TembaModel, SmartModel):
             handled = Flow.handle_destination(destination, step, step.run, msg, started_flows, user_input=True)
 
             if handled:
-                analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
                 return True
 
         return False
@@ -658,6 +654,8 @@ class Flow(TembaModel, SmartModel):
                 path.append(uuid)
                 raise FlowException("Flow cycle detected at runtime: %s" % path)
             path.append(uuid)
+
+        start_time = time.time()
 
         path = []
 
@@ -699,19 +697,20 @@ class Flow(TembaModel, SmartModel):
             if result.get('handled', False):
                 handled = True
 
+        if handled:
+            analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
+
         return handled
 
 
     @classmethod
-    def handle_actionset(cls, actionset, step, run, msg, started_flows=None, start_time=None, is_test_contact=False):
+    def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:
             run.set_completed()
             if is_test_contact:
                 ActionLog.create(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-
-            analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
             return dict(handled=True, destination=None, destination_type=None)
 
         # actually execute all the actions in our actionset
@@ -771,6 +770,10 @@ class Flow(TembaModel, SmartModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
+            arrived_on = timezone.now()
+            step.left_on = arrived_on
+            step.next_uuid = rule.destination
+            step.save(update_fields=['left_on', 'next_uuid'])
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
         return dict(handled=True, destination=destination, step=step)
 
@@ -2232,7 +2235,7 @@ class Flow(TembaModel, SmartModel):
                             rule['destination_type'] = get_step_type(destination_uuid,
                                                                      current_rulesets, current_actionsets)
 
-                            print "Setting destination [%s] type to: %s" % (destination_uuid, rule['destination_type'])
+                            # print "Setting destination [%s] type to: %s" % (destination_uuid, rule['destination_type'])
 
                 existing = existing_rulesets.get(uuid, None)
 
@@ -3309,7 +3312,7 @@ class FlowStep(models.Model):
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
     @classmethod
-    def get_active_steps_for_contact(cls, contact, step_type=None, is_test_contact=False):
+    def get_active_steps_for_contact(cls, contact, step_type=None):
 
         # test contacts consider archived flows
         if contact.is_test:
@@ -3322,6 +3325,8 @@ class FlowStep(models.Model):
 
         if step_type:
             steps = steps.filter(step_type=step_type)
+
+        steps = steps.order_by('-pk')
 
         # optimize lookups
         return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
