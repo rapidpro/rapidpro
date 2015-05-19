@@ -284,7 +284,6 @@ class OrgTest(TembaTest):
         self.assertEquals(2, len(mail.outbox))
         self.assertTrue(new_invite.is_active)
 
-
         # post many emails to the form
         post_data['emails'] = "norbert@temba.com,code@temba.com"
         post_data['user_group'] = 'A'
@@ -294,39 +293,49 @@ class OrgTest(TembaTest):
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
 
-    def test_join(self):
+    @patch('temba.temba_email.send_multipart_email')
+    def test_join(self, mock_send_multipart_email):
         editor_invitation = Invitation.objects.create(org=self.org,
-                                               user_group="E",
-                                               email="norkans7@gmail.com",
-                                               created_by=self.admin,
-                                               modified_by=self.admin)
+                                                      user_group="E",
+                                                      email="norkans7@gmail.com",
+                                                      host='rapidpro.io',
+                                                      created_by=self.admin,
+                                                      modified_by=self.admin)
 
+        editor_invitation.send_invitation()
+        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "RapidPro Invitation")
+        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
+        self.assertNotIn('{{', email_args[1])
+        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
+        self.assertNotIn('{{', email_args[2])
 
         editor_join_url = reverse('orgs.org_join', args=[editor_invitation.secret])
         self.client.logout()
 
         # if no user is logged we redirect to the create_login page
         response = self.client.get(editor_join_url)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(302, response.status_code)
         response = self.client.get(editor_join_url, follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('orgs.org_create_login', args=[editor_invitation.secret]))
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_create_login', args=[editor_invitation.secret]))
 
         # a user is already logged in
         self.invited_editor = self.create_user("InvitedEditor")
         self.login(self.invited_editor)
 
         response = self.client.get(editor_join_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
-        self.assertEquals(self.org.pk, response.context['org'].pk)
+        self.assertEqual(self.org.pk, response.context['org'].pk)
         # we have a form without field except one 'loc'
-        self.assertEquals(1, len(response.context['form'].fields))
+        self.assertEqual(1, len(response.context['form'].fields))
 
         post_data = dict()
         response = self.client.post(editor_join_url, post_data, follow=True)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
-        self.assertTrue(self.invited_editor in self.org.editors.all())
+        self.assertIn(self.invited_editor, self.org.editors.all())
         self.assertFalse(Invitation.objects.get(pk=editor_invitation.pk).is_active)
 
     def test_create_login(self):

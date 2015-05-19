@@ -15,11 +15,6 @@ def send_temba_email(to_email, subject, template, context, branding):
     :param context: The dictionary of context variables
     :param branding: The branding of the host
     """
-    # skip if we aren't meant to send emails
-    if not settings.SEND_EMAILS:
-        print "!! Skipping sending email, SEND_EMAILS to set False"
-        return
-
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
 
     html_template = loader.get_template(template + ".html")
@@ -31,6 +26,19 @@ def send_temba_email(to_email, subject, template, context, branding):
     html = html_template.render(Context(context))
     text = text_template.render(Context(context))
 
-    message = EmailMultiAlternatives(subject, text, from_email, [to_email])
-    message.attach_alternative(html, "text/html")
-    message.send()
+    send_multipart_email(subject, text, html, from_email, to_email)
+
+
+def send_multipart_email(subject, text, html, from_email, to_email):
+    """
+    Sends a multipart email. Having this as separate function makes testing emails easier
+    """
+    if settings.SEND_EMAILS:
+        message = EmailMultiAlternatives(subject, text, from_email, [to_email])
+        message.attach_alternative(html, "text/html")
+        message.send()
+    else:
+        # just print to console if we aren't meant to send emails
+        print "----------- Skipping sending email, SEND_EMAILS to set False -----------"
+        print text
+        print "------------------------------------------------------------------------"
