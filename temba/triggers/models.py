@@ -192,10 +192,11 @@ class Trigger(SmartModel):
         if not keyword:
             return False
 
-        active_run = FlowRun.objects.filter(is_active=True, contact=msg.contact, flow__is_active=True,
-                                            flow__is_archived=False).order_by("-created_on", "-pk").first()
+        active_run_qs = FlowRun.objects.filter(is_active=True, contact=msg.contact,
+                                               flow__is_active=True, flow__is_archived=False)
+        active_run = active_run_qs.prefetch_related('steps').order_by("-created_on", "-pk").first()
 
-        if active_run and active_run.flow.ignore_triggers and not active_run.is_completed():
+        if active_run and active_run.flow.ignore_triggers and not (active_run.is_completed() or msg.contact.is_test):
             return False
 
         groups_ids = msg.contact.user_groups.values_list('pk', flat=True)

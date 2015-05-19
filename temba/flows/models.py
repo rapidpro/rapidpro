@@ -784,7 +784,7 @@ class Flow(TembaModel, SmartModel):
         r.delete(*keys)
 
     def get_props_cache_key(self, kind):
-        return FLOW_PROP_CACHE_KEY % (self.org.pk, self.pk, kind.name)
+        return FLOW_PROP_CACHE_KEY % (self.org_id, self.pk, kind.name)
 
     def get_stats_cache_key(self, kind, item=None):
         name = kind
@@ -815,7 +815,7 @@ class Flow(TembaModel, SmartModel):
         Creates the requested type of flow-level lock
         """
         r = get_redis_connection()
-        lock_key = FLOW_LOCK_KEY % (self.org.pk, self.pk, lock.name)
+        lock_key = FLOW_LOCK_KEY % (self.org_id, self.pk, lock.name)
         if qualifier:
             lock_key += (":%s" % qualifier)
 
@@ -2745,8 +2745,13 @@ class FlowRun(models.Model):
         terminal_nodes = self.flow.get_terminal_nodes()
         category_nodes = self.flow.get_category_nodes()
 
-        is_end = Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None))
-        return self.steps.filter(is_end).filter(run__contact__is_test=False).exists()
+        for step in self.steps.all():
+            if step.step_uuid in terminal_nodes:
+                return True
+            elif step.step_uuid in category_nodes and step.left_on is None and step.rule_uuid is not None:
+                return True
+
+        return False
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 

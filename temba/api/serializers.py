@@ -1219,7 +1219,6 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
         return obj.contact.uuid
 
     def is_completed(self, obj):
-        # TODO optimize for this case
         return obj.is_completed()
 
     def get_values(self, obj):
