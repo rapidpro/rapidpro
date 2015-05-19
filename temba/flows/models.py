@@ -290,7 +290,9 @@ class Flow(TembaModel, SmartModel):
                 if len(other_flows):
                     raise FlowReferenceException(other_flows)
 
-            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type, id=flow.pk, definition=flow_definition))
+            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type,
+                                       expires=flow.expires_after_minutes,
+                                       id=flow.pk, definition=flow_definition))
 
         # get all non-schedule based triggers that are active for these flows
         from temba.triggers.models import Trigger
@@ -332,8 +334,9 @@ class Flow(TembaModel, SmartModel):
                 if site and site == exported_json.get('site', None):
                     flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
                     if flow:
+                        flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(name, org, ignore=flow)
-                        flow.save(update_fields=['name'])
+                        flow.save(update_fields=['name', 'expires_after_minutes'])
 
                 # if it's not of our world, let's try by name
                 if not flow:
@@ -341,7 +344,8 @@ class Flow(TembaModel, SmartModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
-                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type)
+                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type,
+                                       expires_after_minutes=flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, definition=flow_spec['definition']))
                 flow_id_map[flow_spec['id']] = flow.pk
@@ -388,6 +392,11 @@ class Flow(TembaModel, SmartModel):
         flow_json = flow.as_json()
 
         copy.import_definition(flow_json)
+
+        # copy our expiration as well
+        copy.expires_after_minutes = flow.expires_after_minutes
+        copy.save()
+
         return copy
 
     @classmethod
@@ -1236,46 +1245,6 @@ class Flow(TembaModel, SmartModel):
                 node_order.append(ruleset)
 
         return node_order
-
-    def get_ruleset_category_counts(self):
-        (rulesets, rule_categories) = self.build_ruleset_caches()
-        counts = []
-
-        # get our columns, these should be roughly in the same order as our nodes
-        rulesets = self.get_columns()
-        for ruleset in rulesets:
-            ruleset_counts = dict(ruleset=ruleset)
-            categories = []
-            category_map = dict()
-
-            for rule in ruleset.get_rules():
-                count = self.steps().filter(step_type=RULE_SET, rule_uuid=rule.uuid, run__contact__is_test=False).distinct('run').count()
-
-                category_name = rule.get_category_name(self.base_language)
-
-                if category_name == 'Other':
-                    continue
-
-                category = category_map.get(category_name, None)
-                if not category:
-                    category = dict(label=category_name, count=count)
-                    category_map[category_name] = category
-                    categories.append(category)
-                else:
-                    category['count'] = category['count'] + count
-
-            ruleset_counts['categories'] = categories
-            ruleset_counts['height'] = len(categories) * 75
-
-            result_count = sum(_['count'] for _ in categories)
-            if result_count > 0:
-                for category in categories:
-                    category['percent'] = category['count'] * 100 / result_count
-                    category['total'] = result_count
-
-                counts.append(ruleset_counts)
-
-        return counts
 
     def build_ruleset_caches(self, filter_ruleset=None):
 
