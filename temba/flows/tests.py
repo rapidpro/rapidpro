@@ -18,7 +18,7 @@ from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.orgs.models import Org, Language
-from temba.tests import TembaTest, MockResponse, FlowFileTest
+from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
@@ -32,10 +32,6 @@ from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
-
-
-def uuid(_id):
-    return '00000000-00000000-00000000-%08d' % _id
 
 
 class RuleTest(TembaTest):
@@ -1872,6 +1868,12 @@ class RuleTest(TembaTest):
 
 class FlowRunTest(TembaTest):
 
+    def setUp(self):
+        super(FlowRunTest, self).setUp()
+
+        self.flow = self.create_flow()
+        self.contact = self.create_contact("Ben Haggerty", "+250788123123")
+
     def test_field_normalization(self):
         fields = dict(field1="value1", field2="value2")
         (normalized, count) = FlowRun.normalize_fields(fields)
@@ -1905,9 +1907,6 @@ class FlowRunTest(TembaTest):
         self.assertEquals(fields, normalized)
 
     def test_update_fields(self):
-        self.flow = self.create_flow()
-        self.contact = self.create_contact("Ben Haggerty", "+250788123123")
-
         run = FlowRun.create(self.flow, self.contact)
 
         # set our fields from an empty state
@@ -1931,6 +1930,17 @@ class FlowRunTest(TembaTest):
         new_values['__default__'] = 'field1: , field2: new value2, field3: value3'
 
         self.assertEquals(run.field_dict(), new_values)
+
+    def test_is_completed(self):
+        self.flow.start([], [self.contact])
+
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+        self.flow.find_and_handle(incoming)
+
+        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
+
 
 class FlowLabelTest(SmartminTest):
     def setUp(self):
@@ -2558,6 +2568,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
 
     def test_flow_export_results(self):
+        self.clear_storage()
+
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
 
