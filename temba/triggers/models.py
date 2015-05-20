@@ -213,13 +213,13 @@ class Trigger(SmartModel):
         if not matching:
             return False
 
+        contact = msg.contact
         trigger = matching[0]
 
-        trigger.last_triggered = msg.created_on
-        trigger.trigger_count += 1
-        trigger.save()
-
-        contact = msg.contact
+        if not contact.is_test:
+            trigger.last_triggered = msg.created_on
+            trigger.trigger_count += 1
+            trigger.save()
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
