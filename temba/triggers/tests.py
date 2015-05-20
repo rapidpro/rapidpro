@@ -376,9 +376,12 @@ class TriggerTest(TembaTest):
         contact = self.create_contact('Ben', '+250788382382')
         sms = self.create_msg(direction=INCOMING, contact=contact, text="join")
 
-        self.assertEquals(sms.msg_type, 'I')
+        self.assertEqual(sms.msg_type, 'I')
+
         Trigger.find_and_handle(sms)
-        self.assertEquals(sms.msg_type, 'F')
+
+        self.assertEqual(sms.msg_type, 'F')
+        self.assertEqual(Trigger.objects.get(pk=trigger.pk).trigger_count, 1)
 
         # we should be in the group now
         self.assertEquals(1, contact.user_groups.count())

@@ -52,7 +52,7 @@ class SegmentProfiler(object):  # pragma: no cover
 
     def __unicode__(self):
         def format_query(q):
-            return "Query [%s] %.3f secs" % (truncate(q['sql'], 60), float(q['time']))
+            return "Query [%s] %.3f secs" % (truncate(q['sql'], 75), float(q['time']))
 
         message = "Segment [%s] time: %.3f secs" % (self.name, self.time_total)
         if self.db_profile:
@@ -207,6 +207,17 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         Call.objects.bulk_create(calls)
         return calls
 
+    def _create_runs(self, count, flow, contacts):
+        """
+        Creates the given number of flow runs
+        """
+        runs = []
+        for c in range(0, count):
+            contact = contacts[c % len(contacts)]
+            runs.append(FlowRun.create(flow, contact, db_insert=False))
+        FlowRun.objects.bulk_create(runs)
+        return runs
+
     def _fetch_json(self, url):
         """
         GETs JSON from an API endpoint
@@ -320,6 +331,16 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler(self, "Fetch messages from API", True):
             self._fetch_json('%s.json' % reverse('api.messages'))
+
+    def test_api_runs(self):
+        flow = self.create_flow()
+        contacts = self._create_contacts(50, ["Bobby", "Jimmy", "Mary"])
+        self._create_runs(300, flow, contacts)
+
+        self.login(self.user)
+
+        with SegmentProfiler(self, "Fetch flow runs from API", True):
+            self._fetch_json('%s.json' % reverse('api.runs'))
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])

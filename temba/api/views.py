@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
@@ -36,7 +36,7 @@ from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, USER_DEFINED_GROUP
-from temba.flows.models import Flow, FlowRun, RuleSet
+from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
@@ -2051,7 +2051,6 @@ class FlowRunEndpoint(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowRunReadSerializer
 
-
     def post(self, request, format=None):
         user = request.user
         serializer = FlowRunStartSerializer(user=user, data=request.DATA)
@@ -2068,7 +2067,7 @@ class FlowRunEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
+        queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
@@ -2116,7 +2115,13 @@ class FlowRunEndpoint(generics.ListAPIView):
         if contacts:
             queryset = queryset.filter(contact__uuid__in=contacts)
 
-        return queryset
+        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
+
+        rulesets_prefetch = Prefetch('flow__rule_sets',
+                                     queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
+                                     to_attr='ruleset_prefetch')
+
+        return queryset.select_related('contact', 'flow').prefetch_related(steps_prefetch, rulesets_prefetch).order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):

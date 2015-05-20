@@ -465,78 +465,61 @@ class APITest(TembaTest):
         # now fetch them instead...
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 9)
-        self.assertContains(response, "+250788123124")
-        self.assertContains(response, "+250788123123")
+        self.assertResultCount(response, 9)  # all the runs
 
-        # filter by id
+        # filter by run id
         response = self.fetchJSON(url, "run=%d" % run.pk)
-        self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
-        fetched = json.loads(response.content)['results'][0]
-        self.assertEqual(fetched['run'], run.pk)
-        self.assertEqual(fetched['flow_uuid'], flow.uuid)
-        self.assertEqual(fetched['contact'], self.joe.uuid)
-        self.assertEqual(fetched['completed'], False)
+        self.assertEqual(response.json['results'][0]['run'], run.pk)
+        self.assertEqual(response.json['results'][0]['flow_uuid'], flow.uuid)
+        self.assertEqual(response.json['results'][0]['contact'], self.joe.uuid)
+        self.assertEqual(response.json['results'][0]['completed'], False)
 
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
-        self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 8)
-        self.assertContains(response, "+250788123123")
 
         # filter by flow UUID
         response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
-        self.assertEquals(200, response.status_code)
+
         self.assertResultCount(response, 8)
-        self.assertContains(response, "+250788123123")
+        self.assertNotContains(response, flow_copy.uuid)
 
         # filter by phone (deprecated)
-        response = self.fetchJSON(url, "phone=%2B250788123123")
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "+250788123123")
-        self.assertNotContains(response, "+250788123124")
+        response = self.fetchJSON(url, "phone=%2B250788123123")  # joe
+        self.assertResultCount(response, 2)
+        self.assertContains(response, self.joe.uuid)
+        self.assertNotContains(response, contact.uuid)
 
         # filter by contact UUID
         response = self.fetchJSON(url, "contact=" + contact.uuid)
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "+250788123124")
-        self.assertNotContains(response, "+250788123123")
+        self.assertResultCount(response, 7)
+        self.assertContains(response, contact.uuid)
+        self.assertNotContains(response, self.joe.uuid)
 
-        # filter by group
+        # filter by non-existent group name
         response = self.fetchJSON(url, "group=Players")
-        self.assertEquals(200, response.status_code)
-        self.assertNotContains(response, "+250788123124")
-        self.assertNotContains(response, "+250788123123")
+        self.assertResultCount(response, 0)
 
         players = self.create_group('Players', [])
-
-        response = self.fetchJSON(url, "group=Players")
-        self.assertEquals(200, response.status_code)
-        self.assertNotContains(response, "+250788123124")
-        self.assertNotContains(response, "+250788123123")
-
-        response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
-        self.assertEquals(200, response.status_code)
-        self.assertNotContains(response, "+250788123124")
-        self.assertNotContains(response, "+250788123123")
-
         players.contacts.add(contact)
 
+        # filter by group name
         response = self.fetchJSON(url, "group=Players")
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "+250788123124")
-        self.assertNotContains(response, "+250788123123")
+        self.assertResultCount(response, 7)
+        self.assertContains(response, contact.uuid)
+        self.assertNotContains(response, self.joe.uuid)
 
+        # filter by group UUID
         response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "+250788123124")
-        self.assertNotContains(response, "+250788123123")
+        self.assertResultCount(response, 7)
+        self.assertContains(response, contact.uuid)
+        self.assertNotContains(response, self.joe.uuid)
 
         # invalid dates
         response = self.fetchJSON(url, "before=01-01T00:00:00.000&after=01-01T00:00:00.000&channel=1,2")
         self.assertEquals(200, response.status_code)
-        self.assertNotContains(response, "+250788123123")
+        self.assertResultCount(response, 0)
 
     def test_api_channels(self):
         url = reverse('api.channels')
