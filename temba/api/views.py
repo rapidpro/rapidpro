@@ -3386,6 +3386,40 @@ class BlackmynaHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
+class SMSCentralHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(SMSCentralHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import SMSCENTRAL
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=SMSCENTRAL).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # An MO message
+        if action == 'receive':
+            from_number = request.REQUEST.get('mobile', None)
+            message = request.REQUEST.get('message', None)
+
+            if from_number is None or message is None:
+                return HttpResponse("Missing mobile or message parameters", status=400)
+
+            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            return HttpResponse("")
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)
+
+
 class NexmoHandler(View):
 
     @disable_middleware

@@ -2820,6 +2820,83 @@ class BlackmynaTest(TembaTest):
         assertStatus(sms, '16', FAILED)
 
 
+class SMSCentralTest(TembaTest):
+
+    def test_received(self):
+        self.channel.channel_type = 'SC'
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.address = '1212'
+        self.channel.country = 'NP'
+        self.channel.save()
+
+        data = {'mobile': '+977788123123', 'message': 'Hello World', 'telco': 'Ncell'}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('api.smscentral_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.objects.get()
+        self.assertEquals('+977788123123', sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("Hello World", sms.text)
+
+        # try it with an invalid channel
+        callback_url = reverse('api.smscentral_handler', args=['receive', '1234-asdf']) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
+
+    def test_send(self):
+        self.channel.config = json.dumps(dict(username='sc-user', password='sc-password'))
+        self.channel.channel_type = 'SC'
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+977788123123")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps([{'recipient': '+977788123123',
+                                                                   'id': 'asdf-asdf-asdf-asdf'}]))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.clear_cache()
+
+            # return 400
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+        finally:
+            settings.SEND_MESSAGES = False
+
+
 class Hub9Test(TembaTest):
 
     def test_received(self):
