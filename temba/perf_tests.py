@@ -10,7 +10,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.flows.models import FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, Label, Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import truncate
 from temba.values.models import Value, TEXT, DECIMAL
 from tests import TembaTest
@@ -292,6 +292,20 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_mtn).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
+
+    def test_message_export(self):
+        # create contacts
+        contacts = self._create_contacts(100, ["Bobby", "Jimmy", "Mary"])
+
+        # create messages and labels
+        incoming = self._create_incoming(100, "Hello", self.tel_mtn, contacts)
+        self._create_labels(10, ["My Label"], incoming)
+
+        task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
+                                                 created_by=self.user, modified_by=self.user)
+
+        with SegmentProfiler(self, "Export messages", True):
+            task.do_export()
 
     def test_flow_start(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
