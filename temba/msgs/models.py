@@ -1510,7 +1510,7 @@ class ExportMessagesTask(SmartModel):
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
-        all_messages = Msg.objects.filter(org=self.org, visibility=VISIBLE).order_by('-created_on').select_related('contact')
+        all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
@@ -1556,8 +1556,13 @@ class ExportMessagesTask(SmartModel):
                 created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
                 msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all().order_by('name'))
 
+                if self.org.is_anon:
+                    contact_urn = msg.contact.anon_identifier
+                else:
+                    contact_urn = msg.contact_urn.get_display(org=self.org, full=True)
+
                 current_messages_sheet.write(row, 0, created_on, date_style)
-                current_messages_sheet.write(row, 1, msg.contact_urn.get_display(org=self.org, full=True))
+                current_messages_sheet.write(row, 1, contact_urn)
                 current_messages_sheet.write(row, 2, msg.contact_urn.scheme)
                 current_messages_sheet.write(row, 3, contact_name)
                 current_messages_sheet.write(row, 4, msg.get_direction_display())
@@ -1578,12 +1583,12 @@ class ExportMessagesTask(SmartModel):
         store = AssetType.message_export.store
         store.save(self.pk, File(temp), 'xls')
 
-        subject = "Your messages export is ready"
-        template = 'msgs/email/msg_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.message_export, self.pk))
-
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
+
+        subject = "Your messages export is ready"
+        template = 'msgs/email/msg_export_download'
+        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
 
         # force a gc
         import gc

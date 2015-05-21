@@ -4,21 +4,24 @@ from __future__ import unicode_literals
 import json
 
 from datetime import timedelta
+from django.conf import settings
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from mock import patch
 from smartmin.tests import SmartminTest, _CRUDLTest
 from temba.contacts.models import ContactField, TEL_SCHEME
-from .management.commands.msg_console import MessageConsole
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
-from temba.tests import TembaTest
+from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
+from xlrd import open_workbook
+from .management.commands.msg_console import MessageConsole
 
 class MsgTest(TembaTest):
 
@@ -732,21 +735,85 @@ class MsgTest(TembaTest):
         check_messages_task()
         self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
-    def test_filter_export(self):
-        # try exporting the messages
+    @patch('temba.temba_email.send_multipart_email')
+    def test_message_export(self, mock_send_multipart_email):
+        self.clear_storage()
         self.login(self.admin)
 
-        label = Label.create(self.org, self.user, "label1")
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path), "message to export")
-        self.label_messages([msg.pk], label.pk)
+        # create 3 messages - add label to second, and archive the third
+        joe_urn = (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path)
+        msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
+        msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
+        msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
 
-        # first visit the filter page
+        # label first message
+        label = Label.create(self.org, self.user, "label1")
+        label.toggle_label([msg1], add=True)
+
+        # archive last message
+        msg3.visibility = ARCHIVED
+        msg3.save()
+
+        # request export of all messages
+        self.client.post(reverse('msgs.msg_export'))
+        task = ExportMessagesTask.objects.get()
+
+        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        self.assertEquals(sheet.nrows, 3)  # msg3 not included as it's archived
+        self.assertEquals(sheet.cell(1, 1).value, '123')
+        self.assertEquals(sheet.cell(1, 2).value, 'tel')
+        self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
+        self.assertEquals(sheet.cell(1, 4).value, "Incoming")
+        self.assertEquals(sheet.cell(1, 5).value, "hello 2")
+        self.assertEquals(sheet.cell(1, 6).value, "")
+
+        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "Your messages export is ready")
+        self.assertIn('http://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertNotIn('{{', email_args[1])
+        self.assertIn('http://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertNotIn('{{', email_args[2])
+
+        ExportMessagesTask.objects.all().delete()
+
+        # visit the filter page
         response = self.client.get(reverse('msgs.msg_filter', args=[label.pk]))
         self.assertContains(response, "Export Data")
 
-        response = self.client.post("%s?label=%s" % (reverse('msgs.msg_export'),label.pk), dict())
-        self.assertEquals(ExportMessagesTask.objects.all().count(), 1)
-        self.assertEquals(ExportMessagesTask.objects.get().label.pk, label.pk)
+        self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
+        task = ExportMessagesTask.objects.get()
+
+        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        self.assertEquals(sheet.nrows, 2)  # only header and msg1
+        self.assertEquals(sheet.cell(1, 1).value, '123')
+        self.assertEquals(sheet.cell(1, 2).value, 'tel')
+        self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
+        self.assertEquals(sheet.cell(1, 4).value, "Incoming")
+        self.assertEquals(sheet.cell(1, 5).value, "hello 1")
+        self.assertEquals(sheet.cell(1, 6).value, "label1")
+
+        ExportMessagesTask.objects.all().delete()
+
+        # test as anon org to check that URNs don't end up in exports
+        with AnonymousOrg(self.org):
+            self.client.post(reverse('msgs.msg_export'))
+            task = ExportMessagesTask.objects.get()
+
+            filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+            workbook = open_workbook(filename, 'rb')
+            sheet = workbook.sheets()[0]
+
+            self.assertEquals(sheet.nrows, 3)
+            self.assertEquals(sheet.cell(1, 1).value, self.joe.anon_identifier)
+            self.assertEquals(sheet.cell(1, 2).value, 'tel')
+            self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
