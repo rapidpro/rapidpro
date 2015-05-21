@@ -16,10 +16,9 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
-from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
 from urlparse import urlparse, urlunparse, ParseResult
@@ -29,6 +28,9 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
+
+# phone number for every org's test contact
+TEST_CONTACT_TEL = '+12065551212'
 
 
 class ContactField(models.Model, OrgModelMixin):
@@ -485,10 +487,10 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     @classmethod
     def get_test_contact(cls, user):
         org = user.get_org()
-        test_contact = Contact.objects.filter(urns__path="+12065551212", is_test=True, org=org).first()
+        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org).first()
 
         if not test_contact:
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, "+12065551212")], is_test=True)
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, TEST_CONTACT_TEL)], is_test=True)
 
         return test_contact
 
@@ -537,6 +539,9 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 # only allow valid numbers
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)
                 if not is_valid:
+                    return None
+                # in the past, test contacts have ended up in exports. Don't re-import them
+                if value == TEST_CONTACT_TEL:
                     return None
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
@@ -1473,7 +1478,7 @@ class ExportContactsTask(SmartModel):
         for contact_field in contact_fields_list:
             fields.append(dict(label=contact_field.label, key=contact_field.key))
 
-        all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_blocked=False).order_by('name', 'pk')
+        all_contacts = Contact.get_contacts(self.org).order_by('name', 'pk')
 
         if self.group:
             all_contacts = all_contacts.filter(all_groups=self.group)

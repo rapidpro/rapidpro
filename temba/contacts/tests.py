@@ -1270,6 +1270,11 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=0, updates=3))
 
+        # import a spreadsheet that includes the test contact
+        csv_file = open('%s/test_imports/sample_contacts_inc_test.xls' % settings.MEDIA_ROOT, 'rb')
+        response = self.client.post(import_url, dict(csv_file=csv_file), follow=True)
+        self.assertEquals(response.context['results'], dict(records=2, errors=1, creates=0, updates=2))
+
         # import a spreadsheet where a contact has a missing phone number and another has an invalid number
         csv_file = open('%s/test_imports/sample_contacts_with_missing_and_invalid_phones.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
@@ -1712,6 +1717,7 @@ class ContactFieldTest(TembaTest):
 
     def test_export(self):
         from xlrd import open_workbook
+        self.clear_storage()
 
         self.login(self.admin)
         self.user = self.admin
@@ -1726,6 +1732,8 @@ class ContactFieldTest(TembaTest):
         contact.set_field('First', 'One')
         flow.start([], [contact])
 
+        Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
+
         self.client.get(reverse('contacts.contact_export'), dict())
         task = ExportContactsTask.objects.get()
 
@@ -1734,14 +1742,16 @@ class ContactFieldTest(TembaTest):
         sheet = workbook.sheets()[0]
 
         # check our headers
-        self.assertEquals('Phone', sheet.cell(0, 0).value)
-        self.assertEquals('Name', sheet.cell(0, 1).value)
-        self.assertEquals('First', sheet.cell(0, 2).value)
-        self.assertEquals('Second', sheet.cell(0, 3).value)
-        self.assertEquals('Third', sheet.cell(0, 4).value)
+        self.assertEqual('Phone', sheet.cell(0, 0).value)
+        self.assertEqual('Name', sheet.cell(0, 1).value)
+        self.assertEqual('First', sheet.cell(0, 2).value)
+        self.assertEqual('Second', sheet.cell(0, 3).value)
+        self.assertEqual('Third', sheet.cell(0, 4).value)
 
-        self.assertEquals('+12067799294', sheet.cell(1, 0).value)
-        self.assertEquals("One", sheet.cell(1, 2).value)
+        self.assertEqual('+12067799294', sheet.cell(1, 0).value)
+        self.assertEqual("One", sheet.cell(1, 2).value)
+
+        self.assertEqual(sheet.nrows, 2)  # no other contacts
 
     def test_managefields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
