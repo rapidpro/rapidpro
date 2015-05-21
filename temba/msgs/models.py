@@ -2,9 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import os
 import pytz
-import re
 import time
 import traceback
 
@@ -13,10 +11,9 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -31,7 +28,6 @@ from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -1511,6 +1507,7 @@ class ExportMessagesTask(SmartModel):
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
+        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.objects.order_by('name')))
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
@@ -1554,7 +1551,7 @@ class ExportMessagesTask(SmartModel):
             for msg in messages:
                 contact_name = msg.contact.name if msg.contact.name else ''
                 created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
-                msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all().order_by('name'))
+                msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
 
                 if self.org.is_anon:
                     contact_urn = msg.contact.anon_identifier
