@@ -1054,11 +1054,12 @@ class Channel(SmartModel):
     @classmethod
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+
+        # strip a leading +
+        mobile = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
+
         payload = {
-            'user': channel.config[USERNAME],
-            'pass': channel.config[PASSWORD],
-            'mobile': msg.urn_path,
-            'content': text,
+            'user': channel.config[USERNAME], 'pass': channel.config[PASSWORD], 'mobile': mobile, 'content': text,
         }
 
         url = 'http://smail.smscentral.com.np/bp/ApiSms.php'
