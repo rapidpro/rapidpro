@@ -811,7 +811,7 @@ class MsgTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             self.assertEquals(sheet.nrows, 3)
-            self.assertEquals(sheet.cell(1, 1).value, self.joe.anon_identifier)
+            self.assertEquals(sheet.cell(1, 1).value, '%010d' % self.joe.pk)
             self.assertEquals(sheet.cell(1, 2).value, 'tel')
             self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
 
