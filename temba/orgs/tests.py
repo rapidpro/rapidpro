@@ -2,8 +2,6 @@ from __future__ import unicode_literals
 
 import json
 
-from mock import patch
-
 from context_processors import GroupPermWrapper
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -12,16 +10,16 @@ from django.core import mail
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
+from mock import patch
 from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
-from temba.flows.models import Flow, ExportFlowResultsTask, ActionSet
-from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
+from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.flows.models import Flow, ActionSet
+from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_ms
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -449,9 +447,7 @@ class OrgTest(TembaTest):
 
     def test_topups(self):
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        test_contact = self.create_contact("Test Contact", "+12065551212")
-        test_contact.is_test = True
-        test_contact.save()
+        test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
         def create_msgs(recipient, count):
