@@ -232,6 +232,23 @@
     %code
       https://{{ domain }}{% url 'api.blackmyna_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'SC'
+    %h4
+      -blocktrans
+        To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL.
+
+    %hr
+
+    %h4
+      -trans "Inbound URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by SMSCentral when new messages are received to your number.
+
+    %code
+      https://{{ domain }}{% url 'api.smscentral_handler' 'receive' object.uuid %}
+
   -elif object.channel_type == 'H9'
     %h4
       -blocktrans

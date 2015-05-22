@@ -16,10 +16,9 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
-from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
 from urlparse import urlparse, urlunparse, ParseResult
@@ -29,6 +28,9 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
+
+# phone number for every org's test contact
+TEST_CONTACT_TEL = '+12065551212'
 
 
 class ContactField(models.Model, OrgModelMixin):
@@ -485,10 +487,10 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     @classmethod
     def get_test_contact(cls, user):
         org = user.get_org()
-        test_contact = Contact.objects.filter(urns__path="+12065551212", is_test=True, org=org).first()
+        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org).first()
 
         if not test_contact:
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, "+12065551212")], is_test=True)
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, TEST_CONTACT_TEL)], is_test=True)
 
         return test_contact
 
@@ -507,14 +509,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
     @classmethod
     def create_instance(cls, field_dict):
-        phone = field_dict.get('phone', None)
-
-        # no number?  then ignore this record
-        if not phone:
-            return None
-
-        del field_dict['phone']
-
         org = field_dict['org']
         del field_dict['org']
 
@@ -522,24 +516,56 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         channel = org.get_receive_channel(TEL_SCHEME)
         country = channel.country.code if channel else None
 
+        urns = []
+
+        possible_urn_headers = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+
+        existing_contact = None
+        for urn_header in possible_urn_headers:
+
+            value = None
+            if urn_header in field_dict:
+                value = field_dict[urn_header]
+                del field_dict[urn_header]
+
+            if not value:
+                continue
+
+            urn_scheme = urn_header
+            if urn_header == 'phone':
+                urn_scheme = TEL_SCHEME
+
+            if urn_scheme == TEL_SCHEME:
+                # only allow valid numbers
+                (normalized, is_valid) = ContactURN.normalize_number(value, country)
+                if not is_valid:
+                    return None
+                # in the past, test contacts have ended up in exports. Don't re-import them
+                if value == TEST_CONTACT_TEL:
+                    return None
+
+            search_contact = Contact.from_urn(org, urn_scheme, value, country)
+            # if this is an anonymous org
+            if org.is_anon and search_contact:
+                return None
+
+            if not existing_contact:
+                existing_contact = search_contact
+            elif search_contact is not None and existing_contact != search_contact:
+                return None
+
+            urns.append((urn_scheme, value))
+
+        if not urns:
+            return None
+
         # title case our name
         name = field_dict.get('name', None)
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
-        # if this is an anonymous org
-        if org.is_anon:
-            # try to look up the contact by number, if it exists, ignore this line
-            if Contact.from_urn(org, TEL_SCHEME, phone, country):
-                return None
-
-        # only allow valid numbers
-        (normalized, is_valid) = ContactURN.normalize_number(phone, country)
-        if not is_valid:
-            return None
-
         # create our contact
-        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=[(TEL_SCHEME, phone)])
+        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
 
         del field_dict['created_by']
         del field_dict['name']
@@ -583,9 +609,11 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             else:
                 raise Exception('Extra field %s is a reserved field name' % key)
 
+        active_scheme = [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
-            if key not in RESERVED_CONTACT_FIELDS and key not in extra_fields:
+            if key not in RESERVED_CONTACT_FIELDS and key not in extra_fields and key not in active_scheme:
                 del field_dict[key]
 
         return field_dict
@@ -617,22 +645,29 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             os.remove(tmp_file)
 
         Contact.validate_import_header(headers)
-        required_fields = ['name', 'phone']
+        built_in_fields = ['name', 'phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
         optional_columns = []
         for header in headers:
-            if header not in required_fields:
+            if header not in built_in_fields:
                 optional_columns.append(header)
 
         return optional_columns
 
     @classmethod
     def validate_import_header(cls, header):
-        if 'name' not in header and 'phone' not in header:
-            raise Exception(ugettext('The file you provided is missing two required headers called "Name" and "Phone".'))
+        possible_urn_fields = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
+
+        possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
+
+        if 'name' not in header and not header_urn_fields:
+            raise Exception(ugettext('The file you provided is missing required headers called "Name" and one of "%s".'
+                                     % possible_urn_fields_text))
         if 'name' not in header:
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
-        if 'phone' not in header:
-            raise Exception(ugettext('The file you provided is missing a required header called "Phone".'))
+        if not header_urn_fields:
+            raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
+                                     'should be included.' % possible_urn_fields_text))
         return None
     
     @classmethod
@@ -1443,7 +1478,7 @@ class ExportContactsTask(SmartModel):
         for contact_field in contact_fields_list:
             fields.append(dict(label=contact_field.label, key=contact_field.key))
 
-        all_contacts = Contact.objects.filter(org=self.org, is_active=True, is_blocked=False).order_by('name', 'pk')
+        all_contacts = Contact.get_contacts(self.org).order_by('name', 'pk')
 
         if self.group:
             all_contacts = all_contacts.filter(all_groups=self.group)

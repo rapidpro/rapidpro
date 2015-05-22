@@ -36,21 +36,22 @@ from urllib import quote_plus
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
+BLACKMYNA = 'BM'
+CLICKATELL = 'CT'
 EXTERNAL = 'EX'
+HIGH_CONNECTION = 'HX'
 HUB9 = 'H9'
 INFOBIP = 'IB'
 KANNEL = 'KN'
 NEXMO = 'NX'
+PLIVO = 'PL'
+SHAQODOON = 'SQ'
+SMSCENTRAL = 'SC'
 TWILIO = 'T'
 TWITTER = 'TT'
+VERBOICE = 'VB'
 VUMI = 'VM'
 ZENVIA = 'ZV'
-SHAQODOON = 'SQ'
-VERBOICE = 'VB'
-CLICKATELL = 'CT'
-PLIVO = 'PL'
-HIGH_CONNECTION = 'HX'
-BLACKMYNA = 'BM'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -80,7 +81,8 @@ RELAYER_TYPE_CHOICES = ((ANDROID, "Android"),
                         (PLIVO, "Plivo"),
                         (SHAQODOON, "Shaqodoon"),
                         (HIGH_CONNECTION, "High Connection"),
-                        (BLACKMYNA, "Blackmyna"))
+                        (BLACKMYNA, "Blackmyna"),
+                        (SMSCENTRAL, "SMSCentral"))
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -106,6 +108,7 @@ RELAYER_TYPE_CONFIG = {
     PLIVO: dict(scheme='tel', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     BLACKMYNA: dict(scheme='tel', max_length=1600),
+    SMSCENTRAL: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -894,7 +897,6 @@ class Channel(SmartModel):
                                response=response.text,
                                response_status=response.status_code)
 
-
     @classmethod
     def send_external_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
@@ -1040,6 +1042,49 @@ class Channel(SmartModel):
                                 response_status=response.status_code)
 
         Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_smscentral_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        # strip a leading +
+        mobile = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
+
+        payload = {
+            'user': channel.config[USERNAME], 'pass': channel.config[PASSWORD], 'mobile': mobile, 'content': text,
+        }
+
+        url = 'http://smail.smscentral.com.np/bp/ApiSms.php'
+        log_payload = urlencode(payload)
+
+        try:
+            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30)
+
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response='',
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1544,7 +1589,7 @@ class Channel(SmartModel):
         return pending
 
     @classmethod
-    def send_message(cls, msg): # pragma: no cover
+    def send_message(cls, msg):  # pragma: no cover
         from temba.msgs.models import Msg, QUEUED, WIRED, MSG_SENT_KEY
         r = get_redis_connection()
 
@@ -1586,7 +1631,8 @@ class Channel(SmartModel):
                       ZENVIA: Channel.send_zenvia_message,
                       PLIVO: Channel.send_plivo_message,
                       HIGH_CONNECTION: Channel.send_high_connection_message,
-                      BLACKMYNA: Channel.send_blackmyna_message}
+                      BLACKMYNA: Channel.send_blackmyna_message,
+                      SMSCENTRAL: Channel.send_smscentral_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages

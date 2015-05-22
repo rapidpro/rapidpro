@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
@@ -36,7 +36,7 @@ from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, PLIVO
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, USER_DEFINED_GROUP
-from temba.flows.models import Flow, FlowRun, RuleSet
+from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
@@ -2051,7 +2051,6 @@ class FlowRunEndpoint(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowRunReadSerializer
 
-
     def post(self, request, format=None):
         user = request.user
         serializer = FlowRunStartSerializer(user=user, data=request.DATA)
@@ -2068,7 +2067,7 @@ class FlowRunEndpoint(generics.ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
+        queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
@@ -2116,7 +2115,13 @@ class FlowRunEndpoint(generics.ListAPIView):
         if contacts:
             queryset = queryset.filter(contact__uuid__in=contacts)
 
-        return queryset
+        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
+
+        rulesets_prefetch = Prefetch('flow__rule_sets',
+                                     queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
+                                     to_attr='ruleset_prefetch')
+
+        return queryset.select_related('contact', 'flow').prefetch_related(steps_prefetch, rulesets_prefetch).order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -3381,6 +3386,40 @@ class BlackmynaHandler(View):
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
             msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            return HttpResponse("")
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)
+
+
+class SMSCentralHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(SMSCentralHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import SMSCENTRAL
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=SMSCENTRAL).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # An MO message
+        if action == 'receive':
+            from_number = request.REQUEST.get('mobile', None)
+            message = request.REQUEST.get('message', None)
+
+            if from_number is None or message is None:
+                return HttpResponse("Missing mobile or message parameters", status=400)
+
+            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)

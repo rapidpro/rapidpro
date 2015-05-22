@@ -1208,13 +1208,9 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     contact = serializers.SerializerMethodField('get_contact_uuid')
     completed = serializers.SerializerMethodField('is_completed')
     flow = serializers.SerializerMethodField('get_flow')  # deprecated, use flow_uuid
-    phone = serializers.SerializerMethodField('get_phone')  # deprecated, use contact
 
     def get_flow(self, obj):
         return obj.flow_id
-
-    def get_phone(self, obj):
-        return obj.contact.get_urn_display(org=obj.flow.org, scheme=TEL_SCHEME, full=True)
 
     def get_flow_uuid(self, obj):
         return obj.flow.uuid
@@ -1234,7 +1230,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     def get_steps(self, obj):
         steps = []
-        for step in obj.steps.all().order_by('arrived_on'):
+        for step in obj.steps.all():
             steps.append(dict(type=step.step_type,
                               node=step.step_uuid,
                               arrived_on=step.arrived_on,
@@ -1246,7 +1242,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'phone', 'values', 'steps', 'created_on')
+        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values', 'steps', 'created_on')
         read_only_fields = ('created_on',)
 
 
