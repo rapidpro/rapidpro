@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import copy
 import json
 import numbers
-import os
 import phonenumbers
 import pytz
 import re
@@ -285,7 +284,9 @@ class Flow(TembaModel, SmartModel):
                 if len(other_flows):
                     raise FlowReferenceException(other_flows)
 
-            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type, id=flow.pk, definition=flow_definition))
+            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type,
+                                       expires=flow.expires_after_minutes,
+                                       id=flow.pk, definition=flow_definition))
 
         # get all non-schedule based triggers that are active for these flows
         from temba.triggers.models import Trigger
@@ -327,8 +328,9 @@ class Flow(TembaModel, SmartModel):
                 if site and site == exported_json.get('site', None):
                     flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
                     if flow:
+                        flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(name, org, ignore=flow)
-                        flow.save(update_fields=['name'])
+                        flow.save(update_fields=['name', 'expires_after_minutes'])
 
                 # if it's not of our world, let's try by name
                 if not flow:
@@ -336,7 +338,8 @@ class Flow(TembaModel, SmartModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
-                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type)
+                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type,
+                                       expires_after_minutes=flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, definition=flow_spec['definition']))
                 flow_id_map[flow_spec['id']] = flow.pk
@@ -383,6 +386,11 @@ class Flow(TembaModel, SmartModel):
         flow_json = flow.as_json()
 
         copy.import_definition(flow_json)
+
+        # copy our expiration as well
+        copy.expires_after_minutes = flow.expires_after_minutes
+        copy.save()
+
         return copy
 
     @classmethod
@@ -776,7 +784,7 @@ class Flow(TembaModel, SmartModel):
         r.delete(*keys)
 
     def get_props_cache_key(self, kind):
-        return FLOW_PROP_CACHE_KEY % (self.org.pk, self.pk, kind.name)
+        return FLOW_PROP_CACHE_KEY % (self.org_id, self.pk, kind.name)
 
     def get_stats_cache_key(self, kind, item=None):
         name = kind
@@ -807,7 +815,7 @@ class Flow(TembaModel, SmartModel):
         Creates the requested type of flow-level lock
         """
         r = get_redis_connection()
-        lock_key = FLOW_LOCK_KEY % (self.org.pk, self.pk, lock.name)
+        lock_key = FLOW_LOCK_KEY % (self.org_id, self.pk, lock.name)
         if qualifier:
             lock_key += (":%s" % qualifier)
 
@@ -1200,54 +1208,11 @@ class Flow(TembaModel, SmartModel):
 
         return node_order
 
-    def get_ruleset_category_counts(self):
-        (rulesets, rule_categories) = self.build_ruleset_caches()
-        counts = []
-
-        # get our columns, these should be roughly in the same order as our nodes
-        rulesets = self.get_columns()
-        for ruleset in rulesets:
-            ruleset_counts = dict(ruleset=ruleset)
-            categories = []
-            category_map = dict()
-
-            for rule in ruleset.get_rules():
-                count = self.steps().filter(step_type=RULE_SET, rule_uuid=rule.uuid, run__contact__is_test=False).distinct('run').count()
-
-                category_name = rule.get_category_name(self.base_language)
-
-                if category_name == 'Other':
-                    continue
-
-                category = category_map.get(category_name, None)
-                if not category:
-                    category = dict(label=category_name, count=count)
-                    category_map[category_name] = category
-                    categories.append(category)
-                else:
-                    category['count'] = category['count'] + count
-
-            ruleset_counts['categories'] = categories
-            ruleset_counts['height'] = len(categories) * 75
-
-            result_count = sum(_['count'] for _ in categories)
-            if result_count > 0:
-                for category in categories:
-                    category['percent'] = category['count'] * 100 / result_count
-                    category['total'] = result_count
-
-                counts.append(ruleset_counts)
-
-        return counts
-
-    def build_ruleset_caches(self, filter_ruleset=None):
-
+    def build_ruleset_caches(self, ruleset_list=None):
         rulesets = dict()
         rule_categories = dict()
 
-        if filter_ruleset:
-            ruleset_list = [filter_ruleset]
-        else:
+        if not ruleset_list:
             ruleset_list = RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk').select_related('flow', 'flow__org')
 
         for ruleset in ruleset_list:
@@ -1318,40 +1283,46 @@ class Flow(TembaModel, SmartModel):
         return context
 
     def get_results(self, contact=None, filter_ruleset=None, only_last_run=True, run=None):
-        (rulesets, rule_categories) = self.build_ruleset_caches(filter_ruleset=filter_ruleset)
+        if filter_ruleset:
+            ruleset_list = [filter_ruleset]
+        elif run and hasattr(run.flow, 'ruleset_prefetch'):
+            ruleset_list = run.flow.ruleset_prefetch
+        else:
+            ruleset_list = None
+
+        (rulesets, rule_categories) = self.build_ruleset_caches(ruleset_list)
 
         # for each of the contacts that participated
         results = []
 
-        runs = self.runs.all().select_related('contact')
-
-        # hide simulation test contact
-        runs = runs.filter(contact__is_test=Contact.get_simulation())
-
-        if contact:
-            runs = runs.filter(contact=contact)
-
-        runs = runs.order_by('contact', '-created_on')
-
-
-        # if we only want the result for a single run, limit to that
         if run:
-            runs = runs.filter(pk=run.pk)
+            runs = [run]
+            flow_steps = [s for s in run.steps.all() if s.rule_uuid]
+        else:
+            runs = self.runs.all().select_related('contact')
 
-        # or possibly only the last run
-        elif only_last_run:
-            runs = runs.distinct('contact')
+            # hide simulation test contact
+            runs = runs.filter(contact__is_test=Contact.get_simulation())
 
-        flow_steps = FlowStep.objects.filter(step_uuid__in=rulesets.keys()).exclude(rule_uuid=None)
+            if contact:
+                runs = runs.filter(contact=contact)
 
-        # filter our steps to only the runs we care about
-        flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
+            runs = runs.order_by('contact', '-created_on')
 
-        # and the ruleset we care about
-        if filter_ruleset:
-            flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
+            # or possibly only the last run
+            if only_last_run:
+                runs = runs.distinct('contact')
 
-        flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
+            flow_steps = FlowStep.objects.filter(step_uuid__in=rulesets.keys()).exclude(rule_uuid=None)
+
+            # filter our steps to only the runs we care about
+            flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
+
+            # and the ruleset we care about
+            if filter_ruleset:
+                flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
+
+            flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
 
         steps_cache = {}
         for step in flow_steps:
@@ -2774,8 +2745,13 @@ class FlowRun(models.Model):
         terminal_nodes = self.flow.get_terminal_nodes()
         category_nodes = self.flow.get_category_nodes()
 
-        is_end = Q(step_uuid__in=terminal_nodes) | (Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None))
-        return self.steps.filter(is_end).filter(run__contact__is_test=False).exists()
+        for step in self.steps.all():
+            if step.step_uuid in terminal_nodes:
+                return True
+            elif step.step_uuid in category_nodes and step.left_on is None and step.rule_uuid is not None:
+                return True
+
+        return False
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
@@ -2821,7 +2797,6 @@ class ExportFlowResultsTask(SmartModel):
     org = models.ForeignKey(Org, related_name='flow_results_exports', help_text=_("The Organization of the user."))
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-    filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
     def do_export(self):

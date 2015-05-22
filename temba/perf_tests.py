@@ -10,7 +10,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.flows.models import FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, Label, Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import truncate
 from temba.values.models import Value, TEXT, DECIMAL
 from tests import TembaTest
@@ -20,7 +20,7 @@ from timeit import default_timer
 MAX_QUERIES_PRINT = 15
 
 
-class SegmentProfiler(object):
+class SegmentProfiler(object):  # pragma: no cover
     """
     Used in a with block to profile a segment of code
     """
@@ -52,7 +52,7 @@ class SegmentProfiler(object):
 
     def __unicode__(self):
         def format_query(q):
-            return "Query [%s] %.3f secs" % (truncate(q['sql'], 60), float(q['time']))
+            return "Query [%s] %.3f secs" % (truncate(q['sql'], 75), float(q['time']))
 
         message = "Segment [%s] time: %.3f secs" % (self.name, self.time_total)
         if self.db_profile:
@@ -76,7 +76,7 @@ class SegmentProfiler(object):
         return message
 
 
-class PerformanceTest(TembaTest):
+class PerformanceTest(TembaTest):  # pragma: no cover
     segments = []
 
     def setUp(self):
@@ -207,6 +207,17 @@ class PerformanceTest(TembaTest):
         Call.objects.bulk_create(calls)
         return calls
 
+    def _create_runs(self, count, flow, contacts):
+        """
+        Creates the given number of flow runs
+        """
+        runs = []
+        for c in range(0, count):
+            contact = contacts[c % len(contacts)]
+            runs.append(FlowRun.create(flow, contact, db_insert=False))
+        FlowRun.objects.bulk_create(runs)
+        return runs
+
     def _fetch_json(self, url):
         """
         GETs JSON from an API endpoint
@@ -282,6 +293,20 @@ class PerformanceTest(TembaTest):
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
 
+    def test_message_export(self):
+        # create contacts
+        contacts = self._create_contacts(100, ["Bobby", "Jimmy", "Mary"])
+
+        # create messages and labels
+        incoming = self._create_incoming(100, "Hello", self.tel_mtn, contacts)
+        self._create_labels(10, ["My Label"], incoming)
+
+        task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
+                                                 created_by=self.user, modified_by=self.user)
+
+        with SegmentProfiler(self, "Export messages", True):
+            task.do_export()
+
     def test_flow_start(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
         groups = self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
@@ -294,7 +319,7 @@ class PerformanceTest(TembaTest):
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 
-    def test_api(self):
+    def test_api_contacts_and_groups(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
         self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
 
@@ -308,6 +333,28 @@ class PerformanceTest(TembaTest):
 
         with SegmentProfiler(self, "Fetch groups from API (again)", True):
             self._fetch_json('%s.json' % reverse('api.contactgroups'))
+
+    def test_api_messages(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
+        self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
+
+        broadcast = self._create_broadcast("Hello message #1", contacts)
+        broadcast.send()
+
+        self.login(self.user)
+
+        with SegmentProfiler(self, "Fetch messages from API", True):
+            self._fetch_json('%s.json' % reverse('api.messages'))
+
+    def test_api_runs(self):
+        flow = self.create_flow()
+        contacts = self._create_contacts(50, ["Bobby", "Jimmy", "Mary"])
+        self._create_runs(300, flow, contacts)
+
+        self.login(self.user)
+
+        with SegmentProfiler(self, "Fetch flow runs from API", True):
+            self._fetch_json('%s.json' % reverse('api.runs'))
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])

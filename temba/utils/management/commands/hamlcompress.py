@@ -31,7 +31,7 @@ from compressor.exceptions import OfflineGenerationError
 from compressor.templatetags.compress import CompressorNode
 
 
-def patched_render(self, context):
+def patched_render(self, context):  # pragma: no cover
     # 'Fake' _render method that just returns the context instead of
     # rendering. It also checks whether the first node is an extend node or
     # not, to be able to handle complex inheritance chain.
@@ -43,7 +43,7 @@ def patched_render(self, context):
     return context
 
 
-def patched_render_firstnode(self, context):
+def patched_render_firstnode(self, context):  # pragma: no cover
     # If this template has a ExtendsNode, we want to find out what
     # should be put in render_context to make the {% block ... %}
     # tags work.
@@ -88,7 +88,7 @@ def patched_render_firstnode(self, context):
     return extra_context
 
 
-def patched_get_parent(self, context):
+def patched_get_parent(self, context):  # pragma: no cover
     # Patch template returned by extendsnode's get_parent to make sure their
     # _render method is just returning the context instead of actually
     # rendering stuff.
@@ -102,7 +102,7 @@ def patched_get_parent(self, context):
     return compiled_template
 
 
-class Command(NoArgsCommand):
+class Command(NoArgsCommand):  # pragma: no cover
     help = "Compress content outside of the request/response cycle"
     option_list = NoArgsCommand.option_list + (
         make_option('--extension', '-e', action='append', dest='extensions',

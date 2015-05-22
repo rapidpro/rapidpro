@@ -2,8 +2,6 @@ from __future__ import unicode_literals
 
 import json
 
-from mock import patch
-
 from context_processors import GroupPermWrapper
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -12,16 +10,16 @@ from django.core import mail
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
+from mock import patch
 from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import ContactGroup, TEL_SCHEME, TWITTER_SCHEME, ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
-from temba.flows.models import Flow, ExportFlowResultsTask, ActionSet
-from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING, ExportMessagesTask
-from temba.tests import TembaTest, MockResponse
+from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.flows.models import Flow, ActionSet
+from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_ms
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -284,7 +282,6 @@ class OrgTest(TembaTest):
         self.assertEquals(2, len(mail.outbox))
         self.assertTrue(new_invite.is_active)
 
-
         # post many emails to the form
         post_data['emails'] = "norbert@temba.com,code@temba.com"
         post_data['user_group'] = 'A'
@@ -294,39 +291,49 @@ class OrgTest(TembaTest):
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
 
-    def test_join(self):
+    @patch('temba.temba_email.send_multipart_email')
+    def test_join(self, mock_send_multipart_email):
         editor_invitation = Invitation.objects.create(org=self.org,
-                                               user_group="E",
-                                               email="norkans7@gmail.com",
-                                               created_by=self.admin,
-                                               modified_by=self.admin)
+                                                      user_group="E",
+                                                      email="norkans7@gmail.com",
+                                                      host='rapidpro.io',
+                                                      created_by=self.admin,
+                                                      modified_by=self.admin)
 
+        editor_invitation.send_invitation()
+        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "RapidPro Invitation")
+        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
+        self.assertNotIn('{{', email_args[1])
+        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
+        self.assertNotIn('{{', email_args[2])
 
         editor_join_url = reverse('orgs.org_join', args=[editor_invitation.secret])
         self.client.logout()
 
         # if no user is logged we redirect to the create_login page
         response = self.client.get(editor_join_url)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(302, response.status_code)
         response = self.client.get(editor_join_url, follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('orgs.org_create_login', args=[editor_invitation.secret]))
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_create_login', args=[editor_invitation.secret]))
 
         # a user is already logged in
         self.invited_editor = self.create_user("InvitedEditor")
         self.login(self.invited_editor)
 
         response = self.client.get(editor_join_url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
-        self.assertEquals(self.org.pk, response.context['org'].pk)
+        self.assertEqual(self.org.pk, response.context['org'].pk)
         # we have a form without field except one 'loc'
-        self.assertEquals(1, len(response.context['form'].fields))
+        self.assertEqual(1, len(response.context['form'].fields))
 
         post_data = dict()
         response = self.client.post(editor_join_url, post_data, follow=True)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
 
-        self.assertTrue(self.invited_editor in self.org.editors.all())
+        self.assertIn(self.invited_editor, self.org.editors.all())
         self.assertFalse(Invitation.objects.get(pk=editor_invitation.pk).is_active)
 
     def test_create_login(self):
@@ -440,9 +447,7 @@ class OrgTest(TembaTest):
 
     def test_topups(self):
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        test_contact = self.create_contact("Test Contact", "+12065551212")
-        test_contact.is_test = True
-        test_contact.save()
+        test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
         def create_msgs(recipient, count):
@@ -557,6 +562,9 @@ class OrgTest(TembaTest):
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
 
+    @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_connect(self):
         connect_url = reverse("orgs.org_twilio_connect")
 
@@ -570,20 +578,37 @@ class OrgTest(TembaTest):
         self.assertIn('account_sid', response.context['form'].fields.keys())
         self.assertIn('account_token', response.context['form'].fields.keys())
 
-        post_data = dict()
-        post_data['account_sid'] = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
-        post_data['account_token'] = "0b14d47901387c03f92253a4e4449d5e"
+        with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
+            with patch('temba.tests.MockTwilioClient.MockApplications.list') as mock_apps_list:
+                mock_get.return_value = MockTwilioClient.MockAccount('Full')
+                mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
+                                                                                           self.org.pk))]
 
-        response = self.client.post(connect_url, post_data)
+                post_data = dict()
+                post_data['account_sid'] = "AccountSid"
+                post_data['account_token'] = "AccountToken"
 
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals(org.config_json()['ACCOUNT_SID'], "ACe54dc36bfd2a3b483b7ed854b2dd40c1")
-        self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "0b14d47901387c03f92253a4e4449d5e")
-        self.assertTrue(org.config_json()['APPLICATION_SID'])
+                response = self.client.post(connect_url, post_data)
+
+                org = Org.objects.get(pk=self.org.pk)
+                self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
+                self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
+                self.assertTrue(org.config_json()['APPLICATION_SID'])
+
+                # when the user submit the secondary token, we use it to get the primary one from the rest API
+                with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
+                    mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+
+                    response = self.client.post(connect_url, post_data)
+
+                    org = Org.objects.get(pk=self.org.pk)
+                    self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
+                    self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.assertTrue(org.config_json()['APPLICATION_SID'])
 
         twilio_account_url = reverse('orgs.org_twilio_account')
         response = self.client.get(twilio_account_url)
-        self.assertEquals("ACe54dc36bfd2a3b483b7ed854b2dd40c1", response.context['config']['ACCOUNT_SID'])
+        self.assertEquals("AccountSid", response.context['config']['ACCOUNT_SID'])
 
         response = self.client.post(twilio_account_url, dict(), follow=True)
         org = Org.objects.get(pk=self.org.pk)
@@ -1193,6 +1218,9 @@ class BulkExportTest(TembaTest):
 
         # let's update some stuff
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
+        confirm_appointment.expires_after_minutes = 60
+        confirm_appointment.save()
+
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         actions[0]['msg'] = 'Thanks for nothing'
@@ -1215,7 +1243,8 @@ class BulkExportTest(TembaTest):
         self.import_file('the-clinic')
 
         # our flow should get reset from the import
-        action_set = Flow.objects.get(pk=confirm_appointment.pk).action_sets.order_by('-y').first()
+        confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
+        action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg'])
 
@@ -1254,16 +1283,16 @@ class BulkExportTest(TembaTest):
                          campaigns=[c.pk for c in Campaign.objects.all()])
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        response = json.loads(response.content)
-        self.assertEquals(4, response.get('version', 0))
-        self.assertEquals('http://rapidpro.io', response.get('site', None))
+        exported = json.loads(response.content)
+        self.assertEquals(4, exported.get('version', 0))
+        self.assertEquals('http://rapidpro.io', exported.get('site', None))
 
-        self.assertEquals(8, len(response.get('flows', [])))
-        self.assertEquals(4, len(response.get('triggers', [])))
-        self.assertEquals(1, len(response.get('campaigns', [])))
+        self.assertEquals(8, len(exported.get('flows', [])))
+        self.assertEquals(4, len(exported.get('triggers', [])))
+        self.assertEquals(1, len(exported.get('campaigns', [])))
 
         # finally let's try importing our exported file
-        self.org.import_app(response, self.admin, site='http://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
         assert_object_counts()
 
         # let's rename a flow and import our export again
@@ -1280,7 +1309,7 @@ class BulkExportTest(TembaTest):
         group.save()
 
         # it should fall back on ids and not create new objects even though the names changed
-        self.org.import_app(response, self.admin, site='http://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
         assert_object_counts()
 
         # and our objets should have the same names as before
@@ -1299,7 +1328,7 @@ class BulkExportTest(TembaTest):
         group.save()
 
         # now import the same import but pretend its from a different site
-        self.org.import_app(response, self.admin, site='http://temba.io')
+        self.org.import_app(exported, self.admin, site='http://temba.io')
 
         # the newly named objects won't get updated in this case and we'll create new ones instead
         self.assertEquals(9, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
@@ -1318,5 +1347,13 @@ class BulkExportTest(TembaTest):
         # with the archived flag one, it should be there
         response = self.client.get("%s?archived=1" % reverse('orgs.org_export'))
         self.assertContains(response, 'Register Patient')
+
+        # delete our flow, and reimport
+        confirm_appointment.delete()
+        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
+
+        # make sure we have the previously exported expiration
+        confirm_appointment = Flow.objects.get(name='Confirm Appointment')
+        self.assertEquals(60, confirm_appointment.expires_after_minutes)
 
 

@@ -4,9 +4,11 @@ from __future__ import unicode_literals
 import json
 
 from datetime import timedelta
+from django.conf import settings
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from mock import patch
 from smartmin.tests import SmartminTest, _CRUDLTest
 from temba.contacts.models import ContactField, TEL_SCHEME
 from temba.orgs.models import Org
@@ -14,10 +16,12 @@ from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
-from temba.tests import TembaTest
+from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
+from xlrd import open_workbook
+from .management.commands.msg_console import MessageConsole
 
 class MsgTest(TembaTest):
 
@@ -731,21 +735,85 @@ class MsgTest(TembaTest):
         check_messages_task()
         self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
-    def test_filter_export(self):
-        # try exporting the messages
+    @patch('temba.temba_email.send_multipart_email')
+    def test_message_export(self, mock_send_multipart_email):
+        self.clear_storage()
         self.login(self.admin)
 
-        label = Label.create(self.org, self.user, "label1")
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path), "message to export")
-        self.label_messages([msg.pk], label.pk)
+        # create 3 messages - add label to second, and archive the third
+        joe_urn = (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path)
+        msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
+        msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
+        msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
 
-        # first visit the filter page
+        # label first message
+        label = Label.create(self.org, self.user, "label1")
+        label.toggle_label([msg1], add=True)
+
+        # archive last message
+        msg3.visibility = ARCHIVED
+        msg3.save()
+
+        # request export of all messages
+        self.client.post(reverse('msgs.msg_export'))
+        task = ExportMessagesTask.objects.get()
+
+        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        self.assertEquals(sheet.nrows, 3)  # msg3 not included as it's archived
+        self.assertEquals(sheet.cell(1, 1).value, '123')
+        self.assertEquals(sheet.cell(1, 2).value, 'tel')
+        self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
+        self.assertEquals(sheet.cell(1, 4).value, "Incoming")
+        self.assertEquals(sheet.cell(1, 5).value, "hello 2")
+        self.assertEquals(sheet.cell(1, 6).value, "")
+
+        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "Your messages export is ready")
+        self.assertIn('http://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertNotIn('{{', email_args[1])
+        self.assertIn('http://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertNotIn('{{', email_args[2])
+
+        ExportMessagesTask.objects.all().delete()
+
+        # visit the filter page
         response = self.client.get(reverse('msgs.msg_filter', args=[label.pk]))
         self.assertContains(response, "Export Data")
 
-        response = self.client.post("%s?label=%s" % (reverse('msgs.msg_export'),label.pk), dict())
-        self.assertEquals(ExportMessagesTask.objects.all().count(), 1)
-        self.assertEquals(ExportMessagesTask.objects.get().label.pk, label.pk)
+        self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
+        task = ExportMessagesTask.objects.get()
+
+        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        self.assertEquals(sheet.nrows, 2)  # only header and msg1
+        self.assertEquals(sheet.cell(1, 1).value, '123')
+        self.assertEquals(sheet.cell(1, 2).value, 'tel')
+        self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
+        self.assertEquals(sheet.cell(1, 4).value, "Incoming")
+        self.assertEquals(sheet.cell(1, 5).value, "hello 1")
+        self.assertEquals(sheet.cell(1, 6).value, "label1")
+
+        ExportMessagesTask.objects.all().delete()
+
+        # test as anon org to check that URNs don't end up in exports
+        with AnonymousOrg(self.org):
+            self.client.post(reverse('msgs.msg_export'))
+            task = ExportMessagesTask.objects.get()
+
+            filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+            workbook = open_workbook(filename, 'rb')
+            sheet = workbook.sheets()[0]
+
+            self.assertEquals(sheet.nrows, 3)
+            self.assertEquals(sheet.cell(1, 1).value, '%010d' % self.joe.pk)
+            self.assertEquals(sheet.cell(1, 2).value, 'tel')
+            self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
@@ -1328,7 +1396,11 @@ class LabelCRUDLTest(TembaTest):
 
         self.login(self.admin)
 
-        # create a new label
+        # try to create label with invalid name
+        response = self.client.post(create_url, dict(name="+label_one"))
+        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
+
+        # try again with valid name
         self.client.post(create_url, dict(name="label_one"), follow=True)
 
         label_one = Label.objects.get()
@@ -1355,6 +1427,10 @@ class LabelCRUDLTest(TembaTest):
         label_one = Label.objects.get(pk=label_one.pk)
         self.assertEquals(label_one.name, "label_1")
         self.assertEquals(label_one.parent, None)
+
+        # try to update to invalid label name
+        response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
+        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
 
         # check can't take name of existing label, even a child
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="sub_label"))
@@ -1450,3 +1526,79 @@ class CallTest(SmartminTest):
         self.assertEquals(response.context['object_list'].count(), 2)
         self.assertContains(response, "Missed Incoming Call")
         self.assertContains(response, "Incoming Call (600 seconds)")
+
+
+class ConsoleTest(TembaTest):
+
+    def setUp(self):
+        from temba.triggers.models import Trigger
+
+        super(ConsoleTest, self).setUp()
+        self.create_secondary_org()
+
+        # create a new console
+        self.console = MessageConsole(self.org)
+
+        # a few test contacts
+        self.john = self.create_contact("John Doe", "0788123123")
+
+        # create a flow and set "color" as its trigger
+        self.flow = self.create_flow()
+        Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
+
+    def assertEchoed(self, needle, clear=True):
+        found = False
+        for line in self.console.echoed:
+            if line.find(needle) >= 0:
+                found = True
+
+        self.assertTrue(found, "Did not find '%s' in '%s'" % (needle, ", ".join(self.console.echoed)))
+
+        if clear:
+            self.console.clear_echoed()
+
+    def test_msg_console(self):
+        # make sure our org is properly set
+        self.assertEquals(self.console.org, self.org)
+
+        # try changing it with something empty
+        self.console.do_org("")
+        self.assertEchoed("Select org", clear=False)
+        self.assertEchoed("Temba")
+
+        # shouldn't have changed current org
+        self.assertEquals(self.console.org, self.org)
+
+        # try changing entirely
+        self.console.do_org("%d" % self.org2.id)
+        self.assertEchoed("You are now sending messages for Trileet Inc.")
+        self.assertEquals(self.console.org, self.org2)
+        self.assertEquals(self.console.contact.org, self.org2)
+
+        # back to temba
+        self.console.do_org("%d" % self.org.id)
+        self.assertEquals(self.console.org, self.org)
+        self.assertEquals(self.console.contact.org, self.org)
+
+        # contact help
+        self.console.do_contact("")
+        self.assertEchoed("Set contact by")
+
+        # switch our contact
+        self.console.do_contact("0788123123")
+        self.assertEchoed("You are now sending as John")
+        self.assertEquals(self.console.contact, self.john)
+
+        # send a message
+        self.console.default("Hello World")
+        self.assertEchoed("Hello World")
+
+        # make sure the message was created for our contact and handled
+        msg = Msg.objects.get()
+        self.assertEquals(msg.text, "Hello World")
+        self.assertEquals(msg.contact, self.john)
+        self.assertEquals(msg.status, HANDLED)
+
+        # now trigger a flow
+        self.console.default("Color")
+        self.assertEchoed("What is your favorite color?")

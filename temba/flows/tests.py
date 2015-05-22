@@ -1,36 +1,43 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals
 
-from __future__ import unicode_literals
+import datetime
+import json
+import os
+import pytz
 
-from datetime import datetime
-from xlrd import xldate_as_tuple
-from temba.tests import MockResponse, FlowFileTest
+from datetime import timedelta
+from decimal import Decimal
+from django.conf import settings
 from django.core import mail
 from django.core.urlresolvers import reverse
-from djorm_hstore.models import register_hstore_handler
-from smartmin.tests import SmartminTest
-
-
-from django.db import connection
+from django.utils import timezone
 from mock import patch
-from temba.msgs.models import INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, Label
+from redis_cache import get_redis_connection
+from smartmin.tests import SmartminTest
+from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
+from temba.orgs.models import Org, Language
+from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
-from temba.tests import TembaTest
-from temba.utils import datetime_to_str
-from .models import *
-from temba.orgs.models import Language
-import datetime
-
-def uuid(id):
-    return '00000000-00000000-00000000-%08d' % id
+from temba.utils import datetime_to_str, str_to_datetime
+from temba.values.models import Value
+from uuid import uuid4
+from xlrd import xldate_as_tuple
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowException, ExportFlowResultsTask, COMPLETE
+from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
+from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
+from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
+from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
+from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest
+from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
 
 
 class RuleTest(TembaTest):
 
     def setUp(self):
         super(RuleTest, self).setUp()
-
-        register_hstore_handler(connection)
 
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
@@ -438,6 +445,7 @@ class RuleTest(TembaTest):
 
         # pick a really long name so we have to concatenate
         self.flow.name = "Color Flow is a long name to use for something like this"
+        self.flow.expires_after_minutes = 60
         self.flow.save()
 
         # make sure our metadata got saved
@@ -449,6 +457,9 @@ class RuleTest(TembaTest):
 
         metadata = json.loads(copy.metadata)
         self.assertEquals("Ryan Lewis", metadata['author'])
+
+        # expiration should be copied too
+        self.assertEquals(60, copy.expires_after_minutes)
 
         # should have a different id
         self.assertNotEqual(self.flow.pk, copy.pk)
@@ -1857,6 +1868,12 @@ class RuleTest(TembaTest):
 
 class FlowRunTest(TembaTest):
 
+    def setUp(self):
+        super(FlowRunTest, self).setUp()
+
+        self.flow = self.create_flow()
+        self.contact = self.create_contact("Ben Haggerty", "+250788123123")
+
     def test_field_normalization(self):
         fields = dict(field1="value1", field2="value2")
         (normalized, count) = FlowRun.normalize_fields(fields)
@@ -1890,9 +1907,6 @@ class FlowRunTest(TembaTest):
         self.assertEquals(fields, normalized)
 
     def test_update_fields(self):
-        self.flow = self.create_flow()
-        self.contact = self.create_contact("Ben Haggerty", "+250788123123")
-
         run = FlowRun.create(self.flow, self.contact)
 
         # set our fields from an empty state
@@ -1916,6 +1930,17 @@ class FlowRunTest(TembaTest):
         new_values['__default__'] = 'field1: , field2: new value2, field3: value3'
 
         self.assertEquals(run.field_dict(), new_values)
+
+    def test_is_completed(self):
+        self.flow.start([], [self.contact])
+
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+        self.flow.find_and_handle(incoming)
+
+        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
+
 
 class FlowLabelTest(SmartminTest):
     def setUp(self):
@@ -2173,6 +2198,18 @@ class FlowsTest(FlowFileTest):
     def clear_activity(self, flow):
         r = get_redis_connection()
         flow.clear_stats_cache()
+
+    def test_write_protection(self):
+        flow = self.get_flow('favorites')
+        flow_json = flow.as_json()
+
+        # saving should work
+        response = flow.update(flow_json, self.admin)
+        self.assertEquals(response.get('status'), 'success')
+
+        # but if we save from in the past after our save it should fail
+        response = flow.update(flow_json, self.admin)
+        self.assertEquals(response.get('status'), 'unsaved')
 
     def test_recent_messages(self):
         flow = self.get_flow('favorites')
@@ -2531,6 +2568,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
 
     def test_flow_export_results(self):
+        self.clear_storage()
+
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
 

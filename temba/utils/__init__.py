@@ -424,3 +424,4 @@ def splitting_getlist(request, name, default=None):
         return vals[0].split(',')
     else:
         return vals
+
