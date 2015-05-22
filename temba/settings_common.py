@@ -921,7 +921,7 @@ REST_FRAMEWORK = {
     ),
     'PAGINATE_BY': 250,
     'DEFAULT_RENDERER_CLASSES': (
-        'temba.api.renderers.PostFormAPIRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.XMLRenderer',
     )

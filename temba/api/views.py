@@ -17,7 +17,6 @@ from django.views.generic.list import MultipleObjectMixin
 from redis_cache import get_redis_connection
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.mixins import DestroyModelMixin
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
@@ -414,7 +413,39 @@ def api(request, format=None):
     })
 
 
-class BroadcastsEndpoint(generics.ListAPIView):
+class BaseListAPIView(generics.ListAPIView):
+    permission_classes = (SSLPermission, ApiPermission)
+
+
+class CreateAPIViewMixin(object):
+    """
+    Our list and create approach differs slightly a bit from ListCreateAPIView in the REST framework as we use separate
+    read and write serializers... and sometimes we use another serializer again for write output
+    """
+    write_serializer_class = None
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.write_serializer_class(user=user, data=request.DATA)
+
+        if serializer.is_valid():
+            serializer.save()
+            return self.render_write_response(serializer.object)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def render_write_response(self, write_output):
+        response_serializer = self.serializer_class(instance=write_output)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DeleteAPIViewMixin(object):
+    def delete(self, request, *args, **kwargs):
+        self.request = request
+        return self.destroy(request, *args, **kwargs)
+
+
+class BroadcastsEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
     message broadcasts using the ```POST``` method.
@@ -496,20 +527,8 @@ class BroadcastsEndpoint(generics.ListAPIView):
     """
     permission = 'msgs.broadcast_api'
     model = Broadcast
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = BroadcastReadSerializer
-    form_serializer_class = BroadcastCreateSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = BroadcastCreateSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            response_serializer = BroadcastReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = BroadcastCreateSerializer
 
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -579,7 +598,7 @@ class BroadcastsEndpoint(generics.ListAPIView):
         return spec
 
 
-class MessagesEndpoint(generics.ListAPIView):
+class MessagesEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     This endpoint allows you either list messages on your account using the ```GET``` method or send new messages
     using the ```POST``` method.
@@ -672,20 +691,13 @@ class MessagesEndpoint(generics.ListAPIView):
     """
     permission = 'msgs.msg_api'
     model = Msg
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = MsgReadSerializer
-    form_serializer_class = MsgCreateSerializer
+    write_serializer_class = MsgCreateSerializer
 
-    def post(self, request, format=None):
-        user = request.user
-        serializer = MsgCreateSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            response_serializer = MsgCreateResultSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def render_write_response(self, write_output):
+        # use a different serializer for created messages
+        response_serializer = MsgCreateResultSerializer(instance=write_output)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org())
@@ -918,7 +930,7 @@ class MessagesBulkActionEndpoint(generics.GenericAPIView):
         return spec
 
 
-class LabelsEndpoint(generics.ListAPIView):
+class LabelsEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     ## Listing Message Labels
 
@@ -1003,18 +1015,7 @@ class LabelsEndpoint(generics.ListAPIView):
     permission = 'msgs.label_api'
     model = Label
     serializer_class = LabelReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = LabelWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = LabelWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = LabelReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
         queryset = Label.objects.filter(org=self.request.user.get_org()).order_by('-pk')
@@ -1064,7 +1065,7 @@ class LabelsEndpoint(generics.ListAPIView):
         return spec
 
 
-class Calls(generics.ListAPIView):
+class Calls(BaseListAPIView):
     """
     Returns the incoming and outgoing calls for your organization, most recent first.
 
@@ -1103,7 +1104,6 @@ class Calls(generics.ListAPIView):
     permission = 'msgs.call_api'
     model = Call
     serializer_class = CallSerializer
-    permission_classes = (SSLPermission, ApiPermission)
 
     def get_queryset(self):
         queryset = Call.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -1169,7 +1169,7 @@ class Calls(generics.ListAPIView):
         return spec
 
 
-class Channels(DestroyModelMixin, generics.ListAPIView):
+class Channels(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
     """
     ## Claiming Channels
 
@@ -1267,25 +1267,9 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     permission = 'channels.channel_api'
     model = Channel
     serializer_class = ChannelReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = ChannelClaimSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = ChannelClaimSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            response_serializer = ChannelReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    write_serializer_class = ChannelClaimSerializer
 
     def destroy(self, request, *args, **kwargs):
-        self.request = request
         queryset = self.get_queryset()
 
         if not queryset:
@@ -1385,7 +1369,7 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
         return spec
 
 
-class Groups(generics.ListAPIView):
+class Groups(BaseListAPIView):
     """
     ## Listing Groups
 
@@ -1418,7 +1402,6 @@ class Groups(generics.ListAPIView):
     permission = 'contacts.contactgroup_api'
     model = ContactGroup
     serializer_class = ContactGroupReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
 
     def get_queryset(self):
         queryset = ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
@@ -1448,7 +1431,7 @@ class Groups(generics.ListAPIView):
         return spec
 
 
-class Contacts(generics.ListAPIView):
+class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
     """
     ## Adding a Contact
 
@@ -1551,21 +1534,7 @@ class Contacts(generics.ListAPIView):
     permission = 'contacts.contact_api'
     model = Contact
     serializer_class = ContactReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = ContactWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = ContactWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = ContactReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    write_serializer_class = ContactWriteSerializer
 
     def destroy(self, request, *args, **kwargs):
         queryset = self.get_base_queryset(request)
@@ -1688,7 +1657,7 @@ class Contacts(generics.ListAPIView):
         return spec
 
 
-class FieldsEndpoint(generics.ListAPIView):
+class FieldsEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     ## Listing Fields
 
@@ -1775,18 +1744,7 @@ class FieldsEndpoint(generics.ListAPIView):
     permission = 'contacts.contactfield_api'
     model = ContactField
     serializer_class = ContactFieldReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = ContactFieldWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = ContactFieldWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = ContactFieldReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = ContactFieldWriteSerializer
 
     def get_queryset(self):
         queryset = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
@@ -1924,7 +1882,7 @@ class FlowResultsEndpoint(generics.GenericAPIView):
         return spec
 
 
-class FlowRunEndpoint(generics.ListAPIView):
+class FlowRunEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A
     run is created for each time a contact is started down a flow.
@@ -2048,23 +2006,16 @@ class FlowRunEndpoint(generics.ListAPIView):
     """
     permission = 'flows.flow_api'
     model = FlowRun
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowRunReadSerializer
+    write_serializer_class = FlowRunStartSerializer
 
-    def post(self, request, format=None):
-        user = request.user
-        serializer = FlowRunStartSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            if serializer.object:
-                response_serializer = FlowRunReadSerializer(instance=serializer.object)
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(dict(non_field_errors=["All contacts are already started in this flow, "
-                                                   "use restart_participants to force them to restart in the flow"]),
-                                 status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def render_write_response(self, write_output):
+        if write_output:
+            response_serializer = FlowRunReadSerializer(instance=write_output)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(dict(non_field_errors=["All contacts are already started in this flow, "
+                                               "use restart_participants to force them to restart in the flow"]),
+                        status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
         queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
@@ -2164,7 +2115,7 @@ class FlowRunEndpoint(generics.ListAPIView):
         return spec
 
 
-class CampaignEndpoint(generics.ListAPIView):
+class CampaignEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     ## Adding or Updating a Campaign
 
@@ -2225,19 +2176,8 @@ class CampaignEndpoint(generics.ListAPIView):
     """
     permission = 'campaigns.campaign_api'
     model = Campaign
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = CampaignSerializer
-    form_serializer_class = CampaignWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = CampaignWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = CampaignSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = CampaignWriteSerializer
 
     def get_queryset(self):
         queryset = Campaign.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
@@ -2299,7 +2239,7 @@ class CampaignEndpoint(generics.ListAPIView):
         return spec
 
 
-class CampaignEventEndpoint(generics.ListAPIView):
+class CampaignEventEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
     """
     ## Adding or Updating Campaign Events
 
@@ -2390,25 +2330,10 @@ class CampaignEventEndpoint(generics.ListAPIView):
     """
     permission = 'campaigns.campaignevent_api'
     model = CampaignEvent
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = CampaignEventSerializer
-    form_serializer_class = CampaignEventWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = CampaignEventWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = CampaignEventSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    write_serializer_class = CampaignEventWriteSerializer
 
     def destroy(self, request, *args, **kwargs):
-        self.request = request
         queryset = self.get_queryset()
 
         if not queryset:
@@ -2507,7 +2432,7 @@ class CampaignEventEndpoint(generics.ListAPIView):
         return spec
 
 
-class BoundaryEndpoint(generics.ListAPIView):
+class BoundaryEndpoint(BaseListAPIView):
     """
     This endpoint allows you to list the administrative boundaries for the country associated with your organization
     along with the simplified gps geometry for those boundaries in GEOJSON format.
@@ -2565,7 +2490,6 @@ class BoundaryEndpoint(generics.ListAPIView):
     """
     permission = 'locations.adminboundary_api'
     model = AdminBoundary
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = BoundarySerializer
 
     def get_queryset(self):
@@ -2590,7 +2514,7 @@ class BoundaryEndpoint(generics.ListAPIView):
         return spec
 
 
-class FlowEndpoint(generics.ListAPIView):
+class FlowEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     This endpoint allows you to list all the active flows on your account using the ```GET``` method.
 
@@ -2640,19 +2564,8 @@ class FlowEndpoint(generics.ListAPIView):
     """
     permission = 'flows.flow_api'
     model = Flow
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowReadSerializer
-    form_serializer_class = FlowWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = FlowWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = FlowReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = FlowWriteSerializer
 
     def get_queryset(self):
         queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -2717,6 +2630,8 @@ class AssetEndpoint(generics.RetrieveAPIView):
     """
     This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
     """
+    permission_classes = (SSLPermission, ApiPermission)
+
     def retrieve(self, request, *args, **kwargs):
         type_name = request.GET.get('type')
         identifier = request.GET.get('identifier')
