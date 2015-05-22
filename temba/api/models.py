@@ -218,7 +218,7 @@ class WebHookEvent(SmartModel):
         org = msg.org
 
         # no-op if no webhook configured
-        if not org or not org.webhook:
+        if not org or not org.get_webhook_url():
             return
 
         # if the org doesn't care about this type of message, ignore it
@@ -254,7 +254,7 @@ class WebHookEvent(SmartModel):
         org = call.channel.org
 
         # no-op if no webhook configured
-        if not org or not org.webhook:
+        if not org or not org.get_webhook_url():
             return
 
         event = call.call_type
@@ -288,7 +288,7 @@ class WebHookEvent(SmartModel):
         org = channel.org
 
         # no-op if no webhook configured
-        if not org or not org.webhook: # pragma: no cover
+        if not org or not org.get_webhook_url(): # pragma: no cover
             return
 
         if not org.is_notified_of_alarms():
@@ -326,9 +326,9 @@ class WebHookEvent(SmartModel):
         post_data['relayer_phone'] = self.channel.address
 
         # look up the endpoint for this channel
-        result = dict(url=self.org.webhook, data=urlencode(post_data, doseq=True))
+        result = dict(webhook=self.org.webhook, data=urlencode(post_data, doseq=True))
 
-        if not self.org.webhook: # pragma: no cover
+        if not self.org.get_webhook_url(): # pragma: no cover
             result['status_code'] = 0
             result['message'] = "No webhook registered for this org, ignoring event"
             self.status = FAILED
@@ -350,14 +350,21 @@ class WebHookEvent(SmartModel):
         try:
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
-
             # some hosts deny generic user agents, use Temba as our user agent
             headers = TEMBA_HEADERS
 
             # also include any user-defined headers
             headers.update(self.org.get_webhook_headers())
 
-            r = requests.post(self.org.get_webhook_url(), data=post_data, headers=headers)
+
+            s = requests.Session()
+            req = requests.Request('POST', self.org.get_webhook_url(), data=post_data, headers=headers)
+            prepped = s.prepare_request(req)
+            # save parts of the prepared request
+            # TODO might be nice to actually save the entire prepped request
+            result['request'] = json.dumps({'method': prepped.method, 'url': prepped.url, 'headers': prepped.headers, 'body': prepped.body})
+            r = s.send(prepped)
+
             result['status_code'] = r.status_code
             result['body'] = r.text.strip()
 
@@ -445,7 +452,7 @@ class WebHookResult(SmartModel):
 
         api_user = get_api_user()
         WebHookResult.objects.create(event=event,
-                                     url=result['url'],
+                                     url=result['webhook'],
                                      data=result['data'],
                                      message=message,
                                      status_code=result.get('status_code', 503),
