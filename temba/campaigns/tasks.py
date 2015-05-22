@@ -37,4 +37,4 @@ def check_campaigns_task(sched_id=None):
 def update_event_fires(event_id):
     event = CampaignEvent.objects.filter(pk=event_id).first()
     if event:
-        EventFire.do_update_events_for_event(event)
+        EventFire.do_update_eventfires_for_event(event)
