@@ -1354,7 +1354,9 @@ class MsgCreateSerializer(serializers.Serializer):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
-        self.org = self.user.get_org()
+
+        # when called for webhook response, will have explicit org
+        self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
 
         super(MsgCreateSerializer, self).__init__(*args, **kwargs)
 
