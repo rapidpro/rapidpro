@@ -4,7 +4,7 @@ from datetime import datetime
 from django.utils import timezone
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
-from .models import Campaign, EventFire
+from temba.campaigns.models import CampaignEvent, EventFire
 from django.conf import settings
 import redis
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
@@ -32,3 +32,9 @@ def check_campaigns_task(sched_id=None):
 
                 except:  # pragma: no cover
                     logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)
+
+@task(track_started=True, name='update_event_fires_task') # pragma: no cover
+def update_event_fires(event_id):
+    event = CampaignEvent.objects.filter(pk=event_id).first()
+    if event:
+        EventFire.do_update_events_for_event(event)

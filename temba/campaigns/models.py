@@ -357,6 +357,11 @@ class EventFire(Model):
 
     @classmethod
     def update_events_for_event(cls, event):
+        from temba.campaigns.tasks import update_event_fires
+        update_event_fires.delay(event.pk)
+
+    @classmethod
+    def do_update_events_for_event(cls, event):
         # unschedule any fires
         EventFire.objects.filter(event=event, fired=None).delete()
 
