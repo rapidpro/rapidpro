@@ -336,10 +336,10 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
     def test_api_messages(self):
         contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
-        self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
 
-        broadcast = self._create_broadcast("Hello message #1", contacts)
-        broadcast.send()
+        # create messages and labels
+        incoming = self._create_incoming(300, "Hello", self.tel_mtn, contacts)
+        self._create_labels(10, ["My Label"], incoming)
 
         self.login(self.user)
 
