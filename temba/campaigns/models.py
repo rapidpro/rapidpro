@@ -9,6 +9,7 @@ from datetime import timedelta
 from temba.contacts.models import ContactGroup, ContactField, Contact
 from temba.orgs.models import Org
 from temba.flows.models import Flow
+from temba.values.models import Value
 from dateutil.parser import parse
 from django.utils.translation import ugettext_lazy as _
 
@@ -362,9 +363,9 @@ class EventFire(Model):
         # add new ones
         if event.is_active:
 
-            from temba.values.models import Value
-            values = Value.objects.filter(contact__in=event.campaign.group.contacts.exclude(is_test=True),
-                                          contact_field__key__exact=event.relative_to.key).select_related('contact').distinct('contact')
+            contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+            values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=event.relative_to.key)
+            values = values.select_related('contact').distinct('contact')
 
             now = timezone.now()
             events = []
@@ -400,8 +401,9 @@ class EventFire(Model):
             for event in CampaignEvent.objects.filter(relative_to=contact_field,
                                                       campaign__is_active=True, campaign__is_archived=False, is_active=True):
 
-                values = Value.objects.filter(contact__in=event.campaign.group.contacts.filter(is_active=True),
-                                              contact_field__key__exact=contact_field.key).select_related('contact').distinct('contact')
+                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+                values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=contact_field.key)
+                values = values.select_related('contact').distinct('contact')
 
                 events = []
                 for value in values:
