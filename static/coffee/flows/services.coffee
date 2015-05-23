@@ -561,7 +561,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       throw new Error('Loop detected: ' + nodeId)
 
     # break out if our target is a pausing ruleset
-    node = getNode(flow, targetId
+    node = getNode(flow, targetId)
     if isPausingRuleset(node)
       return false
 
