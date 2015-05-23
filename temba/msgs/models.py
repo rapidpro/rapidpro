@@ -1112,13 +1112,17 @@ class Msg(models.Model, OrgModelMixin):
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
-            same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
+            same_msgs = Msg.objects.filter(contact_urn=contact_urn,
                                                 contact__is_test=False,
                                                 channel=channel,
                                                 recording_url=recording_url,
                                                 text=text,
                                                 direction=OUTGOING,
-                                                created_on__gte=created_on - timedelta(minutes=10)).count()
+                                                created_on__gte=created_on - timedelta(minutes=10))
+
+            # we aren't considered with robo detection on calls
+            same_msg_count = same_msgs.exclude(msg_type=IVR).count()
+
             if same_msg_count >= 10:
                 analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel.pk))
                 return None

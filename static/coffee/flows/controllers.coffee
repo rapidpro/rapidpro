@@ -446,11 +446,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           templateUrl: "/partials/node_editor?v=" + version
           controller: NodeEditorController
           resolve:
-            scope: $scope
             options: ->
               nodeType: 'ivr'
               ruleset: ruleset
               dragSource: dragSource
+            scope: $scope
 
       else
         $modal.open
