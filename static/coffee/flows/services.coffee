@@ -538,6 +538,20 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if ruleset.uuid == uuid
         return ruleset
 
+  isPausingRuleset = (node) ->
+
+    if not node?.actions
+
+      if not node?.operand
+        return true
+
+      if node?.operand?.indexOf('@step') > -1
+        return true
+
+      if node?.webhook
+        return true
+
+    return false
 
   # check if a potential connection would result in an invalid loop
   detectLoop = (flow, nodeId, targetId, path=[]) ->
@@ -546,20 +560,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     if nodeId == targetId
       throw new Error('Loop detected: ' + nodeId)
 
-    # break out if our target is a blocking ruleset
-    node = getNode(flow, targetId)
-
-    # if its a ruleset, lets check for loop stops
-    if not node?.actions
-
-      if not node?.operand
-        return
-
-      if node?.operand?.indexOf('@step') > -1
-        return
-
-      if node?.webhook?
-        return
+    # break out if our target is a pausing ruleset
+    node = getNode(flow, targetId
+    if isPausingRuleset(node)
+      return false
 
     # check if we just ate our tail
     if targetId in path
@@ -583,6 +587,12 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     source = sourceId.split('_')[0]
     path = [ source ]
+
+    sourceNode = getNode(flow, source)
+    targetNode = getNode(flow, targetId)
+
+    if isPausingRuleset(sourceNode) and isPausingRuleset(targetNode)
+      return false
 
     try
       detectLoop(flow, source, targetId, path)
