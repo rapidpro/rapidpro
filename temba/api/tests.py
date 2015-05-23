@@ -305,7 +305,7 @@ class APITest(TembaTest):
         flow = Flow.objects.get(name='Pick a number')
         self.assertEqual(flow.flow_type, 'F')
         self.assertEqual(flow.action_sets.count(), 2)
-        self.assertEqual(flow.rule_sets.count(), 1)
+        self.assertEqual(flow.rule_sets.count(), 2)
 
         # make local change
         flow.name = 'Something else'

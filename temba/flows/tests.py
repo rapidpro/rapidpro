@@ -191,11 +191,11 @@ class RuleTest(TembaTest):
         self.assertEquals(self.flow, step.run.flow)
         self.assertTrue(step.arrived_on)
         self.assertTrue(step.left_on)
-        self.assertEquals(entry.destination.uuid, step.next_uuid)
+        self.assertEquals(entry.destination, step.next_uuid)
 
         step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[1]
 
-        self.assertEquals(entry.destination.uuid, step.step_uuid)
+        self.assertEquals(entry.destination, step.step_uuid)
         self.assertEquals(RULE_SET, step.step_type)
         self.assertEquals(self.contact, step.run.contact)
         self.assertEquals(self.contact, step.contact)
@@ -512,7 +512,7 @@ class RuleTest(TembaTest):
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
-        self.assertEquals(entry.destination.pk, ruleset.pk)
+        self.assertEquals(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
         self.assertEquals(4, len(rules))
 
@@ -565,7 +565,7 @@ class RuleTest(TembaTest):
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
-        self.assertEquals(entry.destination.pk, ruleset.pk)
+        self.assertEquals(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
         self.assertEquals(3, len(rules))
 
@@ -801,7 +801,7 @@ class RuleTest(TembaTest):
         sms.text = "My answer is 4,000rwf"
         self.assertTest(True, Decimal("4000"), test)
 
-        rule = Rule(uuid(4), None, None, test)
+        rule = Rule(uuid(4), None, None, None, test)
         self.assertEquals("1000-5000", rule.get_category_name(None))
 
         test = StartsWithTest(test="Green")
@@ -1124,8 +1124,8 @@ class RuleTest(TembaTest):
         rules = RuleSet.objects.get(uuid=uuid(5))
 
         # update our rule to include decimal parsing
-        rules.set_rules_dict([Rule(uuid(12), "< 10", uuid(2), LtTest(10)).as_json(),
-                              Rule(uuid(13), "> 10", uuid(3), GteTest(10)).as_json()])
+        rules.set_rules_dict([Rule(uuid(12), "< 10", uuid(2), 'A', LtTest(10)).as_json(),
+                              Rule(uuid(13), "> 10", uuid(3),'A', GteTest(10)).as_json()])
 
         rules.save()
 
@@ -1766,8 +1766,6 @@ class RuleTest(TembaTest):
         # sms msg_type should be FLOW
         self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
 
-
-
     def test_multiple(self):
         # set our flow
         self.flow.update(self.definition)
@@ -2043,8 +2041,8 @@ class WebhookTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact)
 
         rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0)
-        rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), ContainsTest("valid")).as_json(),
-                              Rule(uuid(13), "Invalid", uuid(3), ContainsTest("invalid")).as_json()])
+        rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), 'A', ContainsTest("valid")).as_json(),
+                              Rule(uuid(13), "Invalid", uuid(3), 'A', ContainsTest("invalid")).as_json()])
         rules.save()
 
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
@@ -2300,7 +2298,6 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url + get_params_mixed)
         self.assertEquals([], json.loads(response.content))
 
-
     def test_activity(self):
 
         flow = self.get_flow('favorites')
@@ -2494,6 +2491,105 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_total_runs())
         self.assertEquals(1, flow.get_total_contacts())
+
+    def test_destination_type(self):
+
+        flow = self.get_flow('pick_a_number')
+
+        # our start points to a ruleset
+        start = ActionSet.objects.get(uuid='2f2adf23-87db-41d3-9436-afe48ab5403c')
+        self.assertEquals(RULE_SET, start.destination_type)
+
+        # and that ruleset points to an actionset
+        ruleset = RuleSet.objects.get(uuid=start.destination)
+        rule = ruleset.get_rules()[0]
+        self.assertEquals(ACTION_SET, rule.destination_type)
+
+        # point our rule to a ruleset
+        self.update_destination(flow, rule.uuid, '12610fb2-f841-11e4-a322-1697f925ec7b')
+        ruleset = RuleSet.objects.get(uuid=start.destination)
+        self.assertEquals(RULE_SET, ruleset.get_rules()[0].destination_type)
+
+    def test_orphaned_action_to_action(self):
+        """
+        Orphaned at an action, then routed to an action
+        """
+
+        # run a flow that ends on an action
+        flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 3!", self.send_message(flow, "3"))
+
+        # send a message, no flow should handle us since we are done
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
+        handled = flow.find_and_handle(incoming)
+        self.assertFalse(handled)
+
+        # now wire up our finished action to the start of our flow
+        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '2f2adf23-87db-41d3-9436-afe48ab5403c')
+        self.assertEquals("Pick a number between 1-10.", self.send_message(flow, "next message please"))
+
+    def test_orphaned_action_to_input_rule(self):
+        """
+        Orphaned at an action, then routed to a rule that evaluates on input
+        """
+
+        flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 6!", self.send_message(flow, "6"))
+
+        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '06bb3899-5de4-4cbc-ad5f-70b9634d80c4')
+        self.assertEquals("You picked 9!", self.send_message(flow, "9"))
+
+    def test_orphaned_action_to_passive_rule(self):
+        """
+        Orphaned at an action, then routed to a rule that doesn't require input which leads
+        to a rule that evaluates on input
+        """
+        flow = self.get_flow('pick_a_number')
+        self.assertEquals("You picked 6!", self.send_message(flow, "6"))
+
+        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '12610fb2-f841-11e4-a322-1697f925ec7b')
+        self.assertEquals("You picked 9!", self.send_message(flow, "9"))
+
+    def test_server_cycle_detection(self):
+
+        flow = self.get_flow('loop_detection')
+
+        message_one = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
+        group_split = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
+        group_one = '605e4e98-5d85-45e7-a885-9c198977b63c'
+        rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
+
+        # rule turning back on ourselves
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, group_one, group_split)
+
+        # non-blocking rule to non-blocking rule and back
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, rowan, group_split)
+
+        # our non-blocking rule to an action and back to us again
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, group_one, message_one)
+
+    def test_server_runtime_cycle(self):
+
+        message_one = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
+        group_split = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
+        group_one = '605e4e98-5d85-45e7-a885-9c198977b63c'
+        name_split = '782e9e71-c116-4195-add3-1867132f95b6'
+        rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
+
+        # rule turning back on ourselves
+        flow = self.get_flow('loop_detection')
+        self.update_destination_no_check(flow, group_split, group_split, rule=group_one)
+        self.send_message(flow, "1", assert_reply=False)
+        flow.delete()
+
+        # non-blocking rule to non-blocking rule and back
+        flow = self.get_flow('loop_detection')
+        self.update_destination_no_check(flow, name_split, group_split, rowan)
+        self.send_message(flow, "2", assert_reply=False)
+        flow.delete()
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')

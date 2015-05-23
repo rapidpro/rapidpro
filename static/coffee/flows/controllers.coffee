@@ -79,6 +79,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   # inject into our gear menu
   $rootScope.gearLinks = []
+  $rootScope.ivr = window.ivr
 
   # when they click on an injected gear item
   $scope.clickGearMenuItem = (id) ->
@@ -111,6 +112,17 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         body: -> body
         okButton: -> okButton
         hideCancel: -> hideCancel
+
+
+  $scope.getAcceptedScopes = (nodeType) ->
+    if not window.ivr
+      return 'actions rules'
+
+    if nodeType == "ruleset"
+      if window.ivr
+        return 'rules'
+    else
+        return 'actions'
 
 
   $scope.showRevisionHistory = ->
@@ -243,6 +255,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     if current
       jsPlumb.bind('connectionDrag', (connection) -> $scope.onConnectorDrag(connection))
       jsPlumb.bind('connectionDragStop', (connection) -> $scope.onConnectorDrop(connection))
+      jsPlumb.bind('beforeDrop', (sourceId, targetId) -> $scope.onBeforeConnectorDrop(sourceId, targetId))
     else
       jsPlumb.unbind('connectionDrag')
       jsPlumb.unbind('connectionDragStop')
@@ -258,39 +271,20 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.getSource = (category) ->
     return category.sources[0]
 
+  $scope.onBeforeConnectorDrop = (props) ->
+    if not Flow.isConnectionAllowed($rootScope.flow, props.sourceId, props.targetId)
+      $rootScope.ghost.hide()
+      $rootScope.ghost = null
+      return false
+    return true
+
   $scope.onConnectorDrop = (connection) ->
 
-    $(connection.source).parent().removeClass('reconnecting')
+    $(connection.sourceId).parent().removeClass('reconnecting')
 
-    # keep our targets up to date
-    if connection.scope == 'actions'
+    source = connection.sourceId.split('_')
 
-      node = $('#' + connection.sourceId).parents('.node').attr('id')
-      from = $('#' + connection.sourceId).parents('.rule').attr('id')
-      to = connection.targetId
-
-      # When we make a bad drop, jsplumb will give us a sourceId but no source
-      # (this is counter-intuitive, i would expect that to be true of the target).
-      # If the source element isn't there we need to clear out the 'to'.
-      if not connection.source
-        to = null
-
-      Flow.updateRuleTarget(node, from, to)
-
-    if connection.scope == 'rules'
-
-      node = $('#' + connection.sourceId).parents('.node').attr('id')
-      to = connection.targetId
-      window.connection = connection
-
-      # When we make a bad drop, jsplumb will give us a sourceId but no source
-      # (this is counter-intuitive, i would expect that to be true of the target).
-      # If the source element isn't there we need to clear out the 'to'.
-      if not connection.source
-        to = null
-
-      Flow.updateActionsTarget(node, to)
-
+    createdNewNode = false
     if $rootScope.ghost
       ghost = $rootScope.ghost
       targetId = uuid()
@@ -304,7 +298,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             msg[$rootScope.flow.base_language] = ''
 
           actionset =
-            from: $('#' + connection.sourceId).parents('.rule').attr('id')
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId
@@ -314,7 +307,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               uuid: uuid()
             ]
 
-          $scope.clickAction(actionset, actionset.actions[0])
+          $scope.clickAction(actionset, actionset.actions[0], connection.sourceId)
+          createdNewNode = true
 
         else
 
@@ -324,7 +318,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             category[$rootScope.flow.base_language] = "All Responses"
 
           ruleset =
-            from: $('#' + connection.sourceId).parents('.node').attr('id')
             x: ghost[0].offsetLeft
             y: ghost[0].offsetTop
             uuid: targetId,
@@ -339,14 +332,24 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               uuid: uuid()
             ]
 
-          $scope.clickRuleset(ruleset)
+          $scope.clickRuleset(ruleset, source[0])
+          createdNewNode = true
 
       # TODO: temporarily let ghost stay on screen with connector until dialog is closed
       $rootScope.ghost.hide()
       $rootScope.ghost = null
 
+    if not createdNewNode
+
+      to = connection.targetId
+
+      # When we make a bad drop, jsplumb will give us a sourceId but no source
+      if not connection.source
+        to = null
+
     $timeout ->
-      $rootScope.dirty = true
+      Flow.updateDestination(connection.sourceId, to)
+      Flow.markDirty()
     ,0
 
   $scope.onConnectorDrag = (connection) ->
@@ -354,9 +357,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     # add some css to our source so we can style during moves
-    $(connection.source).parent().addClass('reconnecting')
+    $(connection.sourceId).parent().addClass('reconnecting')
 
-    $rootScope.ghost = $('.ghost.' + connection.scope)
+    scope = jsPlumb.getSourceScope(connection.sourceId)
+    $rootScope.ghost = $('.ghost.' + scope)
     $timeout ->
       $rootScope.ghost.show()
     ,0
@@ -420,19 +424,17 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         methods: -> ['GET', 'POST']
         ruleset: -> ruleset
 
-  $scope.clickRuleset = (ruleset) ->
+  $scope.clickRuleset = (ruleset, dragSource=null) ->
     if window.dragging or not window.mutable
       return
 
     DragHelper.hide()
 
     if $scope.$parent.flow.base_language and $scope.$parent.flow.base_language != $scope.$parent.language.iso_code
-      modal = $modal.open
+      $modal.open
         templateUrl: "/partials/translate_rules?v=" + version
         controller: TranslateRulesController
         resolve:
-          Flow: -> Flow
-          utils: -> utils
           languages: ->
             from: $scope.$parent.flow.base_language
             to: $scope.$parent.language.iso_code
@@ -440,23 +442,25 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     else
 
       if window.ivr
-        modal = $modal.open
-          templateUrl: "/partials/ivr_editor?v=" + version
-          controller: RuleEditorController
+        $modal.open
+          templateUrl: "/partials/node_editor?v=" + version
+          controller: NodeEditorController
           resolve:
-            ruleset: -> ruleset
-            utils: -> utils
-            Flow: -> Flow
-            Plumb: -> Plumb
+            scope: $scope
+            options: ->
+              nodeType: 'ivr'
+              ruleset: ruleset
+              dragSource: dragSource
+
       else
-        modal = $modal.open
-          templateUrl: "/partials/rule_editor?v=" + version
-          controller: RuleEditorController
+        $modal.open
+          templateUrl: "/partials/node_editor?v=" + version
+          controller: NodeEditorController
           resolve:
-            ruleset: -> ruleset
-            utils: -> utils
-            Flow: -> Flow
-            Plumb: -> Plumb
+            options: ->
+              nodeType: 'rules'
+              ruleset: ruleset
+              dragSource: dragSource
 
   $scope.confirmRemoveWebhook = (event, ruleset) ->
 
@@ -556,19 +560,21 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       return
 
     $modal.open
-      templateUrl: "/partials/action_editor?v=" + version
-      controller: ActionEditorController
+      templateUrl: "/partials/node_editor?v=" + version
+      controller: NodeEditorController
       resolve:
-        $timeout: -> $timeout
-        Flow: -> Flow
-        utils: -> utils
-        actionset: -> actionset
-        action: ->
-          type: if window.ivr then 'say' else 'reply'
-          uuid: uuid()
+        options: ->
+          nodeType: 'actions'
+          actionset: actionset
+          action:
+            type: if window.ivr then 'say' else 'reply'
+            uuid: uuid()
 
   $scope.moveActionUp = (actionset, action) ->
     Flow.moveActionUp(actionset, action)
+
+  $scope.isMoveable = (action) ->
+    return Flow.isMoveableAction(action)
 
   $scope.confirmRemoveAction = (event, actionset, action) ->
 
@@ -602,7 +608,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     $('#' + action_uuid + "_audio")[0].play()
 
-  $scope.clickAction = (actionset, action) ->
+  $scope.clickAction = (actionset, action, dragSource=null) ->
 
     if window.dragging or not window.mutable
       return
@@ -611,6 +617,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     # if its the base language, don't show the from text
     if $scope.$parent.flow.base_language and $scope.$parent.flow.base_language != $scope.$parent.language.iso_code
+
       if action.type in ["send", "reply", "say"]
 
         fromText = action.msg[$scope.$parent.flow.base_language]
@@ -642,14 +649,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     else
 
       $modal.open
-        templateUrl: "/partials/action_editor?v=" + version
-        controller: ActionEditorController
+        templateUrl: "/partials/node_editor?v=" + version
+        controller: NodeEditorController
         resolve:
-          $timeout: -> $timeout
-          Flow: -> Flow
-          utils: -> utils
-          actionset: -> actionset
-          action: -> action
+          options: ->
+            nodeType: 'actions'
+            actionset: actionset
+            action: action
+            dragSource: dragSource
 
   $scope.mouseMove = ($event) ->
 
@@ -671,10 +678,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         top: $event.pageY
     return false
 
-
   # allow use to cancel display of recent messages
   showRecentDelay = null
-
   $scope.hideRecentMessages = ->
 
     $timeout.cancel(showRecentDelay)
@@ -687,7 +692,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       this.action_set._showMessages = false
 
   $scope.showRecentMessages = ->
-
 
     hovered = this
     showRecentDelay = $timeout ->
@@ -764,7 +768,6 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
 # The controller for our translation modal
 TranslationController = ($scope, $modalInstance, languages, translation) ->
-  #console.log("Translating from " + languages.from + " to " + languages.to)
   $scope.translation = translation
   $scope.languages = languages
 
@@ -799,10 +802,66 @@ RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, $time
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
 
-RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $log, Flow, Plumb, utils, ruleset) ->
+NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
+
+  # let our template know our editor type
+  $scope.nodeType = options.nodeType
+  $scope.ivr = window.ivr
+  $scope.options = options
+
+  if options.nodeType == 'rules' or options.nodeType == 'ivr'
+
+    ruleset = options.ruleset
+
+    # our placeholder actions if they flip
+    action =
+      type: if window.ivr then 'say' else 'reply'
+      uuid: uuid()
+
+    actionset =
+      _switchedFromRule: true
+      x: ruleset.x
+      y: ruleset.y
+      uuid: uuid()
+      actions: [ action ]
+
+  else if options.nodeType == 'actions'
+
+    actionset = options.actionset
+    action = options.action
+
+    #our place holder ruleset if the flip
+    ruleset =
+      _switchedFromAction: true
+      x: actionset.x
+      y: actionset.y
+      uuid: uuid(),
+      label: "Response " + ($rootScope.flow.rule_sets.length + 1)
+      operand: "@step.value"
+      webhook_action: null,
+      rules: [
+        test:
+          test: "true"
+          type: "true"
+        category: 'All Responses'
+        uuid: uuid()
+      ]
+
+    # localized category name
+    if $rootScope.flow.base_language
+      ruleset.rules[0].category = { base:'All Responses' }
+      ruleset.rules[0].category[$rootScope.flow.base_language] = 'All Responses'
+
+
+  $scope.showFlip = ->
+
+    return !$scope.ivr && actionset.actions.length < 2
+
+  #-----------------------------------------------------------------
+  # Rule editor
+  #-----------------------------------------------------------------
 
   $scope.ruleset = utils.clone(ruleset)
-
   $scope.removed = []
   flow = $rootScope.flow
 
@@ -1156,75 +1215,64 @@ RuleEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     $scope.ruleset.rules = rules
 
-  $scope.ok = ->
+  $scope.okRules = ->
 
     $modalInstance.close ""
 
-    # update in the next cycle so we don't see effects in the dialog on close
-    $timeout ->
+    stopWatching()
+    $scope.updateRules()
 
-      stopWatching()
+    # unplumb any rules that were explicity removed
+    Plumb.disconnectRules($scope.removed)
 
-      $scope.updateRules()
+    # switching from an actionset means removing it and hijacking its connections
+    connections = Plumb.getConnectionMap({ target: actionset.uuid })
+    if $scope.ruleset._switchedFromAction
+      Flow.removeActionSet($scope.actionset)
 
-      # unplumb any rules that were explicity removed
-      Plumb.disconnectRules($scope.removed)
+    # save our new ruleset
+    Flow.replaceRuleset($scope.ruleset, false)
 
-      # splice in our new ruleset
-      Flow.replaceRuleset($scope.ruleset)
-    ,0
+    # remove any connections that shouldn't be allowed
+    for rule in $scope.ruleset.rules
+      if not Flow.isConnectionAllowed(flow, rule.uuid, rule.destination)
+        Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
+
+    # steal the old connections if we are replacing an actionset with ourselves
+    if $scope.ruleset._switchedFromAction
+      $timeout ->
+        ruleset_uuid = $scope.ruleset.uuid
+        for source of connections
+          Flow.updateDestination(source, ruleset_uuid)
+      ,0
+
 
     # link us up if necessary, we need to do this after our element is created
-    if $scope.ruleset.from
+    if $scope.options.dragSource
+      Flow.updateDestination($scope.options.dragSource, $scope.ruleset.uuid)
 
-      # keep our destination up to date
-      for actionset in $scope.flow.action_sets
-        if actionset.uuid == $scope.ruleset.from
-          actionset.destination = $scope.ruleset.uuid
-          break
+    # finally, make sure we get saved
+    Flow.markDirty()
 
-      $timeout ->
-        Plumb.connect($scope.ruleset.from, $scope.ruleset.uuid, 'rules')
-        $scope.ruleset.from = null
-      ,10
 
   $scope.cancel = ->
     stopWatching()
     $modalInstance.dismiss "cancel"
 
-
-
-SimpleMessageController = ($scope, $modalInstance, $log, title, body, okButton, hideCancel=true) ->
-  $scope.title = title
-  $scope.body = body
-  $scope.okButton = okButton
-  $scope.hideCancel = hideCancel
-
-  $scope.ok = ->
-    $modalInstance.close "ok"
-
-  $scope.cancel = ->
-    $modalInstance.close "cancel"
-
-  return
-
-TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowController) ->
-  $scope.title = "End of Flow"
-  $scope.body = "You must first add a response to this branch in order to extend it."
-  $scope.okButton = "Add Response"
-
-  $scope.ok = ->
-    $modalInstance.close "ok"
-    flowController.addAction(actionset)
-
-  $scope.cancel = ->
-    $modalInstance.dismiss "cancel"
-
-ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Flow, Plumb, utils, actionset, action) ->
+  #-----------------------------------------------------------------
+  # Actions editor
+  #-----------------------------------------------------------------
 
   $scope.action = utils.clone(action)
   $scope.actionset = actionset
   $scope.flowId = $scope.$parent.flowId
+
+  # track whether we already have a flow action
+  startsFlow = false
+  for action in actionset.actions
+    if action.type == 'flow' and $scope.action.uuid != action.uuid
+      startsFlow = true
+      break
 
   # set up language options
   if $scope.$parent.flow.base_language
@@ -1247,6 +1295,10 @@ ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Fl
 
   # a simple function to filter out invalid actions
   $scope.validActionFilter = (action) ->
+
+    if startsFlow and action.type == 'flow'
+      return false
+
     if not window.ivr and (action.type == 'say' or action.type == 'play')
       return false
     if not $scope.$parent.flow.base_language and action.type == 'lang'
@@ -1401,8 +1453,66 @@ ActionEditorController = ($scope, $rootScope, $modalInstance, $timeout, $log, Fl
   $scope.ok = ->
     $timeout ->
       $('.submit').click()
-    , 0
+      # link us up if necessary, we need to do this after our element is created
+      if options.dragSource
+        Flow.updateDestination(options.dragSource, actionset.uuid)
+    ,0
+
+    # switching from a ruleset means removing it and hijacking its connections
+    if actionset._switchedFromRule
+      connections = Plumb.getConnectionMap({ target: $scope.ruleset.uuid })
+      Flow.removeRuleset($scope.ruleset)
+
+      $timeout ->
+        for source of connections
+          # only rules can go to us, actions cant connect to actions
+          if source.split('_').length > 1
+            Flow.updateDestination(source, actionset.uuid)
+          else
+            Flow.updateDestination(source, null)
+      ,0
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
 
+
+
+
+SimpleMessageController = ($scope, $modalInstance, $log, title, body, okButton, hideCancel=true) ->
+  $scope.title = title
+  $scope.body = body
+  $scope.okButton = okButton
+  $scope.hideCancel = hideCancel
+
+  $scope.ok = ->
+    $modalInstance.close "ok"
+
+  $scope.cancel = ->
+    $modalInstance.close "cancel"
+
+  return
+
+TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowController) ->
+
+  $scope.title = "End of Flow"
+  $scope.body = "You must first add a response to this branch in order to extend it."
+  $scope.okButton = "Add Response"
+
+  startsFlow = false
+  for action in actionset.actions
+    if action.type == 'flow'
+      startsFlow = true
+      break
+
+  if startsFlow
+    $scope.body = "Once another flow is started, this flow can no longer continue. To extend this flow, remove any actions that start another flow."
+    $scope.okButton = "Ok"
+
+  $scope.ok = ->
+    $modalInstance.close "ok"
+
+    if not startsFlow
+      flowController.addAction(actionset)
+
+  $scope.cancel = ->
+    $modalInstance.dismiss "cancel"

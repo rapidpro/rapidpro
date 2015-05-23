@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow
+from temba.flows.models import Flow, ActionSet, RuleSet
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -179,6 +179,37 @@ class TembaTest(SmartminTest):
         flow.update(definition)
         return flow
 
+    def update_destination(self, flow, source, destination):
+        flow_json = flow.as_json()
+
+        for actionset in flow_json.get('action_sets'):
+            if actionset.get('uuid') == source:
+                actionset['destination'] = destination
+
+        for ruleset in flow_json.get('rule_sets'):
+            for rule in ruleset.get('rules'):
+                if rule.get('uuid') == source:
+                    rule['destination'] = destination
+
+        flow.update(flow_json)
+        return Flow.objects.get(pk=flow.pk)
+
+    def update_destination_no_check(self, flow, node, destination, rule=None):
+        """ Update the destination without doing a cycle check """
+        actionset = ActionSet.get(flow, node)
+        if actionset:
+            actionset.destination = destination
+            actionset.save()
+
+        ruleset = RuleSet.get(flow, node)
+        rules = ruleset.get_rules()
+        for r in rules:
+            if r.uuid == rule:
+                r.destination = destination
+        ruleset.set_rules(rules)
+        ruleset.save()
+
+
 
 class FlowFileTest(TembaTest):
 
@@ -210,7 +241,7 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                self.assertTrue(flow.find_and_handle(incoming))
+                self.assertTrue(flow.find_and_handle(incoming), "'%s' did not handle message as expected" % flow.name)
 
             # our message should have gotten a reply
             if assert_reply:

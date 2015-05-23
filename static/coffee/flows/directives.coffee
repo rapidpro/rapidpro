@@ -8,52 +8,58 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
   link = (scope, element, attrs) ->
 
     if window.mutable
+
       # jsplumb can drop on to us
-      Plumb.makeTarget(element, attrs.dropScope)
+      Plumb.makeTarget(attrs.id, attrs.dropScope)
 
-      jsPlumb.draggable element,
-        containment: "parent",
-        cancel: '.source',
-        start: ->
-          DragHelper.hide()
-          element.data('previous', element.offset())
-          element.parents('#flow').addClass('dragging')
-          element.addClass('dragging')
-          window.dragging = true
-        drag: ->
+      $timeout ->
+        jsPlumb.draggable attrs.id,
+          containment: true,
+          cancel: '.source',
+          start: ->
+            DragHelper.hide()
+            element.data('previous', element.offset())
+            element.parents('#flow').addClass('dragging')
+            element.addClass('dragging')
+            window.dragging = true
+          drag: ->
 
-          utils.checkCollisions(element)
+            utils.checkCollisions(element)
 
-          # make sure our connections drag with us
-          $(this).find("._jsPlumb_endpoint_anchor_").each (i, e) ->
-            if $(e).hasClass("connect")
-              Plumb.repaint $(e).parent()
+            # make sure our connections drag with us
+            $(this).find("._jsPlumb_endpoint_anchor_").each (i, e) ->
+              if $(e).hasClass("connect")
+                Plumb.repaint $(e).parent()
+              else
+                Plumb.repaint $(e)
+              return
+
+          stop: ->
+            element.parents('#flow').removeClass('dragging')
+            element.removeClass('dragging')
+
+            if element.hasClass('collision') and element.data('previous')
+              element.offset(element.data('previous'))
+              element.data('previous', null)
+              element.removeClass('collision')
+              Plumb.repaint()
+
             else
-              Plumb.repaint $(e)
-            return
 
-        stop: ->
-          element.parents('#flow').removeClass('dragging')
-          element.removeClass('dragging')
+              scope.node.x = element[0].offsetLeft
+              scope.node.y = element[0].offsetTop
 
-          if element.hasClass('collision') and element.data('previous')
-            element.offset(element.data('previous'))
-            element.data('previous', null)
-            element.removeClass('collision')
-          else
+              Flow.determineFlowStart()
 
-            scope.node.x = element[0].offsetLeft
-            scope.node.y = element[0].offsetTop
+              # reset our dragging flag after our current event loop
+              $timeout ->
+                window.dragging = false
+                Flow.markDirty()
+              , 0
+      ,0
 
-            Flow.determineFlowStart()
-
-            # reset our dragging flag after our current event loop
-            $timeout ->
-              window.dragging = false
-              Flow.markDirty()
-            , 0
-
-          Plumb.repaint()
+      scope.$on '$destroy', ->
+        Plumb.removeElement(scope.node.uuid)
 
   return {
     restrict: "A"
@@ -106,10 +112,8 @@ app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $lo
 
   link = (scope, element, attrs) ->
 
+    Plumb.updateConnection(scope.actionset)
     Flow.checkTerminal(scope.actionset)
-
-    scope.$evalAsync ->
-      Plumb.updateConnection(scope.actionset)
 
     scope.addAction = ->
 
@@ -118,13 +122,16 @@ app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $lo
       terminal = false if not terminal?
 
       source = $('#' + scope.actionset.uuid + ' .source')
-      jsPlumb.setSourceEnabled(source, not terminal)
 
       if terminal
         source.addClass('terminal')
-        jsPlumb.detachAllConnections(source)
+        Flow.updateDestination(scope.actionset.uuid, null)
       else
         source.removeClass('terminal')
+
+      $timeout ->
+        jsPlumb.setSourceEnabled(scope.actionset.uuid + '_source', not terminal)
+      ,0
 
   return {
     link: link
@@ -215,6 +222,7 @@ app.directive "actionName", [ "Flow", (Flow) ->
 app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
   link = (scope, element, attrs) ->
 
+    # this derives our categories
     Flow.replaceRuleset(scope.ruleset, false)
 
     scope.updateTranslationStatus = (ruleset, baseLanguage, currentLanguage) ->
@@ -239,11 +247,13 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
     scope.$watch (->scope.ruleset), ->
       scope.updateTranslationStatus(scope.ruleset, scope.$root.flow.base_language, scope.$root.language)
-      scope.$evalAsync ->
-        Plumb.updateConnections(scope.ruleset)
+      Plumb.updateConnections(scope.ruleset)
 
     scope.$watch (->scope.$root.language), ->
       scope.updateTranslationStatus(scope.ruleset, scope.$root.flow.base_language, scope.$root.language)
+
+
+
 
   return {
     restrict: "A"
@@ -273,19 +283,11 @@ app.directive "operatorName", [ "Flow", (Flow) ->
 app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
   link = (scope, element, attrs) ->
     if window.mutable
-      Plumb.makeSource(element, attrs.dropScope)
+      Plumb.makeSource(attrs.id, attrs.dropScope)
 
-      # don't allow connections to be dragged from connected sources
-      if scope.action_set
-        scope.$watch (->scope.action_set.destination), (destination) ->
-          scope.$evalAsync ->
-            if !scope.action_set._terminal
-              Plumb.setSourceEnabled(element, !destination?)
-
-      else if scope.category
-        scope.$watch (->scope.category.target), (target) ->
-          scope.$evalAsync ->
-            Plumb.setSourceEnabled(element, !target?)
+    scope.$on '$destroy', ->
+      if jsPlumb.isSource(attrs.id)
+        Plumb.removeElement(attrs.id)
 
   return {
     link: link
