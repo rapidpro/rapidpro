@@ -3290,14 +3290,12 @@ class FlowStep(models.Model):
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
 
-        # test contacts consider archived flows
-        if contact.is_test:
-            steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                            run__flow__flow_type=Flow.FLOW, left_on=None)
-        else:
-            steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                            run__flow__flow_type=Flow.FLOW, left_on=None,
-                                            run__flow__is_archived=False)
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
+                                        run__flow__flow_type=Flow.FLOW, left_on=None)
+
+        # real contacts don't deal with archived flows
+        if not contact.is_test:
+            steps = steps.filter(run__flow__is_archived=False)
 
         if step_type:
             steps = steps.filter(step_type=step_type)
