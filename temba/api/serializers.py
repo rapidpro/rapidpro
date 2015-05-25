@@ -131,7 +131,6 @@ class MsgReadSerializer(serializers.ModelSerializer):
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'status', 'type', 'labels', 'relayer',
                   'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
-        read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
 
 
 class MsgBulkActionSerializer(serializers.Serializer):
@@ -222,7 +221,7 @@ class LabelReadSerializer(serializers.ModelSerializer):
 class LabelWriteSerializer(serializers.Serializer):
     uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=True)
-    parent = serializers.CharField(required=False)
+    parent = serializers.CharField(required=False, allow_none=True)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -665,7 +664,6 @@ class CampaignEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignEvent
         fields = ('event', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'message', 'flow', 'created_on')
-        read_only_fields = ('offset', 'unit', 'message', 'delivery_hour', 'created_on')
 
 
 class CampaignEventWriteSerializer(serializers.Serializer):
@@ -844,7 +842,6 @@ class CampaignSerializer(serializers.ModelSerializer):
     class Meta:
         model = Campaign
         fields = ('campaign', 'name', 'group', 'created_on')
-        read_only_fields = ('name', 'created_on')
 
 
 class CampaignWriteSerializer(serializers.Serializer):
@@ -986,31 +983,6 @@ class FlowField(serializers.PrimaryKeyRelatedField):
     def initialize(self, parent, field_name):
         self.queryset = Flow.objects.filter(is_active=True)
         super(FlowField, self).initialize(parent, field_name)
-
-
-class ResultSerializer(serializers.Serializer):
-    results = serializers.SerializerMethodField('get_results')
-
-    def __init__(self, *args, **kwargs):
-        self.ruleset = kwargs.get('ruleset', None)
-        self.contact_field = kwargs.get('contact_field', None)
-        self.segment = kwargs.get('segment', None)
-
-        if 'ruleset' in kwargs: del kwargs['ruleset']
-        if 'contact_field' in kwargs: del kwargs['contact_field']
-        if 'segment' in kwargs: del kwargs['segment']
-
-        super(ResultSerializer, self).__init__(*args, **kwargs)
-
-    def get_results(self, obj):
-        if self.ruleset:
-            return Value.get_value_summary(ruleset=self.ruleset, segment=self.segment)
-        else:
-            return Value.get_value_summary(contact_field=self.contact_field, segment=self.segment)
-
-    class Meta:
-        model = RuleSet
-        fields = ('results',)
 
 
 class FlowRunStartSerializer(serializers.Serializer):
@@ -1171,7 +1143,6 @@ class BoundarySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminBoundary
         fields = ('boundary', 'name', 'level', 'parent', 'geometry')
-        read_only_fields = ('name',)
 
 
 class FlowRunReadSerializer(serializers.ModelSerializer):
@@ -1217,7 +1188,6 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlowRun
         fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values', 'steps', 'created_on')
-        read_only_fields = ('created_on',)
 
 
 class ChannelField(serializers.PrimaryKeyRelatedField):
@@ -1510,7 +1480,6 @@ class CallSerializer(serializers.ModelSerializer):
     class Meta:
         model = Call
         fields = ('call', 'contact', 'relayer', 'relayer_phone', 'phone', 'created_on', 'duration', 'call_type')
-        read_only_fields = ('contact', 'duration', 'call_type')
 
 
 class ChannelReadSerializer(serializers.ModelSerializer):

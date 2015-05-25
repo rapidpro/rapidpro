@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
-from django.views.generic.list import MultipleObjectMixin
 from redis_cache import get_redis_connection
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -29,7 +29,7 @@ from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteS
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
-from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
+from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer
 from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -44,6 +44,7 @@ from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
 from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
+from temba.values.models import Value
 from twilio import twiml
 from urlparse import parse_qs
 
@@ -415,6 +416,18 @@ def api(request, format=None):
 
 class BaseListAPIView(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
+
+    class StaticCountPaginator(Paginator):
+        def _get_count(self):
+            print "_get_count"
+            return 5000
+
+        count = property(_get_count)
+
+    def get_paginator(self, queryset, per_page, orphans=0, allow_empty_first_page=True, **kwargs):
+        print "****** get_paginator ******"
+        return MessagesEndpoint.StaticCountPaginator(queryset, per_page, orphans=orphans,
+                                                     allow_empty_first_page=allow_empty_first_page, **kwargs)
 
 
 class CreateAPIViewMixin(object):
@@ -1588,13 +1601,12 @@ class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
 
         return queryset
 
-    def paginate_queryset(self, queryset, page_size):
+    def paginate_queryset(self, queryset, page_size=None):
         """
         Overriding this method let's us jump in just after queryset has been paginated but before objects have been
         serialized - so that we can perform some cache optimization
         """
-        packed = MultipleObjectMixin.paginate_queryset(self, queryset, page_size)
-        paginator, page, object_list, is_paginated = packed
+        page = super(BaseListAPIView, self).paginate_queryset(queryset, page_size)
 
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
@@ -1603,7 +1615,7 @@ class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         page.object_list = list(page.object_list)
         Contact.bulk_cache_initialize(org, page.object_list)
 
-        return packed
+        return page
 
     @classmethod
     def get_read_explorer(cls):
@@ -1826,26 +1838,23 @@ class FlowResultsEndpoint(generics.GenericAPIView):
            ...
     """
     permission = 'flows.flow_results'
-    model = Flow
     permission_classes = (SSLPermission, ApiPermission)
-    serializer_class = ResultSerializer
 
-    def get(self, request, format=None):
+    def get(self, request, *args, **kwargs):
         user = request.user
         org = user.get_org()
 
         ruleset, contact_field = None, None
 
-        id = self.request.QUERY_PARAMS.get('ruleset', None)
-        if id:
+        ruleset_id_or_uuid = self.request.QUERY_PARAMS.get('ruleset', None)
+        if ruleset_id_or_uuid:
             try:
-                int(id)
-                ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+                ruleset = RuleSet.objects.filter(flow__org=org, pk=int(ruleset_id_or_uuid)).first()
             except ValueError:
-                ruleset = RuleSet.objects.filter(flow__org=org, uuid=id).first()
+                ruleset = RuleSet.objects.filter(flow__org=org, uuid=ruleset_id_or_uuid).first()
 
             if not ruleset:
-                return Response(dict(contact_field="No ruleset found with that uuid"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(ruleset="No ruleset found with that UUID or id"), status=status.HTTP_400_BAD_REQUEST)
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
@@ -1854,18 +1863,21 @@ class FlowResultsEndpoint(generics.GenericAPIView):
                 return Response(dict(contact_field="No contact field found with that label"), status=status.HTTP_400_BAD_REQUEST)
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            return Response(dict(ruleset="You must specify either a ruleset or contact field",
-                                 contact_field="You must specify either a ruleset or contact field"), status=status.HTTP_400_BAD_REQUEST)
+            return Response(dict(non_field_errors="You must specify either a ruleset or contact field"), status=status.HTTP_400_BAD_REQUEST)
 
         segment = self.request.QUERY_PARAMS.get('segment', None)
         if segment:
             try:
                 segment = json.loads(segment)
-            except:
+            except ValueError:
                 return Response(dict(segment="Invalid segment format, must be in JSON format"), status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = ResultSerializer(ruleset=ruleset, contact_field=contact_field, segment=segment)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if ruleset:
+            data = Value.get_value_summary(ruleset=ruleset, segment=segment)
+        else:
+            data = Value.get_value_summary(contact_field=contact_field, segment=segment)
+
+        return Response(data, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2011,7 +2023,7 @@ class FlowRunEndpoint(BaseListAPIView, CreateAPIViewMixin):
 
     def render_write_response(self, write_output):
         if write_output:
-            response_serializer = FlowRunReadSerializer(instance=write_output)
+            response_serializer = FlowRunReadSerializer(instance=write_output, many=True)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(dict(non_field_errors=["All contacts are already started in this flow, "
                                                "use restart_participants to force them to restart in the flow"]),

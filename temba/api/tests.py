@@ -67,17 +67,12 @@ class APITest(TembaTest):
         response = self.client.get(url, HTTP_X_FORWARDED_HTTPS='https')
         return response
 
-    def postHTML(self, url, post_data):
-        response = self.client.post(url, post_data, HTTP_X_FORWARDED_HTTPS='https')
-        return response
-
     def fetchJSON(self, url, query=None):
-        url = url + ".json"
+        url += '.json'
         if query:
-            url = url + "?" + query
+            url += ('?' + query)
 
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
-        self.assertEquals(200, response.status_code)
 
         # this will fail if our response isn't valid json
         response.json = json.loads(response.content)
@@ -334,44 +329,55 @@ class APITest(TembaTest):
         # log in a manager
         self.login(self.admin)
 
-        response = self.fetchHTML(url)
+        # all requests must be against a ruleset or field
+        response = self.fetchJSON(url)
         self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'non_field_errors', "You must specify either a ruleset or contact field")
 
         # create our test flow and a contact field
-        flow = self.create_flow()
+        self.create_flow()
         contact_field = ContactField.objects.create(key='gender', label="Gender", org=self.org)
         ruleset = RuleSet.objects.get()
 
-        response = self.fetchHTML(url + "?ruleset=%s" % 'invalid-uuid')
-        self.assertEquals(400, response.status_code)
+        # invalid ruleset id
+        response = self.fetchJSON(url, 'ruleset=12345678')
+        self.assertResponseError(response, 'ruleset', "No ruleset found with that UUID or id")
 
-        response = self.fetchHTML(url + "?contact_field=born")
-        self.assertEquals(400, response.status_code)
+        # invalid ruleset UUID
+        response = self.fetchJSON(url, 'ruleset=invalid-uuid')
+        self.assertResponseError(response, 'ruleset', "No ruleset found with that UUID or id")
 
-        response = self.fetchHTML(url + "?ruleset=%s&contact_field=Gender" % ruleset.uuid)
-        self.assertEquals(400, response.status_code)
+        # invalid field label
+        response = self.fetchJSON(url, 'contact_field=born')
+        self.assertResponseError(response, 'contact_field', "No contact field found with that label")
+
+        # can't specify both ruleset and field
+        response = self.fetchJSON(url, 'ruleset=%s&contact_field=Gender' % ruleset.uuid)
+        self.assertResponseError(response, 'non_field_errors', "You must specify either a ruleset or contact field")
+
+        # invalid segment JSON
+        response = self.fetchJSON(url, 'contact_field=Gender&segment=%7B\"location\"%7D')
+        self.assertResponseError(response, 'segment', "Invalid segment format, must be in JSON format")
 
         with patch('temba.values.models.Value.get_value_summary') as mock_value_summary:
-            mock_value_summary.return_value = dict(results='RESULTS_DATA')
+            mock_value_summary.return_value = []
 
-            response = self.fetchHTML(url + "?ruleset=%d" % ruleset.id)
-            self.assertEquals(200, response.status_code)
+            response = self.fetchJSON(url, 'ruleset=%d' % ruleset.id)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json, [])
             mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
 
-            response = self.fetchHTML(url + "?ruleset=%s" % ruleset.uuid)
-            self.assertEquals(200, response.status_code)
+            response = self.fetchJSON(url, 'ruleset=%s' % ruleset.uuid)
+            self.assertEqual(response.status_code, 200)
             mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
 
-            response = self.fetchHTML(url + "?contact_field=Gender")
-            self.assertEquals(200, response.status_code)
+            response = self.fetchJSON(url, 'contact_field=Gender')
+            self.assertEqual(200, response.status_code)
             mock_value_summary.assert_called_with(contact_field=contact_field, segment=None)
 
-            response = self.fetchHTML(url + "?contact_field=Gender&segment=%7B\"location\"%3A\"State\"%7D")
-            self.assertEquals(200, response.status_code)
+            response = self.fetchJSON(url, 'contact_field=Gender&segment=%7B\"location\"%3A\"State\"%7D')
+            self.assertEqual(200, response.status_code)
             mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
-
-            response = self.fetchHTML(url + "?contact_field=Gender&segment=%7B\"location\"%7D")
-            self.assertEquals(400, response.status_code)
 
     def test_api_runs(self):
         url = reverse('api.runs')
@@ -391,15 +397,15 @@ class APITest(TembaTest):
         flow_copy = Flow.copy(flow, self.admin)
 
         # can't start with an invalid phone number
-        response = self.postHTML(url, dict(flow=flow.pk, phone="asdf"))
+        response = self.postJSON(url, dict(flow=flow.pk, phone="asdf"))
         self.assertEquals(400, response.status_code)
 
         # can't start with invalid extra
-        response = self.postHTML(url, dict(flow=flow.pk, phone="+250788123123", extra=dict(asdf=dict(asdf="asdf"))))
+        response = self.postJSON(url, dict(flow=flow.pk, phone="+250788123123", extra=dict(asdf=dict(asdf="asdf"))))
         self.assertEquals(400, response.status_code)
 
         # can't start without a flow
-        response = self.postHTML(url, dict(phone="+250788123123"))
+        response = self.postJSON(url, dict(phone="+250788123123"))
         self.assertEquals(400, response.status_code)
 
         # can start with flow id and phone (deprecated and creates contact)
@@ -558,19 +564,19 @@ class APITest(TembaTest):
         self.assertNotJSON(response, 'name', "Unclaimed Channel")
 
         # can't claim without a phone number
-        response = self.postHTML(url, dict(claim_code="123123123", name="Claimed Channel"))
+        response = self.postJSON(url, dict(claim_code="123123123", name="Claimed Channel"))
         self.assertEquals(400, response.status_code)
 
         # can't claim with an invalid phone number
-        response = self.postHTML(url, dict(claim_code="123123123", name="Claimed Channel", phone="asdf"))
+        response = self.postJSON(url, dict(claim_code="123123123", name="Claimed Channel", phone="asdf"))
         self.assertEquals(400, response.status_code)
 
         # can't claim with an empty phone number
-        response = self.postHTML(url, dict(claim_code="123123123", name="Claimed Channel", phone=""))
+        response = self.postJSON(url, dict(claim_code="123123123", name="Claimed Channel", phone=""))
         self.assertEquals(400, response.status_code)
 
         # can't claim with an empty phone number
-        response = self.postHTML(url, dict(claim_code="123123123", name="Claimed Channel", phone="9999999999"))
+        response = self.postJSON(url, dict(claim_code="123123123", name="Claimed Channel", phone="9999999999"))
         self.assertEquals(400, response.status_code)
 
         # can claim if everything is valid
@@ -597,15 +603,15 @@ class APITest(TembaTest):
         self.assertJSON(response, 'name', 'Claimed Channel')
 
         # trying to do so again should be an error of not finding the channel
-        response = self.postHTML(url, dict(claim_code="123123123", name="Claimed Channel", phone="250788123123"))
+        response = self.postJSON(url, dict(claim_code="123123123", name="Claimed Channel", phone="250788123123"))
         self.assertEquals(400, response.status_code)
 
         # try with an empty claim code
-        response = self.postHTML(url, dict(claim_code="  ", name="Claimed Channel"))
+        response = self.postJSON(url, dict(claim_code="  ", name="Claimed Channel"))
         self.assertEquals(400, response.status_code)
 
         # try without a claim code
-        response = self.postHTML(url, dict(name="Claimed Channel"))
+        response = self.postJSON(url, dict(name="Claimed Channel"))
         self.assertEquals(400, response.status_code)
 
         # list our channels again
@@ -1661,15 +1667,15 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         # can't create a campaign without a group
-        response = self.postHTML(url, dict(name="MAMA Messages"))
+        response = self.postJSON(url, dict(name="MAMA Messages"))
         self.assertEquals(400, response.status_code)
 
         # can't create a campaign without a name
-        response = self.postHTML(url, dict(group="Expecting Mothers"))
+        response = self.postJSON(url, dict(group="Expecting Mothers"))
         self.assertEquals(400, response.status_code)
 
         # works with both
-        response = self.postHTML(url, dict(name="MAMA Messages", group="Expecting Mothers"))
+        response = self.postJSON(url, dict(name="MAMA Messages", group="Expecting Mothers"))
         self.assertEquals(201, response.status_code)
 
         # should have a campaign now
@@ -1681,14 +1687,14 @@ class APITest(TembaTest):
         self.assertEquals(self.org, campaign.group.org)
 
         # try updating the campaign
-        response = self.postHTML(url, dict(campaign=campaign.pk, name="Preggie Messages", group="Expecting Mothers"))
+        response = self.postJSON(url, dict(campaign=campaign.pk, name="Preggie Messages", group="Expecting Mothers"))
         self.assertEquals(201, response.status_code)
 
         campaign = Campaign.objects.get()
         self.assertEquals("Preggie Messages", campaign.name)
 
         # doesn't work with an invalid id
-        response = self.postHTML(url, dict(campaign=999, name="Preggie Messages", group="Expecting Mothers"))
+        response = self.postJSON(url, dict(campaign=999, name="Preggie Messages", group="Expecting Mothers"))
         self.assertEquals(400, response.status_code)
 
         # try to fetch them
@@ -1707,7 +1713,7 @@ class APITest(TembaTest):
         event_args = dict(campaign=campaign.pk, unit='W', offset=5, relative_to="EDD",
                           delivery_hour=-1, message="Time to go to the clinic")
 
-        response = self.postHTML(url, event_args)
+        response = self.postJSON(url, event_args)
         self.assertEquals(201, response.status_code)
 
         event = CampaignEvent.objects.get()
