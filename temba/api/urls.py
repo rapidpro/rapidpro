@@ -5,6 +5,10 @@ from django.contrib.auth.decorators import login_required
 from django.db.transaction import non_atomic_requests
 from django.views.decorators.csrf import csrf_protect
 from rest_framework.urlpatterns import format_suffix_patterns
+from .handlers import StripeHandler, TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler
+from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
+from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
+from .handlers import SMSCentralHandler, MageHandler
 from .views import *
 
 urlpatterns = patterns('api.views',
