@@ -2,9 +2,11 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import requests
+import urllib
 
 from datetime import timedelta
 from django.conf import settings
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -37,6 +39,11 @@ from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DE
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool
 from temba.values.models import Value
 from urlparse import parse_qs
+
+
+# caching of counts from API requests
+REQUEST_COUNT_CACHE_KEY = 'org:%d:cache:api_request_counts:%s'
+REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
 
 
 def webhook_status_processor(request):
@@ -405,18 +412,51 @@ def api(request, format=None):
 
 class BaseListAPIView(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
+    cache_counts = False
 
-    class StaticCountPaginator(Paginator):
+    class FixedCountPaginator(Paginator):
+        """
+        Paginator class which looks for fixed count stored as an attribute on the queryset, and uses that as it's total
+        count value if it exists, rather than calling count() on the queryset that may require an expensive db hit.
+        """
+        def __init__(self, queryset, *args, **kwargs):
+            self.fixed_count = getattr(queryset, 'fixed_count', None)
+
+            super(BaseListAPIView.FixedCountPaginator, self).__init__(queryset, *args, **kwargs)
+
         def _get_count(self):
-            print "_get_count"
-            return 5000
+            if self.fixed_count is not None:
+                return self.fixed_count
+            else:
+                return super(BaseListAPIView.FixedCountPaginator, self)._get_count()
 
         count = property(_get_count)
 
-    def get_paginator(self, queryset, per_page, orphans=0, allow_empty_first_page=True, **kwargs):
-        print "****** get_paginator ******"
-        return MessagesEndpoint.StaticCountPaginator(queryset, per_page, orphans=orphans,
-                                                     allow_empty_first_page=allow_empty_first_page, **kwargs)
+    paginator_class = FixedCountPaginator
+
+    def paginate_queryset(self, queryset, page_size=None):
+        if self.cache_counts:
+            # total counts are expensive so we cache counts based on the query parameters
+            query_params = self.request.QUERY_PARAMS.copy()
+            if 'page' in query_params:
+                del query_params['page']
+            query_key = urllib.urlencode(sorted(query_params.lists()), doseq=True)
+            count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
+
+            cached_count = cache.get(count_key)
+            if cached_count is not None:
+                queryset.fixed_count = int(cached_count)
+
+            page = super(BaseListAPIView, self).paginate_queryset(queryset)
+
+            if cached_count is None:
+                calculated_count = page.paginator.count
+                cache.set(count_key, calculated_count, REQUEST_COUNT_CACHE_TTL)
+
+            return page
+        else:
+            return super(BaseListAPIView, self).paginate_queryset(queryset)
+
 
 
 class CreateAPIViewMixin(object):
@@ -531,6 +571,7 @@ class BroadcastsEndpoint(BaseListAPIView, CreateAPIViewMixin):
     model = Broadcast
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastCreateSerializer
+    cache_counts = True
 
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -695,6 +736,7 @@ class MessagesEndpoint(BaseListAPIView, CreateAPIViewMixin):
     model = Msg
     serializer_class = MsgReadSerializer
     write_serializer_class = MsgCreateSerializer
+    cache_counts = True
 
     def render_write_response(self, write_output):
         # use a different serializer for created messages
@@ -1106,6 +1148,7 @@ class Calls(BaseListAPIView):
     permission = 'msgs.call_api'
     model = Call
     serializer_class = CallSerializer
+    cache_counts = True
 
     def get_queryset(self):
         queryset = Call.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -1537,6 +1580,7 @@ class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
+    cache_counts = True
 
     def destroy(self, request, *args, **kwargs):
         queryset = self.get_base_queryset(request)
@@ -2009,6 +2053,7 @@ class FlowRunEndpoint(BaseListAPIView, CreateAPIViewMixin):
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     write_serializer_class = FlowRunStartSerializer
+    cache_counts = True
 
     def render_write_response(self, write_output):
         if write_output:
