@@ -9,7 +9,11 @@ from .handlers import StripeHandler, TwilioHandler, VerboiceHandler, AfricasTalk
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler
-from .views import *
+from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
+from .views import api, ApiExplorerView
+from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint, FlowEndpoint
+from .views import FlowResultsEndpoint, FlowRunEndpoint, CallEndpoint, ContactEndpoint, GroupEndpoint, FieldEndpoint
+from .views import ChannelEndpoint, CampaignEndpoint, CampaignEventEndpoint, BoundaryEndpoint, AssetEndpoint
 
 urlpatterns = patterns('api.views',
                        url(r'^$', api, name='api'),
@@ -42,19 +46,19 @@ urlpatterns = patterns('api.views',
                        url(r'^/webhook/simulator/$', WebHookSimulatorView.as_view(), name='api.webhook_simulator'),
                        url(r'^/webhook/tunnel/$', login_required(csrf_protect(WebHookTunnelView.as_view())), name='api.webhook_tunnel'),
 
-                       url(r'^/broadcasts$', BroadcastsEndpoint.as_view(), name='api.broadcasts'),
-                       url(r'^/messages$', MessagesEndpoint.as_view(), name='api.messages'),
-                       url(r'^/message_actions$', MessagesBulkActionEndpoint.as_view(), name='api.message_actions'),
-                       url(r'^/sms$', MessagesEndpoint.as_view(), name='api.sms'),  # deprecated
-                       url(r'^/labels$', LabelsEndpoint.as_view(), name='api.labels'),
+                       url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.broadcasts'),
+                       url(r'^/messages$', MessageEndpoint.as_view(), name='api.messages'),
+                       url(r'^/message_actions$', MessageBulkActionEndpoint.as_view(), name='api.message_actions'),
+                       url(r'^/sms$', MessageEndpoint.as_view(), name='api.sms'),  # deprecated
+                       url(r'^/labels$', LabelEndpoint.as_view(), name='api.labels'),
                        url(r'^/flows$', FlowEndpoint.as_view(), name='api.flows'),
                        url(r'^/results$', FlowResultsEndpoint.as_view(), name='api.results'),
                        url(r'^/runs$', non_atomic_requests(FlowRunEndpoint.as_view()), name='api.runs'),
-                       url(r'^/calls$', Calls.as_view(), name='api.calls'),
-                       url(r'^/contacts$', Contacts.as_view(), name='api.contacts'),
-                       url(r'^/groups$', Groups.as_view(), name='api.contactgroups'),
-                       url(r'^/fields$', FieldsEndpoint.as_view(), name='api.contactfields'),
-                       url(r'^/relayers$', Channels.as_view(), name='api.channels'),
+                       url(r'^/calls$', CallEndpoint.as_view(), name='api.calls'),
+                       url(r'^/contacts$', ContactEndpoint.as_view(), name='api.contacts'),
+                       url(r'^/groups$', GroupEndpoint.as_view(), name='api.contactgroups'),
+                       url(r'^/fields$', FieldEndpoint.as_view(), name='api.contactfields'),
+                       url(r'^/relayers$', ChannelEndpoint.as_view(), name='api.channels'),
                        url(r'^/campaigns$', CampaignEndpoint.as_view(), name='api.campaigns'),
                        url(r'^/events$', CampaignEventEndpoint.as_view(), name='api.campaignevents'),
                        url(r'^/boundaries$', BoundaryEndpoint.as_view(), name='api.boundaries'),

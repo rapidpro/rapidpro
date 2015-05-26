@@ -256,34 +256,31 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
 
         endpoints = list()
-        endpoints.append(Channels.get_read_explorer())
-        endpoints.append(Channels.get_write_explorer())
-        endpoints.append(Channels.get_delete_explorer())
+        endpoints.append(ChannelEndpoint.get_read_explorer())
+        endpoints.append(ChannelEndpoint.get_write_explorer())
+        endpoints.append(ChannelEndpoint.get_delete_explorer())
 
-        endpoints.append(Contacts.get_read_explorer())
-        endpoints.append(Contacts.get_write_explorer())
-        endpoints.append(Contacts.get_delete_explorer())
+        endpoints.append(ContactEndpoint.get_read_explorer())
+        endpoints.append(ContactEndpoint.get_write_explorer())
+        endpoints.append(ContactEndpoint.get_delete_explorer())
 
-        endpoints.append(Groups.get_read_explorer())
+        endpoints.append(GroupEndpoint.get_read_explorer())
 
-        endpoints.append(FieldsEndpoint.get_read_explorer())
-        endpoints.append(FieldsEndpoint.get_write_explorer())
+        endpoints.append(FieldEndpoint.get_read_explorer())
+        endpoints.append(FieldEndpoint.get_write_explorer())
 
-        endpoints.append(MessagesEndpoint.get_read_explorer())
-        #endpoints.append(MessagesEndpoint.get_write_explorer())
+        endpoints.append(MessageEndpoint.get_read_explorer())
+        #endpoints.append(MessageEndpoint.get_write_explorer())
 
-        endpoints.append(MessagesBulkActionEndpoint.get_write_explorer())
+        endpoints.append(MessageBulkActionEndpoint.get_write_explorer())
 
-        endpoints.append(BroadcastsEndpoint.get_read_explorer())
-        endpoints.append(BroadcastsEndpoint.get_write_explorer())
+        endpoints.append(BroadcastEndpoint.get_read_explorer())
+        endpoints.append(BroadcastEndpoint.get_write_explorer())
 
-        endpoints.append(LabelsEndpoint.get_read_explorer())
-        endpoints.append(LabelsEndpoint.get_write_explorer())
+        endpoints.append(LabelEndpoint.get_read_explorer())
+        endpoints.append(LabelEndpoint.get_write_explorer())
 
-        endpoints.append(BroadcastsEndpoint.get_read_explorer())
-        endpoints.append(BroadcastsEndpoint.get_write_explorer())
-
-        endpoints.append(Calls.get_read_explorer())
+        endpoints.append(CallEndpoint.get_read_explorer())
 
         endpoints.append(FlowEndpoint.get_read_explorer())
 
@@ -406,7 +403,6 @@ def api(request, format=None):
         'messages': reverse('api.messages', request=request),
         'relayers': reverse('api.channels', request=request),
         'runs': reverse('api.runs', request=request),
-        'sms': reverse('api.sms', request=request),
     })
 
 
@@ -487,7 +483,7 @@ class DeleteAPIViewMixin(object):
         return self.destroy(request, *args, **kwargs)
 
 
-class BroadcastsEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class BroadcastEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
     message broadcasts using the ```POST``` method.
@@ -641,7 +637,7 @@ class BroadcastsEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class MessagesEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class MessageEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     This endpoint allows you either list messages on your account using the ```GET``` method or send new messages
     using the ```POST``` method.
@@ -912,7 +908,7 @@ class MessagesEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class MessagesBulkActionEndpoint(generics.GenericAPIView):
+class MessageBulkActionEndpoint(generics.GenericAPIView):
     """
     ## Bulk Message Updating
 
@@ -974,7 +970,7 @@ class MessagesBulkActionEndpoint(generics.GenericAPIView):
         return spec
 
 
-class LabelsEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class LabelEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     ## Listing Message Labels
 
@@ -1109,7 +1105,7 @@ class LabelsEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class Calls(BaseListAPIView):
+class CallEndpoint(BaseListAPIView):
     """
     Returns the incoming and outgoing calls for your organization, most recent first.
 
@@ -1214,7 +1210,7 @@ class Calls(BaseListAPIView):
         return spec
 
 
-class Channels(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
+class ChannelEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
     """
     ## Claiming Channels
 
@@ -1414,7 +1410,7 @@ class Channels(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         return spec
 
 
-class Groups(BaseListAPIView):
+class GroupEndpoint(BaseListAPIView):
     """
     ## Listing Groups
 
@@ -1476,7 +1472,7 @@ class Groups(BaseListAPIView):
         return spec
 
 
-class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
+class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
     """
     ## Adding a Contact
 
@@ -1639,7 +1635,7 @@ class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         Overriding this method let's us jump in just after queryset has been paginated but before objects have been
         serialized - so that we can perform some cache optimization
         """
-        page = super(BaseListAPIView, self).paginate_queryset(queryset, page_size)
+        page = super(BaseListAPIView, self).paginate_queryset(queryset)
 
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
@@ -1702,7 +1698,7 @@ class Contacts(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         return spec
 
 
-class FieldsEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class FieldEndpoint(BaseListAPIView, CreateAPIViewMixin):
     """
     ## Listing Fields
 

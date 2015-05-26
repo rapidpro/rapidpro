@@ -508,6 +508,7 @@ class APITest(TembaTest):
 
         players = self.create_group('Players', [])
         players.contacts.add(contact)
+        self.clear_cache()
 
         # filter by group name
         response = self.fetchJSON(url, "group=Players")
@@ -1222,6 +1223,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         players.contacts.add(contact)
+        self.clear_cache()
 
         response = self.fetchJSON(url, "group=Players")
         self.assertEquals(200, response.status_code)
