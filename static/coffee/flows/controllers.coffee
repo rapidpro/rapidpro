@@ -1234,7 +1234,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # remove any connections that shouldn't be allowed
     for rule in $scope.ruleset.rules
-      if not Flow.isConnectionAllowed(flow, rule.uuid, rule.destination)
+      if not Flow.isConnectionAllowed(flow, ruleset.uuid + '_' + rule.uuid, rule.destination)
         Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
 
     # steal the old connections if we are replacing an actionset with ourselves
