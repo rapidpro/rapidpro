@@ -54,7 +54,7 @@ class Value(models.Model):
     rule_uuid = models.CharField(max_length=255, null=True, db_index=True,
                                  help_text="The rule that matched, only appropriate for RuleSet values")
 
-    category = models.CharField(max_length=36, null=True,
+    category = models.CharField(max_length=128, null=True,
                                 help_text="The name of the category this value matched in the RuleSet")
 
     string_value = models.TextField(max_length=640,
