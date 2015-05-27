@@ -908,6 +908,7 @@ class APITest(TembaTest):
         jay_z = self.create_contact("Jay-Z", number="123555")
 
         # fetch all with blank query
+        self.clear_cache()
         response = self.fetchJSON(url, "")
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)

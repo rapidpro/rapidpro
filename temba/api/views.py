@@ -476,7 +476,8 @@ class CreateAPIViewMixin(object):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def render_write_response(self, write_output):
-        response_serializer = self.serializer_class(instance=write_output)
+        context = self.get_serializer_context()
+        response_serializer = self.serializer_class(instance=write_output, context=context)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
