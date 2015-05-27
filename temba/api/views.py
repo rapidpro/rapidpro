@@ -36,7 +36,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
 from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
-from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool
+from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
 from urlparse import parse_qs
 
@@ -409,6 +409,10 @@ def api(request, format=None):
 class BaseListAPIView(generics.ListAPIView):
     permission_classes = (SSLPermission, ApiPermission)
     cache_counts = False
+
+    @non_atomic_gets
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseListAPIView, self).dispatch(request, *args, **kwargs)
 
     class FixedCountPaginator(Paginator):
         """

@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from django.conf.urls import patterns, url
 from django.contrib.auth.decorators import login_required
-from django.db.transaction import non_atomic_requests
 from django.views.decorators.csrf import csrf_protect
 from rest_framework.urlpatterns import format_suffix_patterns
 from .handlers import StripeHandler, TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler
@@ -53,7 +52,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/labels$', LabelEndpoint.as_view(), name='api.labels'),
                        url(r'^/flows$', FlowEndpoint.as_view(), name='api.flows'),
                        url(r'^/results$', FlowResultsEndpoint.as_view(), name='api.results'),
-                       url(r'^/runs$', non_atomic_requests(FlowRunEndpoint.as_view()), name='api.runs'),
+                       url(r'^/runs$', FlowRunEndpoint.as_view(), name='api.runs'),
                        url(r'^/calls$', CallEndpoint.as_view(), name='api.calls'),
                        url(r'^/contacts$', ContactEndpoint.as_view(), name='api.contacts'),
                        url(r'^/groups$', GroupEndpoint.as_view(), name='api.contactgroups'),
