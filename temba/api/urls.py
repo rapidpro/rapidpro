@@ -4,10 +4,10 @@ from django.conf.urls import patterns, url
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from rest_framework.urlpatterns import format_suffix_patterns
-from .handlers import StripeHandler, TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler
-from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
-from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
-from .handlers import SMSCentralHandler, MageHandler
+from .channels import StripeHandler, TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler
+from .channels import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
+from .channels import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
+from .channels import SMSCentralHandler, MageHandler
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
 from .views import api, ApiExplorerView
 from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint, FlowEndpoint
