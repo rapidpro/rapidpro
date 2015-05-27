@@ -350,12 +350,14 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.login(self.user)
         self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch first page of contacts from API", True):
+        with SegmentProfiler(self, "Fetch first page of contacts from API",
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.contacts'))
 
         # query count now cached
 
-        with SegmentProfiler(self, "Fetch second page of contacts from API", True):
+        with SegmentProfiler(self, "Fetch second page of contacts from API",
+                             assert_queries=API_REQUEST_QUERIES+6, assert_tx=0):
             self._fetch_json('%s.json?page=2' % reverse('api.contacts'))
 
     def test_api_groups(self):

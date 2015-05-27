@@ -303,20 +303,22 @@ class ContactReadSerializer(serializers.ModelSerializer):
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
 
     def get_groups(self, obj):
-        return [_.name for _ in obj.user_groups.all()]
+        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        return [_.name for _ in groups]
 
     def get_group_uuids(self, obj):
-        return [_.uuid for _ in obj.user_groups.all()]
+        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        return [_.uuid for _ in groups]
 
     def get_urns(self, obj):
         if obj.org.is_anon:
             return dict()
 
-        return [urn.urn for urn in obj.urns.all()]
+        return [urn.urn for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
-        for contact_field in ContactField.objects.filter(org=obj.org, is_active=True):
+        for contact_field in self.context['contact_fields']:
             fields[contact_field.key] = obj.get_field_display(contact_field.key)
         return fields
 

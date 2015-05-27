@@ -49,13 +49,13 @@ REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
 def webhook_status_processor(request):
     status = dict()
     user = request.user
-    
+
     if user.is_superuser or user.is_anonymous():
         return status
-        
+
     # get user's org
     org = user.get_org()
-    
+
     if org:
         past_hour = timezone.now() - timedelta(hours=1)
         failed = WebHookEvent.objects.filter(org=org, status__in=['F','E'], created_on__gte=past_hour).order_by('-created_on')
@@ -456,7 +456,6 @@ class BaseListAPIView(generics.ListAPIView):
             return page
         else:
             return super(BaseListAPIView, self).paginate_queryset(queryset)
-
 
 
 class CreateAPIViewMixin(object):
@@ -1608,7 +1607,7 @@ class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         return Contact.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
 
     def get_queryset(self):
-        queryset = self.get_base_queryset(self.request).order_by('modified_on')
+        queryset = self.get_base_queryset(self.request)
 
         phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
         if phones:
@@ -1632,23 +1631,34 @@ class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
-        return queryset
+        # can't prefetch a custom manager directly, so here we prefetch user groups as new attribute
+        user_groups_prefetch = Prefetch('all_groups', queryset=ContactGroup.user_groups.all(), to_attr='prefetched_user_groups')
+
+        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('modified_on')
 
     def paginate_queryset(self, queryset, page_size=None):
         """
         Overriding this method let's us jump in just after queryset has been paginated but before objects have been
         serialized - so that we can perform some cache optimization
         """
-        page = super(BaseListAPIView, self).paginate_queryset(queryset)
-
-        # initialize caches of all contact fields and URNs
-        org = self.request.user.get_org()
+        page = super(ContactEndpoint, self).paginate_queryset(queryset)
 
         # convert to list before cache initialization so that these will be the contact objects which get serialized
         page.object_list = list(page.object_list)
+
+        # initialize caches of all contact fields and URNs
+        org = self.request.user.get_org()
         Contact.bulk_cache_initialize(org, page.object_list)
 
         return page
+
+    def get_serializer_context(self):
+        """
+        So that we only fetch active contact fields once for all contacts
+        """
+        context = super(BaseListAPIView, self).get_serializer_context()
+        context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        return context
 
     @classmethod
     def get_read_explorer(cls):
