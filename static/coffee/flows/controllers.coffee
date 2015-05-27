@@ -446,11 +446,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
           templateUrl: "/partials/node_editor?v=" + version
           controller: NodeEditorController
           resolve:
-            scope: $scope
             options: ->
               nodeType: 'ivr'
               ruleset: ruleset
               dragSource: dragSource
+            scope: $scope
 
       else
         $modal.open
@@ -854,7 +854,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
 
   $scope.showFlip = ->
-
     return !$scope.ivr && actionset.actions.length < 2
 
   #-----------------------------------------------------------------
@@ -1235,7 +1234,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # remove any connections that shouldn't be allowed
     for rule in $scope.ruleset.rules
-      if not Flow.isConnectionAllowed(flow, rule.uuid, rule.destination)
+      if not Flow.isConnectionAllowed(flow, ruleset.uuid + '_' + rule.uuid, rule.destination)
         Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
 
     # steal the old connections if we are replacing an actionset with ourselves
