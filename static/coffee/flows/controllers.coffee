@@ -854,7 +854,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
 
   $scope.showFlip = ->
-
     return !$scope.ivr && actionset.actions.length < 2
 
   #-----------------------------------------------------------------
