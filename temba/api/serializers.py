@@ -40,7 +40,7 @@ class DictionaryField(serializers.WritableField):
 
 class IntegerArrayField(serializers.WritableField):
 
-    def to_native(self, obj):  # pragma: no cover
+    def to_native(self, obj):
         raise ValidationError("Reading of integer array field not supported")
 
     def from_native(self, data):
@@ -60,7 +60,7 @@ class IntegerArrayField(serializers.WritableField):
 
 class StringArrayField(serializers.WritableField):
 
-    def to_native(self, obj):  # pragma: no cover
+    def to_native(self, obj):
         raise ValidationError("Reading of string array field not supported")
 
     def from_native(self, data):
@@ -80,7 +80,7 @@ class StringArrayField(serializers.WritableField):
 
 class PhoneArrayField(serializers.WritableField):
 
-    def to_native(self, obj):  # pragma: no cover
+    def to_native(self, obj):
         raise ValidationError("Reading of phone field not supported")
 
     def from_native(self, data):
@@ -181,17 +181,11 @@ class MsgReadSerializer(serializers.ModelSerializer):
                   'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
 
 
-class MsgBulkActionSerializer(serializers.Serializer):
+class MsgBulkActionSerializer(WriteSerializer):
     messages = IntegerArrayField(required=True)
     action = serializers.CharField(required=True)
     label = serializers.CharField(required=False)
     label_uuid = serializers.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.org = self.user.get_org()
-
-        super(MsgBulkActionSerializer, self).__init__(*args, **kwargs)
 
     def validate(self, attrs):
         if attrs['action'] in ('label', 'unlabel') and not ('label' in attrs or 'label_uuid' in attrs):
