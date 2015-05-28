@@ -35,6 +35,7 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from .models import WebHookEvent, WebHookResult, SMS_RECEIVED
+from .serializers import DictionaryField, IntegerArrayField, StringArrayField, PhoneArrayField, ChannelField, FlowField
 
 
 class APITest(TembaTest):
@@ -171,6 +172,54 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
 
+    def test_api_serializer_fields(self):
+        dict_field = DictionaryField(source='test')
+
+        self.assertEqual(dict_field.from_native({'a': '123'}), {'a': '123'})
+        self.assertRaises(ValidationError, dict_field.from_native, [])  # must be a dict
+        self.assertRaises(ValidationError, dict_field.from_native, {123: '456'})  # keys and values must be strings
+        self.assertRaises(ValidationError, dict_field.to_native, {})  # not writable
+
+        ints_field = IntegerArrayField(source='test')
+
+        self.assertEqual(ints_field.from_native([1, 2, 3]), [1, 2, 3])
+        self.assertEqual(ints_field.from_native(123), [123])  # convert single number to array
+        self.assertRaises(ValidationError, ints_field.from_native, {})  # must be a list
+        self.assertRaises(ValidationError, ints_field.from_native, ['x'])  # items must be ints or longs
+        self.assertRaises(ValidationError, ints_field.to_native, [])  # not writable
+
+        strings_field = StringArrayField(source='test')
+
+        self.assertEqual(strings_field.from_native(['a', 'b', 'c']), ['a', 'b', 'c'])
+        self.assertEqual(strings_field.from_native('abc'), ['abc'])  # convert single string to array
+        self.assertRaises(ValidationError, strings_field.from_native, {})  # must be a list
+        self.assertRaises(ValidationError, strings_field.from_native, [123])  # items must be strings
+        self.assertRaises(ValidationError, strings_field.to_native, [])  # not writable
+
+        phones_field = PhoneArrayField(source='test')
+
+        self.assertEqual(phones_field.from_native(['123', '234']), [('tel', '123'), ('tel', '234')])
+        self.assertEqual(phones_field.from_native('123'), [('tel', '123')])  # convert single string to array
+        self.assertRaises(ValidationError, phones_field.from_native, {})  # must be a list
+        self.assertRaises(ValidationError, phones_field.from_native, [123])  # items must be strings
+        self.assertRaises(ValidationError, phones_field.from_native, ['123'] * 101)  # 100 items max
+        self.assertRaises(ValidationError, phones_field.to_native, [])  # not writable
+
+        flow_field = FlowField(source='test')
+
+        flow = self.create_flow()
+        self.assertEqual(flow_field.from_native(flow.pk), flow)
+        flow.is_active = False
+        flow.save()
+        self.assertRaises(ValidationError, flow_field.from_native, flow.pk)
+
+        channel_field = ChannelField(source='test')
+
+        self.assertEqual(channel_field.from_native(self.channel.pk), self.channel)
+        self.channel.is_active = False
+        self.channel.save()
+        self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
+
     def test_api_flows(self):
         url = reverse('api.flows')
 
@@ -268,6 +317,10 @@ class APITest(TembaTest):
     def test_api_flow_update(self):
         url = reverse('api.flows')
         self.login(self.admin)
+
+        # post something that isn't an object
+        response = self.postJSON(url, ['test'])
+        self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
 
         # can't create a flow without a name
         response = self.postJSON(url, dict(name="", flow_type='F'))
