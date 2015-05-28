@@ -744,8 +744,10 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
   $scope.ruleset = ruleset
   $scope.languages = languages
+  $scope.language = $scope.$parent.language
 
   $scope.ok = ->
+
     for rule in ruleset.rules
       if rule.category
         if rule._translation.category.to and rule._translation.category.to.strip().length > 0
