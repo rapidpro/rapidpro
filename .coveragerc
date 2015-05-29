@@ -2,4 +2,3 @@
 omit =
     */migrations/*
     temba/perf_tests.py
-    temba/*/tests.py
