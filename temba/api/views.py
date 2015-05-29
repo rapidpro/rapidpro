@@ -12,11 +12,11 @@ from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.generic import View
-from rest_framework import generics, status
+from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.reverse import reverse
-from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, CallSerializer, CampaignSerializer
@@ -318,6 +318,7 @@ def api(request, format=None):
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
      * [/api/v1/messages](/api/v1/messages) - To list messages.
+     * [/api/v1/message_actions](/api/v1/message_actions) - To perform bulk message actions.
      * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
@@ -340,7 +341,7 @@ def api(request, format=None):
 
     All API calls follow standard REST conventions.  You can list a set of resources by making a **GET** request on the endpoint
     and either send new messages or claim channels using the **POST** verb.  You can receive responses either
-    in JSON or XML by appending the corresponding extension to the endpoint URL, ex: ```/api/v1.json```
+    in JSON or XML by appending the corresponding extension to the endpoint URL, ex: ```/api/v1/contacts.json```
 
     ## Status Codes
 
@@ -401,18 +402,38 @@ def api(request, format=None):
         'flows': reverse('api.flows', request=request),
         'labels': reverse('api.labels', request=request),
         'messages': reverse('api.messages', request=request),
+        'message_actions': reverse('api.message_actions', request=request),
         'relayers': reverse('api.channels', request=request),
         'runs': reverse('api.runs', request=request),
     })
 
 
-class BaseListAPIView(generics.ListAPIView):
+class BaseAPIView(generics.GenericAPIView):
+    """
+    Base class of all our API endpoints
+    """
     permission_classes = (SSLPermission, ApiPermission)
-    cache_counts = False
 
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
-        return super(BaseListAPIView, self).dispatch(request, *args, **kwargs)
+        return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+
+
+class ListAPIMixin(mixins.ListModelMixin):
+    """
+    Mixin for any endpoint which returns a list of objects from a GET request
+    """
+    cache_counts = False
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def list(self, request, *args, **kwargs):
+        if not kwargs.get('format', None):
+            # if this is just a request to browse the endpoint docs, don't make a query
+            return Response([])
+        else:
+            return super(ListAPIMixin, self).list(request, *args, **kwargs)
 
     class FixedCountPaginator(Paginator):
         """
@@ -422,13 +443,13 @@ class BaseListAPIView(generics.ListAPIView):
         def __init__(self, queryset, *args, **kwargs):
             self.fixed_count = getattr(queryset, 'fixed_count', None)
 
-            super(BaseListAPIView.FixedCountPaginator, self).__init__(queryset, *args, **kwargs)
+            super(ListAPIMixin.FixedCountPaginator, self).__init__(queryset, *args, **kwargs)
 
         def _get_count(self):
             if self.fixed_count is not None:
                 return self.fixed_count
             else:
-                return super(BaseListAPIView.FixedCountPaginator, self)._get_count()
+                return super(ListAPIMixin.FixedCountPaginator, self)._get_count()
 
         count = property(_get_count)
 
@@ -447,7 +468,7 @@ class BaseListAPIView(generics.ListAPIView):
             if cached_count is not None:
                 queryset.fixed_count = int(cached_count)
 
-            page = super(BaseListAPIView, self).paginate_queryset(queryset)
+            page = super(ListAPIMixin, self).paginate_queryset(queryset)
 
             if cached_count is None:
                 calculated_count = page.paginator.count
@@ -455,13 +476,14 @@ class BaseListAPIView(generics.ListAPIView):
 
             return page
         else:
-            return super(BaseListAPIView, self).paginate_queryset(queryset)
+            return super(ListAPIMixin, self).paginate_queryset(queryset)
 
 
-class CreateAPIViewMixin(object):
+class CreateAPIMixin(object):
     """
-    Our list and create approach differs slightly a bit from ListCreateAPIView in the REST framework as we use separate
-    read and write serializers... and sometimes we use another serializer again for write output
+    Mixin for any endpoint which can create or update objects with a write serializer. Our list and create approach
+    differs slightly a bit from ListCreateAPIView in the REST framework as we use separate read and write serializers...
+    and sometimes we use another serializer again for write output
     """
     write_serializer_class = None
 
@@ -481,13 +503,15 @@ class CreateAPIViewMixin(object):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class DeleteAPIViewMixin(object):
+class DeleteAPIMixin(object):
+    """
+    Mixin for any endpoint that can delete objects with a DELETE request
+    """
     def delete(self, request, *args, **kwargs):
-        self.request = request
         return self.destroy(request, *args, **kwargs)
 
 
-class BroadcastEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class BroadcastEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
     This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
     message broadcasts using the ```POST``` method.
@@ -641,38 +665,12 @@ class BroadcastEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class MessageEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class MessageEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
-    This endpoint allows you either list messages on your account using the ```GET``` method or send new messages
-    using the ```POST``` method.
+    This endpoint allows you either list messages on your account using the ```GET``` method.
 
-    ## Sending Messages
-
-    ** Note that sending messages using this endpoint is deprecated, you should instead use the Broadcasts endpoint to
-       send new messages **
-
-    You can create new messages by making a **POST** request to this URL with the following JSON data:
-
-      * **channel** - the id of the channel that should send the messages (int, optional)
-      * **urn** - either a single URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
-      * **contact** - either a single contact UUID or a JSON array of up to 100 contact UUIDs to send the message to (string or array of strings)
-      * **text** - the text of the message to send (string, limit of 480 characters)
-
-    Example:
-
-        POST /api/v1/messages.json
-        {
-            "urns": ["tel:+250788123123", "tel:+250788123124"],
-            "text": "hello world"
-        }
-
-    You will receive a response containing the ids of the messages created:
-
-        {
-            "messages": [
-               158, 159
-            ]
-        }
+    ** Note that sending messages using this endpoint is deprecated, you should instead use the
+       [broadcasts](/api/v1/broadcasts) endpoint to send new messages. **
 
     ## Listing Messages
 
@@ -740,6 +738,7 @@ class MessageEndpoint(BaseListAPIView, CreateAPIViewMixin):
 
     def render_write_response(self, write_output):
         # use a different serializer for created messages
+
         response_serializer = MsgCreateResultSerializer(instance=write_output)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -912,7 +911,7 @@ class MessageEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class MessageBulkActionEndpoint(generics.GenericAPIView):
+class MessageBulkActionEndpoint(BaseAPIView):
     """
     ## Bulk Message Updating
 
@@ -942,7 +941,6 @@ class MessageBulkActionEndpoint(generics.GenericAPIView):
     You will receive an empty response if successful.
     """
     permission = 'msgs.msg_api'
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = MsgBulkActionSerializer
 
     def post(self, request, *args, **kwargs):
@@ -974,7 +972,7 @@ class MessageBulkActionEndpoint(generics.GenericAPIView):
         return spec
 
 
-class LabelEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class LabelEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
     ## Listing Message Labels
 
@@ -1062,7 +1060,7 @@ class LabelEndpoint(BaseListAPIView, CreateAPIViewMixin):
     write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
-        queryset = Label.objects.filter(org=self.request.user.get_org()).order_by('-pk')
+        queryset = self.model.objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1109,7 +1107,7 @@ class LabelEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class CallEndpoint(BaseListAPIView):
+class CallEndpoint(BaseAPIView, ListAPIMixin):
     """
     Returns the incoming and outgoing calls for your organization, most recent first.
 
@@ -1151,7 +1149,7 @@ class CallEndpoint(BaseListAPIView):
     cache_counts = True
 
     def get_queryset(self):
-        queryset = Call.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         ids = splitting_getlist(self.request, 'call')
         if ids:
@@ -1214,7 +1212,7 @@ class CallEndpoint(BaseListAPIView):
         return spec
 
 
-class ChannelEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
+class ChannelEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin):
     """
     ## Claiming Channels
 
@@ -1325,7 +1323,7 @@ class ChannelEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
-        queryset = Channel.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-last_seen')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-last_seen')
 
         ids = splitting_getlist(self.request, 'relayer')
         if ids:
@@ -1414,7 +1412,7 @@ class ChannelEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         return spec
 
 
-class GroupEndpoint(BaseListAPIView):
+class GroupEndpoint(BaseAPIView, ListAPIMixin):
     """
     ## Listing Groups
 
@@ -1449,7 +1447,7 @@ class GroupEndpoint(BaseListAPIView):
     serializer_class = ContactGroupReadSerializer
 
     def get_queryset(self):
-        queryset = ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
+        queryset = self.model.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1476,7 +1474,7 @@ class GroupEndpoint(BaseListAPIView):
         return spec
 
 
-class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
+class ContactEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin):
     """
     ## Adding a Contact
 
@@ -1605,7 +1603,7 @@ class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_base_queryset(self, request):
-        return Contact.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
+        return self.model.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
 
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)
@@ -1657,7 +1655,7 @@ class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         """
         So that we only fetch active contact fields once for all contacts
         """
-        context = super(BaseListAPIView, self).get_serializer_context()
+        context = super(BaseAPIView, self).get_serializer_context()
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
@@ -1713,7 +1711,7 @@ class ContactEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
         return spec
 
 
-class FieldEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class FieldEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
     ## Listing Fields
 
@@ -1803,7 +1801,7 @@ class FieldEndpoint(BaseListAPIView, CreateAPIViewMixin):
     write_serializer_class = ContactFieldWriteSerializer
 
     def get_queryset(self):
-        queryset = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True)
 
         key = self.request.QUERY_PARAMS.get('key', None)
         if key:
@@ -1840,7 +1838,7 @@ class FieldEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class FlowResultsEndpoint(generics.GenericAPIView):
+class FlowResultsEndpoint(BaseAPIView):
     """
     This endpoint allows you to get aggregate results for a flow ruleset, optionally segmenting the results by another
     ruleset in the process.
@@ -1882,7 +1880,6 @@ class FlowResultsEndpoint(generics.GenericAPIView):
            ...
     """
     permission = 'flows.flow_results'
-    permission_classes = (SSLPermission, ApiPermission)
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -1938,7 +1935,7 @@ class FlowResultsEndpoint(generics.GenericAPIView):
         return spec
 
 
-class FlowRunEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class FlowRunEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
     This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A
     run is created for each time a contact is started down a flow.
@@ -2075,7 +2072,7 @@ class FlowRunEndpoint(BaseListAPIView, CreateAPIViewMixin):
                         status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
+        queryset = self.model.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
@@ -2172,7 +2169,7 @@ class FlowRunEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class CampaignEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class CampaignEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
     ## Adding or Updating a Campaign
 
@@ -2237,7 +2234,7 @@ class CampaignEndpoint(BaseListAPIView, CreateAPIViewMixin):
     write_serializer_class = CampaignWriteSerializer
 
     def get_queryset(self):
-        queryset = Campaign.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
 
         ids = splitting_getlist(self.request, 'campaign')
         if ids:
@@ -2296,7 +2293,7 @@ class CampaignEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class CampaignEventEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMixin):
+class CampaignEventEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin):
     """
     ## Adding or Updating Campaign Events
 
@@ -2400,7 +2397,7 @@ class CampaignEventEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMi
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
-        queryset = CampaignEvent.objects.filter(campaign__org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         ids = splitting_getlist(self.request, 'campaign')
         if ids:
@@ -2489,7 +2486,7 @@ class CampaignEventEndpoint(BaseListAPIView, CreateAPIViewMixin, DeleteAPIViewMi
         return spec
 
 
-class BoundaryEndpoint(BaseListAPIView):
+class BoundaryEndpoint(BaseAPIView, ListAPIMixin):
     """
     This endpoint allows you to list the administrative boundaries for the country associated with your organization
     along with the simplified gps geometry for those boundaries in GEOJSON format.
@@ -2554,9 +2551,9 @@ class BoundaryEndpoint(BaseListAPIView):
         if not org.country:
             return []
 
-        queryset = AdminBoundary.objects.filter(Q(pk=org.country.pk) |
-                                                Q(parent=org.country) |
-                                                Q(parent__parent=org.country)).order_by('level', 'name')
+        queryset = self.model.objects.filter(Q(pk=org.country.pk) |
+                                             Q(parent=org.country) |
+                                             Q(parent__parent=org.country)).order_by('level', 'name')
         return queryset.select_related('parent')
 
     @classmethod
@@ -2571,7 +2568,7 @@ class BoundaryEndpoint(BaseListAPIView):
         return spec
 
 
-class FlowEndpoint(BaseListAPIView, CreateAPIViewMixin):
+class FlowEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
     """
     This endpoint allows you to list all the active flows on your account using the ```GET``` method.
 
@@ -2625,7 +2622,7 @@ class FlowEndpoint(BaseListAPIView, CreateAPIViewMixin):
     write_serializer_class = FlowWriteSerializer
 
     def get_queryset(self):
-        queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
@@ -2683,13 +2680,11 @@ class FlowEndpoint(BaseListAPIView, CreateAPIViewMixin):
         return spec
 
 
-class AssetEndpoint(generics.RetrieveAPIView):
+class AssetEndpoint(BaseAPIView):
     """
     This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
     """
-    permission_classes = (SSLPermission, ApiPermission)
-
-    def retrieve(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         type_name = request.GET.get('type')
         identifier = request.GET.get('identifier')
         if not type_name or not identifier:

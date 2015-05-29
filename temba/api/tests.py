@@ -7,9 +7,11 @@ import json
 import time
 import uuid
 import pytz
+import xml.etree.ElementTree as ET
 
 from datetime import timedelta
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -64,9 +66,11 @@ class APITest(TembaTest):
         super(APITest, self).tearDown()
         settings.SESSION_COOKIE_SECURE = False
 
-    def fetchHTML(self, url):
-        response = self.client.get(url, HTTP_X_FORWARDED_HTTPS='https')
-        return response
+    def fetchHTML(self, url, query=None):
+        if query:
+            url += ('?' + query)
+
+        return self.client.get(url, HTTP_X_FORWARDED_HTTPS='https')
 
     def fetchJSON(self, url, query=None):
         url += '.json'
@@ -77,6 +81,17 @@ class APITest(TembaTest):
 
         # this will fail if our response isn't valid json
         response.json = json.loads(response.content)
+        return response
+
+    def fetchXML(self, url, query=None):
+        url += '.xml'
+        if query:
+            url += ('?' + query)
+
+        response = self.client.get(url, content_type="application/xml", HTTP_X_FORWARDED_HTTPS='https')
+
+        # this will fail if our response isn't valid XML
+        response.xml = ET.fromstring(response.content)
         return response
 
     def postJSON(self, url, data):
@@ -145,13 +160,13 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
-        # log in as plain user
+        # login as plain user
         self.login(self.user)
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
-        # log in a manager
+        # login as administrator
         self.login(self.admin)
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
@@ -159,18 +174,38 @@ class APITest(TembaTest):
 
     def test_api_root(self):
         url = reverse('api')
-        response = self.fetchHTML(url)
-        content = response.content
 
-        # log in as plain user
-        self.login(self.user)
+        # browse as HTML anonymously
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertContains(response, "RapidPro API", status_code=403)  # still shows docs
 
-        # log in a manager
+        # try to browse as JSON anonymously
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json['detail'], "Authentication credentials were not provided.")
+
+        # try to browse as XML anonymously
+        response = self.fetchXML(url)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.xml.find('detail').text, "Authentication credentials were not provided.")
+
+        # login as administrator
         self.login(self.admin)
+        token = self.admin.api_token()  # generates token for the user
+
+        # browse as HTML
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertContains(response, token, status_code=200)  # displays their API token
+
+        # browse as JSON
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['labels'], 'https://testserver:80/api/v1/labels')  # endpoints are listed
+
+        # browse as XML
+        response = self.fetchXML(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.xml.find('labels').text, 'https://testserver:80/api/v1/labels')
 
     def test_api_serializer_fields(self):
         dict_field = DictionaryField(source='test')
@@ -226,21 +261,25 @@ class APITest(TembaTest):
         # can't access, get 403
         self.assert403(url)
 
-        # log in as plain user
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # log in a manager
+        # login as administrator
         self.login(self.admin)
 
         # test that this user has a token
-        self.assertTrue(self.admin.api_token)
+        self.assertTrue(self.admin.api_token())
 
         # blow it away
         Token.objects.all().delete()
 
         # should create one lazily
-        self.assertTrue(self.admin.api_token)
+        self.assertTrue(self.admin.api_token())
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # create our test flow
         flow = self.create_flow()
@@ -265,9 +304,11 @@ class APITest(TembaTest):
                                                            created_on=datetime_to_json_date(flow.created_on),
                                                            archived=False))
 
-        response = self.fetchJSON(url)
-        self.assertResultCount(response, 1)
-        self.assertJSON(response, 'name', "Color Flow")
+        # try fetching as XML
+        response = self.fetchXML(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.xml.find('results').find('*').find('uuid').text, flow.uuid)
+        self.assertEqual(response.xml.find('results').find('*').find('name').text, 'Color Flow')
 
         # filter by archived
         flow.is_archived = True
@@ -375,11 +416,11 @@ class APITest(TembaTest):
         # can't access, get 403
         self.assert403(url)
 
-        # log in as plain user
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # log in a manager
+        # login as administrator
         self.login(self.admin)
 
         # all requests must be against a ruleset or field
@@ -438,12 +479,16 @@ class APITest(TembaTest):
         # can't access, get 403
         self.assert403(url)
 
-        # log in as plain user
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # log in a manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # create our test flow and a copy
         flow = self.create_flow()
@@ -586,23 +631,18 @@ class APITest(TembaTest):
         # can't access, get 403
         self.assert403(url)
 
-        # log in as plain user
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # log in a manager
+        # login as administrator
         self.login(self.admin)
 
-        # test that this user has a token
-        self.assertTrue(self.admin.api_token)
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
-        # blow it away
-        Token.objects.all().delete()
-
-        # should create one lazily
-        self.assertTrue(self.admin.api_token)
-
-        # this time, a 200
+        # fetch all channels as JSON
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
 
@@ -740,14 +780,18 @@ class APITest(TembaTest):
         # 403 if not logged in
         self.assert403(url)
 
-        # log in
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # manager
+        # login as administrator
         self.login(self.admin)
 
-        # 200 this time
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+
+        # fetch all calls as JSON
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
 
@@ -768,12 +812,16 @@ class APITest(TembaTest):
         # 403 if not logged in
         self.assert403(url)
 
-        # log in
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # remove all our contacts
         Contact.objects.all().delete()
@@ -1073,12 +1121,16 @@ class APITest(TembaTest):
         # 403 if not logged in
         self.assert403(url)
 
-        # log in
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # no fields yet
         response = self.fetchJSON(url)
@@ -1134,12 +1186,16 @@ class APITest(TembaTest):
         # 403 if not logged in
         self.assert403(url)
 
-        # log in
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # no broadcasts yet
         response = self.fetchJSON(url)
@@ -1448,12 +1504,16 @@ class APITest(TembaTest):
         # 403 if not logged in
         self.assert403(url)
 
-        # log in
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 405)  # because endpoint doesn't support GET
 
         # create some messages to act on
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #1')
@@ -1513,7 +1573,13 @@ class APITest(TembaTest):
 
     def test_api_labels(self):
         url = reverse('api.labels')
+
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # add a top-level labels
         response = self.postJSON(url, dict(name='Screened'))
@@ -1585,7 +1651,13 @@ class APITest(TembaTest):
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
+
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # try creating a broadcast with no recipients
         response = self.postJSON(url, dict(text='Hello X'))
@@ -1699,12 +1771,16 @@ class APITest(TembaTest):
         # can't access, get 403
         self.assert403(url)
 
-        # log in as plain user
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # log in a manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # test that this user has a token
         self.assertTrue(self.admin.api_token)
@@ -1807,12 +1883,16 @@ class APITest(TembaTest):
         # 403 if not logged in
         self.assert403(url)
 
-        # log in
+        # login as plain user
         self.login(self.user)
         self.assert403(url)
 
-        # manager
+        # login as administrator
         self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # no groups yet
         response = self.fetchJSON(url)
