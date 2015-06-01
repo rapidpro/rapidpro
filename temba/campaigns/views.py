@@ -287,7 +287,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             self.object.is_active = False
             self.object.save()
 
-            EventFire.update_events_for_event(self.object)
+            EventFire.update_eventfires_for_event(self.object)
 
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)
@@ -326,7 +326,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super(CampaignEventCRUDL.Update, self).post_save(obj)
             obj.update_flow_name()
-            EventFire.update_events_for_event(obj)
+            EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):
@@ -371,7 +371,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super(CampaignEventCRUDL.Create, self).post_save(obj)
             obj.update_flow_name()
-            EventFire.update_events_for_event(obj)
+            EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):

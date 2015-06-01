@@ -9,6 +9,7 @@ from datetime import timedelta
 from temba.contacts.models import ContactGroup, ContactField, Contact
 from temba.orgs.models import Org
 from temba.flows.models import Flow
+from temba.values.models import Value
 from dateutil.parser import parse
 from django.utils.translation import ugettext_lazy as _
 
@@ -269,14 +270,19 @@ class CampaignEvent(SmartModel):
 
         return offset
 
-    def calculate_scheduled_fire(self, contact):
+    def calculate_scheduled_fire_for_value(self, date_value, now):
+
+        date_value = self.campaign.org.parse_date(date_value)
+
+        # if we got a date, floor to the minute
+        if date_value:
+            date_value = date_value.replace(second=0, microsecond=0)
+
         if not self.relative_to.is_active: # pragma: no cover
             return None
 
         # try to parse it to a datetime
         try:
-            now = timezone.now()
-            date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
             if date_value:
                 if self.unit == MINUTES:
                     delta = timedelta(minutes=self.offset)
@@ -299,6 +305,10 @@ class CampaignEvent(SmartModel):
             pass
 
         return None
+
+    def calculate_scheduled_fire(self, contact):
+        date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
+        return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
 
     def __unicode__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
@@ -346,19 +356,36 @@ class EventFire(Model):
             cls.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_events_for_event(cls, event):
+    def update_eventfires_for_event(cls, event):
+        from temba.campaigns.tasks import update_event_fires
+        update_event_fires.delay(event.pk)
+
+    @classmethod
+    def do_update_eventfires_for_event(cls, event):
         # unschedule any fires
         EventFire.objects.filter(event=event, fired=None).delete()
 
         # add new ones
         if event.is_active:
-            for contact in event.campaign.group.contacts.exclude(is_test=True):
-                # calculate our scheduled date
-                scheduled = event.calculate_scheduled_fire(contact)
+
+            contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+            values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=event.relative_to.key)
+            values = values.select_related('contact').distinct('contact')
+
+            now = timezone.now()
+            events = []
+
+            org = event.campaign.org
+            for value in values:
+                formatted_date = org.format_date(value.datetime_value)
+                scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
 
                 # and if we have a date, then schedule it
                 if scheduled:
-                    EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
+                    events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+
+            # bulk create our event fires
+            EventFire.objects.bulk_create(events)
 
     @classmethod
     def update_field_events(cls, contact_field):
@@ -372,17 +399,28 @@ class EventFire(Model):
             # cancel existing events, we are going to recreate them all
             EventFire.objects.filter(event__relative_to=contact_field, fired=None).delete()
 
+            now = timezone.now()
+            from temba.values.models import Value
+
+            org = contact_field.org
             for event in CampaignEvent.objects.filter(relative_to=contact_field,
                                                       campaign__is_active=True, campaign__is_archived=False, is_active=True):
 
-                # for each contact
-                for contact in event.campaign.group.contacts.filter(is_active=True):
-                    # calculate our scheduled date
-                    scheduled = event.calculate_scheduled_fire(contact)
+                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+                values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=contact_field.key)
+                values = values.select_related('contact').distinct('contact')
+
+                events = []
+                for value in values:
+                    formatted_date = org.format_date(value.datetime_value)
+                    scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
 
                     # and if we have a date, then schedule it
                     if scheduled:
-                        EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
+                        events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+
+                # bulk create our event fires
+                EventFire.objects.bulk_create(events)
 
     @classmethod
     def update_events_for_contact(cls, contact):

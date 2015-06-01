@@ -17,9 +17,9 @@ module.exports = (config) ->
 
       # our javascript dependencies
       'static/js/jquery-2.1.0.min.js',
-      'static/angular-1.3.0-beta.17/angular.js',
-      'static/angular-1.3.0-beta.17/angular-animate.js'
-      'static/angular-1.3.0-beta.17/angular-mocks.js',
+      'static/angular-1.3.15/angular.js',
+      'static/angular-1.3.15/angular-animate.js'
+      'static/angular-1.3.15/angular-mocks.js',
       'static/angular/ui-bootstrap-tpls-0.11.0.js',
       'static/scripts/angular-file-upload-1.6.12/angular-file-upload.js',
       'static/scripts/angular-elastic-2.4.0/angular-elastic.js',
@@ -38,6 +38,7 @@ module.exports = (config) ->
       # our test files
       'karma/flows/test_services.coffee',
       'karma/flows/test_directives.coffee',
+      'karma/flows/test_controllers.coffee',
 
     ]
 
@@ -90,7 +91,7 @@ module.exports = (config) ->
 
 
     # enable / disable watching file and executing tests whenever any file changes
-    autoWatch: false
+    autoWatch: true
 
 
     # start these browsers
@@ -100,5 +101,5 @@ module.exports = (config) ->
 
     # Continuous Integration mode
     # if true, Karma captures browsers, runs the tests and exits
-    singleRun: true
+    singleRun: false
 
