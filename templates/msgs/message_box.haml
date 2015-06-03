@@ -155,16 +155,12 @@
                       %td.value-text.field_text
                         {% get_value object 'text' %}
                         .value-labels
-                          %nobr
-                            - for label in object.labels.all
-                              %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
-                                  ={label.name}
+                          - for label in object.labels.all
+                            %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                              %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                                ={label.name}
 
-
-                      %td.value-flow.field_flow
-                        -if object.get_flow_id
-                          %nobr
+                          - if object.get_flow_id
                             %span.label.label-success
                               %a{href:"{% url 'flows.flow_editor' object.get_flow_id %}"}
                                 ={object.get_flow_name}
