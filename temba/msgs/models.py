@@ -269,10 +269,7 @@ class Broadcast(models.Model):
     @classmethod
     def get_broadcasts(cls, org, scheduled=False):
         qs = Broadcast.objects.filter(org=org).exclude(contacts__is_test=True)
-
-        qs = qs.exclude(schedule=None) if scheduled else qs.filter(schedule=None)
-
-        return qs.distinct()
+        return qs.exclude(schedule=None) if scheduled else qs.filter(schedule=None)
 
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
@@ -924,25 +921,19 @@ class Msg(models.Model, OrgModelMixin):
         self.org.trigger_send([cloned])
 
     def get_flow_step(self):
-        return self.steps.all().first()
+        if self.msg_type == INBOX:
+            return None
+
+        steps = list(self.steps.all())  # steps may have been pre-fetched
+        return steps[0] if steps else None
 
     def get_flow_id(self):
         step = self.get_flow_step()
-        flow_id = None
-        if step:
-            flow_id = step.run.flow.id
-
-        return flow_id
-
+        return step.run.flow_id if step else None
 
     def get_flow_name(self):
-        flow_name = ""
-
         step = self.get_flow_step()
-        if step:
-            flow_name = step.run.flow.name
-
-        return flow_name
+        return step.run.flow.name if step else ""
 
     def as_task_json(self):
         """
