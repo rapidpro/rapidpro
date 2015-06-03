@@ -11,15 +11,19 @@ from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun, RuleSet
+from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, VISIBLE, ARCHIVED, DELETED
-from temba.values.models import Value, VALUE_TYPE_CHOICES
+from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED
+from temba.values.models import VALUE_TYPE_CHOICES
 
+
+# ------------------------------------------------------------------------------------------
+# Field types
+# ------------------------------------------------------------------------------------------
 
 class DictionaryField(serializers.WritableField):
 
-    def to_native(self, obj):  # pragma: no cover
+    def to_native(self, obj):
         raise ValidationError("Reading of extra field not supported")
 
     def from_native(self, data):
@@ -27,7 +31,7 @@ class DictionaryField(serializers.WritableField):
             for key in data.keys():
                 value = data[key]
 
-                if not isinstance(value, basestring):
+                if not isinstance(key, basestring) or not isinstance(value, basestring):
                     raise ValidationError("Invalid, keys and values must both be strings: %s" % unicode(value))
             return data
         else:
@@ -36,7 +40,7 @@ class DictionaryField(serializers.WritableField):
 
 class IntegerArrayField(serializers.WritableField):
 
-    def to_native(self, obj):  # pragma: no cover
+    def to_native(self, obj):
         raise ValidationError("Reading of integer array field not supported")
 
     def from_native(self, data):
@@ -56,7 +60,7 @@ class IntegerArrayField(serializers.WritableField):
 
 class StringArrayField(serializers.WritableField):
 
-    def to_native(self, obj):  # pragma: no cover
+    def to_native(self, obj):
         raise ValidationError("Reading of string array field not supported")
 
     def from_native(self, data):
@@ -74,12 +78,57 @@ class StringArrayField(serializers.WritableField):
             raise ValidationError("Invalid, must be array: %s" % data)
 
 
+class PhoneArrayField(serializers.WritableField):
+
+    def to_native(self, obj):
+        raise ValidationError("Reading of phone field not supported")
+
+    def from_native(self, data):
+        if isinstance(data, basestring):
+            return [(TEL_SCHEME, data)]
+        elif isinstance(data, list):
+            if len(data) > 100:
+                raise ValidationError("You can only specify up to 100 numbers at a time.")
+
+            urns = []
+            for phone in data:
+                if not isinstance(phone, basestring):
+                    raise ValidationError("Invalid phone: %s" % str(phone))
+                urns.append((TEL_SCHEME, phone))
+
+            return urns
+        else:
+            raise ValidationError("Invalid phone: %s" % data)
+
+
+class FlowField(serializers.PrimaryKeyRelatedField):
+
+    def __init__(self, **kwargs):
+        super(FlowField, self).__init__(queryset=Flow.objects.filter(is_active=True), **kwargs)
+
+
+class ChannelField(serializers.PrimaryKeyRelatedField):
+
+    def __init__(self, **kwargs):
+        super(ChannelField, self).__init__(queryset=Channel.objects.filter(is_active=True), **kwargs)
+
+
+# ------------------------------------------------------------------------------------------
+# Serializers
+# ------------------------------------------------------------------------------------------
+
 class WriteSerializer(serializers.Serializer):
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
+
+        super(WriteSerializer, self).__init__(*args, **kwargs)
 
     def restore_fields(self, data, files):
 
         if not isinstance(data, dict):
-            self._errors['non_field_errors'] = ['Request body should be a single JSON object']
+            self._errors['non_field_errors'] = ["Request body should be a single JSON object"]
             return {}
 
         return super(WriteSerializer, self).restore_fields(data, files)
@@ -117,9 +166,8 @@ class MsgReadSerializer(serializers.ModelSerializer):
         return obj.channel_id
 
     def get_status(self, obj):
-        if obj.status in ['Q', 'P']:
-            return 'Q'
-        return obj.status
+        # PENDING and QUEUED are same as far as users are concerned
+        return 'Q' if obj.status in ['Q', 'P'] else obj.status
 
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED
@@ -131,20 +179,13 @@ class MsgReadSerializer(serializers.ModelSerializer):
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'status', 'type', 'labels', 'relayer',
                   'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
-        read_only_fields = ('direction', 'created_on', 'sent_on', 'delivered_on')
 
 
-class MsgBulkActionSerializer(serializers.Serializer):
+class MsgBulkActionSerializer(WriteSerializer):
     messages = IntegerArrayField(required=True)
     action = serializers.CharField(required=True)
     label = serializers.CharField(required=False)
     label_uuid = serializers.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs.pop('user')
-
-        super(MsgBulkActionSerializer, self).__init__(*args, **kwargs)
 
     def validate(self, attrs):
         if attrs['action'] in ('label', 'unlabel') and not ('label' in attrs or 'label_uuid' in attrs):
@@ -162,13 +203,13 @@ class MsgBulkActionSerializer(serializers.Serializer):
             if not Label.is_valid_name(label_name):
                 raise ValidationError("Label name must not be blank or begin with + or -")
 
-            attrs['label'] = Label.get_or_create(self.user.get_org(), self.user, label_name, None)
+            attrs['label'] = Label.get_or_create(self.org, self.user, label_name, None)
         return attrs
 
     def validate_label_uuid(self, attrs, source):
         label_uuid = attrs.get(source, None)
         if label_uuid:
-            label = Label.objects.filter(org=self.user.get_org(), uuid=label_uuid).first()
+            label = Label.objects.filter(org=self.org, uuid=label_uuid).first()
             if not label:
                 raise ValidationError("No such label with UUID: %s" % label_uuid)
             attrs['label'] = label
@@ -181,7 +222,7 @@ class MsgBulkActionSerializer(serializers.Serializer):
         msg_ids = attrs['messages']
         action = attrs['action']
 
-        msgs = Msg.objects.filter(org=self.user.get_org(), pk__in=msg_ids)
+        msgs = Msg.objects.filter(org=self.org, pk__in=msg_ids)
 
         if action == 'label':
             attrs['label'].toggle_label(msgs, add=True)
@@ -219,42 +260,33 @@ class LabelReadSerializer(serializers.ModelSerializer):
         fields = ('uuid', 'name', 'parent', 'count')
 
 
-class LabelWriteSerializer(serializers.Serializer):
+class LabelWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=True)
-    parent = serializers.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs.pop('user')
-
-        super(LabelWriteSerializer, self).__init__(*args, **kwargs)
+    parent = serializers.CharField(required=False, allow_none=True)
 
     def validate_uuid(self, attrs, source):
-        org = self.user.get_org()
         uuid = attrs.get(source, None)
 
-        if uuid and not Label.objects.filter(org=org, uuid=uuid).exists():
+        if uuid and not Label.objects.filter(org=self.org, uuid=uuid).exists():
             raise ValidationError("No such message label with UUID: %s" % uuid)
 
         return attrs
 
     def validate_name(self, attrs, source):
-        org = self.user.get_org()
         uuid = attrs.get('uuid', None)
         name = attrs.get(source, None)
 
-        if Label.objects.filter(org=org, name=name).exclude(uuid=uuid).exists():
+        if Label.objects.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
             raise ValidationError("Label name must be unique")
 
         return attrs
 
     def validate_parent(self, attrs, source):
-        org = self.user.get_org()
         parent = attrs.get(source, None)
 
         if parent:
-            parent_obj = Label.objects.filter(org=org, uuid=parent).first()
+            parent_obj = Label.objects.filter(org=self.org, uuid=parent).first()
             if not parent_obj:
                 raise ValidationError("No such message label with UUID: %s" % parent)
             if parent_obj.parent_id:
@@ -268,19 +300,18 @@ class LabelWriteSerializer(serializers.Serializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        org = self.user.get_org()
         uuid = attrs.get('uuid', None)
         name = attrs.get('name', None)
         parent = attrs.get('parent', None)
 
         if uuid:
-            existing = Label.objects.get(org=org, uuid=uuid)
+            existing = Label.objects.get(org=self.org, uuid=uuid)
             existing.name = name
             existing.parent = parent
             existing.save()
             return existing
         else:
-            return Label.create(org, self.user, name, parent)
+            return Label.create(self.org, self.user, name, parent)
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):
@@ -308,20 +339,22 @@ class ContactReadSerializer(serializers.ModelSerializer):
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
 
     def get_groups(self, obj):
-        return [_.name for _ in obj.user_groups.all()]
+        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        return [_.name for _ in groups]
 
     def get_group_uuids(self, obj):
-        return [_.uuid for _ in obj.user_groups.all()]
+        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        return [_.uuid for _ in groups]
 
     def get_urns(self, obj):
         if obj.org.is_anon:
             return dict()
 
-        return [urn.urn for urn in obj.urns.all()]
+        return [urn.urn for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
-        for contact_field in ContactField.objects.filter(org=obj.org, is_active=True):
+        for contact_field in self.context['contact_fields']:
             fields[contact_field.key] = obj.get_field_display(contact_field.key)
         return fields
 
@@ -342,16 +375,6 @@ class ContactWriteSerializer(WriteSerializer):
     fields = DictionaryField(required=False)
     phone = serializers.CharField(required=False, max_length=16)  # deprecated, use urns
     groups = StringArrayField(required=False)  # deprecated, use group_uuids
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            self.org = kwargs.get('org', self.user.get_org())
-            del kwargs['user']
-            if 'org' in kwargs:
-                del kwargs['org']
-
-        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
 
     def validate(self, attrs):
         urns = attrs.get('urns', [])
@@ -408,7 +431,7 @@ class ContactWriteSerializer(WriteSerializer):
     def validate_uuid(self, attrs, source):
         uuid = attrs.get(source, '')
         if uuid:
-            contact = Contact.objects.filter(org=self.user.get_org(), uuid=uuid, is_active=True).first()
+            contact = Contact.objects.filter(org=self.org, uuid=uuid, is_active=True).first()
             if not contact:
                 raise ValidationError("Unable to find contact with UUID: %s" % uuid)
 
@@ -453,7 +476,7 @@ class ContactWriteSerializer(WriteSerializer):
     def validate_fields(self, attrs, source):
         fields = attrs.get(source, {}).items()
         if fields:
-            org_fields = list(ContactField.objects.filter(org=self.user.get_org(), is_active=True))
+            org_fields = list(ContactField.objects.filter(org=self.org, is_active=True))
 
             for key, value in attrs.get(source, {}).items():
                 for field in org_fields:
@@ -498,13 +521,12 @@ class ContactWriteSerializer(WriteSerializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        org = self.user.get_org()
-        if org.is_anon:
+        if self.org.is_anon:
             raise ValidationError("Cannot update contacts on anonymous organizations")
 
         uuid = attrs.get('uuid', None)
         if uuid:
-            contact = Contact.objects.get(uuid=uuid, org=org, is_active=True)
+            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
 
         urns = attrs.get('urns', None)
         phone = attrs.get('phone', None)
@@ -520,7 +542,7 @@ class ContactWriteSerializer(WriteSerializer):
         if uuid:
             contact.update_urns(urns)
         else:
-            contact = Contact.get_or_create(org, self.user, urns=urns, uuid=uuid)
+            contact = Contact.get_or_create(self.org, self.user, urns=urns, uuid=uuid)
 
         changed = []
 
@@ -541,13 +563,13 @@ class ContactWriteSerializer(WriteSerializer):
         fields = attrs.get('fields', None)
         if not fields is None:
             for key, value in fields.items():
-                existing_by_key = ContactField.objects.filter(org=self.user.get_org(), key__iexact=key, is_active=True).first()
+                existing_by_key = ContactField.objects.filter(org=self.org, key__iexact=key, is_active=True).first()
                 if existing_by_key:
                     contact.set_field(existing_by_key.key, value)
                     continue
 
                 # TODO as above, need to get users to stop updating via label
-                existing_by_label = ContactField.objects.filter(org=self.user.get_org(), label__iexact=key, is_active=True).first()
+                existing_by_label = ContactField.objects.filter(org=self.org, label__iexact=key, is_active=True).first()
                 if existing_by_label:
                     contact.set_field(existing_by_label.key, value)
 
@@ -560,7 +582,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         elif not group_names is None:
             # by name creates groups if necessary
-            groups = [ContactGroup.get_or_create(self.user.get_org(), self.user, name) for name in group_names]
+            groups = [ContactGroup.get_or_create(self.org, self.user, name) for name in group_names]
             contact.update_groups(groups)
 
         return contact
@@ -576,23 +598,16 @@ class ContactFieldReadSerializer(serializers.ModelSerializer):
         fields = ('key', 'label', 'value_type')
 
 
-class ContactFieldWriteSerializer(serializers.Serializer):
+class ContactFieldWriteSerializer(WriteSerializer):
     key = serializers.CharField(required=False)
     label = serializers.CharField(required=True)
     value_type = serializers.CharField(required=True)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            del kwargs['user']
-
-        super(ContactFieldWriteSerializer, self).__init__(*args, **kwargs)
 
     def validate_key(self, attrs, source):
         key = attrs.get(source, '')
         if key:
             # if key is specified, then we're updating a field, so key must exist
-            if not ContactField.objects.filter(org=self.user.get_org(), key=key).exists():
+            if not ContactField.objects.filter(org=self.org, key=key).exists():
                 raise ValidationError("No such contact field key")
         return attrs
 
@@ -614,7 +629,6 @@ class ContactFieldWriteSerializer(serializers.Serializer):
         attrs['key'] = key
         return attrs
 
-
     def restore_object(self, attrs, instance=None):
         """
         Update our contact field
@@ -622,35 +636,11 @@ class ContactFieldWriteSerializer(serializers.Serializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        org = self.user.get_org()
         key = attrs.get('key')
         label = attrs.get('label')
         value_type = attrs.get('value_type')
 
-        return ContactField.get_or_create(org, key, label, value_type=value_type)
-
-
-class PhoneField(serializers.WritableField):
-
-    def to_native(self, obj):  # pragma: no cover
-        raise ValidationError("Reading of phone field not supported")
-
-    def from_native(self, data):
-        if isinstance(data, basestring):
-            return [(TEL_SCHEME, data)]
-        elif isinstance(data, list):
-            if len(data) > 100:
-                raise ValidationError("You can only specify up to 100 numbers at a time.")
-
-            urns = []
-            for phone in data:
-                if not isinstance(phone, basestring):
-                    raise ValidationError("Invalid phone: %s" % str(phone))
-                urns.append((TEL_SCHEME, phone))
-
-            return urns
-        else:
-            raise ValidationError("Invalid phone: %s" % data)
+        return ContactField.get_or_create(self.org, key, label, value_type=value_type)
 
 
 class CampaignEventSerializer(serializers.ModelSerializer):
@@ -677,10 +667,9 @@ class CampaignEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignEvent
         fields = ('event', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'message', 'flow', 'created_on')
-        read_only_fields = ('offset', 'unit', 'message', 'delivery_hour', 'created_on')
 
 
-class CampaignEventWriteSerializer(serializers.Serializer):
+class CampaignEventWriteSerializer(WriteSerializer):
     campaign = serializers.IntegerField(required=False)
     event = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=True)
@@ -690,21 +679,14 @@ class CampaignEventWriteSerializer(serializers.Serializer):
     message = serializers.CharField(required=False, max_length=320)
     flow = serializers.IntegerField(required=False)
 
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            del kwargs['user']
-
-        super(CampaignEventWriteSerializer, self).__init__(*args, **kwargs)
-
     def validate_campaign(self, attrs, source):
-        if not source in attrs:
+        if source not in attrs:
             return attrs
 
         # try to look up the campaign
         campaign_id = attrs[source]
 
-        if not Campaign.objects.filter(pk=campaign_id, is_active=True, is_archived=False, org=self.user.get_org()):
+        if not Campaign.objects.filter(pk=campaign_id, is_active=True, is_archived=False, org=self.org):
             raise ValidationError("No campaign with id %d" % campaign_id)
 
         if 'event' in attrs:
@@ -713,13 +695,13 @@ class CampaignEventWriteSerializer(serializers.Serializer):
         return attrs
 
     def validate_event(self, attrs, source):
-        if not source in attrs:
+        if source not in attrs:
             return attrs
 
         # try to look up the campaign
         event_id = attrs[source]
 
-        if not CampaignEvent.objects.filter(pk=event_id, is_active=True, campaign__org=self.user.get_org()):
+        if not CampaignEvent.objects.filter(pk=event_id, is_active=True, campaign__org=self.org):
             raise ValidationError("No event with id %d" % event_id)
 
         if 'campaign' in attrs:
@@ -744,13 +726,13 @@ class CampaignEventWriteSerializer(serializers.Serializer):
         return attrs
 
     def validate_flow(self, attrs, source):
-        if not source in attrs:
+        if source not in attrs:
             return attrs
 
         # try to look up the flow
         event_id = attrs[source]
 
-        if not Flow.objects.filter(pk=event_id, is_active=True, org=self.user.get_org()):
+        if not Flow.objects.filter(pk=event_id, is_active=True, org=self.org):
             raise ValidationError("No flow with id %d" % event_id)
 
         if 'message' in attrs:
@@ -764,8 +746,6 @@ class CampaignEventWriteSerializer(serializers.Serializer):
         """
         if instance: # pragma: no cover
             raise ValidationError("Invalid operation")
-
-        org = self.user.get_org()
 
         # parse our arguments
         message = attrs.get('message', None)
@@ -789,20 +769,20 @@ class CampaignEventWriteSerializer(serializers.Serializer):
         relative_to = attrs.get('relative_to')
 
         # load our contact field
-        existing_field = ContactField.objects.filter(label=relative_to, org=org, is_active=True)
+        existing_field = ContactField.objects.filter(label=relative_to, org=self.org, is_active=True)
 
         if not existing_field:
             key = ContactField.api_make_key(relative_to)
-            relative_to_field = ContactField.get_or_create(org, key, relative_to)
+            relative_to_field = ContactField.get_or_create(self.org, key, relative_to)
         else:
             relative_to_field = existing_field[0]
 
         if 'event' in attrs:
-            event = CampaignEvent.objects.get(pk=attrs['event'], is_active=True, campaign__org=org)
+            event = CampaignEvent.objects.get(pk=attrs['event'], is_active=True, campaign__org=self.org)
 
             # we are being set to a flow
             if 'flow' in attrs:
-                flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=org)
+                flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=self.org)
                 event.flow = flow
                 event.event_type = FLOW_EVENT
                 event.message = None
@@ -813,7 +793,7 @@ class CampaignEventWriteSerializer(serializers.Serializer):
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if event.event_type != MESSAGE_EVENT:
-                    event.flow = Flow.create_single_message(org, self.user, event.message)
+                    event.flow = Flow.create_single_message(self.org, self.user, event.message)
                     event.event_type = MESSAGE_EVENT
 
                 # otherwise, we can just update that flow
@@ -830,14 +810,14 @@ class CampaignEventWriteSerializer(serializers.Serializer):
             event.update_flow_name()
 
         else:
-            campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, org=org)
+            campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, org=self.org)
             event_type = MESSAGE_EVENT
 
             if 'flow' in attrs:
-                flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=org)
+                flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=self.org)
                 event_type = FLOW_EVENT
             else:
-                flow = Flow.create_single_message(org, self.user, message)
+                flow = Flow.create_single_message(self.org, self.user, message)
 
             event = CampaignEvent.objects.create(campaign=campaign, relative_to=relative_to_field, offset=offset,
                                                  unit=unit, event_type=event_type, flow=flow, message=message,
@@ -859,20 +839,12 @@ class CampaignSerializer(serializers.ModelSerializer):
     class Meta:
         model = Campaign
         fields = ('campaign', 'name', 'group', 'created_on')
-        read_only_fields = ('name', 'created_on')
 
 
-class CampaignWriteSerializer(serializers.Serializer):
+class CampaignWriteSerializer(WriteSerializer):
     campaign = serializers.IntegerField(required=False)
     name = serializers.CharField(required=True, max_length=64)
     group = serializers.CharField(required=True, max_length=64)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            del kwargs['user']
-
-        super(CampaignWriteSerializer, self).__init__(*args, **kwargs)
 
     def validate_campaign(self, attrs, source):
         if not source in attrs:
@@ -881,7 +853,7 @@ class CampaignWriteSerializer(serializers.Serializer):
         # try to look up the campaign
         campaign_id = attrs[source]
 
-        if not Campaign.objects.filter(pk=campaign_id, is_active=True, is_archived=False, org=self.user.get_org()):
+        if not Campaign.objects.filter(pk=campaign_id, is_active=True, is_archived=False, org=self.org):
             raise ValidationError("No campaign with id %d" % campaign_id)
 
         return attrs
@@ -893,17 +865,15 @@ class CampaignWriteSerializer(serializers.Serializer):
         if instance: # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        org = self.user.get_org()
-
         if 'campaign' in attrs:
-            campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, is_archived=False, org=org)
+            campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, is_archived=False, org=self.org)
             campaign.name = attrs['name']
-            campaign.group = ContactGroup.get_or_create(org, self.user, attrs['group'])
+            campaign.group = ContactGroup.get_or_create(self.org, self.user, attrs['group'])
             campaign.save()
 
         else:
-            group = ContactGroup.get_or_create(org, self.user, attrs['group'])
-            campaign = Campaign.objects.create(name=attrs['name'], group=group, org=org,
+            group = ContactGroup.get_or_create(self.org, self.user, attrs['group'])
+            campaign = Campaign.objects.create(name=attrs['name'], group=group, org=self.org,
                                                created_by=self.user, modified_by=self.user)
 
         return campaign
@@ -947,23 +917,16 @@ class FlowReadSerializer(serializers.ModelSerializer):
                   'created_on', 'flow')
 
 
-class FlowWriteSerializer(serializers.Serializer):
+class FlowWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=True)
     flow_type = serializers.CharField(required=True)
     definition = serializers.WritableField(required=False)
 
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs.pop('user')
-
-        super(FlowWriteSerializer, self).__init__(*args, **kwargs)
-
     def validate_uuid(self, attrs, source):
-        org = self.user.get_org()
         uuid = attrs.get(source, None)
 
-        if uuid and not Flow.objects.filter(org=org, uuid=uuid).exists():
+        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
             raise ValidationError("No such flow with UUID: %s" % uuid)
         return attrs
 
@@ -981,19 +944,18 @@ class FlowWriteSerializer(serializers.Serializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        org = self.user.get_org()
         uuid = attrs.get('uuid', None)
         name = attrs['name']
         flow_type = attrs['flow_type']
         definition = attrs.get('definition', None)
 
         if uuid:
-            flow = Flow.objects.get(org=org, uuid=uuid)
+            flow = Flow.objects.get(org=self.org, uuid=uuid)
             flow.name = name
             flow.flow_type = flow_type
             flow.save()
         else:
-            flow = Flow.create(org, self.user, name, flow_type)
+            flow = Flow.create(self.org, self.user, name, flow_type)
 
         if definition:
             flow.update(definition, self.user, force=True)
@@ -1001,56 +963,15 @@ class FlowWriteSerializer(serializers.Serializer):
         return flow
 
 
-class FlowField(serializers.PrimaryKeyRelatedField):
-
-    def initialize(self, parent, field_name):
-        self.queryset = Flow.objects.filter(is_active=True)
-        super(FlowField, self).initialize(parent, field_name)
-
-
-class ResultSerializer(serializers.Serializer):
-    results = serializers.SerializerMethodField('get_results')
-
-    def __init__(self, *args, **kwargs):
-        self.ruleset = kwargs.get('ruleset', None)
-        self.contact_field = kwargs.get('contact_field', None)
-        self.segment = kwargs.get('segment', None)
-
-        if 'ruleset' in kwargs: del kwargs['ruleset']
-        if 'contact_field' in kwargs: del kwargs['contact_field']
-        if 'segment' in kwargs: del kwargs['segment']
-
-        super(ResultSerializer, self).__init__(*args, **kwargs)
-
-    def get_results(self, obj):
-        if self.ruleset:
-            return Value.get_value_summary(ruleset=self.ruleset, segment=self.segment)
-        else:
-            return Value.get_value_summary(contact_field=self.contact_field, segment=self.segment)
-
-    class Meta:
-        model = RuleSet
-        fields = ('results',)
-
-
-class FlowRunStartSerializer(serializers.Serializer):
+class FlowRunStartSerializer(WriteSerializer):
     flow_uuid = serializers.CharField(required=False, max_length=36)
     groups = StringArrayField(required=False)
     contacts = StringArrayField(required=False)
     extra = DictionaryField(required=False)
     restart_participants = serializers.BooleanField(required=False, default=True)
-    flow = FlowField(required=False, queryset=Flow.objects.filter(pk=-1))  # deprecated, use flow_uuid
+    flow = FlowField(required=False)  # deprecated, use flow_uuid
     contact = StringArrayField(required=False)  # deprecated, use contacts
-    phone = PhoneField(required=False)  # deprecated
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            self.org = kwargs.get('org', self.user.get_org())
-            del kwargs['user']
-            if 'org' in kwargs: del kwargs['org']
-
-        super(FlowRunStartSerializer, self).__init__(*args, **kwargs)
+    phone = PhoneArrayField(required=False)  # deprecated
 
     def validate(self, attrs):
         if not (attrs.get('flow', None) or attrs.get('flow_uuid', None)):
@@ -1058,7 +979,6 @@ class FlowRunStartSerializer(serializers.Serializer):
         return attrs
 
     def validate_flow_uuid(self, attrs, source):
-        org = self.org
         flow_uuid = attrs.get(source, None)
         if flow_uuid:
             flow = Flow.objects.get(uuid=flow_uuid)
@@ -1066,21 +986,20 @@ class FlowRunStartSerializer(serializers.Serializer):
                 raise ValidationError("You cannot start an archived flow.")
 
             # do they have permission to use this flow?
-            if org != flow.org:
+            if self.org != flow.org:
                 raise ValidationError("Invalid UUID '%s' - flow does not exist." % flow.uuid)
 
             attrs['flow'] = flow
         return attrs
 
     def validate_flow(self, attrs, source):
-        org = self.org
         flow = attrs.get(source, None)
         if flow:
             if flow.is_archived:
                 raise ValidationError("You cannot start an archived flow.")
 
             # do they have permission to use this flow?
-            if org != flow.org:
+            if self.org != flow.org:
                 raise ValidationError("Invalid pk '%d' - flow does not exist." % flow.id)
 
         return attrs
@@ -1126,8 +1045,7 @@ class FlowRunStartSerializer(serializers.Serializer):
         return attrs
 
     def validate_phone(self, attrs, source):  # deprecated, use contacts
-        org = self.org
-        if org.is_anon:
+        if self.org.is_anon:
             raise ValidationError("Cannot start flows for anonymous organizations")
 
         numbers = attrs.get(source, [])
@@ -1197,7 +1115,6 @@ class BoundarySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminBoundary
         fields = ('boundary', 'name', 'level', 'parent', 'geometry')
-        read_only_fields = ('name',)
 
 
 class FlowRunReadSerializer(serializers.ModelSerializer):
@@ -1243,14 +1160,6 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlowRun
         fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values', 'steps', 'created_on')
-        read_only_fields = ('created_on',)
-
-
-class ChannelField(serializers.PrimaryKeyRelatedField):
-
-    def initialize(self, parent, field_name):
-        self.queryset = Channel.objects.filter(is_active=True)
-        super(ChannelField, self).initialize(parent, field_name)
 
 
 class BroadcastReadSerializer(serializers.ModelSerializer):
@@ -1276,19 +1185,12 @@ class BroadcastReadSerializer(serializers.ModelSerializer):
         fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
 
 
-class BroadcastCreateSerializer(serializers.Serializer):
+class BroadcastCreateSerializer(WriteSerializer):
     urns = StringArrayField(required=False)
     contacts = StringArrayField(required=False)
     groups = StringArrayField(required=False)
     text = serializers.CharField(required=True, max_length=480)
-    channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs.pop('user')
-            self.org = self.user.get_org()
-
-        super(BroadcastCreateSerializer, self).__init__(*args, **kwargs)
+    channel = ChannelField(required=False)
 
     def validate(self, attrs):
         if not (attrs.get('urns', []) or attrs.get('contacts', None) or attrs.get('groups', [])):
@@ -1372,21 +1274,12 @@ class BroadcastCreateSerializer(serializers.Serializer):
         return broadcast
 
 
-class MsgCreateSerializer(serializers.Serializer):
-    channel = ChannelField(queryset=Channel.objects.filter(pk=-1), required=False)
+class MsgCreateSerializer(WriteSerializer):
+    channel = ChannelField(required=False)
     text = serializers.CharField(required=True, max_length=480)
     urn = StringArrayField(required=False)
     contact = StringArrayField(required=False)
-    phone = PhoneField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            self.org = kwargs.get('org', self.user.get_org())
-            del kwargs['user']
-            if 'org' in kwargs: del kwargs['org']
-
-        super(MsgCreateSerializer, self).__init__(*args, **kwargs)
+    phone = PhoneArrayField(required=False)
 
     def validate(self, attrs):
         urns = attrs.get('urn', [])
@@ -1397,12 +1290,9 @@ class MsgCreateSerializer(serializers.Serializer):
         return attrs
 
     def validate_channel(self, attrs, source):
-        # load their org
-        org = self.org
-
         channel = attrs[source]
         if not channel:
-            channels = Channel.objects.filter(is_active=True, org=org).order_by('-last_seen')
+            channels = Channel.objects.filter(is_active=True, org=self.org).order_by('-last_seen')
 
             if not channels:
                 raise ValidationError("There are no channels for this organization.")
@@ -1411,7 +1301,7 @@ class MsgCreateSerializer(serializers.Serializer):
                 attrs[source] = channel
 
         # do they have permission to use this channel?
-        if org != channel.org:
+        if self.org != channel.org:
             raise ValidationError("Invalid pk '%d' - object does not exist." % channel.id)
 
         return attrs
@@ -1473,9 +1363,6 @@ class MsgCreateSerializer(serializers.Serializer):
         if instance: # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        user = self.user
-        org = self.org
-
         if 'urn' in attrs and attrs['urn']:
             urns = attrs.get('urn', [])
         else:
@@ -1485,7 +1372,7 @@ class MsgCreateSerializer(serializers.Serializer):
         contacts = list()
         for urn in urns:
             # treat each urn as a separate contact
-            contacts.append(Contact.get_or_create(channel.org, user, urns=[urn]))
+            contacts.append(Contact.get_or_create(channel.org, self.user, urns=[urn]))
 
         # add any contacts specified by uuids
         uuid_contacts = attrs.get('contact', [])
@@ -1493,7 +1380,7 @@ class MsgCreateSerializer(serializers.Serializer):
             contacts.append(contact)
 
         # create the broadcast
-        broadcast = Broadcast.create(org, user, attrs['text'], recipients=contacts)
+        broadcast = Broadcast.create(self.org, self.user, attrs['text'], recipients=contacts)
 
         # send it
         broadcast.send()
@@ -1544,7 +1431,6 @@ class CallSerializer(serializers.ModelSerializer):
     class Meta:
         model = Call
         fields = ('call', 'contact', 'relayer', 'relayer_phone', 'phone', 'created_on', 'duration', 'call_type')
-        read_only_fields = ('contact', 'duration', 'call_type')
 
 
 class ChannelReadSerializer(serializers.ModelSerializer):
@@ -1572,17 +1458,10 @@ class ChannelReadSerializer(serializers.ModelSerializer):
         read_only_fields = ('last_seen',)
 
 
-class ChannelClaimSerializer(serializers.Serializer):
+class ChannelClaimSerializer(WriteSerializer):
     claim_code = serializers.CharField(required=True, max_length=16)
     phone = serializers.CharField(required=True, max_length=16, source='number')
     name = serializers.CharField(required=False, max_length=64)
-
-    def __init__(self, *args, **kwargs):
-        if 'user' in kwargs:
-            self.user = kwargs['user']
-            del kwargs['user']
-
-        super(ChannelClaimSerializer, self).__init__(*args, **kwargs)
 
     def validate_claim_code(self, attrs, source):
         claim_code = attrs[source].strip()
@@ -1627,7 +1506,7 @@ class ChannelClaimSerializer(serializers.Serializer):
         if attrs.get('name', None):
             channel.name = attrs['name']
 
-        channel.claim(self.user.get_org(), attrs['phone'], self.user)
+        channel.claim(self.org, attrs['phone'], self.user)
 
         if not settings.TESTING:  # pragma: no cover
             channel.trigger_sync()

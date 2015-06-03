@@ -158,6 +158,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
+    'temba.middleware.NonAtomicGetsMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -921,7 +922,7 @@ REST_FRAMEWORK = {
     ),
     'PAGINATE_BY': 250,
     'DEFAULT_RENDERER_CLASSES': (
-        'temba.api.renderers.PostFormAPIRenderer',
+        'temba.api.renderers.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.XMLRenderer',
     )

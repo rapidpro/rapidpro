@@ -1,10 +1,12 @@
-from django.conf import settings
+from __future__ import absolute_import, unicode_literals
+
+import traceback
+
+from django.db import transaction
 from django.utils import timezone, translation
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
 from temba.settings import BRANDING
-
-import traceback
 
 
 class ExceptionMiddleware(object):
@@ -147,3 +149,19 @@ class ProfilerMiddleware(object):
             stats.print_stats(int(request.GET.get('count', 100)))
             response.content = '<pre>%s</pre>' % io.getvalue()
         return response
+
+
+class NonAtomicGetsMiddleware(object):
+    """
+    Django's non_atomic_requests decorator gives us no way of enabling/disabling transactions depending on the request
+    type. This middleware will make the current request non-atomic if an _non_atomic_gets attribute is set on the view
+    function, and if the request method is GET.
+    """
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        if getattr(view_func, '_non_atomic_gets', False):
+            if request.method.lower() == 'get':
+                transaction.non_atomic_requests(view_func)
+            else:
+                view_func._non_atomic_requests = set()
+        return None
+

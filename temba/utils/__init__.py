@@ -407,6 +407,16 @@ def non_atomic_when_eager(view_func):
     else:
         return view_func
 
+
+def non_atomic_gets(view_func):
+    """
+    Decorator which disables atomic requests for a view/dispatch function when the request method is GET. Works in
+    conjunction with the NonAtomicGetsMiddleware.
+    """
+    view_func._non_atomic_gets = True
+    return view_func
+
+
 def timezone_to_country_code(tz):
     country_timezones = pytz.country_timezones
 
