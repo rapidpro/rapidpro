@@ -1315,6 +1315,20 @@ class LabelTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", number="073835001")
         self.frank = self.create_contact("Frank", number="073835002")
 
+    def test_create(self):
+        important = Label.create(self.org, self.user, "Important")
+        self.assertEqual(important.name, "Important")
+        self.assertIsNone(important.parent)
+        really_important = Label.create(self.org, self.user, "Really important", important)
+        self.assertEqual(really_important.name, "Really important")
+        self.assertEqual(really_important.parent, important)
+
+        # don't allow invalid name
+        self.assertRaises(ValueError, Label.create, self.org, self.user, "+Important")
+
+        # don't allow more than one-level nesting
+        self.assertRaises(ValueError, Label.create, self.org, self.user, "Really really", really_important)
+
     def test_create_unique(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
         label1 = Label.create_unique(self.org, self.user, "alongwordcomposedofmorethanthirtytwoletters", parent=None)

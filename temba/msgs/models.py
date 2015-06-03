@@ -1065,7 +1065,7 @@ class Msg(models.Model, OrgModelMixin):
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
                         recording_url=None, topup_id=None, msg_type=INBOX):
 
-        if not org or not user:
+        if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # normally we care about message sending urns
@@ -1186,7 +1186,7 @@ class Msg(models.Model, OrgModelMixin):
             if recipient[0] in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
-        else:
+        else:  # pragma: no cover
             raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")
 
         return contact, contact_urn
