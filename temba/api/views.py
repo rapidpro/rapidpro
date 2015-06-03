@@ -3586,7 +3586,7 @@ class VumiHandler(View):
                         # we can get multiple reports from vumi if they multi-part the message for us
                         if sms.status in (WIRED, DELIVERED):
                             print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                            Msg.mark_error(get_redis_connection(), sms)
+                            Msg.mark_error(get_redis_connection(), channel, sms)
                     else:
 
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our

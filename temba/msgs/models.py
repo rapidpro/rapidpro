@@ -718,7 +718,7 @@ class Msg(models.Model, OrgModelMixin):
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
     @classmethod
-    def mark_error(cls, r, msg, fatal=False):
+    def mark_error(cls, r, channel, msg, fatal=False):
         """
         Marks an outgoing message as FAILED or ERRORED
         :param msg: a JSON representation of the message or a Msg object
@@ -729,6 +729,9 @@ class Msg(models.Model, OrgModelMixin):
                 msg.fail()
             else:
                 Msg.objects.select_related('org').get(pk=msg.id).fail()
+
+            if channel:
+                analytics.track("System", "temba.msg_failed_%s" % channel.channel_type.lower())
         else:
             msg.status = ERRORED
             msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
@@ -744,8 +747,11 @@ class Msg(models.Model, OrgModelMixin):
             pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
             pipe.execute()
 
+            if channel:
+                analytics.track("System", "temba.msg_errored_%s" % channel.channel_type.lower())
+
     @classmethod
-    def mark_sent(cls, r, msg, status, external_id=None):
+    def mark_sent(cls, r, channel, msg, status, latency, external_id=None):
         """
         Marks an outgoing message as WIRED or SENT
         :param msg: a JSON representation of the message
@@ -775,6 +781,10 @@ class Msg(models.Model, OrgModelMixin):
             analytics.track("System", "temba.sending_latency", properties=dict(value=(msg.sent_on - msg.queued_on).total_seconds()))
         else:
             analytics.track("System", "temba.sending_latency", properties=dict(value=(msg.sent_on - msg.created_on).total_seconds()))
+
+        # logs that a message was sent for this channel type if our latency is known
+        if latency > 0:
+            analytics.track("System", "temba.msg_sent_%s" % channel.channel_type.lower(), properties=dict(value=latency))
 
     def as_json(self):
         return dict(direction=self.direction,
