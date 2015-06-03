@@ -457,26 +457,39 @@ class ListAPIMixin(mixins.ListModelMixin):
 
     def paginate_queryset(self, queryset, page_size=None):
         if self.cache_counts:
-            # total counts are expensive so we cache counts based on the query parameters
+            # total counts can be expensive so we let some views cache counts based on the query parameters
             query_params = self.request.QUERY_PARAMS.copy()
             if 'page' in query_params:
                 del query_params['page']
             query_key = urllib.urlencode(sorted(query_params.lists()), doseq=True)
             count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
 
-            cached_count = cache.get(count_key)
-            if cached_count is not None:
-                queryset.fixed_count = int(cached_count)
+            # only try to use cached count for pages other than the first
+            if int(self.request.QUERY_PARAMS.get('page', 1)) != 1:
+                cached_count = cache.get(count_key)
+                if cached_count is not None:
+                    queryset.fixed_count = int(cached_count)
 
             page = super(ListAPIMixin, self).paginate_queryset(queryset)
 
-            if cached_count is None:
-                calculated_count = page.paginator.count
-                cache.set(count_key, calculated_count, REQUEST_COUNT_CACHE_TTL)
-
-            return page
+            # reset the cached value
+            cache.set(count_key, page.paginator.count, REQUEST_COUNT_CACHE_TTL)
         else:
-            return super(ListAPIMixin, self).paginate_queryset(queryset)
+            page = super(ListAPIMixin, self).paginate_queryset(queryset)
+
+        # convert to list to ensure these will be the objects which get serialized
+        page.object_list = list(page.object_list)
+
+        # give views a chance to prepare objects for serialization
+        self.prepare_for_serialization(page.object_list)
+
+        return page
+
+    def prepare_for_serialization(self, object_list):
+        """
+        Views can override this to do things like bulk cache initialization of result objects
+        """
+        pass
 
 
 class CreateAPIMixin(object):
@@ -511,7 +524,7 @@ class DeleteAPIMixin(object):
         return self.destroy(request, *args, **kwargs)
 
 
-class BroadcastEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
     message broadcasts using the ```POST``` method.
@@ -665,7 +678,7 @@ class BroadcastEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
         return spec
 
 
-class MessageEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you either list messages on your account using the ```GET``` method.
 
@@ -972,7 +985,7 @@ class MessageBulkActionEndpoint(BaseAPIView):
         return spec
 
 
-class LabelEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     ## Listing Message Labels
 
@@ -1107,7 +1120,7 @@ class LabelEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
         return spec
 
 
-class CallEndpoint(BaseAPIView, ListAPIMixin):
+class CallEndpoint(ListAPIMixin, BaseAPIView):
     """
     Returns the incoming and outgoing calls for your organization, most recent first.
 
@@ -1212,7 +1225,7 @@ class CallEndpoint(BaseAPIView, ListAPIMixin):
         return spec
 
 
-class ChannelEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin):
+class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Claiming Channels
 
@@ -1412,7 +1425,7 @@ class ChannelEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin)
         return spec
 
 
-class GroupEndpoint(BaseAPIView, ListAPIMixin):
+class GroupEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Groups
 
@@ -1474,7 +1487,7 @@ class GroupEndpoint(BaseAPIView, ListAPIMixin):
         return spec
 
 
-class ContactEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin):
+class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Adding a Contact
 
@@ -1635,21 +1648,10 @@ class ContactEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin)
 
         return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('modified_on')
 
-    def paginate_queryset(self, queryset, page_size=None):
-        """
-        Overriding this method let's us jump in just after queryset has been paginated but before objects have been
-        serialized - so that we can perform some cache optimization
-        """
-        page = super(ContactEndpoint, self).paginate_queryset(queryset)
-
-        # convert to list before cache initialization so that these will be the contact objects which get serialized
-        page.object_list = list(page.object_list)
-
+    def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, page.object_list)
-
-        return page
+        Contact.bulk_cache_initialize(org, object_list)
 
     def get_serializer_context(self):
         """
@@ -1711,7 +1713,7 @@ class ContactEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin)
         return spec
 
 
-class FieldEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     ## Listing Fields
 
@@ -1935,7 +1937,7 @@ class FlowResultsEndpoint(BaseAPIView):
         return spec
 
 
-class FlowRunEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A
     run is created for each time a contact is started down a flow.
@@ -2169,7 +2171,7 @@ class FlowRunEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
         return spec
 
 
-class CampaignEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     ## Adding or Updating a Campaign
 
@@ -2293,7 +2295,7 @@ class CampaignEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
         return spec
 
 
-class CampaignEventEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPIMixin):
+class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Adding or Updating Campaign Events
 
@@ -2486,7 +2488,7 @@ class CampaignEventEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin, DeleteAPI
         return spec
 
 
-class BoundaryEndpoint(BaseAPIView, ListAPIMixin):
+class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the administrative boundaries for the country associated with your organization
     along with the simplified gps geometry for those boundaries in GEOJSON format.
@@ -2568,7 +2570,7 @@ class BoundaryEndpoint(BaseAPIView, ListAPIMixin):
         return spec
 
 
-class FlowEndpoint(BaseAPIView, ListAPIMixin, CreateAPIMixin):
+class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list all the active flows on your account using the ```GET``` method.
 
