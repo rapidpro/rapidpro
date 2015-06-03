@@ -796,10 +796,10 @@ class OrgTest(TembaTest):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
 
-        Msg.mark_error(r, msg6)
-        Msg.mark_error(r, msg6)
-        Msg.mark_error(r, msg6)
-        Msg.mark_error(r, msg6)
+        Msg.mark_error(r, self.channel, msg6)
+        Msg.mark_error(r, self.channel, msg6)
+        Msg.mark_error(r, self.channel, msg6)
+        Msg.mark_error(r, self.channel, msg6)
 
         with self.assertNumQueries(0):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,

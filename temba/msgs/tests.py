@@ -44,38 +44,38 @@ class MsgTest(TembaTest):
         msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Test 1")
         r = get_redis_connection()
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 1)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 2)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'F')
 
         # test with mock message
         msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.admin, self.joe, "Test 2").as_task_json())
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 1)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 2)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'F')
 
