@@ -2199,7 +2199,7 @@ input[type='radio'] {
 
   .table {
     td {
-      border-top:0px;
+      border-top: 0;
       border-bottom:1px solid #ddd;
     }
 
@@ -2214,80 +2214,74 @@ input[type='radio'] {
     tbody {
 
       tr.new {
-	td {
-	  font-weight: bold;
-	}
+        td {
+          font-weight: bold;
+        }
       }
-
-      
 
       td {
-	
-	&.checkbox {
-	  padding-left: 6px;
-	  color: #777;
-	  width: 10px;
-	  
-	  &:hover {
-	    color: #6885c7;
-	  }
 
+        &.checkbox {
+          padding-left: 6px;
+          color: #777;
+          width: 10px;
 
-	  .glyph {
-	    margin-top: 3px;
-	  }
-	}
+          &:hover {
+            color: #6885c7;
+          }
 
-	&.value-text {
-	  width: 75%;
-	  
-	  .value-labels {
-	    float: right;
-        white-space: nowrap;
-	  }
-	}
-	
-	&.value-name {
-	  width: 90%;
-	  .icon-phone {
-	    color: @flat-mutedblue;
-	    font-size: 16px;
-	    margin-right:5px;
-	    margin-top:-1px;
-	  }
-	}
+          .glyph {
+            margin-top: 3px;
+          }
+        }
 
-	&.value-status {
-	  white-space: nowrap;
-	  text-align: right;
-	}
+        &.value-text {
+          width: 75%;
 
-	&.value-phone {
-	  a {
-	    &:hover {
-	      text-decoration: none;
-	    }
-	    
-	  }
-	}
+          .value-labels {
+            float: right;
+            white-space: nowrap;
+          }
+        }
 
-	&.value-received {
-	  text-align: right;
-	}
-	
-	
-	.last-triggered {
-	  font-size:13px;
-	}
+        &.value-name {
+          width: 90%;
+          .icon-phone {
+            color: @flat-mutedblue;
+            font-size: 16px;
+            margin-right: 5px;
+            margin-top: -1px;
+          }
+        }
 
-	.count {
-	  font-size: 11px;
-	  margin-left:5px;
-	}
+        &.value-status {
+          white-space: nowrap;
+          text-align: right;
+        }
+
+        &.value-phone {
+          a {
+            &:hover {
+              text-decoration: none;
+            }
+
+          }
+        }
+
+        &.value-received {
+          text-align: right;
+        }
+
+        .last-triggered {
+          font-size: 13px;
+        }
+
+        .count {
+          font-size: 11px;
+          margin-left: 5px;
+        }
       }
-
     }
-
   }
 
   .list-buttons-container {
