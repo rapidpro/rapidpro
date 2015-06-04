@@ -482,7 +482,7 @@ class ContactWriteSerializer(WriteSerializer):
     def validate_fields(self, attrs, source):
         fields = attrs.get(source, {}).items()
         if fields:
-            org_fields = list(ContactField.objects.filter(org=self.org, is_active=True))
+            org_fields = self.context['contact_fields']
 
             for key, value in attrs.get(source, {}).items():
                 for field in org_fields:
@@ -575,7 +575,7 @@ class ContactWriteSerializer(WriteSerializer):
                     continue
 
                 # TODO as above, need to get users to stop updating via label
-                existing_by_label = ContactField.objects.filter(org=self.org, label__iexact=key, is_active=True).first()
+                existing_by_label = ContactField.get_by_label(self.org, key)
                 if existing_by_label:
                     contact.set_field(existing_by_label.key, value)
 
@@ -806,7 +806,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         flow = attrs.get('flow_obj', None)
 
         # ensure contact field exists
-        relative_to = ContactField.objects.filter(label=relative_to_label, org=self.org, is_active=True).first()
+        relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
             key = ContactField.api_make_key(relative_to_label)
             relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
