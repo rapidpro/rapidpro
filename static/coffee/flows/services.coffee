@@ -1002,14 +1002,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if window.ivr and action.type == 'say'
         hasMessage = true
 
-      if not window.ivr and action.type == 'reply'
-        hasMessage = true
-
       if action.type == 'flow'
         startsFlow = true
 
     # if they start another flow or doesn't have a message it's terminal
-    terminal = startsFlow or not hasMessage
+    if window.ivr
+      terminal = startsFlow or not hasMessage
+    else
+      terminal = startsFlow
 
     if actionset._terminal != terminal
       actionset._terminal = terminal
