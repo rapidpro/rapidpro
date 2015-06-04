@@ -744,8 +744,10 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
   $scope.ruleset = ruleset
   $scope.languages = languages
+  $scope.language = $scope.$parent.language
 
   $scope.ok = ->
+
     for rule in ruleset.rules
       if rule.category
         if rule._translation.category.to and rule._translation.category.to.strip().length > 0
@@ -854,7 +856,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
 
   $scope.showFlip = ->
-
     return !$scope.ivr && actionset.actions.length < 2
 
   #-----------------------------------------------------------------
@@ -1235,7 +1236,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # remove any connections that shouldn't be allowed
     for rule in $scope.ruleset.rules
-      if not Flow.isConnectionAllowed(flow, rule.uuid, rule.destination)
+      if not Flow.isConnectionAllowed(flow, ruleset.uuid + '_' + rule.uuid, rule.destination)
         Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
 
     # steal the old connections if we are replacing an actionset with ourselves

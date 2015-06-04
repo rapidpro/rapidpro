@@ -22,7 +22,7 @@ BeautifulSoup==3.2.1
 xlutils==1.7.1
 phonenumbers==7.0.2
 django-countries==3.0.1
-djangorestframework==2.2.1
+djangorestframework==2.4.5
 django-ttag==2.4
 iptools==0.6.1
 requests==1.2.3

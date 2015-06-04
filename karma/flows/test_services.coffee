@@ -191,19 +191,25 @@ describe 'Services:', ->
       nameSplit = '782e9e71-c116-4195-add3-1867132f95b6'
       rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
 
-      it 'should detect looping to same rule', ->
+      messageSplitA = '1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5'
+      messageSplitB = '771088fd-fc77-4966-8541-93c3c59c923d'
+      messageSplitRule = '865baac0-da29-4752-be1e-1488457f708c'
 
-        # rule turning back on ourselves
+      it 'should detect looping to same rule', ->
         ruleSelfLoop = flowService.isConnectionAllowed(flow, groupSplit + '_' + groupOne, groupSplit)
         expect(ruleSelfLoop).toBe(false, "Rule was able to point to it's parent")
 
-        # non-blocking rule to non-blocking rule and back
+      it 'should detect two passive rules in a row', ->
         ruleLoop = flowService.isConnectionAllowed(flow, nameSplit + '_' + rowan, groupSplit)
         expect(ruleLoop).toBe(false, "Non blocking rule infinite loop")
 
-        # our non-blocking rule to an action and back to us again
+      it 'should detect a passive rule to an action and back', ->
         ruleActionLoop = flowService.isConnectionAllowed(flow, groupSplit, messageOne, groupOne)
         expect(ruleActionLoop).toBe(false, "Rule to action loop without blocking ruleset")
+
+      it 'should detect back to back pause rules', ->
+        rulePauseLoop = flowService.isConnectionAllowed(flow, messageSplitB, messageSplitA, messageSplitRule)
+        expect(rulePauseLoop).toBe(false, "Two pausing rulesets in a row")
 
 
     describe 'updateDestination()', ->

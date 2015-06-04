@@ -80,7 +80,7 @@ def send_spam(user_id, contact_id):
 def fail_old_messages():
     Msg.fail_old_messages()
 
-@task(track_started=True, name='collect_message_metrics_task')
+@task(track_started=True, name='collect_message_metrics_task', time_limit=30, soft_time_limit=30)
 def collect_message_metrics_task():
     """
     Collects message metrics and sends them to our analytics.
@@ -96,18 +96,6 @@ def collect_message_metrics_task():
         with r.lock(key, timeout=900):
             # we use our hostname as our source so we can filter these for different brands
             context = dict(source=settings.HOSTNAME)
-
-            # total # of delivered messages
-            count = Msg.objects.filter(direction=OUTGOING, status=DELIVERED).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_delivered', properties=dict(value=count), context=context)
-
-            # total # of sent messages (this includes delivered and wired)
-            count = Msg.objects.filter(direction=OUTGOING, status__in=[DELIVERED, SENT, WIRED]).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_sent', properties=dict(value=count), context=context)
-
-            # total # of failed messages
-            count = Msg.objects.filter(direction=OUTGOING, status=FAILED).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_failed', properties=dict(value=count), context=context)
 
             # current # of queued messages (excluding Android)
             count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
@@ -137,7 +125,7 @@ def collect_message_metrics_task():
             cache.set('last_cron', timezone.now())
 
 
-@task(track_started=True, name='check_messages_task')
+@task(track_started=True, name='check_messages_task', time_limit=30, soft_time_limit=30)
 def check_messages_task():
     """
     Checks to see if any of our aggregators have errored messages that need to be retried.

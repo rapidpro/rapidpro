@@ -79,7 +79,7 @@
           %i - View Full Documentation
 
         -if user.api_token
-          %a.btn.btn-primary.pull-right{ onclick:'javascript:send("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}")' }= endpoint.method|upper
+          %a.btn.btn-primary.pull-right{ onclick:'javascript:send("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
         -else
           %span.pull-right Log in to use the Explorer
 

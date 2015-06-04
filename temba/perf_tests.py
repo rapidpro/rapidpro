@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import json
 import random
 
 from django.conf import settings
@@ -17,18 +18,23 @@ from tests import TembaTest
 from timeit import default_timer
 
 
-MAX_QUERIES_PRINT = 15
+MAX_QUERIES_PRINT = 16
+API_INITIAL_REQUEST_QUERIES = 9  # num of required db hits for an initial API request
+API_REQUEST_QUERIES = 7  # num of required db hits for a subsequent API request
 
 
 class SegmentProfiler(object):  # pragma: no cover
     """
     Used in a with block to profile a segment of code
     """
-    def __init__(self, test, name, db_profile):
+    def __init__(self, test, name, db_profile=True, assert_queries=None, assert_tx=None):
         self.test = test
         self.test.segments.append(self)
         self.name = name
         self.db_profile = db_profile
+        self.assert_queries = assert_queries
+        self.assert_tx = assert_tx
+
         self.old_debug = settings.DEBUG
 
         self.time_total = 0.0
@@ -48,7 +54,17 @@ class SegmentProfiler(object):  # pragma: no cover
         if self.db_profile:
             settings.DEBUG = self.old_debug
             self.queries = connection.queries
+            self.num_tx = len([q for q in self.queries if q['sql'].startswith('SAVEPOINT')])
+
             reset_queries()
+
+            # assert number of queries if specified
+            if self.assert_queries is not None:
+                self.test.assertEqual(len(self.queries), self.assert_queries)
+
+            # assert number of transactions if specified
+            if self.assert_tx is not None:
+                self.test.assertEqual(self.num_tx, self.assert_tx)
 
     def __unicode__(self):
         def format_query(q):
@@ -59,7 +75,7 @@ class SegmentProfiler(object):  # pragma: no cover
             num_queries = len(self.queries)
             time_db = sum([float(q['time']) for q in self.queries])
 
-            message += ", %.3f secs db time, %d db queries" % (time_db, num_queries)
+            message += ", %.3f secs db time, %d db queries, %d transaction(s)" % (time_db, num_queries, self.num_tx)
 
             # if we have only have a few queries, include them all in order of execution
             if len(self.queries) <= MAX_QUERIES_PRINT:
@@ -226,6 +242,14 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.assertEquals(200, resp.status_code)
         return resp
 
+    def _post_json(self, url, data):
+        """
+        POSTs JSON to an API endpoint
+        """
+        resp = self.client.post(url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEquals(201, resp.status_code)
+        return resp
+
     def test_contact_create(self):
         num_contacts = 1000
 
@@ -319,32 +343,53 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 
-    def test_api_contacts_and_groups(self):
-        contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
+    def test_api_contacts(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
         self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
 
         self.login(self.user)
+        self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch contacts from API", True):
+        with SegmentProfiler(self, "Fetch first page of contacts from API",
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.contacts'))
 
-        with SegmentProfiler(self, "Fetch groups from API", True):
-            self._fetch_json('%s.json' % reverse('api.contactgroups'))
+        # query count now cached
 
-        with SegmentProfiler(self, "Fetch groups from API (again)", True):
+        with SegmentProfiler(self, "Fetch second page of contacts from API",
+                             assert_queries=API_REQUEST_QUERIES+6, assert_tx=0):
+            self._fetch_json('%s.json?page=2' % reverse('api.contacts'))
+
+    def test_api_groups(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
+        self._create_groups(300, ["Bobbys", "Jims", "Marys"], contacts)
+
+        self.login(self.user)
+        self.clear_cache()
+
+        with SegmentProfiler(self, "Fetch first page of groups from API",
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.contactgroups'))
 
     def test_api_messages(self):
         contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
-        self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
 
-        broadcast = self._create_broadcast("Hello message #1", contacts)
-        broadcast.send()
+        # create messages and labels
+        incoming = self._create_incoming(300, "Hello", self.tel_mtn, contacts)
+        self._create_labels(10, ["My Label"], incoming)
 
         self.login(self.user)
+        self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch messages from API", True):
+        with SegmentProfiler(self, "Fetch first page of messages from API",
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.messages'))
+
+        # query count now cached
+
+        with SegmentProfiler(self, "Fetch second page of messages from API",
+                             assert_queries=API_REQUEST_QUERIES+2, assert_tx=0):
+            self._fetch_json('%s.json?page=2' % reverse('api.messages'))
 
     def test_api_runs(self):
         flow = self.create_flow()
@@ -352,9 +397,21 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self._create_runs(300, flow, contacts)
 
         self.login(self.user)
+        self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch flow runs from API", True):
+        with SegmentProfiler(self, "Fetch first page of flow runs from API",
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.runs'))
+
+        # query count, terminal nodes and category nodes for the flow all now cached
+
+        with SegmentProfiler(self, "Fetch second page of flow runs from API",
+                             assert_queries=API_REQUEST_QUERIES+4, assert_tx=0):
+            self._fetch_json('%s.json?page=2' % reverse('api.runs'))
+
+        with SegmentProfiler(self, "Create new flow runs via API endpoint", assert_tx=1):
+            data = {'flow': flow.pk, 'contact': [c.uuid for c in contacts]}
+            self._post_json('%s.json' % reverse('api.runs'), data)
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
