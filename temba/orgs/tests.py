@@ -648,6 +648,11 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+        # and disconnect
+        self.org.remove_nexmo_account()
+        self.assertFalse(self.org.is_connected_to_nexmo())
+        self.assertFalse(self.org.config_json()['NEXMO_KEY'])
+        self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
     def test_connect_plivo(self):
         self.login(self.admin)
