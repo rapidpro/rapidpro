@@ -2,6 +2,7 @@ from django.conf.urls import patterns, include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
+import os
 
 import logging
 
@@ -35,6 +36,10 @@ urlpatterns = patterns('',
 if settings.DEBUG:
     urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }), )
 
+# import any additional urls
+import importlib
+for app in settings.APP_URLS:
+    importlib.import_module(app)
 
 # provide a utility method to initialize our analytics
 def init_analytics():
@@ -46,11 +51,12 @@ def init_analytics():
 # and initialize them (in celery, the above will have to be called manually)
 init_analytics()
 
-# import any additional urls
-import importlib
-for app in settings.APP_URLS:
-    importlib.import_module(app)
-
+#-----------------------------------------------------------------------------------
+# Allows attaching to the process if ATTACH is set in the environment
+#-----------------------------------------------------------------------------------
+if os.environ.get('ATTACH', '0') == '1':
+    from temba.utils.attach import listen
+    listen()
 
 def track_user(self):  # pragma: no cover
     """
