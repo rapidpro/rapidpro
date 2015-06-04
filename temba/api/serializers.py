@@ -113,6 +113,12 @@ class ChannelField(serializers.PrimaryKeyRelatedField):
         super(ChannelField, self).__init__(queryset=Channel.objects.filter(is_active=True), **kwargs)
 
 
+class UUIDField(serializers.CharField):
+
+    def __init__(self, **kwargs):
+        super(UUIDField, self).__init__(max_length=36, **kwargs)
+
+
 # ------------------------------------------------------------------------------------------
 # Serializers
 # ------------------------------------------------------------------------------------------
@@ -644,10 +650,18 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
 
 class CampaignEventSerializer(serializers.ModelSerializer):
-    event = serializers.SerializerMethodField('get_event')
-    campaign = serializers.SerializerMethodField('get_campaign')
-    flow = serializers.SerializerMethodField('get_flow')
+    campaign_uuid = serializers.SerializerMethodField('get_campaign_uuid')
+    flow_uuid = serializers.SerializerMethodField('get_flow_uuid')
     relative_to = serializers.SerializerMethodField('get_relative_to')
+    event = serializers.SerializerMethodField('get_event')  # deprecated, use uuid
+    campaign = serializers.SerializerMethodField('get_campaign')  # deprecated, use campaign_uuid
+    flow = serializers.SerializerMethodField('get_flow')  # deprecated, use flow_uuid
+
+    def get_campaign_uuid(self, obj):
+        return obj.campaign.uuid
+
+    def get_flow_uuid(self, obj):
+        return obj.flow.uuid if obj.event_type == FLOW_EVENT else None
 
     def get_campaign(self, obj):
         return obj.campaign.pk
@@ -656,56 +670,71 @@ class CampaignEventSerializer(serializers.ModelSerializer):
         return obj.pk
 
     def get_flow(self, obj):
-        if obj.event_type == FLOW_EVENT:
-            return obj.flow.pk
-        else:
-            return None
+        return obj.flow_id if obj.event_type == FLOW_EVENT else None
 
     def get_relative_to(self, obj):
         return obj.relative_to.label
 
     class Meta:
         model = CampaignEvent
-        fields = ('event', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'message', 'flow', 'created_on')
+        fields = ('uuid', 'campaign_uuid', 'flow_uuid', 'relative_to', 'offset', 'unit', 'delivery_hour', 'message',
+                  'created_on', 'event', 'campaign', 'flow')
 
 
 class CampaignEventWriteSerializer(WriteSerializer):
-    campaign = serializers.IntegerField(required=False)
-    event = serializers.IntegerField(required=False)
+    uuid = UUIDField(required=False)
+    campaign_uuid = UUIDField(required=False)
     offset = serializers.IntegerField(required=True)
     unit = serializers.CharField(required=True, max_length=1)
     delivery_hour = serializers.IntegerField(required=True)
     relative_to = serializers.CharField(required=True, min_length=3, max_length=64)
     message = serializers.CharField(required=False, max_length=320)
-    flow = serializers.IntegerField(required=False)
+    flow_uuid = UUIDField(required=False)
+    event = serializers.IntegerField(required=False)  # deprecated, use uuid
+    campaign = serializers.IntegerField(required=False)  # deprecated, use campaign_uuid
+    flow = serializers.IntegerField(required=False)  # deprecated, use flow_uuid
 
-    def validate_campaign(self, attrs, source):
-        if source not in attrs:
-            return attrs
-
-        # try to look up the campaign
-        campaign_id = attrs[source]
-
-        if not Campaign.objects.filter(pk=campaign_id, is_active=True, is_archived=False, org=self.org):
-            raise ValidationError("No campaign with id %d" % campaign_id)
-
-        if 'event' in attrs:
-            raise ValidationError("Cannot specify a campaign id if an event id is included")
+    def validate_event(self, attrs, source):
+        event_id = attrs.get(source, None)
+        if event_id:
+            event = CampaignEvent.objects.filter(pk=event_id, is_active=True, campaign__org=self.org).first()
+            if event:
+                attrs['event_obj'] = event
+            else:
+                raise ValidationError("No event with id %d" % event_id)
 
         return attrs
 
-    def validate_event(self, attrs, source):
-        if source not in attrs:
-            return attrs
+    def validate_uuid(self, attrs, source):
+        uuid = attrs.get(source, None)
+        if uuid:
+            event = CampaignEvent.objects.filter(uuid=uuid, is_active=True, campaign__org=self.org).first()
+            if event:
+                attrs['event_obj'] = event
+            else:
+                raise ValidationError("No event with UUID %s" % uuid)
 
-        # try to look up the campaign
-        event_id = attrs[source]
+        return attrs
 
-        if not CampaignEvent.objects.filter(pk=event_id, is_active=True, campaign__org=self.org):
-            raise ValidationError("No event with id %d" % event_id)
+    def validate_campaign(self, attrs, source):
+        campaign_id = attrs.get(source, None)
+        if campaign_id:
+            campaign = Campaign.get_campaigns(self.org).filter(pk=campaign_id).first()
+            if campaign:
+                attrs['campaign_obj'] = campaign
+            else:
+                raise ValidationError("No campaign with id %d" % campaign_id)
 
-        if 'campaign' in attrs:
-            raise ValidationError("Cannot specify an event id if a campaign id is included")
+        return attrs
+
+    def validate_campaign_uuid(self, attrs, source):
+        campaign_uuid = attrs.get(source, None)
+        if campaign_uuid:
+            campaign = Campaign.get_campaigns(self.org).filter(uuid=campaign_uuid).first()
+            if campaign:
+                attrs['campaign_obj'] = campaign
+            else:
+                raise ValidationError("No campaign with UUID %s" % campaign_uuid)
 
         return attrs
 
@@ -726,17 +755,36 @@ class CampaignEventWriteSerializer(WriteSerializer):
         return attrs
 
     def validate_flow(self, attrs, source):
-        if source not in attrs:
-            return attrs
+        flow_id = attrs.get(source, None)
+        if flow_id:
+            flow = Flow.objects.filter(pk=flow_id, is_active=True, org=self.org).first()
+            if flow:
+                attrs['flow_obj'] = flow
+            else:
+                raise ValidationError("No flow with id %d" % flow_id)
 
-        # try to look up the flow
-        event_id = attrs[source]
+        return attrs
 
-        if not Flow.objects.filter(pk=event_id, is_active=True, org=self.org):
-            raise ValidationError("No flow with id %d" % event_id)
+    def validate_flow_uuid(self, attrs, source):
+        flow_uuid = attrs.get(source, None)
+        if flow_uuid:
+            flow = Flow.objects.filter(uuid=flow_uuid, is_active=True, org=self.org).first()
+            if flow:
+                attrs['flow_obj'] = flow
+            else:
+                raise ValidationError("No flow with UUID %s" % flow_uuid)
 
-        if 'message' in attrs:
+        return attrs
+
+    def validate(self, attrs):
+        if not (attrs.get('message', None) or attrs.get('flow_obj', None)):
+            raise ValidationError("Must specify either a flow or a message for the event")
+
+        if attrs.get('message', None) and attrs.get('flow_obj', None):
             raise ValidationError("Events cannot have both a message and a flow")
+
+        if attrs.get('event_obj', None) and attrs.get('campaign_obj', None):
+            raise ValidationError("Cannot specify campaign if updating an existing event")
 
         return attrs
 
@@ -744,52 +792,35 @@ class CampaignEventWriteSerializer(WriteSerializer):
         """
         Create or update our campaign
         """
-        if instance: # pragma: no cover
+        if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
         # parse our arguments
-        message = attrs.get('message', None)
-        flow = attrs.get('flow', None)
-
-        if not message and not flow:
-            raise ValidationError("Must specify either a flow or a message for the event")
-
-        if message and flow:
-            raise ValidationError("You cannot set both a flow and a message on an event, it must be only one")
-
-        campaign_id = attrs.get('campaign', None)
-        event_id = attrs.get('event', None)
-
-        if not campaign_id and not event_id:
-            raise ValidationError("You must specify either a campaign to create a new event, or an event to update")
-
+        event = attrs.get('event_obj', None)
+        campaign = attrs.get('campaign_obj')
         offset = attrs.get('offset')
         unit = attrs.get('unit')
         delivery_hour = attrs.get('delivery_hour')
-        relative_to = attrs.get('relative_to')
+        relative_to_label = attrs.get('relative_to')
+        message = attrs.get('message', None)
+        flow = attrs.get('flow_obj', None)
 
-        # load our contact field
-        existing_field = ContactField.objects.filter(label=relative_to, org=self.org, is_active=True)
+        # ensure contact field exists
+        relative_to = ContactField.objects.filter(label=relative_to_label, org=self.org, is_active=True).first()
+        if not relative_to:
+            key = ContactField.api_make_key(relative_to_label)
+            relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
 
-        if not existing_field:
-            key = ContactField.api_make_key(relative_to)
-            relative_to_field = ContactField.get_or_create(self.org, key, relative_to)
-        else:
-            relative_to_field = existing_field[0]
-
-        if 'event' in attrs:
-            event = CampaignEvent.objects.get(pk=attrs['event'], is_active=True, campaign__org=self.org)
-
+        if event:
             # we are being set to a flow
-            if 'flow' in attrs:
-                flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=self.org)
+            if flow:
                 event.flow = flow
                 event.event_type = FLOW_EVENT
                 event.message = None
 
             # we are being set to a message
             else:
-                event.message = attrs['message']
+                event.message = message
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if event.event_type != MESSAGE_EVENT:
@@ -805,30 +836,29 @@ class CampaignEventWriteSerializer(WriteSerializer):
             event.offset = offset
             event.unit = unit
             event.delivery_hour = delivery_hour
-            event.relative_to = relative_to_field
+            event.relative_to = relative_to
             event.save()
             event.update_flow_name()
 
         else:
-            campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, org=self.org)
-            event_type = MESSAGE_EVENT
-
-            if 'flow' in attrs:
-                flow = Flow.objects.get(pk=attrs['flow'], is_active=True, org=self.org)
-                event_type = FLOW_EVENT
+            if flow:
+                event = CampaignEvent.create_flow_event(self.org, self.user, campaign,
+                                                        relative_to, offset, unit, flow, delivery_hour)
             else:
-                flow = Flow.create_single_message(self.org, self.user, message)
-
-            event = CampaignEvent.objects.create(campaign=campaign, relative_to=relative_to_field, offset=offset,
-                                                 unit=unit, event_type=event_type, flow=flow, message=message,
-                                                 created_by=self.user, modified_by=self.user)
+                event = CampaignEvent.create_message_event(self.org, self.user, campaign,
+                                                           relative_to, offset, unit, message, delivery_hour)
             event.update_flow_name()
 
         return event
 
+
 class CampaignSerializer(serializers.ModelSerializer):
-    campaign = serializers.SerializerMethodField('get_campaign')
-    group = serializers.SerializerMethodField('get_group')
+    group_uuid = serializers.SerializerMethodField('get_group_uuid')
+    group = serializers.SerializerMethodField('get_group')  # deprecated, use group_uuid
+    campaign = serializers.SerializerMethodField('get_campaign')  # deprecated, use uuid
+
+    def get_group_uuid(self, obj):
+        return obj.group.uuid
 
     def get_campaign(self, obj):
         return obj.pk
@@ -838,23 +868,55 @@ class CampaignSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Campaign
-        fields = ('campaign', 'name', 'group', 'created_on')
+        fields = ('uuid', 'name', 'group_uuid', 'created_on', 'campaign', 'group')
 
 
 class CampaignWriteSerializer(WriteSerializer):
-    campaign = serializers.IntegerField(required=False)
+    uuid = UUIDField(required=False)
     name = serializers.CharField(required=True, max_length=64)
-    group = serializers.CharField(required=True, max_length=64)
+    group_uuid = UUIDField(required=False)
+    campaign = serializers.IntegerField(required=False)  # deprecated, use uuid
+    group = serializers.CharField(required=False, max_length=64)  # deprecated, use group_uuid
+
+    def validate_uuid(self, attrs, source):
+        uuid = attrs.get(source, None)
+        if uuid:
+            campaign = Campaign.get_campaigns(self.org).filter(uuid=uuid).first()
+            if campaign:
+                attrs['campaign_obj'] = campaign
+            else:
+                raise ValidationError("No campaign with UUID %s" % uuid)
+
+        return attrs
 
     def validate_campaign(self, attrs, source):
-        if not source in attrs:
-            return attrs
+        campaign_id = attrs.get(source, None)
+        if campaign_id:
+            campaign = Campaign.get_campaigns(self.org).filter(pk=campaign_id).first()
+            if campaign:
+                attrs['campaign_obj'] = campaign
+            else:
+                raise ValidationError("No campaign with id %d" % campaign_id)
 
-        # try to look up the campaign
-        campaign_id = attrs[source]
+        return attrs
 
-        if not Campaign.objects.filter(pk=campaign_id, is_active=True, is_archived=False, org=self.org):
-            raise ValidationError("No campaign with id %d" % campaign_id)
+    def validate_group_uuid(self, attrs, source):
+        group_uuid = attrs.get(source, None)
+        if group_uuid:
+            group = ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid=group_uuid).first()
+            if group:
+                attrs['group_obj'] = group
+            else:
+                raise ValidationError("No contact group with UUID %s" % group_uuid)
+
+        return attrs
+
+    def validate(self, attrs):
+        if not attrs.get('group', None) and not attrs.get('group_uuid', None):
+            raise ValidationError("Must specify either group name or group_uuid")
+
+        if attrs.get('campaign', None) and attrs.get('uuid', None):
+            raise ValidationError("Can't specify both campaign and uuid")
 
         return attrs
 
@@ -862,19 +924,22 @@ class CampaignWriteSerializer(WriteSerializer):
         """
         Create or update our campaign
         """
-        if instance: # pragma: no cover
+        if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        if 'campaign' in attrs:
-            campaign = Campaign.objects.get(pk=attrs['campaign'], is_active=True, is_archived=False, org=self.org)
-            campaign.name = attrs['name']
-            campaign.group = ContactGroup.get_or_create(self.org, self.user, attrs['group'])
-            campaign.save()
-
+        if 'group_obj' in attrs:
+            group = attrs['group_obj']
         else:
             group = ContactGroup.get_or_create(self.org, self.user, attrs['group'])
-            campaign = Campaign.objects.create(name=attrs['name'], group=group, org=self.org,
-                                               created_by=self.user, modified_by=self.user)
+
+        campaign = attrs.get('campaign_obj', None)
+
+        if campaign:
+            campaign.name = attrs['name']
+            campaign.group = group
+            campaign.save()
+        else:
+            campaign = Campaign.create(self.org, self.user, attrs['name'], group)
 
         return campaign
 

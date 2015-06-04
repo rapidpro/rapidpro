@@ -27,6 +27,17 @@ class Campaign(SmartModel):
                             verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
 
     @classmethod
+    def create(cls, org, user, name, group):
+        return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
+
+    @classmethod
+    def get_campaigns(cls, org, archived=None):
+        qs = cls.objects.filter(org=org, is_active=True)
+        if archived is not None:
+            qs = qs.filter(is_archived=archived)
+        return qs
+
+    @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
         name = base_name[:255].strip()
 
@@ -81,7 +92,8 @@ class Campaign(SmartModel):
                     group = ContactGroup.create(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
-                    campaign = Campaign.objects.create(name=Campaign.get_unique_name(name, org), org=org, group=group, created_by=user, modified_by=user)
+                    campaign_name = Campaign.get_unique_name(name, org)
+                    campaign = Campaign.create(org, user, campaign_name, group)
                 else:
                     campaign.group = group
                     campaign.save()
@@ -102,21 +114,20 @@ class Campaign(SmartModel):
 
                     # create our message flow for message events
                     if event_spec['event_type'] == MESSAGE_EVENT:
-                        flow = Flow.create_single_message(org, user, event_spec['message'])
+                        event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
+                                                                   event_spec['offset'],
+                                                                   event_spec['unit'],
+                                                                   event_spec['message'],
+                                                                   event_spec['delivery_hour'])
+                        event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
-
-                    if flow:
-                        event = campaign.events.create(created_by=user,
-                                                       modified_by=user,
-                                                       offset=event_spec['offset'],
-                                                       unit=event_spec['unit'],
-                                                       event_type=event_spec['event_type'],
-                                                       delivery_hour=event_spec['delivery_hour'],
-                                                       message=event_spec['message'],
-                                                       flow=flow,
-                                                       relative_to=relative_to)
-                        event.update_flow_name()
+                        if flow:
+                            CampaignEvent.create_flow_event(org, user, campaign, relative_to,
+                                                            event_spec['offset'],
+                                                            event_spec['unit'],
+                                                            flow,
+                                                            event_spec['delivery_hour'])
 
                 # update our scheduled events for this campaign
                 EventFire.update_campaign_events(campaign)
@@ -176,9 +187,10 @@ class Campaign(SmartModel):
         return [event.flow for event in self.events.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE).order_by('flow__id').distinct('flow')]
 
     def get_sorted_events(self):
-        events = [e for e in self.events.filter(is_active=True)]
-
-        # now sort by real offset
+        """
+        Returns campaign events sorted by their actual offset
+        """
+        events = list(self.events.filter(is_active=True))
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 
     def __unicode__(self):
@@ -224,6 +236,26 @@ class CampaignEvent(SmartModel):
 
     uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
                             verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
+
+    @classmethod
+    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1):
+        if campaign.org != org:  # pragma: no cover
+            raise ValueError("Org mismatch")
+
+        flow = Flow.create_single_message(org, user, message)
+
+        return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
+                                  event_type=MESSAGE_EVENT, message=message, flow=flow, delivery_hour=delivery_hour,
+                                  created_by=user, modified_by=user)
+
+    @classmethod
+    def create_flow_event(cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1):
+        if campaign.org != org:  # pragma: no cover
+            raise ValueError("Org mismatch")
+
+        return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
+                                  event_type=FLOW_EVENT, flow=flow, delivery_hour=delivery_hour,
+                                  created_by=user, modified_by=user)
 
     @classmethod
     def get_hour_choices(cls):
