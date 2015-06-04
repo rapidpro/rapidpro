@@ -5058,6 +5058,9 @@ class NumberTest(NumericTest):
     def evaluate_numeric_test(self, run, context, decimal_value):
         return True
 
+    def requires_step(self):
+        return False
+
 
 class SimpleNumericTest(Test):
     """
