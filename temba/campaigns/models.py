@@ -1,17 +1,17 @@
-from operator import attrgetter
-from uuid import uuid4
+from __future__ import absolute_import, unicode_literals
+
+from datetime import timedelta
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
-from smartmin.models import SmartModel
-from datetime import timedelta
-
-from temba.contacts.models import ContactGroup, ContactField, Contact
-from temba.orgs.models import Org
-from temba.flows.models import Flow
-from temba.values.models import Value
-from dateutil.parser import parse
 from django.utils.translation import ugettext_lazy as _
+from smartmin.models import SmartModel
+from temba.contacts.models import ContactGroup, ContactField, Contact
+from temba.flows.models import Flow
+from temba.orgs.models import Org
+from temba.utils.models import generate_uuid
+from temba.values.models import Value
+
 
 class Campaign(SmartModel):
     name = models.CharField(max_length=255,
@@ -22,6 +22,9 @@ class Campaign(SmartModel):
                                       help_text="Whether this campaign is archived or not")
     org = models.ForeignKey(Org,
                             help_text="The organization this campaign exists for")
+
+    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
 
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
@@ -82,7 +85,6 @@ class Campaign(SmartModel):
                 else:
                     campaign.group = group
                     campaign.save()
-
 
                 # we want to nuke old single message flows
                 for event in campaign.events.all():
@@ -220,6 +222,8 @@ class CampaignEvent(SmartModel):
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
+    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
 
     @classmethod
     def get_hour_choices(cls):
