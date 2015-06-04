@@ -1901,7 +1901,7 @@ class FlowResultsEndpoint(BaseAPIView):
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
-            contact_field = ContactField.get_by_label(org, field).first()
+            contact_field = ContactField.get_by_label(org, field)
             if not contact_field:
                 return Response(dict(contact_field="No contact field found with that label"), status=status.HTTP_400_BAD_REQUEST)
 
