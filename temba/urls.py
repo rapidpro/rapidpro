@@ -2,7 +2,6 @@ from django.conf.urls import patterns, include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
-import os
 
 import logging
 
@@ -50,13 +49,6 @@ def init_analytics():
 
 # and initialize them (in celery, the above will have to be called manually)
 init_analytics()
-
-#-----------------------------------------------------------------------------------
-# Allows attaching to the process if ATTACH is set in the environment
-#-----------------------------------------------------------------------------------
-if os.environ.get('ATTACH', '0') == '1':
-    from temba.utils.attach import listen
-    listen()
 
 def track_user(self):  # pragma: no cover
     """
