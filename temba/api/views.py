@@ -502,16 +502,16 @@ class CreateAPIMixin(object):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.write_serializer_class(user=user, data=request.DATA)
+        context = self.get_serializer_context()
+        serializer = self.write_serializer_class(user=user, data=request.DATA, context=context)
 
         if serializer.is_valid():
             serializer.save()
-            return self.render_write_response(serializer.object)
+            return self.render_write_response(serializer.object, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def render_write_response(self, write_output):
-        context = self.get_serializer_context()
+    def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -749,10 +749,10 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = MsgCreateSerializer
     cache_counts = True
 
-    def render_write_response(self, write_output):
+    def render_write_response(self, write_output, context):
         # use a different serializer for created messages
 
-        response_serializer = MsgCreateResultSerializer(instance=write_output)
+        response_serializer = MsgCreateResultSerializer(instance=write_output, context=context)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
@@ -2065,9 +2065,9 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = FlowRunStartSerializer
     cache_counts = True
 
-    def render_write_response(self, write_output):
+    def render_write_response(self, write_output, context):
         if write_output:
-            response_serializer = FlowRunReadSerializer(instance=write_output, many=True)
+            response_serializer = FlowRunReadSerializer(instance=write_output, many=True, context=context)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(dict(non_field_errors=["All contacts are already started in this flow, "
                                                "use restart_participants to force them to restart in the flow"]),
