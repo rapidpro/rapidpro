@@ -293,6 +293,8 @@ class LabelWriteSerializer(WriteSerializer):
                 raise ValidationError("Message labels can only be nested one-level deep")
 
             attrs[source] = parent_obj
+        else:
+            attrs[source] = None
 
         return attrs
 

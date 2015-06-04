@@ -1607,7 +1607,7 @@ class APITest(TembaTest):
         self.assertEqual(flagged.parent, screened)
 
         # update changing name and setting parent to null
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Spam', parent=None))
+        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Spam', parent=''))
         self.assertEquals(201, response.status_code)
 
         flagged = Label.objects.get(uuid=flagged.uuid)
