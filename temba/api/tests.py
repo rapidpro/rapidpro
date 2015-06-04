@@ -11,7 +11,6 @@ import xml.etree.ElementTree as ET
 
 from datetime import timedelta
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -19,7 +18,7 @@ from django.utils.http import urlquote_plus
 from mock import patch
 from redis_cache import get_redis_connection
 from rest_framework.authtoken.models import Token
-from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT
+from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, OrgFolder, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
@@ -1810,72 +1809,192 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name="MAMA Messages", group="Expecting Mothers"))
         self.assertEquals(201, response.status_code)
 
-        # should have a campaign now
-        self.assertEquals(1, Campaign.objects.all().count())
-        campaign = Campaign.objects.get()
-        self.assertEquals(self.org, campaign.org)
-        self.assertEquals("MAMA Messages", campaign.name)
-        self.assertEquals("Expecting Mothers", campaign.group.name)
-        self.assertEquals(self.org, campaign.group.org)
+        # should have a new group and new campaign now
+        campaign1 = Campaign.objects.get()
+        mothers = ContactGroup.user_groups.get()
+        self.assertEqual(campaign1.org, self.org)
+        self.assertEqual(campaign1.name, "MAMA Messages")
+        self.assertEqual(campaign1.group, mothers)
 
-        # try updating the campaign
-        response = self.postJSON(url, dict(campaign=campaign.pk, name="Preggie Messages", group="Expecting Mothers"))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(mothers.org, self.org)
+        self.assertEqual(mothers.name, "Expecting Mothers")
 
-        campaign = Campaign.objects.get()
-        self.assertEquals("Preggie Messages", campaign.name)
+        # can also create by group UUID
+        response = self.postJSON(url, dict(name="MAMA Reminders", group_uuid=mothers.uuid))
+        self.assertEqual(response.status_code, 201)
+
+        campaign2 = Campaign.objects.get(name="MAMA Reminders")
+        self.assertEqual(campaign2.group, mothers)
+
+        # but error with invalid group UUID
+        response = self.postJSON(url, dict(name="MAMA Reminders", group_uuid='xyz'))
+        self.assertEqual(response.status_code, 400)
+
+        # can update a campaign by id (deprecated)
+        response = self.postJSON(url, dict(campaign=campaign1.pk, name="Preggie Messages", group="Expecting Mothers"))
+        self.assertEqual(response.status_code, 201)
+
+        campaign1 = Campaign.objects.get(pk=campaign1.pk)
+        self.assertEqual(campaign1.name, "Preggie Messages")
 
         # doesn't work with an invalid id
         response = self.postJSON(url, dict(campaign=999, name="Preggie Messages", group="Expecting Mothers"))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(response.status_code, 400)
 
-        # try to fetch them
+        # can also update a campaign by UUID
+        response = self.postJSON(url, dict(uuid=campaign2.uuid, name="Preggie Reminders", group_uuid=mothers.uuid))
+        self.assertEqual(response.status_code, 201)
+
+        campaign2 = Campaign.objects.get(pk=campaign2.pk)
+        self.assertEqual(campaign2.name, "Preggie Reminders")
+
+        # doesn't work with an invalid UUID
+        response = self.postJSON(url, dict(uuid='xyz', name="Preggie Messages", group="Expecting Mothers"))
+        self.assertEqual(response.status_code, 400)
+
+        # and doesn't work if you specify both UUID and id
+        response = self.postJSON(url, dict(campaign=campaign1.pk, uuid='xyz', name="Preggie Messages", group="Expecting Mothers"))
+        self.assertEqual(response.status_code, 400)
+
+        # fetch all campaigns
         response = self.fetchJSON(url)
+        self.assertResultCount(response, 2)
+        self.assertEqual(response.json['results'][0]['name'], "Preggie Reminders")
+        self.assertEqual(response.json['results'][0]['uuid'], campaign2.uuid)
+        self.assertEqual(response.json['results'][0]['group_uuid'], campaign2.group.uuid)
+        self.assertEqual(response.json['results'][0]['group'], campaign2.group.name)
+        self.assertEqual(response.json['results'][0]['campaign'], campaign2.pk)
+        self.assertEqual(response.json['results'][1]['name'], "Preggie Messages")
+
+        # fetch by id (deprecated)
+        response = self.fetchJSON(url, 'campaign=%d' % campaign1.pk)
         self.assertResultCount(response, 1)
+        self.assertEqual(response.json['results'][0]['uuid'], campaign1.uuid)
 
-        self.assertJSON(response, 'campaign', campaign.pk)
-        self.assertJSON(response, 'name', "Preggie Messages")
+        # fetch by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % campaign2.uuid)
+        self.assertResultCount(response, 1)
+        self.assertEqual(response.json['results'][0]['uuid'], campaign2.uuid)
 
+    def test_api_campaign_events(self):
         url = reverse('api.campaignevents')
+
+        # can't access, get 403
+        self.assert403(url)
+
+        # login as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # login as administrator
+        self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
 
         # no events to start with
         response = self.fetchJSON(url)
         self.assertResultCount(response, 0)
 
-        event_args = dict(campaign=campaign.pk, unit='W', offset=5, relative_to="EDD",
-                          delivery_hour=-1, message="Time to go to the clinic")
+        mothers = ContactGroup.get_or_create(self.org, self.admin, "Expecting Mothers")
+        campaign = Campaign.create(self.org, self.admin, "MAMA Reminders", mothers)
 
-        response = self.postJSON(url, event_args)
-        self.assertEquals(201, response.status_code)
+        # create by campaign id (deprecated)
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='W', offset=5, relative_to="EDD",
+                                           delivery_hour=-1, message="Time to go to the clinic"))
+        self.assertEqual(response.status_code, 201)
 
-        event = CampaignEvent.objects.get()
-        self.assertEquals(MESSAGE_EVENT, event.event_type)
-        self.assertEquals(campaign, event.campaign)
-        self.assertEquals(5, event.offset)
-        self.assertEquals('W', event.unit)
-        self.assertEquals("EDD", event.relative_to.label)
-        self.assertEquals(-1, event.delivery_hour)
-        self.assertEquals("Time to go to the clinic", event.message)
+        event1 = CampaignEvent.objects.get()
+        message_flow = Flow.objects.get()
+        self.assertEqual(event1.event_type, MESSAGE_EVENT)
+        self.assertEqual(event1.campaign, campaign)
+        self.assertEqual(event1.offset, 5)
+        self.assertEqual(event1.unit, 'W')
+        self.assertEqual(event1.relative_to.label, "EDD")
+        self.assertEqual(event1.delivery_hour, -1)
+        self.assertEqual(event1.message, "Time to go to the clinic")
+        self.assertEqual(event1.flow, message_flow)
 
-        # fetch our campaign events
+        # create by campaign UUID and flow UUID
+        color_flow = self.create_flow()
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, flow_uuid=color_flow.uuid))
+        self.assertEqual(response.status_code, 201)
+
+        event2 = CampaignEvent.objects.get(flow=color_flow)
+        self.assertEqual(event2.event_type, FLOW_EVENT)
+        self.assertEqual(event2.campaign, campaign)
+        self.assertEqual(event2.offset, 3)
+        self.assertEqual(event2.unit, 'D')
+        self.assertEqual(event2.relative_to.label, "EDD")
+        self.assertEqual(event2.delivery_hour, 9)
+        self.assertEqual(event2.message, None)
+
+        # update an event by id (deprecated)
+        response = self.postJSON(url, dict(event=event1.pk, unit='D', offset=30, relative_to="EDD",
+                                           delivery_hour=-1, message="Time to go to the clinic. Thanks"))
+        self.assertEqual(response.status_code, 201)
+
+        event1 = CampaignEvent.objects.get(pk=event1.pk)
+        self.assertEqual(event1.event_type, MESSAGE_EVENT)
+        self.assertEqual(event1.campaign, campaign)
+        self.assertEqual(event1.offset, 30)
+        self.assertEqual(event1.unit, 'D')
+        self.assertEqual(event1.relative_to.label, "EDD")
+        self.assertEqual(event1.delivery_hour, -1)
+        self.assertEqual(event1.message, "Time to go to the clinic. Thanks")
+        self.assertEqual(event1.flow, message_flow)
+
+        # update an event by UUID
+        other_flow = Flow.copy(color_flow, self.user)
+        response = self.postJSON(url, dict(uuid=event2.uuid, unit='W', offset=3, relative_to="EDD",
+                                           delivery_hour=5, flow_uuid=other_flow.uuid))
+        self.assertEqual(response.status_code, 201)
+
+        event2 = CampaignEvent.objects.get(pk=event2.pk)
+        self.assertEqual(event2.event_type, FLOW_EVENT)
+        self.assertEqual(event2.campaign, campaign)
+        self.assertEqual(event2.offset, 3)
+        self.assertEqual(event2.unit, 'W')
+        self.assertEqual(event2.relative_to.label, "EDD")
+        self.assertEqual(event2.delivery_hour, 5)
+        self.assertEqual(event2.message, None)
+        self.assertEqual(event2.flow, other_flow)
+
+        # try to specify campaign when updating event (not allowed)
+        response = self.postJSON(url, dict(uuid=event2.uuid, campaign_uuid=campaign.uuid, unit='D', offset=3,
+                                           relative_to="EDD", delivery_hour=9, flow_uuid=color_flow.uuid))
+        self.assertEqual(response.status_code, 400)
+
+        # fetch all events
         response = self.fetchJSON(url)
+        self.assertResultCount(response, 2)
+        self.assertEqual(response.json['results'][0]['uuid'], event2.uuid)
+        self.assertEqual(response.json['results'][0]['campaign_uuid'], campaign.uuid)
+        self.assertEqual(response.json['results'][0]['campaign'], campaign.pk)
+        self.assertEqual(response.json['results'][0]['relative_to'], "EDD")
+        self.assertEqual(response.json['results'][0]['offset'], 3)
+        self.assertEqual(response.json['results'][0]['unit'], 'W')
+        self.assertEqual(response.json['results'][0]['delivery_hour'], 5)
+        self.assertEqual(response.json['results'][0]['flow_uuid'], other_flow.uuid)
+        self.assertEqual(response.json['results'][0]['flow'], other_flow.pk)
+        self.assertEqual(response.json['results'][0]['message'], None)
+        self.assertEqual(response.json['results'][1]['uuid'], event1.uuid)
+        self.assertEqual(response.json['results'][1]['flow_uuid'], None)
+        self.assertEqual(response.json['results'][1]['flow'], None)
+        self.assertEqual(response.json['results'][1]['message'], "Time to go to the clinic. Thanks")
 
-        self.assertResultCount(response, 1)
-        self.assertJSON(response, "message", "Time to go to the clinic")
-
-        # delete that event
-        response = self.deleteJSON(url, "event=%d" % event.pk)
-        self.assertEquals(204, response.status_code)
+        # delete event by UUID
+        response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
+        self.assertEqual(response.status_code, 204)
 
         # check that we've been deleted
-        self.assertEquals(0, CampaignEvent.objects.filter(is_active=True).count())
-
-        # but we are still around
-        self.assertEquals(1, CampaignEvent.objects.all().count())
+        self.assertFalse(CampaignEvent.objects.get(pk=event1.pk).is_active)
 
         # deleting again is a 404
-        response = self.deleteJSON(url, "event=%d" % event.pk)
-        self.assertEquals(404, response.status_code)
+        response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
+        self.assertEqual(response.status_code, 404)
 
     def test_api_groups(self):
         url = reverse('api.contactgroups')

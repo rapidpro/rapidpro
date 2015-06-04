@@ -2975,10 +2975,9 @@ class FlowsTest(FlowFileTest):
         parent = self.get_flow('parent', dict(CHILD_ID=child.id))
 
         # create a campaign with a single event
-        campaign = Campaign.objects.create(name="Test Campaign", group=group, org=self.org,
-                                           created_by=self.admin, modified_by=self.admin)
-        CampaignEvent.objects.create(campaign=campaign, flow=favorites, relative_to=field,
-                                     offset=10, unit='W', created_by=self.admin, modified_by=self.admin)
+        campaign = Campaign.create(self.org, self.admin, "Test Campaign", group)
+        CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=field,
+                                        offset=10, unit='W', flow=favorites)
 
         self.assertEquals("Added to campaign.", self.send_message(parent, "start", initiate_flow=True))
 

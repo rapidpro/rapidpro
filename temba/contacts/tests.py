@@ -1543,11 +1543,9 @@ class ContactTest(TembaTest):
             women_group = create_dynamic_group("Girls", 'gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()
-            joes_campaign = Campaign.objects.create(name="Joe Reminders", group=joes_group, org=self.org,
-                                                    created_by=self.admin, modified_by=self.admin)
-            joes_event = CampaignEvent.objects.create(campaign=joes_campaign, relative_to=joined_field, offset=1, unit='W',
-                                                      flow=joe_flow, delivery_hour=17,
-                                                      created_by=self.admin, modified_by=self.admin)
+            joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
+            joes_event = CampaignEvent.create_flow_event(self.org, self.admin, joes_campaign, relative_to=joined_field,
+                                                         offset=1, unit='W', flow=joe_flow, delivery_hour=17)
             EventFire.update_campaign_events(joes_campaign)
 
             # check initial group members added correctly

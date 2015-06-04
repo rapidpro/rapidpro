@@ -502,16 +502,16 @@ class CreateAPIMixin(object):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.write_serializer_class(user=user, data=request.DATA)
+        context = self.get_serializer_context()
+        serializer = self.write_serializer_class(user=user, data=request.DATA, context=context)
 
         if serializer.is_valid():
             serializer.save()
-            return self.render_write_response(serializer.object)
+            return self.render_write_response(serializer.object, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def render_write_response(self, write_output):
-        context = self.get_serializer_context()
+    def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -749,10 +749,10 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = MsgCreateSerializer
     cache_counts = True
 
-    def render_write_response(self, write_output):
+    def render_write_response(self, write_output, context):
         # use a different serializer for created messages
 
-        response_serializer = MsgCreateResultSerializer(instance=write_output)
+        response_serializer = MsgCreateResultSerializer(instance=write_output, context=context)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
@@ -1901,7 +1901,7 @@ class FlowResultsEndpoint(BaseAPIView):
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
-            contact_field = ContactField.objects.filter(org=org, label__iexact=field).first()
+            contact_field = ContactField.get_by_label(org, field)
             if not contact_field:
                 return Response(dict(contact_field="No contact field found with that label"), status=status.HTTP_400_BAD_REQUEST)
 
@@ -2065,9 +2065,9 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = FlowRunStartSerializer
     cache_counts = True
 
-    def render_write_response(self, write_output):
+    def render_write_response(self, write_output, context):
         if write_output:
-            response_serializer = FlowRunReadSerializer(instance=write_output, many=True)
+            response_serializer = FlowRunReadSerializer(instance=write_output, many=True, context=context)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(dict(non_field_errors=["All contacts are already started in this flow, "
                                                "use restart_participants to force them to restart in the flow"]),
@@ -2178,24 +2178,24 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     You can add a new campaign to your account, or update the fields on a campaign by sending a **POST** request to this
     URL with the following data:
 
-    * **campaign** - the id of the campaign (integer, optional, only include if updating an existing campaign)
+    * **uuid** - the UUID of the campaign (string, optional, only include if updating an existing campaign)
     * **name** - the full name of the campaign (string, required)
-    * **group** - the name of the contact group this campaign will be run against (string, required)
+    * **group_uuid** - the UUID of the contact group this campaign will be run against (string, required)
 
     Example:
 
         POST /api/v1/campaigns.json
         {
-            "name": "Starting Over",
-            "group": "Macklemore & Ryan Lewis"
+            "name": "Reminders",
+            "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"
         }
 
     You will receive a campaign object as a response if successful:
 
         {
-            "campaign": 1251125,
-            "name": "Starting Over",
-            "group": "Macklemore & Ryan Lewis",
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "name": "Reminders",
+            "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
             "created_on": "2013-08-19T19:11:21.088Z"
         }
 
@@ -2204,9 +2204,9 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     You can retrieve the campaigns for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` repeatable)
+      * **uuid** - the UUID of the campaign (string) (filterable: ```uuid``` repeatable)
       * **name** - the name of this campaign (string)
-      * **group** - the name of the group this campaign operates on (string)
+      * **group_uuid** - the UUID of the group this campaign operates on (string)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
 
     Example:
@@ -2221,9 +2221,9 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
             {
-                "campaign": 145145,
-                "name": "Starting Over",
-                "group": "Macklemore & Ryan Lewis",
+                "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+                "name": "Reminders",
+                "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
             ...
@@ -2236,9 +2236,13 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = CampaignWriteSerializer
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
+        queryset = Campaign.get_campaigns(self.request.user.get_org())
 
-        ids = splitting_getlist(self.request, 'campaign')
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+
+        ids = splitting_getlist(self.request, 'campaign')  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
@@ -2258,7 +2262,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset
+        return queryset.select_related('group').order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2267,14 +2271,12 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     url=reverse('api.campaigns'),
                     slug='campaign-list',
                     request="after=2013-01-01T00:00:00.000")
-        spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by. (repeatable)  ex: 234235,230420"),
-                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000"),
-                           ]
-
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="One or more campaign UUIDs to filter by. (repeatable)  ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='before', required=False,
+                               help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
         return spec
 
     @classmethod
@@ -2283,15 +2285,14 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     title="Add or update a Campaign",
                     url=reverse('api.campaigns'),
                     slug='campaign-update',
-                    request='{ "name": "Starting Over", "group": "Macklemore & Ryan Lewis" }')
+                    request='{ "name": "Reminders", "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9" }')
 
-        spec['fields'] = [ dict(name='campaign', required=False,
-                                help="The id of the campaign to update. (optional, new campaign will be created if left out)  ex: 1241515"),
-                           dict(name='name', required=True,
-                                help='The name of the campaign.  ex: "Starting Over"'),
-                           dict(name='group', required=True,
-                                help='What contact group the campaign should operate against.  ex: "Macklemore & Ryan Lewis"'),
-                         ]
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="The UUID of the campaign to update. (optional, new campaign will be created if left out)  ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='name', required=True,
+                               help='The name of the campaign.  ex: "Reminders"'),
+                          dict(name='group_uuid', required=True,
+                               help='The UUID of the contact group the campaign should operate against.  ex: "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"')]
         return spec
 
 
@@ -2302,20 +2303,20 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     You can add a new event to your campaign, or update the fields on an event by sending a **POST** request to this
     URL with the following data:
 
-    * **event** - the id of the event (integer, optional, only include if updating an existing campaign)
-    * **campaign** - the id of the campaign this event should be part of (integer, only include when creating new events)
+    * **uuid** - the UUID of the event (string, optional, only include if updating an existing campaign)
+    * **campaign_uuid** - the UUID of the campaign this event should be part of (string, only include when creating new events)
     * **relative_to** - the field that this event will be relative to for the contact (string, name of the Contact field, required)
     * **offset** - the offset from our contact field (positive or negative integer, required)
     * **unit** - the unit for our offset, M (minutes), H (hours), D (days), W (weeks) (string, required)
     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the Contact Field)
     * **message** - the message to send to the contact (string, required if flow id is not included)
-    * **flow** - the id of the flow to start the contact down (integer, required if message is null)
+    * **flow_uuid** - the UUID of the flow to start the contact down (string, required if message is null)
 
     Example:
 
         POST /api/v1/events.json
         {
-            "campaign": 1231515,
+            "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "relative_to": "Last Hit",
             "offset": 160,
             "unit": "W",
@@ -2326,13 +2327,14 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     You will receive an event object as a response if successful:
 
         {
-            "event": 150001,
-            "campaign": 1251125,
+            "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
+            "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "relative_to": "Last Hit",
             "offset": 160,
             "unit": "W",
             "delivery_hour": -1,
             "message": "Feeling sick and helpless, lost the compass where self is."
+            "flow_uuid": null,
             "created_on": "2013-08-19T19:11:21.088Z"
         }
 
@@ -2341,8 +2343,8 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     You can retrieve the campaign events for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` repeatable)
-      * **event** - only return events with these ids (int) (filterable: ```event``` repeatable)
+      * **uuid** - only return events with these UUIDs (string) (filterable: ```uuid``` repeatable)
+      * **campaign_uuid** - the UUID of the campaign (string) (filterable: ```campaign_uuid``` repeatable)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
 
     Example:
@@ -2357,13 +2359,14 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             "previous": null,
             "results": [
             {
-                "event": 150001,
-                "campaign": 1251125,
+                "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
+                "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "relative_to": "Last Hit",
                 "offset": 180,
                 "unit": "W",
                 "delivery_hour": -1,
                 "message": "If I can be an example of being sober, then I can be an example of starting over.",
+                "flow_uuid": null,
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
             ...
@@ -2371,15 +2374,15 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
 
     ## Removing Events
 
-    A **DELETE** to the endpoint removes all matching events from your account.  You can filter the list of events to remove
-    using the following attributes
+    A **DELETE** to the endpoint removes all matching events from your account.  You can filter the list of events to
+    remove using the following attributes
 
-    * **campaing** - remove only events which are part of this campaign (comma separated int)
-    * **event** - remove only events with these ids (comma separated int)
+    * **uuid** - remove only events with these UUIDs (comma separated string)
+    * **campaign_uuid** - remove only events which are part of this campaign (comma separated string)
 
     Example:
 
-        DELETE /api/v1/events.json?event=409,501
+        DELETE /api/v1/events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
 
     You will receive either a 404 response if no matching events were found, or a 204 response if one or more events
     was removed.
@@ -2399,15 +2402,23 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
 
-        ids = splitting_getlist(self.request, 'campaign')
-        if ids:
-            queryset = queryset.filter(campaign__pk__in=ids)
+        uuids = splitting_getlist(self.request, 'uuid')
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
 
-        ids = splitting_getlist(self.request, 'event')
+        campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        if campaign_uuids:
+            queryset = queryset.filter(campaign__uuid__in=campaign_uuids)
+
+        ids = splitting_getlist(self.request, 'event')  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
+
+        campaign_ids = splitting_getlist(self.request, 'campaign')  # deprecated, use campaign_uuid
+        if campaign_ids:
+            queryset = queryset.filter(campaign__pk__in=campaign_ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -2425,7 +2436,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             except:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset
+        return queryset.select_related('campaign', 'flow').order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2434,16 +2445,15 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
                     url=reverse('api.campaignevents'),
                     slug='campaignevent-list',
                     request="after=2013-01-01T00:00:00.000")
-        spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by. (repeatable) ex: 234235,230420"),
-                           dict(name='event', required=False,
-                                help="One or more even ids to filter by. (repeatable) ex:3435,67464"),
-                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000"),
-                           ]
 
+        spec['fields'] = [dict(name='uuid', required=False,
+                                help="One or more event UUIDs to filter by. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
+                          dict(name='campaign_uuid', required=False,
+                                help="One or more campaign UUIDs to filter by. (repeatable) ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='before', required=False,
+                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
         return spec
 
     @classmethod
@@ -2452,25 +2462,24 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
                     title="Add or update a Campaign Event",
                     url=reverse('api.campaignevents'),
                     slug='campaignevent-update',
-                    request='{ "campaign": 1251125, "relative_to": "Last Hit", "offset": 180, "unit": "W", "delivery_hour": -1, "message": "If I can be an example of being sober, then I can be an example of starting over."}')
+                    request='{ "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "relative_to": "Last Hit", "offset": 180, "unit": "W", "delivery_hour": -1, "message": "If I can be an example of being sober, then I can be an example of starting over."}')
 
-        spec['fields'] = [ dict(name='event', required=False,
-                                help="The id of the event to update. (optional, new event will be created if left out)  ex: 1241515"),
-                           dict(name='campaign', required=False,
-                                help="The id of the campaign this even is part of. (optional, only used when creating a new campaign)  ex: 15151"),
-                           dict(name='relative_to', required=True,
-                                help='The name of the Contact field this event is relative to. (string) ex: "Last Fix"'),
-                           dict(name='offset', required=True,
-                                help='The offset, as an integer to the relative_to field (integer, positive or negative)  ex: 15'),
-                           dict(name='unit', required=True,
-                                help='The unit of the offset, one of M for minutes, H for hours, D for days or W for weeks (string)  ex: "M"'),
-                           dict(name='delivery_hour', required=True,
-                                help='The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)  ex: "16"'),
-                           dict(name='message', required=False,
-                                help='The message that should be sent to the contact when this event is triggered. (string)  ex: "It is time to raise the roof."'),
-                           dict(name='flow', required=False,
-                                help='If not message is included, then the id of the flow that the contact should start when this event is triggered (integer)  ex: 1514'),
-                         ]
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="The UUID of the event to update. (optional, new event will be created if left out)  ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfab"),
+                          dict(name='campaign_uuid', required=False,
+                               help="The UUID of the campaign this event is part of. (optional, only used when creating a new campaign)  ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='relative_to', required=True,
+                               help='The name of the Contact field this event is relative to. (string) ex: "Last Fix"'),
+                          dict(name='offset', required=True,
+                               help='The offset, as an integer to the relative_to field (integer, positive or negative)  ex: 15'),
+                          dict(name='unit', required=True,
+                               help='The unit of the offset, one of M for minutes, H for hours, D for days or W for weeks (string)  ex: "M"'),
+                          dict(name='delivery_hour', required=True,
+                               help='The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)  ex: "16"'),
+                          dict(name='message', required=False,
+                               help='The message that should be sent to the contact when this event is triggered. (string)  ex: "It is time to raise the roof."'),
+                          dict(name='flow_uuid', required=False,
+                               help='If not message is included, then the UUID of the flow that the contact should start when this event is triggered (string)  ex: 6db50de7-2d20-4cce-b0dd-3f38b7a52ff9')]
         return spec
 
     @classmethod
@@ -2479,12 +2488,12 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
                     title="Delete a Campaign Event from a Campaign",
                     url=reverse('api.campaignevents'),
                     slug='campaignevent-delete',
-                    request="event=1255")
-        spec['fields'] = [ dict(name='event', required=False,
-                                help="Only delete events with these ids ids. (repeatable) ex: 235,124"),
-                           dict(name='campaign', required=False,
-                                help="Only delete events that are part of these campaigns. ex: 1514,141") ]
+                    request="uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc")
 
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="Only delete events with these UUIDs. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
+                          dict(name='campaign_uuid', required=False,
+                               help="Only delete events that are part of these campaigns. ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00")]
         return spec
 
 

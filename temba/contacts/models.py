@@ -135,6 +135,10 @@ class ContactField(models.Model, OrgModelMixin):
 
             return field
 
+    @classmethod
+    def get_by_label(cls, org, label):
+        return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
+
     def __unicode__(self):
         return "%s" % self.label
 
