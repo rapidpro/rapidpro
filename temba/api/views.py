@@ -1920,7 +1920,7 @@ class FlowResultsEndpoint(BaseAPIView):
         else:
             data = Value.get_value_summary(contact_field=contact_field, segment=segment)
 
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(dict(results=data), status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):

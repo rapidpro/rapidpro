@@ -457,7 +457,7 @@ class APITest(TembaTest):
 
             response = self.fetchJSON(url, 'ruleset=%d' % ruleset.id)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json, [])
+            self.assertEqual(response.json, dict(results=[]))
             mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
 
             response = self.fetchJSON(url, 'ruleset=%s' % ruleset.uuid)
