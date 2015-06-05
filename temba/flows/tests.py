@@ -1467,9 +1467,8 @@ class RuleTest(TembaTest):
         json_dict['last_saved'] = datetime_to_str(timezone.now())
         json_dict['action_sets'][0]['destination'] = 'notthere'
 
-
-        with self.assertRaises(FlowException):
-            response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
+        response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
+        self.assertEquals(400, response.status_code)
 
         # flow should still be there though
         flow = Flow.objects.get(pk=flow.pk)
