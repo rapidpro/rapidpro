@@ -494,18 +494,16 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org, created_by=user).first()
 
         if not test_contact:
-            urn_path_test = TEST_CONTACT_TEL
-            existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, urn_path_test)
-            looped = 0
-            while existing_urn:
-                urn_path_test = int(urn_path_test) + 1
-                urn_path_test = "+" + str(urn_path_test)
-                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, urn_path_test)
-                looped += 1
-                if looped > 2000:
-                    raise Exception("Too many test contact on this org.")
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, urn_path_test)], is_test=True)
+            START_TEST_CONTACT_PATH = '99000000000'
+            END_TEST_CONTACT_PATH = '99000050000'
+            test_urn_path = START_TEST_CONTACT_PATH
+            existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, test_urn_path)
+            while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
+                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+                test_urn_path += 1
+
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, test_urn_path)], is_test=True)
 
         return test_contact
 
