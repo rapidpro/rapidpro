@@ -1469,7 +1469,7 @@ class RuleTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
         self.assertEquals(400, response.status_code)
-        self.assertEquals('failed', json.loads(response.content)['status'])
+        self.assertEquals('failure', json.loads(response.content)['status'])
 
         # flow should still be there though
         flow = Flow.objects.get(pk=flow.pk)
