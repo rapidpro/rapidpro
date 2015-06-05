@@ -256,7 +256,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             return field.org.format_date(value.datetime_value)
         elif field.value_type == DECIMAL:
             return format_decimal(value.decimal_value)
-        elif field.category:
+        elif value.category:
             return value.category
         else:
             return value.string_value
