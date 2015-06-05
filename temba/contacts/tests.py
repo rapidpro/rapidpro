@@ -349,6 +349,11 @@ class ContactTest(TembaTest):
         self.assertEquals(test_contact_user.created_by, self.user)
         self.assertFalse(test_contact_admin == test_contact_user)
 
+        test_contact_user2 = Contact.get_test_contact(self.user)
+        self.assertTrue(test_contact_user2.is_test)
+        self.assertEquals(test_contact_user2.created_by, self.user)
+        self.assertTrue(test_contact_user2 == test_contact_user)
+
     def test_contact_create(self):
         self.login(self.admin)
 

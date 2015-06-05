@@ -30,7 +30,9 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 # phone number for every org's test contact
-TEST_CONTACT_TEL = '+12065551212'
+START_TEST_CONTACT_PATH = 12065550100
+END_TEST_CONTACT_PATH = 12065550199
+
 
 
 class ContactField(models.Model, OrgModelMixin):
@@ -491,13 +493,10 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     @classmethod
     def get_test_contact(cls, user):
         org = user.get_org()
-        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org,
-                                              created_by=user).first()
+        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user).first()
 
         if not test_contact:
 
-            START_TEST_CONTACT_PATH = 12065550100
-            END_TEST_CONTACT_PATH = 12065550199
             test_urn_path = START_TEST_CONTACT_PATH
             existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
             while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
