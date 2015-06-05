@@ -11,7 +11,17 @@
             [[title]]
       .modal-body
         [[body]]
+
+        .help{ng-class:'{"show-help":showHelp}'}
+          .help-title
+            -blocktrans
+              When <a href='javascript:void(0)' class='uv-send-message'>contacting support</a> include this message.
+          .help-body
+            [[helpBody]]
+
       .modal-footer
+        %button.pull-left{ng-show:'subtext', ng-class:'{"show-help":showHelp}', ng-click:"showHelp=true", class:"btn btn-secondary",ng-hide:"hideCancel"}
+          -trans "Help"
         %button{ng-click:"cancel()",class:"btn btn-secondary",ng-hide:"hideCancel"}
           -trans "Cancel"
         %button{ng-click:"ok()",class:"btn btn-primary"}

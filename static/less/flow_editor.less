@@ -856,6 +856,35 @@
       }
     }
   }
+
+  .btn.show-help {
+    display: none;
+  }
+
+  .help {
+
+    display: none;
+    margin-top: 20px;
+    background: @flat-white + #050505;
+    .rounded-corners(5px);
+    padding: 12px;
+
+    .help-title {
+      font-size:14px;
+    }
+
+    .help-body {
+      font-size: 12px;;
+      line-height: 12px;
+      color: @flat-grey;
+      font-family: 'Courier New';
+      margin-top:2px;
+    }
+
+    &.show-help {
+      display:block;
+    }
+  }
 }
 
 .action-editor {

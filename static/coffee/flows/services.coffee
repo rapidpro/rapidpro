@@ -483,8 +483,26 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if $rootScope.saved_on
           $rootScope.flow['last_saved'] = $rootScope.saved_on
 
-        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data) ->
-          $log.debug("Failed:", data)
+        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data, statusCode) ->
+
+          if statusCode == 400
+            $log.debug(data)
+            $rootScope.saving = false
+            modalInstance = $modal.open
+              templateUrl: "/partials/modal?v=" + version
+              controller: ModalController
+              resolve:
+                type: -> "error"
+                title: -> "Error Saving"
+                body: -> "We're not quite sure why, but your latest changes could not be saved. Please click Reload and try again."
+                helpBody: -> data.description
+                ok: -> 'Reload'
+
+            modalInstance.result.then (reload) ->
+              if reload
+                document.location.reload()
+            return
+
           $rootScope.errorDelay += quietPeriod
 
           # we failed, could just be futzy internet, lets retry with backdown
@@ -1069,10 +1087,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     @markDirty()
 ]
 
-ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
+ModalController = ($scope, $modalInstance, type, title, body, helpBody=null, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
+
+  if helpBody
+    $scope.helpTitle = 'Support Information'
+    $scope.helpBody = helpBody
 
   if ok
     $scope.okButton = ok
