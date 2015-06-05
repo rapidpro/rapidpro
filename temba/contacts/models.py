@@ -30,6 +30,7 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 # phone number for every org's test contact
+OLD_TEST_CONTACT_TEL = '+12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
@@ -555,7 +556,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 if not is_valid:
                     return None
                 # in the past, test contacts have ended up in exports. Don't re-import them
-                if value == TEST_CONTACT_TEL:
+                if value == OLD_TEST_CONTACT_TEL:
                     return None
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
