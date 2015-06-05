@@ -486,8 +486,10 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data, statusCode) ->
 
           if statusCode == 400
-            $log.debug(data)
             $rootScope.saving = false
+            if UserVoice
+              UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
+
             modalInstance = $modal.open
               templateUrl: "/partials/modal?v=" + version
               controller: ModalController
@@ -495,7 +497,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 type: -> "error"
                 title: -> "Error Saving"
                 body: -> "We're not quite sure why, but your latest changes could not be saved. Please click Reload and try again."
-                helpBody: -> data.description
                 ok: -> 'Reload'
 
             modalInstance.result.then (reload) ->
@@ -1087,14 +1088,11 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     @markDirty()
 ]
 
-ModalController = ($scope, $modalInstance, type, title, body, helpBody=null, ok=null) ->
+ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
-
-  if helpBody
-    $scope.helpTitle = 'Support Information'
-    $scope.helpBody = helpBody
+  $scope.error = error
 
   if ok
     $scope.okButton = ok
@@ -1107,3 +1105,9 @@ ModalController = ($scope, $modalInstance, type, title, body, helpBody=null, ok=
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
+
+  $scope.showHelpWidget = ->
+    if UserVoice
+      UserVoice.push(['show', {
+        mode: 'contact'
+      }]);
