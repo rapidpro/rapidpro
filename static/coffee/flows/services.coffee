@@ -483,8 +483,27 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if $rootScope.saved_on
           $rootScope.flow['last_saved'] = $rootScope.saved_on
 
-        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data) ->
-          $log.debug("Failed:", data)
+        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data, statusCode) ->
+
+          if statusCode == 400
+            $rootScope.saving = false
+            if UserVoice
+              UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
+
+            modalInstance = $modal.open
+              templateUrl: "/partials/modal?v=" + version
+              controller: ModalController
+              resolve:
+                type: -> "error"
+                title: -> "Error Saving"
+                body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                ok: -> 'Reload'
+
+            modalInstance.result.then (reload) ->
+              if reload
+                document.location.reload()
+            return
+
           $rootScope.errorDelay += quietPeriod
 
           # we failed, could just be futzy internet, lets retry with backdown
@@ -1073,6 +1092,7 @@ ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
+  $scope.error = error
 
   if ok
     $scope.okButton = ok
@@ -1085,3 +1105,9 @@ ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
+
+  $scope.showHelpWidget = ->
+    if UserVoice
+      UserVoice.push(['show', {
+        mode: 'contact'
+      }]);
