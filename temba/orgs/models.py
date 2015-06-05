@@ -408,7 +408,7 @@ class Org(SmartModel):
         elif event == OrgEvent.call_new:
             increment_count(OrgFolder.calls_all)
 
-        elif event == OrgEvent.topup_new or OrgEvent.topup_updated:
+        elif event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
             clear_value(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
             clear_value(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
