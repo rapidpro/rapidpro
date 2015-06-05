@@ -2889,7 +2889,37 @@ class FlowsTest(FlowFileTest):
         action = actionset.get_actions()[0]
         self.assertFalse(isinstance(action.msg, dict))
 
+    def test_requires_step(self):
 
+        self.get_flow('favorites')
+        ruleset = RuleSet.objects.get(uuid='1a08ec37-2218-48fd-b6b0-846b14407041')
+
+        # default is on @step.value
+        self.assertEquals(True, ruleset.requires_step())
+
+        # mention step without @ outside of expression
+        ruleset.operand = 'no step'
+        self.assertEquals(False, ruleset.requires_step())
+
+        # mention step as variable
+        ruleset.operand = '@step'
+        self.assertEquals(True, ruleset.requires_step())
+
+        # inside an expression doesn't require @
+        ruleset.operand = '=(step)'
+        self.assertEquals(True, ruleset.requires_step())
+
+        # no operand requires step
+        ruleset.operand = None
+        self.assertEquals(True, ruleset.requires_step())
+
+        # empty operand is treated as none
+        ruleset.operand = ''
+        self.assertEquals(True, ruleset.requires_step())
+
+        # should still do the right thing with padding
+        ruleset.operand = ' =(step) '
+        self.assertEquals(True, ruleset.requires_step())
 
     def test_different_expiration(self):
         flow = self.get_flow('favorites')

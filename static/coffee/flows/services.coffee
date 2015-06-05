@@ -545,7 +545,12 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if not node?.operand
         return true
 
-      if node?.operand?.indexOf('@step') > -1
+      operand = node?.operand
+      if operand
+        operand = operand.trim()
+
+      isExpression = operand.length > 2 and operand[0:2] == '=('
+      if operand?.indexOf('@step') > -1 or isExpression and operand?.indexOf('step') > -1
         return true
 
       if node?.webhook
