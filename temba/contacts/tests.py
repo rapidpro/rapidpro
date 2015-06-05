@@ -339,6 +339,16 @@ class ContactTest(TembaTest):
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
+    def test_get_test_contact(self):
+        test_contact_admin = Contact.get_test_contact(self.admin)
+        self.assertTrue(test_contact_admin.is_test)
+        self.assertEquals(test_contact_admin.created_by, self.admin)
+
+        test_contact_user = Contact.get_test_contact(self.user)
+        self.assertTrue(test_contact_user.is_test)
+        self.assertEquals(test_contact_user.created_by, self.user)
+        self.assertFalse(test_contact_admin == test_contact_user)
+
     def test_contact_create(self):
         self.login(self.admin)
 

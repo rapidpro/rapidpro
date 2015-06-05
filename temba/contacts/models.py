@@ -491,10 +491,21 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     @classmethod
     def get_test_contact(cls, user):
         org = user.get_org()
-        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org).first()
+        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org, created_by=user).first()
 
         if not test_contact:
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, TEST_CONTACT_TEL)], is_test=True)
+            urn_path_test = TEST_CONTACT_TEL
+            existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, urn_path_test)
+            looped = 0
+            while existing_urn:
+                urn_path_test = int(urn_path_test) + 1
+                urn_path_test = "+" + str(urn_path_test)
+                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, urn_path_test)
+                looped += 1
+                if looped > 2000:
+                    raise Exception("Too many test contact on this org.")
+
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, urn_path_test)], is_test=True)
 
         return test_contact
 
@@ -1128,9 +1139,13 @@ class ContactURN(models.Model):
                                   scheme=scheme, path=path, urn=urn)
 
     @classmethod
-    def get_or_create(cls, org, scheme, path, channel=None):
+    def get_existing_urn(cls, org, scheme, path):
         urn = cls.format_urn(scheme, path)
-        existing = ContactURN.objects.filter(org=org, urn=urn).first()
+        return ContactURN.objects.filter(org=org, urn=urn).first()
+
+    @classmethod
+    def get_or_create(cls, org, scheme, path, channel=None):
+        existing = ContactURN.get_existing_urn(org, scheme, path)
 
         with org.lock_on(OrgLock.contacts):
             if existing:
