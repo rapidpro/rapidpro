@@ -239,11 +239,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         value = self.get_field(key)
         if value:
-            if value.category:
-                return value.category
-            else:
-                field = value.contact_field
-                return Contact.get_field_display_for_value(field, value)
+            field = value.contact_field
+            return Contact.get_field_display_for_value(field, value)
         else:
             return None
 
@@ -255,15 +252,14 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         if value is None:
             return None
 
-        if value.category:
+        if field.value_type == DATETIME:
+            return field.org.format_date(value.datetime_value)
+        elif field.value_type == DECIMAL:
+            return format_decimal(value.decimal_value)
+        elif field.category:
             return value.category
         else:
-            if field.value_type == DATETIME:
-                return field.org.format_date(value.datetime_value)
-            elif field.value_type == DECIMAL:
-                return format_decimal(value.decimal_value)
-            else:
-                return value.string_value
+            return value.string_value
 
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
