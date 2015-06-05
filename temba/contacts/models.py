@@ -496,8 +496,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         if not test_contact:
 
-            START_TEST_CONTACT_PATH = '99000000000'
-            END_TEST_CONTACT_PATH = '99000050000'
+            START_TEST_CONTACT_PATH = 12065550100
+            END_TEST_CONTACT_PATH = 12065550199
             test_urn_path = START_TEST_CONTACT_PATH
             existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, test_urn_path)
             while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
