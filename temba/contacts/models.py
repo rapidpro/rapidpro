@@ -491,7 +491,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     @classmethod
     def get_test_contact(cls, user):
         org = user.get_org()
-        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org, created_by=user).first()
+        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org,
+                                              created_by=user).first()
 
         if not test_contact:
 
@@ -503,7 +504,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
                 test_urn_path += 1
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, test_urn_path)], is_test=True)
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
+                                                 is_test=True)
 
         return test_contact
 
