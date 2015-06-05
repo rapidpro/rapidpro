@@ -30,7 +30,10 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 # phone number for every org's test contact
-TEST_CONTACT_TEL = '+12065551212'
+OLD_TEST_CONTACT_TEL = '+12065551212'
+START_TEST_CONTACT_PATH = 12065550100
+END_TEST_CONTACT_PATH = 12065550199
+
 
 
 class ContactField(models.Model, OrgModelMixin):
@@ -491,10 +494,18 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
     @classmethod
     def get_test_contact(cls, user):
         org = user.get_org()
-        test_contact = Contact.objects.filter(urns__path=TEST_CONTACT_TEL, is_test=True, org=org).first()
+        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user).first()
 
         if not test_contact:
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, TEST_CONTACT_TEL)], is_test=True)
+
+            test_urn_path = START_TEST_CONTACT_PATH
+            existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+            while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
+                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+                test_urn_path += 1
+
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
+                                                 is_test=True)
 
         return test_contact
 
@@ -545,7 +556,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 if not is_valid:
                     return None
                 # in the past, test contacts have ended up in exports. Don't re-import them
-                if value == TEST_CONTACT_TEL:
+                if value == OLD_TEST_CONTACT_TEL:
                     return None
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
@@ -1128,9 +1139,13 @@ class ContactURN(models.Model):
                                   scheme=scheme, path=path, urn=urn)
 
     @classmethod
-    def get_or_create(cls, org, scheme, path, channel=None):
+    def get_existing_urn(cls, org, scheme, path):
         urn = cls.format_urn(scheme, path)
-        existing = ContactURN.objects.filter(org=org, urn=urn).first()
+        return ContactURN.objects.filter(org=org, urn=urn).first()
+
+    @classmethod
+    def get_or_create(cls, org, scheme, path, channel=None):
+        existing = ContactURN.get_existing_urn(org, scheme, path)
 
         with org.lock_on(OrgLock.contacts):
             if existing:

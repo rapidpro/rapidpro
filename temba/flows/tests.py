@@ -1490,6 +1490,12 @@ class RuleTest(TembaTest):
         # test simulation
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
+        test_contact = Contact.get_test_contact(self.admin)
+        group = self.create_group("players", [test_contact])
+        contact_field = ContactField.get_or_create(self.org, 'custom', 'custom')
+        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
+                                                   string_value="hey")
+
         response = self.client.get(simulate_url)
         self.assertEquals(response.status_code, 302)
 
@@ -1499,11 +1505,18 @@ class RuleTest(TembaTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = json.loads(response.content)
 
+        self.assertFalse(group in test_contact.all_groups.all())
+        self.assertFalse(test_contact.values.all())
+
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 3)
         self.assertEquals('Test Contact has entered the &quot;Flow&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("This flow is more like a broadcast", json_dict['messages'][1]['text'])
         self.assertEquals("Test Contact has exited this flow", json_dict['messages'][2]['text'])
+
+        group = self.create_group("fans", [test_contact])
+        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
+                                                   string_value="hey")
 
         post_data['new_message'] = "Ok, Thanks"
         post_data['has_refresh'] = False
@@ -1511,6 +1524,10 @@ class RuleTest(TembaTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEquals(200, response.status_code)
         json_dict = json.loads(response.content)
+
+        self.assertTrue(group in test_contact.all_groups.all())
+        self.assertTrue(test_contact.values.all())
+        self.assertEqual(test_contact.values.get(string_value='hey'), contact_field_value)
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertTrue('status' in json_dict.keys())

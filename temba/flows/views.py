@@ -1135,9 +1135,16 @@ class FlowCRUDL(SmartCRUDL):
                 runs.delete()
                 steps.delete()
 
+                # reset all contact fields values
+                test_contact.values.all().delete()
+
                 # reset the name for our test contact too
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
                 test_contact.save()
+
+                # reset the groups for test contact
+                for group in test_contact.all_groups.all():
+                    group.update_contacts([test_contact], False)
 
                 flow.start([], [test_contact], restart_participants=True)
 
