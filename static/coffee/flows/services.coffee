@@ -496,7 +496,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               resolve:
                 type: -> "error"
                 title: -> "Error Saving"
-                body: -> "We're not quite sure why, but your latest changes could not be saved. Please click Reload and try again."
+                body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
                 ok: -> 'Reload'
 
             modalInstance.result.then (reload) ->
