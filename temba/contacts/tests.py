@@ -25,7 +25,7 @@ from temba.msgs.models import Msg, Call, Label
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE
+from temba.values.models import STATE, DATETIME
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1407,6 +1407,19 @@ class ContactTest(TembaTest):
         
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('location'), 'Rwanda')  # renamed from 'Country'
+        self.assertEquals(contact1.get_field_display('location'), 'Rwanda')  # renamed from 'Country'
+
+        # if we change the field type for 'location' to 'datetime' we shouldn't get a category
+        ContactField.objects.filter(key='location').update(value_type=DATETIME)
+        contact1 = Contact.objects.all().order_by('name')[0]
+
+        # Not a valid date, so should be None
+        self.assertEquals(contact1.get_field_display('location'), None)
+
+        # return it back to a state field
+        ContactField.objects.filter(key='location').update(value_type=STATE)
+        contact1 = Contact.objects.all().order_by('name')[0]
+
         self.assertIsNone(contact1.get_field_raw('district'))  # wasn't included
         self.assertEquals(contact1.get_field_raw('job_and_projects'), 'coach')  # renamed from 'Professional Status'
         self.assertEquals(contact1.get_field_raw('postal_code'), '600.0')
@@ -1441,6 +1454,8 @@ class ContactTest(TembaTest):
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
+
+    test_contact_import.active = True
 
     def test_import_methods(self):
         user = self.user
