@@ -2047,10 +2047,11 @@ class Flow(TembaModel, SmartModel):
 
                 # rules on @step.value require user input
                 operand = node.get('operand', '@step.value')
-                if not operand or '@step' in operand:
+
+                if not operand or RuleSet.contains_step(operand):
                     return []
 
-                # webhooks require user input
+                # webhooks require user input for now
                 if node.get('webhook', None):
                     return []
 
@@ -2400,6 +2401,21 @@ class RuleSet(models.Model):
     def get(cls, flow, uuid):
         return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
 
+    @classmethod
+    def contains_step(cls, text):
+
+        # remove any padding
+        if text:
+            text = text.strip()
+
+        # if we start with =( then we are an expression
+        is_expression = text and len(text) > 2 and text[0:2] == '=('
+
+        if '@step' in text or (is_expression and 'step' in text):
+            return True
+
+        return False
+
     def build_uuid_to_category_map(self):
         flow_language = self.flow.base_language
 
@@ -2476,11 +2492,18 @@ class RuleSet(models.Model):
         interaction of somekind. We derive this by looking to see if we have a webhook that uses step
         or whether any of our rules use @step in them.
         """
-        # our operand requires a step
-        if not self.operand or self.operand.find('@step') >= 0:
+
+        if not self.operand:
             return True
 
-        # if we find @step in any of our rule JSON (it could be used in a test), then that also disqualifies it
+        if RuleSet.contains_step(self.operand):
+            return True
+
+        # TODO: Consider removing the requirement below. With flows v3 we'll need a distinction
+        #       between rulesets operating on @step and those that don't. Consider the case of a ruleset
+        #       on @contact.groups that evaluates on @step in a rule test probably shouldn't pause execution.
+        #       We need to decide what @step would mean in that case.
+
         for rule in self.get_rules():
             if rule.requires_step():
                 return True
@@ -4712,11 +4735,11 @@ class TranslatableTest(Test):
     def requires_step(self):
         if isinstance(self.test, dict):
             for k,v in self.test.items():
-                if v.find("@step") >= 0:
+                if RuleSet.contains_step(v):
                     return True
             return False
         else:
-            return self.test.find("@step") >= 0
+            return RuleSet.contains_step(self.test)
 
     def update_base_language(self, language_iso):
         # if we are a single language reply, then convert to multi-language
@@ -4889,7 +4912,7 @@ class HasDistrictTest(Test):
         return dict(type=self.TYPE, test=self.state)
 
     def requires_step(self):
-        return self.state.find("@step") >= 0
+        return RuleSet.requires_step(self.state)
 
     def evaluate(self, run, sms, context, text):
 
@@ -4962,7 +4985,7 @@ class DateTest(Test):
         raise FlowException("Evaluate date test needs to be defined by subclass.")
 
     def requires_step(self):
-        return self.test.find("@step") >= 0
+        return RuleSet.contains_step(self.test)
 
     def evaluate(self, run, sms, context, text):
         org = run.flow.org
@@ -5035,7 +5058,7 @@ class NumericTest(Test):
                 raise e
 
     def requires_step(self):
-        return self.test.find("@step") >= 0
+        return RuleSet.contains_step(self.test)
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
@@ -5070,7 +5093,7 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def requires_step(self):
-        return self.min.find("@step") >= 0 or self.max.find("@step") >= 0
+        return RuleSet.contains_step(self.min) or RuleSet.contains_step(self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
         min, has_missing = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
@@ -5123,7 +5146,7 @@ class SimpleNumericTest(Test):
         raise FlowException("Evaluate numeric test needs to be defined by subclass")
 
     def requires_step(self):
-        return self.test.find("@step") >= 0
+        return RuleSet.contains_step(self.test)
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
