@@ -89,6 +89,7 @@ ORG_LOW_CREDIT_THRESHOLD = 500
 ORG_LOCK_KEY = 'org:%d:lock:%s'
 ORG_FOLDER_COUNT_CACHE_KEY = 'org:%d:cache:folder_count:%s'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
+ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
 ORG_LOCK_TTL = 60  # 1 minute
@@ -407,11 +408,9 @@ class Org(SmartModel):
         elif event == OrgEvent.call_new:
             increment_count(OrgFolder.calls_all)
 
-        elif event == OrgEvent.topup_new:
-            incrby_existing(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, entity.credits, r)
-
-        elif event == OrgEvent.topup_updated:
+        elif event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
             clear_value(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
+            clear_value(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
     def clear_caches(self, caches):
         """
@@ -427,6 +426,7 @@ class Org(SmartModel):
         if OrgCache.credits in caches:
             keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
             keys.append(ORG_CREDITS_USED_CACHE_KEY % self.pk)
+            keys.append(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
         r = get_redis_connection()
         return r.delete(*keys)
@@ -862,13 +862,13 @@ class Org(SmartModel):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
     def is_pro(self):
-        return self.get_credits_total() >= PRO_CREDITS_THRESHOLD
+        return self.get_purchased_credits() >= PRO_CREDITS_THRESHOLD
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
 
     def get_credits_until_pro(self):
-        return max(PRO_CREDITS_THRESHOLD - self.get_credits_total(), 0)
+        return max(PRO_CREDITS_THRESHOLD - self.get_purchased_credits(), 0)
 
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
@@ -973,6 +973,18 @@ class Org(SmartModel):
         """
         return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
                                     self._calculate_credits_total)
+
+    def get_purchased_credits(self):
+        """
+        Returns the total number of credits purchased
+        :return:
+        """
+        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                                    self._calculate_purchased_credits)
+
+    def _calculate_purchased_credits(self):
+        purchased_credits = self.topups.filter(is_active=True).aggregate(Sum('credits')).get('credits__sum')
+        return purchased_credits if purchased_credits else 0
 
     def _calculate_credits_total(self):
         # these are the credits that are still active

@@ -536,6 +536,7 @@ class OrgTest(TembaTest):
         # now we're pro
         self.assertTrue(self.org.is_pro())
         self.assertEquals(100025, self.org.get_credits_total())
+        self.assertEquals(100025, self.org.get_purchased_credits())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(99995, self.org.get_credits_remaining())
 
@@ -557,7 +558,11 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
+        # we're still pro though
+        self.assertTrue(self.org.is_pro())
+
         with self.assertNumQueries(2):
+            self.assertEquals(100025, self.org.get_purchased_credits())
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
@@ -648,6 +653,11 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+        # and disconnect
+        self.org.remove_nexmo_account()
+        self.assertFalse(self.org.is_connected_to_nexmo())
+        self.assertFalse(self.org.config_json()['NEXMO_KEY'])
+        self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
     def test_connect_plivo(self):
         self.login(self.admin)

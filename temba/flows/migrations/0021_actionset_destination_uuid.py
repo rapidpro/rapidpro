@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     def populate_destination_uuids(apps, schema_editor):
         ActionSet = apps.get_model("flows", "ActionSet")
-        print "%d actionsets to update" % ActionSet.objects.all().count()
+        # print "%d actionsets to update" % ActionSet.objects.all().count()
 
         for idx, actionset in enumerate(ActionSet.objects.all().select_related('destination')):
             if idx % 1000 == 0:

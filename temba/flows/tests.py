@@ -819,6 +819,7 @@ class RuleTest(TembaTest):
 
         sms.text = "I have 7"
         self.assertTest(True, Decimal("7"), test)
+        self.assertFalse(test.requires_step())
 
         # phone tests
 
@@ -1467,9 +1468,9 @@ class RuleTest(TembaTest):
         json_dict['last_saved'] = datetime_to_str(timezone.now())
         json_dict['action_sets'][0]['destination'] = 'notthere'
 
-
-        with self.assertRaises(FlowException):
-            response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
+        response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
+        self.assertEquals(400, response.status_code)
+        self.assertEquals('failure', json.loads(response.content)['status'])
 
         # flow should still be there though
         flow = Flow.objects.get(pk=flow.pk)
@@ -1490,6 +1491,12 @@ class RuleTest(TembaTest):
         # test simulation
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
 
+        test_contact = Contact.get_test_contact(self.admin)
+        group = self.create_group("players", [test_contact])
+        contact_field = ContactField.get_or_create(self.org, 'custom', 'custom')
+        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
+                                                   string_value="hey")
+
         response = self.client.get(simulate_url)
         self.assertEquals(response.status_code, 302)
 
@@ -1499,11 +1506,18 @@ class RuleTest(TembaTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = json.loads(response.content)
 
+        self.assertFalse(group in test_contact.all_groups.all())
+        self.assertFalse(test_contact.values.all())
+
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 3)
         self.assertEquals('Test Contact has entered the &quot;Flow&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("This flow is more like a broadcast", json_dict['messages'][1]['text'])
         self.assertEquals("Test Contact has exited this flow", json_dict['messages'][2]['text'])
+
+        group = self.create_group("fans", [test_contact])
+        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
+                                                   string_value="hey")
 
         post_data['new_message'] = "Ok, Thanks"
         post_data['has_refresh'] = False
@@ -1511,6 +1525,10 @@ class RuleTest(TembaTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEquals(200, response.status_code)
         json_dict = json.loads(response.content)
+
+        self.assertTrue(group in test_contact.all_groups.all())
+        self.assertTrue(test_contact.values.all())
+        self.assertEqual(test_contact.values.get(string_value='hey'), contact_field_value)
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertTrue('status' in json_dict.keys())
@@ -2600,6 +2618,25 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(Flow.RULES_ENTRY, flow.entry_type)
         self.assertEquals("You've got to be kitten me", self.send_message(flow, "cats"))
 
+    def test_non_blocking_rule_first(self):
+
+        flow = self.get_flow('non_blocking_rule_first')
+
+        eminem = self.create_contact('Eminem', '+12345')
+        flow.start(groups=[], contacts=[eminem])
+        msg = Msg.objects.filter(direction='O', contact=eminem).first()
+        self.assertEquals('Hi there Eminem', msg.text)
+
+        # put a webhook on the rule first and make sure it executes
+        ruleset = RuleSet.objects.get(uuid=flow.entry_uuid)
+        ruleset.webhook_url = 'http://localhost'
+        ruleset.save()
+
+        tupac = self.create_contact('Tupac', '+15432')
+        flow.start(groups=[], contacts=[tupac])
+        msg = Msg.objects.filter(direction='O', contact=tupac).first()
+        self.assertEquals('Hi there Tupac', msg.text)
+
     def test_substitution(self):
         flow = self.get_flow('substitution')
 
@@ -2872,7 +2909,37 @@ class FlowsTest(FlowFileTest):
         action = actionset.get_actions()[0]
         self.assertFalse(isinstance(action.msg, dict))
 
+    def test_requires_step(self):
 
+        self.get_flow('favorites')
+        ruleset = RuleSet.objects.get(uuid='1a08ec37-2218-48fd-b6b0-846b14407041')
+
+        # default is on @step.value
+        self.assertEquals(True, ruleset.requires_step())
+
+        # mention step without @ outside of expression
+        ruleset.operand = 'no step'
+        self.assertEquals(False, ruleset.requires_step())
+
+        # mention step as variable
+        ruleset.operand = '@step'
+        self.assertEquals(True, ruleset.requires_step())
+
+        # inside an expression doesn't require @
+        ruleset.operand = '=(step)'
+        self.assertEquals(True, ruleset.requires_step())
+
+        # no operand requires step
+        ruleset.operand = None
+        self.assertEquals(True, ruleset.requires_step())
+
+        # empty operand is treated as none
+        ruleset.operand = ''
+        self.assertEquals(True, ruleset.requires_step())
+
+        # should still do the right thing with padding
+        ruleset.operand = ' =(step) '
+        self.assertEquals(True, ruleset.requires_step())
 
     def test_different_expiration(self):
         flow = self.get_flow('favorites')
@@ -2975,10 +3042,9 @@ class FlowsTest(FlowFileTest):
         parent = self.get_flow('parent', dict(CHILD_ID=child.id))
 
         # create a campaign with a single event
-        campaign = Campaign.objects.create(name="Test Campaign", group=group, org=self.org,
-                                           created_by=self.admin, modified_by=self.admin)
-        CampaignEvent.objects.create(campaign=campaign, flow=favorites, relative_to=field,
-                                     offset=10, unit='W', created_by=self.admin, modified_by=self.admin)
+        campaign = Campaign.create(self.org, self.admin, "Test Campaign", group)
+        CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=field,
+                                        offset=10, unit='W', flow=favorites)
 
         self.assertEquals("Added to campaign.", self.send_message(parent, "start", initiate_flow=True))
 

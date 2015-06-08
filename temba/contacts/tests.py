@@ -25,7 +25,7 @@ from temba.msgs.models import Msg, Call, Label
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE
+from temba.values.models import STATE, DATETIME
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -338,6 +338,21 @@ class ContactTest(TembaTest):
         self.jim.release()
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
+
+    def test_get_test_contact(self):
+        test_contact_admin = Contact.get_test_contact(self.admin)
+        self.assertTrue(test_contact_admin.is_test)
+        self.assertEquals(test_contact_admin.created_by, self.admin)
+
+        test_contact_user = Contact.get_test_contact(self.user)
+        self.assertTrue(test_contact_user.is_test)
+        self.assertEquals(test_contact_user.created_by, self.user)
+        self.assertFalse(test_contact_admin == test_contact_user)
+
+        test_contact_user2 = Contact.get_test_contact(self.user)
+        self.assertTrue(test_contact_user2.is_test)
+        self.assertEquals(test_contact_user2.created_by, self.user)
+        self.assertTrue(test_contact_user2 == test_contact_user)
 
     def test_contact_create(self):
         self.login(self.admin)
@@ -1392,6 +1407,19 @@ class ContactTest(TembaTest):
         
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('location'), 'Rwanda')  # renamed from 'Country'
+        self.assertEquals(contact1.get_field_display('location'), 'Rwanda')  # renamed from 'Country'
+
+        # if we change the field type for 'location' to 'datetime' we shouldn't get a category
+        ContactField.objects.filter(key='location').update(value_type=DATETIME)
+        contact1 = Contact.objects.all().order_by('name')[0]
+
+        # Not a valid date, so should be None
+        self.assertEquals(contact1.get_field_display('location'), None)
+
+        # return it back to a state field
+        ContactField.objects.filter(key='location').update(value_type=STATE)
+        contact1 = Contact.objects.all().order_by('name')[0]
+
         self.assertIsNone(contact1.get_field_raw('district'))  # wasn't included
         self.assertEquals(contact1.get_field_raw('job_and_projects'), 'coach')  # renamed from 'Professional Status'
         self.assertEquals(contact1.get_field_raw('postal_code'), '600.0')
@@ -1426,6 +1454,8 @@ class ContactTest(TembaTest):
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
+
+    test_contact_import.active = True
 
     def test_import_methods(self):
         user = self.user
@@ -1543,11 +1573,9 @@ class ContactTest(TembaTest):
             women_group = create_dynamic_group("Girls", 'gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()
-            joes_campaign = Campaign.objects.create(name="Joe Reminders", group=joes_group, org=self.org,
-                                                    created_by=self.admin, modified_by=self.admin)
-            joes_event = CampaignEvent.objects.create(campaign=joes_campaign, relative_to=joined_field, offset=1, unit='W',
-                                                      flow=joe_flow, delivery_hour=17,
-                                                      created_by=self.admin, modified_by=self.admin)
+            joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
+            joes_event = CampaignEvent.create_flow_event(self.org, self.admin, joes_campaign, relative_to=joined_field,
+                                                         offset=1, unit='W', flow=joe_flow, delivery_hour=17)
             EventFire.update_campaign_events(joes_campaign)
 
             # check initial group members added correctly

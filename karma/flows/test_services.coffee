@@ -171,6 +171,36 @@ describe 'Services:', ->
       flowService.deriveCategories(ruleset, 'eng')
       expect(ruleOther.destination).toBe(null)
 
+    describe 'checkTerminal', ->
+
+      actionset = null
+      beforeEach ->
+        actionset =
+          "y": 0, "x": 0
+          "destination": null
+          "uuid": "dcd9541a-0263-474e-b3f1-03a28993f95a"
+          "actions": [{ "msg": "I don't know that color. Try again.", "type": "reply"}]
+
+      it 'should detect terminal actionsets', ->
+
+        # we haven't determined our terminal status yet
+        expect(actionset._terminal).toBe(undefined)
+
+        # we aren't terminal
+        flowService.checkTerminal(actionset)
+        expect(actionset._terminal).toBe(false)
+
+      # this should be removed once r2r ivr is implemented
+      it 'should make sure IVR flows require a message', ->
+
+        window.ivr = true
+        flowService.checkTerminal(actionset)
+        expect(actionset._terminal).toBe(true)
+
+        # make it a say and try again
+        actionset.actions[0].type = "say"
+        flowService.checkTerminal(actionset)
+        expect(actionset._terminal).toBe(false)
 
     describe 'isConnectionAllowed()', ->
 

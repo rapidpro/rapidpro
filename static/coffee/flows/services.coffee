@@ -483,8 +483,27 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if $rootScope.saved_on
           $rootScope.flow['last_saved'] = $rootScope.saved_on
 
-        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data) ->
-          $log.debug("Failed:", data)
+        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data, statusCode) ->
+
+          if statusCode == 400
+            $rootScope.saving = false
+            if UserVoice
+              UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
+
+            modalInstance = $modal.open
+              templateUrl: "/partials/modal?v=" + version
+              controller: ModalController
+              resolve:
+                type: -> "error"
+                title: -> "Error Saving"
+                body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                ok: -> 'Reload'
+
+            modalInstance.result.then (reload) ->
+              if reload
+                document.location.reload()
+            return
+
           $rootScope.errorDelay += quietPeriod
 
           # we failed, could just be futzy internet, lets retry with backdown
@@ -545,7 +564,12 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if not node?.operand
         return true
 
-      if node?.operand?.indexOf('@step') > -1
+      operand = node?.operand
+      if operand
+        operand = operand.trim()
+
+      isExpression = operand.length > 2 and operand[0:2] == '=('
+      if operand?.indexOf('@step') > -1 or isExpression and operand?.indexOf('step') > -1
         return true
 
       if node?.webhook
@@ -1002,14 +1026,14 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if window.ivr and action.type == 'say'
         hasMessage = true
 
-      if not window.ivr and action.type == 'reply'
-        hasMessage = true
-
       if action.type == 'flow'
         startsFlow = true
 
     # if they start another flow or doesn't have a message it's terminal
-    terminal = startsFlow or not hasMessage
+    if window.ivr
+      terminal = startsFlow or not hasMessage
+    else
+      terminal = startsFlow
 
     if actionset._terminal != terminal
       actionset._terminal = terminal
@@ -1073,6 +1097,7 @@ ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
+  $scope.error = error
 
   if ok
     $scope.okButton = ok
@@ -1085,3 +1110,9 @@ ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
+
+  $scope.showHelpWidget = ->
+    if UserVoice
+      UserVoice.push(['show', {
+        mode: 'contact'
+      }]);
