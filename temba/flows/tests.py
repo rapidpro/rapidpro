@@ -819,6 +819,7 @@ class RuleTest(TembaTest):
 
         sms.text = "I have 7"
         self.assertTest(True, Decimal("7"), test)
+        self.assertFalse(test.requires_step())
 
         # phone tests
 
