@@ -2617,6 +2617,25 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(Flow.RULES_ENTRY, flow.entry_type)
         self.assertEquals("You've got to be kitten me", self.send_message(flow, "cats"))
 
+    def test_non_blocking_rule_first(self):
+
+        flow = self.get_flow('non_blocking_rule_first')
+
+        eminem = self.create_contact('Eminem', '+12345')
+        flow.start(groups=[], contacts=[eminem])
+        msg = Msg.objects.filter(direction='O', contact=eminem).first()
+        self.assertEquals('Hi there Eminem', msg.text)
+
+        # put a webhook on the rule first and make sure it executes
+        ruleset = RuleSet.objects.get(uuid=flow.entry_uuid)
+        ruleset.webhook_url = 'http://localhost'
+        ruleset.save()
+
+        tupac = self.create_contact('Tupac', '+15432')
+        flow.start(groups=[], contacts=[tupac])
+        msg = Msg.objects.filter(direction='O', contact=tupac).first()
+        self.assertEquals('Hi there Tupac', msg.text)
+
     def test_substitution(self):
         flow = self.get_flow('substitution')
 
