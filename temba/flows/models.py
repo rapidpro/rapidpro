@@ -2496,20 +2496,7 @@ class RuleSet(models.Model):
         if not self.operand:
             return True
 
-        if RuleSet.contains_step(self.operand):
-            return True
-
-        # TODO: Consider removing the requirement below. With flows v3 we'll need a distinction
-        #       between rulesets operating on @step and those that don't. Consider the case of a ruleset
-        #       on @contact.groups that evaluates on @step in a rule test probably shouldn't pause execution.
-        #       We need to decide what @step would mean in that case.
-
-        for rule in self.get_rules():
-            if rule.requires_step():
-                return True
-
-        # otherwise, looks like we don't need it
-        return False
+        return RuleSet.contains_step(self.operand)
 
     def find_matching_rule(self, step, run, msg):
 
@@ -4510,12 +4497,6 @@ class Rule(object):
 
         return self.category
 
-    def requires_step(self):
-        """
-        Whether this rule requires @step in some way to evaluate.
-        """
-        return self.test.requires_step()
-
     def matches(self, run, sms, context, text):
         return self.test.evaluate(run, sms, context, text)
 
@@ -4623,14 +4604,6 @@ class Test(object):
         pass
 
 
-    def requires_step(self):
-        """
-        Whether this rule requires @step to evaluate, subclasses which may have substitutions should override this
-        and check their tests for usage of @step variables in them.
-        """
-        return False
-
-
 class TrueTest(Test):
     """
     { op: "true" }
@@ -4731,16 +4704,6 @@ class TranslatableTest(Test):
     """
     A test that can be evaluated against a localized string
     """
-
-    def requires_step(self):
-        if isinstance(self.test, dict):
-            for k,v in self.test.items():
-                if RuleSet.contains_step(v):
-                    return True
-            return False
-        else:
-            return RuleSet.contains_step(self.test)
-
     def update_base_language(self, language_iso):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.test, dict):
@@ -4911,9 +4874,6 @@ class HasDistrictTest(Test):
     def as_json(self):
         return dict(type=self.TYPE, test=self.state)
 
-    def requires_step(self):
-        return RuleSet.requires_step(self.state)
-
     def evaluate(self, run, sms, context, text):
 
         # if they removed their country since adding the rule
@@ -4983,9 +4943,6 @@ class DateTest(Test):
 
     def evaluate_date_test(self, date_message, date_test):
         raise FlowException("Evaluate date test needs to be defined by subclass.")
-
-    def requires_step(self):
-        return RuleSet.contains_step(self.test)
 
     def evaluate(self, run, sms, context, text):
         org = run.flow.org
@@ -5057,9 +5014,6 @@ class NumericTest(Test):
             else:
                 raise e
 
-    def requires_step(self):
-        return RuleSet.contains_step(self.test)
-
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
         text = text.replace(',', '')
@@ -5091,9 +5045,6 @@ class BetweenTest(NumericTest):
 
     def as_json(self):
         return dict(type=self.TYPE, min=self.min, max=self.max)
-
-    def requires_step(self):
-        return RuleSet.contains_step(self.min) or RuleSet.contains_step(self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
         min, has_missing = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
@@ -5144,9 +5095,6 @@ class SimpleNumericTest(Test):
 
     def evaluate_numeric_test(self, message_numeric, test_numeric): # pragma: no cover
         raise FlowException("Evaluate numeric test needs to be defined by subclass")
-
-    def requires_step(self):
-        return RuleSet.contains_step(self.test)
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
