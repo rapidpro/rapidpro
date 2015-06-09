@@ -854,6 +854,15 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       ruleset.rules[0].category = { base:'All Responses' }
       ruleset.rules[0].category[$rootScope.flow.base_language] = 'All Responses'
 
+  $scope.updateActionForm = (config) ->
+
+    # emails are not localized, if our msg is localized, grab the base text
+    if config.type == 'email'
+      if typeof $scope.action.msg == 'object'
+        if $rootScope.flow.base_language and $rootScope.flow.base_language of $scope.action.msg
+          $scope.action.msg = $scope.action.msg[$rootScope.flow.base_language]
+        else
+          $scope.action.msg = ''
 
   $scope.showFlip = ->
     return !$scope.ivr && actionset.actions.length < 2
