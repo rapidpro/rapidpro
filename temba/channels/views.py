@@ -469,16 +469,9 @@ class UpdateAndroidForm(UpdateChannelForm):
 
 
 class UpdateTwitterForm(UpdateChannelForm):
-    def add_config_fields(self):
-        config = json.loads(self.object.config)
-        ctrl = forms.BooleanField(label=_("Auto Follow"), initial=config.get('auto_follow', True), required=False,
-                                  help_text=_("Automatically follow any account that follows your account"))
-
-        self.fields = OrderedDict(self.fields.items() + [('auto_follow', ctrl)])
 
     class Meta(UpdateChannelForm.Meta):
         fields = 'name', 'address', 'alert_email'
-        config_fields = ('auto_follow',)
         readonly = ('address',)
         labels = {'address': _('Handle')}
         helps = {'address': _('Twitter handle of this channel')}
