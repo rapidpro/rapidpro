@@ -222,7 +222,14 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
     # update ourselves
     $timeout ->
+
+      # this reassesses our offsets
+      jsPlumb.revalidate(nodeId)
+
+      # this updates the offsets for our child elements
       jsPlumb.recalculateOffsets(nodeId)
+
+      # finally repaint our new hotness
       jsPlumb.repaint(nodeId)
     ,0
 
@@ -594,6 +601,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       throw new Error('Loop detected: ' + path + ',' + targetId)
 
     # add ourselves
+    path = path.slice()
     path.push(targetId)
 
     # if we have rules, check each one
@@ -732,17 +740,18 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if ruleset.uuid == source[0]
 
           # find the category we are updating
-          for category in ruleset._categories
-            if category.source == source[1]
+          if ruleset._categories
+            for category in ruleset._categories
+              if category.source == source[1]
 
-              # update our category target
-              category.target = target
+                # update our category target
+                category.target = target
 
-              # update all the rules in our category
-              for rule in ruleset.rules
-                if rule.uuid in category.sources
-                  rule.destination = target
-              break
+                # update all the rules in our category
+                for rule in ruleset.rules
+                  if rule.uuid in category.sources
+                    rule.destination = target
+                break
 
           Plumb.updateConnections(ruleset)
           break
