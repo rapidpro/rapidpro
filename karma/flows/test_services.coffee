@@ -216,7 +216,8 @@ describe 'Services:', ->
 
       messageOne = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
       groupSplit = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
-      groupOne = '605e4e98-5d85-45e7-a885-9c198977b63c'
+      groupA = '605e4e98-5d85-45e7-a885-9c198977b63c'
+      groupB = '81ba32a2-b3ea-4d46-aa7e-2ef32d7ced1e'
 
       nameSplit = '782e9e71-c116-4195-add3-1867132f95b6'
       rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
@@ -226,7 +227,7 @@ describe 'Services:', ->
       messageSplitRule = '865baac0-da29-4752-be1e-1488457f708c'
 
       it 'should detect looping to same rule', ->
-        ruleSelfLoop = flowService.isConnectionAllowed(flow, groupSplit + '_' + groupOne, groupSplit)
+        ruleSelfLoop = flowService.isConnectionAllowed(flow, groupSplit + '_' + groupA, groupSplit)
         expect(ruleSelfLoop).toBe(false, "Rule was able to point to it's parent")
 
       it 'should detect two passive rules in a row', ->
@@ -234,13 +235,22 @@ describe 'Services:', ->
         expect(ruleLoop).toBe(false, "Non blocking rule infinite loop")
 
       it 'should detect a passive rule to an action and back', ->
-        ruleActionLoop = flowService.isConnectionAllowed(flow, groupSplit, messageOne, groupOne)
+        ruleActionLoop = flowService.isConnectionAllowed(flow, groupSplit, messageOne, groupA)
         expect(ruleActionLoop).toBe(false, "Rule to action loop without blocking ruleset")
 
       it 'should detect back to back pause rules', ->
         rulePauseLoop = flowService.isConnectionAllowed(flow, messageSplitB, messageSplitA, messageSplitRule)
         expect(rulePauseLoop).toBe(false, "Two pausing rulesets in a row")
 
+      it 'should allow top level connection with downstream splits to same node', ->
+        flowService.updateDestination(messageOne, null)
+
+        # set our group b to go to the same as other (name split)
+        flowService.updateDestination(groupSplit + '_' + groupB, nameSplit)
+
+        # now try reconnective our first message
+        allowed = flowService.isConnectionAllowed(flow, messageOne, groupSplit)
+        expect(allowed).toBe(true, "Failed to allow legitmately branched connection")
 
     describe 'updateDestination()', ->
       colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
