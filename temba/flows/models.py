@@ -655,7 +655,8 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False):
+                           started_flows=None, is_test_contact=False, user_input=False,
+                           force_execute_webhook=False):
 
         def add_to_path(path, uuid):
             if uuid in path:
@@ -677,7 +678,7 @@ class Flow(TembaModel, SmartModel):
                 requires_input = False
 
                 # if we are a ruleset against @step or we have a webhook we wait
-                if destination.webhook_url or destination.requires_step():
+                if (destination.webhook_url and not force_execute_webhook) or destination.requires_step():
                     requires_input = True
 
                 if user_input or not requires_input:
@@ -1716,7 +1717,8 @@ class Flow(TembaModel, SmartModel):
                 elif not entry_rules.requires_step():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
+                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact,
+                                            force_execute_webhook=True)
 
             if start_msg:
                 step.add_message(start_msg)
@@ -5074,6 +5076,9 @@ class NumberTest(NumericTest):
 
     def evaluate_numeric_test(self, run, context, decimal_value):
         return True
+
+    def requires_step(self):
+        return False
 
 
 class SimpleNumericTest(Test):
