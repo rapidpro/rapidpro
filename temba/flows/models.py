@@ -432,7 +432,7 @@ class Flow(TembaModel, SmartModel):
             Contact.set_simulation(True)
 
         # parse the user response
-        digits = user_response.get('Digits', None)
+        text = user_response.get('Digits', None)
         recording_url = user_response.get('RecordingUrl', None)
         recording_id = user_response.get('RecordingSid', uuid4())
 
@@ -443,9 +443,11 @@ class Flow(TembaModel, SmartModel):
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
-        if digits or recording_url:
+        if text or recording_url:
+            if recording_url:
+                text = recording_url
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                      digits, status=HANDLED, msg_type=IVR, recording_url=recording_url)
+                                      text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
         else:
             msg = Msg(contact=call.contact, text='', id=0)
 
@@ -594,7 +596,6 @@ class Flow(TembaModel, SmartModel):
             path.append(uuid)
 
         start_time = time.time()
-
         path = []
 
         # lookup our next destination
@@ -3946,7 +3947,11 @@ class PlayAction(Action):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
     def execute(self, run, actionset, event):
+
+        print 'URL: "%s"' % self.url
         (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
+
+        print 'RECORDING: "%s"' % recording_url
 
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
 

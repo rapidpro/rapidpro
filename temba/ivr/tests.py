@@ -81,12 +81,15 @@ class IVRTests(TembaTest):
         self.assertEquals(15, call.duration)
 
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
-        self.assertEquals(3, messages.count())
-        self.assertEquals(3, self.org.get_credits_used())
+        self.assertEquals(4, messages.count())
+        self.assertEquals(4, self.org.get_credits_used())
+
+        # we should have played a recording from the contact back to them
+        self.assertEquals('http://textit.ngrok.com/media/recordings/1/1/runs/1/FAKESID.wav', messages[2].recording_url)
 
         from temba.flows.models import FlowStep
         steps = FlowStep.objects.all()
-        self.assertEquals(3, steps.count())
+        self.assertEquals(4, steps.count())
 
         # each of our steps should have exactly one message
         for step in steps:
