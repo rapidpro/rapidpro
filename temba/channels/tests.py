@@ -553,7 +553,7 @@ class ChannelTest(TembaTest):
         # change channel type to Twitter
         channel.channel_type = TWITTER
         channel.address = 'billy_bob'
-        channel.config = json.dumps({'handle_id': 12345, 'auto_follow': True, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
+        channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
         channel.save()
 
         self.assertEquals('@billy_bob', channel.get_address_display())
@@ -563,14 +563,12 @@ class ChannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertIn('name', response.context['fields'])
         self.assertIn('alert_email', response.context['fields'])
-        self.assertIn('auto_follow', response.context['fields'])
         self.assertIn('address', response.context['fields'])
         self.assertNotIn('country', response.context['fields'])
 
         postdata = dict()
         postdata['name'] = "Twitter2"
         postdata['alert_email'] = "bob@example.com"
-        postdata['auto_follow'] = False
         postdata['address'] = "billy_bob"
 
         with patch('temba.utils.mage.MageClient.refresh_twitter_stream') as refresh_twitter_stream:
@@ -581,7 +579,6 @@ class ChannelTest(TembaTest):
             self.assertEquals(channel.name, "Twitter2")
             self.assertEquals(channel.alert_email, "bob@example.com")
             self.assertEquals(channel.address, "billy_bob")
-            self.assertFalse(json.loads(channel.config)['auto_follow'])
 
     def test_read(self):
         post_data = dict(cmds=[

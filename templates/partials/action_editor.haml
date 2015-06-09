@@ -7,7 +7,7 @@
   %p
     -blocktrans
       When somebody arrives at this point in your flow
-  %select{ng-model:"config",ng-options:"action as action.verbose_name for action in actions|filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
+  %select{ng-change:"updateActionForm(config)", ng-model:"config",ng-options:"action as action.verbose_name for action in actions|filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}><
       %span{auto-complete:"",sms:"action.msg",data-message:"message"}><
