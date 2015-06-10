@@ -466,7 +466,7 @@ class Flow(TembaModel, SmartModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        handled = Flow.handle_destination(destination, step, run, msg, user_input=True)
+        handled = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -584,7 +584,6 @@ class Flow(TembaModel, SmartModel):
                 return True
 
         return False
-
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
