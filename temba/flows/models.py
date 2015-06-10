@@ -414,9 +414,8 @@ class Flow(TembaModel, SmartModel):
         rule_ids = [r.uuid for r in RuleSet.objects.filter(flow__is_active=True, flow__org=org).order_by('uuid')]
         return FlowStep.objects.filter(contact__is_test=False, step_uuid__in=rule_ids, left_on__gte=since).count()
 
-
     @classmethod
-    def handle_call(cls, call, user_response=None):
+    def handle_call(cls, call, user_response=None, hangup=False):
         if not user_response:
             user_response = {}
 
@@ -473,9 +472,12 @@ class Flow(TembaModel, SmartModel):
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
         # if we didn't handle it, this is a good time to hangup
-        if not handled:
+        if not handled or hangup:
             voice_response.hangup()
             run.set_completed()
+
+            # if we hangup then the run is no longer active
+            run.expire()
 
         return voice_response
 

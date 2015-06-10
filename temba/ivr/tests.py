@@ -221,7 +221,9 @@ class IVRTests(TembaTest):
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
-        self.assertEquals(COMPLETED, IVRCall.objects.get(pk=call.pk).status)
+        call = IVRCall.objects.get(pk=call.pk)
+        self.assertEquals(COMPLETED, call.status)
+        self.assertFalse(FlowRun.objects.filter(call=call).first().is_active)
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())
@@ -230,8 +232,8 @@ class IVRTests(TembaTest):
         self.assertEquals(0, ActionLog.objects.all().count())
         self.assertEquals(1, flow.get_completed_runs())
 
-        # should still have one active run
-        self.assertEquals(1, FlowRun.objects.filter(is_active=True).count())
+        # should still have no active runs
+        self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
 
         # and we haven't left our final step
         step = FlowStep.objects.all().order_by('-pk').first()
