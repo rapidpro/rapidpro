@@ -23,9 +23,22 @@
           },
           {
             "y": 267,
+            "x": 500,
+            "destination": "ebb433fe-aa4b-48e5-a036-627f1ecc205a",
+            "uuid": "ebb433fe-aa4b-48e5-a036-627f1ecc106b",
+            "actions": [
+              {
+                "url": "@flow.recording",
+                "type": "play",
+                "uuid": "3a64b44f-02c2-4a7b-89d6-96862ec74ac9"
+              }
+            ]
+          },
+          {
+            "y": 267,
             "x": 100,
             "destination": null,
-            "uuid": "ebb433fe-aa4b-48e5-a036-627f1ecc106b",
+            "uuid": "ebb433fe-aa4b-48e5-a036-627f1ecc205a",
             "actions": [
               {
                 "recording": null,

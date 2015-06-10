@@ -190,15 +190,9 @@ describe 'Services:', ->
         flowService.checkTerminal(actionset)
         expect(actionset._terminal).toBe(false)
 
-      # this should be removed once r2r ivr is implemented
+      # ivr doesn't require a message either
       it 'should make sure IVR flows require a message', ->
-
         window.ivr = true
-        flowService.checkTerminal(actionset)
-        expect(actionset._terminal).toBe(true)
-
-        # make it a say and try again
-        actionset.actions[0].type = "say"
         flowService.checkTerminal(actionset)
         expect(actionset._terminal).toBe(false)
 

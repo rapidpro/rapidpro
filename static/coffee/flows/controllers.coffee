@@ -113,17 +113,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         okButton: -> okButton
         hideCancel: -> hideCancel
 
-
   $scope.getAcceptedScopes = (nodeType) ->
-    if not window.ivr
-      return 'actions rules'
-
-    if nodeType == "ruleset"
-      if window.ivr
-        return 'rules'
-    else
-        return 'actions'
-
+    return 'actions rules'
 
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
@@ -865,7 +856,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
           $scope.action.msg = ''
 
   $scope.showFlip = ->
-    return !$scope.ivr && actionset.actions.length < 2
+    return actionset.actions.length < 2
 
   #-----------------------------------------------------------------
   # Rule editor
