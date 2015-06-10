@@ -3948,11 +3948,7 @@ class PlayAction(Action):
 
     def execute(self, run, actionset, event):
 
-        print 'URL: "%s"' % self.url
         (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
-
-        print 'RECORDING: "%s"' % recording_url
-
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
 
         if msg:
