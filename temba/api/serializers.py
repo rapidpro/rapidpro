@@ -252,24 +252,19 @@ class MsgBulkActionSerializer(WriteSerializer):
 class LabelReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
-    parent = serializers.SerializerMethodField('get_parent')
     count = serializers.SerializerMethodField('get_count')
-
-    def get_parent(self, obj):
-        return obj.parent.uuid if obj.parent_id else None
 
     def get_count(self, obj):
         return obj.get_message_count()
 
     class Meta:
         model = Label
-        fields = ('uuid', 'name', 'parent', 'count')
+        fields = ('uuid', 'name', 'count')
 
 
 class LabelWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=True)
-    parent = serializers.CharField(required=False, allow_none=True)
 
     def validate_uuid(self, attrs, source):
         uuid = attrs.get(source, None)
@@ -288,38 +283,20 @@ class LabelWriteSerializer(WriteSerializer):
 
         return attrs
 
-    def validate_parent(self, attrs, source):
-        parent = attrs.get(source, None)
-
-        if parent:
-            parent_obj = Label.objects.filter(org=self.org, uuid=parent).first()
-            if not parent_obj:
-                raise ValidationError("No such message label with UUID: %s" % parent)
-            if parent_obj.parent_id:
-                raise ValidationError("Message labels can only be nested one-level deep")
-
-            attrs[source] = parent_obj
-        else:
-            attrs[source] = None
-
-        return attrs
-
     def restore_object(self, attrs, instance=None):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
         uuid = attrs.get('uuid', None)
         name = attrs.get('name', None)
-        parent = attrs.get('parent', None)
 
         if uuid:
             existing = Label.objects.get(org=self.org, uuid=uuid)
             existing.name = name
-            existing.parent = parent
             existing.save()
             return existing
         else:
-            return Label.create(self.org, self.user, name, parent)
+            return Label.get_or_create(self.org, self.user, name)
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):

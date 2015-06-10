@@ -21,7 +21,7 @@ from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule
+from .models import Broadcast, Call, ExportMessagesTask, Label, LabelFolder, Msg, Schedule
 
 
 def send_message_auto_complete_processor(request):
@@ -821,7 +821,7 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class LabelForm(forms.ModelForm):
-    parent = forms.ModelChoiceField(Label.objects.none(), required=False, label=_("Parent"))
+    folder = forms.ModelChoiceField(LabelFolder.objects.none(), required=False, label=_("Folder"))
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -829,13 +829,9 @@ class LabelForm(forms.ModelForm):
         self.existing = kwargs.pop('label', None)
 
         super(LabelForm, self).__init__(*args, **kwargs)
-        parent_qs = Label.objects.filter(org=self.org, parent=None)
+        folder_qs = LabelFolder.objects.filter(org=self.org)
 
-        # can't be your own parent
-        if self.existing:
-            parent_qs = parent_qs.exclude(id=self.existing.pk)
-
-        self.fields['parent'].queryset = parent_qs
+        self.fields['folder'].queryset = folder_qs
 
     def clean_name(self):
         data = self.cleaned_data['name']
@@ -871,7 +867,7 @@ class LabelCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ('name', 'parent', 'messages')
+        fields = ('name', 'folder', 'messages')
         success_url = '@msgs.msg_inbox'
         form_class = LabelForm
         success_message = ''
@@ -884,7 +880,7 @@ class LabelCRUDL(SmartCRUDL):
 
         def save(self, obj):
             user = self.request.user
-            self.object = Label.create(user.get_org(), user, obj.name, obj.parent)
+            self.object = Label.get_or_create(user.get_org(), user, obj.name, obj.folder)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
@@ -909,7 +905,7 @@ class LabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            return ('name', 'parent')
+            return 'name', 'folder'
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
         redirect_url = "@msgs.msg_inbox"

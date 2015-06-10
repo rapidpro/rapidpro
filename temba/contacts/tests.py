@@ -376,7 +376,7 @@ class ContactTest(TembaTest):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
         msg3 = self.create_msg(text="Test 3", direction='I', contact=self.joe, msg_type='I', status='H', visibility='A')
-        label = Label.create(self.org, self.user, "Interesting")
+        label = Label.get_or_create(self.org, self.user, "Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         group = self.create_group("Just Joe", [self.joe])
 
@@ -725,7 +725,7 @@ class ContactTest(TembaTest):
         self.assertEquals(1, len(response['results']))
 
         # lookup by label ids
-        label = Label.create(self.org, self.user, "msg label")
+        label = Label.get_or_create(self.org, self.user, "msg label")
         response = json.loads(self.client.get("%s?l=%s" % (reverse("contacts.contact_omnibox"), label.pk)).content)
         self.assertEquals(0, len(response['results']))
 

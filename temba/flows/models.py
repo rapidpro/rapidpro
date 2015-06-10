@@ -3852,28 +3852,24 @@ class AddLabelAction(Action):
 
                 try:
                     label_id = int(label_id)
-                except:
-                    label_id = -1
+                except (TypeError, ValueError):
+                    label_id = 0
 
                 if label_id and Label.objects.filter(org=org, id=label_id).first():
                     label = Label.objects.filter(org=org, id=label_id).first()
-
-                elif Label.objects.filter(org=org, name=label_name).first():
-                    label = Label.objects.filter(org=org, name=label_name).first()
+                    if label:
+                        labels.append(label)
                 else:
-                    label = Label.create_unique(org, org.get_user(), label_name)
+                    labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-                if label:
-                    labels.append(label)
-            else:
+            elif isinstance(l_data, basestring):
                 if l_data and l_data[0] == '@':
+                    # label name is a variable substitution
                     labels.append(l_data)
                 else:
-                    label = Label.objects.filter(org=org, name=l_data)
-                    if label:
-                        labels.append(label[0])
-                    else:
-                        labels.append(Label.create_unique(org, org.get_user(), l_data))
+                    labels.append(Label.get_or_create(org, org.get_user(), l_data))
+            else:
+                raise ValueError("Label data must be a dict or string")
 
         return AddLabelAction(labels)
 
@@ -3890,23 +3886,25 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, msg):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
-                message_context = run.flow.build_message_context(contact, sms)
+                message_context = run.flow.build_message_context(contact, msg)
                 (value, missing) = Msg.substitute_variables(label, contact, message_context, org=run.flow.org)
-                try:
-                    label = Label.objects.get(org=contact.org, name=value)
-                except:
-                    label = Label.create_unique(contact.org, contact.org.get_user(), value)
-                    if run.contact.is_test:
-                        ActionLog.create(run, _("Label '%s' created") % value)
 
-            if label and sms and sms.pk:
-                label.toggle_label([sms], True)
+                if not missing:
+                    label = Label.get_or_create(contact.org, contact.org.get_user(), value)
+                    if run.contact.is_test:
+                        ActionLog.create(run, _("Label '%s' created") % label.name)
+                else:
+                    # TODO should be recorded in the action log as an error
+                    label = None
+
+            if label and msg and msg.pk:
+                label.toggle_label([msg], True)
                 if run.contact.is_test:
-                    ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, sms.text))
+                    ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
         return []
 
     def get_description(self):

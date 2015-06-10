@@ -1363,11 +1363,11 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "label=Goo")
         self.assertResultCount(response, 0)
 
-        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1 = Label.get_or_create(self.org, self.user, "Goo")
         label1.toggle_label([msg1, msg2], add=True)
-        label2 = Label.create_unique(self.org, self.user, "Boo")
+        label2 = Label.get_or_create(self.org, self.user, "Boo")
         label2.toggle_label([msg1, msg3], add=True)
-        label3 = Label.create_unique(self.org, self.user, "Roo")
+        label3 = Label.get_or_create(self.org, self.user, "Roo")
         label3.toggle_label([msg2, msg3], add=True)
 
         response = self.fetchJSON(url, "label=Goo&label=Boo")  # Goo or Boo
@@ -1444,10 +1444,10 @@ class APITest(TembaTest):
         self.assertJSON(response, 'urn', 'tel:+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
-        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1 = Label.get_or_create(self.org, self.user, "Goo")
         label1.toggle_label([msgs[0]], add=True)
 
-        label2 = Label.create_unique(self.org, self.user, "Fiber")
+        label2 = Label.get_or_create(self.org, self.user, "Fiber")
         label2.toggle_label([msgs[1]], add=True)
 
         response = self.fetchJSON(url, "label=Goo&label=Fiber")

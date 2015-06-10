@@ -1367,66 +1367,59 @@ class Call(SmartModel):
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
+class LabelFolder(TembaModel, SmartModel):
+    """
+    Folders for organizing labels
+    """
+    org = models.ForeignKey(Org)
+
+    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this folder"))
+
+    @classmethod
+    def get_or_create(cls, org, user, name):
+        folder = cls.objects.filter(org=org, name__iexact=name).first()
+        if folder:
+            return folder
+
+        return cls.objects.create(org=org, name=name, created_by=user, modified_by=user)
+
+    def __unicode__(self):
+        return self.name
+
+    class Meta:
+        unique_together = ('org', 'name')
+
+
 class Label(TembaModel, SmartModel):
     """
     Labels are simple labels that can be applied to messages much the same way labels or tags apply
     to messages in web-based email services.
-
-    Labels can be created as one-level deep hierarchy.
     """
-    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
-
-    parent = models.ForeignKey('Label', verbose_name=_("Parent"), null=True, related_name="children")
-
     org = models.ForeignKey(Org)
 
+    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
+
+    folder = models.ForeignKey('LabelFolder', verbose_name=_("Folder"), null=True, related_name="labels")
+
     @classmethod
-    def get_or_create(cls, org, user, name, parent=None):
+    def get_or_create(cls, org, user, name, folder=None):
         name = name.strip()
-        label = Label.objects.filter(org=org, name__iexact=name).first()
-        if label:
-            return label
 
-        return Label.create(org, user, name, parent)
-
-    @classmethod
-    def create(cls, org, user, name, parent=None):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
-        # only allow 1 level of nesting
-        if parent and parent.parent_id:  # pragma: no cover
-            raise ValueError("Only one level of nesting is allowed")
+        label = cls.objects.filter(org=org, name__iexact=name).first()
+        if label:
+            return label
 
-        return Label.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
-
-    @classmethod
-    def create_unique(cls, org, user, base, parent=None):
-
-        # truncate if necessary
-        if len(base) > 32:
-            base = base[:32]
-
-        # find the next available label by appending numbers
-        count = 2
-        while Label.objects.filter(org=org, name=base, parent=parent):
-            # make room for the number
-            if len(base) >= 32:
-                base = base[:30]
-            last = str(count - 1)
-            if base.endswith(last):
-                base = base[:-len(last)]
-            base = "%s %d" % (base.strip(), count)
-            count += 1
-
-        return Label.create(org, user, base, parent)
+        return cls.objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
     def is_valid_name(cls, name):
         return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def get_messages(self):
-        return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
+        return self.messages.all()
 
     def get_message_count(self):
         """
@@ -1440,7 +1433,6 @@ class Label(TembaModel, SmartModel):
 
     def get_message_count_cache_key(self):
         return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
-
 
     def toggle_label(self, msgs, add):
         """
@@ -1464,20 +1456,15 @@ class Label(TembaModel, SmartModel):
         # if there is a cached message count, update it
         count_delta = len(changed) if add else -len(changed)
         incrby_existing(self.get_message_count_cache_key(), count_delta)
-
-        # if our parent label has a cached message count, update it too
-        if self.parent:
-            incrby_existing(self.parent.get_message_count_cache_key(), count_delta)
-
         return changed
 
     def __unicode__(self):
-        if self.parent:
-            return "%s > %s" % (self.parent, self.name)
+        if self.folder:
+            return "%s > %s" % (unicode(self.folder), self.name)
         return self.name
 
     class Meta:
-        unique_together = ('name', 'parent', 'org')
+        unique_together = ('org', 'name')
 
 
 class ExportMessagesTask(SmartModel):

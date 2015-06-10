@@ -1281,7 +1281,7 @@ class RuleTest(TembaTest):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact)
 
-        label = Label.create(self.org, self.user, "green label")
+        label = Label.get_or_create(self.org, self.user, "green label")
 
         test = AddLabelAction([label, "@step.contact"])
         action_json = test.as_json()
