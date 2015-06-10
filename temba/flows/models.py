@@ -451,7 +451,7 @@ class Flow(TembaModel, SmartModel):
             msg = Msg(contact=call.contact, text='', id=0)
 
         # find out where we last left off
-        step = run.steps.all().order_by('-pk').first()
+        step = run.steps.all().order_by('-arrived_on').first()
 
         # if we are just starting the flow, create our first step
         if not step:
