@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
@@ -297,8 +297,6 @@ BRANDING = {
 #-----------------------------------------------------------------------------------
 # Directory Configuration
 #-----------------------------------------------------------------------------------
-import os
-
 PROJECT_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)))
 LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
@@ -986,7 +984,7 @@ SESSION_CACHE_ALIAS = "default"
 #-----------------------------------------------------------------------------------
 # 3rd Party Integration Keys
 #-----------------------------------------------------------------------------------
-TWITTER_API_KEY = "your twitter api key"
-TWITTER_API_SECRET = "your twitter api secret"
+TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
+TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
 # SEGMENT_IO_KEY = "your segment.io key here"
