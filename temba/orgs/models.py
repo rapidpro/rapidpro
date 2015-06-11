@@ -280,7 +280,7 @@ class Org(SmartModel):
         elif folder == OrgFolder.msgs_inbox:
             return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX).exclude(status=PENDING)
         elif folder == OrgFolder.msgs_archived:
-            return Msg.get_messages(self, is_archived=True)
+            return Msg.get_messages(self, direction=INCOMING, is_archived=True)
         elif folder == OrgFolder.msgs_outbox:
             return Msg.get_messages(self, direction=OUTGOING, is_archived=False)
         elif folder == OrgFolder.broadcasts_outbox:
