@@ -500,7 +500,7 @@ class Msg(models.Model, OrgModelMixin):
                  (FLOW, _("Flow Message")),
                  (IVR, _("IVR Message")))
 
-    org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
+    org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"), db_index=False,
                             help_text=_("The org this message is connected to"))
 
     channel = models.ForeignKey(Channel, null=True,
