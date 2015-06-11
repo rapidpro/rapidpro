@@ -11,10 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # org id, direction, created index - fast outbox, can be used instead of org_id alone (removed)
-        migrations.RunSQL("CREATE INDEX msgs_msg_org_direction_created_on ON msgs_msg(org_id, direction, created_on desc);",
-                          "DROP INDEX msgs_msg_org_direction_created;"),
-
         # allows for fast lookup of all inbound messages (inbox, flows, archived)
         migrations.RunSQL("CREATE INDEX msg_visibility_direction_type_created_inbound ON "
                           "msgs_msg(org_id, visibility, direction, msg_type, created_on DESC) "
