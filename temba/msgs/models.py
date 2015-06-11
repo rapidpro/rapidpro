@@ -1419,7 +1419,7 @@ class Label(TembaModel, SmartModel):
         return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def get_messages(self):
-        return self.messages.all()
+        return self.msgs.all()
 
     def get_message_count(self):
         """
@@ -1429,7 +1429,7 @@ class Label(TembaModel, SmartModel):
                                     self._calculate_message_count)
 
     def _calculate_message_count(self):
-        return self.get_messages().count()
+        return self.msgs.count()
 
     def get_message_count_cache_key(self):
         return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
@@ -1509,10 +1509,7 @@ class ExportMessagesTask(SmartModel):
             all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
 
         if self.label:
-            label_filter = [self.label]
-            if self.label.children.all():
-                label_filter = [l for l in Label.objects.filter(parent=self.label)] + [self.label]
-            all_messages = all_messages.filter(labels__in=label_filter).distinct()
+            all_messages = all_messages.filter(labels=self.label)
 
         all_messages = list(all_messages)
 

@@ -72,6 +72,8 @@ class TembaTest(SmartminTest):
         self.root.set_org(self.org)
 
         self.user.set_org(self.org)
+        self.org.viewers.add(self.user)
+
         self.superuser.set_org(self.org)
 
         # welcome topup with 1000 credits

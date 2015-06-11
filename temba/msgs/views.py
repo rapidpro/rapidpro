@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import json
 
+from collections import defaultdict
 from datetime import date, timedelta
 from django import forms
 from django.conf import settings
@@ -139,16 +140,30 @@ class FolderListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.broadcasts_scheduled), label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
                    dict(count=org.get_folder_count(OrgFolder.msgs_failed), label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
-        # fetch all top-level labels with their children
-        label_qs = Label.objects.filter(org=org, parent=None)
-        label_qs = label_qs.prefetch_related('children').order_by('name')
-        labels = [dict(pk=l.pk, label=l.name, count=l.get_message_count(), children=l.children.all()) for l in label_qs]
-
         context['folders'] = folders
-        context['labels'] = labels
+        context['labels'] = self.get_labels_json(org)
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
+
+    def get_labels_json(self, org):
+        # fetch all org labels and organize by folder
+        all_labels = Label.objects.filter(org=org).select_related('folder').order_by('name')
+        by_folder = defaultdict(list)
+        for label in all_labels:
+            label_json = dict(is_folder=False, id=label.pk, name=label.name, count=label.get_message_count())
+            by_folder[label.folder].append(label_json)
+
+        nodes = []
+        # convert to nodes with folder-less labels last
+        for folder in sorted(by_folder.keys(), key=lambda x: (x is None, x)):
+            labels = by_folder[folder]
+            if folder:
+                folder_json = dict(is_folder=True, id=folder.pk, name=folder.name, labels=labels)
+                nodes.append(folder_json)
+            else:
+                nodes += labels
+        return nodes
 
 
 class BroadcastForm(forms.ModelForm):
@@ -805,19 +820,12 @@ class MsgCRUDL(SmartCRUDL):
         def derive_label(self):
             return Label.objects.get(pk=self.kwargs['label_id'])
 
-        def get_label_filter(self):
-            label = Label.objects.get(pk=self.kwargs['label_id'])
-            children = label.children.all()
-            if children:
-                return [l for l in Label.objects.filter(parent=label)] + [label]
-            else:
-                return [label]
-
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org()).order_by('-created_on')
-            qs = qs.filter(labels__in=self.get_label_filter()).distinct().select_related('contact')
-            return qs
+
+            qs = qs.filter(org=self.request.user.get_org(), labels=self.derive_label())
+
+            return qs.select_related('contact').order_by('-created_on')
 
 
 class LabelForm(forms.ModelForm):

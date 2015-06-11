@@ -45,27 +45,24 @@
                   %a{'href':'={folder.url}'}
                     ={folder.label} ({{ folder.count | intcomma }})
 
-              -if labels
+              - if labels
                 %li.nav-header
-                  -trans "Labels"
-                - for label in labels
-                  - with label.children as children
-                    %li{'class': '{% if current_label.id == label.pk %}active{% endif %} {% if children %}lbl-parent{%else%}lbl-not-parent{% endif %} {% if current_label in children or current_label.id == label.pk %}expanded{%endif %}'}
-                      %a{'href':'{% url "msgs.msg_filter" label.pk %}'}
-                        {{ label.label }} ({{ label.count | intcomma }})
-                        - if children
-                          - if current_label in children or current_label.id == label.pk
-                            .glyph.icon-arrow-down-2
-                          -else
-                            .glyph.icon-arrow-right-8
-
-                      - if children
-                        - if current_label in children or current_label.id == label.pk
-                          %ul.nav.nav-list.level2
-                            - for sub_label in children
-                              %li{'class':'{% if current_label.pk == sub_label.pk %}active{% endif %}'}
-                                %a{'href':'{% url "msgs.msg_filter" sub_label.pk %}'}
-                                  {{ sub_label.name }} ({{ sub_label.get_message_count }})
+                  - trans "Labels"
+                - for node in labels
+                  - if node.is_folder
+                    %li.label-folder{ data-initial-expanded:'{% if current_label.folder.id == node.id %}true{% else %}false{% endif %}', data-folder-id:"{{ node.id }}" }
+                      .folder-name
+                        {{ node.name }}
+                        %span.glyph
+                      %ul.nav.nav-list.level2
+                        - for label in node.labels
+                          %li{ class:'{% if current_label.id == label.id %}active{% endif %}' }
+                            %a{ href:"{% url 'msgs.msg_filter' label.id %}" }
+                              {{ label.name }} ({{ label.count | intcomma }})
+                  - else
+                    %li{ class:'{% if current_label.id == node.id %}active{% endif %}' }
+                      %a{ href:"{% url 'msgs.msg_filter' node.id %}", class:'{% if current_label.id == node.id %}active{% endif %}' }
+                        {{ node.name }} ({{ node.count | intcomma }})
 
         -if has_messages
           .span9
@@ -122,23 +119,28 @@
                           %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
                             .glyph.icon-tag
                             %span.caret
-                          %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
-                            - for label in labels
-                              -with label.children as children
-                                %li{'class':'{% if children %}dropdown-submenu{% endif %}'}
-                                  %a.lbl-menu.object-btn-label{href:'#', 'tabindex':'-1', data-id:'{{label.pk}}'}
-                                    .glyph.message-label.label-checkbox
-                                    = label.label
+                          %ul.dropdown-menu.label-menu{role:'menu', aria-labelledby:'dlabel'}
+                            - for node in labels
+                              - if node.is_folder and node.labels
+                                %li.dropdown-submenu
+                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
+                                    {{ node.name }}
                                   %ul.dropdown-menu.label-menu
-                                    - for child in children
+                                    - for label in node.labels
                                       %li
-                                        %a.lbl-menu.object-btn-label{'href':'#', 'tabindex':'-1', data-id:'{{child.pk}}'}
+                                        %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{label.id}}'}
                                           .glyph.message-label.label-checkbox
-                                          = child.name
+                                          {{ label.name }}
+                              - elif not node.is_folder
+                                %li
+                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
+                                    .glyph.message-label.label-checkbox
+                                    {{ node.name }}
+
                             - if org_perms.msgs.label_create
                               %li
-                                %a.lbl-menu.add-label
-                                  -trans "Add Label"
+                                %a.lbl-menu.add-label{href:'#'}
+                                  -trans "New Label..."
 
             -block message-list
               %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
@@ -190,6 +192,7 @@
 -block extra-script
   {{ block.super }}
   :javascript
+    window.expandedFolders = Object.create(null);
 
     {% if org_perms.msgs.msg_update %}
 
@@ -209,19 +212,6 @@
     }
 
     {% endif %}
-
-    function onNumericDialogShown(modal) {
-      modal = modal.ele
-      // focus on the number dialog
-      modal.find('.modal-body > .form #number').focus();
-
-      modal.find('#number').keyup(function(event){
-        if(event.keyCode == 13){
-          $("#confirmation .ok").click();
-          $("#confirmation #number").off('keyup');
-        }
-      });
-    }
 
     $('.page-content').on('click', ".add-label", function() {
       lastChecked = getCheckedIds();
@@ -285,3 +275,41 @@
       modal.show();
     });
     {% endif %}
+
+    $('.page-content')
+    .on('click', '.label-folder .folder-name', function() {
+      var folder = $(this).parent();
+      expandFolder(folder, !folder.hasClass('expanded'))
+    })
+    .on('pjax:complete', function() {  // when pjax content is refreshed, need to re-expand previously expanded folders
+      $('.label-folder').each(function() {
+        expandFolder($(this), $(this).data('folder-id') in window.expandedFolders);
+      });
+    });
+
+    $(function() {
+      $('.label-folder').each(function() {
+        expandFolder($(this), $(this).data('initial-expanded'));
+      });
+    });
+
+    function expandFolder(folder, expanded) {
+      folder.toggleClass('expanded', expanded);
+      if (expanded) {
+        window.expandedFolders[folder.data('folder-id')] = true;
+        folder.find('.glyph').removeClass('icon-arrow-right-8').addClass('icon-arrow-down-2');
+      } else {
+        delete window.expandedFolders[folder.data('folder-id')];
+        folder.find('.glyph').removeClass('icon-arrow-down-2').addClass('icon-arrow-right-8');
+      }
+    }
+
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .folder-name {
+      padding: 6px 0;
+      cursor: pointer;
+      color: #555;
+    }

@@ -415,10 +415,15 @@ class MsgTest(TembaTest):
 
         self.assertEqual(list(response1.context['object_list']), [msg1])
         self.assertEqual(response1.context['actions'], ['unlabel', 'label'])
-        self.assertContains(response1, reverse('msgs.label_delete', args=[label1.pk]))
+        self.assertNotContains(response1, reverse('msgs.label_delete', args=[label1.pk]))
 
         self.assertEqual(list(response2.context['object_list']), [])
         self.assertEqual(list(response3.context['object_list']), [msg3, msg2, msg1])
+
+        # admins can edit and delete the labels
+        self.login(self.admin)
+        response1 = self.client.get(label1_filter_url)
+        self.assertContains(response1, reverse('msgs.label_delete', args=[label1.pk]))
 
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
@@ -720,7 +725,7 @@ class MsgTest(TembaTest):
         msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
 
         # label first message
-        label = Label.create(self.org, self.user, "label1")
+        label = Label.get_or_create(self.org, self.user, "label1")
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -1288,72 +1293,55 @@ class LabelTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", number="073835001")
         self.frank = self.create_contact("Frank", number="073835002")
 
-    def test_create(self):
-        important = Label.create(self.org, self.user, "Important")
-        self.assertEqual(important.name, "Important")
-        self.assertIsNone(important.parent)
-        really_important = Label.create(self.org, self.user, "Really important", important)
-        self.assertEqual(really_important.name, "Really important")
-        self.assertEqual(really_important.parent, important)
+    def test_get_or_create(self):
+        label1 = Label.get_or_create(self.org, self.user, "Spam")
+        self.assertEqual(label1.name, "Spam")
+        self.assertIsNone(label1.folder)
+
+        followup = LabelFolder.get_or_create(self.org, self.user, "Follow up")
+        label2 = Label.get_or_create(self.org, self.user, "Complaints", followup)
+        self.assertEqual(label2.name, "Complaints")
+        self.assertEqual(label2.folder, followup)
 
         # don't allow invalid name
-        self.assertRaises(ValueError, Label.create, self.org, self.user, "+Important")
-
-        # don't allow more than one-level nesting
-        self.assertRaises(ValueError, Label.create, self.org, self.user, "Really really", really_important)
+        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
     def test_message_count(self):
-        label = Label.create_unique(self.org, self.user, "Parent")
-        child = Label.create_unique(self.org, self.user, "Child", parent=label)
-
-        with self.assertNumQueries(2):  # from db
-            self.assertEqual(label.get_message_count(), 0)
-            self.assertEqual(child.get_message_count(), 0)
-
-        with self.assertNumQueries(0):  # from cache
-            self.assertEqual(label.get_message_count(), 0)
-            self.assertEqual(child.get_message_count(), 0)
-
+        label = Label.get_or_create(self.org, self.user, "Parent")
         msg1 = self.create_msg(text="Message 1", contact=self.joe)
         msg2 = self.create_msg(text="Message 2", contact=self.joe)
         msg3 = self.create_msg(text="Message 3", contact=self.joe)
-        msg4 = self.create_msg(text="Message 4", contact=self.frank)
-        msg5 = self.create_msg(text="Message 5", contact=self.frank)
-        msg6 = self.create_msg(text="Message 6", contact=self.frank)
+
+        with self.assertNumQueries(1):  # from db
+            self.assertEqual(label.get_message_count(), 0)
+
+        with self.assertNumQueries(0):  # from cache
+            self.assertEqual(label.get_message_count(), 0)
 
         label.toggle_label([msg1, msg2, msg3], add=True)
-        child.toggle_label([msg4, msg5, msg6], add=True)
 
         with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 6)
-            self.assertEqual(child.get_message_count(), 3)
+            self.assertEqual(label.get_message_count(), 3)
 
-        label.toggle_label([msg1], add=False)
-        child.toggle_label([msg4], add=False)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 4)
-            self.assertEqual(child.get_message_count(), 2)
-
-        msg2.archive()
-        msg5.archive()
-
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 4)
-            self.assertEqual(child.get_message_count(), 2)
-
-        msg3.release()
-        msg6.release()
+        label.toggle_label([msg3], add=False)
 
         with self.assertNumQueries(0):
             self.assertEqual(label.get_message_count(), 2)
-            self.assertEqual(child.get_message_count(), 1)
+
+        msg2.archive()
+
+        with self.assertNumQueries(0):
+            self.assertEqual(label.get_message_count(), 2)  # archived still has label
+
+        msg2.release()
+
+        with self.assertNumQueries(0):
+            self.assertEqual(label.get_message_count(), 1)  # releasing removes label
 
         self.clear_cache()
 
-        with self.assertNumQueries(2):
-            self.assertEqual(label.get_message_count(), 2)
-            self.assertEqual(child.get_message_count(), 1)
+        with self.assertNumQueries(1):
+            self.assertEqual(label.get_message_count(), 1)
 
 
 class LabelCRUDLTest(TembaTest):
@@ -1404,7 +1392,7 @@ class LabelCRUDLTest(TembaTest):
         self.assertFormError(response, 'form', 'name', "Label name must be unique")
 
     def test_label_delete(self):
-        label_one = Label.create_unique(self.org, self.user, "label1")
+        label_one = Label.get_or_create(self.org, self.user, "label1")
 
         delete_url = reverse('msgs.label_delete', args=[label_one.pk])
 
