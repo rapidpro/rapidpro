@@ -23,6 +23,7 @@ from mock import patch
 from smartmin.tests import SmartminTest
 from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Msg, Broadcast, Call
 from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
 from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
@@ -1801,9 +1802,9 @@ class ChannelAlertTest(TembaTest):
 
         self.assertTrue(len(mail.outbox) == 1)
         template = 'channels/email/disconnected_alert.txt'
-        host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
+        branding = BrandingMiddleware.get_branding_for_host(settings.HOSTNAME)
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=dict(name="RapidPro", host=host),
+                       branding=branding,
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
@@ -1829,9 +1830,9 @@ class ChannelAlertTest(TembaTest):
         self.assertTrue(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
         template = 'channels/email/connected_alert.txt'
-        host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
+        branding = BrandingMiddleware.get_branding_for_host(settings.HOSTNAME)
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=dict(name="RapidPro", host=host),
+                       branding=branding,
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
