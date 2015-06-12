@@ -118,9 +118,10 @@
                                     .glyph.label-checkbox
                                     = group.label
                             - if org_perms.contacts.contactgroup_create
+                              %li.divider
                               %li
-                                %a.lbl-menu.add-group
-                                  -trans "Add Group"
+                                %a.lbl-menu.add-group{ href:'#' }
+                                  - trans "New Group..."
 
                       - if org_perms.msgs.broadcast_send 
                         %span.btn-group

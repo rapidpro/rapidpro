@@ -64,6 +64,14 @@
                       %a{ href:"{% url 'msgs.msg_filter' node.id %}", class:'{% if current_label.id == node.id %}active{% endif %}' }
                         {{ node.name }} ({{ node.count | intcomma }})
 
+          %div{style:"margin-top: 10px"}
+            - if org_perms.msgs.label_create
+              %a.btn.btn-block.add-label
+                -trans "Create Label"
+            - if org_perms.msgs.label_create
+              %a.btn.btn-block.add-folder
+                -trans "Create Folder"
+
         -if has_messages
           .span9
             -block buttons
@@ -217,6 +225,7 @@
     $('.page-content').on('click', ".add-label", function() {
       lastChecked = getCheckedIds();
       var modal = new Modax('{% trans "Create Label" %}', '{% url "msgs.label_create" %}')
+      modal.setIcon('icon-tag');
       modal.setListeners({
         onFormLoaded: function(){
           $("#active-modal form input#id_messages").val(lastChecked.join());
