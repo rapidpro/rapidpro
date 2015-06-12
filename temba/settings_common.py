@@ -281,7 +281,7 @@ BRANDING = {
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
         'link': 'https://rapidpro.io',
-        'api_url': 'https://api.rapidpro.io',
+        'api_link': 'https://api.rapidpro.io',
         'domain': 'rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
