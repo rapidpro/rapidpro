@@ -45,7 +45,6 @@ class TembaTest(SmartminTest):
         self.user = self.create_user("User")
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
-        self.alpha = self.create_user("Alpha")
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
@@ -69,10 +68,6 @@ class TembaTest(SmartminTest):
 
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
-
-        self.alpha.set_org(self.org)
-        self.org.administrators.add(self.alpha)
-        self.alpha.groups.add(Group.objects.get(name="Alpha"))
 
         self.superuser.set_org(self.org)
 

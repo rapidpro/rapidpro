@@ -36,7 +36,7 @@ from .tasks import check_channels_task
 class ChannelTest(TembaTest):
 
     def setUp(self):
-        TembaTest.setUp(self)
+        super(ChannelTest, self).setUp()
 
         self.channel.delete()
 
@@ -280,96 +280,69 @@ class ChannelTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_home"))
 
     def test_list(self):
-        # visit the channel's list as a manager but not belonging to this organization
+        # de-activate existing channels
+        Channel.objects.all().update(is_active=False)
+
+        # list page redirects to claim page
         self.login(self.user)
+        response = self.client.get(reverse('channels.channel_list'))
+        self.assertRedirect(response, reverse('channels.channel_claim'))
 
-        response = self.client.get(reverse('channels.channel_list'), follow=True)
-        self.assertEquals(200, response.status_code)
+        # unless you're a superuser
+        self.login(self.superuser)
+        response = self.client.get(reverse('channels.channel_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['object_list']), [])
 
-        # redirected to login page since the user does not have an org
-        self.assertEquals(response.request['PATH_INFO'], reverse('users.user_login'))
+        # re-activate one of the channels so org has a single channel
+        self.tel_channel.is_active = True
+        self.tel_channel.save()
 
-        # add to this user an org
-        org = Org.objects.create(name="otherOrg", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        org.administrators.add(self.user)
-        self.user.set_org(org)
-
-        response = self.client.get(reverse('channels.channel_list'), follow=True)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, "Add a Channel")
-
-        # remove user form the other org
-        org.administrators.remove(self.user)
-
-        # visit the channel's list as a manager within the channel's organization
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
+        # list page now redirects to channel read page
         self.login(self.user)
+        response = self.client.get(reverse('channels.channel_list'))
+        self.assertRedirect(response, reverse('channels.channel_read', args=[self.tel_channel.id]))
 
-        # release twitter channel so that org has just one channel
-        self.twitter_channel.org = None
-        self.twitter_channel.is_active = False
+        # unless you're a superuser
+        self.login(self.superuser)
+        response = self.client.get(reverse('channels.channel_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['object_list']), [self.tel_channel])
+
+        # re-activate other channel so org now has two channels
+        self.twitter_channel.is_active = True
         self.twitter_channel.save()
-        channel = self.org.get_receive_channel(TEL_SCHEME)
 
-        response = self.client.get(reverse('channels.channel_list'), follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('channels.channel_read', args=[channel.id]))
-        self.assertContains(response, 'Test Channel')
+        # no-more redirection for anyone
+        self.login(self.user)
+        response = self.client.get(reverse('channels.channel_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.context['object_list']), {self.tel_channel, self.twitter_channel})
 
-        # add another channel to this organization
-        second_channel = Channel.objects.create(name="Second Channel", address="0755551212", org=self.org,
-                                                created_by=self.user, modified_by=self.user, secret="67890", gcm_id="456")
-
-        # now we go to the list page instead of read page for the sole channel
-        response = self.client.get(reverse('channels.channel_list'), follow=True)
-        self.assertEquals(response.request['PATH_INFO'], reverse('channels.channel_list'))
-        self.assertEquals(response.context['object_list'].count(), 2)
-        self.assertContains(response, "Test Channel")
-
-        # clear out the phone and name for one of our channels
-        second_channel.name = None
-        second_channel.address = None
-        second_channel.save()
-        response = self.client.get(reverse('channels.channel_list'), follow=True)
+        # clear out the phone and name for the Android channel
+        self.tel_channel.name = None
+        self.tel_channel.address = None
+        self.tel_channel.save()
+        response = self.client.get(reverse('channels.channel_list'))
         self.assertContains(response, "Unknown")
         self.assertContains(response, "Android Phone")
 
-        self.client.logout()
-
-        # visit the channel's list as administrator
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.user)
-        response = self.fetch_protected(reverse('channels.channel_list'), self.user)
-        self.assertContains(response, 'Test Channel')
-
-        # visit ther channel's list as a superuser
-        response = self.fetch_protected(reverse('channels.channel_list'), self.superuser)
-        self.assertContains(response, 'Test Channel')
-
     def test_channel_status(self):
-        # visit the main page as a user
+        # visit page as a viewer
         self.login(self.user)
         response = self.client.get('/', follow=True)
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
         self.assertNotIn('delayed_syncevents', response.context, msg="Found delayed_syncevents in context")
-        self.client.logout()
 
-        # visit the main page as superuser
+        # visit page as superuser
         self.login(self.superuser)
         response = self.client.get('/', follow=True)
         # superusers doesn't have orgs thus cannot have both values
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
         self.assertNotIn('delayed_syncevents', response.context, msg="Found delayed_syncevents in context")
 
-        self.client.logout()
-
-        # add the user to an org
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-
-        # visit the main page again as a user
-        self.login(self.user)
+        # visit page as administrator
+        self.login(self.admin)
         response = self.client.get('/', follow=True)
 
         # there is not unsent nor delayed syncevents
@@ -597,16 +570,12 @@ class ChannelTest(TembaTest):
         self.sync(self.tel_channel, post_data)
         self.assertEquals(2, SyncEvent.objects.all().count())
 
-        # only user of the org can view the detail page of a channel
-        self.client.logout()
-        self.login(self.user)
+        # non-org users can't view our channels
+        self.login(self.non_org_user)
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.id]))
-        self.assertEquals(302, response.status_code)
+        self.assertLoginRedirect(response)
 
-        self.login(self.user)
-        # visit the channel's read page as a manager within the channel's organization
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
+        # org users can
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.user)
 
         self.assertEquals(len(response.context['source_stats']), len(SyncEvent.objects.values_list('power_source', flat=True).distinct()))
@@ -1028,12 +997,9 @@ class ChannelTest(TembaTest):
                 self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
     def test_claim_twitter(self):
-        # add to this user an org
-        org = Org.objects.create(name="otherOrg", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        org.administrators.add(self.user)
-        self.user.set_org(org)
-        self.user.groups.add(Group.objects.get(name="Beta"))  # enable beta features
-        self.login(self.user)
+        self.login(self.admin)
+
+        self.twitter_channel.delete()  # remove existing twitter channel
 
         claim_url = reverse('channels.channel_claim_twitter')
 

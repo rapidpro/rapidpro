@@ -1580,73 +1580,49 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEqual(response.status_code, 200)
 
-        # add a top-level labels
+        # add a label
         response = self.postJSON(url, dict(name='Screened'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
+        # check it exists
         screened = Label.objects.get(name='Screened')
-        self.assertIsNone(screened.parent)
+        self.assertIsNone(screened.folder)
 
-        # can't create another with same name and parent
+        # can't create another with same name
         response = self.postJSON(url, dict(name='Screened'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
 
         # add another with a different name
         response = self.postJSON(url, dict(name='Junk'))
         self.assertEquals(201, response.status_code)
 
         junk = Label.objects.get(name='Junk')
-        self.assertIsNone(junk.parent)
+        self.assertIsNone(junk.folder)
 
-        # add a sub-label
-        response = self.postJSON(url, dict(name='Flagged', parent=screened.uuid))
+        # update changing name
+        response = self.postJSON(url, dict(uuid=screened.uuid, name='Important'))
         self.assertEquals(201, response.status_code)
 
-        flagged = Label.objects.get(name='Flagged')
-        self.assertEqual(flagged.parent, screened)
-
-        # update changing name and setting parent to null
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Spam', parent=''))
-        self.assertEquals(201, response.status_code)
-
-        flagged = Label.objects.get(uuid=flagged.uuid)
-        self.assertEqual(flagged.name, 'Spam')
-        self.assertIsNone(flagged.parent)
-
-        # update parent to another label
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Spam', parent=junk.uuid))
-        self.assertEquals(201, response.status_code)
-
-        flagged = Label.objects.get(uuid=flagged.uuid)
-        self.assertEqual(flagged.name, 'Spam')
-        self.assertEqual(flagged.parent, junk)
+        screened = Label.objects.get(uuid=screened.uuid)
+        self.assertEqual(screened.name, 'Important')
 
         # can't update name to something already used
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Screened'))
-        self.assertEquals(400, response.status_code)
-
-        # can't create a label with a parent that has a parent
-        response = self.postJSON(url, dict(name='Interesting', parent=flagged.uuid))
+        response = self.postJSON(url, dict(uuid=screened.uuid, name='Junk'))
         self.assertEquals(400, response.status_code)
 
         # now fetch all labels
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 3)
+        self.assertResultCount(response, 2)
 
         # fetch by name
-        response = self.fetchJSON(url, 'name=Screened')
+        response = self.fetchJSON(url, 'name=Important')
         self.assertResultCount(response, 1)
-        self.assertContains(response, "Screened")
+        self.assertContains(response, "Important")
 
         # fetch by uuid
-        response = self.fetchJSON(url, 'uuid=%s' % screened.uuid)
+        response = self.fetchJSON(url, 'uuid=%s' % junk.uuid)
         self.assertResultCount(response, 1)
-        self.assertContains(response, "Screened")
-
-        # fetch by parent
-        response = self.fetchJSON(url, 'parent=%s' % junk.uuid)
-        self.assertResultCount(response, 1)
-        self.assertContains(response, "Spam")
+        self.assertContains(response, "Junk")
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
