@@ -14,7 +14,7 @@ from temba.contacts.models import ContactField, TEL_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
-from temba.msgs.models import Broadcast, Label, LabelFolder, Call, UnreachableException, SMS_BULK_PRIORITY
+from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
@@ -365,7 +365,7 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
         # let's add some labels
-        folder = LabelFolder.get_or_create(self.org, self.user, "folder")
+        folder = Label.get_or_create_folder(self.org, self.user, "folder")
         label1 = Label.get_or_create(self.org, self.user, "label1", folder)
         label2 = Label.get_or_create(self.org, self.user, "label2", folder)
         label3 = Label.get_or_create(self.org, self.user, "label3")
@@ -424,7 +424,7 @@ class MsgTest(TembaTest):
         post_data = dict(name="Foo")
         response = self.client.post(reverse('msgs.label_update', args=[label1.pk]), post_data)
         self.assertEquals(302, response.status_code)
-        label1 = Label.objects.get(pk=label1.pk)
+        label1 = Label.user_labels.get(pk=label1.pk)
         self.assertEquals("Foo", label1.name)
 
         # test deleting the label
@@ -433,7 +433,7 @@ class MsgTest(TembaTest):
 
         response = self.client.post(reverse('msgs.label_delete', args=[label1.pk]))
         self.assertEquals(302, response.status_code)
-        self.assertFalse(Label.objects.filter(pk=label1.id))
+        self.assertFalse(Label.user_labels.filter(pk=label1.id))
 
         # shouldn't have a remove on the update page
 
@@ -1243,7 +1243,7 @@ class LabelTest(TembaTest):
         self.assertEqual(label1.name, "Spam")
         self.assertIsNone(label1.folder)
 
-        followup = LabelFolder.get_or_create(self.org, self.user, "Follow up")
+        followup = Label.get_or_create_folder(self.org, self.user, "Follow up")
         label2 = Label.get_or_create(self.org, self.user, "Complaints", followup)
         self.assertEqual(label2.name, "Complaints")
         self.assertEqual(label2.folder, followup)
@@ -1252,7 +1252,7 @@ class LabelTest(TembaTest):
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
     def test_message_count(self):
-        label = Label.get_or_create(self.org, self.user, "Parent")
+        label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe)
         msg2 = self.create_msg(text="Message 2", contact=self.joe)
         msg3 = self.create_msg(text="Message 3", contact=self.joe)
@@ -1288,6 +1288,25 @@ class LabelTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertEqual(label.get_message_count(), 1)
 
+        # can't get a count of a folder
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        self.assertRaises(ValueError, folder.get_message_count)
+
+    def test_get_messages(self):
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label1 = Label.get_or_create(self.org, self.user, "Spam", folder)
+        label2 = Label.get_or_create(self.org, self.user, "Social", folder)
+        msg1 = self.create_msg(text="Message 1", contact=self.joe)
+        msg2 = self.create_msg(text="Message 2", contact=self.joe)
+        msg3 = self.create_msg(text="Message 3", contact=self.joe)
+
+        label1.toggle_label([msg1, msg2], add=True)
+        label2.toggle_label([msg2, msg3], add=True)
+
+        self.assertEqual(set(label1.get_messages()), {msg1, msg2})
+        self.assertEqual(set(label2.get_messages()), {msg2, msg3})
+        self.assertEqual(set(folder.get_messages()), {msg1, msg2, msg3})
+
 
 class LabelCRUDLTest(TembaTest):
 
@@ -1303,7 +1322,7 @@ class LabelCRUDLTest(TembaTest):
         # try again with valid name
         self.client.post(create_url, dict(name="label_one"), follow=True)
 
-        label_one = Label.objects.get()
+        label_one = Label.user_labels.get()
         self.assertEqual(label_one.name, "label_one")
         self.assertIsNone(label_one.folder)
 
@@ -1312,16 +1331,16 @@ class LabelCRUDLTest(TembaTest):
         self.assertFormError(response, 'form', 'name', "Label name must be unique")
 
         # create a label in a folder
-        folder = LabelFolder.get_or_create(self.org, self.user, "Folder")
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         self.client.post(create_url, dict(name="label_two", folder=folder.pk), follow=True)
 
-        label_two = Label.objects.get(name="label_two")
+        label_two = Label.user_labels.get(name="label_two")
         self.assertEqual(label_two.folder, folder)
 
         # update label one
         self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="label_1"))
 
-        label_one = Label.objects.get(pk=label_one.pk)
+        label_one = Label.user_labels.get(pk=label_one.pk)
         self.assertEqual(label_one.name, "label_1")
         self.assertIsNone(label_one.folder)
 

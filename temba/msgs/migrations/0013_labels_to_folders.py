@@ -7,7 +7,6 @@ from django.db import models, migrations
 
 def migrate_label_hierarchies(apps, schema_editor):
     Label = apps.get_model('msgs', 'Label')
-    LabelFolder = apps.get_model('msgs', 'LabelFolder')
     folder_count, rename_count = 0, 0
 
     # fetch all labels and organize by org
@@ -37,9 +36,9 @@ def migrate_label_hierarchies(apps, schema_editor):
 
         for parent, children in hierarchy.iteritems():
             # create folder to replace parent
-            folder = LabelFolder.objects.create(org=org, name=parent.name,
-                                                created_by=parent.created_by, created_on=parent.created_on,
-                                                modified_by=parent.modified_by, modified_on=parent.modified_on)
+            folder = Label.objects.create(org=org, name=parent.name, label_type='F',
+                                          created_by=parent.created_by, created_on=parent.created_on,
+                                          modified_by=parent.modified_by, modified_on=parent.modified_on)
             folder_count += 1
 
             # put child labels in folder instead of under parent
@@ -55,13 +54,13 @@ def migrate_label_hierarchies(apps, schema_editor):
 
     print
     print "Renamed %d labels with non-unique names" % rename_count
-    print "Converted %d labels to folders" % folder_count
+    print "Converted %d parent labels to folders" % folder_count
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0012_add_label_folders'),
+        ('msgs', '0012_label_folder_and_type'),
     ]
 
     operations = [

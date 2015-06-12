@@ -22,7 +22,7 @@ from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
-from .models import Broadcast, Call, ExportMessagesTask, Label, LabelFolder, Msg, Schedule
+from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule
 
 
 def send_message_auto_complete_processor(request):
@@ -148,7 +148,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
 
     def get_labels_json(self, org):
         # fetch all org labels and organize by folder
-        all_labels = Label.objects.filter(org=org).select_related('folder').order_by('name')
+        all_labels = Label.user_labels.filter(org=org).select_related('folder').order_by('name')
         by_folder = defaultdict(list)
         for label in all_labels:
             label_json = dict(is_folder=False, id=label.pk, name=label.name, count=label.get_message_count())
@@ -159,7 +159,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
         for folder in sorted(by_folder.keys(), key=lambda x: (x is None, x)):
             labels = by_folder[folder]
             if folder:
-                folder_json = dict(is_folder=True, id=folder.pk, name=folder.name, labels=labels)
+                folder_json = dict(is_folder=True, id=folder.pk, name=folder.name, children=labels)
                 nodes.append(folder_json)
             else:
                 nodes += labels
@@ -401,7 +401,7 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'objects'
+    LABEL_CLASS_MANAGER = 'user_labels'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
@@ -518,6 +518,7 @@ class MsgActionForm(BaseActionForm):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
+    LABEL_CLASS_MANAGER = 'user_labels'
 
     HAS_IS_ACTIVE = False
 
@@ -625,7 +626,7 @@ class MsgCRUDL(SmartCRUDL):
 
             label = None
             if label_id:
-                label = Label.objects.get(pk=label_id)
+                label = Label.user_labels.get(pk=label_id)
 
             host = self.request.branding['host']
 
@@ -818,7 +819,7 @@ class MsgCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<label_id>\d+)/$' % (path, action)
 
         def derive_label(self):
-            return Label.objects.get(pk=self.kwargs['label_id'])
+            return Label.all_labels.get(pk=self.kwargs['label_id'], label_type__in=(Label.USER_LABEL, Label.USER_FOLDER))
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
@@ -829,7 +830,7 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class LabelForm(forms.ModelForm):
-    folder = forms.ModelChoiceField(LabelFolder.objects.none(), required=False, label=_("Folder"))
+    folder = forms.ModelChoiceField(Label.user_folders.none(), required=False, label=_("Folder"))
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -837,9 +838,8 @@ class LabelForm(forms.ModelForm):
         self.existing = kwargs.pop('label', None)
 
         super(LabelForm, self).__init__(*args, **kwargs)
-        folder_qs = LabelFolder.objects.filter(org=self.org)
 
-        self.fields['folder'].queryset = folder_qs
+        self.fields['folder'].queryset = Label.user_folders.filter(org=self.org)
 
     def clean_name(self):
         data = self.cleaned_data['name']
@@ -848,7 +848,7 @@ class LabelForm(forms.ModelForm):
             raise forms.ValidationError("Label name must not be blank or begin with + or -")
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.objects.filter(org=self.org, name__iexact=data).exclude(pk=existing_id).exists():
+        if Label.user_labels.filter(org=self.org, name__iexact=data).exclude(pk=existing_id).exists():
             raise forms.ValidationError("Label name must be unique")
 
         return data

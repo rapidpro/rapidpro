@@ -201,7 +201,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            label = Label.objects.create(org=self.org, name=name, folder=None,
+            label = Label.user_labels.create(org=self.org, name=name, folder=None,
                                          created_by=self.user, modified_by=self.user)
             labels.append(label)
 

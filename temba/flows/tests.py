@@ -1299,7 +1299,7 @@ class RuleTest(TembaTest):
         self.assertEquals(label.get_message_count(), 1)
 
         # we should have created a new label with the name of the contact
-        new_label = Label.objects.get(name=self.contact.name)
+        new_label = Label.user_labels.get(name=self.contact.name)
         self.assertTrue(new_label.get_messages())
         self.assertEquals(new_label.get_message_count(), 1)
 
