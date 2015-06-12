@@ -307,7 +307,7 @@ class Flow(TembaModel, SmartModel):
         return dict(version=CURRENT_EXPORT_VERSION, flows=exported_flows, triggers=exported_triggers)
 
     @classmethod
-    def import_flows(cls, exported_json, org, user, site=None):
+    def import_flows(cls, exported_json, org, user, same_site=False):
         """
         Import flows from our flow export file
         """
@@ -330,7 +330,7 @@ class Flow(TembaModel, SmartModel):
             # this check is only needed up to version 3 of exports
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
-                if site and site == exported_json.get('site', None):
+                if same_site:
                     flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)

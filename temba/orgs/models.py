@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
+from urlparse import urlparse
 import os
 import pytz
 import random
@@ -436,11 +437,19 @@ class Org(SmartModel):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
 
+        # determine if this app is being imported from the same site
+        data_site = data.get('site', None)
+        same_site = False
+
+        # compare the hosts of the sites to see if they are the same
+        if data_site and site:
+            same_site = urlparse(data_site).netloc == urlparse(site).netloc
+
         # we need to import flows first, they will resolve to
         # the appropriate ids and update our definition accordingly
-        Flow.import_flows(data, self, user, site)
-        Campaign.import_campaigns(data, self, user, site)
-        Trigger.import_triggers(data, self, user, site)
+        Flow.import_flows(data, self, user, same_site)
+        Campaign.import_campaigns(data, self, user, same_site)
+        Trigger.import_triggers(data, self, user, same_site)
 
     def config_json(self):
         if self.config:
@@ -1326,7 +1335,7 @@ class Org(SmartModel):
             brand = BrandingMiddleware.get_branding_for_host('')
 
         self.create_system_groups()
-        self.create_sample_flows([brand['api_url']])
+        self.create_sample_flows(brand['api_url'])
         self.create_welcome_topup(topup_size)
 
     @classmethod
