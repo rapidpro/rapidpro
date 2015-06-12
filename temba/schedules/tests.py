@@ -152,16 +152,20 @@ class ScheduleTest(TembaTest):
         sched = self.create_schedule('W', [THURSDAY, SATURDAY])
         update_url = reverse('schedules.schedule_update', args=[sched.pk])
 
+        # viewer can't access
         self.login(self.user)
         response = self.client.get(update_url)
-        self.assertEquals(302, response.status_code)
+        self.assertLoginRedirect(response)
 
+        # editor can access
         self.login(self.editor)
         response = self.client.get(update_url)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(response.status_code, 200)
 
-        response = self.fetch_protected(update_url, self.admin)
-        self.assertEquals(response.request['PATH_INFO'], update_url)
+        # as can admin user
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(response.status_code, 200)
 
         now = timezone.now()
         now_stamp = time.mktime(now.timetuple())

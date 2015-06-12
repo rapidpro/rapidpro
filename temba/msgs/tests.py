@@ -438,20 +438,18 @@ class MsgTest(TembaTest):
         # shouldn't have a remove on the update page
 
         # test archiving a msg
-        self.assertNotEquals(msg1.labels, [])
-        post_data = dict()
-        post_data['action'] = 'archive'
-        post_data['objects'] = msg1.pk
+        self.assertEqual(set(msg1.labels.all()), {label3})
+        post_data = dict(action='archive', objects=msg1.pk)
 
         response = self.client.post(inbox_url, post_data, follow=True)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         
         # now one msg is archived
         self.assertEqual(list(Msg.objects.filter(visibility=ARCHIVED)), [msg1])
 
         # archiving doesn't remove labels
         msg1 = Msg.objects.get(pk=msg1.pk)
-        self.assertEqual(set(msg1.labels.all()), {label1, label3})
+        self.assertEqual(set(msg1.labels.all()), {label3})
         
         # visit the the archived messages page
         archive_url = reverse('msgs.msg_archived')
@@ -605,11 +603,6 @@ class MsgTest(TembaTest):
 
         # visit fail page  as a user not in the organization
         self.login(self.non_org_user)
-        response = self.client.get(failed_url)
-        self.assertEquals(302, response.status_code)
-
-        # visit inbox page as manager not in the organization
-        self.login(self.non_org_manager)
         response = self.client.get(failed_url)
         self.assertEquals(302, response.status_code)
         
@@ -1311,37 +1304,30 @@ class LabelCRUDLTest(TembaTest):
         self.client.post(create_url, dict(name="label_one"), follow=True)
 
         label_one = Label.objects.get()
-        self.assertEquals(label_one.name, "label_one")
-        self.assertEquals(label_one.parent, None)
+        self.assertEqual(label_one.name, "label_one")
+        self.assertIsNone(label_one.folder)
 
         # check that we can't create another with same name
         response = self.client.post(create_url, dict(name="label_one"))
         self.assertFormError(response, 'form', 'name', "Label name must be unique")
 
-        # create a child label
-        self.client.post(create_url, dict(name="sub_label", parent=label_one.pk), follow=True)
+        # create a label in a folder
+        folder = LabelFolder.get_or_create(self.org, self.user, "Folder")
+        self.client.post(create_url, dict(name="label_two", folder=folder.pk), follow=True)
 
-        sub_label = Label.objects.get(name="sub_label")
-        self.assertEquals(sub_label.parent, label_one)
+        label_two = Label.objects.get(name="label_two")
+        self.assertEqual(label_two.folder, folder)
 
-        # check that viewing the parent label shows the child too
-        response = self.client.get(reverse('msgs.msg_filter', args=[label_one.pk]))
-        self.assertContains(response, "sub_label")
-
-        # update the parent label
+        # update label one
         self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="label_1"))
 
         label_one = Label.objects.get(pk=label_one.pk)
-        self.assertEquals(label_one.name, "label_1")
-        self.assertEquals(label_one.parent, None)
+        self.assertEqual(label_one.name, "label_1")
+        self.assertIsNone(label_one.folder)
 
         # try to update to invalid label name
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
         self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
-
-        # check can't take name of existing label, even a child
-        response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="sub_label"))
-        self.assertFormError(response, 'form', 'name', "Label name must be unique")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")

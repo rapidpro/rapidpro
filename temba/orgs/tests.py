@@ -204,19 +204,16 @@ class OrgTest(TembaTest):
         manage_accounts_url = reverse('orgs.org_manage_accounts')
 
         self.login(self.admin)
-        self.admin.set_org(self.org)
-
-        self.org.editors.add(self.root)
-        self.org.administrators.add(self.user)
 
         response = self.client.get(manage_accounts_url)
         self.assertEquals(200, response.status_code)
 
-        # we have 12 fields in the form including 9 checkboxes for the three users, an emails field a user group field and 'loc' field.
+        # we have 12 fields in the form including 9 checkboxes for the three users, an email field, a user group field
+        # and 'loc' field.
         self.assertEquals(12, len(response.context['form'].fields))
         self.assertTrue('emails' in response.context['form'].fields)
         self.assertTrue('user_group' in response.context['form'].fields)
-        for user in [self.root, self.user, self.admin]:
+        for user in [self.user, self.editor, self.admin]:
             self.assertTrue("administrators_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("editors_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("viewers_%d" % user.pk in response.context['form'].fields)
@@ -224,25 +221,20 @@ class OrgTest(TembaTest):
         self.assertFalse(response.context['form'].fields['emails'].initial)
         self.assertEquals('V', response.context['form'].fields['user_group'].initial)
 
-        post_data = dict()
-
-        # keep all the admins
-        post_data['administrators_%d' % self.admin.pk] = 'on'
-        post_data['administrators_%d' % self.user.pk] = 'on'
-        post_data['administrators_%d' % self.root.pk] = 'on'
-
-        # add self.root to editors
-        post_data['editors_%d' % self.root.pk] = 'on'
-        post_data['user_group'] = 'E'
-
+        # keep admin as admin, editor as editor, but make user an editor too
+        post_data = {
+            'administrators_%d' % self.admin.pk: 'on',
+            'editors_%d' % self.editor.pk: 'on',
+            'editors_%d' % self.user.pk: 'on',
+            'user_group': 'E'
+        }
         response = self.client.post(manage_accounts_url, post_data)
         self.assertEquals(302, response.status_code)
 
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals(org.administrators.all().count(), 3)
-        self.assertFalse(org.viewers.all())
-        self.assertTrue(org.editors.all())
-        self.assertEquals(org.editors.all()[0].pk, self.root.pk)
+        self.assertEqual(set(org.administrators.all()), {self.admin})
+        self.assertEqual(set(org.editors.all()), {self.user, self.editor})
+        self.assertFalse(set(org.viewers.all()), set())
 
         # add to post_data an email to invite as admin
         post_data['emails'] = "norkans7gmail.com"

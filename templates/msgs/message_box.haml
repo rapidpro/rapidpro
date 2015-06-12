@@ -138,6 +138,7 @@
                                     {{ node.name }}
 
                             - if org_perms.msgs.label_create
+                              %li.divider
                               %li
                                 %a.lbl-menu.add-label{href:'#'}
                                   -trans "New Label..."
@@ -219,16 +220,18 @@
       modal.setListeners({
         onFormLoaded: function(){
           $("#active-modal form input#id_messages").val(lastChecked.join());
-          if ($('#id_parent').find('option').length > 1) {
-            select2div('#id_parent');
+          // convert folder select to select2 or hide if there are no folders
+          if ($('#id_folder').find('option').length > 1) {
+            select2div('#id_folder');
           } else {
-            $('#id_parent').parents('.control-group').hide();
+            $('#id_folder').parents('.control-group').hide();
           }
         }, onCompleted: function() { refresh(function() { recheckIds(); }, true);}
       });
 
       modal.show();
     });
+
 
     {% if org_perms.msgs.broadcast_send %}
     if($(location).attr('hash') == '#message') {
