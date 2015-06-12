@@ -906,9 +906,8 @@ class Org(SmartModel):
         self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
                                created_by=self.created_by, modified_by=self.modified_by)
 
-    def create_sample_flows(self):
+    def create_sample_flows(self, api_url):
         from temba.flows.models import Flow
-        from temba.settings import API_URL
         import json
 
         # get our sample dir
@@ -928,7 +927,7 @@ class Org(SmartModel):
                 if user:
                     # some some substitutions
                     org_example = example.replace("{{EMAIL}}", user.username)
-                    org_example = org_example.replace("{{API_URL}}", API_URL)
+                    org_example = org_example.replace("{{API_URL}}", api_url)
 
                     if not Flow.objects.filter(name=flow_name, org=self):
                         try:
@@ -1317,13 +1316,18 @@ class Org(SmartModel):
         return recommended
 
 
-    def initialize(self, topup_size=WELCOME_TOPUP_SIZE):
+    def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
+        from temba.middleware import BrandingMiddleware
+
+        if not brand:
+            brand = BrandingMiddleware.get_branding_for_host('')
+
         self.create_system_groups()
-        self.create_sample_flows()
-        self.create_welcome_topup(topup_size)
+        self.create_sample_flows([brand['api_url']])
+        self.create_welcome_topup(brand['topup_size'])
 
     @classmethod
     def create_user(cls, email, password):

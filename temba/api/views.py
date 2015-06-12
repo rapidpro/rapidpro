@@ -300,9 +300,6 @@ class ApiExplorerView(SmartTemplateView):
 
         context['endpoints'] = endpoints
 
-        from temba.settings import API_URL
-        context['API_URL'] = API_URL
-
         return context
 
 @api_view(['GET'])

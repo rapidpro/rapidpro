@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone, translation
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
-from temba.settings import BRANDING
+from temba.settings import BRANDING, DEFAULT_BRAND, HOSTNAME
 
 
 class ExceptionMiddleware(object):
@@ -22,9 +22,16 @@ class BrandingMiddleware(object):
 
     @classmethod
     def get_branding_for_host(cls, host):
+        # ignore subdomains
+        if len(host.split('.')) > 2:
+            host = '.'.join(host.split('.')[-2:])
+
+        # prune off the port
+        if ':' in host:
+            host = host[0:host.rindex(':')]
 
         # our default branding
-        branding = BRANDING.get('rapidpro.io')
+        branding = BRANDING.get(HOSTNAME, BRANDING.get(DEFAULT_BRAND))
 
         # override with site specific branding if we have that
         site_branding = BRANDING.get(host, None)
@@ -47,16 +54,7 @@ class BrandingMiddleware(object):
         except:
             traceback.print_exc()
 
-        # ignore subdomains
-        if len(host.split('.')) > 2:
-            host = '.'.join(host.split('.')[-2:])
-
-        # prune off the port
-        if ':' in host:
-            host = host[0:host.rindex(':')]
-
         request.branding = BrandingMiddleware.get_branding_for_host(host)
-
 
 class ActivateLanguageMiddleware(object):
 

@@ -27,6 +27,7 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartRead
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
+from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, build_json_response
 from timezones.forms import TimeZoneField
@@ -1197,7 +1198,8 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            obj.initialize(topup_size=self.get_welcome_size())
+            brand = BrandingMiddleware.get_branding_for_host(self.request.get_host())
+            obj.initialize(brand=brand, topup_size=self.get_welcome_size())
 
             return obj
 
