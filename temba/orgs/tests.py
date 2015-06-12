@@ -304,9 +304,9 @@ class OrgTest(TembaTest):
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "RapidPro Invitation")
-        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
+        self.assertIn('https://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
+        self.assertIn('https://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
         editor_join_url = reverse('orgs.org_join', args=[editor_invitation.secret])
@@ -1295,7 +1295,7 @@ class BulkExportTest(TembaTest):
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
         self.assertEquals(4, exported.get('version', 0))
-        self.assertEquals('http://rapidpro.io', exported.get('site', None))
+        self.assertEquals('https://rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))
         self.assertEquals(4, len(exported.get('triggers', [])))
@@ -1360,7 +1360,7 @@ class BulkExportTest(TembaTest):
 
         # delete our flow, and reimport
         confirm_appointment.delete()
-        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='https://rapidpro.io')
 
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')

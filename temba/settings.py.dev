@@ -17,7 +17,6 @@ import logging
 #-----------------------------------------------------------------------------------
 HOSTNAME = 'rapidpro.ngrok.com'
 TEMBA_HOST = 'rapidpro.ngrok.com'
-API_URL = 'https://rapidpro.ngrok.com'
 
 #-----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
