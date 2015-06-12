@@ -1327,7 +1327,7 @@ class Org(SmartModel):
 
         self.create_system_groups()
         self.create_sample_flows([brand['api_url']])
-        self.create_welcome_topup(brand['topup_size'])
+        self.create_welcome_topup(topup_size)
 
     @classmethod
     def create_user(cls, email, password):
