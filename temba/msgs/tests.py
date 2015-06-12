@@ -349,11 +349,6 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(inbox_url)
         self.assertEquals(302, response.status_code)
-
-        # visit inbox page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(inbox_url)
-        self.assertEquals(302, response.status_code)
         
         # visit inbox page as a manager of the organization
         response = self.fetch_protected(inbox_url, self.admin)
@@ -364,7 +359,7 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
         # visit inbox page as adminstrator
-        response = self.fetch_protected(inbox_url, self.root)
+        response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 5)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
@@ -403,11 +398,7 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         self.assertEqual(self.client.get(label1_filter_url).status_code, 302)
 
-        # nor can non-org managers
-        self.login(self.non_org_manager)
-        self.assertEqual(self.client.get(label1_filter_url).status_code, 302)
-
-        # but regular org users can
+        # but org viewers can
         self.login(self.user)
         response1 = self.client.get(label1_filter_url)
         response2 = self.client.get(label2_filter_url)
@@ -469,11 +460,6 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(archive_url)
         self.assertEquals(302, response.status_code)
-
-        # visit archived page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(archive_url)
-        self.assertEquals(302, response.status_code)
         
         # visit archived page as a manager of the organization
         response = self.fetch_protected(archive_url, self.admin)
@@ -481,35 +467,18 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['object_list'].count(), 1)
         self.assertEquals(response.context['actions'], ['restore', 'label', 'delete'])
 
-        # visit archived page as adminstrator
-        response = self.fetch_protected(archive_url, self.root)
+        # check that the inbox does not contains archived messages
 
-        self.assertEquals(response.context['object_list'].count(), 1)
-        self.assertEquals(response.context['actions'], ['restore', 'label', 'delete'])
-
-
-        # check that the imbox does not contains archived messages
-        # visit inbox page  as a user not in the organization
+        # visit inbox page as a user not in the organization
         self.login(self.non_org_user)
         response = self.client.get(inbox_url)
         self.assertEquals(302, response.status_code)
-
-        # visit inbox page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(inbox_url)
-        self.assertEquals(302, response.status_code)
         
-        # visit inbox page as a manager of the organization
+        # visit inbox page as an admin of the organization
         response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 4)
-        self.assertEquals(response.context['actions'], ['archive','label'])
-
-        # visit inbox page as adminstrator
-        response = self.fetch_protected(inbox_url, self.root)
-
-        self.assertEquals(response.context['object_list'].count(), 4)
-        self.assertEquals(response.context['actions'], ['archive','label'])
+        self.assertEquals(response.context['actions'], ['archive', 'label'])
 
         # test restoring a archived message back to inbox
         post_data = dict()
@@ -526,7 +495,7 @@ class MsgTest(TembaTest):
 
         Msg.create_incoming(self.channel, (TEL_SCHEME, test_contact.get_urn().path), 'Bla Blah')
 
-        response = self.fetch_protected(inbox_url, self.root)
+        response = self.fetch_protected(inbox_url, self.admin)
         self.assertEquals(Msg.objects.all().count(), 7)
         self.assertEquals(response.context['object_list'].count(), 5)
 
@@ -599,20 +568,9 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(survey_msg_url)
         self.assertEquals(302, response.status_code)
-
-        # visit survey messages page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(survey_msg_url)
-        self.assertEquals(302, response.status_code)
         
         # visit survey messages page as a manager of the organization
         response = self.fetch_protected(survey_msg_url, self.admin)
-
-        self.assertEquals(response.context['object_list'].count(), 1)
-        self.assertEquals(response.context['actions'], ['label'])
-
-        # visit survey messages page as adminstrator
-        response = self.fetch_protected(survey_msg_url, self.root)
 
         self.assertEquals(response.context['object_list'].count(), 1)
         self.assertEquals(response.context['actions'], ['label'])
@@ -632,7 +590,7 @@ class MsgTest(TembaTest):
         self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(self.org, self.root, "message number 2", [self.joe])
+        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status='F')
         broadcast.update()
@@ -655,14 +613,8 @@ class MsgTest(TembaTest):
         response = self.client.get(failed_url)
         self.assertEquals(302, response.status_code)
         
-        # visit inbox page as a manager of the organization
+        # visit inbox page as an administrator
         response = self.fetch_protected(failed_url, self.admin)
-
-        self.assertEquals(response.context['object_list'].count(), 3)
-        self.assertEquals(response.context['actions'], ['archive', 'resend'])
-
-        # visit inbox page as adminstrator
-        response = self.fetch_protected(failed_url, self.root)
 
         self.assertEquals(response.context['object_list'].count(), 3)
         self.assertEquals(response.context['actions'], ['archive', 'resend'])

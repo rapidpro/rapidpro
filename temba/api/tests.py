@@ -159,13 +159,13 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
-        # login as plain user
-        self.login(self.user)
+        # login as non-org user
+        self.login(self.non_org_user)
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
-        # login as administrator
+        # login as org viewer
         self.login(self.admin)
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
@@ -4158,9 +4158,9 @@ class WebHookTest(TembaTest):
 
         with patch('requests.post') as mock:
             # remove all the org users
-            self.org.administrators.remove(self.admin)
-            self.org.administrators.remove(self.root)
-            self.org.administrators.remove(self.user)
+            self.org.administrators.clear()
+            self.org.editors.clear()
+            self.org.viewers.clear()
 
             mock.return_value = MockResponse(200, "Hello World")
 
@@ -4332,7 +4332,7 @@ class WebHookTest(TembaTest):
         response = self.client.post(reverse('api.webhook_tunnel'), dict())
         self.assertEquals(302, response.status_code)
 
-        self.login(self.non_org_manager)
+        self.login(self.non_org_user)
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')

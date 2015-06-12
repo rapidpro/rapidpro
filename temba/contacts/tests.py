@@ -797,14 +797,11 @@ class ContactTest(TembaTest):
         # lets create an outgoing call from this contact
         Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "CALL_OUT_MISSED")
 
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEquals(8, len(response.context['all_messages']))
-        self.assertTrue(isinstance(response.context['all_messages'][0], Call))
-
         # visit a contact detail page as an admin with the organization
-        response = self.fetch_protected(read_url, self.root)
+        response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
         self.assertEquals(8, len(response.context['all_messages']))
+        self.assertTrue(isinstance(response.context['all_messages'][0], Call))
 
         # visit a contact detail page as a superuser
         response = self.fetch_protected(read_url, self.superuser)

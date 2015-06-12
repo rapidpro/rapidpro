@@ -400,7 +400,7 @@ class OrgTest(TembaTest):
         self.assertEquals(response.context_data['org'], self.org2)
 
         # a non org user get a message to contact their administrator
-        self.login(self.non_org_manager)
+        self.login(self.non_org_user)
         response = self.client.get(choose_url)
         self.assertEquals(200, response.status_code)
         self.assertEquals(0, len(response.context['orgs']))

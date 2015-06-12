@@ -40,16 +40,12 @@ class TembaTest(SmartminTest):
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
 
-        # some users not tied to our org
+        # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.non_org_manager = self.create_user("NonOrgManager")
-
-        # our three user types inside our org
         self.user = self.create_user("User")
-        self.root = self.create_user("Root")
-        self.root.groups.add(Group.objects.get(name="Alpha"))
-
+        self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.alpha = self.create_user("Alpha")
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
@@ -65,14 +61,18 @@ class TembaTest(SmartminTest):
         self.org.initialize()
 
         # add users to the org
-        self.org.administrators.add(self.admin)
-        self.admin.set_org(self.org)
-
-        self.org.administrators.add(self.root)
-        self.root.set_org(self.org)
-
         self.user.set_org(self.org)
         self.org.viewers.add(self.user)
+
+        self.editor.set_org(self.org)
+        self.org.editors.add(self.editor)
+
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
+        self.alpha.set_org(self.org)
+        self.org.administrators.add(self.alpha)
+        self.alpha.groups.add(Group.objects.get(name="Alpha"))
 
         self.superuser.set_org(self.org)
 
