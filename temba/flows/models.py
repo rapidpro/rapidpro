@@ -307,7 +307,7 @@ class Flow(TembaModel, SmartModel):
         return dict(version=CURRENT_EXPORT_VERSION, flows=exported_flows, triggers=exported_triggers)
 
     @classmethod
-    def import_flows(cls, exported_json, org, user, site=None):
+    def import_flows(cls, exported_json, org, user, same_site=False):
         """
         Import flows from our flow export file
         """
@@ -330,7 +330,7 @@ class Flow(TembaModel, SmartModel):
             # this check is only needed up to version 3 of exports
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
-                if site and site == exported_json.get('site', None):
+                if same_site:
                     flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
@@ -415,181 +415,114 @@ class Flow(TembaModel, SmartModel):
         return FlowStep.objects.filter(contact__is_test=False, step_uuid__in=rule_ids, left_on__gte=since).count()
 
     @classmethod
-    def handle_call(cls, call, user_response=dict()):
-        # do we have a run for this call?
+    def handle_call(cls, call, user_response=None, hangup=False):
+        if not user_response:
+            user_response = {}
+
+        flow = call.flow
         run = FlowRun.objects.filter(call=call).first()
+
+        # what we will send back
+        voice_response = twiml.Response()
+        run.voice_response = voice_response
 
         # make sure our test contact is handled by simulation
         if call.contact.is_test:
             Contact.set_simulation(True)
 
-        response = twiml.Response()
-
-        # no run found, return that we didn't handle it
-        if not run:
-            response.hangup()
-            return response
-
-        flow = run.flow
-        is_test_contact = call.contact.is_test
-
-        from temba.msgs.models import HANDLED, IVR
-
-        # by default we look for pressed keys
+        # parse the user response
         text = user_response.get('Digits', None)
-        msg = None
+        recording_url = user_response.get('RecordingUrl', None)
+        recording_id = user_response.get('RecordingSid', uuid4())
 
-        if text:
+        # if we've been sent a recording, go grab it
+        if recording_url:
+            url = Flow.download_recording(call, recording_url, recording_id)
+            recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, url)
+
+        # create a message to hold our inbound message
+        from temba.msgs.models import HANDLED, IVR
+        if text or recording_url:
+            if recording_url:
+                text = recording_url
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                      text, status=HANDLED, msg_type=IVR)
-
-        # if we are at ruleset, interpret based on our incoming data
-        if run.steps.all():
-            # find what our next action is
-            step = run.steps.filter(left_on=None, rule_uuid=None, step_type=RULE_SET).order_by('-arrived_on', '-pk').first()
-
-            if step:
-                ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
-                if not ruleset:
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                # see if the user is giving us a recording
-                recording_url = user_response.get('RecordingUrl', None)
-                recording_id = user_response.get('RecordingSid', uuid4())
-
-                # recording is more important than digits (we shouldn't ever get both)
-                if recording_url:
-                    ivr_client = call.channel.get_ivr_client()
-                    recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
-                    temp = NamedTemporaryFile(delete=True)
-                    temp.write(recording.content)
-                    temp.flush()
-
-                    print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
-                    text = default_storage.save('recordings/%d/%d/runs/%d/%s.wav' % (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
-
-                    # we'll store the fully qualified url
-                    recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
-                    text = recording_url
-
-                    if not msg:
-                        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                                  text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
-                    else:
-                        msg.text = text
-                        msg.recording_url = recording_url
-                        msg.save(update_fields=['text', 'recording_url'])
-
-                rule, value = ruleset.find_matching_rule(step, run, msg)
-                if not rule:
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                step.add_message(msg)
-                step.save_rule_match(rule, value)
-                ruleset.save_run_value(run, rule, value, recording=recording_url)
-
-                # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
-                if not rule.destination:
-
-                    # log it for our test contacts
-                    if is_test_contact:
-                        ActionLog.create(step.run,
-                                         _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                actionset = ActionSet.get(flow, rule.destination)
-                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
-            else:
-                response.hangup()
-                run.set_completed()
-                return response
-
-        # we haven't begun the flow yet, start at the entry
+                                      text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
         else:
-            actionset = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+            msg = Msg(contact=call.contact, text='', id=0)
 
-            if actionset:
-                step = flow.add_step(run, actionset, [], call=call)
+        # find out where we last left off
+        step = run.steps.all().order_by('-arrived_on').first()
 
-            # no such actionset, we start with a ruleset, evaluate it then move forward to our next actionset
-            else:
-                ruleset = RuleSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
-                step = flow.add_step(run, ruleset, [], call=call)
-                rule, value = ruleset.find_matching_rule(step, run, msg)
+        # if we are just starting the flow, create our first step
+        if not step:
+            # lookup our entry node
+            destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+            if not destination:
+                destination = RuleSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
 
-                if not rule:
-                    response.hangup()
-                    run.set_completed()
-                    return response
+            # and add our first step for our run
+            if destination:
+                step = flow.add_step(run, destination, [], call=call)
 
-                step.save_rule_match(rule, value)
-                ruleset.save_run_value(run, rule, value)
+        # go and actually handle wherever we are in the flow
+        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
+        handled = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
 
-                if not rule.destination:
-                    # log it for our test contacts
-                    if is_test_contact:
-                        ActionLog.create(step.run,
-                                         _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+        # if we stopped needing user input (likely), then wrap our response accordingly
+        voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                actionset = ActionSet.get(flow, rule.destination)
-                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
-
-                if msg:
-                    step.add_message(msg)
-
-        if actionset:
-            run.voice_response = response
-            action_msgs = []
-
-            if actionset.destination:
-                ruleset = RuleSet.get(flow, actionset.destination)
-                flow.add_step(run, ruleset, call=call, previous_step=step)
-
-                voice_callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
-                input_command = ruleset.get_voice_input(run, action=voice_callback)
-
-                with input_command as input:
-                    run.voice_response = input
-                    action_msgs += actionset.execute_actions(run, msg, [])
-
-                # if our next step is a recording, tack a Record on the end of our actions
-                if ruleset.response_type == RECORDING:
-                    input_command.record(action=voice_callback)
-
-            else:
-                run.voice_response = response
-                action_msgs += actionset.execute_actions(run, msg, [])
-
-                # log it for our test contacts
-                if is_test_contact:
-                    ActionLog.create(step.run,
-                                     _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-
-                response.hangup()
-                run.set_completed()
-
-            for msg in action_msgs:
-                step.add_message(msg)
-
-            # sync our messages
-            flow.org.trigger_send(action_msgs)
-
-            # return our response
-            return response
-        else:
-            response.hangup()
+        # if we didn't handle it, this is a good time to hangup
+        if not handled or hangup:
+            voice_response.hangup()
             run.set_completed()
+
+            # if we hangup then the run is no longer active
+            run.expire()
+
+        return voice_response
+
+    @classmethod
+    def wrap_voice_response_with_input(cls, call, run, voice_response):
+        """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
+        step = run.steps.all().order_by('-pk').first()
+        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
+        if isinstance(destination, RuleSet):
+            response = twiml.Response()
+            callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+            gather = destination.get_voice_input(response, action=callback)
+
+            # recordings have to be tacked on last
+            if destination.response_type == RECORDING:
+                voice_response.record(action=callback)
+            elif gather:
+                # nest all of our previous verbs in our gather
+                for verb in voice_response.verbs:
+                    gather.append(verb)
+                voice_response = response
+
+        return voice_response
+
+    @classmethod
+    def download_recording(cls, call, recording_url, recording_id):
+        """
+        Fetches the recording and stores it with the provided recording_id
+        :param call: the call the recording is a part of
+        :param recording_url: the url where the recording lives
+        :param recording_id: the id we will use for the downloaded recording
+        :return: the url for our downloaded recording
+        """
+        run = FlowRun.objects.filter(call=call).first()
+
+        ivr_client = call.channel.get_ivr_client()
+        recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(recording.content)
+        temp.flush()
+
+        print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
+        return default_storage.save('recordings/%d/%d/runs/%d/%s.wav' %
+                                    (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
+
 
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
@@ -610,7 +543,7 @@ class Flow(TembaModel, SmartModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None):
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None):
 
         if started_flows is None:
             started_flows = []
@@ -652,7 +585,6 @@ class Flow(TembaModel, SmartModel):
 
         return False
 
-
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False,
@@ -665,7 +597,6 @@ class Flow(TembaModel, SmartModel):
             path.append(uuid)
 
         start_time = time.time()
-
         path = []
 
         # lookup our next destination
@@ -675,17 +606,17 @@ class Flow(TembaModel, SmartModel):
 
             if destination.get_step_type() == RULE_SET:
 
-                requires_input = False
+                should_pause = False
 
                 # if we are a ruleset against @step or we have a webhook we wait
-                if (destination.webhook_url and not force_execute_webhook) or destination.requires_step():
-                    requires_input = True
+                if destination.is_pause(force_execute_webhook):
+                    should_pause = True
 
-                if user_input or not requires_input:
+                if user_input or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
 
-                if requires_input:
+                if should_pause:
                     user_input = False
 
                     # once we handle user input, reset our path
@@ -726,7 +657,8 @@ class Flow(TembaModel, SmartModel):
         msgs = actionset.execute_actions(run, msg, started_flows)
 
         for msg in msgs:
-            step.add_message(msg)
+            if msg:
+                step.add_message(msg)
 
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
@@ -2477,16 +2409,28 @@ class RuleSet(models.Model):
         else:
             return TEXT
 
-    def get_voice_input(self, run, action=None):
+    def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
         if self.response_type == RECORDING:
-            return run.voice_response
+            return voice_response
         elif self.response_type == KEYPAD:
-            return run.voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
+            return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
         else:
             # otherwise we assume it's single digit entry
-            return run.voice_response.gather(numDigits=1, timeout=60, action=action)
+            return voice_response.gather(numDigits=1, timeout=60, action=action)
+
+    def is_pause(self, force_execute_webhook=False):
+        if self.webhook_url and not force_execute_webhook:
+            return True
+
+        if self.response_type in (RECORDING, MENU):
+            return True
+
+        if self.requires_step():
+            return True
+
+        return False
 
     def requires_step(self):
         """
@@ -2904,15 +2848,19 @@ class FlowRun(models.Model):
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
-        if recording_url:
-            self.voice_response.play(url=recording_url)
-        else:
-            self.voice_response.say(text)
-
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
-        return Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
-                                   response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)
+        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
+                                  response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)
+
+        if msg:
+            if recording_url:
+                self.voice_response.play(url=recording_url)
+            else:
+                self.voice_response.say(text)
+
+        return msg
+
 
 class MemorySavingQuerysetIterator(object):
     """
@@ -3953,12 +3901,18 @@ class SayAction(Action):
 
         msg = run.create_outgoing_ivr(message, recording_url)
 
-        if run.contact.is_test:
-            if recording_url:
-                ActionLog.create(run, _('Played recorded message for "%s"') % message)
-            else:
-                ActionLog.create(run, _('Read message "%s"') % message)
-        return [msg]
+        if msg:
+            if run.contact.is_test:
+                if recording_url:
+                    ActionLog.create(run, _('Played recorded message for "%s"') % message)
+                else:
+                    ActionLog.create(run, _('Read message "%s"') % message)
+            return [msg]
+        else:
+            # no message, possibly failed loop detection
+            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
+            return []
+
 
     def update_base_language(self, language_iso):
         # if we are a single language message, then convert to multi-language
@@ -3992,14 +3946,19 @@ class PlayAction(Action):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
     def execute(self, run, actionset, event):
+
         (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
 
-        if run.contact.is_test:
-            log_txt = _('Played recording at "%s"') % recording_url
-            ActionLog.create(run, log_txt)
-
-        return [msg]
+        if msg:
+            if run.contact.is_test:
+                log_txt = _('Played recording at "%s"') % recording_url
+                ActionLog.create(run, log_txt)
+            return [msg]
+        else:
+            # no message, possibly failed loop detection
+            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
+            return []
 
     def get_description(self):
         return "Played %s" % self.url

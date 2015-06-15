@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
@@ -29,7 +29,6 @@ EMAIL_HOST_USER = 'server@temba.io'
 DEFAULT_FROM_EMAIL = 'server@temba.io'
 EMAIL_HOST_PASSWORD = 'mypassword'
 EMAIL_USE_TLS = True
-API_URL = 'https://api.temba.io'
 
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl.temba.io'
@@ -281,7 +280,8 @@ BRANDING = {
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
-        'link': 'http://rapidpro.io',
+        'link': 'https://rapidpro.io',
+        'api_link': 'https://api.rapidpro.io',
         'domain': 'rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
@@ -292,13 +292,11 @@ BRANDING = {
         'credits': _("Copyright &copy; 2012-2014 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
-
+DEFAULT_BRAND = 'rapidpro.io'
 
 #-----------------------------------------------------------------------------------
 # Directory Configuration
 #-----------------------------------------------------------------------------------
-import os
-
 PROJECT_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)))
 LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
@@ -986,7 +984,7 @@ SESSION_CACHE_ALIAS = "default"
 #-----------------------------------------------------------------------------------
 # 3rd Party Integration Keys
 #-----------------------------------------------------------------------------------
-TWITTER_API_KEY = "your twitter api key"
-TWITTER_API_SECRET = "your twitter api secret"
+TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
+TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
 # SEGMENT_IO_KEY = "your segment.io key here"

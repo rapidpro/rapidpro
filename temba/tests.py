@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet
+from temba.flows.models import Flow, ActionSet, RuleSet, FLOW
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -257,8 +257,8 @@ class FlowFileTest(TembaTest):
         finally:
             Contact.set_simulation(False)
 
-    def get_flow(self, filename, substitutions=None):
-        flow = Flow.create(self.org, self.admin, name=filename)
+    def get_flow(self, filename, substitutions=None, flow_type=Flow.FLOW):
+        flow = Flow.create(self.org, self.admin, name=filename, flow_type=flow_type)
         self.update_flow(flow, filename, substitutions)
         return flow
 

@@ -12,8 +12,8 @@ from django.conf import settings
 from twilio import twiml
 
 from temba.utils import build_json_response
-from temba.flows.models import Flow, ActionSet
-from .models import IVRCall, IN_PROGRESS
+from temba.flows.models import Flow, FlowRun, ActionSet
+from .models import IVRCall, IN_PROGRESS, COMPLETED
 
 class CallHandler(View):
 
@@ -47,12 +47,20 @@ class CallHandler(View):
                                request.POST.get('CallDuration', None))
             call.save()
 
-            hung_up = 'hangup' == request.POST.get('Digits', None)
-            if call.status == IN_PROGRESS or hung_up:
+            hangup = 'hangup' == request.POST.get('Digits', None)
+
+            if call.status == IN_PROGRESS or hangup:
                 if call.is_flow():
-                    response = Flow.handle_call(call, request.POST)
+                    response = Flow.handle_call(call, request.POST, hangup=hangup)
                     return HttpResponse(unicode(response))
             else:
+
+                if call.status == COMPLETED:
+                    # if our call is completed, hangup
+                    run = FlowRun.objects.filter(call=call).first()
+                    if run:
+                        run.set_completed()
+                        run.expire()
                 return build_json_response(dict(message="Updated call status"))
 
         else:  # pragma: no cover

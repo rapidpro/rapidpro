@@ -54,7 +54,7 @@ class Campaign(SmartModel):
         return name
 
     @classmethod
-    def import_campaigns(cls, exported_json, org, user, site=None):
+    def import_campaigns(cls, exported_json, org, user, same_site=False):
         """
         Import campaigns from our export file
         """
@@ -69,7 +69,7 @@ class Campaign(SmartModel):
                 group = None
 
                 # first check if we have the objects by id
-                if site and site == exported_json.get('site', None):
+                if same_site:
                     group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
                     if group:
                         group.name = campaign_spec['group']['name']
