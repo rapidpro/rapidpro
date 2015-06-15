@@ -1173,6 +1173,48 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue('form' in response.context)
         self.assertTrue(response.context['form'].errors)
 
+    def test_org_service(self):
+        # create a customer service user
+        self.csrep = self.create_user("csrep")
+        self.csrep.groups.add(Group.objects.get(name="Customer Support"))
+        self.csrep.is_staff = True
+        self.csrep.save()
+
+        service_url = reverse('orgs.org_service')
+
+        # without logging in, try to service our main org
+        response = self.client.post(service_url, dict(organization=self.org.id))
+        self.assertRedirect(response, '/users/login/')
+
+        # try logging in with a normal user
+        self.login(self.admin)
+
+        # same thing, no permission
+        response = self.client.post(service_url, dict(organization=self.org.id))
+        self.assertRedirect(response, '/users/login/')
+
+        # ok, log in as our cs rep
+        self.login(self.csrep)
+
+        # then service our org
+        response = self.client.post(service_url, dict(organization=self.org.id))
+        self.assertRedirect(response, '/msg/inbox/')
+
+        # create a new contact
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', __urn__tel='0788123123'))
+        self.assertNoFormErrors(response)
+
+        # make sure that contact's created on is our cs rep
+        contact = Contact.objects.get(urns__path='+250788123123', org=self.org)
+        self.assertEquals(self.csrep, contact.created_by)
+
+        # ok, now end our session
+        response = self.client.post(service_url, dict())
+        self.assertRedirect(response, '/org/manage/')
+
+        # can no longer go to inbox, asked to log in
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertRedirect(response, '/users/login/')
 
 class BulkExportTest(TembaTest):
 

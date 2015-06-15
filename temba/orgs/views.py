@@ -71,8 +71,9 @@ class OrgPermsMixin(object):
 
         if not org:
             if user.is_authenticated():
-                if user.is_superuser:
+                if user.is_superuser or user.is_staff:
                     return None
+
                 return HttpResponseRedirect(reverse('orgs.org_choose'))
             else:
                 return HttpResponseRedirect(settings.LOGIN_URL)
@@ -414,7 +415,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
-               'plivo_connect')
+               'plivo_connect', 'service')
 
     model = Org
 
@@ -756,8 +757,9 @@ class OrgCRUDL(SmartCRUDL):
             if not owner:
                 owner = obj.created_by
 
-            url = reverse('users.user_mimic', args=[owner.pk])
-            return "<a href='%s' class='login btn btn-tiny'>Login</a><div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>" % (url, owner.first_name, owner.last_name, owner)
+            url = reverse('orgs.org_service')
+            return "<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a><div class='owner-name'>%s %s</div>" \
+                   "<div class='owner-email'>%s</div>" % (url, obj.id, owner.first_name, owner.last_name, owner)
 
         def get_name(self, obj):
             return "<div class='org-name'>%s</div><div class='org-timezone'>%s</div>" % (obj.name, obj.timezone)
@@ -946,9 +948,29 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
+    class Service(SmartFormView):
+        class ServiceForm(forms.Form):
+            organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
+
+        form_class = ServiceForm
+        success_url = '@msgs.msg_inbox'
+        fields = ('organization',)
+
+        # valid form means we set our org and redirect to their inbox
+        def form_valid(self, form):
+            org = form.cleaned_data['organization']
+            self.request.session['org_id'] = org.pk
+            return HttpResponseRedirect(self.get_success_url())
+
+        # invalid form login 'logs out' the user from the org and takes them to the org manage page
+        def form_invalid(self, form):
+            self.request.session['org_id'] = None
+            return HttpResponseRedirect(reverse('orgs.org_manage'))
+
+
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
-            organization = forms.ModelChoiceField(queryset=Org.objects.all() ,empty_label=None)
+            organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
         
         form_class = ChooseForm
         success_url = '@msgs.msg_inbox'
@@ -959,7 +981,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.request.user.is_authenticated():
                 user_orgs = self.request.user.get_user_orgs()
 
-                if self.request.user.is_superuser:
+                if self.request.user.is_superuser or self.request.user.is_staff:
                     return HttpResponseRedirect(reverse('orgs.org_manage'))
 
                 elif user_orgs.count() == 1:

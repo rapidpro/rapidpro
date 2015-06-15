@@ -79,7 +79,13 @@ class OrgTimezoneMiddleware(object):
 
             org_id = request.session.get('org_id', None)
             if org_id:
-                user.set_org(Org.objects.get(pk=org_id))
+                org = Org.objects.filter(is_active=True, pk=org_id).first()
+
+            # only set the org if they are still a user or an admin
+            if org and (user.is_superuser or user.is_staff or user in org.get_org_users()):
+                user.set_org(org)
+
+            # otherwise, show them what orgs are available
             else:
                 user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
                 user_orgs = user_orgs.distinct('pk')

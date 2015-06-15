@@ -886,6 +886,8 @@ class Org(SmartModel):
             user._org_group = Group.objects.get(name="Editors")
         elif user in self.get_org_viewers():
             user._org_group = Group.objects.get(name="Viewers")
+        elif user.is_staff:
+            user._org_group = Group.objects.get(name="Administrators")
         else:
             user._org_group = None
 
@@ -1413,6 +1415,10 @@ def _user_has_org_perm(user, org, permission):
 
     if user.is_anonymous():
         return False
+
+    # has it innately? (customer support)
+    if user.has_perm(permission):
+        return True
 
     org_group = org.get_user_org_group(user)
 
