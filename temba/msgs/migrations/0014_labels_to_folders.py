@@ -60,7 +60,7 @@ def migrate_label_hierarchies(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0012_label_folder_and_type'),
+        ('msgs', '0013_label_folder_and_type'),
     ]
 
     operations = [

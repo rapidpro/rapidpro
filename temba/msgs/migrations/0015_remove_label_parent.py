@@ -7,7 +7,7 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0013_labels_to_folders'),
+        ('msgs', '0014_labels_to_folders'),
     ]
 
     operations = [
