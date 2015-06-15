@@ -167,11 +167,9 @@ def channel_status_processor(request):
 
     allowed = False
     if org:
-        # user must be admin or editor
-        allowed = org.get_org_admins().filter(pk=user.pk) | org.get_org_editors().filter(pk=user.pk)
+        allowed = user.has_org_perm(org, 'channels.channel_claim')
 
     if allowed:
-
         # only care about channels that are older than an hour
         cutoff = timezone.now() - timedelta(hours=1)
         send_channel = org.get_send_channel(scheme=TEL_SCHEME)
