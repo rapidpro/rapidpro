@@ -24,7 +24,7 @@ def migrate_label_hierarchies(apps, schema_editor):
         for name, labels in labels_by_name.iteritems():
             if len(labels) > 1:
                 for l in range(1, len(labels)):
-                    labels[l].name = '%s %d' % (name, l)
+                    labels[l].name = '%s (%d)' % (name, l)
                     labels[l].save(update_fields=('name',))
                     rename_count += 1
 
