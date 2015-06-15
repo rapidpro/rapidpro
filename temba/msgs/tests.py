@@ -1292,48 +1292,62 @@ class LabelTest(TembaTest):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         self.assertRaises(ValueError, folder.get_message_count)
 
-    def test_get_messages(self):
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder)
-        label2 = Label.get_or_create(self.org, self.user, "Social", folder)
+    def test_get_messages_and_hierarchy(self):
+        folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
+        folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
+        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
+        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
+        label3 = Label.get_or_create(self.org, self.user, "Other")
+
         msg1 = self.create_msg(text="Message 1", contact=self.joe)
         msg2 = self.create_msg(text="Message 2", contact=self.joe)
         msg3 = self.create_msg(text="Message 3", contact=self.joe)
 
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg2, msg3], add=True)
+        label3.toggle_label([msg3], add=True)
 
+        self.assertEqual(set(folder1.get_messages()), {msg1, msg2, msg3})
+        self.assertEqual(set(folder2.get_messages()), set())
         self.assertEqual(set(label1.get_messages()), {msg1, msg2})
         self.assertEqual(set(label2.get_messages()), {msg2, msg3})
-        self.assertEqual(set(folder.get_messages()), {msg1, msg2, msg3})
+        self.assertEqual(set(label3.get_messages()), {msg3})
+
+        with self.assertNumQueries(2):
+            hierarchy = Label.get_hierarchy(self.org)
+            self.assertEqual(list(hierarchy), [label3, folder1, folder2])
+            self.assertEqual(list(hierarchy[1].children.all()), [label2, label1])
 
 
 class LabelCRUDLTest(TembaTest):
 
     def test_create_and_update(self):
-        create_url = reverse('msgs.label_create')
+        create_label_url = reverse('msgs.label_create')
+        create_folder_url = reverse('msgs.label_create_folder')
 
         self.login(self.admin)
 
         # try to create label with invalid name
-        response = self.client.post(create_url, dict(name="+label_one"))
-        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
+        response = self.client.post(create_label_url, dict(name="+label_one"))
+        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with + or -")
 
         # try again with valid name
-        self.client.post(create_url, dict(name="label_one"), follow=True)
+        self.client.post(create_label_url, dict(name="label_one"), follow=True)
 
         label_one = Label.user_labels.get()
         self.assertEqual(label_one.name, "label_one")
         self.assertIsNone(label_one.folder)
 
         # check that we can't create another with same name
-        response = self.client.post(create_url, dict(name="label_one"))
-        self.assertFormError(response, 'form', 'name', "Label name must be unique")
+        response = self.client.post(create_label_url, dict(name="label_one"))
+        self.assertFormError(response, 'form', 'name', "Name must be unique")
 
-        # create a label in a folder
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.client.post(create_url, dict(name="label_two", folder=folder.pk), follow=True)
+        # create a folder
+        self.client.post(create_folder_url, dict(name="Folder"), follow=True)
+        folder = Label.user_folders.get(name="Folder")
 
+        # and a label in it
+        self.client.post(create_label_url, dict(name="label_two", folder=folder.pk), follow=True)
         label_two = Label.user_labels.get(name="label_two")
         self.assertEqual(label_two.folder, folder)
 
@@ -1346,7 +1360,7 @@ class LabelCRUDLTest(TembaTest):
 
         # try to update to invalid label name
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
-        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with + or -")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")

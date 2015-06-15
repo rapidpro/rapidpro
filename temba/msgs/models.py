@@ -1397,7 +1397,7 @@ class Label(TembaModel, SmartModel):
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
 
     # define some custom managers to do the filtering of label types for us
-    all_labels = models.Manager()
+    user_all = models.Manager()
     user_folders = UserFolderManager()
     user_labels = UserLabelManager()
 
@@ -1432,21 +1432,36 @@ class Label(TembaModel, SmartModel):
                                        created_by=user, modified_by=user)
 
     @classmethod
+    def get_hierarchy(cls, org):
+        """
+        Gets top-level user labels and folders, with children pre-fetched and ordered by name
+        """
+        qs = Label.user_all.filter(org=org).order_by('name')
+        qs = qs.filter(Q(label_type=cls.USER_LABEL, folder=None) | Q(label_type=cls.USER_FOLDER))
+
+        children_prefetch = Prefetch('children', queryset=Label.user_all.order_by('name'))
+
+        return qs.select_related('folder').prefetch_related(children_prefetch)
+
+    @classmethod
     def is_valid_name(cls, name):
         return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
-    def get_messages(self):
-        if self.label_type == self.USER_FOLDER:
-            return Msg.objects.filter(labels__in=self.children.all()).distinct()
+    def filter_messages(self, queryset):
+        if self.is_folder():
+            return queryset.filter(labels__in=self.children.all()).distinct()
 
-        return self.msgs.all()
+        return queryset.filter(labels=self)
+
+    def get_messages(self):
+        return self.filter_messages(Msg.objects.all())
 
     def get_message_count(self):
         """
         Returns the count of message tagged with this label or one of its children
         """
-        if self.label_type == self.USER_FOLDER:
-            raise ValueError("Message counts are not tracked for label folders")
+        if self.is_folder():
+            raise ValueError("Message counts are not tracked for user folders")
 
         return get_cacheable_result(self.get_message_count_cache_key(), ORG_DISPLAY_CACHE_TTL,
                                     self._calculate_message_count)
@@ -1483,6 +1498,9 @@ class Label(TembaModel, SmartModel):
         count_delta = len(changed) if add else -len(changed)
         incrby_existing(self.get_message_count_cache_key(), count_delta)
         return changed
+
+    def is_folder(self):
+        return self.label_type == Label.USER_FOLDER
 
     def __unicode__(self):
         if self.folder:

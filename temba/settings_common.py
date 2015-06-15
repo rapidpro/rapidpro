@@ -462,7 +462,7 @@ PERMISSIONS = {
 
     'msgs.call': ('api',),
 
-    'msgs.label': ('api',),
+    'msgs.label': ('api', 'create', 'create_folder'),
 
     'triggers.trigger': ('archived',
                          'catchall',

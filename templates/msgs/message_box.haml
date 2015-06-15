@@ -50,27 +50,32 @@
                   - trans "Labels"
                 - for node in labels
                   - if node.is_folder
-                    %li.label-folder{ data-initial-expanded:'{% if current_label.folder.id == node.id %}true{% else %}false{% endif %}', data-folder-id:"{{ node.id }}" }
-                      .folder-name
+                    %li{ class:'{% if current_label.id == node.id %}active{% endif %} lbl-parent {% if current_label.id == node.id or current_label.folder.id == node.id %}expanded{% endif %}' }
+                      %a{'href':'{% url "msgs.msg_filter" node.id %}'}
                         {{ node.name }}
-                        %span.glyph
+                        - if node.children.all
+                          - if current_label.id == node.id or current_label.folder.id == node.id
+                            .glyph.icon-arrow-down-2
+                          -else
+                            .glyph.icon-arrow-right-8
+
                       %ul.nav.nav-list.level2
-                        - for label in node.labels
+                        - for label in node.children.all
                           %li{ class:'{% if current_label.id == label.id %}active{% endif %}' }
                             %a{ href:"{% url 'msgs.msg_filter' label.id %}" }
-                              {{ label.name }} ({{ label.count | intcomma }})
+                              {{ label.name }} ({{ label.get_message_count | intcomma }})
                   - else
                     %li{ class:'{% if current_label.id == node.id %}active{% endif %}' }
                       %a{ href:"{% url 'msgs.msg_filter' node.id %}", class:'{% if current_label.id == node.id %}active{% endif %}' }
-                        {{ node.name }} ({{ node.count | intcomma }})
+                        {{ node.name }} ({{ node.get_message_count | intcomma }})
 
           %div{style:"margin-top: 10px"}
             - if org_perms.msgs.label_create
               %a.btn.btn-block.add-label
-                -trans "Create Label"
-            - if org_perms.msgs.label_create
+                - trans "Create Label"
+            - if org_perms.msgs.label_create_folder
               %a.btn.btn-block.add-folder
-                -trans "Create Folder"
+                - trans "Create Folder"
 
         -if has_messages
           .span9
@@ -129,12 +134,12 @@
                             %span.caret
                           %ul.dropdown-menu.label-menu{role:'menu', aria-labelledby:'dlabel'}
                             - for node in labels
-                              - if node.is_folder and node.labels
+                              - if node.is_folder and node.children.all
                                 %li.dropdown-submenu
                                   %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
                                     {{ node.name }}
                                   %ul.dropdown-menu.label-menu
-                                    - for label in node.labels
+                                    - for label in node.children.all
                                       %li
                                         %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{label.id}}'}
                                           .glyph.message-label.label-checkbox
@@ -201,8 +206,6 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    window.expandedFolders = Object.create(null);
-
     {% if org_perms.msgs.msg_update %}
 
     function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
@@ -224,12 +227,11 @@
 
     $('.page-content').on('click', ".add-label", function() {
       lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Create Label" %}', '{% url "msgs.label_create" %}')
+      var modal = new Modax('{% trans "Create Label" %}', '{% url "msgs.label_create" %}');
       modal.setIcon('icon-tag');
       modal.setListeners({
         onFormLoaded: function(){
           $("#active-modal form input#id_messages").val(lastChecked.join());
-          // convert folder select to select2 or hide if there are no folders
           if ($('#id_folder').find('option').length > 1) {
             select2div('#id_folder');
           } else {
@@ -241,6 +243,14 @@
       modal.show();
     });
 
+    $('.page-content').on('click', ".add-folder", function() {
+      var modal = new Modax('{% trans "Create Folder" %}', '{% url "msgs.label_create_folder" %}');
+      modal.setIcon('icon-folder');
+      modal.setListeners({
+        onCompleted: function() { refresh(null, true);}
+      });
+      modal.show();
+    });
 
     {% if org_perms.msgs.broadcast_send %}
     if($(location).attr('hash') == '#message') {
@@ -278,50 +288,12 @@
     $('.page-content').on('click', ".msg-export-btn", function() {
       lastChecked = getCheckedIds();
       {% if current_label %}
-      var modal = new Modax('{% trans "Export Label Messages" %}', '{% url "msgs.msg_export" %}?label={{current_label.pk}}')
+      var modal = new Modax('{% trans "Export Label Messages" %}', '{% url "msgs.msg_export" %}?label={{current_label.pk}}');
       {% else %}
-      var modal = new Modax('{% trans "Export Messages" %}', '{% url "msgs.msg_export" %}')
+      var modal = new Modax('{% trans "Export Messages" %}', '{% url "msgs.msg_export" %}');
       {% endif %}
       modal.setIcon('icon-excel');
       modal.setRedirectOnSuccess(true);
       modal.show();
     });
     {% endif %}
-
-    $('.page-content')
-    .on('click', '.label-folder .folder-name', function() {
-      var folder = $(this).parent();
-      expandFolder(folder, !folder.hasClass('expanded'))
-    })
-    .on('pjax:complete', function() {  // when pjax content is refreshed, need to re-expand previously expanded folders
-      $('.label-folder').each(function() {
-        expandFolder($(this), $(this).data('folder-id') in window.expandedFolders);
-      });
-    });
-
-    $(function() {
-      $('.label-folder').each(function() {
-        expandFolder($(this), $(this).data('initial-expanded'));
-      });
-    });
-
-    function expandFolder(folder, expanded) {
-      folder.toggleClass('expanded', expanded);
-      if (expanded) {
-        window.expandedFolders[folder.data('folder-id')] = true;
-        folder.find('.glyph').removeClass('icon-arrow-right-8').addClass('icon-arrow-down-2');
-      } else {
-        delete window.expandedFolders[folder.data('folder-id')];
-        folder.find('.glyph').removeClass('icon-arrow-down-2').addClass('icon-arrow-right-8');
-      }
-    }
-
-
--block extra-style
-  {{ block.super }}
-  :css
-    .folder-name {
-      padding: 6px 0;
-      cursor: pointer;
-      color: #555;
-    }

@@ -4,7 +4,10 @@
 
 -block title-icon
   %span.title-icon
-    .glyph.icon-tag
+    - if current_label.is_folder
+      .glyph.icon-folder
+    - else
+      .glyph.icon-tag
 
 -block buttons-right
   -block gear-menu
@@ -15,11 +18,17 @@
   - if org_perms.msgs.label_delete
     .deletion.hide
       .title
-        -trans "Remove Label"
+        - if current_label.is_folder
+          - trans "Remove Folder"
+        - else
+          - trans "Remove Label"
 
       .body
         %p
-          -trans "Are you sure you want to remove this label?"
+          - if current_label.is_folder
+            - trans "Are you sure you want to remove this folder?"
+          - else
+            - trans "Are you sure you want to remove this label?"
         %p
           %b {{ current_label }}
           %p
@@ -62,6 +71,16 @@
             $('#id_folder').parents('.control-group').hide();
           }
         },
+        onSuccess: function() { location.reload(); }
+      });
+
+      modal.show();
+    });
+
+    $(".page-content").on('click', ".folder-update-btn", function() {
+      var modal = new Modax('{% trans "Update Folder" %}', '{% url "msgs.label_update" current_label.pk %}')
+      modal.setIcon('icon-folder');
+      modal.setListeners({
         onSuccess: function() { location.reload(); }
       });
 
