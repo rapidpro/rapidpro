@@ -165,7 +165,7 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
-        # login as org viewer
+        # login as administrator
         self.login(self.admin)
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)

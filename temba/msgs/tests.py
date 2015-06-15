@@ -1329,7 +1329,7 @@ class LabelCRUDLTest(TembaTest):
 
         # try to create label with invalid name
         response = self.client.post(create_label_url, dict(name="+label_one"))
-        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with punctuation")
 
         # try again with valid name
         self.client.post(create_label_url, dict(name="label_one"), follow=True)
@@ -1360,7 +1360,7 @@ class LabelCRUDLTest(TembaTest):
 
         # try to update to invalid label name
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
-        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with punctuation")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")

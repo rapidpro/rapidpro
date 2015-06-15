@@ -815,7 +815,7 @@ class BaseLabelForm(forms.ModelForm):
         name = self.cleaned_data['name']
 
         if not Label.is_valid_name(name):
-            raise forms.ValidationError("Name must not be blank or begin with + or -")
+            raise forms.ValidationError("Name must not be blank or begin with punctuation")
 
         existing_id = self.existing.pk if self.existing else None
         if Label.user_all.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
