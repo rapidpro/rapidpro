@@ -100,7 +100,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
     """
     Base class for message list views with message folders and labels listed by the side
     """
-    # refresh = 10000
+    refresh = 10000
     add_button = True
     fields = ('from', 'message', 'received')
     search_fields = ('text__icontains', 'contact__name__icontains', 'contact__urns__path__icontains')
