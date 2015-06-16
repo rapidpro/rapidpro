@@ -26,7 +26,7 @@
       .body
         %p
           - if current_label.is_folder
-            - trans "Are you sure you want to remove this folder?"
+            - trans "Are you sure you want to remove this folder? This will also delete any labels contained in this folder."
           - else
             - trans "Are you sure you want to remove this label?"
         %p

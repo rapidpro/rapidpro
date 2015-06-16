@@ -1318,6 +1318,35 @@ class LabelTest(TembaTest):
             self.assertEqual(list(hierarchy), [label3, folder1, folder2])
             self.assertEqual(list(hierarchy[1].children.all()), [label2, label1])
 
+    def test_delete_folder(self):
+        folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
+        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
+        label3 = Label.get_or_create(self.org, self.user, "Other")
+
+        msg1 = self.create_msg(text="Message 1", contact=self.joe)
+        msg2 = self.create_msg(text="Message 2", contact=self.joe)
+        msg3 = self.create_msg(text="Message 3", contact=self.joe)
+
+        label1.toggle_label([msg1, msg2], add=True)
+        label2.toggle_label([msg1], add=True)
+        label3.toggle_label([msg3], add=True)
+
+        folder1.delete()
+
+        self.assertFalse(Label.user_all.filter(pk=folder1.pk).exists())
+
+        # check that contained labels are also deleted
+        self.assertEqual(Label.user_all.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
+        self.assertEqual(set(Msg.objects.get(pk=msg1.pk).labels.all()), set())
+        self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
+        self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
+
+        label3.delete()
+
+        self.assertFalse(Label.user_all.filter(pk=label3.pk).exists())
+        self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
+
 
 class LabelCRUDLTest(TembaTest):
 
