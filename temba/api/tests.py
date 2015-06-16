@@ -159,8 +159,8 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
-        # login as plain user
-        self.login(self.user)
+        # login as non-org user
+        self.login(self.non_org_user)
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
@@ -1363,11 +1363,11 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "label=Goo")
         self.assertResultCount(response, 0)
 
-        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1 = Label.get_or_create(self.org, self.user, "Goo")
         label1.toggle_label([msg1, msg2], add=True)
-        label2 = Label.create_unique(self.org, self.user, "Boo")
+        label2 = Label.get_or_create(self.org, self.user, "Boo")
         label2.toggle_label([msg1, msg3], add=True)
-        label3 = Label.create_unique(self.org, self.user, "Roo")
+        label3 = Label.get_or_create(self.org, self.user, "Roo")
         label3.toggle_label([msg2, msg3], add=True)
 
         response = self.fetchJSON(url, "label=Goo&label=Boo")  # Goo or Boo
@@ -1444,10 +1444,10 @@ class APITest(TembaTest):
         self.assertJSON(response, 'urn', 'tel:+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
-        label1 = Label.create_unique(self.org, self.user, "Goo")
+        label1 = Label.get_or_create(self.org, self.user, "Goo")
         label1.toggle_label([msgs[0]], add=True)
 
-        label2 = Label.create_unique(self.org, self.user, "Fiber")
+        label2 = Label.get_or_create(self.org, self.user, "Fiber")
         label2.toggle_label([msgs[1]], add=True)
 
         response = self.fetchJSON(url, "label=Goo&label=Fiber")
@@ -1524,7 +1524,7 @@ class APITest(TembaTest):
         self.assertEquals(204, response.status_code)
 
         # check that new label was created and applied to messages 1 and 2
-        label = Label.objects.get(name='Test')
+        label = Label.user_labels.get(name='Test')
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # try to add an invalid label by name
@@ -1580,73 +1580,49 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEqual(response.status_code, 200)
 
-        # add a top-level labels
+        # add a label
         response = self.postJSON(url, dict(name='Screened'))
-        self.assertEquals(201, response.status_code)
+        self.assertEqual(201, response.status_code)
 
-        screened = Label.objects.get(name='Screened')
-        self.assertIsNone(screened.parent)
+        # check it exists
+        screened = Label.user_labels.get(name='Screened')
+        self.assertIsNone(screened.folder)
 
-        # can't create another with same name and parent
+        # can't create another with same name
         response = self.postJSON(url, dict(name='Screened'))
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(400, response.status_code)
 
         # add another with a different name
         response = self.postJSON(url, dict(name='Junk'))
         self.assertEquals(201, response.status_code)
 
-        junk = Label.objects.get(name='Junk')
-        self.assertIsNone(junk.parent)
+        junk = Label.user_labels.get(name='Junk')
+        self.assertIsNone(junk.folder)
 
-        # add a sub-label
-        response = self.postJSON(url, dict(name='Flagged', parent=screened.uuid))
+        # update changing name
+        response = self.postJSON(url, dict(uuid=screened.uuid, name='Important'))
         self.assertEquals(201, response.status_code)
 
-        flagged = Label.objects.get(name='Flagged')
-        self.assertEqual(flagged.parent, screened)
-
-        # update changing name and setting parent to null
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Spam', parent=''))
-        self.assertEquals(201, response.status_code)
-
-        flagged = Label.objects.get(uuid=flagged.uuid)
-        self.assertEqual(flagged.name, 'Spam')
-        self.assertIsNone(flagged.parent)
-
-        # update parent to another label
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Spam', parent=junk.uuid))
-        self.assertEquals(201, response.status_code)
-
-        flagged = Label.objects.get(uuid=flagged.uuid)
-        self.assertEqual(flagged.name, 'Spam')
-        self.assertEqual(flagged.parent, junk)
+        screened = Label.user_labels.get(uuid=screened.uuid)
+        self.assertEqual(screened.name, 'Important')
 
         # can't update name to something already used
-        response = self.postJSON(url, dict(uuid=flagged.uuid, name='Screened'))
-        self.assertEquals(400, response.status_code)
-
-        # can't create a label with a parent that has a parent
-        response = self.postJSON(url, dict(name='Interesting', parent=flagged.uuid))
+        response = self.postJSON(url, dict(uuid=screened.uuid, name='Junk'))
         self.assertEquals(400, response.status_code)
 
         # now fetch all labels
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 3)
+        self.assertResultCount(response, 2)
 
         # fetch by name
-        response = self.fetchJSON(url, 'name=Screened')
+        response = self.fetchJSON(url, 'name=Important')
         self.assertResultCount(response, 1)
-        self.assertContains(response, "Screened")
+        self.assertContains(response, "Important")
 
         # fetch by uuid
-        response = self.fetchJSON(url, 'uuid=%s' % screened.uuid)
+        response = self.fetchJSON(url, 'uuid=%s' % junk.uuid)
         self.assertResultCount(response, 1)
-        self.assertContains(response, "Screened")
-
-        # fetch by parent
-        response = self.fetchJSON(url, 'parent=%s' % junk.uuid)
-        self.assertResultCount(response, 1)
-        self.assertContains(response, "Spam")
+        self.assertContains(response, "Junk")
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
@@ -4158,9 +4134,9 @@ class WebHookTest(TembaTest):
 
         with patch('requests.post') as mock:
             # remove all the org users
-            self.org.administrators.remove(self.admin)
-            self.org.administrators.remove(self.root)
-            self.org.administrators.remove(self.user)
+            self.org.administrators.clear()
+            self.org.editors.clear()
+            self.org.viewers.clear()
 
             mock.return_value = MockResponse(200, "Hello World")
 
@@ -4332,7 +4308,7 @@ class WebHookTest(TembaTest):
         response = self.client.post(reverse('api.webhook_tunnel'), dict())
         self.assertEquals(302, response.status_code)
 
-        self.login(self.non_org_manager)
+        self.login(self.non_org_user)
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')

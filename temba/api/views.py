@@ -990,7 +990,6 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     * **uuid** - the UUID of the label (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of the label (string) (filterable: ```name```)
-    * **parent** - the UUID of the parent label (string) (filterable: ```parent```)
     * **count** - the number of messages with the label (int)
 
     Example:
@@ -1007,7 +1006,6 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                 {
                     "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
                     "name": "Screened",
-                    "parent": null,
                     "count": 315
                 },
                 ...
@@ -1019,14 +1017,12 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     A **POST** can be used to create a new message label. Don't specify a UUID as this will be generated for you.
 
     * **name** - the label name (string)
-    * **parent** - the UUID of an existing label which will be the parent (string, optional)
 
     Example:
 
         POST /api/v1/labels.json
         {
-            "name": "Screened",
-            "parent": null
+            "name": "Screened"
         }
 
     You will receive a label object (with the new UUID) as a response if successful:
@@ -1034,7 +1030,6 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         {
             "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
             "name": "Screened",
-            "parent": null,
             "count": 0
         }
 
@@ -1044,15 +1039,13 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     * **uuid** - the label UUID
     * **name** - the label name (string)
-    * **parent** - the UUID of an existing label which will be the parent (string, optional)
 
     Example:
 
         POST /api/v1/labels.json
         {
             "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
-            "name": "Checked",
-            "parent": null
+            "name": "Checked"
         }
 
     You will receive the updated label object as a response if successful:
@@ -1060,7 +1053,6 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         {
             "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
             "name": "Checked",
-            "parent": null,
             "count": 0
         }
     """
@@ -1070,7 +1062,7 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(org=self.request.user.get_org()).order_by('-pk')
+        queryset = self.model.user_labels.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1079,10 +1071,6 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
-
-        parents = self.request.QUERY_PARAMS.getlist('parent', None)
-        if parents:
-            queryset = queryset.filter(parent__uuid__in=parents)
 
         return queryset
 
@@ -1106,14 +1094,12 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     title="Add or Update a Message Label",
                     url=reverse('api.labels'),
                     slug='label-update',
-                    request='{ "name": "Screened", "parent": null }')
+                    request='{ "name": "Screened" }')
 
         spec['fields'] = [dict(name='uuid', required=True,
                                help='The UUID of the message label.  ex: "fdd156ca-233a-48c1-896d-a9d594d59b95"'),
                           dict(name='name', required=False,
-                               help='The name of the message label.  ex: "Screened"'),
-                          dict(name='parent', required=False,
-                               help='The UUID of the parent label. ex: "34914a7c-911d-4768-8adb-ac75fb6e9b94"')]
+                               help='The name of the message label.  ex: "Screened"')]
         return spec
 
 
@@ -1878,7 +1864,7 @@ class FlowResultsEndpoint(BaseAPIView):
                 }
            ...
     """
-    permission = 'flows.flow_results'
+    permission = 'flows.flow_api'
 
     def get(self, request, *args, **kwargs):
         user = request.user

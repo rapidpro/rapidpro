@@ -127,11 +127,10 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
   options = []
   selected = null
   for child in children
-    if child.value
-      option = { id: child.value, text: child.label }
-      if child.selected
-        selected = option
-      options.push(option)
+    option = { id: child.value, text: child.label }
+    if child.selected
+      selected = option
+    options.push(option)
 
   ele.replaceWith("<input width='" + width + "' name='" + ele.attr('name') + "' style='width:" + width + "' id='" + ele.attr('id') + "'/>")
   ele = $(selector)

@@ -21,7 +21,7 @@ from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule
+from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, VISIBLE
 
 
 def send_message_auto_complete_processor(request):
@@ -139,13 +139,9 @@ class FolderListView(OrgPermsMixin, SmartListView):
                    dict(count=org.get_folder_count(OrgFolder.broadcasts_scheduled), label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
                    dict(count=org.get_folder_count(OrgFolder.msgs_failed), label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
-        # fetch all top-level labels with their children
-        label_qs = Label.objects.filter(org=org, parent=None)
-        label_qs = label_qs.prefetch_related('children').order_by('name')
-        labels = [dict(pk=l.pk, label=l.name, count=l.get_message_count(), children=l.children.all()) for l in label_qs]
-
         context['folders'] = folders
-        context['labels'] = labels
+        context['labels'] = Label.get_hierarchy(org)
+        context['has_labels'] = Label.user_labels.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
@@ -386,7 +382,7 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'objects'
+    LABEL_CLASS_MANAGER = 'user_labels'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
@@ -503,6 +499,7 @@ class MsgActionForm(BaseActionForm):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
+    LABEL_CLASS_MANAGER = 'user_labels'
 
     HAS_IS_ACTIVE = False
 
@@ -610,7 +607,7 @@ class MsgCRUDL(SmartCRUDL):
 
             label = None
             if label_id:
-                label = Label.objects.get(pk=label_id)
+                label = Label.user_labels.get(pk=label_id)
 
             host = self.request.branding['host']
 
@@ -766,10 +763,12 @@ class MsgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
+            edit_btn_cls = 'folder-update-btn' if self.derive_label().is_folder() else 'label-update-btn'
+
             if self.has_org_perm('msgs.msg_update'):
                 links.append(dict(title=_('Edit'),
                                   href='#',
-                                  js_class="label-update-btn"))
+                                  js_class=edit_btn_cls))
 
             if self.has_org_perm('msgs.msg_export'):
                 links.append(dict(title=_('Export Data'),
@@ -803,59 +802,58 @@ class MsgCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<label_id>\d+)/$' % (path, action)
 
         def derive_label(self):
-            return Label.objects.get(pk=self.kwargs['label_id'])
-
-        def get_label_filter(self):
-            label = Label.objects.get(pk=self.kwargs['label_id'])
-            children = label.children.all()
-            if children:
-                return [l for l in Label.objects.filter(parent=label)] + [label]
-            else:
-                return [label]
+            return Label.user_all.get(pk=self.kwargs['label_id'])
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org()).order_by('-created_on')
-            qs = qs.filter(labels__in=self.get_label_filter()).distinct().select_related('contact')
-            return qs
+            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
+
+            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
 
-class LabelForm(forms.ModelForm):
-    parent = forms.ModelChoiceField(Label.objects.none(), required=False, label=_("Parent"))
-    messages = forms.CharField(required=False, widget=forms.HiddenInput)
-
-    def __init__(self, *args, **kwargs):
-        self.org = kwargs.pop('org')
-        self.existing = kwargs.pop('label', None)
-
-        super(LabelForm, self).__init__(*args, **kwargs)
-        parent_qs = Label.objects.filter(org=self.org, parent=None)
-
-        # can't be your own parent
-        if self.existing:
-            parent_qs = parent_qs.exclude(id=self.existing.pk)
-
-        self.fields['parent'].queryset = parent_qs
-
+class BaseLabelForm(forms.ModelForm):
     def clean_name(self):
-        data = self.cleaned_data['name']
+        name = self.cleaned_data['name']
 
-        if not Label.is_valid_name(data):
-            raise forms.ValidationError("Label name must not be blank or begin with + or -")
+        if not Label.is_valid_name(name):
+            raise forms.ValidationError("Name must not be blank or begin with punctuation")
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.objects.filter(org=self.org, name__iexact=data).exclude(pk=existing_id).exists():
-            raise forms.ValidationError("Label name must be unique")
+        if Label.user_all.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+            raise forms.ValidationError("Name must be unique")
 
-        return data
+        return name
 
     class Meta:
         model = Label
 
 
+class LabelForm(BaseLabelForm):
+    folder = forms.ModelChoiceField(Label.user_folders.none(), required=False, label=_("Folder"))
+    messages = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs.pop('org')
+        self.existing = kwargs.pop('object', None)
+
+        super(LabelForm, self).__init__(*args, **kwargs)
+
+        self.fields['folder'].queryset = Label.user_folders.filter(org=self.org)
+
+
+class FolderForm(BaseLabelForm):
+    name = forms.CharField(label=_("Name"), help_text=_("The name of this folder"))
+
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs.pop('org')
+        self.existing = kwargs.pop('object', None)
+
+        super(FolderForm, self).__init__(*args, **kwargs)
+
+
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ('create', 'update', 'delete', 'list')
+    actions = ('create', 'create_folder', 'update', 'delete', 'list')
 
     class List(OrgPermsMixin, SmartListView):
         paginate_by = None
@@ -871,7 +869,7 @@ class LabelCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ('name', 'parent', 'messages')
+        fields = ('name', 'folder', 'messages')
         success_url = '@msgs.msg_inbox'
         form_class = LabelForm
         success_message = ''
@@ -884,7 +882,7 @@ class LabelCRUDL(SmartCRUDL):
 
         def save(self, obj):
             user = self.request.user
-            self.object = Label.create(user.get_org(), user, obj.name, obj.parent)
+            self.object = Label.get_or_create(user.get_org(), user, obj.name, obj.folder)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
@@ -897,19 +895,40 @@ class LabelCRUDL(SmartCRUDL):
 
             return obj
 
+    class CreateFolder(ModalMixin, OrgPermsMixin, SmartCreateView):
+        fields = ('name',)
+        success_url = '@msgs.msg_inbox'
+        form_class = FolderForm
+        success_message = ''
+        submit_button_name = _("Create")
+
+        def get_form_kwargs(self):
+            kwargs = super(LabelCRUDL.CreateFolder, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
+
+        def save(self, obj):
+            user = self.request.user
+            self.object = Label.get_or_create_folder(user.get_org(), user, obj.name)
+
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        form_class = LabelForm
         success_url = 'id@msgs.msg_filter'
         success_message = ''
 
         def get_form_kwargs(self):
             kwargs = super(LabelCRUDL.Update, self).get_form_kwargs()
             kwargs['org'] = self.request.user.get_org()
-            kwargs['label'] = self.get_object()
+            kwargs['object'] = self.get_object()
             return kwargs
 
+        def get_form_class(self):
+            return FolderForm if self.get_object().is_folder() else LabelForm
+
+        def derive_title(self):
+            return _("Update Folder") if self.get_object().is_folder() else _("Update Label")
+
         def derive_fields(self):
-            return ('name', 'parent')
+            return ('name',) if self.get_object().is_folder() else ('name', 'folder')
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
         redirect_url = "@msgs.msg_inbox"
