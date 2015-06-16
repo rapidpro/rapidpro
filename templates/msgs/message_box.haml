@@ -151,7 +151,8 @@
                                     {{ node.name }}
 
                             - if org_perms.msgs.label_create
-                              %li.divider
+                              - if has_labels
+                                %li.divider
                               %li
                                 %a.lbl-menu.add-label{href:'#'}
                                   -trans "New Label..."

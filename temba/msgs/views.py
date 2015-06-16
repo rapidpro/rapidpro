@@ -141,6 +141,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
 
         context['folders'] = folders
         context['labels'] = Label.get_hierarchy(org)
+        context['has_labels'] = Label.user_labels.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
