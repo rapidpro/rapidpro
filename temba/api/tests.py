@@ -1518,12 +1518,13 @@ class APITest(TembaTest):
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #1')
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #2')
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #3')
+        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
 
-        # add label by name to messages 1 and 2
-        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label='Test'))
+        # add label by name to messages 1, 2 and 4
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg4.pk], action='label', label='Test'))
         self.assertEquals(204, response.status_code)
 
-        # check that new label was created and applied to messages 1 and 2
+        # check that label was created and applied to messages 1 and 2 but not 4 (because it's outgoing)
         label = Label.user_labels.get(name='Test')
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
@@ -1547,21 +1548,21 @@ class APITest(TembaTest):
         self.assertEqual(set(label.get_messages()), set())
 
         # archive all messages
-        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk], action='archive'))
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), set())
+        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg4})  # ignored as is outgoing
         self.assertEqual(set(Msg.objects.filter(visibility=ARCHIVED)), {msg1, msg2, msg3})
 
         # un-archive message 1
         response = self.postJSON(url, dict(messages=[msg1.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg1})
+        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg1, msg4})
         self.assertEqual(set(Msg.objects.filter(visibility=ARCHIVED)), {msg2, msg3})
 
-        # delete message 2
+        # delete messages 2 and 4
         response = self.postJSON(url, dict(messages=[msg2.pk], action='delete'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg1})
+        self.assertEqual(set(Msg.objects.filter(visibility=VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
         self.assertEqual(set(Msg.objects.filter(visibility=ARCHIVED)), {msg3})
         self.assertEqual(set(Msg.objects.filter(visibility=DELETED)), {msg2})
 

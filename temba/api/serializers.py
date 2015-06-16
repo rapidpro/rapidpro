@@ -13,7 +13,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED
+from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
 
 
@@ -228,7 +228,7 @@ class MsgBulkActionSerializer(WriteSerializer):
         msg_ids = attrs['messages']
         action = attrs['action']
 
-        msgs = Msg.objects.filter(org=self.org, pk__in=msg_ids)
+        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids)
 
         if action == 'label':
             attrs['label'].toggle_label(msgs, add=True)

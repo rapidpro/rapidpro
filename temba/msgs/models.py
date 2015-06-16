@@ -1232,11 +1232,13 @@ class Msg(models.Model, OrgModelMixin):
         self.save(update_fields=('status', 'delivered_on', 'sent_on'))
         Channel.track_status(self.channel, "Delivered")
 
-
     def archive(self):
         """
         Archives this message, provided it is currently visible
         """
+        if self.direction != INCOMING:
+            raise ValueError("Can only archive incoming messages")
+
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
     def restore(self):
@@ -1249,6 +1251,9 @@ class Msg(models.Model, OrgModelMixin):
         """
         Releases (i.e. deletes) this message, provided it is not currently deleted
         """
+        if self.direction != INCOMING:
+            raise ValueError("Can only delete incoming messages")
+
         self.archive()  # handle VISIBLE > ARCHIVED state change first if necessary
 
         if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
@@ -1486,6 +1491,9 @@ class Label(TembaModel, SmartModel):
         changed = set()
 
         for msg in msgs:
+            if msg.direction != INCOMING:
+                raise ValueError("Can only apply labels to incoming messages")
+
             # if we are adding the label and this message doesnt have it, add it
             if add:
                 if not msg.labels.filter(pk=self.pk):

@@ -15,7 +15,7 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, SENT
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
@@ -30,14 +30,37 @@ class MsgTest(TembaTest):
 
         self.joe = self.create_contact("Joe Blow", "123")
         self.frank = self.create_contact("Frank Blow", "321")
-
-        self.just_joe = self.create_group("Just Joe", [ self.joe ])
-
-        self.joe_and_frank = self.create_group("Joe and Frank", [ self.joe, self.frank ])
-
         self.kevin = self.create_contact("Kevin Durant", "987")
-        
-        self.admin.set_org(self.org)
+
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_archive_and_release(self):
+        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '123'), "Incoming")
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
+        label = Label.get_or_create(self.org, self.admin, "Spam")
+        label.toggle_label([msg1], add=True)
+
+        msg1.archive()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, ARCHIVED)
+        self.assertEqual(set(msg1.labels.all()), {label})  # don't remove labels
+
+        msg1.restore()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, VISIBLE)
+
+        msg1.release()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, DELETED)
+        self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
+
+        # can't archive, restore or delete outgoing messages
+        self.assertRaises(ValueError, msg2.archive)
+        self.assertRaises(ValueError, msg2.release)
 
     def test_erroring(self):
         # test with real message
