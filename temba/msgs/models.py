@@ -1251,9 +1251,6 @@ class Msg(models.Model, OrgModelMixin):
         """
         Releases (i.e. deletes) this message, provided it is not currently deleted
         """
-        if self.direction != INCOMING:
-            raise ValueError("Can only delete incoming messages")
-
         self.archive()  # handle VISIBLE > ARCHIVED state change first if necessary
 
         if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):

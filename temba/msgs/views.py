@@ -751,7 +751,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Failed, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['archive', 'resend']
+            context['actions'] = ['resend']
             return context
 
     class Filter(MsgActionMixin, FolderListView):

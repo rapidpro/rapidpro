@@ -1342,19 +1342,28 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 1)
 
-        # add a new flow message and some more regular messages
+        # add some incoming messages and a flow message
+        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
+        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test3")
+        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4")
+
         flow = self.create_flow()
         flow.start([], [contact])
-        msg2 = Msg.objects.get(msg_type='F')
-        msg3 = Msg.create_outgoing(self.org, self.user, self.joe, "test3")
-        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "test4")
+        msg5 = Msg.objects.get(msg_type='F')
 
+        # search by type
         response = self.fetchJSON(url, "type=F")
         self.assertEquals(200, response.status_code)
-        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk])
 
+        # search by direction
+        response = self.fetchJSON(url, "direction=I")
+        self.assertEquals(200, response.status_code)
+        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg3.pk, msg2.pk])
+
+        # search by flow
         response = self.fetchJSON(url, "flow=%d" % flow.id)
-        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk])
 
         response = self.fetchJSON(url, "flow=99999")
         self.assertResultCount(response, 0)
@@ -1364,23 +1373,23 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         label1 = Label.get_or_create(self.org, self.user, "Goo")
-        label1.toggle_label([msg1, msg2], add=True)
+        label1.toggle_label([msg2, msg3], add=True)
         label2 = Label.get_or_create(self.org, self.user, "Boo")
-        label2.toggle_label([msg1, msg3], add=True)
+        label2.toggle_label([msg2, msg4], add=True)
         label3 = Label.get_or_create(self.org, self.user, "Roo")
-        label3.toggle_label([msg2, msg3], add=True)
+        label3.toggle_label([msg3, msg4], add=True)
 
         response = self.fetchJSON(url, "label=Goo&label=Boo")  # Goo or Boo
-        self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk, msg2.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg3.pk, msg2.pk])
 
         response = self.fetchJSON(url, "label=%2BGoo&label=%2BBoo")  # Goo and Boo
-        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
 
         response = self.fetchJSON(url, "label=%2BGoo&label=Boo&label=Roo")  # Goo and (Boo or Roo)
-        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk, msg2.pk])
 
         response = self.fetchJSON(url, "label=Goo&label=-Boo")  # Goo and not Boo
-        self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg3.pk])
 
         # search by broadcast id
         response = self.fetchJSON(url, "broadcast=%d" % broadcast.pk)
@@ -1388,11 +1397,11 @@ class APITest(TembaTest):
 
         # check default ordering is -created_on
         response = self.fetchJSON(url, "")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg3.pk, msg2.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg3.pk, msg2.pk, msg1.pk])
 
         # test reversing ordering
         response = self.fetchJSON(url, "reverse=1")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk, msg4.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk, msg4.pk, msg5.pk])
 
         # check archived status
         msg2.visibility = ARCHIVED
@@ -1400,11 +1409,11 @@ class APITest(TembaTest):
         msg3.visibility = DELETED
         msg3.save()
         response = self.fetchJSON(url, "")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg2.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg2.pk, msg1.pk])
         response = self.fetchJSON(url, "archived=1")
         self.assertEqual([m['id'] for m in response.json['results']], [msg2.pk])
         response = self.fetchJSON(url, "archived=fALsE")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg4.pk, msg1.pk])
+        self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg1.pk])
 
         # check anon org case
         with AnonymousOrg(self.org):
@@ -1443,15 +1452,6 @@ class APITest(TembaTest):
         self.assertResultCount(response, 2)
         self.assertJSON(response, 'urn', 'tel:+250788123123')
         self.assertJSON(response, 'urn', 'tel:+250788123124')
-
-        label1 = Label.get_or_create(self.org, self.user, "Goo")
-        label1.toggle_label([msgs[0]], add=True)
-
-        label2 = Label.get_or_create(self.org, self.user, "Fiber")
-        label2.toggle_label([msgs[1]], add=True)
-
-        response = self.fetchJSON(url, "label=Goo&label=Fiber")
-        self.assertResultCount(response, 2)
 
     def test_api_messages_invalid_contact(self):
         url = reverse('api.messages')
