@@ -15,7 +15,7 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, SENT
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
@@ -30,14 +30,36 @@ class MsgTest(TembaTest):
 
         self.joe = self.create_contact("Joe Blow", "123")
         self.frank = self.create_contact("Frank Blow", "321")
-
-        self.just_joe = self.create_group("Just Joe", [ self.joe ])
-
-        self.joe_and_frank = self.create_group("Joe and Frank", [ self.joe, self.frank ])
-
         self.kevin = self.create_contact("Kevin Durant", "987")
-        
-        self.admin.set_org(self.org)
+
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_archive_and_release(self):
+        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '123'), "Incoming")
+        label = Label.get_or_create(self.org, self.admin, "Spam")
+        label.toggle_label([msg1], add=True)
+
+        msg1.archive()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, ARCHIVED)
+        self.assertEqual(set(msg1.labels.all()), {label})  # don't remove labels
+
+        msg1.restore()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, VISIBLE)
+
+        msg1.release()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, DELETED)
+        self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
+
+        # can't archive outgoing messages
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
+        self.assertRaises(ValueError, msg2.archive)
 
     def test_erroring(self):
         # test with real message
@@ -610,37 +632,14 @@ class MsgTest(TembaTest):
         response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 3)
-        self.assertEquals(response.context['actions'], ['archive', 'resend'])
-
-        # let's archive some messages
-        post_data = dict()
-        post_data['action'] = 'archive'
-        post_data['objects'] = msg1.pk
-
-        response = self.client.post(failed_url, post_data, follow=True)
-
-        # now one msg is archived
-        self.assertEquals(Msg.objects.filter(visibility=ARCHIVED).count(), 1)
-        self.assertEquals(Msg.objects.filter(visibility=VISIBLE).count(), 2)
-        self.assertEquals(Msg.objects.filter(visibility=ARCHIVED)[0].pk, msg1.pk)
+        self.assertEquals(response.context['actions'], ['resend'])
 
         # let's resend some messages
-        post_data['action'] = 'resend'
-        post_data['objects'] = msg2.pk
+        self.client.post(failed_url, dict(action='resend', objects=msg2.pk), follow=True)
 
-        response = self.client.post(failed_url, post_data, follow=True)
-
-        # the archived message
-        self.assertEquals(msg1.pk, Msg.objects.filter(visibility=ARCHIVED, status=FAILED)[0].pk)
-
-        # the resent message
-        self.assertEquals(msg2.pk, Msg.objects.filter(visibility=ARCHIVED, status=RESENT)[0].pk)
-
-        # the one we didn't do anything to
-        self.assertEquals(msg3.pk, Msg.objects.filter(visibility=VISIBLE, status=FAILED)[0].pk)
-
-        # the message created to resent
-        self.assertEquals(Msg.objects.filter(visibility=VISIBLE, status=PENDING).count(), 1)
+        # check for the resent message and the new one being resent
+        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
+        self.assertEqual(Msg.objects.filter(status=PENDING).count(), 1)
 
         # make sure there was a new outgoing message created that got attached to our broadcast
         self.assertEquals(1, broadcast.get_messages().count())
@@ -1253,9 +1252,9 @@ class LabelTest(TembaTest):
 
     def test_message_count(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
-        msg1 = self.create_msg(text="Message 1", contact=self.joe)
-        msg2 = self.create_msg(text="Message 2", contact=self.joe)
-        msg3 = self.create_msg(text="Message 3", contact=self.joe)
+        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
+        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
+        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
 
         with self.assertNumQueries(1):  # from db
             self.assertEqual(label.get_message_count(), 0)
@@ -1299,9 +1298,9 @@ class LabelTest(TembaTest):
         label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
         label3 = Label.get_or_create(self.org, self.user, "Other")
 
-        msg1 = self.create_msg(text="Message 1", contact=self.joe)
-        msg2 = self.create_msg(text="Message 2", contact=self.joe)
-        msg3 = self.create_msg(text="Message 3", contact=self.joe)
+        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
+        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
+        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
 
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg2, msg3], add=True)
@@ -1324,9 +1323,9 @@ class LabelTest(TembaTest):
         label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
         label3 = Label.get_or_create(self.org, self.user, "Other")
 
-        msg1 = self.create_msg(text="Message 1", contact=self.joe)
-        msg2 = self.create_msg(text="Message 2", contact=self.joe)
-        msg3 = self.create_msg(text="Message 3", contact=self.joe)
+        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
+        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
+        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
 
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg1], add=True)
