@@ -1251,7 +1251,8 @@ class Msg(models.Model, OrgModelMixin):
         """
         Releases (i.e. deletes) this message, provided it is not currently deleted
         """
-        self.archive()  # handle VISIBLE > ARCHIVED state change first if necessary
+        # handle VISIBLE > ARCHIVED state change first if necessary
+        self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
         if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
             for label in self.labels.all():
