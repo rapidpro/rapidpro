@@ -1880,23 +1880,23 @@ class FlowResultsEndpoint(BaseAPIView):
                 ruleset = RuleSet.objects.filter(flow__org=org, uuid=ruleset_id_or_uuid).first()
 
             if not ruleset:
-                return Response(dict(ruleset="No ruleset found with that UUID or id"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(ruleset=["No ruleset found with that UUID or id"]), status=status.HTTP_400_BAD_REQUEST)
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
             contact_field = ContactField.get_by_label(org, field)
             if not contact_field:
-                return Response(dict(contact_field="No contact field found with that label"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(contact_field=["No contact field found with that label"]), status=status.HTTP_400_BAD_REQUEST)
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            return Response(dict(non_field_errors="You must specify either a ruleset or contact field"), status=status.HTTP_400_BAD_REQUEST)
+            return Response(dict(non_field_errors=["You must specify either a ruleset or contact field"]), status=status.HTTP_400_BAD_REQUEST)
 
         segment = self.request.QUERY_PARAMS.get('segment', None)
         if segment:
             try:
                 segment = json.loads(segment)
             except ValueError:
-                return Response(dict(segment="Invalid segment format, must be in JSON format"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(segment=["Invalid segment format, must be in JSON format"]), status=status.HTTP_400_BAD_REQUEST)
 
         if ruleset:
             data = Value.get_value_summary(ruleset=ruleset, segment=segment)

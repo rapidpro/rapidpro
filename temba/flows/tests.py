@@ -1278,7 +1278,7 @@ class RuleTest(TembaTest):
 
     def test_add_label_action(self):
         flow = self.flow
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact)
 
         label = Label.get_or_create(self.org, self.user, "green label")
@@ -1287,30 +1287,31 @@ class RuleTest(TembaTest):
         action_json = test.as_json()
         test = AddLabelAction.from_json(self.org, action_json)
 
-        # no sms yet; such Add Label action on entry Actionset. No error should be raised
+        # no message yet; such Add Label action on entry Actionset. No error should be raised
         test.execute(run, None, None)
         self.assertFalse(label.get_messages())
-        self.assertEquals(label.get_message_count(), 0)
+        self.assertEqual(label.get_visible_count(), 0)
 
-        test.execute(run, None, sms)
+        test.execute(run, None, msg)
 
-        # sms should have been labeled
-        self.assertTrue(label.get_messages())
-        self.assertEquals(label.get_message_count(), 1)
-
-        # we should have created a new label with the name of the contact
+        # new label should have been created with the name of the contact
         new_label = Label.user_labels.get(name=self.contact.name)
-        self.assertTrue(new_label.get_messages())
-        self.assertEquals(new_label.get_message_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+
+        # and message should have been labeled with both labels
+        msg = Msg.objects.get(pk=msg.pk)
+        self.assertEqual(set(msg.labels.all()), {label, new_label})
+        self.assertEqual(set(label.get_messages()), {msg})
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertTrue(set(new_label.get_messages()), {msg})
+        self.assertEqual(new_label.get_visible_count(), 1)
 
         # passing through twice doesn't change anything
-        test.execute(run, None, sms)
+        test.execute(run, None, msg)
 
-        self.assertTrue(label.get_messages())
-        self.assertEquals(label.get_message_count(), 1)
-
-        self.assertTrue(new_label.get_messages())
-        self.assertEquals(new_label.get_message_count(), 1)
+        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
+        self.assertEquals(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        self.assertEquals(Label.user_labels.get(pk=new_label.pk).get_visible_count(), 1)
 
     def test_views(self):
         self.create_secondary_org()
