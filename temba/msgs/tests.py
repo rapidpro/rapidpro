@@ -1256,10 +1256,11 @@ class LabelTest(TembaTest):
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
         msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
         msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
+        msg4 = self.create_msg(text="Message 4", contact=Contact.get_test_contact(self.user), direction='I')
 
         self.assertEqual(label.get_visible_count(), 0)
 
-        label.toggle_label([msg1, msg2, msg3], add=True)
+        label.toggle_label([msg1, msg2, msg3, msg4], add=True)  # msg from test contact will be ignored
 
         self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
 
@@ -1278,6 +1279,15 @@ class LabelTest(TembaTest):
         msg2.release()  # removes label message bo longer visible
 
         self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.archive()
+        label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.restore()  # but then restoring that message will
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
