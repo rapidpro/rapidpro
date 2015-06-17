@@ -1250,46 +1250,37 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-    def test_message_count(self):
+    def test_visible_count(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
         msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
         msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
 
-        with self.assertNumQueries(1):  # from db
-            self.assertEqual(label.get_message_count(), 0)
-
-        with self.assertNumQueries(0):  # from cache
-            self.assertEqual(label.get_message_count(), 0)
+        self.assertEqual(label.get_visible_count(), 0)
 
         label.toggle_label([msg1, msg2, msg3], add=True)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 3)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
 
         label.toggle_label([msg3], add=False)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        msg2.archive()
+        msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)  # archived still has label
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
 
-        msg2.release()
+        msg2.restore()  # msg back in visible count
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 1)  # releasing removes label
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        self.clear_cache()
+        msg2.release()  # removes label message bo longer visible
 
-        with self.assertNumQueries(1):
-            self.assertEqual(label.get_message_count(), 1)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.assertRaises(ValueError, folder.get_message_count)
+        self.assertRaises(ValueError, folder.get_visible_count)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")

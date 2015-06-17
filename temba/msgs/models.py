@@ -20,11 +20,10 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
-from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -98,9 +97,6 @@ STATUS_CHOICES = (
     # we retried this message
     (RESENT, _("Resent message")),
 )
-
-# cache keys and TTLs
-LABEL_MESSAGE_COUNT_CACHE_KEY = 'org:%d:cache:label_message_count:%d'
 
 
 def get_message_handlers():
@@ -1403,6 +1399,9 @@ class Label(TembaModel, SmartModel):
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
 
+    visible_count = models.PositiveIntegerField(default=0,
+                                                help_text=_("Number of non-archived messages with this label"))
+
     # define some custom managers to do the filtering of label types for us
     user_all = models.Manager()
     user_folders = UserFolderManager()
@@ -1463,21 +1462,14 @@ class Label(TembaModel, SmartModel):
     def get_messages(self):
         return self.filter_messages(Msg.objects.all())
 
-    def get_message_count(self):
+    def get_visible_count(self):
         """
-        Returns the count of message tagged with this label or one of its children
+        Returns the count of visible, non-test message tagged with this label
         """
         if self.is_folder():
             raise ValueError("Message counts are not tracked for user folders")
 
-        return get_cacheable_result(self.get_message_count_cache_key(), ORG_DISPLAY_CACHE_TTL,
-                                    self._calculate_message_count)
-
-    def _calculate_message_count(self):
-        return self.msgs.count()
-
-    def get_message_count_cache_key(self):
-        return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
+        return self.visible_count
 
     def toggle_label(self, msgs, add):
         """
@@ -1504,9 +1496,6 @@ class Label(TembaModel, SmartModel):
                     msg.labels.remove(self)
                     changed.add(msg.pk)
 
-        # if there is a cached message count, update it
-        count_delta = len(changed) if add else -len(changed)
-        incrby_existing(self.get_message_count_cache_key(), count_delta)
         return changed
 
     def is_folder(self):
