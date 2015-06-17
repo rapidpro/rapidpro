@@ -85,7 +85,7 @@ def collect_message_metrics_task():
     """
     Collects message metrics and sends them to our analytics.
     """
-    from .models import INCOMING, OUTGOING, DELIVERED, SENT, WIRED, FAILED, PENDING, QUEUED, ERRORED, INITIALIZING, HANDLED
+    from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, INITIALIZING
     import analytics
 
     r = get_redis_connection()
@@ -98,7 +98,8 @@ def collect_message_metrics_task():
             context = dict(source=settings.HOSTNAME)
 
             # current # of queued messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
+                exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
             analytics.track('System', 'temba.current_outgoing_queued', properties=dict(value=count), context=context)
 
             # current # of initializing messages (excluding Android)
