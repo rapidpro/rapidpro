@@ -56,6 +56,7 @@ class MsgTest(TembaTest):
         msg1 = Msg.objects.get(pk=msg1.pk)
         self.assertEqual(msg1.visibility, DELETED)
         self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
+        self.assertTrue(Label.user_labels.filter(pk=label.pk).exists())  # though don't delete the label object
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")

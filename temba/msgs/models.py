@@ -1251,8 +1251,8 @@ class Msg(models.Model, OrgModelMixin):
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
         if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
-            for label in self.labels.all():
-                label.toggle_label([self], add=False)
+            # remove labels
+            self.labels.clear()
 
     @classmethod
     def apply_action_label(cls, msgs, label, add):
