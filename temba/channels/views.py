@@ -1476,9 +1476,12 @@ class ChannelCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             queryset = super(ChannelCRUDL.List, self).get_queryset(**kwargs)
 
+            # org users see channels for their org, superuser sees all
             if not self.request.user.is_superuser:
-                queryset = queryset.filter(org__administrators__in=[self.request.user])
-            return queryset
+                org = self.request.user.get_org()
+                queryset = queryset.filter(org=org)
+
+            return queryset.filter(is_active=True)
 
         def pre_process(self, *args, **kwargs):
             # superuser sees things as they are

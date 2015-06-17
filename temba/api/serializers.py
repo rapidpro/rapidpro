@@ -13,7 +13,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED
+from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
 
 
@@ -215,7 +215,7 @@ class MsgBulkActionSerializer(WriteSerializer):
     def validate_label_uuid(self, attrs, source):
         label_uuid = attrs.get(source, None)
         if label_uuid:
-            label = Label.objects.filter(org=self.org, uuid=label_uuid).first()
+            label = Label.user_labels.filter(org=self.org, uuid=label_uuid).first()
             if not label:
                 raise ValidationError("No such label with UUID: %s" % label_uuid)
             attrs['label'] = label
@@ -228,7 +228,7 @@ class MsgBulkActionSerializer(WriteSerializer):
         msg_ids = attrs['messages']
         action = attrs['action']
 
-        msgs = Msg.objects.filter(org=self.org, pk__in=msg_ids)
+        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids)
 
         if action == 'label':
             attrs['label'].toggle_label(msgs, add=True)
@@ -252,29 +252,24 @@ class MsgBulkActionSerializer(WriteSerializer):
 class LabelReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
-    parent = serializers.SerializerMethodField('get_parent')
     count = serializers.SerializerMethodField('get_count')
-
-    def get_parent(self, obj):
-        return obj.parent.uuid if obj.parent_id else None
 
     def get_count(self, obj):
         return obj.get_message_count()
 
     class Meta:
         model = Label
-        fields = ('uuid', 'name', 'parent', 'count')
+        fields = ('uuid', 'name', 'count')
 
 
 class LabelWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=True)
-    parent = serializers.CharField(required=False, allow_none=True)
 
     def validate_uuid(self, attrs, source):
         uuid = attrs.get(source, None)
 
-        if uuid and not Label.objects.filter(org=self.org, uuid=uuid).exists():
+        if uuid and not Label.user_labels.filter(org=self.org, uuid=uuid).exists():
             raise ValidationError("No such message label with UUID: %s" % uuid)
 
         return attrs
@@ -283,24 +278,8 @@ class LabelWriteSerializer(WriteSerializer):
         uuid = attrs.get('uuid', None)
         name = attrs.get(source, None)
 
-        if Label.objects.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
+        if Label.user_labels.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
             raise ValidationError("Label name must be unique")
-
-        return attrs
-
-    def validate_parent(self, attrs, source):
-        parent = attrs.get(source, None)
-
-        if parent:
-            parent_obj = Label.objects.filter(org=self.org, uuid=parent).first()
-            if not parent_obj:
-                raise ValidationError("No such message label with UUID: %s" % parent)
-            if parent_obj.parent_id:
-                raise ValidationError("Message labels can only be nested one-level deep")
-
-            attrs[source] = parent_obj
-        else:
-            attrs[source] = None
 
         return attrs
 
@@ -310,16 +289,14 @@ class LabelWriteSerializer(WriteSerializer):
 
         uuid = attrs.get('uuid', None)
         name = attrs.get('name', None)
-        parent = attrs.get('parent', None)
 
         if uuid:
-            existing = Label.objects.get(org=self.org, uuid=uuid)
+            existing = Label.user_labels.get(org=self.org, uuid=uuid)
             existing.name = name
-            existing.parent = parent
             existing.save()
             return existing
         else:
-            return Label.create(self.org, self.user, name, parent)
+            return Label.get_or_create(self.org, self.user, name)
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):

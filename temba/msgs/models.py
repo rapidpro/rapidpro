@@ -1232,11 +1232,13 @@ class Msg(models.Model, OrgModelMixin):
         self.save(update_fields=('status', 'delivered_on', 'sent_on'))
         Channel.track_status(self.channel, "Delivered")
 
-
     def archive(self):
         """
         Archives this message, provided it is currently visible
         """
+        if self.direction != INCOMING:
+            raise ValueError("Can only archive incoming messages")
+
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
     def restore(self):
@@ -1249,7 +1251,8 @@ class Msg(models.Model, OrgModelMixin):
         """
         Releases (i.e. deletes) this message, provided it is not currently deleted
         """
-        self.archive()  # handle VISIBLE > ARCHIVED state change first if necessary
+        # handle VISIBLE > ARCHIVED state change first if necessary
+        self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
         if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
             for label in self.labels.all():
@@ -1371,88 +1374,124 @@ class Call(SmartModel):
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
+class UserFolderManager(models.Manager):
+    def get_queryset(self):
+        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.USER_FOLDER)
+
+
+class UserLabelManager(models.Manager):
+    def get_queryset(self):
+        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.USER_LABEL)
+
+
 class Label(TembaModel, SmartModel):
     """
-    Labels are simple labels that can be applied to messages much the same way labels or tags apply
-    to messages in web-based email services.
-
-    Labels can be created as one-level deep hierarchy.
+    Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
+    much the same way labels or tags apply to messages in web-based email services.
     """
-    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
+    USER_FOLDER = 'F'
+    USER_LABEL = 'L'
 
-    parent = models.ForeignKey('Label', verbose_name=_("Parent"), null=True, related_name="children")
+    TYPE_CHOICES = ((USER_FOLDER, "User Defined Folder"),
+                    (USER_LABEL, "User Defined Label"))
 
     org = models.ForeignKey(Org)
 
+    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
+
+    folder = models.ForeignKey('Label', verbose_name=_("Folder"), null=True, related_name="children")
+
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
+
+    # define some custom managers to do the filtering of label types for us
+    user_all = models.Manager()
+    user_folders = UserFolderManager()
+    user_labels = UserLabelManager()
+
     @classmethod
-    def get_or_create(cls, org, user, name, parent=None):
+    def get_or_create(cls, org, user, name, folder=None):
         name = name.strip()
-        label = Label.objects.filter(org=org, name__iexact=name).first()
-        if label:
-            return label
 
-        return Label.create(org, user, name, parent)
-
-    @classmethod
-    def create(cls, org, user, name, parent=None):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
-        # only allow 1 level of nesting
-        if parent and parent.parent_id:  # pragma: no cover
-            raise ValueError("Only one level of nesting is allowed")
+        if folder and folder.label_type != cls.USER_FOLDER:
+            raise ValueError("%s is not a label folder" % unicode(folder))
 
-        return Label.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
+        label = cls.user_labels.filter(org=org, name__iexact=name).first()
+        if label:
+            return label
+
+        return cls.user_labels.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
-    def create_unique(cls, org, user, base, parent=None):
+    def get_or_create_folder(cls, org, user, name):
+        name = name.strip()
 
-        # truncate if necessary
-        if len(base) > 32:
-            base = base[:32]
+        if not cls.is_valid_name(name):
+            raise ValueError("Invalid folder name: %s" % name)
 
-        # find the next available label by appending numbers
-        count = 2
-        while Label.objects.filter(org=org, name=base, parent=parent):
-            # make room for the number
-            if len(base) >= 32:
-                base = base[:30]
-            last = str(count - 1)
-            if base.endswith(last):
-                base = base[:-len(last)]
-            base = "%s %d" % (base.strip(), count)
-            count += 1
+        folder = cls.user_folders.filter(org=org, name__iexact=name).first()
+        if folder:
+            return folder
 
-        return Label.create(org, user, base, parent)
+        return cls.user_folders.create(org=org, name=name, label_type=Label.USER_FOLDER,
+                                       created_by=user, modified_by=user)
+
+    @classmethod
+    def get_hierarchy(cls, org):
+        """
+        Gets top-level user labels and folders, with children pre-fetched and ordered by name
+        """
+        qs = Label.user_all.filter(org=org).order_by('name')
+        qs = qs.filter(Q(label_type=cls.USER_LABEL, folder=None) | Q(label_type=cls.USER_FOLDER))
+
+        children_prefetch = Prefetch('children', queryset=Label.user_all.order_by('name'))
+
+        return qs.select_related('folder').prefetch_related(children_prefetch)
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and not (name.startswith('+') or name.startswith('-'))
+        return name.strip() and name[0] not in ('+', '-', '@')
+
+    def filter_messages(self, queryset):
+        if self.is_folder():
+            return queryset.filter(labels__in=self.children.all()).distinct()
+
+        return queryset.filter(labels=self)
 
     def get_messages(self):
-        return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
+        return self.filter_messages(Msg.objects.all())
 
     def get_message_count(self):
         """
         Returns the count of message tagged with this label or one of its children
         """
+        if self.is_folder():
+            raise ValueError("Message counts are not tracked for user folders")
+
         return get_cacheable_result(self.get_message_count_cache_key(), ORG_DISPLAY_CACHE_TTL,
                                     self._calculate_message_count)
 
     def _calculate_message_count(self):
-        return self.get_messages().count()
+        return self.msgs.count()
 
     def get_message_count_cache_key(self):
         return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
-
 
     def toggle_label(self, msgs, add):
         """
         Adds or removes this label from the given messages
         """
+        if self.label_type != self.USER_LABEL:
+            raise ValueError("Can only assign messages to user labels")
+
         changed = set()
 
         for msg in msgs:
+            if msg.direction != INCOMING:
+                raise ValueError("Can only apply labels to incoming messages")
+
             # if we are adding the label and this message doesnt have it, add it
             if add:
                 if not msg.labels.filter(pk=self.pk):
@@ -1468,20 +1507,18 @@ class Label(TembaModel, SmartModel):
         # if there is a cached message count, update it
         count_delta = len(changed) if add else -len(changed)
         incrby_existing(self.get_message_count_cache_key(), count_delta)
-
-        # if our parent label has a cached message count, update it too
-        if self.parent:
-            incrby_existing(self.parent.get_message_count_cache_key(), count_delta)
-
         return changed
 
+    def is_folder(self):
+        return self.label_type == Label.USER_FOLDER
+
     def __unicode__(self):
-        if self.parent:
-            return "%s > %s" % (self.parent, self.name)
+        if self.folder:
+            return "%s > %s" % (unicode(self.folder), self.name)
         return self.name
 
     class Meta:
-        unique_together = ('name', 'parent', 'org')
+        unique_together = ('org', 'name')
 
 
 class ExportMessagesTask(SmartModel):
@@ -1512,7 +1549,7 @@ class ExportMessagesTask(SmartModel):
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
-        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.objects.order_by('name')))
+        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.user_labels.order_by('name')))
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
@@ -1526,10 +1563,7 @@ class ExportMessagesTask(SmartModel):
             all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
 
         if self.label:
-            label_filter = [self.label]
-            if self.label.children.all():
-                label_filter = [l for l in Label.objects.filter(parent=self.label)] + [self.label]
-            all_messages = all_messages.filter(labels__in=label_filter).distinct()
+            all_messages = all_messages.filter(labels=self.label)
 
         all_messages = list(all_messages)
 

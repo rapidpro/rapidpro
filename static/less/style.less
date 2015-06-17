@@ -66,28 +66,11 @@
 .label, .badge {
   text-shadow: none;
 }
-.lbl-parent.expanded:not(.active) > a {
-// background:#e4eff8;
-}
 
 .dropdown-menu li > a:hover, .dropdown-menu li > a:focus, .dropdown-submenu:hover > a {
   background: @color-selected;
   color: @color-selected-font;
   text-shadow: none;
-}
-
-.lbl-parent {
-  &.expanded {
-    &:not(.active) {
-      > a {
-	background:@color-selected;
-	color: @flat-darkblue;
-// text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
-	text-shadow: none;
-	margin-right: -15px;
-      }
-    }
-  }
 }
 
 .nav > li > a {
@@ -112,9 +95,9 @@
       text-shadow: none;
 
       &:hover {
-	background: @color-selected;
-	color: @flat-darkblue;
-	text-shadow: none;
+        background: @color-selected;
+        color: @flat-darkblue;
+        text-shadow: none;
       }
     }
 
