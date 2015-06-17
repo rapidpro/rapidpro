@@ -1392,7 +1392,7 @@ class Flow(TembaModel, SmartModel):
         if not self.entry_uuid:
             return
 
-        if start_msg:
+        if start_msg and start_msg.msg_type == INBOX:
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=['msg_type'])
 
@@ -3319,11 +3319,6 @@ class FlowStep(models.Model):
 
     def add_message(self, msg):
         self.messages.add(msg)
-
-        # skip inbox
-        if msg.msg_type == INBOX:
-            msg.msg_type = FLOW
-            msg.save(update_fields=['msg_type'])
 
     def get_step(self):
         """

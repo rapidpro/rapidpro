@@ -553,7 +553,7 @@ class Msg(models.Model, OrgModelMixin):
     has_template_error = models.BooleanField(default=False, verbose_name=_("Has Template Error"),
                                              help_text=_("Whether data for variable substitution are missing"))
 
-    msg_type = models.CharField(max_length=1, choices=MSG_TYPES, default=INBOX, verbose_name=_("Message Type"),
+    msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
 
     msg_count = models.IntegerField(default=1, verbose_name=_("Message Count"),
@@ -613,6 +613,7 @@ class Msg(models.Model, OrgModelMixin):
         Processes a message, running it through all our handlers
         """
         handlers = get_message_handlers()
+        handled = False
 
         if msg.contact.is_blocked:
             msg.visibility = ARCHIVED
@@ -636,7 +637,7 @@ class Msg(models.Model, OrgModelMixin):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        cls.mark_handled(msg)
+        cls.mark_handled(msg, as_type=(FLOW if handled else INBOX))
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -698,15 +699,16 @@ class Msg(models.Model, OrgModelMixin):
         return unread_count
 
     @classmethod
-    def mark_handled(cls, msg):
+    def mark_handled(cls, msg, as_type):
         """
         Marks an incoming message as HANDLED
         """
+        msg.msg_type = as_type
         msg.status = HANDLED
         msg.delivered_on = timezone.now()  # current time as  delivery date so we can track created->delivered latency
 
         # make sure we don't overwrite any async message changes by only saving specific fields
-        msg.save(update_fields=['status', 'delivered_on'])
+        msg.save(update_fields=['msg_type', 'status', 'delivered_on'])
 
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
@@ -959,7 +961,7 @@ class Msg(models.Model, OrgModelMixin):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
-                        status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
+                        status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:

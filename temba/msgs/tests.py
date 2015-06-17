@@ -363,10 +363,6 @@ class MsgTest(TembaTest):
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
         msg4 = Msg.create_incoming(self.channel, joe_tel, "message number 4")
         msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
-        msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
-
-        msg6.status = PENDING  # put #6 back in pending state
-        msg6.save()
 
         # visit inbox page  as a user not in the organization
         self.login(self.non_org_user)
@@ -376,7 +372,7 @@ class MsgTest(TembaTest):
         # visit inbox page as a manager of the organization
         response = self.fetch_protected(inbox_url, self.admin)
         
-        self.assertEquals(response.context['object_list'].count(), 5)  # excludes msg 6 as it is pending
+        self.assertEquals(response.context['object_list'].count(), 5)
         self.assertEquals(response.context['folders'][0]['url'], '/msg/inbox/')
         self.assertEquals(response.context['folders'][0]['count'], 5)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
@@ -501,7 +497,7 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['object_list'].count(), 4)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
-        # test restoring a archived message back to inbox
+        # test restoring an archived message back to inbox
         post_data = dict()
         post_data['action'] = 'restore'
         post_data['objects'] = msg1.pk
@@ -517,7 +513,7 @@ class MsgTest(TembaTest):
         Msg.create_incoming(self.channel, (TEL_SCHEME, test_contact.get_urn().path), 'Bla Blah')
 
         response = self.fetch_protected(inbox_url, self.admin)
-        self.assertEquals(Msg.objects.all().count(), 7)
+        self.assertEquals(Msg.objects.all().count(), 6)
         self.assertEquals(response.context['object_list'].count(), 5)
 
         # message should be archived to start
@@ -551,21 +547,21 @@ class MsgTest(TembaTest):
         # be sure viewer cannot submit any action
         post_data = dict()
         post_data['action'] = 'label'
-        post_data['objects'] = [msg6.pk]
+        post_data['objects'] = [msg5.pk]
         post_data['label'] = label1.pk
         post_data['add'] = False
 
         # no label
         self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(msg6.labels.all().count(), 0)
+        self.assertEquals(msg5.labels.all().count(), 0)
 
-        self.assertEquals(Msg.objects.get(pk=msg6.pk).visibility, VISIBLE)
+        self.assertEquals(Msg.objects.get(pk=msg5.pk).visibility, VISIBLE)
         post_data = dict()
         post_data['action'] = 'archive'
-        post_data['objects'] = msg6.pk
+        post_data['objects'] = msg5.pk
 
         response = self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(Msg.objects.get(pk=msg6.pk).visibility, VISIBLE)
+        self.assertEquals(Msg.objects.get(pk=msg5.pk).visibility, VISIBLE)
 
         # search on inbox just on the message text
         response = self.client.get("%s?search=message" % inbox_url)
