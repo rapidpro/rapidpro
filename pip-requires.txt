@@ -46,7 +46,7 @@ numpy
 analytics-python
 django-storages
 boto
-http://winappdbg.sourceforge.net/blog/google-1.05.zip
+google
 ply
 uservoice
 nose-perfdump

@@ -63,11 +63,11 @@
                         - for label in node.children.all
                           %li{ class:'{% if current_label.id == label.id %}active{% endif %}' }
                             %a{ href:"{% url 'msgs.msg_filter' label.id %}" }
-                              {{ label.name }} ({{ label.get_message_count | intcomma }})
+                              {{ label.name }} ({{ label.get_visible_count | intcomma }})
                   - else
                     %li{ class:'{% if current_label.id == node.id %}active{% endif %}' }
                       %a{ href:"{% url 'msgs.msg_filter' node.id %}", class:'{% if current_label.id == node.id %}active{% endif %}' }
-                        {{ node.name }} ({{ node.get_message_count | intcomma }})
+                        {{ node.name }} ({{ node.get_visible_count | intcomma }})
 
           %div{style:"margin-top: 10px"}
             - if org_perms.msgs.label_create

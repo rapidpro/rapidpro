@@ -421,8 +421,6 @@ class Org(SmartModel):
         if OrgCache.display in caches:
             for folder in OrgFolder.__members__.values():
                 keys.append(self._get_folder_count_cache_key(folder))
-            for label in self.label_set.all():
-                keys.append(label.get_message_count_cache_key())
 
         if OrgCache.credits in caches:
             keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
