@@ -376,7 +376,7 @@ class ContactTest(TembaTest):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
         msg3 = self.create_msg(text="Test 3", direction='I', contact=self.joe, msg_type='I', status='H', visibility='A')
-        label = Label.create(self.org, self.user, "Interesting")
+        label = Label.get_or_create(self.org, self.user, "Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         group = self.create_group("Just Joe", [self.joe])
 
@@ -423,7 +423,7 @@ class ContactTest(TembaTest):
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
         self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
-        self.assertEqual(0, Label.objects.get(pk=label.pk).msgs.count())
+        self.assertEqual(0, Label.user_labels.get(pk=label.pk).msgs.count())
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_inbox))
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_archived))
@@ -725,7 +725,7 @@ class ContactTest(TembaTest):
         self.assertEquals(1, len(response['results']))
 
         # lookup by label ids
-        label = Label.create(self.org, self.user, "msg label")
+        label = Label.get_or_create(self.org, self.user, "msg label")
         response = json.loads(self.client.get("%s?l=%s" % (reverse("contacts.contact_omnibox"), label.pk)).content)
         self.assertEquals(0, len(response['results']))
 
@@ -797,14 +797,11 @@ class ContactTest(TembaTest):
         # lets create an outgoing call from this contact
         Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "CALL_OUT_MISSED")
 
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEquals(8, len(response.context['all_messages']))
-        self.assertTrue(isinstance(response.context['all_messages'][0], Call))
-
         # visit a contact detail page as an admin with the organization
-        response = self.fetch_protected(read_url, self.root)
+        response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
         self.assertEquals(8, len(response.context['all_messages']))
+        self.assertTrue(isinstance(response.context['all_messages'][0], Call))
 
         # visit a contact detail page as a superuser
         response = self.fetch_protected(read_url, self.superuser)

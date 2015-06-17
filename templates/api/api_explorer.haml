@@ -55,7 +55,7 @@
 
       %pre.prettyprint<
         :plain
-          <b>{{ endpoint.method }}</b> {{API_URL}}{{ endpoint.url }}.json
+          <b>{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json
           <b>Authorization:</b> Token {{ request.user.api_token }}
 
       -if endpoint.method == 'GET' or endpoint.method == 'DELETE'

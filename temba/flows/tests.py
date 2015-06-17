@@ -89,7 +89,7 @@ class RuleTest(TembaTest):
 
         # create a new update
         self.definition['last_saved'] = response['saved_on']
-        response = self.flow.update(self.definition, user=self.root)
+        response = self.flow.update(self.definition, user=self.admin)
         versions = self.flow.versions.all().order_by('-pk')
 
         # since we saved in the same minute, we should still have one version,
@@ -103,7 +103,7 @@ class RuleTest(TembaTest):
         version.created_on = version.created_on - timedelta(seconds=190)
         version.save()
         self.definition['last_saved'] = response['saved_on']
-        self.flow.update(self.definition, user=self.root)
+        self.flow.update(self.definition, user=self.admin)
 
         # now we should have two revisions
         self.assertEquals(2, self.flow.versions.all().count())
@@ -1281,7 +1281,7 @@ class RuleTest(TembaTest):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact)
 
-        label = Label.create(self.org, self.user, "green label")
+        label = Label.get_or_create(self.org, self.user, "green label")
 
         test = AddLabelAction([label, "@step.contact"])
         action_json = test.as_json()
@@ -1299,7 +1299,7 @@ class RuleTest(TembaTest):
         self.assertEquals(label.get_message_count(), 1)
 
         # we should have created a new label with the name of the contact
-        new_label = Label.objects.get(name=self.contact.name)
+        new_label = Label.user_labels.get(name=self.contact.name)
         self.assertTrue(new_label.get_messages())
         self.assertEquals(new_label.get_message_count(), 1)
 

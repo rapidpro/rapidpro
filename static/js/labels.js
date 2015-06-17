@@ -98,13 +98,21 @@ function labelObjectRows(labelId, forceRemove){
     postLabelChanges(objectRowsIds, labelId, addLabel);
 }
 
+/**
+ * When we refresh the object list via pjax, we need to re-select the object rows that were previously selected
+ */
 function recheckIds() {
-    if (lastChecked) {
-        for (var i=0; i<lastChecked.length; i++) {
+    if (lastChecked && lastChecked.length > 0) {
+        for (var i = 0; i < lastChecked.length; i++) {
             $(".object-row[data-object-id='" + lastChecked[i] + "']").addClass('checked');
         }
+        $(".search-details").hide();
         $(".list-buttons").show();
         updateLabelMenu();
+    }
+    else {
+        $(".search-details").show();
+        $(".list-buttons").hide();
     }
 }
 

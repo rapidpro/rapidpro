@@ -126,6 +126,7 @@ class FlowActionForm(BaseActionForm):
 
     OBJECT_CLASS = Flow
     LABEL_CLASS = FlowLabel
+    LABEL_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = True
 
     class Meta:

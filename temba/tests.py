@@ -40,15 +40,10 @@ class TembaTest(SmartminTest):
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
 
-        # some users not tied to our org
+        # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.non_org_manager = self.create_user("NonOrgManager")
-
-        # our three user types inside our org
         self.user = self.create_user("User")
-        self.root = self.create_user("Root")
-        self.root.groups.add(Group.objects.get(name="Alpha"))
-
+        self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
 
         # setup admin boundaries for Rwanda
@@ -65,13 +60,15 @@ class TembaTest(SmartminTest):
         self.org.initialize()
 
         # add users to the org
-        self.org.administrators.add(self.admin)
-        self.admin.set_org(self.org)
-
-        self.org.administrators.add(self.root)
-        self.root.set_org(self.org)
-
         self.user.set_org(self.org)
+        self.org.viewers.add(self.user)
+
+        self.editor.set_org(self.org)
+        self.org.editors.add(self.editor)
+
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
         self.superuser.set_org(self.org)
 
         # welcome topup with 1000 credits

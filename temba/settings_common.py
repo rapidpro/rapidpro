@@ -29,7 +29,6 @@ EMAIL_HOST_USER = 'server@temba.io'
 DEFAULT_FROM_EMAIL = 'server@temba.io'
 EMAIL_HOST_PASSWORD = 'mypassword'
 EMAIL_USE_TLS = True
-API_URL = 'https://api.temba.io'
 
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl.temba.io'
@@ -281,7 +280,8 @@ BRANDING = {
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
-        'link': 'http://rapidpro.io',
+        'link': 'https://rapidpro.io',
+        'api_link': 'https://api.rapidpro.io',
         'domain': 'rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
@@ -292,7 +292,7 @@ BRANDING = {
         'credits': _("Copyright &copy; 2012-2014 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
-
+DEFAULT_BRAND = 'rapidpro.io'
 
 #-----------------------------------------------------------------------------------
 # Directory Configuration
@@ -371,6 +371,7 @@ PERMISSIONS = {
                  'nexmo_connect',
                  'plivo_connect',
                  'profile',
+                 'service',
                  'signup',
                  'trial',
                  'twilio_account',
@@ -460,7 +461,7 @@ PERMISSIONS = {
 
     'msgs.call': ('api',),
 
-    'msgs.label': ('api',),
+    'msgs.label': ('api', 'create', 'create_folder'),
 
     'triggers.trigger': ('archived',
                          'catchall',
@@ -484,6 +485,21 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": (
         'orgs.org_grant',
+    ),
+    "Customer Support": (
+        'auth.user_list',
+        'auth.user_update',
+        'flows.flow_editor',
+        'flows.flow_json',
+        'flows.flow_read',
+        'flows.flow_versions',
+        'orgs.org_dashboard',
+        'orgs.org_manage',
+        'orgs.org_update',
+        'orgs.org_service',
+        'orgs.topup_create',
+        'orgs.topup_manage',
+        'orgs.topup_update',
     ),
     "Administrators": (
         'api.webhookevent_list',

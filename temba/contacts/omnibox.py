@@ -44,7 +44,7 @@ def omnibox_query(org, **kwargs):
             qs = qs.filter(msgs__in=message_ids.split(","))
 
         elif label_id:
-            label = Label.objects.get(pk=label_id)
+            label = Label.user_labels.get(pk=label_id)
             qs = qs.filter(msgs__in=label.get_messages())
 
         return qs.distinct().order_by('name')

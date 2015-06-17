@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone, translation
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
-from temba.settings import BRANDING
+from temba.settings import BRANDING, DEFAULT_BRAND, HOSTNAME
 
 
 class ExceptionMiddleware(object):
@@ -22,9 +22,16 @@ class BrandingMiddleware(object):
 
     @classmethod
     def get_branding_for_host(cls, host):
+        # ignore subdomains
+        if len(host.split('.')) > 2:
+            host = '.'.join(host.split('.')[-2:])
+
+        # prune off the port
+        if ':' in host:
+            host = host[0:host.rindex(':')]
 
         # our default branding
-        branding = BRANDING.get('rapidpro.io')
+        branding = BRANDING.get(HOSTNAME, BRANDING.get(DEFAULT_BRAND))
 
         # override with site specific branding if we have that
         site_branding = BRANDING.get(host, None)
@@ -47,16 +54,7 @@ class BrandingMiddleware(object):
         except:
             traceback.print_exc()
 
-        # ignore subdomains
-        if len(host.split('.')) > 2:
-            host = '.'.join(host.split('.')[-2:])
-
-        # prune off the port
-        if ':' in host:
-            host = host[0:host.rindex(':')]
-
         request.branding = BrandingMiddleware.get_branding_for_host(host)
-
 
 class ActivateLanguageMiddleware(object):
 
@@ -81,7 +79,13 @@ class OrgTimezoneMiddleware(object):
 
             org_id = request.session.get('org_id', None)
             if org_id:
-                user.set_org(Org.objects.get(pk=org_id))
+                org = Org.objects.filter(is_active=True, pk=org_id).first()
+
+            # only set the org if they are still a user or an admin
+            if org and (user.is_superuser or user.is_staff or user in org.get_org_users()):
+                user.set_org(org)
+
+            # otherwise, show them what orgs are available
             else:
                 user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
                 user_orgs = user_orgs.distinct('pk')
