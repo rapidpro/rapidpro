@@ -73,7 +73,7 @@ djorm-ext-core==0.7
 djorm-ext-expressions==0.6
 djorm-ext-hstore==0.5
 gnureadline==6.3.3
-google==1.05
+google==1.07
 httplib2==0.9
 ipython==2.2.0
 kombu==3.0.16

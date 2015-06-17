@@ -790,8 +790,9 @@ class MsgCRUDL(SmartCRUDL):
             context = super(MsgCRUDL.Filter, self).get_context_data(*args, **kwargs)
             current_label = self.derive_label()
 
-            # replace count function with cached lookup to speed up paging
-            self.object_list.count = lambda: current_label.get_message_count()
+            # if we're not searching, use pre-calculated count to speed up paging
+            if 'search' not in self.request.GET:
+                self.object_list.count = lambda: current_label.get_visible_count()
 
             context['actions'] = ['unlabel', 'label']
             context['current_label'] = current_label

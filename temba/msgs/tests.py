@@ -56,6 +56,7 @@ class MsgTest(TembaTest):
         msg1 = Msg.objects.get(pk=msg1.pk)
         self.assertEqual(msg1.visibility, DELETED)
         self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
+        self.assertTrue(Label.user_labels.filter(pk=label.pk).exists())  # though don't delete the label object
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
@@ -1250,46 +1251,47 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-    def test_message_count(self):
+    def test_visible_count(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
         msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
         msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
+        msg4 = self.create_msg(text="Message 4", contact=Contact.get_test_contact(self.user), direction='I')
 
-        with self.assertNumQueries(1):  # from db
-            self.assertEqual(label.get_message_count(), 0)
+        self.assertEqual(label.get_visible_count(), 0)
 
-        with self.assertNumQueries(0):  # from cache
-            self.assertEqual(label.get_message_count(), 0)
+        label.toggle_label([msg1, msg2, msg3, msg4], add=True)  # msg from test contact will be ignored
 
-        label.toggle_label([msg1, msg2, msg3], add=True)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 3)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
 
         label.toggle_label([msg3], add=False)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        msg2.archive()
+        msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)  # archived still has label
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
 
-        msg2.release()
+        msg2.restore()  # msg back in visible count
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 1)  # releasing removes label
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        self.clear_cache()
+        msg2.release()  # removes label message bo longer visible
 
-        with self.assertNumQueries(1):
-            self.assertEqual(label.get_message_count(), 1)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.archive()
+        label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.restore()  # but then restoring that message will
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.assertRaises(ValueError, folder.get_message_count)
+        self.assertRaises(ValueError, folder.get_visible_count)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")

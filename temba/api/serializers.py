@@ -255,7 +255,7 @@ class LabelReadSerializer(serializers.ModelSerializer):
     count = serializers.SerializerMethodField('get_count')
 
     def get_count(self, obj):
-        return obj.get_message_count()
+        return obj.get_visible_count()
 
     class Meta:
         model = Label
