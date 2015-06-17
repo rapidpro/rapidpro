@@ -220,6 +220,8 @@ describe 'Services:', ->
       messageSplitB = '771088fd-fc77-4966-8541-93c3c59c923d'
       messageSplitRule = '865baac0-da29-4752-be1e-1488457f708c'
 
+      endOfFlow = '3a0f77d1-f6bf-47f1-b194-de2051ba0738'
+
       it 'should detect looping to same rule', ->
         ruleSelfLoop = flowService.isConnectionAllowed(flow, groupSplit + '_' + groupA, groupSplit)
         expect(ruleSelfLoop).toBe(false, "Rule was able to point to it's parent")
@@ -245,6 +247,14 @@ describe 'Services:', ->
         # now try reconnective our first message
         allowed = flowService.isConnectionAllowed(flow, messageOne, groupSplit)
         expect(allowed).toBe(true, "Failed to allow legitmately branched connection")
+
+      it 'should detect arbitrary expression pause', ->
+        for ruleset in flow.rule_sets
+          if ruleset.uuid == messageSplitA
+            ruleset.operand = '=(step.value= contact.last_four_digit)'
+
+        allowed = flowService.isConnectionAllowed(flow, endOfFlow, messageSplitA)
+        expect(allowed).toBe(true, 'Failed to find expression step value')
 
     describe 'updateDestination()', ->
       colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
