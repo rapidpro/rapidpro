@@ -323,7 +323,7 @@ class Broadcast(models.Model):
 
         return commands
 
-    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING,
+    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, base_language=None, partial_recipients=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
@@ -389,6 +389,7 @@ class Broadcast(models.Model):
                                           response_to=response_to,
                                           message_context=message_context,
                                           status=status,
+                                          msg_type=msg_type,
                                           insert_object=False,
                                           priority=priority,
                                           created_on=created_on)
@@ -553,7 +554,7 @@ class Msg(models.Model, OrgModelMixin):
     has_template_error = models.BooleanField(default=False, verbose_name=_("Has Template Error"),
                                              help_text=_("Whether data for variable substitution are missing"))
 
-    msg_type = models.CharField(max_length=1, choices=MSG_TYPES, default=INBOX, verbose_name=_("Message Type"),
+    msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
 
     msg_count = models.IntegerField(default=1, verbose_name=_("Message Count"),
@@ -702,11 +703,18 @@ class Msg(models.Model, OrgModelMixin):
         """
         Marks an incoming message as HANDLED
         """
+        update_fields = ['status', 'delivered_on']
+
+        # if flows or IVR haven't claimed this message, then it's going to the inbox
+        if not msg.msg_type:
+            msg.msg_type = INBOX
+            update_fields.append('msg_type')
+
         msg.status = HANDLED
-        msg.delivered_on = timezone.now()  # current time as  delivery date so we can track created->delivered latency
+        msg.delivered_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
 
         # make sure we don't overwrite any async message changes by only saving specific fields
-        msg.save(update_fields=['status', 'delivered_on'])
+        msg.save(update_fields=update_fields)
 
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
@@ -927,7 +935,7 @@ class Msg(models.Model, OrgModelMixin):
         self.org.trigger_send([cloned])
 
     def get_flow_step(self):
-        if self.msg_type == INBOX:
+        if self.msg_type not in (FLOW, IVR):
             return None
 
         steps = list(self.steps.all())  # steps may have been pre-fetched
@@ -959,7 +967,7 @@ class Msg(models.Model, OrgModelMixin):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
-                        status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
+                        status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
