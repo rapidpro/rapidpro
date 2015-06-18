@@ -323,7 +323,7 @@ class Broadcast(models.Model):
 
         return commands
 
-    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING,
+    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, base_language=None, partial_recipients=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
@@ -389,6 +389,7 @@ class Broadcast(models.Model):
                                           response_to=response_to,
                                           message_context=message_context,
                                           status=status,
+                                          msg_type=msg_type,
                                           insert_object=False,
                                           priority=priority,
                                           created_on=created_on)
@@ -637,7 +638,7 @@ class Msg(models.Model, OrgModelMixin):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        cls.mark_handled(msg, as_type=(FLOW if handled else INBOX))
+        cls.mark_handled(msg)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -699,16 +700,22 @@ class Msg(models.Model, OrgModelMixin):
         return unread_count
 
     @classmethod
-    def mark_handled(cls, msg, as_type):
+    def mark_handled(cls, msg):
         """
         Marks an incoming message as HANDLED
         """
-        msg.msg_type = as_type
+        update_fields = ['status', 'delivered_on']
+
+        # if flows or IVR haven't claimed this message, then it's going to the inbox
+        if not msg.msg_type:
+            msg.msg_type = INBOX
+            update_fields.append('msg_type')
+
         msg.status = HANDLED
-        msg.delivered_on = timezone.now()  # current time as  delivery date so we can track created->delivered latency
+        msg.delivered_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
 
         # make sure we don't overwrite any async message changes by only saving specific fields
-        msg.save(update_fields=['msg_type', 'status', 'delivered_on'])
+        msg.save(update_fields=update_fields)
 
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
@@ -929,7 +936,7 @@ class Msg(models.Model, OrgModelMixin):
         self.org.trigger_send([cloned])
 
     def get_flow_step(self):
-        if self.msg_type == INBOX:
+        if self.msg_type not in (FLOW, IVR):
             return None
 
         steps = list(self.steps.all())  # steps may have been pre-fetched
