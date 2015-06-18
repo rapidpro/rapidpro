@@ -544,7 +544,6 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None):
-
         if started_flows is None:
             started_flows = []
 

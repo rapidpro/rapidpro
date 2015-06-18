@@ -354,6 +354,16 @@ class ContactTest(TembaTest):
         self.assertEquals(test_contact_user2.created_by, self.user)
         self.assertTrue(test_contact_user2 == test_contact_user)
 
+        # assign this URN to another contact
+        other_contact = Contact.get_or_create(self.org, self.admin)
+        test_urn = test_contact_user2.get_urn(TEL_SCHEME)
+        test_urn.contact = other_contact
+        test_urn.save()
+
+        # fetching the test contact again should get us a new URN
+        new_test_contact = Contact.get_test_contact(self.user)
+        self.assertNotEqual(new_test_contact.get_urn(TEL_SCHEME), test_urn)
+
     def test_contact_create(self):
         self.login(self.admin)
 
