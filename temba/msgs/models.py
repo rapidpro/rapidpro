@@ -20,11 +20,10 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, ORG_DISPLAY_CACHE_TTL
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
-from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -98,9 +97,6 @@ STATUS_CHOICES = (
     # we retried this message
     (RESENT, _("Resent message")),
 )
-
-# cache keys and TTLs
-LABEL_MESSAGE_COUNT_CACHE_KEY = 'org:%d:cache:label_message_count:%d'
 
 
 def get_message_handlers():
@@ -327,7 +323,7 @@ class Broadcast(models.Model):
 
         return commands
 
-    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING,
+    def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, base_language=None, partial_recipients=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
@@ -393,6 +389,7 @@ class Broadcast(models.Model):
                                           response_to=response_to,
                                           message_context=message_context,
                                           status=status,
+                                          msg_type=msg_type,
                                           insert_object=False,
                                           priority=priority,
                                           created_on=created_on)
@@ -557,7 +554,7 @@ class Msg(models.Model, OrgModelMixin):
     has_template_error = models.BooleanField(default=False, verbose_name=_("Has Template Error"),
                                              help_text=_("Whether data for variable substitution are missing"))
 
-    msg_type = models.CharField(max_length=1, choices=MSG_TYPES, default=INBOX, verbose_name=_("Message Type"),
+    msg_type = models.CharField(max_length=1, choices=MSG_TYPES, null=True, verbose_name=_("Message Type"),
                                 help_text=_('The type of this message'))
 
     msg_count = models.IntegerField(default=1, verbose_name=_("Message Count"),
@@ -706,11 +703,18 @@ class Msg(models.Model, OrgModelMixin):
         """
         Marks an incoming message as HANDLED
         """
+        update_fields = ['status', 'delivered_on']
+
+        # if flows or IVR haven't claimed this message, then it's going to the inbox
+        if not msg.msg_type:
+            msg.msg_type = INBOX
+            update_fields.append('msg_type')
+
         msg.status = HANDLED
-        msg.delivered_on = timezone.now()  # current time as  delivery date so we can track created->delivered latency
+        msg.delivered_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
 
         # make sure we don't overwrite any async message changes by only saving specific fields
-        msg.save(update_fields=['status', 'delivered_on'])
+        msg.save(update_fields=update_fields)
 
         msg.org.update_caches(OrgEvent.msg_handled, msg)
 
@@ -931,7 +935,7 @@ class Msg(models.Model, OrgModelMixin):
         self.org.trigger_send([cloned])
 
     def get_flow_step(self):
-        if self.msg_type == INBOX:
+        if self.msg_type not in (FLOW, IVR):
             return None
 
         steps = list(self.steps.all())  # steps may have been pre-fetched
@@ -963,7 +967,7 @@ class Msg(models.Model, OrgModelMixin):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
-                        status=PENDING, recording_url=None, msg_type=INBOX, topup=None):
+                        status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1255,8 +1259,8 @@ class Msg(models.Model, OrgModelMixin):
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
         if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
-            for label in self.labels.all():
-                label.toggle_label([self], add=False)
+            # remove labels
+            self.labels.clear()
 
     @classmethod
     def apply_action_label(cls, msgs, label, add):
@@ -1403,6 +1407,9 @@ class Label(TembaModel, SmartModel):
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
 
+    visible_count = models.PositiveIntegerField(default=0,
+                                                help_text=_("Number of non-archived messages with this label"))
+
     # define some custom managers to do the filtering of label types for us
     user_all = models.Manager()
     user_folders = UserFolderManager()
@@ -1463,21 +1470,14 @@ class Label(TembaModel, SmartModel):
     def get_messages(self):
         return self.filter_messages(Msg.objects.all())
 
-    def get_message_count(self):
+    def get_visible_count(self):
         """
-        Returns the count of message tagged with this label or one of its children
+        Returns the count of visible, non-test message tagged with this label
         """
         if self.is_folder():
             raise ValueError("Message counts are not tracked for user folders")
 
-        return get_cacheable_result(self.get_message_count_cache_key(), ORG_DISPLAY_CACHE_TTL,
-                                    self._calculate_message_count)
-
-    def _calculate_message_count(self):
-        return self.msgs.count()
-
-    def get_message_count_cache_key(self):
-        return LABEL_MESSAGE_COUNT_CACHE_KEY % (self.org_id, self.pk)
+        return self.visible_count
 
     def toggle_label(self, msgs, add):
         """
@@ -1504,9 +1504,6 @@ class Label(TembaModel, SmartModel):
                     msg.labels.remove(self)
                     changed.add(msg.pk)
 
-        # if there is a cached message count, update it
-        count_delta = len(changed) if add else -len(changed)
-        incrby_existing(self.get_message_count_cache_key(), count_delta)
         return changed
 
     def is_folder(self):

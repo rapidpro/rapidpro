@@ -374,17 +374,16 @@ class TriggerTest(TembaTest):
 
         # now let's try it out
         contact = self.create_contact('Ben', '+250788382382')
-        sms = self.create_msg(direction=INCOMING, contact=contact, text="join")
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="join")
+        self.assertIsNone(msg.msg_type)
 
-        self.assertEqual(sms.msg_type, 'I')
+        self.assertTrue(Trigger.find_and_handle(msg))
 
-        Trigger.find_and_handle(sms)
-
-        self.assertEqual(sms.msg_type, 'F')
+        self.assertEqual(msg.msg_type, 'F')
         self.assertEqual(Trigger.objects.get(pk=trigger.pk).trigger_count, 1)
 
         # we should be in the group now
-        self.assertEquals(1, contact.user_groups.count())
+        self.assertEqual(set(contact.user_groups.all()), {group})
 
         # and have one incoming and one outgoing message
         self.assertEquals(2, contact.msgs.count())
@@ -406,13 +405,14 @@ class TriggerTest(TembaTest):
 
         # now let's try it out
         contact = self.create_contact('Ben', '+250788382382')
-        sms = self.create_msg(direction=INCOMING, contact=contact, text=u'١٠٠ join group')
+        msg = self.create_msg(direction=INCOMING, contact=contact, text=u'١٠٠ join group')
+        self.assertIsNone(msg.msg_type)
 
-        self.assertEquals(sms.msg_type, 'I')
-        self.assertTrue(Trigger.find_and_handle(sms))
+        self.assertTrue(Trigger.find_and_handle(msg))
 
         # we should be in the group now
-        self.assertEquals(1, contact.user_groups.count())
+        self.assertEqual(msg.msg_type, 'F')
+        self.assertEqual(set(contact.user_groups.all()), {group})
 
     def test_join_group_no_response(self):
 
@@ -432,13 +432,14 @@ class TriggerTest(TembaTest):
 
         # now let's try it out
         contact = self.create_contact('Ben', '+250788382382')
-        sms = self.create_msg(direction=INCOMING, contact=contact, text="join")
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="join")
+        self.assertIsNone(msg.msg_type)
 
-        self.assertEquals(sms.msg_type, 'I')
-        Trigger.find_and_handle(sms)
+        self.assertTrue(Trigger.find_and_handle(msg))
 
         # we should be in the group now
-        self.assertEquals(1, contact.user_groups.count())
+        self.assertEqual(msg.msg_type, 'F')
+        self.assertEqual(set(contact.user_groups.all()), {group})
 
     def test_missed_call_trigger(self):
         self.login(self.admin)

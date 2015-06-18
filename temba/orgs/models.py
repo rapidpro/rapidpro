@@ -268,8 +268,7 @@ class Org(SmartModel):
         """
         Gets the queryset for the given contact or message folder for this org
         """
-        from temba.contacts.models import Contact
-        from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, PENDING, FLOW, FAILED as M_FAILED
+        from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, FLOW, FAILED as M_FAILED
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
@@ -279,7 +278,7 @@ class Org(SmartModel):
         elif folder == OrgFolder.contacts_blocked:
             return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.msgs_inbox:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX).exclude(status=PENDING)
+            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX)
         elif folder == OrgFolder.msgs_archived:
             return Msg.get_messages(self, direction=INCOMING, is_archived=True)
         elif folder == OrgFolder.msgs_outbox:
@@ -421,8 +420,6 @@ class Org(SmartModel):
         if OrgCache.display in caches:
             for folder in OrgFolder.__members__.values():
                 keys.append(self._get_folder_count_cache_key(folder))
-            for label in self.label_set.all():
-                keys.append(label.get_message_count_cache_key())
 
         if OrgCache.credits in caches:
             keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)

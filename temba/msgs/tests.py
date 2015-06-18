@@ -56,6 +56,7 @@ class MsgTest(TembaTest):
         msg1 = Msg.objects.get(pk=msg1.pk)
         self.assertEqual(msg1.visibility, DELETED)
         self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
+        self.assertTrue(Label.user_labels.filter(pk=label.pk).exists())  # though don't delete the label object
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
@@ -364,7 +365,9 @@ class MsgTest(TembaTest):
         msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
         msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
 
-        msg6.status = PENDING  # put #6 back in pending state
+        # msg6 is still pending
+        msg6.status = PENDING
+        msg6.msg_type = None
         msg6.save()
 
         # visit inbox page  as a user not in the organization
@@ -375,7 +378,7 @@ class MsgTest(TembaTest):
         # visit inbox page as a manager of the organization
         response = self.fetch_protected(inbox_url, self.admin)
         
-        self.assertEquals(response.context['object_list'].count(), 5)  # excludes msg 6 as it is pending
+        self.assertEquals(response.context['object_list'].count(), 5)
         self.assertEquals(response.context['folders'][0]['url'], '/msg/inbox/')
         self.assertEquals(response.context['folders'][0]['count'], 5)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
@@ -500,82 +503,58 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['object_list'].count(), 4)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
-        # test restoring a archived message back to inbox
-        post_data = dict()
-        post_data['action'] = 'restore'
-        post_data['objects'] = msg1.pk
-
-        response = self.client.post(inbox_url, post_data, follow=True)
+        # test restoring an archived message back to inbox
+        post_data = dict(action='restore', objects=[msg1.pk])
+        self.client.post(inbox_url, post_data, follow=True)
         self.assertEquals(Msg.objects.filter(visibility=ARCHIVED).count(), 0)
 
-        # no test contact message is listed in the inbox
-        test_contact = self.create_contact("HSA", "4289")
-        test_contact.is_test = True
-        test_contact.save()
-
+        # messages from test contact are not included in the inbox
+        test_contact = Contact.get_test_contact(self.admin)
         Msg.create_incoming(self.channel, (TEL_SCHEME, test_contact.get_urn().path), 'Bla Blah')
 
-        response = self.fetch_protected(inbox_url, self.admin)
-        self.assertEquals(Msg.objects.all().count(), 7)
-        self.assertEquals(response.context['object_list'].count(), 5)
+        response = self.client.get(inbox_url)
+        self.assertEqual(Msg.objects.all().count(), 7)
+        self.assertEqual(response.context['object_list'].count(), 5)
 
-        # message should be archived to start
+        # archiving a message removes it from the inbox
         Msg.apply_action_archive([msg1])
 
+        response = self.client.get(inbox_url)
+        self.assertEqual(response.context['object_list'].count(), 4)
+
+        # and moves it to the Archived page
         response = self.client.get(archive_url)
-        self.assertEquals(1, response.context['object_list'].count())
+        self.assertEqual(response.context['object_list'].count(), 1)
 
-        # this deletes it
-        post_data = dict()
-        post_data['action'] = 'delete'
-        post_data['objects'] = msg1.pk
-        response = self.client.post(archive_url, post_data, follow=True)
+        # deleting it removes it from the Archived page
+        response = self.client.post(archive_url, dict(action='delete', objects=[msg1.pk]), follow=True)
+        self.assertEqual(response.context['object_list'].count(), 0)
 
-        # we shouldn't see the message in our list anymore
-        self.assertEquals(0, response.context['object_list'].count())
+        # now check inbox as viewer user
+        response = self.fetch_protected(inbox_url, self.user)
+        self.assertEqual(response.context['object_list'].count(), 4)
 
-        self.client.logout()
-
-        msg6 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "message number 6")
-
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
-        self.login(self.viewer)
-
-        response = self.fetch_protected(inbox_url, self.viewer)
-        self.assertEquals(5, response.context['object_list'].count())
-
-        # be sure viewer cannot submit any action
-        post_data = dict()
-        post_data['action'] = 'label'
-        post_data['objects'] = [msg6.pk]
-        post_data['label'] = label1.pk
-        post_data['add'] = False
-
-        # no label
+        # check that viewer user cannot label messages
+        post_data = dict(action='label', objects=[msg5.pk], label=label1.pk, add=True)
         self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(msg6.labels.all().count(), 0)
+        self.assertEqual(msg5.labels.all().count(), 0)
 
-        self.assertEquals(Msg.objects.get(pk=msg6.pk).visibility, VISIBLE)
-        post_data = dict()
-        post_data['action'] = 'archive'
-        post_data['objects'] = msg6.pk
-
-        response = self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(Msg.objects.get(pk=msg6.pk).visibility, VISIBLE)
+        # or archive messages
+        self.assertEqual(Msg.objects.get(pk=msg5.pk).visibility, VISIBLE)
+        post_data = dict(action='archive', objects=[msg5.pk])
+        self.client.post(inbox_url, post_data, follow=True)
+        self.assertEqual(Msg.objects.get(pk=msg5.pk).visibility, VISIBLE)
 
         # search on inbox just on the message text
         response = self.client.get("%s?search=message" % inbox_url)
-        self.assertEquals(5, len(response.context_data['object_list']))
+        self.assertEqual(len(response.context_data['object_list']), 4)
 
         response = self.client.get("%s?search=5" % inbox_url)
-        self.assertEquals(1, len(response.context_data['object_list']))
+        self.assertEqual(len(response.context_data['object_list']), 1)
 
         # can search on contact field
         response = self.client.get("%s?search=joe" % inbox_url)
-        self.assertEquals(5, len(response.context_data['object_list']))
+        self.assertEqual(len(response.context_data['object_list']), 4)
 
     def test_survey_messages(self):
         survey_msg_url = reverse('msgs.msg_flow')
@@ -1250,46 +1229,47 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-    def test_message_count(self):
+    def test_visible_count(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
         msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
         msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
+        msg4 = self.create_msg(text="Message 4", contact=Contact.get_test_contact(self.user), direction='I')
 
-        with self.assertNumQueries(1):  # from db
-            self.assertEqual(label.get_message_count(), 0)
+        self.assertEqual(label.get_visible_count(), 0)
 
-        with self.assertNumQueries(0):  # from cache
-            self.assertEqual(label.get_message_count(), 0)
+        label.toggle_label([msg1, msg2, msg3, msg4], add=True)  # msg from test contact will be ignored
 
-        label.toggle_label([msg1, msg2, msg3], add=True)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 3)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
 
         label.toggle_label([msg3], add=False)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        msg2.archive()
+        msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)  # archived still has label
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
 
-        msg2.release()
+        msg2.restore()  # msg back in visible count
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 1)  # releasing removes label
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        self.clear_cache()
+        msg2.release()  # removes label message bo longer visible
 
-        with self.assertNumQueries(1):
-            self.assertEqual(label.get_message_count(), 1)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.archive()
+        label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.restore()  # but then restoring that message will
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.assertRaises(ValueError, folder.get_message_count)
+        self.assertRaises(ValueError, folder.get_visible_count)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")

@@ -1584,7 +1584,7 @@ class Flow(TembaModel, SmartModel):
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING,
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, base_language=self.base_language,
                                partial_recipients=partial_recipients)
 
@@ -3319,8 +3319,8 @@ class FlowStep(models.Model):
     def add_message(self, msg):
         self.messages.add(msg)
 
-        # skip inbox
-        if msg.msg_type == INBOX:
+        # incoming non-IVR messages won't have a type yet so update that
+        if not msg.msg_type or msg.msg_type == INBOX:
             msg.msg_type = FLOW
             msg.save(update_fields=['msg_type'])
 
