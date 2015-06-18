@@ -614,7 +614,6 @@ class Msg(models.Model, OrgModelMixin):
         Processes a message, running it through all our handlers
         """
         handlers = get_message_handlers()
-        handled = False
 
         if msg.contact.is_blocked:
             msg.visibility = ARCHIVED
