@@ -414,33 +414,6 @@ class MsgTest(TembaTest):
         self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
         self.assertEqual(list(Msg.objects.filter(labels=label3)), [msg3, msg2, msg1])
 
-        # Let's test the filter by labels
-        label1_filter_url = reverse('msgs.msg_filter', args=[label1.pk])
-        label2_filter_url = reverse('msgs.msg_filter', args=[label2.pk])
-        label3_filter_url = reverse('msgs.msg_filter', args=[label3.pk])
-
-        # non-org users can't access a filter page
-        self.login(self.non_org_user)
-        self.assertEqual(self.client.get(label1_filter_url).status_code, 302)
-
-        # but org viewers can
-        self.login(self.user)
-        response1 = self.client.get(label1_filter_url)
-        response2 = self.client.get(label2_filter_url)
-        response3 = self.client.get(label3_filter_url)
-
-        self.assertEqual(list(response1.context['object_list']), [msg1])
-        self.assertEqual(response1.context['actions'], ['unlabel', 'label'])
-        self.assertNotContains(response1, reverse('msgs.label_delete', args=[label1.pk]))
-
-        self.assertEqual(list(response2.context['object_list']), [])
-        self.assertEqual(list(response3.context['object_list']), [msg3, msg2, msg1])
-
-        # admins can edit and delete the labels
-        self.login(self.admin)
-        response1 = self.client.get(label1_filter_url)
-        self.assertContains(response1, reverse('msgs.label_delete', args=[label1.pk]))
-
         # update our label name
         response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
         self.assertEquals(200, response.status_code)
@@ -749,6 +722,80 @@ class MsgTest(TembaTest):
 
         out_miss = Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "mt_miss")
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
+
+
+class MsgCRUDLTest(TembaTest):
+    def setUp(self):
+        super(MsgCRUDLTest, self).setUp()
+
+        self.joe = self.create_contact("Joe Blow", "+250788000001")
+        self.frank = self.create_contact("Frank Blow", "250788000002")
+        self.billy = self.create_contact("Billy Bob", twitter="billy_bob")
+
+    def test_filter(self):
+        # create some folders and labels
+        folder = Label.get_or_create_folder(self.org, self.user, "folder")
+        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
+        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
+        label3 = Label.get_or_create(self.org, self.user, "label3")
+
+        # create some messages
+        msg1 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test1")
+        msg2 = self.create_msg(direction='I', msg_type='I', contact=self.frank, text="test2")
+        msg3 = self.create_msg(direction='I', msg_type='I', contact=self.billy, text="test3")
+        msg4 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test4", visibility=ARCHIVED)
+        msg5 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test5", visibility=DELETED)
+        msg6 = self.create_msg(direction='I', msg_type='F', contact=self.joe, text="flow test")
+        msg7 = self.create_msg(direction='I', msg_type='F', contact=Contact.get_test_contact(self.user), text="sim")
+
+        # apply the labels
+        label1.toggle_label([msg1, msg2], add=True)
+        label2.toggle_label([msg2, msg3], add=True)
+        label3.toggle_label([msg1, msg2, msg3, msg4, msg5, msg6, msg7], add=True)
+
+        # can't visit a filter page as a non-org user
+        self.login(self.non_org_user)
+        response = self.client.get(reverse('msgs.msg_filter', args=[label3.pk]))
+        self.assertLoginRedirect(response)
+
+        # can as org viewer user
+        self.login(self.user)
+        response = self.client.get(reverse('msgs.msg_filter', args=[label3.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['actions'], ['unlabel', 'label'])
+        self.assertNotContains(response, reverse('msgs.label_update', args=[label3.pk]))  # can't update label
+        self.assertNotContains(response, reverse('msgs.label_delete', args=[label3.pk]))  # can't delete label
+
+        # check that test and non-visible messages are excluded, and messages and ordered newest to oldest
+        self.assertEqual(list(response.context['object_list']), [msg6, msg3, msg2, msg1])
+
+        # check viewing a folder
+        response = self.client.get(reverse('msgs.msg_filter', args=[folder.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['actions'], ['unlabel', 'label'])
+        self.assertNotContains(response, reverse('msgs.label_update', args=[folder.pk]))  # can't update folder
+        self.assertNotContains(response, reverse('msgs.label_delete', args=[folder.pk]))  # can't delete folder
+
+        # messages from contained labels are rolled up without duplicates
+        self.assertEqual(list(response.context['object_list']), [msg3, msg2, msg1])
+
+        # search on folder by message text
+        response = self.client.get("%s?search=test2" % reverse('msgs.msg_filter', args=[folder.pk]))
+        self.assertEqual(set(response.context_data['object_list']), {msg2})
+
+        # search on label by contact name
+        response = self.client.get("%s?search=joe" % reverse('msgs.msg_filter', args=[label3.pk]))
+        self.assertEqual(set(response.context_data['object_list']), {msg1, msg6})
+
+        # check admin users see edit and delete options for labels and folders
+        self.login(self.admin)
+        response = self.client.get(reverse('msgs.msg_filter', args=[folder.pk]))
+        self.assertContains(response, reverse('msgs.label_update', args=[folder.pk]))
+        self.assertContains(response, reverse('msgs.label_delete', args=[folder.pk]))
+
+        response = self.client.get(reverse('msgs.msg_filter', args=[label1.pk]))
+        self.assertContains(response, reverse('msgs.label_update', args=[label1.pk]))
+        self.assertContains(response, reverse('msgs.label_delete', args=[label1.pk]))
 
 
 class BroadcastTest(TembaTest):
@@ -1177,37 +1224,6 @@ class BroadcastCRUDLTest(_CRUDLTest):
         self.assertContains(response, "Hey guys")
 
 
-class MsgCRUDLTest(_CRUDLTest):
-    def setUp(self):
-        from temba.msgs.views import MsgCRUDL
-        super(MsgCRUDLTest, self).setUp()
-        self.crudl = MsgCRUDL
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.org.initialize()
-
-    def test_folders(self):
-        self.login(self.getUser())
-        channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
-
-        contact = Contact.get_or_create(self.org, self.user, urns=[(TEL_SCHEME, '250788382382')])
-
-        # some incoming messages
-        Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "It's going well")
-        Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "My name is Frank")
-        Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "Yes, 3.")
-
-        # some outgoing messages
-        Msg.create_outgoing(self.org, self.user, contact, "How is it going?")
-        Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
-
-        self._do_test_view('inbox')
-
-    def assertInboxGet(self, response):
-        self.assertContains(response, "0788 382 382", 6)
-
-
 class LabelTest(TembaTest):
 
     def setUp(self):
@@ -1382,6 +1398,31 @@ class LabelCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 200)
+
+    def test_list(self):
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        Label.get_or_create(self.org, self.user, "Junk", folder=folder)
+        Label.get_or_create(self.org, self.user, "Important")
+
+        self.create_secondary_org()
+        Label.get_or_create(self.org2, self.admin2, "Other Org")
+
+        # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
+        self.login(self.user)
+        response = self.client.get(reverse('msgs.label_list'))
+        self.assertLoginRedirect(response)
+
+        # editors can though
+        self.login(self.editor)
+        response = self.client.get(reverse('msgs.label_list'))
+        results = json.loads(response.content)
+
+        # results should be A-Z and not include folders or labels from other orgs
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0]['text'], "Important")
+        self.assertEqual(results[1]['text'], "Junk")
+        self.assertEqual(results[2]['text'], "Spam")
 
 
 class ScheduleTest(TembaTest):
