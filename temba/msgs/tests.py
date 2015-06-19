@@ -1399,6 +1399,31 @@ class LabelCRUDLTest(TembaTest):
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 200)
 
+    def test_list(self):
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        Label.get_or_create(self.org, self.user, "Junk", folder=folder)
+        Label.get_or_create(self.org, self.user, "Important")
+
+        self.create_secondary_org()
+        Label.get_or_create(self.org2, self.admin2, "Other Org")
+
+        # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
+        self.login(self.user)
+        response = self.client.get(reverse('msgs.label_list'))
+        self.assertLoginRedirect(response)
+
+        # editors can though
+        self.login(self.editor)
+        response = self.client.get(reverse('msgs.label_list'))
+        results = json.loads(response.content)
+
+        # results should be A-Z and not include folders or labels from other orgs
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0]['text'], "Important")
+        self.assertEqual(results[1]['text'], "Junk")
+        self.assertEqual(results[2]['text'], "Spam")
+
 
 class ScheduleTest(TembaTest):
 
