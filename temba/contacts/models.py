@@ -785,7 +785,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
     def block(self):
         """
-        Blocks this contact removing it from all groups, and marking it as archived
+        Blocks this contact removing it from all groups
         """
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
@@ -802,8 +802,12 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
         ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
+
+        # if contact is failed then it should go back into the failed group
+        if self.is_failed:
+            ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
 
     def fail(self):
         """

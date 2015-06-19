@@ -337,8 +337,6 @@ class ContactTest(TembaTest):
         self.jim = self.create_contact(name="Jim")
         self.jim.release()
 
-        self.admin.groups.add(Group.objects.get(name="Beta"))
-
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
         self.assertTrue(test_contact_admin.is_test)
@@ -372,7 +370,7 @@ class ContactTest(TembaTest):
         # check that the orphaned URN has been associated with the contact
         self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, TEL_SCHEME, '8888').name)
 
-    def test_contact_block_and_release(self):
+    def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
         msg3 = self.create_msg(text="Test 3", direction='I', contact=self.joe, msg_type='I', status='H', visibility='A')
@@ -381,22 +379,47 @@ class ContactTest(TembaTest):
         group = self.create_group("Just Joe", [self.joe])
 
         self.clear_cache()
+
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
+
+        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+
         self.assertEqual(3, label.msgs.count())
+        self.assertEqual(1, group.contacts.count())
+
+        self.joe.fail()
+
+        # check that joe is now failed
+        self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.assertTrue(self.joe.is_failed)
+        self.assertFalse(self.joe.is_blocked)
+        self.assertTrue(self.joe.is_active)
+
+        # and added to failed group
+        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
         self.assertEqual(1, group.contacts.count())
 
         self.joe.block()
 
-        # check this contact object but also that changes were persisted
-        self.assertTrue(self.joe.is_active)
-        self.assertTrue(self.joe.is_blocked)
+        # check that joe is now blocked and failed
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertTrue(self.joe.is_active)
+        self.assertTrue(self.joe.is_failed)
         self.assertTrue(self.joe.is_blocked)
+        self.assertTrue(self.joe.is_active)
 
-        # that he was removed from the group
+        # and that he's been removed from the all and failed groups, and added to the blocked group
+        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+
+        # and removed from the single user group
         self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
 
         # but his messages are unchanged
@@ -405,20 +428,43 @@ class ContactTest(TembaTest):
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
 
-        # unblock and re-add to group
         self.joe.unblock()
-        group.update_contacts([self.joe], add=True)
 
-        # check this contact object but also that changes were persisted
-        self.assertTrue(self.joe.is_active)
-        self.assertFalse(self.joe.is_blocked)
+        # check that joe is now unblocked but still failed
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertTrue(self.joe.is_active)
+        self.assertTrue(self.joe.is_failed)
         self.assertFalse(self.joe.is_blocked)
+        self.assertTrue(self.joe.is_active)
+
+        # and that he's been removed from the blocked group, and put back in the all and failed groups
+        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
+
+        self.joe.unfail()
+
+        # check that joe is now no longer failed
+        self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.assertFalse(self.joe.is_failed)
+        self.assertFalse(self.joe.is_blocked)
+        self.assertTrue(self.joe.is_active)
+
+        # and that he's been removed from the failed group
+        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
 
         self.joe.release()
 
+        # check that joe is no longer active
+        self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.assertFalse(self.joe.is_failed)
+        self.assertFalse(self.joe.is_blocked)
+        self.assertFalse(self.joe.is_active)
+
         self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
 
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
