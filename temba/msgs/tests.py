@@ -11,7 +11,7 @@ from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest, _CRUDLTest
 from temba.contacts.models import ContactField, TEL_SCHEME
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
@@ -1536,3 +1536,43 @@ class ConsoleTest(TembaTest):
         # now trigger a flow
         self.console.default("Color")
         self.assertEchoed("What is your favorite color?")
+
+class BroadcastLanguageTest(TembaTest):
+
+    def test_multiple_language_broadcast(self):
+        # set up our org to have a few different languages
+        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
+                                      created_by=self.admin, modified_by=self.admin)
+        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
+                                      created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = eng
+        self.org.save()
+
+        francois = self.create_contact('Francois', '+12065551213')
+        francois.language = 'fre'
+        francois.save()
+
+        greg = self.create_contact('Greg', '+12065551212')
+
+        wilbert = self.create_contact('Wilbert', '+12065551214')
+        wilbert.language = 'fre'
+        wilbert.save()
+
+        eng_msg = "This is my message"
+        fre_msg = "Ceci est mon message"
+
+        # now create a broadcast with a couple contacts, one with an explicit language, the other not
+        bcast = Broadcast.create(self.org, self.admin, "This is my new message",
+                                 [francois, greg, wilbert],
+                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)))
+
+        bcast.send()
+
+        # assert the right language was used for each contact
+        self.assertEquals(fre_msg, Msg.objects.get(contact=francois).text)
+        self.assertEquals(eng_msg, Msg.objects.get(contact=greg).text)
+        self.assertEquals(fre_msg, Msg.objects.get(contact=wilbert).text)
+
+
+
+

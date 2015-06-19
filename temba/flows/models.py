@@ -33,9 +33,9 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, get_preferred_language, analytics
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel
 from temba.utils.queues import push_task
@@ -972,7 +972,6 @@ class Flow(TembaModel, SmartModel):
             if contact_count:
                 r.sadd(self.get_stats_cache_key(FlowStatsCache.contacts_started_set), *[c.pk for c in contacts])
 
-
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):
             return language_dict
@@ -982,31 +981,25 @@ class Flow(TembaModel, SmartModel):
 
         return default
 
-    def get_localized_text(self, language_dict, contact=None, default_text=''):
+    def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
-        :param language_dict: The text in all supported languages, or string (which will just return immediately)
+        :param text_translations: The text in all supported languages, or string (which will just return immediately)
         :param contact: the contact we are interacting with
         :param default_text: What to use if all else fails
         :return:
         """
-
         # We return according to the following precedence:
-        #   1) Contact Language
-        #   2) Org Primary Language
-        #   3) Flow Base Language
-        #   4) Default Text
-
+        #   1) Org Primary Language
+        #   2) Flow Base Language
+        #   3) Default Text
         preferred_languages = []
-        if contact and contact.language:
-            preferred_languages.append(contact.language)
-
         if self.org.primary_language:
             preferred_languages.append(self.org.primary_language.iso_code)
 
         preferred_languages.append(self.base_language)
 
-        localized = get_preferred_language(language_dict, preferred_languages)
+        localized = Language.get_localized_text(text_translations, preferred_languages, contact=contact)
 
         if not localized:
             localized = default_text

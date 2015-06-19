@@ -20,10 +20,10 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, datetime_to_str, analytics, get_preferred_language
+from temba.utils import get_datetime_format, datetime_to_str, analytics
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -369,15 +369,17 @@ class Broadcast(models.Model):
         # pre-fetch channels to reduce database hits
         org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
 
+        # build our text translations
+        text_translations = None
+        if self.language_dict:
+            text_translations = json.loads(self.language_dict)
+
         for recipient in recipients:
             text = self.text
 
-            if self.language_dict:
-                # prepend the contact language if we have one
-                if isinstance(recipient, Contact) and recipient.language:
-                    preferred_languages.insert(0, recipient.language)
-
-                text = get_preferred_language(json.loads(self.language_dict), preferred_languages)
+            # if we have possible translations, find the appropriate one
+            if text_translations:
+                text = Language.get_localized_text(text_translations, preferred_languages, contact=recipient)
 
             try:
                 msg = Msg.create_outgoing(org,

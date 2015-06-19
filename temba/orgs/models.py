@@ -1461,6 +1461,29 @@ class Language(SmartModel):
     def as_json(self):
         return dict(name=self.name, iso_code=self.iso_code)
 
+    @classmethod
+    def get_localized_text(cls, text_translations, preferred_languages, contact=None):
+        """
+        Returns the appropriate translation to use for the passed in contact
+        """
+        # If we are handed raw text without translations, just return that
+        if not isinstance(text_translations, dict):
+            return text_translations
+
+        # first priority is our contact's language
+        if contact and contact.language:
+            localized = text_translations.get(contact.language, None)
+            if localized:
+                return localized
+
+        # otherwise, find the first preferred language
+        for lang in preferred_languages:
+            localized = text_translations.get(lang, None)
+            if localized:
+                return localized
+
+        return None
+
     def __unicode__(self):
         return '%s' % self.name
 
