@@ -158,7 +158,7 @@ class OrgTest(TembaTest):
         self.assertEquals('pt-br', settings.language)
 
     def test_webhook_headers(self):
-        update_url = reverse('orgs.org_update', args=[self.org.pk])
+        update_url = reverse('orgs.org_webhook')
         login_url = reverse('users.user_login')
 
         # no access if anonymous
@@ -169,6 +169,7 @@ class OrgTest(TembaTest):
         self.admin.set_org(self.org)
 
         response = self.client.get(update_url)
+        self.assertEquals(200, response.status_code)
 
         # set a webhook with headers
         post_data = response.context['form'].initial
@@ -1036,11 +1037,11 @@ class OrgCRUDLTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
-        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://www.foo.com/', mt_sms=1))
+        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook=u'{"url": "http://fake.com/webhook.php"}', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
-        self.assertEquals("http://www.foo.com/", org.get_webhook_url())
+        self.assertEquals("http://fake.com/webhook.php", org.get_webhook_url())
         self.assertTrue(org.is_notified_of_mt_sms())
         self.assertFalse(org.is_notified_of_mo_sms())
         self.assertFalse(org.is_notified_of_mt_call())

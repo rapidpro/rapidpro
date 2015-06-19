@@ -2266,7 +2266,7 @@ class RuleSet(models.Model):
 
     rules = models.TextField(help_text=_("The JSON encoded actions for this action set"))
 
-    finished_key = models.CharField(max_length=1, null=True, blank=True, 
+    finished_key = models.CharField(max_length=1, null=True, blank=True,
                                     help_text="During IVR, this is the key to indicate we are done waiting")
 
     value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
@@ -3144,7 +3144,7 @@ class FlowStep(models.Model):
     run = models.ForeignKey(FlowRun, related_name='steps')
 
     contact = models.ForeignKey(Contact, related_name='flow_steps')
-    
+
     step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES,
 
                                  help_text=_("What type of node was visited"))
@@ -3548,7 +3548,8 @@ class APIAction(Action):
 
     @classmethod
     def from_json(cls, org, json):
-        return APIAction(json.get('webhook', org.webhook), json.get('action', 'POST'))
+        # TODO org-defined webhook headers are NOT included for APIAction calls
+        return APIAction(json.get('webhook', org.get_webhook_url()), json.get('action', 'POST'))
 
     def as_json(self):
         return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
@@ -4796,7 +4797,7 @@ class HasDateTest(Test):
         date = str_to_datetime(text, tz=tz, dayfirst=org.get_dayfirst())
         if date is not None and self.evaluate_date_test(date):
             return 1, datetime_to_str(date, tz=tz, format=time_format, ms=False)
-        
+
         return 0, None
 
 
