@@ -3825,7 +3825,6 @@ class WebHookTest(TembaTest):
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
-        # TODO org-defined webhook headers are NOT included for APIAction calls
         actionset.set_actions_dict([APIAction(org.get_webhook_url()).as_json()])
         actionset.save()
 
@@ -4074,8 +4073,8 @@ class WebHookTest(TembaTest):
 
             result = WebHookResult.objects.get()
             # both headers should be in the json-encoded url string
-            self.assertStringContains('"X-My-Header": "foobar"', result.headers)
-            self.assertStringContains('"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="', result.headers)
+            self.assertStringContains('"X-My-Header": "foobar"', result.request)
+            self.assertStringContains('"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="', result.request)
 
     def test_webhook(self):
         response = self.client.get(reverse('api.webhook'))
@@ -4107,4 +4106,3 @@ class WebHookTest(TembaTest):
             response = self.client.post(reverse('api.webhook_tunnel'), dict())
             self.assertEquals(400, response.status_code)
             self.assertTrue(response.content.find("Must include") >= 0)
-

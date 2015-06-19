@@ -278,6 +278,17 @@ def dict_to_struct(classname, attributes, datetime_fields=()):
     return DictStruct(classname, attributes, datetime_fields)
 
 
+def prepped_request_to_str(prepped):
+    """
+    Graciously cribbed from http://stackoverflow.com/a/23816211
+    """
+    return '{}\n{}\n\n{}'.format(
+        prepped.method + ' ' + prepped.url,
+        '\n'.join('{}: {}'.format(k, v) for k, v in prepped.headers.items()),
+        prepped.body,
+    )
+
+
 class DateTimeJsonEncoder(json.JSONEncoder):
     """
     Our own encoder for datetimes.. we always convert to UTC and always include milliseconds

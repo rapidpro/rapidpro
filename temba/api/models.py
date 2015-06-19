@@ -18,6 +18,7 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel, TEMBA_HEADERS
 from temba.msgs.models import CALL_OUT, CALL_OUT_MISSED, CALL_IN, CALL_IN_MISSED
 from temba.utils import datetime_to_str
+from temba.utils import prepped_request_to_str
 from urllib import urlencode
 
 PENDING = 'P'
@@ -326,7 +327,7 @@ class WebHookEvent(SmartModel):
         post_data['relayer_phone'] = self.channel.address
 
         # look up the endpoint for this channel
-        result = dict(webhook=self.org.webhook, data=urlencode(post_data, doseq=True))
+        result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))
 
         if not self.org.get_webhook_url(): # pragma: no cover
             result['status_code'] = 0
@@ -358,11 +359,11 @@ class WebHookEvent(SmartModel):
 
 
             s = requests.Session()
-            req = requests.Request('POST', self.org.get_webhook_url(), data=post_data, headers=headers)
-            prepped = s.prepare_request(req)
-            # save parts of the prepared request
-            # TODO might be nice to actually save the entire prepped request
-            result['request'] = json.dumps({'method': prepped.method, 'url': prepped.url, 'headers': prepped.headers, 'body': prepped.body})
+            prepped = requests.Request('POST', self.org.get_webhook_url(),
+                                       data=post_data,
+                                       headers=headers).prepare()
+            result['url'] = prepped.url
+            result['request'] = prepped_request_to_str(prepped)
             r = s.send(prepped)
 
             result['status_code'] = r.status_code
@@ -426,6 +427,8 @@ class WebHookResult(SmartModel):
                            help_text="The URL the event was delivered to")
     data = models.TextField(null=True, blank=True,
                             help_text="The data that was posted to the webhook")
+    request = models.TextField(null=True, blank=True,
+                               help_text="The request that was posted to the webhook")
     status_code = models.IntegerField(help_text="The HTTP status as returned by the web hook")
     message = models.CharField(max_length=255,
                                help_text="A message describing the result, error messages go here")
@@ -451,8 +454,11 @@ class WebHookResult(SmartModel):
             message = message[:255]
 
         api_user = get_api_user()
+
         WebHookResult.objects.create(event=event,
-                                     url=result['webhook'],
+                                     url=result['url'],
+                                     # Flow webhooks won't have 'reqeust'
+                                     request=result.get('request'),
                                      data=result['data'],
                                      message=message,
                                      status_code=result.get('status_code', 503),
