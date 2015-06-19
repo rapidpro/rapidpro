@@ -165,6 +165,7 @@ class OrgTest(TembaTest):
 
         self.login(self.admin)
         self.admin.set_org(self.org)
+        self.org.administrators.add(self.user)
 
         response = self.client.get(update_url)
         self.assertEquals(200, response.status_code)
@@ -176,11 +177,12 @@ class OrgTest(TembaTest):
         post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
 
         response = self.client.post(update_url, post_data)
+        self.assertEquals(302, response.status_code)
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         # check that our webhook settings have changed
         self.assertEquals('http://webhooks.uniceflabs.org', self.org.get_webhook_url())
-        self.assertDictEquals({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.org.get_webhook_headers())
+        self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.org.get_webhook_headers())
 
     def test_org_administration(self):
         manage_url = reverse('orgs.org_manage')
