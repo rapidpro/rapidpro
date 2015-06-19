@@ -3850,9 +3850,11 @@ class AddLabelAction(Action):
                     label = None
 
             if label and msg and msg.pk:
-                label.toggle_label([msg], True)
                 if run.contact.is_test:
+                    # don't really add labels to simulator messages
                     ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
+                else:
+                    label.toggle_label([msg], True)
         return []
 
     def get_description(self):
