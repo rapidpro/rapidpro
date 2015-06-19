@@ -135,13 +135,13 @@ class TembaTest(SmartminTest):
         return group
 
     def create_msg(self, **kwargs):
-        if not 'org' in kwargs:
+        if 'org' not in kwargs:
             kwargs['org'] = self.org
-        if not 'channel' in kwargs:
+        if 'channel' not in kwargs:
             kwargs['channel'] = self.channel
-        if not 'contact_urn' in kwargs:
-            kwargs['contact_urn'] = kwargs['contact'].get_urn(TEL_SCHEME)
-        if not 'created_on' in kwargs:
+        if 'contact_urn' not in kwargs:
+            kwargs['contact_urn'] = kwargs['contact'].get_urn()
+        if 'created_on' not in kwargs:
             kwargs['created_on'] = timezone.now()
 
         if not kwargs['contact'].is_test:
