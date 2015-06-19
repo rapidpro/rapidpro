@@ -6,7 +6,6 @@ import pytz
 from datetime import datetime, date
 from django.utils import timezone
 
-from django_hstore.apps import register_hstore_handler
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
@@ -15,7 +14,8 @@ from django.db import connection
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME, \
+    URN_SCHEME_CHOICES
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
@@ -175,9 +175,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         # clear our current groups
         ContactGroup.user_groups.filter(org=self.org).delete()
 
+        # try to create a contact group whose name is only whitespace
         response = self.client.post(create_url, dict(name="  "))
-        self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to create a contact group whose name begins with reserved character
+        response = self.client.post(create_url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
 
         response = self.client.post(create_url, dict(name="first  "))
         self.assertNoFormErrors(response)
@@ -192,26 +196,28 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
         self.assertEquals(group, existing_group)
 
-    def test_update_url(self):
+    def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
 
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         self.login(self.user)
 
+        # try to update name to only whitespace
         response = self.client.post(update_url, dict(name="   "))
-        self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['name'][0], "The name of a group cannot contain only whitespaces.")
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to update name to start with reserved character
+        response = self.client.post(update_url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
 
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
-        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="new name"))
+        ContactGroup.user_groups.get(org=self.org, name="new name")
 
 
 class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
-
-        register_hstore_handler(connection)
 
         self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
         self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
@@ -315,8 +321,6 @@ class ContactGroupTest(TembaTest):
 class ContactTest(TembaTest):
     def setUp(self):
         TembaTest.setUp(self)
-
-        register_hstore_handler(connection)
 
         self.user1 = self.create_user("nash")
         self.manager1 = self.create_user("mike")
@@ -1137,6 +1141,24 @@ class ContactTest(TembaTest):
         self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel', '123'))  # URN with contact
         self.assertIsNone(Contact.from_urn(self.org, 'tel', '8888'))  # URN with no contact
 
+    def test_validate_import_header(self):
+        with self.assertRaises(Exception):
+            Contact.validate_import_header([])
+
+        with self.assertRaises(Exception):
+            Contact.validate_import_header(['name'])
+
+        active_urn_schemes = [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME] + ['phone']
+
+        with self.assertRaises(Exception):
+            Contact.validate_import_header(active_urn_schemes)
+
+        self.assertIsNone(Contact.validate_import_header(active_urn_schemes + ['name']))
+
+        for allowed_urn_scheme in active_urn_schemes:
+            self.assertIsNone(Contact.validate_import_header(['name', allowed_urn_scheme]))
+
+
     def do_import(self, user, filename):
 
         import_params = dict(org_id=self.org.id, timezone=self.org.timezone, extra_fields=[], original_filename=filename)
@@ -1198,6 +1220,30 @@ class ContactTest(TembaTest):
         self.do_import(user, 'empty.csv')
         self.assertEquals(3, len(ContactGroup.user_groups.all()))
 
+        # import twitter urns
+        records = self.do_import(user, 'sample_contacts_twitter.xls')
+        self.assertEquals(3, len(records))
+
+        # now there are four groups
+        self.assertEquals(4, len(ContactGroup.user_groups.all()))
+        self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Twitter").count())
+
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
+
+        # import twitter urns with phone
+        records = self.do_import(user, 'sample_contacts_twitter_and_phone.xls')
+        self.assertEquals(3, len(records))
+
+        # now there are five groups
+        self.assertEquals(5, len(ContactGroup.user_groups.all()))
+        self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Twitter And Phone").count())
+
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
+
         import_url = reverse('contacts.contact_import')
 
         self.login(self.admin)
@@ -1224,11 +1270,64 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=0, updates=3))
 
+        # import a spreadsheet that includes the test contact
+        csv_file = open('%s/test_imports/sample_contacts_inc_test.xls' % settings.MEDIA_ROOT, 'rb')
+        response = self.client.post(import_url, dict(csv_file=csv_file), follow=True)
+        self.assertEquals(response.context['results'], dict(records=2, errors=1, creates=0, updates=2))
+
         # import a spreadsheet where a contact has a missing phone number and another has an invalid number
         csv_file = open('%s/test_imports/sample_contacts_with_missing_and_invalid_phones.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1))
+
+        csv_file = open('%s/test_imports/sample_contacts_twitter.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
+
+        self.assertEquals(3, Contact.objects.all().count())
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
+
+        # import file with row different urn on different existig contacts should ignore those lines
+        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_conflicts.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertEquals(response.context['results'], dict(records=1, errors=1, creates=0, updates=1))
+
+        self.assertEquals(3, Contact.objects.all().count())
+        self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
+        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(0, Contact.objects.filter(name='Nyaruka').count())
+        self.assertEquals(1, Contact.objects.filter(name='Kigali').count())
+        self.assertEquals(0, Contact.objects.filter(name='Klab').count())
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_optional.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -1244,13 +1343,15 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing a required header called "Phone".')
+                             'The file you provided is missing a required header. At least one of "Phone", "Twitter" '
+                             'should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing two required headers called "Name" and "Phone".')
+                             'The file you provided is missing required headers called "Name" and one of '
+                             '"Phone", "Twitter".')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -1573,8 +1674,6 @@ class ContactURNTest(TembaTest):
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
-        register_hstore_handler(connection)
-
         self.user = self.create_user("tito")
         self.manager1 = self.create_user("mike")
         self.admin = self.create_user("ben")
@@ -1607,8 +1706,18 @@ class ContactFieldTest(TembaTest):
         with self.assertRaises(ValidationError):
             ContactField.api_make_key("Name")
 
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("uuid")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("Groups")
+
+        with self.assertRaises(ValidationError):
+            ContactField.api_make_key("first_name")
+
     def test_export(self):
         from xlrd import open_workbook
+        self.clear_storage()
 
         self.login(self.admin)
         self.user = self.admin
@@ -1623,6 +1732,8 @@ class ContactFieldTest(TembaTest):
         contact.set_field('First', 'One')
         flow.start([], [contact])
 
+        Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
+
         self.client.get(reverse('contacts.contact_export'), dict())
         task = ExportContactsTask.objects.get()
 
@@ -1631,14 +1742,16 @@ class ContactFieldTest(TembaTest):
         sheet = workbook.sheets()[0]
 
         # check our headers
-        self.assertEquals('Phone', sheet.cell(0, 0).value)
-        self.assertEquals('Name', sheet.cell(0, 1).value)
-        self.assertEquals('First', sheet.cell(0, 2).value)
-        self.assertEquals('Second', sheet.cell(0, 3).value)
-        self.assertEquals('Third', sheet.cell(0, 4).value)
+        self.assertEqual('Phone', sheet.cell(0, 0).value)
+        self.assertEqual('Name', sheet.cell(0, 1).value)
+        self.assertEqual('First', sheet.cell(0, 2).value)
+        self.assertEqual('Second', sheet.cell(0, 3).value)
+        self.assertEqual('Third', sheet.cell(0, 4).value)
 
-        self.assertEquals('+12067799294', sheet.cell(1, 0).value)
-        self.assertEquals("One", sheet.cell(1, 2).value)
+        self.assertEqual('+12067799294', sheet.cell(1, 0).value)
+        self.assertEqual("One", sheet.cell(1, 2).value)
+
+        self.assertEqual(sheet.nrows, 2)  # no other contacts
 
     def test_managefields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')

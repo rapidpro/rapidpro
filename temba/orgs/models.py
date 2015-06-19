@@ -1316,6 +1316,8 @@ class Org(SmartModel):
             recommended = 'hub9'
         if countrycode == 'SO':
             recommended = 'shaqodoon'
+        if countrycode == 'NP':
+            recommended = 'blackmyna'
 
         return recommended
 

@@ -2,9 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import os
 import pytz
-import re
 import time
 import traceback
 
@@ -13,10 +11,9 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -31,7 +28,6 @@ from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -1394,6 +1390,9 @@ class Label(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, parent=None):
+        if not cls.is_valid_name(name):
+            raise ValueError("Invalid label name: %s" % name)
+
         # only allow 1 level of nesting
         if parent and parent.parent_id:  # pragma: no cover
             raise ValueError("Only one level of nesting is allowed")
@@ -1420,6 +1419,10 @@ class Label(TembaModel, SmartModel):
             count += 1
 
         return Label.create(org, user, base, parent)
+
+    @classmethod
+    def is_valid_name(cls, name):
+        return name.strip() and not (name.startswith('+') or name.startswith('-'))
 
     def get_messages(self):
         return Msg.objects.filter(Q(labels=self) | Q(labels__parent=self)).distinct()
@@ -1492,7 +1495,6 @@ class ExportMessagesTask(SmartModel):
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-    filename = models.CharField(null=True, max_length=64, help_text=_("The file name for our export"))
     task_id = models.CharField(null=True, max_length=64)
 
     def do_export(self):
@@ -1504,7 +1506,8 @@ class ExportMessagesTask(SmartModel):
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
-        all_messages = Msg.objects.filter(org=self.org, visibility=VISIBLE).order_by('-created_on').select_related('contact')
+        all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
+        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.objects.order_by('name')))
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
@@ -1548,10 +1551,15 @@ class ExportMessagesTask(SmartModel):
             for msg in messages:
                 contact_name = msg.contact.name if msg.contact.name else ''
                 created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
-                msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all().order_by('name'))
+                msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
+
+                if self.org.is_anon:
+                    contact_urn = msg.contact.anon_identifier
+                else:
+                    contact_urn = msg.contact_urn.get_display(org=self.org, full=True)
 
                 current_messages_sheet.write(row, 0, created_on, date_style)
-                current_messages_sheet.write(row, 1, msg.contact_urn.get_display(org=self.org, full=True))
+                current_messages_sheet.write(row, 1, contact_urn)
                 current_messages_sheet.write(row, 2, msg.contact_urn.scheme)
                 current_messages_sheet.write(row, 3, contact_name)
                 current_messages_sheet.write(row, 4, msg.get_direction_display())
@@ -1572,12 +1580,12 @@ class ExportMessagesTask(SmartModel):
         store = AssetType.message_export.store
         store.save(self.pk, File(temp), 'xls')
 
-        subject = "Your messages export is ready"
-        template = 'msgs/email/msg_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.message_export, self.pk))
-
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
+
+        subject = "Your messages export is ready"
+        template = 'msgs/email/msg_export_download'
+        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
 
         # force a gc
         import gc

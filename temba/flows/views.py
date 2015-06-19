@@ -873,7 +873,7 @@ class FlowCRUDL(SmartCRUDL):
 
             else:
                 export = ExportFlowResultsTask.objects.get(id=export.pk)
-                dl_url = "file://%s/%s" % (settings.MEDIA_ROOT, export.filename)
+                dl_url = reverse('assets.download', kwargs=dict(type='results_export', identifier=export.pk))
                 messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
 
             return HttpResponseRedirect(reverse('flows.flow_list'))
@@ -933,7 +933,6 @@ class FlowCRUDL(SmartCRUDL):
                     col_map[col] = idx
                     idx += 1
 
-                # category_counts = self.object.get_ruleset_category_counts()
                 runs = FlowRun.objects.filter(flow=self.object).exclude(contact__is_test=True)
 
                 if 'sSearch' in self.request.REQUEST:
@@ -1032,9 +1031,6 @@ class FlowCRUDL(SmartCRUDL):
                             run.__dict__['messages'] = list(Msg.objects.filter(steps__run=run).order_by('created_on'))
                         context['runs'] = runs
                         context['contact'] = contact
-
-                else:
-                    context['counts'] = self.object.get_ruleset_category_counts()
 
                 return super(FlowCRUDL.Results, self).render_to_response(context, **response_kwargs)
 
