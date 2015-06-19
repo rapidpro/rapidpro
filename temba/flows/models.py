@@ -990,21 +990,16 @@ class Flow(TembaModel, SmartModel):
         :return:
         """
         # We return according to the following precedence:
-        #   1) Org Primary Language
-        #   2) Flow Base Language
-        #   3) Default Text
+        #   1) Contact's language
+        #   2) Org Primary Language
+        #   3) Flow Base Language
+        #   4) Default Text
         preferred_languages = []
         if self.org.primary_language:
             preferred_languages.append(self.org.primary_language.iso_code)
-
         preferred_languages.append(self.base_language)
 
-        localized = Language.get_localized_text(text_translations, preferred_languages, contact=contact)
-
-        if not localized:
-            localized = default_text
-
-        return localized
+        return Language.get_localized_text(default_text, text_translations, preferred_languages, contact=contact)
 
     def update_base_language(self):
         """

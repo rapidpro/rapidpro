@@ -375,11 +375,8 @@ class Broadcast(models.Model):
             text_translations = json.loads(self.language_dict)
 
         for recipient in recipients:
-            text = self.text
-
-            # if we have possible translations, find the appropriate one
-            if text_translations:
-                text = Language.get_localized_text(text_translations, preferred_languages, contact=recipient)
+            # find the right text to send
+            text = Language.get_localized_text(self.text, text_translations, preferred_languages, contact=recipient)
 
             try:
                 msg = Msg.create_outgoing(org,

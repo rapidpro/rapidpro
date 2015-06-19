@@ -1462,10 +1462,18 @@ class Language(SmartModel):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, contact=None):
+    def get_localized_text(cls, default_text, text_translations, preferred_languages, contact=None):
         """
-        Returns the appropriate translation to use for the passed in contact
+        Returns the appropriate translation to use.
+        @param default_text: The default text to use if no match is found
+        @param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
+        @param preferred_languages: The prioritized list of language preferences (list of iso codes)
+        @param contact (optional): The contact this message is being localized for
         """
+        # No translations, return our default text
+        if not text_translations:
+            return default_text
+
         # If we are handed raw text without translations, just return that
         if not isinstance(text_translations, dict):
             return text_translations
@@ -1482,7 +1490,7 @@ class Language(SmartModel):
             if localized:
                 return localized
 
-        return None
+        return default_text
 
     def __unicode__(self):
         return '%s' % self.name
