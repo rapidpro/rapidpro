@@ -1200,6 +1200,10 @@ class OrgCRUDLTest(TembaTest):
         contact = Contact.objects.get(urns__path='+250788123123', org=self.org)
         self.assertEquals(self.csrep, contact.created_by)
 
+        # make sure we can manage topups as well
+        response = self.client.get(reverse('orgs.topup_manage') + "?org=%d" % self.org.id)
+        self.assertNotRedirect(response, '/users/login/')
+
         # ok, now end our session
         response = self.client.post(service_url, dict())
         self.assertRedirect(response, '/org/manage/')
