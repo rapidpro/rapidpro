@@ -360,6 +360,10 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         if incoming_channel and (not urns or len(urns) > 1):
             raise ValueError("Only one URN may be specified when calling from channel event")
 
+        # deal with None being passed into urns
+        if urns is None:
+            urns = ()
+
         # no channel? try to get one from our org
         country = None
         if incoming_channel:
@@ -492,13 +496,21 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         org = user.get_org()
         test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user).first()
 
-        if not test_contact:
+        # double check that our test contact has a valid URN, it may have been reassigned
+        if test_contact:
+            test_urn = test_contact.get_urn(TEL_SCHEME)
 
+            # no URN, let's start over
+            if not test_urn:
+                test_contact.release()
+                test_contact = None
+
+        if not test_contact:
             test_urn_path = START_TEST_CONTACT_PATH
             existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
             while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
-                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
                 test_urn_path += 1
+                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
 
             test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
                                                  is_test=True)
@@ -785,7 +797,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
     def block(self):
         """
-        Blocks this contact removing it from all groups, and marking it as archived
+        Blocks this contact removing it from all groups
         """
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
@@ -802,8 +814,12 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
         ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
+        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
+
+        # if contact is failed then it should go back into the failed group
+        if self.is_failed:
+            ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
 
     def fail(self):
         """

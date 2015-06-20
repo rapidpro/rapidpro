@@ -807,7 +807,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
+            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE, contact__is_test=False)
 
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
@@ -860,13 +860,10 @@ class LabelCRUDL(SmartCRUDL):
         paginate_by = None
 
         def derive_queryset(self, **kwargs):
-            return super(LabelCRUDL.List, self).derive_queryset(**kwargs).filter(org=self.request.user.get_org())
+            return Label.user_labels.filter(org=self.request.user.get_org())
 
         def render_to_response(self, context, **response_kwargs):
-            results = []
-            for obj in context['object_list']:
-                result = dict(id=obj.pk, text=obj.name)
-                results.append(result)
+            results = [dict(id=l.pk, text=l.name) for l in context['object_list']]
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):

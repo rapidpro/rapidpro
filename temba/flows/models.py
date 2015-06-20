@@ -557,7 +557,6 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None):
-
         if started_flows is None:
             started_flows = []
 
@@ -1598,7 +1597,7 @@ class Flow(TembaModel, SmartModel):
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING,
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, base_language=self.base_language,
                                partial_recipients=partial_recipients)
 
@@ -3398,8 +3397,8 @@ class FlowStep(models.Model):
     def add_message(self, msg):
         self.messages.add(msg)
 
-        # skip inbox
-        if msg.msg_type == INBOX:
+        # incoming non-IVR messages won't have a type yet so update that
+        if not msg.msg_type or msg.msg_type == INBOX:
             msg.msg_type = FLOW
             msg.save(update_fields=['msg_type'])
 
@@ -3928,9 +3927,11 @@ class AddLabelAction(Action):
                     label = None
 
             if label and msg and msg.pk:
-                label.toggle_label([msg], True)
                 if run.contact.is_test:
+                    # don't really add labels to simulator messages
                     ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
+                else:
+                    label.toggle_label([msg], True)
         return []
 
     def get_description(self):

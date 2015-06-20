@@ -463,6 +463,8 @@ PERMISSIONS = {
 
     'msgs.label': ('api', 'create', 'create_folder'),
 
+    'orgs.topup': ('manage',),
+
     'triggers.trigger': ('archived',
                          'catchall',
                          'follow',
@@ -494,6 +496,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_read',
         'flows.flow_versions',
         'orgs.org_dashboard',
+        'orgs.org_grant',
         'orgs.org_manage',
         'orgs.org_update',
         'orgs.org_service',

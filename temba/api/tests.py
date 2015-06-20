@@ -147,6 +147,8 @@ class APITest(TembaTest):
 
     def assertResponseError(self, response, field, message, status_code=400):
         self.assertEquals(status_code, response.status_code)
+        self.assertTrue(message, field in response.json)
+        self.assertTrue(message, isinstance(response.json[field], (list, tuple)))
         self.assertIn(message, response.json[field])
 
     def assert403(self, url):

@@ -633,7 +633,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if node.destination
           @detectLoop(node.uuid, node.destination, path)
 
-      return true
+      isExpression = operand.length > 2 and operand.slice(0,2) == '=('
+      if operand?.indexOf('@step') > -1 or isExpression and operand?.indexOf('step') > -1
+        return true
 
     isConnectionAllowed: (sourceId, targetId) ->
 
