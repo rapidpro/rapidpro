@@ -297,7 +297,7 @@ class APITest(TembaTest):
                                                            completed_runs=0,
                                                            rulesets=[dict(node=flow_ruleset1.uuid,
                                                                           id=flow_ruleset1.pk,
-                                                                          response_type='C',
+                                                                          ruleset_type='wait_message',
                                                                           label='color')],
                                                            participants=0,
                                                            created_on=datetime_to_json_date(flow.created_on),
@@ -382,6 +382,8 @@ class APITest(TembaTest):
         # load flow definition from test data
         handle = open('%s/test_flows/pick_a_number.json' % settings.MEDIA_ROOT, 'r+')
         definition = json.loads(handle.read())
+        from temba.flows.models import FlowVersion
+        definition = FlowVersion.migrate_definition(definition, 4)
         handle.close()
 
         # and create flow with a definition
@@ -1256,7 +1258,7 @@ class APITest(TembaTest):
         self.assertEquals(self.admin.get_org(), msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals(broadcast, msg1.broadcast)
-        
+
         # fetch by message id
         response = self.fetchJSON(url, "id=%d" % msg1.pk)
         self.assertResultCount(response, 1)
@@ -4321,4 +4323,3 @@ class WebHookTest(TembaTest):
             response = self.client.post(reverse('api.webhook_tunnel'), dict())
             self.assertEquals(400, response.status_code)
             self.assertTrue(response.content.find("Must include") >= 0)
-

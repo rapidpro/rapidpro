@@ -394,5 +394,3 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
-
-

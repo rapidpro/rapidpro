@@ -1,5 +1,4 @@
 describe 'Services:', ->
-
   # initialize our angular app
   beforeEach ->
     module 'app'
@@ -22,9 +21,7 @@ describe 'Services:', ->
 
     for file, config of flows
 
-      $http.whenPOST('/flow/json/' + config.id + '/').respond(
-      )
-
+      $http.whenPOST('/flow/json/' + config.id + '/').respond()
       $http.whenGET('/flow/json/' + config.id + '/').respond(
         {
           flow: getJSONFixture(file + '.json'),
@@ -54,34 +51,33 @@ describe 'Services:', ->
     )
 
     it 'should set flow defintion after fetching', ->
-      $window.flowId = flows.rules_first.id
-
-      flowService.fetch().then (response) ->
-        expect($rootScope.flow).not.toBe(null)
+      flowService.fetch(flows.rules_first.id).then (response) ->
+        expect(flowService.flow).not.toBe(null)
       , (error) ->
         throwError('Failed to fetch mock flow data:' + error)
       $http.flush()
 
     it 'should determine the flow entry', ->
-      $window.flowId = flows.favorites.id
-      flowService.fetch().then ->
+      flowService.fetch(flows.favorites.id).then ->
+
+        flow = flowService.flow
 
         # our entry should already be set from reading in the file
-        expect($rootScope.flow.entry).toBe('ec4c8328-f7b6-4386-90c0-b7e6a3517e9b')
+        expect(flow.entry).toBe('ec4c8328-f7b6-4386-90c0-b7e6a3517e9b')
 
         # now determine the start point
-        flowService.determineFlowStart($rootScope.flow)
+        flowService.determineFlowStart()
 
         # it shouldn't have changed from what we had
-        expect($rootScope.flow.entry).toBe('ec4c8328-f7b6-4386-90c0-b7e6a3517e9b')
+        expect(flow.entry).toBe('ec4c8328-f7b6-4386-90c0-b7e6a3517e9b')
 
         # now let's move our entry node down
-        entry = getNode($rootScope.flow, 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b')
+        entry = getNode(flow, 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b')
         entry.y = 200
-        flowService.determineFlowStart($rootScope.flow)
+        flowService.determineFlowStart()
 
         # our 'other' action set is now the top
-        expect($rootScope.flow.entry).toBe('dcd9541a-0263-474e-b3f1-03a28993f95a')
+        expect(flow.entry).toBe('dcd9541a-0263-474e-b3f1-03a28993f95a')
 
       $http.flush()
 
@@ -200,10 +196,9 @@ describe 'Services:', ->
 
       flow = null
       beforeEach ->
-        $window.flowId = flows.loop_detection.id
-        flowService.fetch().then ->
+        flowService.fetch(flows.loop_detection.id).then ->
           # derive all our categories
-          flow = $rootScope.flow
+          flow = flowService.flow
           for ruleset in flow.rule_sets
             flowService.deriveCategories(ruleset, 'eng')
         $http.flush()
@@ -221,19 +216,19 @@ describe 'Services:', ->
       messageSplitRule = '865baac0-da29-4752-be1e-1488457f708c'
 
       it 'should detect looping to same rule', ->
-        ruleSelfLoop = flowService.isConnectionAllowed(flow, groupSplit + '_' + groupA, groupSplit)
+        ruleSelfLoop = flowService.isConnectionAllowed(groupSplit + '_' + groupA, groupSplit)
         expect(ruleSelfLoop).toBe(false, "Rule was able to point to it's parent")
 
       it 'should detect two passive rules in a row', ->
-        ruleLoop = flowService.isConnectionAllowed(flow, nameSplit + '_' + rowan, groupSplit)
+        ruleLoop = flowService.isConnectionAllowed(nameSplit + '_' + rowan, groupSplit)
         expect(ruleLoop).toBe(false, "Non blocking rule infinite loop")
 
       it 'should detect a passive rule to an action and back', ->
-        ruleActionLoop = flowService.isConnectionAllowed(flow, groupSplit, messageOne, groupA)
+        ruleActionLoop = flowService.isConnectionAllowed(groupSplit, messageOne, groupA)
         expect(ruleActionLoop).toBe(false, "Rule to action loop without blocking ruleset")
 
       it 'should detect back to back pause rules', ->
-        rulePauseLoop = flowService.isConnectionAllowed(flow, messageSplitB, messageSplitA, messageSplitRule)
+        rulePauseLoop = flowService.isConnectionAllowed(messageSplitB, messageSplitA, messageSplitRule)
         expect(rulePauseLoop).toBe(false, "Two pausing rulesets in a row")
 
       it 'should allow top level connection with downstream splits to same node', ->
@@ -243,8 +238,8 @@ describe 'Services:', ->
         flowService.updateDestination(groupSplit + '_' + groupB, nameSplit)
 
         # now try reconnective our first message
-        allowed = flowService.isConnectionAllowed(flow, messageOne, groupSplit)
-        expect(allowed).toBe(true, "Failed to allow legitmately branched connection")
+        allowed = flowService.isConnectionAllowed(messageOne, groupSplit)
+        expect(allowed).toBe(true, "Failed to allow legitimately branched connection")
 
     describe 'updateDestination()', ->
       colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
@@ -257,10 +252,9 @@ describe 'Services:', ->
       flow = null
 
       beforeEach ->
-        $window.flowId = flows.favorites.id
-        flowService.fetch().then ->
+        flowService.fetch(flows.favorites.id).then ->
           # derive all our categories
-          flow = $rootScope.flow
+          flow = flowService.flow
           for ruleset in flow.rule_sets
             flowService.deriveCategories(ruleset)
         $http.flush()
@@ -328,4 +322,3 @@ describe 'Services:', ->
         green = getRule(flow, colorRulesId, greenRuleId)
         expect(green.destination).toBe(nameActionsId, 'green rule didnt update')
         expect(red.destination).toBe(nameActionsId, 'red rule didnt update')
-

@@ -36,7 +36,7 @@ from twilio.rest import TwilioRestClient
 from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
-CURRENT_EXPORT_VERSION = 4
+CURRENT_EXPORT_VERSION = 5
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0

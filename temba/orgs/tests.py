@@ -1328,7 +1328,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
-        self.assertEquals(4, exported.get('version', 0))
+        self.assertEquals(5, exported.get('version', 0))
         self.assertEquals('https://rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))
@@ -1399,5 +1399,3 @@ class BulkExportTest(TembaTest):
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
         self.assertEquals(60, confirm_appointment.expires_after_minutes)
-
-

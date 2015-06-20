@@ -586,6 +586,12 @@
   }
 }
 
+.modal-body {
+  font-size: 15px;
+  line-height: 18px;
+  padding-bottom: 5px;
+}
+
 .modal.error {
   .modal-header {
     background: @color-alert-error;
@@ -991,10 +997,6 @@
       width: 400px;
       margin-left: 7px;
     }
-    p {
-      font-size: 15px;
-      line-height: 18px;
-    }
   }
 
   .modal-header, .modal-header {
@@ -1008,27 +1010,23 @@
 
 .rule-editor {
 
+  .split-header {
+    padding: 20px 20px 0px;
+
+    .split-choice {
+      width: 330px;
+    }
+
+  }
+  .split-margin {
+    padding: 0 20px;
+  }
+
   input[type=text] {
     height: 20px;
 
     &.ng-invalid {
       border-color: red;
-    }
-  }
-
-  #content-numeric {
-
-    margin-left: 20px;
-    margin-bottom: 10px;
-
-    .operand-small {
-      width: 50px;
-      display: inline-block
-    }
-
-    .message {
-      font-size: 16px;
-      display: inline-block;
     }
   }
 
@@ -1045,11 +1043,6 @@
     text-align:center;
     padding: 0 10px 10px;
 
-  }
-
-  .modal-body {
-    font-size: 14px;
-    padding-bottom: 5px;
   }
 
   .rule {
@@ -1085,7 +1078,7 @@
       }
 
       .operand-small {
-        width: 50px;
+        width: 49px;
         display: inline-block
       }
     }
@@ -1206,15 +1199,22 @@
       }
     }
   }
+  .modal-body {
+    padding-bottom:20px;
+  }
+  .modal-body input.url {
+    width: 490px;
+    margin-left:5px;
+    height: 24px;
+  }
 
   #variable-name {
     border-bottom: 0px solid #eee;
     margin-right: 20px;
-    margin-left: 20px;
-    margin-top: 5px;
-    padding-top: 5px;
+    margin-left:343px;
 
-    font-size: 16px;
+    //margin-top: 5px;
+    //padding-top: 5px;
 
     .message {
       margin-bottom: -10px;
@@ -1223,9 +1223,9 @@
     }
 
     input[type=text] {
-      width: 200px;
+      width: 260px;
       display: inline-block;
-      height: 22px;
+      height: 28px;
       margin-top: 10px;
       padding-top: 2px;
       padding-bottom: 2px;
@@ -1249,6 +1249,12 @@
 
     .split-variable {
       display:inline-block;
+    }
+
+    input {
+      width:206px;
+      margin-left:5px;
+      height: 30px;
     }
   }
 

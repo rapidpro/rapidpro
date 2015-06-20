@@ -300,7 +300,7 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):
-    group = serializers.Field(source='id')  # deprecated, use uuid 
+    group = serializers.Field(source='id')  # deprecated, use uuid
     uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
     size = serializers.SerializerMethodField('get_size')
@@ -950,7 +950,7 @@ class FlowReadSerializer(serializers.ModelSerializer):
         for ruleset in obj.rule_sets.all().order_by('y'):
             rulesets.append(dict(node=ruleset.uuid,
                                  label=ruleset.label,
-                                 response_type=ruleset.response_type,
+                                 ruleset_type=ruleset.ruleset_type,
                                  id=ruleset.id))  # deprecated
 
         return rulesets
@@ -1556,5 +1556,3 @@ class ChannelClaimSerializer(WriteSerializer):
             channel.trigger_sync()
 
         return attrs['channel']
-
-

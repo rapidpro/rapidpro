@@ -61,7 +61,7 @@ class RuleTest(TembaTest):
                                           operand=None,
                                           webhook=None,
                                           webhook_action=None,
-                                          response_type='C',
+                                          ruleset_type='wait_message',
                                           rules=[
                                               dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test='orange'), category="Orange"),
                                               dict(uuid=uuid(13), destination=uuid(3), test=dict(type='contains', test='blue'), category="Blue"),
@@ -1406,7 +1406,7 @@ class RuleTest(TembaTest):
 
         # update flow with unformated keyword
         post_data['keyword_triggers'] = "it,changes,everything,unique"
-        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data)        
+        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
         response = self.client.get(reverse('flows.flow_update', args=[flow_with_keywords.pk]))
         self.assertEquals(response.context['form'].fields['keyword_triggers'].initial, "it,everything,changes")
@@ -1654,8 +1654,8 @@ class RuleTest(TembaTest):
         #create a viewer
         self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)        
-        
+        self.viewer.set_org(self.org)
+
         self.create_secondary_org()
 
         # create a flow for another org and a flow label
@@ -1678,7 +1678,7 @@ class RuleTest(TembaTest):
         self.login(user)
 
         # list, should have only one flow (the one created in setUp)
-        
+
         response = self.client.get(flow_list_url)
         self.assertEquals(1, len(response.context['object_list']))
         # no create links
@@ -1711,7 +1711,7 @@ class RuleTest(TembaTest):
         self.assertEquals(response.context['object_list'][0].pk, self.flow.pk)
         self.assertFalse(response.context['object_list'][0].is_archived)
 
-        
+
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
@@ -2784,7 +2784,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(4, definition.get('version', 0))
+        self.assertEquals(5, definition.get('version', 0))
         self.assertEquals(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow

@@ -3,7 +3,7 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
-app.directive "sms", [ "$log", ($log) ->
+app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
   link = (scope, element, attrs) ->
 
     scope.showCounter = true
@@ -26,8 +26,8 @@ app.directive "sms", [ "$log", ($log) ->
     # determine the initial message based on the current language
     scope.message = scope.sms
 
-    if scope.$root.language and scope.sms
-      localized = scope.sms[scope.$root.language.iso_code]
+    if Flow.language and scope.sms
+      localized = scope.sms[Flow.language.iso_code]
       if localized?
         scope.message = localized
 
@@ -289,11 +289,11 @@ app.directive "select2", ["$timeout", ($timeout) ->
 ]
 
 
-app.directive "selectLabel", ["$timeout", ($timeout) ->
+app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
   link = (scope, element, attrs, form) ->
 
     element.select2
-      tags: scope.$parent.labels
+      tags: Flow.labels
       mutiple: true
 
     field = form[attrs['name']]

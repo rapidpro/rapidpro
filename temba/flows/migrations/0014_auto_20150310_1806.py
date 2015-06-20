@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from uuid import uuid4
 
 from django.db import models, migrations
-from temba.flows.models import RuleSet, Flow, FlowVersion, TrueTest, Rule
+from temba.flows.models import RuleSet, Flow, TrueTest, Rule
 from django.utils import timezone
 import pytz
 import json
@@ -14,6 +14,7 @@ def fix_missing_other_rule(apps, schema_editor):
     # only consider flows with a version created after previous migration
     start_time = timezone.datetime(2015, 3, 2, 20, 20, 0, 0, tzinfo=pytz.utc)
 
+    FlowVersion = apps.get_model('flows', 'FlowVersion')
     for version in FlowVersion.objects.filter(created_on__gt=start_time).order_by('flow__pk', '-pk').distinct('flow__pk'):
 
         for ruleset in version.flow.rule_sets.all():

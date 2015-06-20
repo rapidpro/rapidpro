@@ -163,7 +163,7 @@ class TembaTest(SmartminTest):
                                        ],
                           rule_sets=[dict(uuid=uuid(start + 5), x=5, y=5,
                                           label='color',
-                                          response_type='C',
+                                          ruleset_type='wait_message',
                                           rules=[
                                               dict(uuid=uuid(start + 12), destination=uuid(start + 2), test=dict(type='contains', test='orange'), category="Orange"),
                                               dict(uuid=uuid(start + 13), destination=uuid(start + 3), test=dict(type='contains', test='blue'), category="Blue"),
@@ -272,7 +272,12 @@ class FlowFileTest(TembaTest):
             for key in substitutions.keys():
                 contents = contents.replace(key, str(substitutions[key]))
 
-        flow.update(json.loads(contents))
+        from temba.flows.models import FlowVersion
+        definition = FlowVersion.migrate_definition(json.loads(contents), 4)
+
+        print json.dumps(definition, indent=2)
+
+        flow.update(definition)
         return flow
 
 
@@ -539,4 +544,3 @@ class MockTwilioClient(TwilioClient):
 
         def update(self, external_id, url):
             print "Updating call for %s to url %s" % (external_id, url)
-
