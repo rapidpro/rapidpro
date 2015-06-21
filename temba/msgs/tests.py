@@ -11,7 +11,7 @@ from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest, _CRUDLTest
 from temba.contacts.models import ContactField, TEL_SCHEME
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
@@ -1577,3 +1577,72 @@ class ConsoleTest(TembaTest):
         # now trigger a flow
         self.console.default("Color")
         self.assertEchoed("What is your favorite color?")
+
+class BroadcastLanguageTest(TembaTest):
+
+    def setUp(self):
+        super(BroadcastLanguageTest, self).setUp()
+
+        self.francois = self.create_contact('Francois', '+12065551213')
+        self.francois.language = 'fre'
+        self.francois.save()
+
+        self.greg = self.create_contact('Greg', '+12065551212')
+
+        self.wilbert = self.create_contact('Wilbert', '+12065551214')
+        self.wilbert.language = 'fre'
+        self.wilbert.save()
+
+    def test_multiple_language_broadcast(self):
+        # set up our org to have a few different languages
+        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
+                                      created_by=self.admin, modified_by=self.admin)
+        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
+                                      created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = eng
+        self.org.save()
+
+        eng_msg = "This is my message"
+        fre_msg = "Ceci est mon message"
+
+        # now create a broadcast with a couple contacts, one with an explicit language, the other not
+        bcast = Broadcast.create(self.org, self.admin, "This is my new message",
+                                 [self.francois, self.greg, self.wilbert],
+                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)))
+
+        bcast.send()
+
+        # assert the right language was used for each contact
+        self.assertEquals(fre_msg, Msg.objects.get(contact=self.francois).text)
+        self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
+        self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
+
+    def test_localization(self):
+        text_translations = dict(eng="Hello", esp="Hola")
+
+        # null case
+        self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
+
+        # simple text case
+        self.assertEquals("Hello", Language.get_localized_text("Hi", "Hello", ['esp']))
+
+        # simple dictionary case
+        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
+
+        # missing language case
+        self.assertEquals("Hi", Language.get_localized_text("Hi", text_translations, ['fre']))
+
+        # secondary option
+        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp']))
+
+        # missing preference on contact
+        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.francois))
+
+        # no contact preference
+        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.greg))
+
+        # has a matching preference
+        self.wilbert.language = 'eng'
+        self.wilbert.save()
+
+        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))
