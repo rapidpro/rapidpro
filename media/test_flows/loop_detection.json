@@ -98,7 +98,7 @@
       "label": "Group Split A",
       "operand": "@contact.groups",
       "finished_key": null,
-      "response_type": "C",
+      "ruleset_type": "expression",
       "y": 70,
       "x": 401
     },
@@ -168,7 +168,7 @@
       "label": "Message Split A",
       "operand": "@step.value",
       "finished_key": null,
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "y": 265,
       "x": 356
     },
@@ -223,7 +223,7 @@
       "label": "Name Split",
       "operand": "@contact.name",
       "finished_key": null,
-      "response_type": "C",
+      "ruleset_type": "contact_field",
       "y": 153,
       "x": 735
     },
@@ -253,7 +253,7 @@
       "label": "Message Split B",
       "operand": "@step.value",
       "finished_key": null,
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "y": 555,
       "x": 419
     }

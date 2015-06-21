@@ -100,7 +100,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   # fetch our flow to get started
   Flow.fetch window.flowId, ->
-    console.log('fetched: ', Flow.languages)
     $scope.updateActivity()
     $scope.flow = Flow.flow
 
@@ -881,8 +880,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand)
-
-  $log.debug(formData.flowField)
 
   $scope.hasRules = () ->
     if $scope.formData.rulesetConfig

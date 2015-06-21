@@ -375,8 +375,6 @@ class Flow(TembaModel, SmartModel):
             # migrate our flow definition forward if necessary
             if export_version < CURRENT_EXPORT_VERSION:
                 definition = FlowVersion.migrate_definition(definition, export_version)
-                print "Updated flow"
-                print json.dumps(definition, indent=2)
 
             flow_spec['flow'].import_definition(definition)
 
@@ -2701,7 +2699,9 @@ class FlowVersion(SmartModel):
                             ruleset['ruleset_type'] = 'expression'
                             # special case contact and flow fields
                             if ' ' not in operand and '|' not in operand:
-                                if operand.find('@contact.') == 0:
+                                if operand == '@contact.groups':
+                                    ruleset['ruleset_type'] = 'expression'
+                                elif operand.find('@contact.') == 0:
                                     ruleset['ruleset_type'] = 'contact_field'
                                 elif operand.find('@flow.') == 0:
                                     ruleset['ruleset_type'] = 'flow_field'

@@ -585,23 +585,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           return ruleset
 
     isPausingRuleset: (node) ->
-
       if not node?.actions
-
-        if not node?.operand
-          return true
-
-        operand = node?.operand
-        if operand
-          operand = operand.trim()
-
-        isExpression = operand.length > 2 and operand[0:2] == '=('
-        if operand?.indexOf('@step') > -1 or isExpression and operand?.indexOf('step') > -1
-          return true
-
-        if node?.webhook
-          return true
-
+        return node.ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
       return false
 
     # check if a potential connection would result in an invalid loop
@@ -632,10 +617,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       else
         if node.destination
           @detectLoop(node.uuid, node.destination, path)
-
-      isExpression = operand.length > 2 and operand.slice(0,2) == '=('
-      if operand?.indexOf('@step') > -1 or isExpression and operand?.indexOf('step') > -1
-        return true
 
     isConnectionAllowed: (sourceId, targetId) ->
 

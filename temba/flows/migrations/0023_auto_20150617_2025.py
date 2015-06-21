@@ -63,10 +63,15 @@ class Migration(migrations.Migration):
                 ruleset.ruleset_type = 'expression'
                 # special case contact and flow fields
                 if ' ' not in operand and '|' not in operand:
-                    if operand.find('@contact.') == 0:
+
+                    # special case the contact.groups so they aren't contact_field
+                    if operand == '@contact.groups':
+                        ruleset.ruleset_type = 'expression'
+                    elif operand.find('@contact.') == 0:
                         ruleset.ruleset_type = 'contact_field'
                     elif operand.find('@flow.') == 0:
                         ruleset.ruleset_type = 'flow_field'
+
                 ruleset.save()
 
     operations = [

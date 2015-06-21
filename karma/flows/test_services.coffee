@@ -239,7 +239,7 @@ describe 'Services:', ->
         # set our group b to go to the same as other (name split)
         flowService.updateDestination(groupSplit + '_' + groupB, nameSplit)
 
-        # now try reconnective our first message
+        # now try reconnecting our first message
         allowed = flowService.isConnectionAllowed(messageOne, groupSplit)
         expect(allowed).toBe(true, "Failed to allow legitimately branched connection")
 
@@ -247,8 +247,9 @@ describe 'Services:', ->
         for ruleset in flow.rule_sets
           if ruleset.uuid == messageSplitA
             ruleset.operand = '=(step.value= contact.last_four_digit)'
+            ruleset.ruleset_type = 'wait_message'
 
-        allowed = flowService.isConnectionAllowed(flow, endOfFlow, messageSplitA)
+        allowed = flowService.isConnectionAllowed(endOfFlow, messageSplitA)
         expect(allowed).toBe(true, 'Failed to find expression step value')
 
     describe 'updateDestination()', ->
