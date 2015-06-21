@@ -208,19 +208,6 @@ def truncate(text, max_len):
         return text
 
 
-def get_preferred_language(language_dict, preferred_languages):
-
-    # If language_dict is not a dict, the original value is returned
-    if not isinstance(language_dict, dict):
-        return language_dict
-
-    for lang in preferred_languages:
-        localized = language_dict.get(lang, None)
-        if localized:
-            return localized
-    return None
-
-
 def get_dict_from_cursor(cursor):
     """
     Returns all rows from a cursor as a dict
