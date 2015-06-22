@@ -1730,7 +1730,7 @@ class Channel(SmartModel):
     @classmethod
     def track_status(cls, channel, status):
         # track success, errors and failures
-        analytics.track(channel.created_by.username, 'temba.channel_%s' % status.lower(), dict(channel_type=channel.get_channel_type_display()))
+        analytics.track('System', 'temba.channel_%s' % status.lower(), dict(channel_type=channel.get_channel_type_display()))
 
     @classmethod
     def build_twilio_callback_url(cls, sms_id):

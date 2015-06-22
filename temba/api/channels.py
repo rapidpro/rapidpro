@@ -256,7 +256,7 @@ class AfricasTalkingHandler(View):
             external_id = request.POST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).first()
+            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % external_id, status=404)
 
@@ -315,7 +315,7 @@ class ZenviaHandler(View):
             sms_id = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).first()
+            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
 
@@ -385,7 +385,7 @@ class ExternalHandler(View):
             sms_pk = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_pk).first()
+            sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
 
@@ -458,7 +458,7 @@ class InfobipHandler(View):
         status = message.get('status')
 
         # look up the message
-        sms = Msg.objects.filter(channel=channel, external_id=external_id).first()
+        sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
         if not sms:
             return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -533,7 +533,7 @@ class Hub9Handler(View):
         # delivery reports
         if action == 'delivered':
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=external_id).first()
+            sms = Msg.objects.filter(channel=channel, pk=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -586,7 +586,7 @@ class HighConnectionHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=msg_id).first()
+            sms = Msg.objects.filter(channel=channel, pk=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -649,7 +649,7 @@ class BlackmynaHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=msg_id).first()
+            sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -756,7 +756,7 @@ class NexmoHandler(View):
             external_id = request.REQUEST['messageId']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).first()
+            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=200)
 
@@ -857,7 +857,7 @@ class VumiHandler(View):
             status = body['event_type']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id)
+            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel')
 
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
@@ -940,7 +940,7 @@ class KannelHandler(View):
             sms_id = self.request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, id=sms_id)
+            sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1030,7 +1030,7 @@ class ClickatellHandler(View):
             sms_id = self.request.REQUEST['apiMsgId']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1155,7 +1155,7 @@ class PlivoHandler(View):
                 sms_id = request.REQUEST['ParentMessageUUID']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
