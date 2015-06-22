@@ -3796,7 +3796,7 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully.", result.message)
+            self.assertStringContains("Event delivered successfully", result.message)
             self.assertEquals(200, result.status_code)
             self.assertEquals("", result.body)
 
