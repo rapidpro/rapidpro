@@ -490,6 +490,13 @@ class ContactTest(TembaTest):
         # or have any URNs
         self.assertEqual(0, ContactURN.objects.filter(contact=self.joe).count())
 
+        # we don't let users undo releasing a contact... but if we have to do it for some reason
+        self.joe.is_active = True
+        self.joe.save()
+
+        # check joe goes back into all contacts
+        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
+
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
 
