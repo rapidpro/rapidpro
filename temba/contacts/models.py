@@ -1383,6 +1383,9 @@ class ContactGroup(TembaModel, SmartModel):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
+        if self.group_type != USER_DEFINED_GROUP:
+            raise ValueError("Can't add or remove test contacts from system groups")
+
         changed = set()
         group_contacts = self.contacts.all()
 

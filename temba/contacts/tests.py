@@ -1687,9 +1687,7 @@ class ContactTest(TembaTest):
             self.assertEquals([self.frank, self.joe], list(_123_group.contacts.order_by('name')))
 
     def test_simulator_contact_views(self):
-        simulator_contact = self.create_contact("Simulator Contact", "+250788123123")
-        simulator_contact.is_test = True
-        simulator_contact.save()
+        simulator_contact = Contact.get_test_contact(self.admin)
 
         other_contact = self.create_contact("Will", "+250788987987")
 

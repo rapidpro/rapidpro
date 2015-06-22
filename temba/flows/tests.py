@@ -2444,9 +2444,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(100, flow.get_completed_percentage())
 
         # test contacts should not affect the counts
-        hammer = self.create_contact('Hammer', '+12065550002')
-        hammer.is_test = True
-        hammer.save()
+        hammer = Contact.get_test_contact(self.admin)
 
         # please hammer, don't hurt em
         self.send_message(flow, 'Rose', contact=hammer)

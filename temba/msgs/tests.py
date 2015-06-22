@@ -892,10 +892,7 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url + "?simulation=true")
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
 
-        test_contact = self.create_contact("simulation contact", "543")
-        test_contact.is_test = True
-        test_contact.org = self.joe.org
-        test_contact.save()
+        test_contact = Contact.get_test_contact(self.admin)
 
         post_data = dict(text="you simulator display this", omnibox="c-%d,c-%d,c-%d" % (self.joe.pk, self.frank.pk, test_contact.pk))
         self.client.post(send_url + "?simulation=true", post_data)

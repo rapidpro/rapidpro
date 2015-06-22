@@ -619,9 +619,7 @@ class ChannelTest(TembaTest):
 
         # now that we can access the channel, which messages do we display in the chart?
         joe = self.create_contact('Joe', '+2501234567890')
-        test_contact = self.create_contact('Testing', '+123456789012')
-        test_contact.is_test = True
-        test_contact.save()
+        test_contact = Contact.get_test_contact(self.admin)
 
         # should have two series, one for incoming one for outgoing
         self.assertEquals(2, len(response.context['message_stats']))
