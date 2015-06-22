@@ -233,30 +233,48 @@ class ContactGroupTest(TembaTest):
 
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
+
+        # add contacts via the related field
         group.contacts.add(self.joe, self.frank)
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
 
+        # add contacts via update_contacts
         group.update_contacts([self.mary], add=True)
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 3)
 
+        # remove contacts via update_contacts
         group.update_contacts([self.mary], add=False)
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
 
+        # add test contact (will add to group but won't increment count)
+        test_contact = Contact.get_test_contact(self.admin)
+        group.update_contacts([test_contact], add=True)
+
+        group = ContactGroup.user_groups.get(pk=group.pk)
+        self.assertEquals(group.count, 2)
+        self.assertEquals(set(group.contacts.all()), {self.joe, self.frank, test_contact})
+
+        # blocking a contact removes them from all user groups
         self.joe.block()
+
+        group = ContactGroup.user_groups.get(pk=group.pk)
+        self.assertEquals(group.count, 1)
+        self.assertEquals(set(group.contacts.all()), {self.frank, test_contact})
+
+        # unblocking won't re-add to any groups
+        self.joe.unblock()
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 1)
 
-        self.joe.unblock()
+        # releasing also removes from all user groups
         self.frank.release()
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
-
-        self.clear_cache()
-
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
+        group = ContactGroup.user_groups.get(pk=group.pk)
+        self.assertEquals(group.count, 0)
+        self.assertEquals(set(group.contacts.all()), {test_contact})
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, 'age')
