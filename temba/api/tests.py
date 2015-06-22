@@ -4095,7 +4095,7 @@ class WebHookTest(TembaTest):
 
         self.login(self.non_org_manager)
 
-        with patch('requests.Session.send') as mock:
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
 
             response = self.client.post(reverse('api.webhook_tunnel'), dict(url="http://webhook.url/", data="phone=250788383383"))
