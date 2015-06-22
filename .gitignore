@@ -29,17 +29,24 @@ temba/settings.py
 temba/smartmin
 temba.db
 
+
 # Exclude media folder except files used for import testing
-media/*
-!media/test_imports
-!media/test_imports/*
-media/test_imports/.DS_Store
+media/contacts
+media/csv_imports
+media/flow
+media/messages
+media/orgs
+media/recordings
+media/test_orgs
+media/tmp
+
 
 # External projects
 fabconfig.py
 fabfile.py
 deploy
 config
+Flows.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -71,6 +78,8 @@ var/
 *.manifest
 *.spec
 
+tags
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -82,6 +91,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+js-coverage/
 
 # Translations
 *.mo
