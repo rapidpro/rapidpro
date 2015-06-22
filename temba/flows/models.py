@@ -3523,7 +3523,6 @@ class APIAction(Action):
 
     @classmethod
     def from_json(cls, org, json):
-        # TODO org-defined webhook headers are NOT included for APIAction calls
         return APIAction(json.get('webhook', org.get_webhook_url()), json.get('action', 'POST'))
 
     def as_json(self):

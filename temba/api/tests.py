@@ -3853,8 +3853,6 @@ class WebHookTest(TembaTest):
 
             args = mock.call_args_list[0][0]
             kwargs = mock.call_args_list[0][1]
-            # TODO changed from assertEquals because:
-            #  u'{"url": "http://fake.com/webhook.php"}' != u'http://fake.com/webhook.php'
             self.assertStringContains(self.channel.org.get_webhook_url(), args[0])
 
             data = kwargs['data']
