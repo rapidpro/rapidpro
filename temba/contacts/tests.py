@@ -508,12 +508,22 @@ class ContactTest(TembaTest):
         # or have any URNs
         self.assertEqual(0, ContactURN.objects.filter(contact=self.joe).count())
 
+        # blocking and failing an inactive contact won't change groups
+        self.joe.block()
+        self.joe.fail()
+
+        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+
         # we don't let users undo releasing a contact... but if we have to do it for some reason
         self.joe.is_active = True
         self.joe.save()
 
-        # check joe goes back into all contacts
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
+        # check joe goes into the appropriate groups
+        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")

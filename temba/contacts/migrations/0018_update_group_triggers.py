@@ -102,7 +102,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION update_contact_system_groups() RETURNS TRIGGER AS $$
 BEGIN
   -- new contact added
-  IF TG_OP = 'INSERT' AND NOT NEW.is_test THEN
+  IF TG_OP = 'INSERT' AND NEW.is_active AND NOT NEW.is_test THEN
     IF NEW.is_blocked THEN
       PERFORM contact_toggle_system_group(NEW, 'B', true);
     ELSE
@@ -112,14 +112,21 @@ BEGIN
       END IF;
     END IF;
   END IF;
+
   -- existing contact updated
   IF TG_OP = 'UPDATE' AND NOT NEW.is_test THEN
+    -- do nothing for inactive contacts
+    IF NOT OLD.is_active AND NOT NEW.is_active THEN
+      RETURN NULL;
+    END IF;
+
     -- is being blocked
     IF NOT OLD.is_blocked AND NEW.is_blocked THEN
       PERFORM contact_toggle_system_group(NEW, 'A', false);
       PERFORM contact_toggle_system_group(NEW, 'B', true);
       PERFORM contact_toggle_system_group(NEW, 'F', false);
     END IF;
+
     -- is being unblocked
     IF OLD.is_blocked AND NOT NEW.is_blocked THEN
       PERFORM contact_toggle_system_group(NEW, 'A', true);
@@ -128,20 +135,36 @@ BEGIN
         PERFORM contact_toggle_system_group(NEW, 'F', true);
       END IF;
     END IF;
+
     -- is being failed
     IF NOT OLD.is_failed AND NEW.is_failed THEN
       PERFORM contact_toggle_system_group(NEW, 'F', true);
     END IF;
+
     -- is being unfailed
     IF OLD.is_failed AND NOT NEW.is_failed THEN
       PERFORM contact_toggle_system_group(NEW, 'F', false);
     END IF;
+
     -- is being released
     IF OLD.is_active AND NOT NEW.is_active THEN
       PERFORM contact_toggle_system_group(NEW, 'A', false);
       PERFORM contact_toggle_system_group(NEW, 'B', false);
       PERFORM contact_toggle_system_group(NEW, 'F', false);
     END IF;
+
+    -- is being unreleased
+    IF NOT OLD.is_active AND NEW.is_active THEN
+      IF NOT NEW.is_blocked THEN
+        PERFORM contact_toggle_system_group(NEW, 'A', true);
+      ELSE
+        PERFORM contact_toggle_system_group(NEW, 'B', true);
+      END IF;
+      IF NEW.is_failed THEN
+        PERFORM contact_toggle_system_group(NEW, 'F', true);
+      END IF;
+    END IF;
+
   END IF;
 
   RETURN NULL;
