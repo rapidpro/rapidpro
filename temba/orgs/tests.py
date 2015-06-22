@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import logging
 import json
 
 from context_processors import GroupPermWrapper
@@ -164,8 +165,6 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, login_url)
 
         self.login(self.admin)
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.user)
 
         response = self.client.get(update_url)
         self.assertEquals(200, response.status_code)
@@ -181,8 +180,10 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         # check that our webhook settings have changed
-        self.assertEquals('http://webhooks.uniceflabs.org', self.org.get_webhook_url())
-        self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.org.get_webhook_headers())
+        org = Org.objects.get(pk=self.org.pk)
+        logging.debug(org.webhook)
+        self.assertEquals('http://webhooks.uniceflabs.org/', org.get_webhook_url())
+        self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, org.get_webhook_headers())
 
     def test_org_administration(self):
         manage_url = reverse('orgs.org_manage')

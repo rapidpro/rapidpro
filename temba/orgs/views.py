@@ -1254,7 +1254,7 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
 
             def clean_headers(self):
-                idx = 0
+                idx = 1
                 headers = dict()
                 key = 'header_%d_key' % idx
                 value = 'header_%d_value' % idx
