@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import logging
 import json
 
 from context_processors import GroupPermWrapper
@@ -181,7 +180,6 @@ class OrgTest(TembaTest):
 
         # check that our webhook settings have changed
         org = Org.objects.get(pk=self.org.pk)
-        logging.debug(org.webhook)
         self.assertEquals('http://webhooks.uniceflabs.org/', org.get_webhook_url())
         self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, org.get_webhook_headers())
 
