@@ -1237,7 +1237,7 @@ class Msg(models.Model, OrgModelMixin):
 
     def archive(self):
         """
-        Archives this message, provided it is currently visible
+        Archives this message
         """
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only archive incoming non-test messages")
@@ -1246,7 +1246,7 @@ class Msg(models.Model, OrgModelMixin):
 
     def restore(self):
         """
-        Restores (i.e. un-archives) this message, provided it is currently archived
+        Restores (i.e. un-archives) this message
         """
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only restore incoming non-test messages")
@@ -1255,11 +1255,8 @@ class Msg(models.Model, OrgModelMixin):
 
     def release(self):
         """
-        Releases (i.e. deletes) this message, provided it is not currently deleted
+        Releases (i.e. deletes) this message
         """
-        if self.direction != INCOMING or self.contact.is_test:
-            raise ValueError("Can only release incoming non-test messages")
-
         # handle VISIBLE > ARCHIVED state change first if necessary
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
