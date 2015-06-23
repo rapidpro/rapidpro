@@ -151,11 +151,10 @@
               %span.chart-size.chart-size-2{ ng-click:'setChartSize(field, 2)', ng-class:"{active:field.chartSize==2}" } &nbsp;
 
           -if org_supports_map
-            .choropleth-map{ng-show:'field.showChoropleth', choropleth:'', id:'choropleth-[[field.id]]', show-choropleth:'field.showChoropleth', chart-size:'field.chartSize', osm-id:'"{{user_org.country.osm_id}}"', rule-id:'[[field.id]]'}
+            .choropleth-map{ng-if:'field.showChoropleth', choropleth:'', id:'choropleth-[[field.id]]', show-choropleth:'field.showChoropleth', chart-size:'field.chartSize', osm-id:'"{{user_org.country.osm_id}}"', rule-id:'[[field.id]]'}
 
           %chart{config:'field.chart'}
           %datatable{config:'field.table'}
-
 
     - if org_perms.reports.report_create
       .creation.hide
