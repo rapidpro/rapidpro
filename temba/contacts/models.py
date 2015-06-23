@@ -802,10 +802,8 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
-        for group in self.all_groups.all():
+        for group in self.user_groups.all():
             group.update_contacts([self], False)
-
-        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
 
     def unblock(self):
         """
@@ -814,13 +812,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
-        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
-
-        # if contact is failed then it should go back into the failed group
-        if self.is_failed:
-            ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
-
     def fail(self):
         """
         Fails this contact, provided it is currently normal
@@ -828,16 +819,12 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_failed = True
         self.save(update_fields=['is_failed'])
 
-        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
-
     def unfail(self):
         """
         Un-fails this contact, provided it is currently failed
         """
         self.is_failed = False
         self.save(update_fields=['is_failed'])
-
-        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.remove(self)
 
     def release(self):
         """
@@ -852,7 +839,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             self.urns.update(contact=None)
 
             # remove contact from all groups
-            for group in self.all_groups.all():
+            for group in self.user_groups.all():
                 group.update_contacts((self,), False)
 
             # delete all messages with this contact
@@ -1396,6 +1383,9 @@ class ContactGroup(TembaModel, SmartModel):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
+        if self.group_type != USER_DEFINED_GROUP:
+            raise ValueError("Can't add or remove test contacts from system groups")
+
         changed = set()
         group_contacts = self.contacts.all()
 

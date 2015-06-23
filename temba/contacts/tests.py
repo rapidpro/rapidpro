@@ -233,30 +233,48 @@ class ContactGroupTest(TembaTest):
 
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
+
+        # add contacts via the related field
         group.contacts.add(self.joe, self.frank)
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
 
+        # add contacts via update_contacts
         group.update_contacts([self.mary], add=True)
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 3)
 
+        # remove contacts via update_contacts
         group.update_contacts([self.mary], add=False)
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
 
+        # add test contact (will add to group but won't increment count)
+        test_contact = Contact.get_test_contact(self.admin)
+        group.update_contacts([test_contact], add=True)
+
+        group = ContactGroup.user_groups.get(pk=group.pk)
+        self.assertEquals(group.count, 2)
+        self.assertEquals(set(group.contacts.all()), {self.joe, self.frank, test_contact})
+
+        # blocking a contact removes them from all user groups
         self.joe.block()
+
+        group = ContactGroup.user_groups.get(pk=group.pk)
+        self.assertEquals(group.count, 1)
+        self.assertEquals(set(group.contacts.all()), {self.frank, test_contact})
+
+        # unblocking won't re-add to any groups
+        self.joe.unblock()
 
         self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 1)
 
-        self.joe.unblock()
+        # releasing also removes from all user groups
         self.frank.release()
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
-
-        self.clear_cache()
-
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 0)
+        group = ContactGroup.user_groups.get(pk=group.pk)
+        self.assertEquals(group.count, 0)
+        self.assertEquals(set(group.contacts.all()), {test_contact})
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, 'age')
@@ -489,6 +507,23 @@ class ContactTest(TembaTest):
 
         # or have any URNs
         self.assertEqual(0, ContactURN.objects.filter(contact=self.joe).count())
+
+        # blocking and failing an inactive contact won't change groups
+        self.joe.block()
+        self.joe.fail()
+
+        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+
+        # we don't let users undo releasing a contact... but if we have to do it for some reason
+        self.joe.is_active = True
+        self.joe.save()
+
+        # check joe goes into the appropriate groups
+        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_blocked))
+        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
@@ -1662,9 +1697,7 @@ class ContactTest(TembaTest):
             self.assertEquals([self.frank, self.joe], list(_123_group.contacts.order_by('name')))
 
     def test_simulator_contact_views(self):
-        simulator_contact = self.create_contact("Simulator Contact", "+250788123123")
-        simulator_contact.is_test = True
-        simulator_contact.save()
+        simulator_contact = Contact.get_test_contact(self.admin)
 
         other_contact = self.create_contact("Will", "+250788987987")
 
