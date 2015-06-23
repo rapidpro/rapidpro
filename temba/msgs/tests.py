@@ -746,12 +746,11 @@ class MsgCRUDLTest(TembaTest):
         msg4 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test4", visibility=ARCHIVED)
         msg5 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test5", visibility=DELETED)
         msg6 = self.create_msg(direction='I', msg_type='F', contact=self.joe, text="flow test")
-        msg7 = self.create_msg(direction='I', msg_type='F', contact=Contact.get_test_contact(self.user), text="sim")
 
         # apply the labels
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg2, msg3], add=True)
-        label3.toggle_label([msg1, msg2, msg3, msg4, msg5, msg6, msg7], add=True)
+        label3.toggle_label([msg1, msg2, msg3, msg4, msg5, msg6], add=True)
 
         # can't visit a filter page as a non-org user
         self.login(self.non_org_user)
@@ -1245,43 +1244,64 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-    def test_visible_count(self):
+    def test_toggle_label(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
         msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
         msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
-        msg4 = self.create_msg(text="Message 4", contact=Contact.get_test_contact(self.user), direction='I')
 
         self.assertEqual(label.get_visible_count(), 0)
 
-        label.toggle_label([msg1, msg2, msg3, msg4], add=True)  # msg from test contact will be ignored
+        label.toggle_label([msg1, msg2, msg3], add=True)  # add label to 3 messages
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 3)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
-        label.toggle_label([msg3], add=False)
+        label.toggle_label([msg3], add=False)  # remove label from a message
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 2)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.restore()  # msg back in visible count
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 2)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.release()  # removes label message bo longer visible
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertEqual(set(label.get_messages()), {msg1})
 
         msg3.archive()
         label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         msg3.restore()  # but then restoring that message will
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 2)
+        self.assertEqual(set(label.get_messages()), {msg1, msg3})
+
+        # can't label test messages
+        msg4 = self.create_msg(text="Message", contact=Contact.get_test_contact(self.user), direction='I')
+        self.assertRaises(ValueError, label.toggle_label, [msg4], add=True)
+
+        # can't label outgoing messages
+        msg5 = self.create_msg(text="Message", contact=self.joe, direction='O')
+        self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")

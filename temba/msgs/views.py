@@ -807,7 +807,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE, contact__is_test=False)
+            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
 
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
