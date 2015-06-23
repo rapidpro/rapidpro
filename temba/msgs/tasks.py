@@ -23,23 +23,27 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     """
     Processses a single incoming message through our queue.
     """
+    r = get_redis_connection()
     msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact__urns').first()
 
     # somebody already handled this message, move on
     if not msg:
         return
 
-    print "[%09d] Processing - %s" % (msg.id, msg.text)
-    start = time.time()
+    # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
+    key = 'pcm_%d' % msg.contact_id
+    with r.lock(key, timeout=60):
+        print "[%09d] Processing - %s" % (msg.id, msg.text)
+        start = time.time()
 
-    # if message was created in Mage...
-    if from_mage:
-        mage_handle_new_message(msg.org, msg)
-        if new_contact:
-            mage_handle_new_contact(msg.org, msg.contact)
+        # if message was created in Mage...
+        if from_mage:
+            mage_handle_new_message(msg.org, msg)
+            if new_contact:
+                mage_handle_new_contact(msg.org, msg.contact)
 
-    Msg.process_message(msg)
-    print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
+        Msg.process_message(msg)
+        print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
 
 @task(track_started=True, name='send_broadcast')
 def send_broadcast_task(broadcast_id):
