@@ -197,7 +197,7 @@ $$ LANGUAGE plpgsql;
 -- install for UPDATE on contacts_contact
 DROP TRIGGER IF EXISTS contact_check_update_trg ON contacts_contact;
 CREATE TRIGGER contact_check_update_trg
-   BEFORE UPDATE is_test, is_blocked, is_failed ON contacts_contact
+   BEFORE UPDATE OF is_test, is_blocked, is_failed ON contacts_contact
    FOR EACH ROW EXECUTE PROCEDURE contact_check_update();
 """
 
