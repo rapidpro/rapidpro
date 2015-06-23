@@ -51,17 +51,19 @@
           .title
             -trans "channels"
 
-  -if org_perms.users.user_list or request.user.is_superuser
-    %li.nav-groups
-      %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
-        .title
-          -trans "users"
+  -if request.user.is_superuser or perms.auth.user_list
+    -if not user_org
+      %li.nav-groups
+        %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
+          .title
+            -trans "users"
 
-  -if request.user.is_superuser
-    %li.nav-orgs
-      %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
-        .title
-          -trans "orgs"
+  -if request.user.is_superuser or perms.orgs.org_manage
+    -if not user_org
+      %li.nav-orgs
+        %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
+          .title
+            -trans "orgs"
 
   -if not request.user.is_anonymous
     %li.more

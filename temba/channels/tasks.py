@@ -25,7 +25,7 @@ def sync_channel_task(gcm_id, channel_id=None):  #pragma: no cover
     Channel.sync_channel(gcm_id, channel)
 
 
-@task(track_started=True, name='send_msg_task', time_limit=120, soft_time_limit=90)
+@task(track_started=True, name='send_msg_task')
 def send_msg_task():
     """
     Pops the next message off of our msg queue to send.

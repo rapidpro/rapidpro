@@ -1,0 +1,4 @@
+[report]
+omit =
+    */migrations/*
+    temba/perf_tests.py

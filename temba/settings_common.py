@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
@@ -29,7 +29,6 @@ EMAIL_HOST_USER = 'server@temba.io'
 DEFAULT_FROM_EMAIL = 'server@temba.io'
 EMAIL_HOST_PASSWORD = 'mypassword'
 EMAIL_USE_TLS = True
-API_URL = 'https://api.temba.io'
 
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl.temba.io'
@@ -158,6 +157,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
+    'temba.middleware.NonAtomicGetsMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -279,23 +279,24 @@ BRANDING = {
         'styles': ['brands/rapidpro/font/style.css', 'brands/rapidpro/less/style.less'],
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
-        'link': 'http://rapidpro.io',
+        'support_email': 'support@rapidpro.io',
+        'link': 'https://rapidpro.io',
+        'api_link': 'https://api.rapidpro.io',
         'domain': 'rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
+        'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2014 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
-
+DEFAULT_BRAND = 'rapidpro.io'
 
 #-----------------------------------------------------------------------------------
 # Directory Configuration
 #-----------------------------------------------------------------------------------
-import os
-
 PROJECT_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)))
 LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
@@ -370,6 +371,7 @@ PERMISSIONS = {
                  'nexmo_connect',
                  'plivo_connect',
                  'profile',
+                 'service',
                  'signup',
                  'trial',
                  'twilio_account',
@@ -459,7 +461,9 @@ PERMISSIONS = {
 
     'msgs.call': ('api',),
 
-    'msgs.label': ('api',),
+    'msgs.label': ('api', 'create', 'create_folder'),
+
+    'orgs.topup': ('manage',),
 
     'triggers.trigger': ('archived',
                          'catchall',
@@ -483,6 +487,22 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": (
         'orgs.org_grant',
+    ),
+    "Customer Support": (
+        'auth.user_list',
+        'auth.user_update',
+        'flows.flow_editor',
+        'flows.flow_json',
+        'flows.flow_read',
+        'flows.flow_versions',
+        'orgs.org_dashboard',
+        'orgs.org_grant',
+        'orgs.org_manage',
+        'orgs.org_update',
+        'orgs.org_service',
+        'orgs.topup_create',
+        'orgs.topup_manage',
+        'orgs.topup_update',
     ),
     "Administrators": (
         'api.webhookevent_list',
@@ -921,7 +941,7 @@ REST_FRAMEWORK = {
     ),
     'PAGINATE_BY': 250,
     'DEFAULT_RENDERER_CLASSES': (
-        'temba.api.renderers.PostFormAPIRenderer',
+        'temba.api.renderers.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.XMLRenderer',
     )
@@ -983,7 +1003,7 @@ SESSION_CACHE_ALIAS = "default"
 #-----------------------------------------------------------------------------------
 # 3rd Party Integration Keys
 #-----------------------------------------------------------------------------------
-TWITTER_API_KEY = "your twitter api key"
-TWITTER_API_SECRET = "your twitter api secret"
+TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
+TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
 # SEGMENT_IO_KEY = "your segment.io key here"
