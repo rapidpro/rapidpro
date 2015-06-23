@@ -183,7 +183,11 @@ CREATE TRIGGER when_contacts_changed_then_update_groups_trg
 CREATE OR REPLACE FUNCTION contact_check_update() RETURNS TRIGGER AS $$
 BEGIN
   IF OLD.is_test != NEW.is_test THEN
-    RAISE EXCEPTION 'is_test cannot be changed';
+    RAISE EXCEPTION 'Contact.is_test cannot be changed';
+  END IF;
+
+  IF NEW.is_test AND (NEW.is_blocked OR NEW.is_failed) THEN
+    RAISE EXCEPTION 'Test contacts cannot be blocked or failed';
   END IF;
 
   RETURN NEW;
@@ -193,7 +197,7 @@ $$ LANGUAGE plpgsql;
 -- install for UPDATE on contacts_contact
 DROP TRIGGER IF EXISTS contact_check_update_trg ON contacts_contact;
 CREATE TRIGGER contact_check_update_trg
-   BEFORE UPDATE ON contacts_contact
+   BEFORE UPDATE is_test, is_blocked, is_failed ON contacts_contact
    FOR EACH ROW EXECUTE PROCEDURE contact_check_update();
 """
 
