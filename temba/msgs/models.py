@@ -1237,22 +1237,25 @@ class Msg(models.Model, OrgModelMixin):
 
     def archive(self):
         """
-        Archives this message, provided it is currently visible
+        Archives this message
         """
-        if self.direction != INCOMING:
-            raise ValueError("Can only archive incoming messages")
+        if self.direction != INCOMING or self.contact.is_test:
+            raise ValueError("Can only archive incoming non-test messages")
 
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
     def restore(self):
         """
-        Restores (i.e. un-archives) this message, provided it is currently archived
+        Restores (i.e. un-archives) this message
         """
+        if self.direction != INCOMING or self.contact.is_test:
+            raise ValueError("Can only restore incoming non-test messages")
+
         self._update_state(dict(visibility=ARCHIVED), dict(visibility=VISIBLE), OrgEvent.msg_restored)
 
     def release(self):
         """
-        Releases (i.e. deletes) this message, provided it is not currently deleted
+        Releases (i.e. deletes) this message
         """
         # handle VISIBLE > ARCHIVED state change first if necessary
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
@@ -1490,6 +1493,9 @@ class Label(TembaModel, SmartModel):
         for msg in msgs:
             if msg.direction != INCOMING:
                 raise ValueError("Can only apply labels to incoming messages")
+
+            if msg.contact.is_test:
+                raise ValueError("Cannot apply labels to test messages")
 
             # if we are adding the label and this message doesnt have it, add it
             if add:
