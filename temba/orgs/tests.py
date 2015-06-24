@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import logging
 import json
 
 from context_processors import GroupPermWrapper
@@ -1065,7 +1066,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
-        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook=u'{"url": "http://fake.com/webhook.php"}', mt_sms=1))
+        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://fake.com/webhook.php', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
