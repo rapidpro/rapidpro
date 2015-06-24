@@ -86,7 +86,7 @@ class Trigger(SmartModel):
                     channel=self.channel.pk if self.channel else None)
 
     @classmethod
-    def import_triggers(cls, exported_json, org, user, site=None):
+    def import_triggers(cls, exported_json, org, user, same_site=False):
         """
         Import triggers from our export file
         """
@@ -104,7 +104,7 @@ class Trigger(SmartModel):
 
                     group = None
 
-                    if site and site == exported_json.get('site', None):
+                    if same_site:
                         group = ContactGroup.user_groups.filter(org=org, pk=group_spec['id']).first()
 
                     if not group:

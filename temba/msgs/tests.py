@@ -11,11 +11,11 @@ from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest, _CRUDLTest
 from temba.contacts.models import ContactField, TEL_SCHEME
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, HANDLED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, SENT
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
@@ -30,52 +30,75 @@ class MsgTest(TembaTest):
 
         self.joe = self.create_contact("Joe Blow", "123")
         self.frank = self.create_contact("Frank Blow", "321")
-
-        self.just_joe = self.create_group("Just Joe", [ self.joe ])
-
-        self.joe_and_frank = self.create_group("Joe and Frank", [ self.joe, self.frank ])
-
         self.kevin = self.create_contact("Kevin Durant", "987")
-        
-        self.admin.set_org(self.org)
+
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_archive_and_release(self):
+        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '123'), "Incoming")
+        label = Label.get_or_create(self.org, self.admin, "Spam")
+        label.toggle_label([msg1], add=True)
+
+        msg1.archive()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, ARCHIVED)
+        self.assertEqual(set(msg1.labels.all()), {label})  # don't remove labels
+
+        msg1.restore()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, VISIBLE)
+
+        msg1.release()
+
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(msg1.visibility, DELETED)
+        self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
+        self.assertTrue(Label.user_labels.filter(pk=label.pk).exists())  # though don't delete the label object
+
+        # can't archive outgoing messages
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
+        self.assertRaises(ValueError, msg2.archive)
 
     def test_erroring(self):
         # test with real message
         msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Test 1")
         r = get_redis_connection()
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 1)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 2)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'F')
 
         # test with mock message
         msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.admin, self.joe, "Test 2").as_task_json())
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 1)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'E')
         self.assertEqual(msg.error_count, 2)
         self.assertIsNotNone(msg.next_attempt)
 
-        Msg.mark_error(r, msg)
+        Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
         self.assertEqual(msg.status, 'F')
 
@@ -335,165 +358,102 @@ class MsgTest(TembaTest):
         inbox_url = reverse('msgs.msg_inbox')
 
         joe_tel = (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path)
-        self.msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
-        self.msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
-        self.msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
-        self.msg4 = Msg.create_incoming(self.channel, joe_tel, "message number 4")
-        self.msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
-        self.msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
+        msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
+        msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
+        msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
+        msg4 = Msg.create_incoming(self.channel, joe_tel, "message number 4")
+        msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
+        msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
 
-        self.msg6.status = PENDING  # put #6 back in pending state
-        self.msg6.save()
+        # msg6 is still pending
+        msg6.status = PENDING
+        msg6.msg_type = None
+        msg6.save()
 
         # visit inbox page  as a user not in the organization
         self.login(self.non_org_user)
-        response = self.client.get(inbox_url)
-        self.assertEquals(302, response.status_code)
-
-        # visit inbox page as manager not in the organization
-        self.login(self.non_org_manager)
         response = self.client.get(inbox_url)
         self.assertEquals(302, response.status_code)
         
         # visit inbox page as a manager of the organization
         response = self.fetch_protected(inbox_url, self.admin)
         
-        self.assertEquals(response.context['object_list'].count(), 5)  # excludes msg 6 as it is pending
+        self.assertEquals(response.context['object_list'].count(), 5)
         self.assertEquals(response.context['folders'][0]['url'], '/msg/inbox/')
         self.assertEquals(response.context['folders'][0]['count'], 5)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
         # visit inbox page as adminstrator
-        response = self.fetch_protected(inbox_url, self.root)
+        response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 5)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
-        # let's add some labels 
-        self.label1 = Label.create(self.org, self.user, "label1")
-        self.label2 = Label.create(self.org, self.user, "label2")
-        self.label3 = Label.create(self.org, self.user, "label3")
-
-        self.child = Label.create(self.org, self.user, "child label", parent=self.label3)
-        
-        self.assertEquals(Label.objects.all().count(), 4)
+        # let's add some labels
+        folder = Label.get_or_create_folder(self.org, self.user, "folder")
+        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
+        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
+        label3 = Label.get_or_create(self.org, self.user, "label3")
 
         # test labeling a messages
-        self.label_messages([self.msg1.pk, self.msg2.pk], self.label1.pk)
-        self.assertEquals(Msg.objects.filter(labels=self.label1).count(), 2)
-        self.assertEquals(Msg.objects.filter(labels=self.label1)[0].pk, self.msg2.pk)
-        self.assertEquals(Msg.objects.filter(labels=self.label1)[1].pk, self.msg1.pk)
+        self.label_messages([msg1.pk, msg2.pk], label1.pk)
+        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg2, msg1])
 
         # test removing a label
         post_data = dict()
         post_data['action'] = 'label'
-        post_data['objects'] = [self.msg2.pk]
-        post_data['label'] = self.label1.pk
+        post_data['objects'] = [msg2.pk]
+        post_data['label'] = label1.pk
         post_data['add'] = False
 
         self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(Msg.objects.filter(labels=self.label1).count(), 1)
-        self.assertEquals(Msg.objects.filter(labels=self.label1)[0].pk, self.msg1.pk)
+        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
 
-        # label many more messages
-        self.label_messages([self.msg1.pk, self.msg2.pk, self.msg3.pk], self.label2.pk)
-        self.assertEquals(Msg.objects.filter(labels=self.label1).count(), 1)
-        self.assertEquals(Msg.objects.filter(labels=self.label2).count(), 3)
-
-        # label with a child
-        self.label_messages([self.msg1.pk], self.child.pk)
-        response = self.client.get(reverse('msgs.msg_filter', args=[self.child.pk]))
-        self.assertContains(response, 'child label')
-
-        # Let's test the filter by labels
-        label1_filter_url = reverse('msgs.msg_filter', args=[self.label1.pk])
-        label2_filter_url = reverse('msgs.msg_filter', args=[self.label2.pk])
-        label3_filter_url = reverse('msgs.msg_filter', args=[self.label3.pk])
-
-        # visit a label filter page  as a user not in the organization
-        self.login(self.non_org_user)
-        response1 = self.client.get(label1_filter_url)
-        response2 = self.client.get(label2_filter_url)
-        response3 = self.client.get(label3_filter_url)
-        
-        self.assertEquals(302, response1.status_code)
-        self.assertEquals(302, response2.status_code)
-        self.assertEquals(302, response3.status_code)
-
-        # visit label filter page as manager not in the organization
-        self.login(self.non_org_manager)
-        response1 = self.client.get(label1_filter_url)
-        response2 = self.client.get(label2_filter_url)
-        response3 = self.client.get(label3_filter_url)
-        
-        self.assertEquals(302, response1.status_code)
-        self.assertEquals(302, response2.status_code)
-        self.assertEquals(302, response3.status_code)
-        # visit a label filter page as adminstrator
-        response1 = self.fetch_protected(label1_filter_url, self.root)
-        response2 = self.fetch_protected(label2_filter_url, self.root)
-        response3 = self.fetch_protected(label3_filter_url, self.root)
-
-        self.assertEquals(response1.context['object_list'].count(), 1)
-        self.assertEquals(response1.context['actions'], ['unlabel','label'])
-        self.assertContains(response1, reverse('msgs.label_delete', args=[self.label1.pk]))
-
-        self.assertEquals(response2.context['object_list'].count(), 3)
-        self.assertEquals(response2.context['actions'], ['unlabel','label'])
-
-        # this one has the child label
-        self.assertEquals(response3.context['object_list'].count(), 1)
-        self.assertEquals(response3.context['actions'], ['unlabel','label'])
+        # label more messages
+        self.label_messages([msg1.pk, msg2.pk, msg3.pk], label3.pk)
+        self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
+        self.assertEqual(list(Msg.objects.filter(labels=label3)), [msg3, msg2, msg1])
 
         # update our label name
-        response = self.client.get(reverse('msgs.label_update', args=[self.label1.pk]))
+        response = self.client.get(reverse('msgs.label_update', args=[label1.pk]))
         self.assertEquals(200, response.status_code)
-        self.assertTrue('parent' in response.context['form'].fields)
+        self.assertTrue('folder' in response.context['form'].fields)
 
         post_data = dict(name="Foo")
-        response = self.client.post(reverse('msgs.label_update', args=[self.label1.pk]), post_data)
+        response = self.client.post(reverse('msgs.label_update', args=[label1.pk]), post_data)
         self.assertEquals(302, response.status_code)
-        label1 = Label.objects.get(pk=self.label1.pk)
+        label1 = Label.user_labels.get(pk=label1.pk)
         self.assertEquals("Foo", label1.name)
 
-        # test removing the label
-        response = self.client.get(reverse('msgs.label_delete', args=[self.label1.pk]))
+        # test deleting the label
+        response = self.client.get(reverse('msgs.label_delete', args=[label1.pk]))
         self.assertEquals(200, response.status_code)
 
-        response = self.client.post(reverse('msgs.label_delete', args=[self.label1.pk]))
+        response = self.client.post(reverse('msgs.label_delete', args=[label1.pk]))
         self.assertEquals(302, response.status_code)
-        self.assertFalse(Label.objects.filter(pk=label1.id))
+        self.assertFalse(Label.user_labels.filter(pk=label1.id))
 
         # shouldn't have a remove on the update page
 
         # test archiving a msg
-        self.assertNotEquals(self.msg1.labels, [])
-        post_data = dict()
-        post_data['action'] = 'archive'
-        post_data['objects'] = self.msg1.pk
+        self.assertEqual(set(msg1.labels.all()), {label3})
+        post_data = dict(action='archive', objects=msg1.pk)
 
         response = self.client.post(inbox_url, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
         
-        # now one msg is archived and without labels
-        self.assertEquals(Msg.objects.filter(visibility=ARCHIVED).count(), 1)
-        self.assertEquals(Msg.objects.filter(visibility=ARCHIVED)[0].pk, self.msg1.pk)
+        # now one msg is archived
+        self.assertEqual(list(Msg.objects.filter(visibility=ARCHIVED)), [msg1])
 
         # archiving doesn't remove labels
-        self.assertEquals(self.msg1.labels.all().count(), 2)
-
-        self.assertEquals(Msg.objects.filter(labels=self.label1).count(), 0)
-        self.assertEquals(Msg.objects.filter(labels=self.label2).count(), 3)
+        msg1 = Msg.objects.get(pk=msg1.pk)
+        self.assertEqual(set(msg1.labels.all()), {label3})
         
-        # visit the the arhived messages page 
+        # visit the the archived messages page
         archive_url = reverse('msgs.msg_archived')
 
         # visit archived page  as a user not in the organization
         self.login(self.non_org_user)
-        response = self.client.get(archive_url)
-        self.assertEquals(302, response.status_code)
-
-        # visit archived page as manager not in the organization
-        self.login(self.non_org_manager)
         response = self.client.get(archive_url)
         self.assertEquals(302, response.status_code)
         
@@ -503,112 +463,71 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['object_list'].count(), 1)
         self.assertEquals(response.context['actions'], ['restore', 'label', 'delete'])
 
-        # visit archived page as adminstrator
-        response = self.fetch_protected(archive_url, self.root)
+        # check that the inbox does not contains archived messages
 
-        self.assertEquals(response.context['object_list'].count(), 1)
-        self.assertEquals(response.context['actions'], ['restore', 'label', 'delete'])
-
-
-        # check that the imbox does not contains archived messages
-        # visit inbox page  as a user not in the organization
+        # visit inbox page as a user not in the organization
         self.login(self.non_org_user)
         response = self.client.get(inbox_url)
         self.assertEquals(302, response.status_code)
-
-        # visit inbox page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(inbox_url)
-        self.assertEquals(302, response.status_code)
         
-        # visit inbox page as a manager of the organization
+        # visit inbox page as an admin of the organization
         response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 4)
-        self.assertEquals(response.context['actions'], ['archive','label'])
+        self.assertEquals(response.context['actions'], ['archive', 'label'])
 
-        # visit inbox page as adminstrator
-        response = self.fetch_protected(inbox_url, self.root)
-
-        self.assertEquals(response.context['object_list'].count(), 4)
-        self.assertEquals(response.context['actions'], ['archive','label'])
-
-        # test restoring a archived message back to inbox
-        post_data = dict()
-        post_data['action'] = 'restore'
-        post_data['objects'] = self.msg1.pk
-
-        response = self.client.post(inbox_url, post_data, follow=True)
+        # test restoring an archived message back to inbox
+        post_data = dict(action='restore', objects=[msg1.pk])
+        self.client.post(inbox_url, post_data, follow=True)
         self.assertEquals(Msg.objects.filter(visibility=ARCHIVED).count(), 0)
 
-        # no test contact message is listed in the inbox
-        test_contact = self.create_contact("HSA", "4289")
-        test_contact.is_test = True
-        test_contact.save()
-
+        # messages from test contact are not included in the inbox
+        test_contact = Contact.get_test_contact(self.admin)
         Msg.create_incoming(self.channel, (TEL_SCHEME, test_contact.get_urn().path), 'Bla Blah')
 
-        response = self.fetch_protected(inbox_url, self.root)
-        self.assertEquals(Msg.objects.all().count(), 7)
-        self.assertEquals(response.context['object_list'].count(), 5)
+        response = self.client.get(inbox_url)
+        self.assertEqual(Msg.objects.all().count(), 7)
+        self.assertEqual(response.context['object_list'].count(), 5)
 
-        # message should be archived to start
-        Msg.apply_action_archive([self.msg1])
+        # archiving a message removes it from the inbox
+        Msg.apply_action_archive([msg1])
 
+        response = self.client.get(inbox_url)
+        self.assertEqual(response.context['object_list'].count(), 4)
+
+        # and moves it to the Archived page
         response = self.client.get(archive_url)
-        self.assertEquals(1, response.context['object_list'].count())
+        self.assertEqual(response.context['object_list'].count(), 1)
 
-        # this deletes it
-        post_data = dict()
-        post_data['action'] = 'delete'
-        post_data['objects'] = self.msg1.pk
-        response = self.client.post(archive_url, post_data, follow=True)
+        # deleting it removes it from the Archived page
+        response = self.client.post(archive_url, dict(action='delete', objects=[msg1.pk]), follow=True)
+        self.assertEqual(response.context['object_list'].count(), 0)
 
-        # we shouldn't see the message in our list anymore
-        self.assertEquals(0, response.context['object_list'].count())
+        # now check inbox as viewer user
+        response = self.fetch_protected(inbox_url, self.user)
+        self.assertEqual(response.context['object_list'].count(), 4)
 
-        self.client.logout()
-
-        self.msg6 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "message number 6")
-
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
-        self.login(self.viewer)
-
-        response = self.fetch_protected(inbox_url, self.viewer)
-        self.assertEquals(5, response.context['object_list'].count())
-
-        # be sure viewer cannot submit any action
-        post_data = dict()
-        post_data['action'] = 'label'
-        post_data['objects'] = [self.msg6.pk]
-        post_data['label'] = self.label1.pk
-        post_data['add'] = False
-
-        # no label
+        # check that viewer user cannot label messages
+        post_data = dict(action='label', objects=[msg5.pk], label=label1.pk, add=True)
         self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(self.msg6.labels.all().count(), 0)
+        self.assertEqual(msg5.labels.all().count(), 0)
 
-        self.assertEquals(Msg.objects.get(pk=self.msg6.pk).visibility, VISIBLE)
-        post_data = dict()
-        post_data['action'] = 'archive'
-        post_data['objects'] = self.msg6.pk
-
-        response = self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(Msg.objects.get(pk=self.msg6.pk).visibility, VISIBLE)
+        # or archive messages
+        self.assertEqual(Msg.objects.get(pk=msg5.pk).visibility, VISIBLE)
+        post_data = dict(action='archive', objects=[msg5.pk])
+        self.client.post(inbox_url, post_data, follow=True)
+        self.assertEqual(Msg.objects.get(pk=msg5.pk).visibility, VISIBLE)
 
         # search on inbox just on the message text
         response = self.client.get("%s?search=message" % inbox_url)
-        self.assertEquals(5, len(response.context_data['object_list']))
+        self.assertEqual(len(response.context_data['object_list']), 4)
 
         response = self.client.get("%s?search=5" % inbox_url)
-        self.assertEquals(1, len(response.context_data['object_list']))
+        self.assertEqual(len(response.context_data['object_list']), 1)
 
         # can search on contact field
         response = self.client.get("%s?search=joe" % inbox_url)
-        self.assertEquals(5, len(response.context_data['object_list']))
+        self.assertEqual(len(response.context_data['object_list']), 4)
 
     def test_survey_messages(self):
         survey_msg_url = reverse('msgs.msg_flow')
@@ -621,20 +540,9 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(survey_msg_url)
         self.assertEquals(302, response.status_code)
-
-        # visit survey messages page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(survey_msg_url)
-        self.assertEquals(302, response.status_code)
         
         # visit survey messages page as a manager of the organization
         response = self.fetch_protected(survey_msg_url, self.admin)
-
-        self.assertEquals(response.context['object_list'].count(), 1)
-        self.assertEquals(response.context['actions'], ['label'])
-
-        # visit survey messages page as adminstrator
-        response = self.fetch_protected(survey_msg_url, self.root)
 
         self.assertEquals(response.context['object_list'].count(), 1)
         self.assertEquals(response.context['actions'], ['label'])
@@ -654,7 +562,7 @@ class MsgTest(TembaTest):
         self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(self.org, self.root, "message number 2", [self.joe])
+        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status='F')
         broadcast.update()
@@ -671,53 +579,19 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(failed_url)
         self.assertEquals(302, response.status_code)
-
-        # visit inbox page as manager not in the organization
-        self.login(self.non_org_manager)
-        response = self.client.get(failed_url)
-        self.assertEquals(302, response.status_code)
         
-        # visit inbox page as a manager of the organization
+        # visit inbox page as an administrator
         response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 3)
-        self.assertEquals(response.context['actions'], ['archive', 'resend'])
-
-        # visit inbox page as adminstrator
-        response = self.fetch_protected(failed_url, self.root)
-
-        self.assertEquals(response.context['object_list'].count(), 3)
-        self.assertEquals(response.context['actions'], ['archive', 'resend'])
-
-        # let's archive some messages
-        post_data = dict()
-        post_data['action'] = 'archive'
-        post_data['objects'] = msg1.pk
-
-        response = self.client.post(failed_url, post_data, follow=True)
-
-        # now one msg is archived
-        self.assertEquals(Msg.objects.filter(visibility=ARCHIVED).count(), 1)
-        self.assertEquals(Msg.objects.filter(visibility=VISIBLE).count(), 2)
-        self.assertEquals(Msg.objects.filter(visibility=ARCHIVED)[0].pk, msg1.pk)
+        self.assertEquals(response.context['actions'], ['resend'])
 
         # let's resend some messages
-        post_data['action'] = 'resend'
-        post_data['objects'] = msg2.pk
+        self.client.post(failed_url, dict(action='resend', objects=msg2.pk), follow=True)
 
-        response = self.client.post(failed_url, post_data, follow=True)
-
-        # the archived message
-        self.assertEquals(msg1.pk, Msg.objects.filter(visibility=ARCHIVED, status=FAILED)[0].pk)
-
-        # the resent message
-        self.assertEquals(msg2.pk, Msg.objects.filter(visibility=ARCHIVED, status=RESENT)[0].pk)
-
-        # the one we didn't do anything to
-        self.assertEquals(msg3.pk, Msg.objects.filter(visibility=VISIBLE, status=FAILED)[0].pk)
-
-        # the message created to resent
-        self.assertEquals(Msg.objects.filter(visibility=VISIBLE, status=PENDING).count(), 1)
+        # check for the resent message and the new one being resent
+        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
+        self.assertEqual(Msg.objects.filter(status=PENDING).count(), 1)
 
         # make sure there was a new outgoing message created that got attached to our broadcast
         self.assertEquals(1, broadcast.get_messages().count())
@@ -747,7 +621,7 @@ class MsgTest(TembaTest):
         msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
 
         # label first message
-        label = Label.create(self.org, self.user, "label1")
+        label = Label.get_or_create(self.org, self.user, "label1")
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -773,9 +647,9 @@ class MsgTest(TembaTest):
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "Your messages export is ready")
-        self.assertIn('http://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertIn('https://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('http://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertIn('https://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
         ExportMessagesTask.objects.all().delete()
@@ -848,6 +722,80 @@ class MsgTest(TembaTest):
 
         out_miss = Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "mt_miss")
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
+
+
+class MsgCRUDLTest(TembaTest):
+    def setUp(self):
+        super(MsgCRUDLTest, self).setUp()
+
+        self.joe = self.create_contact("Joe Blow", "+250788000001")
+        self.frank = self.create_contact("Frank Blow", "250788000002")
+        self.billy = self.create_contact("Billy Bob", twitter="billy_bob")
+
+    def test_filter(self):
+        # create some folders and labels
+        folder = Label.get_or_create_folder(self.org, self.user, "folder")
+        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
+        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
+        label3 = Label.get_or_create(self.org, self.user, "label3")
+
+        # create some messages
+        msg1 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test1")
+        msg2 = self.create_msg(direction='I', msg_type='I', contact=self.frank, text="test2")
+        msg3 = self.create_msg(direction='I', msg_type='I', contact=self.billy, text="test3")
+        msg4 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test4", visibility=ARCHIVED)
+        msg5 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test5", visibility=DELETED)
+        msg6 = self.create_msg(direction='I', msg_type='F', contact=self.joe, text="flow test")
+        msg7 = self.create_msg(direction='I', msg_type='F', contact=Contact.get_test_contact(self.user), text="sim")
+
+        # apply the labels
+        label1.toggle_label([msg1, msg2], add=True)
+        label2.toggle_label([msg2, msg3], add=True)
+        label3.toggle_label([msg1, msg2, msg3, msg4, msg5, msg6, msg7], add=True)
+
+        # can't visit a filter page as a non-org user
+        self.login(self.non_org_user)
+        response = self.client.get(reverse('msgs.msg_filter', args=[label3.pk]))
+        self.assertLoginRedirect(response)
+
+        # can as org viewer user
+        self.login(self.user)
+        response = self.client.get(reverse('msgs.msg_filter', args=[label3.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['actions'], ['unlabel', 'label'])
+        self.assertNotContains(response, reverse('msgs.label_update', args=[label3.pk]))  # can't update label
+        self.assertNotContains(response, reverse('msgs.label_delete', args=[label3.pk]))  # can't delete label
+
+        # check that test and non-visible messages are excluded, and messages and ordered newest to oldest
+        self.assertEqual(list(response.context['object_list']), [msg6, msg3, msg2, msg1])
+
+        # check viewing a folder
+        response = self.client.get(reverse('msgs.msg_filter', args=[folder.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['actions'], ['unlabel', 'label'])
+        self.assertNotContains(response, reverse('msgs.label_update', args=[folder.pk]))  # can't update folder
+        self.assertNotContains(response, reverse('msgs.label_delete', args=[folder.pk]))  # can't delete folder
+
+        # messages from contained labels are rolled up without duplicates
+        self.assertEqual(list(response.context['object_list']), [msg3, msg2, msg1])
+
+        # search on folder by message text
+        response = self.client.get("%s?search=test2" % reverse('msgs.msg_filter', args=[folder.pk]))
+        self.assertEqual(set(response.context_data['object_list']), {msg2})
+
+        # search on label by contact name
+        response = self.client.get("%s?search=joe" % reverse('msgs.msg_filter', args=[label3.pk]))
+        self.assertEqual(set(response.context_data['object_list']), {msg1, msg6})
+
+        # check admin users see edit and delete options for labels and folders
+        self.login(self.admin)
+        response = self.client.get(reverse('msgs.msg_filter', args=[folder.pk]))
+        self.assertContains(response, reverse('msgs.label_update', args=[folder.pk]))
+        self.assertContains(response, reverse('msgs.label_delete', args=[folder.pk]))
+
+        response = self.client.get(reverse('msgs.msg_filter', args=[label1.pk]))
+        self.assertContains(response, reverse('msgs.label_update', args=[label1.pk]))
+        self.assertContains(response, reverse('msgs.label_delete', args=[label1.pk]))
 
 
 class BroadcastTest(TembaTest):
@@ -1276,37 +1224,6 @@ class BroadcastCRUDLTest(_CRUDLTest):
         self.assertContains(response, "Hey guys")
 
 
-class MsgCRUDLTest(_CRUDLTest):
-    def setUp(self):
-        from temba.msgs.views import MsgCRUDL
-        super(MsgCRUDLTest, self).setUp()
-        self.crudl = MsgCRUDL
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.org.initialize()
-
-    def test_folders(self):
-        self.login(self.getUser())
-        channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
-
-        contact = Contact.get_or_create(self.org, self.user, urns=[(TEL_SCHEME, '250788382382')])
-
-        # some incoming messages
-        Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "It's going well")
-        Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "My name is Frank")
-        Msg.create_incoming(channel, (TEL_SCHEME, "250788382382"), "Yes, 3.")
-
-        # some outgoing messages
-        Msg.create_outgoing(self.org, self.user, contact, "How is it going?")
-        Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
-
-        self._do_test_view('inbox')
-
-    def assertInboxGet(self, response):
-        self.assertContains(response, "0788 382 382", 6)
-
-
 class LabelTest(TembaTest):
 
     def setUp(self):
@@ -1315,129 +1232,162 @@ class LabelTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", number="073835001")
         self.frank = self.create_contact("Frank", number="073835002")
 
-    def test_create_unique(self):
-        # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        label1 = Label.create_unique(self.org, self.user, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
-        self.assertEquals(label1.name, "alongwordcomposedofmorethanthirt")
+    def test_get_or_create(self):
+        label1 = Label.get_or_create(self.org, self.user, "Spam")
+        self.assertEqual(label1.name, "Spam")
+        self.assertIsNone(label1.folder)
 
-        # try to create another label which starts with the same 32 caracteres
-        # the one we already have
-        label2 = Label.create_unique(self.org, self.user, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
-        self.assertEquals(label2.name, "alongwordcomposedofmorethanthi 2")
-        self.assertEquals(unicode(label2), "alongwordcomposedofmorethanthi 2")
+        followup = Label.get_or_create_folder(self.org, self.user, "Follow up")
+        label2 = Label.get_or_create(self.org, self.user, "Complaints", followup)
+        self.assertEqual(label2.name, "Complaints")
+        self.assertEqual(label2.folder, followup)
 
-        # create child label
-        child = Label.create_unique(self.org, self.user, "child", parent=label2)
-        self.assertEquals(unicode(child), "alongwordcomposedofmorethanthi 2 > child")
+        # don't allow invalid name
+        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-        Label.create_unique(self.org, self.user, "dog")
-        Label.create_unique(self.org, self.user, "dog")
-        dog3 = Label.create_unique(self.org, self.user, "dog")
-        self.assertEquals("dog 3", dog3.name)
+    def test_visible_count(self):
+        label = Label.get_or_create(self.org, self.user, "Spam")
+        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
+        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
+        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
+        msg4 = self.create_msg(text="Message 4", contact=Contact.get_test_contact(self.user), direction='I')
 
-    def test_message_count(self):
-        label = Label.create_unique(self.org, self.user, "Parent")
-        child = Label.create_unique(self.org, self.user, "Child", parent=label)
+        self.assertEqual(label.get_visible_count(), 0)
 
-        with self.assertNumQueries(2):  # from db
-            self.assertEqual(label.get_message_count(), 0)
-            self.assertEqual(child.get_message_count(), 0)
+        label.toggle_label([msg1, msg2, msg3, msg4], add=True)  # msg from test contact will be ignored
 
-        with self.assertNumQueries(0):  # from cache
-            self.assertEqual(label.get_message_count(), 0)
-            self.assertEqual(child.get_message_count(), 0)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
 
-        msg1 = self.create_msg(text="Message 1", contact=self.joe)
-        msg2 = self.create_msg(text="Message 2", contact=self.joe)
-        msg3 = self.create_msg(text="Message 3", contact=self.joe)
-        msg4 = self.create_msg(text="Message 4", contact=self.frank)
-        msg5 = self.create_msg(text="Message 5", contact=self.frank)
-        msg6 = self.create_msg(text="Message 6", contact=self.frank)
+        label.toggle_label([msg3], add=False)
 
-        label.toggle_label([msg1, msg2, msg3], add=True)
-        child.toggle_label([msg4, msg5, msg6], add=True)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 6)
-            self.assertEqual(child.get_message_count(), 3)
+        msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        label.toggle_label([msg1], add=False)
-        child.toggle_label([msg4], add=False)
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 4)
-            self.assertEqual(child.get_message_count(), 2)
+        msg2.restore()  # msg back in visible count
 
-        msg2.archive()
-        msg5.archive()
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 4)
-            self.assertEqual(child.get_message_count(), 2)
+        msg2.release()  # removes label message bo longer visible
 
-        msg3.release()
-        msg6.release()
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
 
-        with self.assertNumQueries(0):
-            self.assertEqual(label.get_message_count(), 2)
-            self.assertEqual(child.get_message_count(), 1)
+        msg3.archive()
+        label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
 
-        self.clear_cache()
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+
+        msg3.restore()  # but then restoring that message will
+
+        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+
+        # can't get a count of a folder
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        self.assertRaises(ValueError, folder.get_visible_count)
+
+    def test_get_messages_and_hierarchy(self):
+        folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
+        folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
+        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
+        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
+        label3 = Label.get_or_create(self.org, self.user, "Other")
+
+        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
+        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
+        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
+
+        label1.toggle_label([msg1, msg2], add=True)
+        label2.toggle_label([msg2, msg3], add=True)
+        label3.toggle_label([msg3], add=True)
+
+        self.assertEqual(set(folder1.get_messages()), {msg1, msg2, msg3})
+        self.assertEqual(set(folder2.get_messages()), set())
+        self.assertEqual(set(label1.get_messages()), {msg1, msg2})
+        self.assertEqual(set(label2.get_messages()), {msg2, msg3})
+        self.assertEqual(set(label3.get_messages()), {msg3})
 
         with self.assertNumQueries(2):
-            self.assertEqual(label.get_message_count(), 2)
-            self.assertEqual(child.get_message_count(), 1)
+            hierarchy = Label.get_hierarchy(self.org)
+            self.assertEqual(list(hierarchy), [label3, folder1, folder2])
+            self.assertEqual(list(hierarchy[1].children.all()), [label2, label1])
+
+    def test_delete_folder(self):
+        folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
+        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
+        label3 = Label.get_or_create(self.org, self.user, "Other")
+
+        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
+        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
+        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
+
+        label1.toggle_label([msg1, msg2], add=True)
+        label2.toggle_label([msg1], add=True)
+        label3.toggle_label([msg3], add=True)
+
+        folder1.delete()
+
+        self.assertFalse(Label.user_all.filter(pk=folder1.pk).exists())
+
+        # check that contained labels are also deleted
+        self.assertEqual(Label.user_all.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
+        self.assertEqual(set(Msg.objects.get(pk=msg1.pk).labels.all()), set())
+        self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
+        self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
+
+        label3.delete()
+
+        self.assertFalse(Label.user_all.filter(pk=label3.pk).exists())
+        self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
 
 
 class LabelCRUDLTest(TembaTest):
 
     def test_create_and_update(self):
-        create_url = reverse('msgs.label_create')
+        create_label_url = reverse('msgs.label_create')
+        create_folder_url = reverse('msgs.label_create_folder')
 
         self.login(self.admin)
 
         # try to create label with invalid name
-        response = self.client.post(create_url, dict(name="+label_one"))
-        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
+        response = self.client.post(create_label_url, dict(name="+label_one"))
+        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with punctuation")
 
         # try again with valid name
-        self.client.post(create_url, dict(name="label_one"), follow=True)
+        self.client.post(create_label_url, dict(name="label_one"), follow=True)
 
-        label_one = Label.objects.get()
-        self.assertEquals(label_one.name, "label_one")
-        self.assertEquals(label_one.parent, None)
+        label_one = Label.user_labels.get()
+        self.assertEqual(label_one.name, "label_one")
+        self.assertIsNone(label_one.folder)
 
         # check that we can't create another with same name
-        response = self.client.post(create_url, dict(name="label_one"))
-        self.assertFormError(response, 'form', 'name', "Label name must be unique")
+        response = self.client.post(create_label_url, dict(name="label_one"))
+        self.assertFormError(response, 'form', 'name', "Name must be unique")
 
-        # create a child label
-        self.client.post(create_url, dict(name="sub_label", parent=label_one.pk), follow=True)
+        # create a folder
+        self.client.post(create_folder_url, dict(name="Folder"), follow=True)
+        folder = Label.user_folders.get(name="Folder")
 
-        sub_label = Label.objects.get(name="sub_label")
-        self.assertEquals(sub_label.parent, label_one)
+        # and a label in it
+        self.client.post(create_label_url, dict(name="label_two", folder=folder.pk), follow=True)
+        label_two = Label.user_labels.get(name="label_two")
+        self.assertEqual(label_two.folder, folder)
 
-        # check that viewing the parent label shows the child too
-        response = self.client.get(reverse('msgs.msg_filter', args=[label_one.pk]))
-        self.assertContains(response, "sub_label")
-
-        # update the parent label
+        # update label one
         self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="label_1"))
 
-        label_one = Label.objects.get(pk=label_one.pk)
-        self.assertEquals(label_one.name, "label_1")
-        self.assertEquals(label_one.parent, None)
+        label_one = Label.user_labels.get(pk=label_one.pk)
+        self.assertEqual(label_one.name, "label_1")
+        self.assertIsNone(label_one.folder)
 
         # try to update to invalid label name
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
-        self.assertFormError(response, 'form', 'name', "Label name must not be blank or begin with + or -")
-
-        # check can't take name of existing label, even a child
-        response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="sub_label"))
-        self.assertFormError(response, 'form', 'name', "Label name must be unique")
+        self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with punctuation")
 
     def test_label_delete(self):
-        label_one = Label.create_unique(self.org, self.user, "label1")
+        label_one = Label.get_or_create(self.org, self.user, "label1")
 
         delete_url = reverse('msgs.label_delete', args=[label_one.pk])
 
@@ -1448,6 +1398,31 @@ class LabelCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 200)
+
+    def test_list(self):
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        Label.get_or_create(self.org, self.user, "Junk", folder=folder)
+        Label.get_or_create(self.org, self.user, "Important")
+
+        self.create_secondary_org()
+        Label.get_or_create(self.org2, self.admin2, "Other Org")
+
+        # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
+        self.login(self.user)
+        response = self.client.get(reverse('msgs.label_list'))
+        self.assertLoginRedirect(response)
+
+        # editors can though
+        self.login(self.editor)
+        response = self.client.get(reverse('msgs.label_list'))
+        results = json.loads(response.content)
+
+        # results should be A-Z and not include folders or labels from other orgs
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0]['text'], "Important")
+        self.assertEqual(results[1]['text'], "Junk")
+        self.assertEqual(results[2]['text'], "Spam")
 
 
 class ScheduleTest(TembaTest):
@@ -1602,3 +1577,72 @@ class ConsoleTest(TembaTest):
         # now trigger a flow
         self.console.default("Color")
         self.assertEchoed("What is your favorite color?")
+
+class BroadcastLanguageTest(TembaTest):
+
+    def setUp(self):
+        super(BroadcastLanguageTest, self).setUp()
+
+        self.francois = self.create_contact('Francois', '+12065551213')
+        self.francois.language = 'fre'
+        self.francois.save()
+
+        self.greg = self.create_contact('Greg', '+12065551212')
+
+        self.wilbert = self.create_contact('Wilbert', '+12065551214')
+        self.wilbert.language = 'fre'
+        self.wilbert.save()
+
+    def test_multiple_language_broadcast(self):
+        # set up our org to have a few different languages
+        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
+                                      created_by=self.admin, modified_by=self.admin)
+        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
+                                      created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = eng
+        self.org.save()
+
+        eng_msg = "This is my message"
+        fre_msg = "Ceci est mon message"
+
+        # now create a broadcast with a couple contacts, one with an explicit language, the other not
+        bcast = Broadcast.create(self.org, self.admin, "This is my new message",
+                                 [self.francois, self.greg, self.wilbert],
+                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)))
+
+        bcast.send()
+
+        # assert the right language was used for each contact
+        self.assertEquals(fre_msg, Msg.objects.get(contact=self.francois).text)
+        self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
+        self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
+
+    def test_localization(self):
+        text_translations = dict(eng="Hello", esp="Hola")
+
+        # null case
+        self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
+
+        # simple text case
+        self.assertEquals("Hello", Language.get_localized_text("Hi", "Hello", ['esp']))
+
+        # simple dictionary case
+        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
+
+        # missing language case
+        self.assertEquals("Hi", Language.get_localized_text("Hi", text_translations, ['fre']))
+
+        # secondary option
+        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp']))
+
+        # missing preference on contact
+        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.francois))
+
+        # no contact preference
+        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.greg))
+
+        # has a matching preference
+        self.wilbert.language = 'eng'
+        self.wilbert.save()
+
+        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))

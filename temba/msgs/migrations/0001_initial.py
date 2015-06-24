@@ -131,7 +131,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='label',
-            unique_together=set([('name', 'parent', 'org')]),
+            unique_together=set([('org', 'name', 'parent')]),
         ),
         migrations.AddField(
             model_name='exportmessagestask',

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
+from urlparse import urlparse
 import os
 import pytz
 import random
@@ -89,6 +90,7 @@ ORG_LOW_CREDIT_THRESHOLD = 500
 ORG_LOCK_KEY = 'org:%d:lock:%s'
 ORG_FOLDER_COUNT_CACHE_KEY = 'org:%d:cache:folder_count:%s'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
+ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
 ORG_LOCK_TTL = 60  # 1 minute
@@ -269,8 +271,7 @@ class Org(SmartModel):
         """
         Gets the queryset for the given contact or message folder for this org
         """
-        from temba.contacts.models import Contact
-        from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, PENDING, FLOW, FAILED as M_FAILED
+        from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, FLOW, FAILED as M_FAILED
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
@@ -280,9 +281,9 @@ class Org(SmartModel):
         elif folder == OrgFolder.contacts_blocked:
             return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.msgs_inbox:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX).exclude(status=PENDING)
+            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX)
         elif folder == OrgFolder.msgs_archived:
-            return Msg.get_messages(self, is_archived=True)
+            return Msg.get_messages(self, direction=INCOMING, is_archived=True)
         elif folder == OrgFolder.msgs_outbox:
             return Msg.get_messages(self, direction=OUTGOING, is_archived=False)
         elif folder == OrgFolder.broadcasts_outbox:
@@ -410,11 +411,9 @@ class Org(SmartModel):
         elif event == OrgEvent.call_new:
             increment_count(OrgFolder.calls_all)
 
-        elif event == OrgEvent.topup_new:
-            incrby_existing(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, entity.credits, r)
-
-        elif event == OrgEvent.topup_updated:
+        elif event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
             clear_value(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
+            clear_value(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
     def clear_caches(self, caches):
         """
@@ -424,12 +423,11 @@ class Org(SmartModel):
         if OrgCache.display in caches:
             for folder in OrgFolder.__members__.values():
                 keys.append(self._get_folder_count_cache_key(folder))
-            for label in self.label_set.all():
-                keys.append(label.get_message_count_cache_key())
 
         if OrgCache.credits in caches:
             keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
             keys.append(ORG_CREDITS_USED_CACHE_KEY % self.pk)
+            keys.append(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
         r = get_redis_connection()
         return r.delete(*keys)
@@ -439,11 +437,19 @@ class Org(SmartModel):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
 
+        # determine if this app is being imported from the same site
+        data_site = data.get('site', None)
+        same_site = False
+
+        # compare the hosts of the sites to see if they are the same
+        if data_site and site:
+            same_site = urlparse(data_site).netloc == urlparse(site).netloc
+
         # we need to import flows first, they will resolve to
         # the appropriate ids and update our definition accordingly
-        Flow.import_flows(data, self, user, site)
-        Campaign.import_campaigns(data, self, user, site)
-        Trigger.import_triggers(data, self, user, site)
+        Flow.import_flows(data, self, user, same_site)
+        Campaign.import_campaigns(data, self, user, same_site)
+        Trigger.import_triggers(data, self, user, same_site)
 
     def config_json(self):
         if self.config:
@@ -879,13 +885,13 @@ class Org(SmartModel):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
     def is_pro(self):
-        return self.get_credits_total() >= PRO_CREDITS_THRESHOLD
+        return self.get_purchased_credits() >= PRO_CREDITS_THRESHOLD
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
 
     def get_credits_until_pro(self):
-        return max(PRO_CREDITS_THRESHOLD - self.get_credits_total(), 0)
+        return max(PRO_CREDITS_THRESHOLD - self.get_purchased_credits(), 0)
 
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
@@ -894,6 +900,8 @@ class Org(SmartModel):
             user._org_group = Group.objects.get(name="Editors")
         elif user in self.get_org_viewers():
             user._org_group = Group.objects.get(name="Viewers")
+        elif user.is_staff:
+            user._org_group = Group.objects.get(name="Administrators")
         else:
             user._org_group = None
 
@@ -923,9 +931,8 @@ class Org(SmartModel):
         self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
                                created_by=self.created_by, modified_by=self.modified_by)
 
-    def create_sample_flows(self):
+    def create_sample_flows(self, api_url):
         from temba.flows.models import Flow
-        from temba.settings import API_URL
         import json
 
         # get our sample dir
@@ -945,7 +952,7 @@ class Org(SmartModel):
                 if user:
                     # some some substitutions
                     org_example = example.replace("{{EMAIL}}", user.username)
-                    org_example = org_example.replace("{{API_URL}}", API_URL)
+                    org_example = org_example.replace("{{API_URL}}", api_url)
 
                     if not Flow.objects.filter(name=flow_name, org=self):
                         try:
@@ -990,6 +997,18 @@ class Org(SmartModel):
         """
         return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
                                     self._calculate_credits_total)
+
+    def get_purchased_credits(self):
+        """
+        Returns the total number of credits purchased
+        :return:
+        """
+        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                                    self._calculate_purchased_credits)
+
+    def _calculate_purchased_credits(self):
+        purchased_credits = self.topups.filter(is_active=True).aggregate(Sum('credits')).get('credits__sum')
+        return purchased_credits if purchased_credits else 0
 
     def _calculate_credits_total(self):
         # these are the credits that are still active
@@ -1322,12 +1341,17 @@ class Org(SmartModel):
         return recommended
 
 
-    def initialize(self, topup_size=WELCOME_TOPUP_SIZE):
+    def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
+        from temba.middleware import BrandingMiddleware
+
+        if not brand:
+            brand = BrandingMiddleware.get_branding_for_host('')
+
         self.create_system_groups()
-        self.create_sample_flows()
+        self.create_sample_flows(brand['api_link'])
         self.create_welcome_topup(topup_size)
 
     @classmethod
@@ -1406,6 +1430,10 @@ def _user_has_org_perm(user, org, permission):
     if user.is_anonymous():
         return False
 
+    # has it innately? (customer support)
+    if user.has_perm(permission):
+        return True
+
     org_group = org.get_user_org_group(user)
 
     if not org_group:
@@ -1449,6 +1477,37 @@ class Language(SmartModel):
 
     def as_json(self):
         return dict(name=self.name, iso_code=self.iso_code)
+
+    @classmethod
+    def get_localized_text(cls, default_text, text_translations, preferred_languages, contact=None):
+        """
+        Returns the appropriate translation to use.
+        @param default_text: The default text to use if no match is found
+        @param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
+        @param preferred_languages: The prioritized list of language preferences (list of iso codes)
+        @param contact (optional): The contact this message is being localized for
+        """
+        # No translations, return our default text
+        if not text_translations:
+            return default_text
+
+        # If we are handed raw text without translations, just return that
+        if not isinstance(text_translations, dict):
+            return text_translations
+
+        # first priority is our contact's language
+        if contact and contact.language:
+            localized = text_translations.get(contact.language, None)
+            if localized:
+                return localized
+
+        # otherwise, find the first preferred language
+        for lang in preferred_languages:
+            localized = text_translations.get(lang, None)
+            if localized:
+                return localized
+
+        return default_text
 
     def __unicode__(self):
         return '%s' % self.name

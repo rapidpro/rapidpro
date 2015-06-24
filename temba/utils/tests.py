@@ -16,10 +16,9 @@ from .cache import get_cacheable_result, incrby_existing
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
-    percentage
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import datetime_to_json_date, json_date_to_datetime, timezone_to_country_code
+from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
 
 
 class InitTest(TembaTest):
@@ -127,6 +126,16 @@ class InitTest(TembaTest):
         # check that both functions call correctly
         self.assertEqual(dispatch_func1(1, arg2=2), 3)
         self.assertEqual(dispatch_func2(1, arg2=2), 3)
+
+    def test_non_atomic_gets(self):
+        @non_atomic_gets
+        def dispatch_func(*args, **kwargs):
+            return args[0] + kwargs['arg2']
+
+        self.assertTrue(hasattr(dispatch_func, '_non_atomic_gets'))
+
+        # check that function calls correctly
+        self.assertEqual(dispatch_func(1, arg2=2), 3)
 
     def test_timezone_country_code(self):
         self.assertEqual('RW', timezone_to_country_code('Africa/Kigali'))

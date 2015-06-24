@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import OrderedDict
 
 import copy
 import json
@@ -32,9 +33,9 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, get_preferred_language, analytics
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel
 from temba.utils.queues import push_task
@@ -60,6 +61,10 @@ RESPONSE_TYPE_CHOICES = ((OPEN, "Open Ended"),
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
 
+RULE_SET = 'R'
+ACTION_SET = 'A'
+STEP_TYPE_CHOICES = ((RULE_SET, "RuleSet"),
+                     (ACTION_SET, "ActionSet"))
 
 class FlowException(Exception):
     def __init__(self, *args, **kwargs):
@@ -302,7 +307,7 @@ class Flow(TembaModel, SmartModel):
         return dict(version=CURRENT_EXPORT_VERSION, flows=exported_flows, triggers=exported_triggers)
 
     @classmethod
-    def import_flows(cls, exported_json, org, user, site=None):
+    def import_flows(cls, exported_json, org, user, same_site=False):
         """
         Import flows from our flow export file
         """
@@ -325,7 +330,7 @@ class Flow(TembaModel, SmartModel):
             # this check is only needed up to version 3 of exports
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
-                if site and site == exported_json.get('site', None):
+                if same_site:
                     flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
@@ -394,186 +399,130 @@ class Flow(TembaModel, SmartModel):
         return copy
 
     @classmethod
+    def get_node(cls, flow, uuid, destination_type=None):
+
+        if not uuid or not destination_type:
+            return None
+
+        if destination_type == RULE_SET:
+            return RuleSet.get(flow, uuid)
+        else:
+            return ActionSet.get(flow, uuid)
+
+    @classmethod
     def get_org_responses_since(cls, org, since):
         rule_ids = [r.uuid for r in RuleSet.objects.filter(flow__is_active=True, flow__org=org).order_by('uuid')]
         return FlowStep.objects.filter(contact__is_test=False, step_uuid__in=rule_ids, left_on__gte=since).count()
 
     @classmethod
-    def handle_call(cls, call, user_response=dict()):
-        # do we have a run for this call?
+    def handle_call(cls, call, user_response=None, hangup=False):
+        if not user_response:
+            user_response = {}
+
+        flow = call.flow
         run = FlowRun.objects.filter(call=call).first()
+
+        # what we will send back
+        voice_response = twiml.Response()
+        run.voice_response = voice_response
 
         # make sure our test contact is handled by simulation
         if call.contact.is_test:
             Contact.set_simulation(True)
 
-        response = twiml.Response()
-
-        # no run found, return that we didn't handle it
-        if not run:
-            response.hangup()
-            return response
-
-        flow = run.flow
-        is_test_contact = call.contact.is_test
-
-        from temba.msgs.models import HANDLED, IVR
-
-        # by default we look for pressed keys
+        # parse the user response
         text = user_response.get('Digits', None)
-        msg = None
+        recording_url = user_response.get('RecordingUrl', None)
+        recording_id = user_response.get('RecordingSid', uuid4())
 
-        if text:
+        # if we've been sent a recording, go grab it
+        if recording_url:
+            url = Flow.download_recording(call, recording_url, recording_id)
+            recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, url)
+
+        # create a message to hold our inbound message
+        from temba.msgs.models import HANDLED, IVR
+        if text or recording_url:
+            if recording_url:
+                text = recording_url
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                      text, status=HANDLED, msg_type=IVR)
-
-        # if we are at ruleset, interpret based on our incoming data
-        if run.steps.all():
-            # find what our next action is
-            step = run.steps.filter(left_on=None, rule_uuid=None, step_type=RULE_SET).order_by('-arrived_on', '-pk').first()
-
-            if step:
-                ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
-                if not ruleset:
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                # see if the user is giving us a recording
-                recording_url = user_response.get('RecordingUrl', None)
-                recording_id = user_response.get('RecordingSid', uuid4())
-
-                # recording is more important than digits (we shouldn't ever get both)
-                if recording_url:
-                    ivr_client = call.channel.get_ivr_client()
-                    recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
-                    temp = NamedTemporaryFile(delete=True)
-                    temp.write(recording.content)
-                    temp.flush()
-
-                    print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
-                    text = default_storage.save('recordings/%d/%d/runs/%d/%s.wav' % (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
-
-                    # we'll store the fully qualified url
-                    recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, text)
-                    text = recording_url
-
-                    if not msg:
-                        msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                                  text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
-                    else:
-                        msg.text = text
-                        msg.recording_url = recording_url
-                        msg.save(update_fields=['text', 'recording_url'])
-
-                rule, value = ruleset.find_matching_rule(step, run, msg)
-                if not rule:
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                step.add_message(msg)
-                step.save_rule_match(rule, value)
-                ruleset.save_run_value(run, rule, value, recording=recording_url)
-
-                # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
-                if not rule.destination:
-
-                    # log it for our test contacts
-                    if is_test_contact:
-                        ActionLog.create(step.run,
-                                         _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                actionset = ActionSet.get(rule.destination)
-                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
-            else:
-                response.hangup()
-                run.set_completed()
-                return response
-
-        # we haven't begun the flow yet, start at the entry
+                                      text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
         else:
-            actionset = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+            msg = Msg(contact=call.contact, text='', id=0)
 
-            if actionset:
-                step = flow.add_step(run, actionset, [], call=call)
+        # find out where we last left off
+        step = run.steps.all().order_by('-arrived_on').first()
 
-            # no such actionset, we start with a ruleset, evaluate it then move forward to our next actionset
-            else:
-                ruleset = RuleSet.objects.get(flow=run.flow, uuid=flow.entry_uuid)
-                step = flow.add_step(run, ruleset, [], call=call)
-                rule, value = ruleset.find_matching_rule(step, run, msg)
+        # if we are just starting the flow, create our first step
+        if not step:
+            # lookup our entry node
+            destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+            if not destination:
+                destination = RuleSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
 
-                if not rule:
-                    response.hangup()
-                    run.set_completed()
-                    return response
+            # and add our first step for our run
+            if destination:
+                step = flow.add_step(run, destination, [], call=call)
 
-                step.save_rule_match(rule, value)
-                ruleset.save_run_value(run, rule, value)
+        # go and actually handle wherever we are in the flow
+        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
+        handled = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
 
-                if not rule.destination:
-                    # log it for our test contacts
-                    if is_test_contact:
-                        ActionLog.create(step.run,
-                                         _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+        # if we stopped needing user input (likely), then wrap our response accordingly
+        voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
-                    response.hangup()
-                    run.set_completed()
-                    return response
-
-                actionset = ActionSet.get(rule.destination)
-                step = flow.add_step(step.run, actionset, [], rule=rule.uuid, category=rule.category, call=call, previous_step=step)
-
-                if msg:
-                    step.add_message(msg)
-
-        if actionset:
-            run.voice_response = response
-            action_msgs = []
-
-            if actionset.destination:
-                ruleset = actionset.destination
-                flow.add_step(run, ruleset, call=call, previous_step=step)
-
-                voice_callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
-                input_command = ruleset.get_voice_input(run, action=voice_callback)
-
-                with input_command as input:
-                    run.voice_response = input
-                    action_msgs += actionset.execute_actions(run, msg, [])
-
-                # if our next step is a recording, tack a Record on the end of our actions
-                if ruleset.response_type == RECORDING:
-                    input_command.record(action=voice_callback)
-
-            else:
-                run.voice_response = response
-                action_msgs += actionset.execute_actions(run, msg, [])
-
-                # log it for our test contacts
-                if is_test_contact:
-                    ActionLog.create(step.run,
-                                     _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-
-                response.hangup()
-                run.set_completed()
-
-            for msg in action_msgs:
-                step.add_message(msg)
-
-            # sync our messages
-            flow.org.trigger_send(action_msgs)
-
-            # return our response
-            return response
-        else:
-            response.hangup()
+        # if we didn't handle it, this is a good time to hangup
+        if not handled or hangup:
+            voice_response.hangup()
             run.set_completed()
+
+            # if we hangup then the run is no longer active
+            run.expire()
+
+        return voice_response
+
+    @classmethod
+    def wrap_voice_response_with_input(cls, call, run, voice_response):
+        """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
+        step = run.steps.all().order_by('-pk').first()
+        destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
+        if isinstance(destination, RuleSet):
+            response = twiml.Response()
+            callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+            gather = destination.get_voice_input(response, action=callback)
+
+            # recordings have to be tacked on last
+            if destination.response_type == RECORDING:
+                voice_response.record(action=callback)
+            elif gather:
+                # nest all of our previous verbs in our gather
+                for verb in voice_response.verbs:
+                    gather.append(verb)
+                voice_response = response
+
+        return voice_response
+
+    @classmethod
+    def download_recording(cls, call, recording_url, recording_id):
+        """
+        Fetches the recording and stores it with the provided recording_id
+        :param call: the call the recording is a part of
+        :param recording_url: the url where the recording lives
+        :param recording_id: the id we will use for the downloaded recording
+        :return: the url for our downloaded recording
+        """
+        run = FlowRun.objects.filter(call=call).first()
+
+        ivr_client = call.channel.get_ivr_client()
+        recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(recording.content)
+        temp.flush()
+
+        print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
+        return default_storage.save('recordings/%d/%d/runs/%d/%s.wav' %
+                                    (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
+
 
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
@@ -594,95 +543,143 @@ class Flow(TembaModel, SmartModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None):
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None):
         if started_flows is None:
             started_flows = []
 
-        start_time = time.time()
-        org = msg.org
-        is_test_contact = msg.contact.is_test
+        # normally we just look at steps sitting at rulesets
+        step_type_filter = RULE_SET
 
-        # first bump up this message if it is stuck at an action
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__flow__is_archived=False,
-                                        run__contact=msg.contact, step_type=ACTION_SET,
-                                        run__flow__flow_type=Flow.FLOW, left_on=None)
+        # if we were orphaned at an actionset, advance us to the next node
+        action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
+        for step in action_sets:
+            flow = step.run.flow
+            action_set = ActionSet.get(flow, step.step_uuid)
 
-        # in simulation allow to handle msg even by archived flows
-        if is_test_contact:
-            steps = FlowStep.objects.filter(run__flow__is_active=True, run__is_active=True,
-                                            run__contact=msg.contact, step_type=ACTION_SET,
-                                            run__flow__flow_type=Flow.FLOW,
-                                            left_on=None)
+            destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
+            if destination:
+                flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
 
-        # optimization
-        steps = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
+                # if we pushed them forward, we want to consider any step type
+                # they just arrived at instead of just rulesets
+                step_type_filter = None
 
+        steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
             flow = step.run.flow
             arrived_on = timezone.now()
+            destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
-            action_set = ActionSet.get(step.step_uuid)
-
-            # this action set doesn't exist anymore, mark it as left so they leave the flow
-            if not action_set:
+            # this node doesn't exist anymore, mark it as left so they leave the flow
+            if not destination:
                 step.left_on = arrived_on
                 step.save(update_fields=['left_on'])
                 flow.remove_active_for_step(step)
                 continue
 
-            # if there is no destination, move on, leaving them at this node
-            if not action_set.destination:
-                continue
+            handled = Flow.handle_destination(destination, step, step.run, msg, started_flows, user_input=True)
 
-            # otherwise, advance them to the rule set
-            flow.add_step(step.run, action_set.destination, previous_step=step, arrived_on=arrived_on)
-
-            # that ruleset will be handled below
-            break
-
-        # order by most recent first
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__flow__is_archived=False,
-                                        run__contact=msg.contact, step_type=RULE_SET, left_on=None,
-                                        run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on', '-pk')
-
-        # in simulation allow to handle msg even by archived flows
-        if msg.contact.is_test:
-            steps = FlowStep.objects.filter(run__flow__is_active=True, run__is_active=True,
-                                            run__contact=msg.contact, step_type=RULE_SET, left_on=None,
-                                            run__flow__flow_type=Flow.FLOW, rule_uuid=None).order_by('-arrived_on', '-pk')
-
-        # optimization
-        steps = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
-
-        for step in steps:
-            run = step.run
-            flow = run.flow
-
-            ruleset = RuleSet.get(step.step_uuid)
-            if not ruleset:
-                step.left_on = timezone.now()
-                step.save(update_fields=['left_on'])
-                continue
-
-            handled = cls.handle_ruleset(ruleset, step, run, msg, start_time=start_time)
-
-            # this ruleset handled the message, return True
             if handled:
                 return True
-
-            # this ruleset didn't handle the message, try another flow
-            else:
-                continue
 
         return False
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, started_flows=None, start_time=None):
-        if not start_time:
-            start_time = time.time()
+    def handle_destination(cls, destination, step, run, msg,
+                           started_flows=None, is_test_contact=False, user_input=False,
+                           force_execute_webhook=False):
 
-        if started_flows is None:
-            started_flows = []
+        def add_to_path(path, uuid):
+            if uuid in path:
+                path.append(uuid)
+                raise FlowException("Flow cycle detected at runtime: %s" % path)
+            path.append(uuid)
+
+        start_time = time.time()
+        path = []
+
+        # lookup our next destination
+        handled = False
+        while destination:
+            result = {handled: False}
+
+            if destination.get_step_type() == RULE_SET:
+
+                should_pause = False
+
+                # if we are a ruleset against @step or we have a webhook we wait
+                if destination.is_pause(force_execute_webhook):
+                    should_pause = True
+
+                if user_input or not should_pause:
+                    result = Flow.handle_ruleset(destination, step, run, msg)
+                    add_to_path(path, destination.uuid)
+
+                if should_pause:
+                    user_input = False
+
+                    # once we handle user input, reset our path
+                    path = []
+
+            elif destination.get_step_type() == ACTION_SET:
+                result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
+                user_input = False
+                add_to_path(path, destination.uuid)
+
+            # pull out our current state from the result
+            step = result.get('step')
+
+            # lookup our next destination
+            destination = result.get('destination', None)
+
+            # if any one of our destinations handled us, consider it handled
+            if result.get('handled', False):
+                handled = True
+
+        if handled:
+            analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
+
+        return handled
+
+
+    @classmethod
+    def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
+
+        # not found, escape out, but we still handled this message, user is now out of the flow
+        if not actionset:
+            run.set_completed()
+            if is_test_contact:
+                ActionLog.create(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+            return dict(handled=True, destination=None, destination_type=None)
+
+        # actually execute all the actions in our actionset
+        msgs = actionset.execute_actions(run, msg, started_flows)
+
+        for msg in msgs:
+            if msg:
+                step.add_message(msg)
+
+        # and onto the destination
+        destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
+        if destination:
+            arrived_on = timezone.now()
+            step.left_on = arrived_on
+            step.next_uuid = destination.uuid
+            step.save(update_fields=['left_on', 'next_uuid'])
+
+            step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
+        else:
+            run.set_completed()
+            if run.contact.is_test:
+                ActionLog.create(step.run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
+            step = None
+
+        # sync our channels to trigger any messages
+        run.flow.org.trigger_send(msgs)
+        return dict(handled=True, destination=destination, step=step)
+
+    @classmethod
+    def handle_ruleset(cls, ruleset, step, run, msg):
 
         # find a matching rule
         rule, value = ruleset.find_matching_rule(step, run, msg)
@@ -692,7 +689,6 @@ class Flow(TembaModel, SmartModel):
             return False
 
         flow = ruleset.flow
-        org = flow.org
         is_test_contact = run.contact.is_test
 
         # add the message to our step
@@ -709,44 +705,17 @@ class Flow(TembaModel, SmartModel):
 
             if is_test_contact:
                 ActionLog.create(run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
+            return dict(handled=True, destination=None, destination_type=None)
 
-            analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
-            return True
-
-        action_set = ActionSet.get(rule.destination)
-
-        # not found, escape out, but we still handled this message, user is now out of the flow
-        if not action_set:
-            run.set_completed()
-            if is_test_contact:
-                ActionLog.create(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
-
-            analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
-            return True
-
-        # execute this step
-        arrived_on = timezone.now()
-        msgs = action_set.execute_actions(run, msg, started_flows)
-        step = flow.add_step(run, action_set, msgs, rule=rule.uuid, category=rule.category, previous_step=step, arrived_on=arrived_on)
-
-        # and onto the destination
-        if action_set.destination:
+        # Create the step for our destination
+        destination = Flow.get_node(flow, rule.destination, rule.destination_type)
+        if destination:
             arrived_on = timezone.now()
             step.left_on = arrived_on
-            step.next_uuid = action_set.destination.uuid
+            step.next_uuid = rule.destination
             step.save(update_fields=['left_on', 'next_uuid'])
-            flow.add_step(run, action_set.destination, previous_step=step, arrived_on=arrived_on)
-
-        else:
-            run.set_completed()
-            if run.contact.is_test:
-                ActionLog.create(step.run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
-
-        # sync our channels to trigger any messages
-        org.trigger_send(msgs)
-        analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
-
-        return True
+            step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
+        return dict(handled=True, destination=destination, step=step)
 
     @classmethod
     def apply_action_label(cls, flows, label, add):
@@ -1002,7 +971,6 @@ class Flow(TembaModel, SmartModel):
             if contact_count:
                 r.sadd(self.get_stats_cache_key(FlowStatsCache.contacts_started_set), *[c.pk for c in contacts])
 
-
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):
             return language_dict
@@ -1012,36 +980,25 @@ class Flow(TembaModel, SmartModel):
 
         return default
 
-    def get_localized_text(self, language_dict, contact=None, default_text=''):
+    def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
         Given a language dict and a preferred language, return the best possible text match
-        :param language_dict: The text in all supported languages, or string (which will just return immediately)
+        :param text_translations: The text in all supported languages, or string (which will just return immediately)
         :param contact: the contact we are interacting with
         :param default_text: What to use if all else fails
         :return:
         """
-
         # We return according to the following precedence:
-        #   1) Contact Language
+        #   1) Contact's language
         #   2) Org Primary Language
         #   3) Flow Base Language
         #   4) Default Text
-
         preferred_languages = []
-        if contact and contact.language:
-            preferred_languages.append(contact.language)
-
         if self.org.primary_language:
             preferred_languages.append(self.org.primary_language.iso_code)
-
         preferred_languages.append(self.base_language)
 
-        localized = get_preferred_language(language_dict, preferred_languages)
-
-        if not localized:
-            localized = default_text
-
-        return localized
+        return Language.get_localized_text(default_text, text_translations, preferred_languages, contact=contact)
 
     def update_base_language(self):
         """
@@ -1197,7 +1154,7 @@ class Flow(TembaModel, SmartModel):
             for step in steps:
                 if step.step_uuid not in existing:
                     existing.add(step.step_uuid)
-                    ruleset = RuleSet.get(step.step_uuid)
+                    ruleset = RuleSet.get(step.run.flow, step.step_uuid)
                     if ruleset:
                         node_order.append(ruleset)
 
@@ -1615,7 +1572,7 @@ class Flow(TembaModel, SmartModel):
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING,
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, base_language=self.base_language,
                                partial_recipients=partial_recipients)
 
@@ -1654,7 +1611,15 @@ class Flow(TembaModel, SmartModel):
 
                 # and onto the destination
                 if entry_actions.destination:
-                    self.add_step(run, entry_actions.destination, previous_step=step, arrived_on=timezone.now())
+                    destination = Flow.get_node(entry_actions.flow,
+                                                entry_actions.destination,
+                                                entry_actions.destination_type)
+
+                    next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
+
+                    msg = Msg(contact=contact, text='', id=0)
+                    Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact, is_test_contact=contact.is_test)
+
                 else:
                     run.set_completed()
                     if contact.is_test:
@@ -1671,7 +1636,8 @@ class Flow(TembaModel, SmartModel):
                 elif not entry_rules.requires_step():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    self.handle_ruleset(entry_rules, step, run, msg, started_flows_by_contact)
+                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact,
+                                            force_execute_webhook=True)
 
             if start_msg:
                 step.add_message(start_msg)
@@ -1965,10 +1931,100 @@ class Flow(TembaModel, SmartModel):
 
         return flow
 
+    @classmethod
+    def detect_invalid_cycles(cls, json_dict):
+        """
+        Checks for invalid cycles in our flow
+        :param json_dict: our flow definition
+        :return: invalid cycle path as list of uuids if found, otherwise empty list
+        """
+
+        # Adapted from a blog post by Guido:
+        # http://neopythonic.blogspot.com/2009/01/detecting-cycles-in-directed-graph.html
+
+        # Maintain path as a a depth-first path in the implicit tree;
+        # path is represented as an OrderedDict of {node: [child,...]} pairs.
+
+        nodes = list()
+        node_map = {}
+
+        for ruleset in json_dict.get(Flow.RULE_SETS, []):
+            nodes.append(ruleset.get('uuid'))
+            node_map[ruleset.get('uuid')] = ruleset
+
+        for actionset in json_dict.get(Flow.ACTION_SETS, []):
+            nodes.append(actionset.get('uuid'))
+            node_map[actionset.get('uuid')] = actionset
+
+        def get_destinations(uuid):
+            node = node_map.get(uuid)
+
+            if not node:
+                return []
+
+            rules = node.get('rules', [])
+            destinations = []
+            if rules:
+
+                # rules on @step.value require user input
+                operand = node.get('operand', '@step.value')
+
+                if not operand or RuleSet.contains_step(operand):
+                    return []
+
+                # webhooks require user input for now
+                if node.get('webhook', None):
+                    return []
+
+                for rule in rules:
+                    if rule.get('destination'):
+                        destinations.append(rule.get('destination'))
+
+            elif node.get('destination'):
+                destinations.append(node.get('destination'))
+            return destinations
+
+        while nodes:
+            root = nodes.pop()
+            path = OrderedDict({root: get_destinations(root)})
+            while path:
+                # children at the fringe of the tree
+                children = path[next(reversed(path))]
+                while children:
+                    child = children.pop()
+
+                    # found a loop
+                    if child in path:
+                        pathlist = list(path)
+                        return pathlist[pathlist.index(child):] + [child]
+
+                    # new path
+                    if child in nodes:
+                        path[child] = get_destinations(child)
+                        nodes.remove(child)
+                        break
+                else:
+                    # no more children; pop back up a level
+                    path.popitem()
+        return None
+
     def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow.
         """
+
+        def get_step_type(dest, rulesets, actionsets):
+            if dest:
+                if rulesets.get(dest, None):
+                    return RULE_SET
+                if actionsets.get(dest, None):
+                    return ACTION_SET
+            return None
+
+        cycle = Flow.detect_invalid_cycles(json_dict)
+        if cycle:
+            raise FlowException("Found invalid cycle: %s" % cycle)
+
         try:
             # check whether the flow has changed since this flow was last saved
             if user and not force:
@@ -2004,11 +2060,11 @@ class Flow(TembaModel, SmartModel):
             seen = set()
             destinations = set()
 
-            # action sets that are removed during the update process such as
-            # those with one action to a deleted flow, or deleted group, etc
-            parsed_actions = {}
+            # our steps in our current update submission
+            current_actionsets = {}
+            current_rulesets = {}
 
-            # parse our actions, we need these before we can create our rulesets
+            # parse our actions
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
 
                 uuid = actionset.get(Flow.UUID)
@@ -2017,11 +2073,16 @@ class Flow(TembaModel, SmartModel):
                 actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
 
                 if actions:
-                    parsed_actions[uuid] = actions
+                    current_actionsets[uuid] = actions
 
             entry = json_dict.get('entry', None)
             if entry:
                 destinations.add(entry)
+
+            for ruleset in json_dict.get(Flow.RULE_SETS, []):
+                uuid = ruleset.get(Flow.UUID)
+                current_rulesets[uuid] = ruleset
+                seen.add(uuid)
 
             # create all our rule sets
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
@@ -2034,8 +2095,6 @@ class Flow(TembaModel, SmartModel):
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 response_type = ruleset.get(Flow.RESPONSE_TYPE)
-
-                seen.add(uuid)
 
                 # cap our lengths
                 label = label[:64]
@@ -2057,13 +2116,19 @@ class Flow(TembaModel, SmartModel):
 
                 for rule in rules:
                     if 'destination' in rule:
-
                         # if the destination was excluded for not having any actions
                         # remove the connection for our rule too
-                        if rule['destination'] not in parsed_actions:
+                        if rule['destination'] not in current_actionsets and rule['destination'] not in seen:
                             rule['destination'] = None
                         else:
-                            destinations.add(rule['destination'])
+                            destination_uuid = rule.get('destination', None)
+                            destinations.add(destination_uuid)
+
+                            # determine what kind of destination we are pointing to
+                            rule['destination_type'] = get_step_type(destination_uuid,
+                                                                     current_rulesets, current_actionsets)
+
+                            # print "Setting destination [%s] type to: %s" % (destination_uuid, rule['destination_type'])
 
                 existing = existing_rulesets.get(uuid, None)
 
@@ -2103,11 +2168,10 @@ class Flow(TembaModel, SmartModel):
 
                 # skip actionsets without any actions. This happens when there are no valid
                 # actions in an actionset such as when deleted groups or flows are the only actions
-                if uuid not in parsed_actions:
+                if uuid not in current_actionsets:
                     continue
 
-                actions = parsed_actions[uuid]
-                destination = actionset.get('destination')
+                actions = current_actionsets[uuid]
                 seen.add(uuid)
 
                 (x, y) = (actionset.get(Flow.X), actionset.get(Flow.Y))
@@ -2116,28 +2180,30 @@ class Flow(TembaModel, SmartModel):
                     top_y = y
                     top_uuid = uuid
 
-                # validate our destination uuid
-                if destination:
-                    destination_uuid = destination
-                    destination = existing_rulesets.get(destination_uuid, None)
-                    seen.add(destination)
-
-                    if not destination:
-                        raise FlowException("Destination ruleset '%s' for actionset does not exist" % destination_uuid)
-
                 existing = existing_actionsets.get(uuid, None)
+
+                # lookup our destination
+                destination_uuid = actionset.get('destination')
+                destination_type = get_step_type(destination_uuid, current_rulesets, current_actionsets)
+
+                if destination_uuid:
+                    if not destination_type:
+                        raise FlowException("Destination '%s' for actionset does not exist" % destination_uuid)
 
                 # only create actionsets if there are actions
                 if actions:
                     if existing:
-                        existing.destination = destination
+                        # print "Updating %s to point to %s" % (unicode(actions), destination_uuid)
+                        existing.destination = destination_uuid
+                        existing.destination_type = destination_type
                         existing.set_actions_dict(actions)
                         (existing.x, existing.y) = (x, y)
                         existing.save()
                     else:
                         existing = ActionSet.objects.create(flow=self,
                                                             uuid=uuid,
-                                                            destination=destination,
+                                                            destination=destination_uuid,
+                                                            destination_type=destination_type,
                                                             actions=json.dumps(actions),
                                                             x=x, y=y)
 
@@ -2253,8 +2319,23 @@ class RuleSet(models.Model):
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this ruleset was last modified"))
 
     @classmethod
-    def get(cls, uuid):
-        return RuleSet.objects.filter(uuid=uuid).first()
+    def get(cls, flow, uuid):
+        return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
+
+    @classmethod
+    def contains_step(cls, text):
+
+        # remove any padding
+        if text:
+            text = text.strip()
+
+        # if we start with =( then we are an expression
+        is_expression = text and len(text) > 2 and text[0:2] == '=('
+
+        if '@step' in text or (is_expression and 'step' in text):
+            return True
+
+        return False
 
     def build_uuid_to_category_map(self):
         flow_language = self.flow.base_language
@@ -2315,16 +2396,28 @@ class RuleSet(models.Model):
         else:
             return TEXT
 
-    def get_voice_input(self, run, action=None):
+    def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
         if self.response_type == RECORDING:
-            return run.voice_response
+            return voice_response
         elif self.response_type == KEYPAD:
-            return run.voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
+            return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
         else:
             # otherwise we assume it's single digit entry
-            return run.voice_response.gather(numDigits=1, timeout=60, action=action)
+            return voice_response.gather(numDigits=1, timeout=60, action=action)
+
+    def is_pause(self, force_execute_webhook=False):
+        if self.webhook_url and not force_execute_webhook:
+            return True
+
+        if self.response_type in (RECORDING, MENU):
+            return True
+
+        if self.requires_step():
+            return True
+
+        return False
 
     def requires_step(self):
         """
@@ -2332,17 +2425,11 @@ class RuleSet(models.Model):
         interaction of somekind. We derive this by looking to see if we have a webhook that uses step
         or whether any of our rules use @step in them.
         """
-        # our operand requires a step
-        if not self.operand or self.operand.find('@step') >= 0:
+
+        if not self.operand:
             return True
 
-        # if we find @step in any of our rule JSON (it could be used in a test), then that also disqualifies it
-        for rule in self.get_rules():
-            if rule.requires_step():
-                return True
-
-        # otherwise, looks like we don't need it
-        return False
+        return RuleSet.contains_step(self.operand)
 
     def find_matching_rule(self, step, run, msg):
 
@@ -2443,12 +2530,13 @@ class RuleSet(models.Model):
             return "RuleSet: %s" % (self.uuid, )
 
 
+
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
 
-    destination = models.ForeignKey(RuleSet, null=True, on_delete=models.SET_NULL, related_name='sources',
-                                    help_text=_("The RuleSet that will interpret the response to this action (optional)"))
+    destination = models.CharField(max_length=36, null=True)
+    destination_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, null=True)
 
     actions = models.TextField(help_text=_("The JSON encoded actions for this action set"))
 
@@ -2459,8 +2547,8 @@ class ActionSet(models.Model):
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this action was last modified"))
 
     @classmethod
-    def get(cls, uuid):
-        return ActionSet.objects.filter(uuid=uuid).select_related('flow', 'flow__org').first()
+    def get(cls, flow, uuid):
+        return ActionSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
 
     def get_reply_message(self):
         actions = self.get_actions()
@@ -2515,11 +2603,7 @@ class ActionSet(models.Model):
         self.set_actions_dict(actions_dict)
 
     def as_json(self):
-        destination = self.destination
-        if self.destination:
-            destination = self.destination.uuid
-
-        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=destination, actions=self.get_actions_dict())
+        return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
     def get_description(self):
         """
@@ -2544,10 +2628,6 @@ class FlowVersion(SmartModel):
 
     def as_json(self):
         return dict(user=dict(email=self.created_by.username, name=self.created_by.get_full_name()), created_on=datetime_to_str(self.created_on), definition=json.loads(self.definition))
-
-RULE_SET = 'R'
-ACTION_SET = 'A'
-STEP_TYPE_CHOICES = ((RULE_SET, "RuleSet"), (ACTION_SET, "ActionSet"))
 
 
 class FlowRun(models.Model):
@@ -2755,15 +2835,19 @@ class FlowRun(models.Model):
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
-        if recording_url:
-            self.voice_response.play(url=recording_url)
-        else:
-            self.voice_response.say(text)
-
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
-        return Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
-                                   response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)
+        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
+                                  response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)
+
+        if msg:
+            if recording_url:
+                self.voice_response.play(url=recording_url)
+            else:
+                self.voice_response.say(text)
+
+        return msg
+
 
 class MemorySavingQuerysetIterator(object):
     """
@@ -3151,6 +3235,25 @@ class FlowStep(models.Model):
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
     @classmethod
+    def get_active_steps_for_contact(cls, contact, step_type=None):
+
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
+                                        run__flow__flow_type=Flow.FLOW, left_on=None)
+
+        # real contacts don't deal with archived flows
+        if not contact.is_test:
+            steps = steps.filter(run__flow__is_archived=False)
+
+        if step_type:
+            steps = steps.filter(step_type=step_type)
+
+        steps = steps.order_by('-pk')
+
+        # optimize lookups
+        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
+
+
+    @classmethod
     def get_step_messages(cls, steps):
         messages = None
         for step in steps:
@@ -3204,8 +3307,8 @@ class FlowStep(models.Model):
     def add_message(self, msg):
         self.messages.add(msg)
 
-        # skip inbox
-        if msg.msg_type == INBOX:
+        # incoming non-IVR messages won't have a type yet so update that
+        if not msg.msg_type or msg.msg_type == INBOX:
             msg.msg_type = FLOW
             msg.save(update_fields=['msg_type'])
 
@@ -3684,28 +3787,24 @@ class AddLabelAction(Action):
 
                 try:
                     label_id = int(label_id)
-                except:
-                    label_id = -1
+                except (TypeError, ValueError):
+                    label_id = 0
 
-                if label_id and Label.objects.filter(org=org, id=label_id).first():
-                    label = Label.objects.filter(org=org, id=label_id).first()
-
-                elif Label.objects.filter(org=org, name=label_name).first():
-                    label = Label.objects.filter(org=org, name=label_name).first()
+                if label_id and Label.user_labels.filter(org=org, id=label_id).first():
+                    label = Label.user_labels.filter(org=org, id=label_id).first()
+                    if label:
+                        labels.append(label)
                 else:
-                    label = Label.create_unique(org, org.get_user(), label_name)
+                    labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-                if label:
-                    labels.append(label)
-            else:
+            elif isinstance(l_data, basestring):
                 if l_data and l_data[0] == '@':
+                    # label name is a variable substitution
                     labels.append(l_data)
                 else:
-                    label = Label.objects.filter(org=org, name=l_data)
-                    if label:
-                        labels.append(label[0])
-                    else:
-                        labels.append(Label.create_unique(org, org.get_user(), l_data))
+                    labels.append(Label.get_or_create(org, org.get_user(), l_data))
+            else:
+                raise ValueError("Label data must be a dict or string")
 
         return AddLabelAction(labels)
 
@@ -3722,23 +3821,27 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, msg):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
-                message_context = run.flow.build_message_context(contact, sms)
+                message_context = run.flow.build_message_context(contact, msg)
                 (value, missing) = Msg.substitute_variables(label, contact, message_context, org=run.flow.org)
-                try:
-                    label = Label.objects.get(org=contact.org, name=value)
-                except:
-                    label = Label.create_unique(contact.org, contact.org.get_user(), value)
-                    if run.contact.is_test:
-                        ActionLog.create(run, _("Label '%s' created") % value)
 
-            if label and sms and sms.pk:
-                label.toggle_label([sms], True)
+                if not missing:
+                    label = Label.get_or_create(contact.org, contact.org.get_user(), value)
+                    if run.contact.is_test:
+                        ActionLog.create(run, _("Label '%s' created") % label.name)
+                else:
+                    # TODO should be recorded in the action log as an error
+                    label = None
+
+            if label and msg and msg.pk:
                 if run.contact.is_test:
-                    ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, sms.text))
+                    # don't really add labels to simulator messages
+                    ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
+                else:
+                    label.toggle_label([msg], True)
         return []
 
     def get_description(self):
@@ -3787,12 +3890,18 @@ class SayAction(Action):
 
         msg = run.create_outgoing_ivr(message, recording_url)
 
-        if run.contact.is_test:
-            if recording_url:
-                ActionLog.create(run, _('Played recorded message for "%s"') % message)
-            else:
-                ActionLog.create(run, _('Read message "%s"') % message)
-        return [msg]
+        if msg:
+            if run.contact.is_test:
+                if recording_url:
+                    ActionLog.create(run, _('Played recorded message for "%s"') % message)
+                else:
+                    ActionLog.create(run, _('Read message "%s"') % message)
+            return [msg]
+        else:
+            # no message, possibly failed loop detection
+            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
+            return []
+
 
     def update_base_language(self, language_iso):
         # if we are a single language message, then convert to multi-language
@@ -3826,14 +3935,19 @@ class PlayAction(Action):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
     def execute(self, run, actionset, event):
+
         (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
 
-        if run.contact.is_test:
-            log_txt = _('Played recording at "%s"') % recording_url
-            ActionLog.create(run, log_txt)
-
-        return [msg]
+        if msg:
+            if run.contact.is_test:
+                log_txt = _('Played recording at "%s"') % recording_url
+                ActionLog.create(run, log_txt)
+            return [msg]
+        else:
+            # no message, possibly failed loop detection
+            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
+            return []
 
     def get_description(self):
         return "Played %s" % self.url
@@ -4310,10 +4424,11 @@ class SendAction(VariableContactAction):
 
 class Rule(object):
 
-    def __init__(self, uuid, category, destination, test):
+    def __init__(self, uuid, category, destination, destination_type, test):
         self.uuid = uuid
         self.category = category
         self.destination = destination
+        self.destination_type = destination_type
         self.test = test
 
     def get_category_name(self, flow_lang):
@@ -4330,12 +4445,6 @@ class Rule(object):
 
         return self.category
 
-    def requires_step(self):
-        """
-        Whether this rule requires @step in some way to evaluate.
-        """
-        return self.test.requires_step()
-
     def matches(self, run, sms, context, text):
         return self.test.evaluate(run, sms, context, text)
 
@@ -4343,6 +4452,7 @@ class Rule(object):
         return dict(uuid=self.uuid,
                     category=self.category,
                     destination=self.destination,
+                    destination_type=self.destination_type,
                     test=self.test.as_json())
 
     @classmethod
@@ -4359,9 +4469,17 @@ class Rule(object):
             elif category:
                 category = category[:36]
 
+            destination = rule.get('destination', None)
+            destination_type = None
+
+            # determine our destination type, if its not set its an action set
+            if destination:
+                destination_type = rule.get('destination_type', ACTION_SET)
+
             rules.append(Rule(rule.get('uuid'),
                               category,
-                              rule.get('destination', None),
+                              destination,
+                              destination_type,
                               Test.from_json(org, rule['test'])))
 
         return rules
@@ -4432,14 +4550,6 @@ class Test(object):
 
     def update_base_language(self, language_iso): # pragma: no cover
         pass
-
-
-    def requires_step(self):
-        """
-        Whether this rule requires @step to evaluate, subclasses which may have substitutions should override this
-        and check their tests for usage of @step variables in them.
-        """
-        return False
 
 
 class TrueTest(Test):
@@ -4542,16 +4652,6 @@ class TranslatableTest(Test):
     """
     A test that can be evaluated against a localized string
     """
-
-    def requires_step(self):
-        if isinstance(self.test, dict):
-            for k,v in self.test.items():
-                if v.find("@step") >= 0:
-                    return True
-            return False
-        else:
-            return self.test.find("@step") >= 0
-
     def update_base_language(self, language_iso):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.test, dict):
@@ -4722,9 +4822,6 @@ class HasDistrictTest(Test):
     def as_json(self):
         return dict(type=self.TYPE, test=self.state)
 
-    def requires_step(self):
-        return self.state.find("@step") >= 0
-
     def evaluate(self, run, sms, context, text):
 
         # if they removed their country since adding the rule
@@ -4794,9 +4891,6 @@ class DateTest(Test):
 
     def evaluate_date_test(self, date_message, date_test):
         raise FlowException("Evaluate date test needs to be defined by subclass.")
-
-    def requires_step(self):
-        return self.test.find("@step") >= 0
 
     def evaluate(self, run, sms, context, text):
         org = run.flow.org
@@ -4868,9 +4962,6 @@ class NumericTest(Test):
             else:
                 raise e
 
-    def requires_step(self):
-        return self.test.find("@step") >= 0
-
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
         text = text.replace(',', '')
@@ -4902,9 +4993,6 @@ class BetweenTest(NumericTest):
 
     def as_json(self):
         return dict(type=self.TYPE, min=self.min, max=self.max)
-
-    def requires_step(self):
-        return self.min.find("@step") >= 0 or self.max.find("@step") >= 0
 
     def evaluate_numeric_test(self, run, context, decimal_value):
         min, has_missing = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
@@ -4955,9 +5043,6 @@ class SimpleNumericTest(Test):
 
     def evaluate_numeric_test(self, message_numeric, test_numeric): # pragma: no cover
         raise FlowException("Evaluate numeric test needs to be defined by subclass")
-
-    def requires_step(self):
-        return self.test.find("@step") >= 0
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):

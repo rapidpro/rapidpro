@@ -101,7 +101,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         if query:
             qs, self.request.compiled_query = Contact.search(org, query, qs)
 
-        return qs.extra(select={'lower_contact_name': 'lower(contacts_contact.name)'}).order_by('lower_contact_name', 'pk').prefetch_related('all_groups')
+        return qs.order_by('-pk').prefetch_related('all_groups')
 
     def order_queryset(self, queryset):
         """
