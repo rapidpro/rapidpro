@@ -36,21 +36,18 @@ class ScheduleTest(TembaTest):
 
     def test_get_sorted_events(self):
         # create a campaign
-        campaign = Campaign.objects.create(name="Planting Reminders", group=self.farmers,
-                                           org=self.org, created_by=self.admin, modified_by=self.admin)
+        campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
 
         flow = self.create_flow()
 
-        event1 = CampaignEvent.objects.create(campaign=campaign, offset=1, unit='W',
-                                              relative_to=self.planting_date, event_type='F',
-                                              flow=flow, delivery_hour='13', created_by=self.admin, modified_by=self.admin)
+        event1 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
+                                                 offset=1, unit='W', flow=flow, delivery_hour='13')
+        event2 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
+                                                 offset=1, unit='W', flow=flow, delivery_hour='9')
+        event3 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
+                                                 offset=2, unit='W', flow=flow, delivery_hour='1')
 
-        event2 = CampaignEvent.objects.create(campaign=campaign, offset=1, unit='W',
-                                              relative_to=self.planting_date, event_type='F',
-                                              flow=flow, delivery_hour='9', created_by=self.admin, modified_by=self.admin)
-
-        self.assertEquals(event2, campaign.get_sorted_events()[0])
-        self.assertEquals(event1, campaign.get_sorted_events()[1])
+        self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
 
     def test_message_event(self):
         # update the planting date for our contacts
@@ -60,8 +57,7 @@ class ScheduleTest(TembaTest):
         self.login(self.admin)
 
         # create a campaign
-        campaign = Campaign.objects.create(name="Planting Reminders", group=self.farmers,
-                                           org=self.org, created_by=self.admin, modified_by=self.admin)
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # go create an event that based on a message
         post_data = dict(relative_to=self.planting_date.pk, event_type='M', message="This is my message",
@@ -259,15 +255,13 @@ class ScheduleTest(TembaTest):
         self.assertNotContains(response, "Color Flow")
 
     def test_scheduling(self):
-        campaign = Campaign.objects.create(name="Planting Reminders", group=self.farmers, org=self.org,
-                                           created_by=self.admin, modified_by=self.admin)
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         self.assertEquals("Planting Reminders", unicode(campaign))
 
         # create a reminder for our first planting event
-        planting_reminder = CampaignEvent.objects.create(campaign=campaign, relative_to=self.planting_date, offset=0,
-                                                         flow=self.reminder_flow, delivery_hour=17,
-                                                         created_by=self.admin, modified_by=self.admin)
+        planting_reminder = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
+                                                            offset=0, unit='D', flow=self.reminder_flow, delivery_hour=17)
 
         self.assertEquals("Planting Date == 0 -> Color Flow", unicode(planting_reminder))
 
@@ -325,9 +319,8 @@ class ScheduleTest(TembaTest):
         self.assertEquals(planting_reminder, fire.event)
 
         # create another reminder
-        planting_reminder2 = CampaignEvent.objects.create(campaign=campaign, relative_to=self.planting_date, offset=1,
-                                                          flow=self.reminder2_flow,
-                                                          created_by=self.admin, modified_by=self.admin)
+        planting_reminder2 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
+                                                             offset=1, unit='D', flow=self.reminder2_flow)
 
         self.assertEquals(1, planting_reminder2.abs_offset())
 

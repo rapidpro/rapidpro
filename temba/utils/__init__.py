@@ -208,19 +208,6 @@ def truncate(text, max_len):
         return text
 
 
-def get_preferred_language(language_dict, preferred_languages):
-
-    # If language_dict is not a dict, the original value is returned
-    if not isinstance(language_dict, dict):
-        return language_dict
-
-    for lang in preferred_languages:
-        localized = language_dict.get(lang, None)
-        if localized:
-            return localized
-    return None
-
-
 def get_dict_from_cursor(cursor):
     """
     Returns all rows from a cursor as a dict
@@ -417,6 +404,16 @@ def non_atomic_when_eager(view_func):
         return transaction.non_atomic_requests(view_func)
     else:
         return view_func
+
+
+def non_atomic_gets(view_func):
+    """
+    Decorator which disables atomic requests for a view/dispatch function when the request method is GET. Works in
+    conjunction with the NonAtomicGetsMiddleware.
+    """
+    view_func._non_atomic_gets = True
+    return view_func
+
 
 def timezone_to_country_code(tz):
     country_timezones = pytz.country_timezones

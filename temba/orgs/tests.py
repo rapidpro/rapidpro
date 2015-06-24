@@ -232,19 +232,16 @@ class OrgTest(TembaTest):
         manage_accounts_url = reverse('orgs.org_manage_accounts')
 
         self.login(self.admin)
-        self.admin.set_org(self.org)
-
-        self.org.editors.add(self.root)
-        self.org.administrators.add(self.user)
 
         response = self.client.get(manage_accounts_url)
         self.assertEquals(200, response.status_code)
 
-        # we have 12 fields in the form including 9 checkboxes for the three users, an emails field a user group field and 'loc' field.
+        # we have 12 fields in the form including 9 checkboxes for the three users, an email field, a user group field
+        # and 'loc' field.
         self.assertEquals(12, len(response.context['form'].fields))
         self.assertTrue('emails' in response.context['form'].fields)
         self.assertTrue('user_group' in response.context['form'].fields)
-        for user in [self.root, self.user, self.admin]:
+        for user in [self.user, self.editor, self.admin]:
             self.assertTrue("administrators_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("editors_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("viewers_%d" % user.pk in response.context['form'].fields)
@@ -252,25 +249,20 @@ class OrgTest(TembaTest):
         self.assertFalse(response.context['form'].fields['emails'].initial)
         self.assertEquals('V', response.context['form'].fields['user_group'].initial)
 
-        post_data = dict()
-
-        # keep all the admins
-        post_data['administrators_%d' % self.admin.pk] = 'on'
-        post_data['administrators_%d' % self.user.pk] = 'on'
-        post_data['administrators_%d' % self.root.pk] = 'on'
-
-        # add self.root to editors
-        post_data['editors_%d' % self.root.pk] = 'on'
-        post_data['user_group'] = 'E'
-
+        # keep admin as admin, editor as editor, but make user an editor too
+        post_data = {
+            'administrators_%d' % self.admin.pk: 'on',
+            'editors_%d' % self.editor.pk: 'on',
+            'editors_%d' % self.user.pk: 'on',
+            'user_group': 'E'
+        }
         response = self.client.post(manage_accounts_url, post_data)
         self.assertEquals(302, response.status_code)
 
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals(org.administrators.all().count(), 3)
-        self.assertFalse(org.viewers.all())
-        self.assertTrue(org.editors.all())
-        self.assertEquals(org.editors.all()[0].pk, self.root.pk)
+        self.assertEqual(set(org.administrators.all()), {self.admin})
+        self.assertEqual(set(org.editors.all()), {self.user, self.editor})
+        self.assertFalse(set(org.viewers.all()), set())
 
         # add to post_data an email to invite as admin
         post_data['emails'] = "norkans7gmail.com"
@@ -332,9 +324,9 @@ class OrgTest(TembaTest):
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "RapidPro Invitation")
-        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
+        self.assertIn('https://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('http://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
+        self.assertIn('https://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
         editor_join_url = reverse('orgs.org_join', args=[editor_invitation.secret])
@@ -428,7 +420,7 @@ class OrgTest(TembaTest):
         self.assertEquals(response.context_data['org'], self.org2)
 
         # a non org user get a message to contact their administrator
-        self.login(self.non_org_manager)
+        self.login(self.non_org_user)
         response = self.client.get(choose_url)
         self.assertEquals(200, response.status_code)
         self.assertEquals(0, len(response.context['orgs']))
@@ -564,6 +556,7 @@ class OrgTest(TembaTest):
         # now we're pro
         self.assertTrue(self.org.is_pro())
         self.assertEquals(100025, self.org.get_credits_total())
+        self.assertEquals(100025, self.org.get_purchased_credits())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(99995, self.org.get_credits_remaining())
 
@@ -585,7 +578,11 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
+        # we're still pro though
+        self.assertTrue(self.org.is_pro())
+
         with self.assertNumQueries(2):
+            self.assertEquals(100025, self.org.get_purchased_credits())
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
@@ -676,6 +673,11 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+        # and disconnect
+        self.org.remove_nexmo_account()
+        self.assertFalse(self.org.is_connected_to_nexmo())
+        self.assertFalse(self.org.config_json()['NEXMO_KEY'])
+        self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
     def test_connect_plivo(self):
         self.login(self.admin)
@@ -824,10 +826,10 @@ class OrgTest(TembaTest):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
                                   msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
 
-        Msg.mark_error(r, msg6)
-        Msg.mark_error(r, msg6)
-        Msg.mark_error(r, msg6)
-        Msg.mark_error(r, msg6)
+        Msg.mark_error(r, self.channel, msg6)
+        Msg.mark_error(r, self.channel, msg6)
+        Msg.mark_error(r, self.channel, msg6)
+        Msg.mark_error(r, self.channel, msg6)
 
         with self.assertNumQueries(0):
             self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
@@ -1191,6 +1193,52 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue('form' in response.context)
         self.assertTrue(response.context['form'].errors)
 
+    def test_org_service(self):
+        # create a customer service user
+        self.csrep = self.create_user("csrep")
+        self.csrep.groups.add(Group.objects.get(name="Customer Support"))
+        self.csrep.is_staff = True
+        self.csrep.save()
+
+        service_url = reverse('orgs.org_service')
+
+        # without logging in, try to service our main org
+        response = self.client.post(service_url, dict(organization=self.org.id))
+        self.assertRedirect(response, '/users/login/')
+
+        # try logging in with a normal user
+        self.login(self.admin)
+
+        # same thing, no permission
+        response = self.client.post(service_url, dict(organization=self.org.id))
+        self.assertRedirect(response, '/users/login/')
+
+        # ok, log in as our cs rep
+        self.login(self.csrep)
+
+        # then service our org
+        response = self.client.post(service_url, dict(organization=self.org.id))
+        self.assertRedirect(response, '/msg/inbox/')
+
+        # create a new contact
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', __urn__tel='0788123123'))
+        self.assertNoFormErrors(response)
+
+        # make sure that contact's created on is our cs rep
+        contact = Contact.objects.get(urns__path='+250788123123', org=self.org)
+        self.assertEquals(self.csrep, contact.created_by)
+
+        # make sure we can manage topups as well
+        response = self.client.get(reverse('orgs.topup_manage') + "?org=%d" % self.org.id)
+        self.assertNotRedirect(response, '/users/login/')
+
+        # ok, now end our session
+        response = self.client.post(service_url, dict())
+        self.assertRedirect(response, '/org/manage/')
+
+        # can no longer go to inbox, asked to log in
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertRedirect(response, '/users/login/')
 
 class BulkExportTest(TembaTest):
 
@@ -1236,7 +1284,7 @@ class BulkExportTest(TembaTest):
             self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='C', is_archived=False).count())
             self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
             self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
-            self.assertEquals(1, Label.objects.filter(org=self.org).count())
+            self.assertEquals(1, Label.user_labels.filter(org=self.org).count())
 
         # import all our bits
         self.import_file('the-clinic')
@@ -1313,7 +1361,7 @@ class BulkExportTest(TembaTest):
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
         self.assertEquals(4, exported.get('version', 0))
-        self.assertEquals('http://rapidpro.io', exported.get('site', None))
+        self.assertEquals('https://rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))
         self.assertEquals(4, len(exported.get('triggers', [])))
@@ -1378,7 +1426,7 @@ class BulkExportTest(TembaTest):
 
         # delete our flow, and reimport
         confirm_appointment.delete()
-        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='https://rapidpro.io')
 
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')

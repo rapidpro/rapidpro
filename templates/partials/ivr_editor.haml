@@ -37,7 +37,7 @@
             .number
               [[option.number]]
             %input{ng-model:"option.category.base",type:"text"}
-        %form{name:"editor",ng-show:'ruleset.response_type=="K"'}
+        %form{name:"ivrEditor",ng-show:'ruleset.response_type=="K"'}
           #split-help.help-text
             -blocktrans
               Run these rules against a
@@ -91,5 +91,5 @@
             -trans "Webhook"
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"
-        %button{ng-disabled:'variable.$invalid || (tab=="multiple" && editor.$invalid) || (tab=="numeric" && numeric.$invalid)', ng-click:"ok()",class:"btn btn-primary"}
+        %button{ng-disabled:'variable.$invalid || (tab=="multiple" && ivrEditor.$invalid) || (tab=="numeric" && numeric.$invalid)', ng-click:"okRules()",class:"btn btn-primary"}
           -trans "Ok"

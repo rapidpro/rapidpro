@@ -23,23 +23,27 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     """
     Processses a single incoming message through our queue.
     """
+    r = get_redis_connection()
     msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact__urns').first()
 
     # somebody already handled this message, move on
     if not msg:
         return
 
-    print "[%09d] Processing - %s" % (msg.id, msg.text)
-    start = time.time()
+    # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
+    key = 'pcm_%d' % msg.contact_id
+    with r.lock(key, timeout=60):
+        print "[%09d] Processing - %s" % (msg.id, msg.text)
+        start = time.time()
 
-    # if message was created in Mage...
-    if from_mage:
-        mage_handle_new_message(msg.org, msg)
-        if new_contact:
-            mage_handle_new_contact(msg.org, msg.contact)
+        # if message was created in Mage...
+        if from_mage:
+            mage_handle_new_message(msg.org, msg)
+            if new_contact:
+                mage_handle_new_contact(msg.org, msg.contact)
 
-    Msg.process_message(msg)
-    print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
+        Msg.process_message(msg)
+        print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
 
 @task(track_started=True, name='send_broadcast')
 def send_broadcast_task(broadcast_id):
@@ -80,12 +84,12 @@ def send_spam(user_id, contact_id):
 def fail_old_messages():
     Msg.fail_old_messages()
 
-@task(track_started=True, name='collect_message_metrics_task')
+@task(track_started=True, name='collect_message_metrics_task', time_limit=30, soft_time_limit=30)
 def collect_message_metrics_task():
     """
     Collects message metrics and sends them to our analytics.
     """
-    from .models import INCOMING, OUTGOING, DELIVERED, SENT, WIRED, FAILED, PENDING, QUEUED, ERRORED, INITIALIZING, HANDLED
+    from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, INITIALIZING
     import analytics
 
     r = get_redis_connection()
@@ -97,20 +101,9 @@ def collect_message_metrics_task():
             # we use our hostname as our source so we can filter these for different brands
             context = dict(source=settings.HOSTNAME)
 
-            # total # of delivered messages
-            count = Msg.objects.filter(direction=OUTGOING, status=DELIVERED).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_delivered', properties=dict(value=count), context=context)
-
-            # total # of sent messages (this includes delivered and wired)
-            count = Msg.objects.filter(direction=OUTGOING, status__in=[DELIVERED, SENT, WIRED]).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_sent', properties=dict(value=count), context=context)
-
-            # total # of failed messages
-            count = Msg.objects.filter(direction=OUTGOING, status=FAILED).exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.total_outgoing_failed', properties=dict(value=count), context=context)
-
             # current # of queued messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
+                exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
             analytics.track('System', 'temba.current_outgoing_queued', properties=dict(value=count), context=context)
 
             # current # of initializing messages (excluding Android)
@@ -137,7 +130,7 @@ def collect_message_metrics_task():
             cache.set('last_cron', timezone.now())
 
 
-@task(track_started=True, name='check_messages_task')
+@task(track_started=True, name='check_messages_task', time_limit=30, soft_time_limit=30)
 def check_messages_task():
     """
     Checks to see if any of our aggregators have errored messages that need to be retried.

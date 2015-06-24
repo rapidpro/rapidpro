@@ -126,6 +126,7 @@ class FlowActionForm(BaseActionForm):
 
     OBJECT_CLASS = Flow
     LABEL_CLASS = FlowLabel
+    LABEL_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = True
 
     class Meta:
@@ -1135,9 +1136,16 @@ class FlowCRUDL(SmartCRUDL):
                 runs.delete()
                 steps.delete()
 
+                # reset all contact fields values
+                test_contact.values.all().delete()
+
                 # reset the name for our test contact too
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
                 test_contact.save()
+
+                # reset the groups for test contact
+                for group in test_contact.all_groups.all():
+                    group.update_contacts([test_contact], False)
 
                 flow.start([], [test_contact], restart_participants=True)
 
@@ -1194,8 +1202,13 @@ class FlowCRUDL(SmartCRUDL):
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
             print json.dumps(json_dict, indent=2)
-            response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
-            return build_json_response(response_data, status=200)
+
+            from temba.flows.models import FlowException
+            try:
+                response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
+                return build_json_response(response_data, status=200)
+            except FlowException as e:
+                return build_json_response(dict(status="failure", description=str(e)), status=400)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BroadcastForm(forms.ModelForm):

@@ -148,39 +148,24 @@ class ScheduleTest(TembaTest):
         #broadcast = Broadcast.objects.get(pk=broadcast.pk)
         #self.assertTrue(broadcast.schedule.has_pending_fire())
 
-
     def test_update(self):
-
-        self.admin = self.create_user("ben")
-        self.manager1 = self.create_user("mike")
-        self.root = self.create_user("Sir")
-        self.user1 = self.create_user("nash")
-        self.user = self.create_user(username="tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-        self.org.administrators.add(self.admin)
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.root)
-        self.root.set_org(self.org)
-
         sched = self.create_schedule('W', [THURSDAY, SATURDAY])
-
         update_url = reverse('schedules.schedule_update', args=[sched.pk])
 
-        self.login(self.user1)
+        # viewer can't access
+        self.login(self.user)
         response = self.client.get(update_url)
-        self.assertEquals(302, response.status_code)
+        self.assertLoginRedirect(response)
 
-        self.login(self.manager1)
+        # editor can access
+        self.login(self.editor)
         response = self.client.get(update_url)
-        self.assertEquals(302, response.status_code)
+        self.assertEqual(response.status_code, 200)
 
-        response = self.fetch_protected(update_url, self.admin)
-        self.assertEquals(response.request['PATH_INFO'], update_url)
-
-        response = self.fetch_protected(update_url, self.root)
-        self.assertEquals(response.request['PATH_INFO'], update_url)
+        # as can admin user
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(response.status_code, 200)
 
         now = timezone.now()
         now_stamp = time.mktime(now.timetuple())

@@ -824,6 +824,8 @@ class Channel(SmartModel):
         else:
             log_url += "?" + urlencode(log_payload)
 
+        start = time.time()
+
         try:
             response = requests.get(channel.config[SEND_URL], params=payload, timeout=15)
         except Exception as e:
@@ -843,7 +845,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -866,6 +868,7 @@ class Channel(SmartModel):
         # build our send URL
         url = channel.config[SEND_URL] + "?" + urlencode(payload)
         log_payload = ""
+        start = time.time()
 
         try:
             # these guys use a self signed certificate
@@ -887,7 +890,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -911,6 +914,7 @@ class Channel(SmartModel):
         # build our send URL
         url = Channel.build_send_url(channel.config[SEND_URL], payload)
         log_payload = None
+        start = time.time()
 
         try:
             method = channel.config.get(SEND_METHOD, 'POST')
@@ -939,7 +943,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -966,6 +970,7 @@ class Channel(SmartModel):
         # build our send URL
         url = 'https://highpushfastapi-v2.hcnx.eu/api' + '?' + urlencode(payload)
         log_payload = None
+        start = time.time()
 
         try:
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
@@ -986,7 +991,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1008,6 +1013,7 @@ class Channel(SmartModel):
         url = 'http://api.blackmyna.com/2/smsmessaging/outbound'
         log_payload = None
         external_id = None
+        start = time.time()
 
         try:
             log_payload = urlencode(payload)
@@ -1041,7 +1047,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1064,6 +1070,7 @@ class Channel(SmartModel):
 
         url = 'http://smail.smscentral.com.np/bp/ApiSms.php'
         log_payload = urlencode(payload)
+        start = time.time()
 
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30)
@@ -1084,7 +1091,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1117,6 +1124,7 @@ class Channel(SmartModel):
         headers['content-type'] = 'application/json'
 
         url = 'https://go.vumi.org/api/v1/go/http_api_nostream/%s/messages.json' % channel.config['conversation_key']
+        start = time.time()
 
         try:
             response = requests.put(url,
@@ -1149,7 +1157,7 @@ class Channel(SmartModel):
         body = response.json()
 
         # mark our message as sent
-        Msg.mark_sent(channel.config['r'], msg, WIRED, body.get('message_id', ''))
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=body.get('message_id', ''))
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1165,9 +1173,10 @@ class Channel(SmartModel):
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
 
         client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET])
+        start = time.time()
         (message_id, response) = client.send_message(channel.address,  msg.urn_path, text)
 
-        Msg.mark_sent(channel.config['r'], msg, SENT, message_id)
+        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=message_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered to Nexmo",
@@ -1199,6 +1208,7 @@ class Channel(SmartModel):
 
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         headers.update(TEMBA_HEADERS)
+        start = time.time()
 
         try:
             response = requests.post(url, data=json.dumps(payload), headers=headers, timeout=5)
@@ -1237,7 +1247,7 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], msg, SENT, messages[0]['messageid'])
+        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=messages[0]['messageid'])
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1271,6 +1281,7 @@ class Channel(SmartModel):
         send_url = "%s?%s" % (url, urlencode(payload))
         payload['password'] = 'x' * len(payload['password'])
         masked_url = "%s?%s" % (url, urlencode(payload))
+        start = time.time()
 
         try:
             response = requests.get(send_url, proxies=OUTGOING_PROXIES, headers=TEMBA_HEADERS, timeout=15)
@@ -1304,7 +1315,7 @@ class Channel(SmartModel):
                                     response=response.text,
                                     response_status=response.status_code)
 
-            Msg.mark_sent(channel.config['r'], msg, SENT)
+            Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start)
 
             ChannelLog.log_success(msg=msg,
                                    description="Successfully delivered",
@@ -1347,6 +1358,7 @@ class Channel(SmartModel):
         zenvia_url = "http://www.zenvia360.com.br/GatewayIntegration/msgSms.do"
         headers = {'Content-Type': "text/html", 'Accept-Charset': 'ISO-8859-1'}
         headers.update(TEMBA_HEADERS)
+        start = time.time()
 
         try:
             response = requests.get(zenvia_url,
@@ -1372,7 +1384,7 @@ class Channel(SmartModel):
         if response_code != 0:
             raise Exception("Got non-zero response from Zenvia: %s" % response.text)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1395,6 +1407,7 @@ class Channel(SmartModel):
         headers.update(TEMBA_HEADERS)
 
         api_url = "https://api.africastalking.com/version1/messaging"
+        start = time.time()
 
         try:
             response = requests.post(api_url,
@@ -1421,7 +1434,7 @@ class Channel(SmartModel):
         # it wasn't sent, in which case we'll become an errored message
         external_id = response_data['SMSMessageData']['Recipients'][0]['messageId']
 
-        Msg.mark_sent(channel.config['r'], msg, SENT, external_id)
+        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1438,12 +1451,14 @@ class Channel(SmartModel):
 
         callback_url = Channel.build_twilio_callback_url(msg.id)
         client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+        start = time.time()
+
         message = client.messages.create(to=msg.urn_path,
                                          from_=channel.address,
                                          body=text,
                                          status_callback=callback_url)
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
@@ -1456,10 +1471,12 @@ class Channel(SmartModel):
         oauth_token_secret = channel.config['oauth_token_secret']
 
         twitter = Twython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
+        start = time.time()
+
         dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
         external_id = dm['id']
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
@@ -1480,6 +1497,7 @@ class Channel(SmartModel):
                    'mo': 1,
                    'to': msg.urn_path.lstrip('+'),
                    'text': text}
+        start = time.time()
 
         try:
             response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
@@ -1506,7 +1524,7 @@ class Channel(SmartModel):
         if response.text.startswith("ID: "):
             external_id = response.text[4:]
 
-        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1533,6 +1551,7 @@ class Channel(SmartModel):
                    'text': text,
                    'url': status_url,
                    'method': 'POST'}
+        start = time.time()
 
         try:
             plivo_response_status, plivo_response = client.send_message(params=payload)
@@ -1553,7 +1572,7 @@ class Channel(SmartModel):
                                 response_status=plivo_response_status)
 
         external_id = plivo_response['message_uuid'][0]
-        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1599,17 +1618,17 @@ class Channel(SmartModel):
         pipe.sismember((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
         (sent_today, sent_yesterday) = pipe.execute()
 
-        if sent_today or sent_yesterday:
-            Msg.mark_sent(r, msg, WIRED)
-            print "!! [%d] prevented duplicate send" % (msg.id)
-            return
-
         # get our cached channel
         channel = Channel.get_cached_channel(msg.channel)
 
+        if sent_today or sent_yesterday:
+            Msg.mark_sent(r, channel, msg, WIRED, -1)
+            print "!! [%d] prevented duplicate send" % (msg.id)
+            return
+
         # channel can be none in the case where the channel has been removed
         if not channel:
-            Msg.mark_error(r, msg, fatal=True)
+            Msg.mark_error(r, None, msg, fatal=True)
             ChannelLog.log_error(msg, _("Message no longer has a way of being sent, marking as failed."))
             return
 
@@ -1672,7 +1691,7 @@ class Channel(SmartModel):
 
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
-                    Msg.mark_sent(r, msg, WIRED, timezone.now())
+                    Msg.mark_sent(r, channel, msg, WIRED, -1)
                     print "FAKED SEND for [%d] - %s" % (msg.id, part)
                 elif channel_type in send_funcs:
                     send_funcs[channel_type](channel, msg, part)
@@ -1685,7 +1704,7 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(r, msg, fatal=e.fatal)
+                Msg.mark_error(r, channel, msg, fatal=e.fatal)
                 sent_count -= 1
 
             except Exception as e:
@@ -1694,14 +1713,14 @@ class Channel(SmartModel):
                 import traceback
                 traceback.print_exc(e)
 
-                Msg.mark_error(r, msg)
+                Msg.mark_error(r, channel, msg)
                 sent_count -= 1
 
             finally:
                 # if we are still in a queued state, mark ourselves as an error
                 if msg.status == QUEUED:
                     print "!! [%d] marking queued message as error" % msg.id
-                    Msg.mark_error(r, msg)
+                    Msg.mark_error(r, channel, msg)
                     sent_count -= 1
 
         # update the number of sms it took to send this if it was more than 1
@@ -1711,7 +1730,7 @@ class Channel(SmartModel):
     @classmethod
     def track_status(cls, channel, status):
         # track success, errors and failures
-        analytics.track(channel.created_by.username, 'temba.channel_%s' % status.lower(), dict(channel_type=channel.get_channel_type_display()))
+        analytics.track('System', 'temba.channel_%s' % status.lower(), dict(channel_type=channel.get_channel_type_display()))
 
     @classmethod
     def build_twilio_callback_url(cls, sms_id):

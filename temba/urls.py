@@ -35,6 +35,10 @@ urlpatterns = patterns('',
 if settings.DEBUG:
     urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }), )
 
+# import any additional urls
+import importlib
+for app in settings.APP_URLS:
+    importlib.import_module(app)
 
 # provide a utility method to initialize our analytics
 def init_analytics():
@@ -45,12 +49,6 @@ def init_analytics():
 
 # and initialize them (in celery, the above will have to be called manually)
 init_analytics()
-
-# import any additional urls
-import importlib
-for app in settings.APP_URLS:
-    importlib.import_module(app)
-
 
 def track_user(self):  # pragma: no cover
     """

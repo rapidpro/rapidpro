@@ -72,20 +72,7 @@
           .col
             Runs
 
-      -if counts|length > 0
-        #flow-columns
-          .column-header
-            Flow Data
 
-          -for col in counts
-            .option
-              %div{class:'col_{{forloop.counter0|add:4}} view_toggle', data-col:'{{forloop.counter0|add:4}}'}
-                .glyph.notif-checkbox
-              .col
-                {{ col.ruleset.label }}
-
-
- 
 -block extra-script
   {{ block.super }}
 

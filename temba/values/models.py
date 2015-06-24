@@ -54,7 +54,7 @@ class Value(models.Model):
     rule_uuid = models.CharField(max_length=255, null=True, db_index=True,
                                  help_text="The rule that matched, only appropriate for RuleSet values")
 
-    category = models.CharField(max_length=36, null=True,
+    category = models.CharField(max_length=128, null=True,
                                 help_text="The name of the category this value matched in the RuleSet")
 
     string_value = models.TextField(max_length=640,
@@ -378,7 +378,7 @@ class Value(models.Model):
                 for group_id in contact_filter['groups']:
                     dependencies.add(GROUP_KEY % group_id)
             if 'location' in contact_filter:
-                field = ContactField.objects.get(org=org, label__iexact=contact_filter['location'])
+                field = ContactField.get_by_label(org, contact_filter['location'])
                 dependencies.add(CONTACT_KEY % field.id)
 
         if segment:
@@ -388,7 +388,7 @@ class Value(models.Model):
                 for group_id in segment['groups']:
                     dependencies.add(GROUP_KEY % group_id)
             if 'location' in segment:
-                field = ContactField.objects.get(org=org, label__iexact=segment['location'])
+                field = ContactField.get_by_label(org, segment['location'])
                 dependencies.add(CONTACT_KEY % field.id)
 
         # our final redis key will contain each dependency as well as a HASH representing the fingerprint of the
@@ -439,7 +439,7 @@ class Value(models.Model):
             # segmenting by a contact field, only for passed in categories
             elif 'contact_field' in segment and 'values' in segment:
                 # look up the contact field
-                field = ContactField.objects.get(org=org, label__iexact=segment['contact_field'])
+                field = ContactField.get_by_label(org, segment['contact_field'])
 
                 for value in segment['values']:
                     value_filter = list(filters)
@@ -453,7 +453,7 @@ class Value(models.Model):
             # segmenting by a location field
             elif 'location' in segment:
                 # look up the contact field
-                field = ContactField.objects.get(org=org, label__iexact=segment['location'])
+                field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
                 if field.value_type not in [STATE, DISTRICT]:
