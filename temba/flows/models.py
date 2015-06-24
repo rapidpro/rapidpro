@@ -3626,7 +3626,7 @@ class APIAction(Action):
 
     @classmethod
     def from_json(cls, org, json):
-        return APIAction(json.get('webhook', org.webhook), json.get('action', 'POST'))
+        return APIAction(json.get('webhook', org.get_webhook_url()), json.get('action', 'POST'))
 
     def as_json(self):
         return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)

@@ -8,7 +8,7 @@
   %h2.header-margin
     Recent WebHook Events
   %h5.header-margin
-    WebHook URL: {{ user_org.webhook|default:"None Configured" }}
+    WebHook URL: {{ user_org.get_webhook_url|default:"None Configured" }}
 
 -block above-bar
   %a.btn.btn-primary{ href: '{% url "api" %}' } API Docs

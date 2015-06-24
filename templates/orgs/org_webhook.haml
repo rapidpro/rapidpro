@@ -7,7 +7,54 @@
 
 -block fields
   .field.webhook-url
-    {% render_field 'webhook' %}
+    %label{ for:'webhook' }
+      -trans "Webhook"
+    <input type="text" id="id_webhook" name="webhook" value="{{ org.get_webhook_url|default_if_none:"" }}" />
+  .field.webhook-headers
+
+    %a.expand
+      -trans "Additional options"
+
+    .templates
+      .field.webhook-header-pair.hide
+        .field.header-key
+          <label for="header_0_key">
+            -trans "Header key"
+          </label>
+          <input type="text" id="id_header_0_key" name="header_0_key"/>
+        .field.webhook-header-value
+          <label for="header_0_value">
+            -trans "Header value"
+          </label>
+          <input type="text" id="id_header_0_value" name="header_0_value"/>
+
+    {% if org.get_webhook_headers %}
+      {% for key, val in org.get_webhook_headers.items %}
+        .field.webhook-header-pair.hide
+          .field.header-key
+            <label for="header_{{ forloop.counter }}_key">
+              -trans "Header key"
+            </label>
+            <input type="text" id="id_header_{{ forloop.counter }}_key" name="header_{{ forloop.counter }}_key" value="{{ key }}" />
+          .field.webhook-header-value
+            <label for="header_{{ forloop.counter }}_value">
+              -trans "Header value"
+            </label>
+            <input type="text" id="id_header_{{ forloop.counter }}_value" name="header_{{ forloop.counter }}_value" value="{{ val }}" />
+      {% endfor %}
+    {% else %}
+      .field.webhook-header-pair.hide
+        .field.header-key
+          <label for="header_1_key">
+            -trans "Header key"
+          </label>
+          <input type="text" id="id_header_1_key" name="header_1_key" value="" />
+        .field.webhook-header-value
+          <label for="header_0_value">
+            -trans "Header value"
+          </label>
+          <input type="text" id="id_header_1_value" name="header_1_value" value="" />
+    {% endif %}
 
   API Token: {{user.api_token}}
 
@@ -53,9 +100,9 @@
       -trans "API Log"
 
 -block summary
-  -if org.webhook
+  -if org.get_webhook_url
     -trans "WebHook events are being forwarded to"
-    %span.attn= org.webhook
+    %span.attn= org.get_webhook_url
     %div
       -trans "Your API Token is"
       {{user.api_token}}
@@ -105,6 +152,50 @@
           }
         });
       });
+      $(function() {
+        $(".expand").on('click', function(){
+          var fieldset = $(this).parent(".field");
+          var fields = fieldset.children("div");
+
+          if (fields.hasClass("hide")) {
+            fields.removeClass("hide");
+          } else {
+            fields.addClass("hide");
+          }
+        });
+      });
+
+      function addHeaderPair(){
+        // check if the last id_header_*_key input element has a value
+        if ($("input[id^=id_header]input[id$=key]").last().attr('value')){
+          // add markup with incremented ids/names
+          var numPairs = $(".field.webhook-headers").children(".field.webhook-header-pair").length
+
+          var ele = $('.templates > .webhook-header-pair').clone();
+
+          ele.find('label').each(function(){
+            var label = $(this).attr('for');
+            $(this).attr('for', label.replace(/0/g, numPairs + 1));
+          });
+          ele.find('input').each(function(){
+            var id = $(this).attr('id');
+              $(this).attr('id', id.replace(/0/g, numPairs + 1));
+            var name = $(this).attr('name');
+              $(this).attr('name', name.replace(/0/g, numPairs + 1));
+          });
+
+          $(".field.webhook-headers").append(ele);
+          ele.toggleClass('hide');
+
+          // attach event listener to newly created webhook-header-pair, so that
+          // another pair can be subsequently added after the new one has a value
+          ele.on('focusin', addHeaderPair);
+        };
+      };
+
+      $(function() {
+        $(".field.webhook-header-pair").on('focusin', addHeaderPair);
+      });
 
 
 -block extra-style
@@ -118,6 +209,16 @@
 
     .field.webhook-url .controls {
       margin-left: 0px;
+    }
+
+    .field.header-key  {
+       float: left;
+       text-align: left;
+       margin-right: 10px;
+    }
+
+    .field.header-value {
+       text-align: left;
     }
 
     .subscribed-events {
@@ -141,5 +242,3 @@
       height: 22px;
       margin-top: 0px;
     }
-
-    
