@@ -20,7 +20,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language, UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics
@@ -637,6 +637,12 @@ class Msg(models.Model, OrgModelMixin):
                     logger.exception("Error in message handling: %s" % e)
 
         cls.mark_handled(msg)
+
+        # if this isn't a flow message, increment our unread inbox count
+        if msg.msg_type == INBOX:
+            msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+        elif msg.msg_type == FLOW:
+            msg.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
         # record our handling latency for this object
         if msg.queued_on:

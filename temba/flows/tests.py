@@ -325,20 +325,6 @@ class RuleTest(TembaTest):
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
         self.assertFalse(self.flow.find_and_handle(extra))
 
-        # check that our context processor is stuffing in our unread count
-        self.login(self.admin)
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEquals(1, response.context['flows_unread_count'])
-
-        # visit our list page, clears the count
-        response = self.client.get(reverse('flows.flow_list'))
-        self.assertEquals(0, response.context['flows_unread_count'])
-
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEquals(0, response.context['flows_unread_count'])
-
-        self.client.logout()
-
         # try exporting this flow
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
         self.assertEquals(302, exported.status_code)
@@ -3200,12 +3186,66 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
 
+class UnreadCountTest(FlowFileTest):
+
+    def test_unread_count_test(self):
+        flow = self.get_flow('favorites')
+
+        # create a trigger for 'favs'
+        Trigger.objects.create(org=self.org, flow=flow, keyword='favs', created_by=self.admin, modified_by=self.admin)
+
+        # start our flow by firing an incoming message
+        contact = self.create_contact('Anakin Skywalker', '+12067791212')
+        msg = self.create_msg(contact=contact, text="favs")
+
+        # process it
+        Msg.process_message(msg)
+
+        # at this point our flow should have started.. go to our trigger list page to see if our context is correct
+        self.login(self.admin)
+        trigger_list = reverse('triggers.trigger_list')
+        response = self.client.get(trigger_list)
+
+        self.assertEquals(0, response.context['msgs_unread_count'])
+        self.assertEquals(1, response.context['flows_unread_count'])
+
+        # answer another question in the flow
+        msg = self.create_msg(contact=contact, text="red")
+        Msg.process_message(msg)
+
+        response = self.client.get(trigger_list)
+        self.assertEquals(0, response.context['msgs_unread_count'])
+        self.assertEquals(2, response.context['flows_unread_count'])
+
+        # finish the flow and send a message outside it
+        msg = self.create_msg(contact=contact, text="primus")
+        Msg.process_message(msg)
+
+        msg = self.create_msg(contact=contact, text="nic")
+        Msg.process_message(msg)
+
+        msg = self.create_msg(contact=contact, text="Hello?")
+        Msg.process_message(msg)
+
+        response = self.client.get(trigger_list)
+        self.assertEquals(4, response.context['flows_unread_count'])
+        self.assertEquals(1, response.context['msgs_unread_count'])
+
+        # visit the msg pane
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertEquals(4, response.context['flows_unread_count'])
+        self.assertEquals(0, response.context['msgs_unread_count'])
+
+        # now the flow list pane
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertEquals(0, response.context['flows_unread_count'])
+        self.assertEquals(0, response.context['msgs_unread_count'])
+
 
 class DuplicateValueTest(FlowFileTest):
 
     def test_duplicate_value_test(self):
         flow = self.get_flow('favorites')
-
         self.assertEquals("I don't know that color. Try again.", self.send_message(flow, "carpet"))
 
         # get the run for our contact

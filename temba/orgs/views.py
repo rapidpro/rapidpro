@@ -33,7 +33,7 @@ from temba.utils import analytics, build_json_response
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 
 

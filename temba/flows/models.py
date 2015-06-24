@@ -33,7 +33,7 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org, Language
+from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.cache import get_cacheable
