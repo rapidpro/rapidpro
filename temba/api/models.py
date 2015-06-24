@@ -457,7 +457,7 @@ class WebHookResult(SmartModel):
 
         WebHookResult.objects.create(event=event,
                                      url=result['url'],
-                                     # Flow webhooks won't have 'reqeust'
+                                     # Flow webhooks won't have 'request'
                                      request=result.get('request'),
                                      data=result['data'],
                                      message=message,
