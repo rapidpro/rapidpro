@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import logging
 import json
 
 from context_processors import GroupPermWrapper
@@ -154,6 +155,34 @@ class OrgTest(TembaTest):
         # check that our user settings have changed
         settings = self.admin.get_settings()
         self.assertEquals('pt-br', settings.language)
+
+    def test_webhook_headers(self):
+        update_url = reverse('orgs.org_webhook')
+        login_url = reverse('users.user_login')
+
+        # no access if anonymous
+        response = self.client.get(update_url)
+        self.assertRedirect(response, login_url)
+
+        self.login(self.admin)
+
+        response = self.client.get(update_url)
+        self.assertEquals(200, response.status_code)
+
+        # set a webhook with headers
+        post_data = response.context['form'].initial
+        post_data['webhook'] = 'http://webhooks.uniceflabs.org'
+        post_data['header_1_key'] = 'Authorization'
+        post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
+
+        response = self.client.post(update_url, post_data)
+        self.assertEquals(302, response.status_code)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # check that our webhook settings have changed
+        org = Org.objects.get(pk=self.org.pk)
+        self.assertEquals('http://webhooks.uniceflabs.org/', org.get_webhook_url())
+        self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, org.get_webhook_headers())
 
     def test_org_administration(self):
         manage_url = reverse('orgs.org_manage')
@@ -1037,11 +1066,11 @@ class OrgCRUDLTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
-        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://www.foo.com/', mt_sms=1))
+        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://fake.com/webhook.php', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
-        self.assertEquals("http://www.foo.com/", org.webhook)
+        self.assertEquals("http://fake.com/webhook.php", org.get_webhook_url())
         self.assertTrue(org.is_notified_of_mt_sms())
         self.assertFalse(org.is_notified_of_mo_sms())
         self.assertFalse(org.is_notified_of_mt_call())
