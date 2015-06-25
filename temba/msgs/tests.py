@@ -300,60 +300,6 @@ class MsgTest(TembaTest):
         post_data['add'] = True
         return self.client.post(reverse('msgs.msg_inbox'), post_data, follow=True)
 
-    def test_unread_msg_count(self):
-        # visit the main page as a user not in the organization
-        self.login(self.non_org_user)
-        response = self.client.get('/', follow=True)
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-        self.client.logout()
-
-        # visit the main page as superuser
-        self.login(self.superuser)
-        response = self.client.get('/', follow=True)
-        # no orgs for superusers so they can't have the unread sms values
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-        self.client.logout()
-
-        # visit the main page as a user of the orgnization
-        self.login(self.admin)
-        response = self.client.get('/', follow=True)
-
-        # there is no unread sms
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-
-        self.org.msg_last_viewed = timezone.now() - timedelta(hours=3)
-        self.org.save()
-
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "test msg")
-        msg.created_on = timezone.now() - timedelta(hours=1)
-        msg.save()
-
-        # clear our cache
-        key = 'org_unread_msg_count_%d' % self.org.pk
-        cache.delete(key)
-
-        response = self.client.get(reverse('flows.flow_list'), follow=True)
-        self.assertIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-
-        # test the badge is rendered in the browser
-        self.assertIn("messages</div></a><divclass=\'notification\'>1<", response.content.replace(" ","").replace("\n", ""))
-
-        cache.delete(key)
-
-        response = self.client.get(reverse('msgs.msg_inbox'), follow=True)
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertIn('msg_last_viewed', response.context)
-
-        cache.delete(key)
-
-        response = self.client.get('/', follow=True)
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
 
