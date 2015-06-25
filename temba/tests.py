@@ -207,7 +207,6 @@ class TembaTest(SmartminTest):
         ruleset.save()
 
 
-
 class FlowFileTest(TembaTest):
 
     def setUp(self):
