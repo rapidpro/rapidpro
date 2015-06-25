@@ -638,11 +638,9 @@ class Msg(models.Model, OrgModelMixin):
 
         cls.mark_handled(msg)
 
-        # if this isn't a flow message, increment our unread inbox count
+        # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
-        elif msg.msg_type == FLOW:
-            msg.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
         # record our handling latency for this object
         if msg.queued_on:

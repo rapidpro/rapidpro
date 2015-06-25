@@ -33,7 +33,7 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org, Language
+from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.cache import get_cacheable
@@ -469,6 +469,10 @@ class Flow(TembaModel, SmartModel):
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
+
+        # if we handled it, increment our unread count
+        if handled and not call.contact.is_test:
+            self.increment_unread_responses()
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -1152,6 +1156,9 @@ class Flow(TembaModel, SmartModel):
         r = get_redis_connection()
         r.hincrby(UNREAD_FLOW_RESPONSES, self.id, 1)
 
+        # increment our global count as well
+        self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
+
     def get_terminal_nodes(self):
         cache_key = self.get_props_cache_key(FlowPropsCache.terminal_nodes)
         return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL,
@@ -1423,6 +1430,10 @@ class Flow(TembaModel, SmartModel):
         if not all_contacts:
             if flow_start: flow_start.update_status()
             return
+
+        # single contact starting from a trigger? increment our unread count
+        if start_msg and len(contacts) == 1 and not all_contacts[0].is_test:
+            self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contacts, start_msg=start_msg,
