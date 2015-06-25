@@ -1464,9 +1464,18 @@ class UnreadCountTest(FlowFileTest):
         # make sure a test contact doesn't update our counts
         test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
 
+        # our flow unread count should have gone up as well
+        self.assertEquals(4, flow.get_and_clear_unread_responses())
+
+        # cleared by the first call
+        self.assertEquals(0, flow.get_and_clear_unread_responses())
+
         msg = self.create_msg(contact=test_contact, text="favs")
         Msg.process_message(msg)
 
         # assert our counts weren't updated
         self.assertEquals(0, self.org.get_unread_msg_count(UNREAD_INBOX_MSGS))
         self.assertEquals(0, self.org.get_unread_msg_count(UNREAD_FLOW_MSGS))
+
+        # wasn't counted for the individual flow
+        self.assertEquals(0, flow.get_and_clear_unread_responses())
