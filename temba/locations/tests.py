@@ -69,8 +69,8 @@ class Locationtest(TembaTest):
         response_json = json.loads(response.content)
 
         # now have kigs as an alias
-        self.assertEquals("Kigali", response_json[1]['name'])
-        self.assertEquals(['kigs', 'kig'], response_json[1]['aliases'])
+        self.assertEquals("Kigali City", response_json[1]['name'])
+        self.assertEquals('kig\nkigs', response_json[1]['aliases'])
 
 
 
