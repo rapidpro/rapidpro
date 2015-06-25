@@ -472,7 +472,7 @@ class Flow(TembaModel, SmartModel):
 
         # if we handled it, increment our unread count
         if handled and not call.contact.is_test:
-            self.increment_unread_responses()
+            run.flow.increment_unread_responses()
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
