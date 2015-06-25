@@ -1421,6 +1421,12 @@ class UnreadCountTest(FlowFileTest):
         # process it
         Msg.process_message(msg)
 
+        # our flow unread count should have gone up
+        self.assertEquals(1, flow.get_and_clear_unread_responses())
+
+        # cleared by the first call
+        self.assertEquals(0, flow.get_and_clear_unread_responses())
+
         # at this point our flow should have started.. go to our trigger list page to see if our context is correct
         self.login(self.admin)
         trigger_list = reverse('triggers.trigger_list')
@@ -1463,12 +1469,6 @@ class UnreadCountTest(FlowFileTest):
 
         # make sure a test contact doesn't update our counts
         test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
-
-        # our flow unread count should have gone up as well
-        self.assertEquals(4, flow.get_and_clear_unread_responses())
-
-        # cleared by the first call
-        self.assertEquals(0, flow.get_and_clear_unread_responses())
 
         msg = self.create_msg(contact=test_contact, text="favs")
         Msg.process_message(msg)
