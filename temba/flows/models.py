@@ -33,7 +33,7 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS
+from temba.orgs.models import Org, Language
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.cache import get_cacheable
@@ -83,6 +83,7 @@ FLOW_PROP_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 FLOW_STAT_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 
+UNREAD_FLOW_RESPONSES = 'unread_flow_responses'
 
 # the most frequently we will check if our cache needs rebuilding
 FLOW_STAT_CACHE_FREQUENCY = 24 * 60 * 60  # 1 day
@@ -294,12 +295,10 @@ class Flow(TembaModel, SmartModel):
                                        id=flow.pk, definition=flow_definition))
 
         # get all non-schedule based triggers that are active for these flows
-        from temba.triggers.models import Trigger
         triggers = set()
         for flow in flows:
             triggers.update(flow.get_dependencies()['triggers'])
 
-        #triggers = Trigger.objects.filter(flow__in=flows, is_archived=False).exclude(trigger_type='S')
         for trigger in triggers:
             exported_triggers.append(trigger.as_json())
 
@@ -523,7 +522,6 @@ class Flow(TembaModel, SmartModel):
         return default_storage.save('recordings/%d/%d/runs/%d/%s.wav' %
                                     (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
 
-
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
         name = base_name[:64].strip()
@@ -580,6 +578,10 @@ class Flow(TembaModel, SmartModel):
             handled = Flow.handle_destination(destination, step, step.run, msg, started_flows, user_input=True)
 
             if handled:
+                # increment our unread count if this isn't the simulator
+                if not msg.contact.is_test:
+                    flow.increment_unread_responses()
+
                 return True
 
         return False
@@ -640,7 +642,6 @@ class Flow(TembaModel, SmartModel):
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
 
         return handled
-
 
     @classmethod
     def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
@@ -1130,8 +1131,26 @@ class Flow(TembaModel, SmartModel):
             completed_percentage = 0
         return completed_percentage
 
-    def get_responses_since(self, since):
-        return self.steps().filter(step_type=RULE_SET, left_on__gte=since, run__contact__is_test=False).count()
+    def get_and_clear_unread_responses(self):
+        """
+        Gets the number of new responses since the last clearing for this flow.
+        """
+        r = get_redis_connection()
+
+        # get the number of new responses
+        new_responses = r.hget(UNREAD_FLOW_RESPONSES, self.id)
+
+        # then clear them
+        r.hdel(UNREAD_FLOW_RESPONSES, self.id)
+
+        return 0 if new_responses is None else int(new_responses)
+
+    def increment_unread_responses(self):
+        """
+        Increments the number of new responses for this flow.
+        """
+        r = get_redis_connection()
+        r.hincrby(UNREAD_FLOW_RESPONSES, self.id, 1)
 
     def get_terminal_nodes(self):
         cache_key = self.get_props_cache_key(FlowPropsCache.terminal_nodes)
@@ -2676,10 +2695,10 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, (str, unicode)):
-            return (fields[:255], count+1)
+            return fields[:255], count+1
 
         elif isinstance(fields, numbers.Number):
-            return (fields, count+1)
+            return fields, count+1
 
         elif isinstance(fields, dict):
             count += 1
@@ -2690,7 +2709,7 @@ class FlowRun(models.Model):
                 if count >= 128:
                     break
 
-            return (field_dict, count)
+            return field_dict, count
 
         elif isinstance(fields, list):
             count += 1
@@ -2701,10 +2720,10 @@ class FlowRun(models.Model):
                 if count >= 128:
                     break
 
-            return (list_dict, count)
+            return list_dict, count
 
         else:
-            return (unicode(fields), count+1)
+            return unicode(fields), count+1
 
     @classmethod
     def do_expire_runs(cls, runs):
@@ -2904,6 +2923,7 @@ class ExportFlowResultsTask(SmartModel):
             org = flows[0].org
 
         org_tz = pytz.timezone(flows[0].org.timezone)
+
         def as_org_tz(dt):
             if dt:
                 return dt.astimezone(org_tz).replace(tzinfo=None)
@@ -3076,7 +3096,6 @@ class ExportFlowResultsTask(SmartModel):
                     all_runs.write(row, col+2, text)
                     merged_runs.write(merged_row, col+2, text)
 
-
             last_run = run_step.run.pk
             last_contact = run_step.contact.pk
 
@@ -3191,7 +3210,6 @@ class ActionLog(models.Model):
         except Exception:
             # it's possible our test call can be deleted out from under us
             pass
-
 
     def as_json(self):
         return dict(direction="O", text=self.text, id=self.id, created_on=self.created_on.strftime('%x %X'), model="log")
@@ -4310,7 +4328,6 @@ class SaveToContactAction(Action):
         self.logger(run, new_value)
 
         return []
-
 
     def logger(self, run, new_value):
         # only log for test contact

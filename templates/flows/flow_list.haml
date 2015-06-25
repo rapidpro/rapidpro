@@ -1,5 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin rules sms temba compress
+-load smartmin sms temba compress
 -load i18n humanize
 
 -block title-icon
@@ -123,7 +123,7 @@
               %table.list-table.flow-list.object-list.table.table-condensed{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
                 %tbody
                   -for object in object_list
-                    -with object|flow_responses_since:flows_last_viewed as new_contacts
+                    -with object.get_and_clear_unread_responses as new_responses
                       %tr.flow.object-row.select-row{ data-object-id: "{{ object.id }}" }
                         %td.flow.checkbox.object-row-checkbox
                           -if object.flow_type != 'V' or object.org.supports_ivr
@@ -138,9 +138,9 @@
                           -if not object.is_archived
                             .value-labels
                               %nobr
-                                -if new_contacts
+                                -if new_responses
                                   %span.label.label-info.label-responses
-                                    - blocktrans count counter=new_contacts
+                                    - blocktrans count counter=new_responses
                                       1 New Response
                                       - plural
                                       ={counter} New Responses

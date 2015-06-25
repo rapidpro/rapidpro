@@ -1,3 +1,4 @@
+from django.core.urlresolvers import reverse
 from .models import get_stripe_credentials, UNREAD_INBOX_MSGS, UNREAD_FLOW_MSGS
 from django.utils import timezone
 
@@ -90,7 +91,7 @@ def unread_count_processor(request):
         # calculate and populate our unread counts on flows
         flows_unread_count = org.get_unread_msg_count(UNREAD_FLOW_MSGS)
 
-        if request.path.find('/flow/') == 0:
+        if request.path.find(reverse('flows.flow_list')) == 0:
             org.clear_unread_msg_count(UNREAD_FLOW_MSGS)
             org.flows_last_viewed = timezone.now()
             org.save(update_fields=['flows_last_viewed'])
@@ -102,7 +103,7 @@ def unread_count_processor(request):
         # calculate and populate our unread counts on inbox msgs
         msgs_unread_count = org.get_unread_msg_count(UNREAD_INBOX_MSGS)
 
-        if request.path.find('/msg/') == 0:
+        if request.path.find(reverse('msgs.msg_inbox')) == 0:
             org.clear_unread_msg_count(UNREAD_INBOX_MSGS)
             org.msg_last_viewed = timezone.now()
             org.save(update_fields=['msg_last_viewed'])

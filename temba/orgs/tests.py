@@ -1462,10 +1462,9 @@ class UnreadCountTest(FlowFileTest):
         self.assertEquals(0, response.context['msgs_unread_count'])
 
         # make sure a test contact doesn't update our counts
-        contact.is_test = True
-        contact.save()
+        test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
 
-        msg = self.create_msg(contact=contact, text="favs")
+        msg = self.create_msg(contact=test_contact, text="favs")
         Msg.process_message(msg)
 
         # assert our counts weren't updated

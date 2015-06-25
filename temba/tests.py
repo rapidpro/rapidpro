@@ -114,7 +114,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize()
 
-    def create_contact(self, name=None, number=None, twitter=None):
+    def create_contact(self, name=None, number=None, twitter=None, is_test=False):
         """
         Create a contact in the master test org
         """
@@ -127,7 +127,7 @@ class TembaTest(SmartminTest):
         if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
-        return Contact.get_or_create(self.org, self.user, name, urns=urns)
+        return Contact.get_or_create(self.org, self.user, name, urns=urns, is_test=is_test)
 
     def create_group(self, name, contacts):
         group = ContactGroup.create(self.org, self.user, name)
