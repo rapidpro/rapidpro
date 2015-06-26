@@ -559,8 +559,17 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 urn_scheme = TEL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
+                # at this point the number might be a decimal, something that looks like '18094911278.0' due to
+                # excel formatting that field as numeric.. try to parse it into an int instead
+                try:
+                    value = str(int(float(value)))
+                except ValueError:
+                    # oh well, neither of those, stick to the plan, maybe we can make sense of it below
+                    pass
+
                 # only allow valid numbers
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)
+
                 if not is_valid:
                     return None
                 # in the past, test contacts have ended up in exports. Don't re-import them
@@ -605,7 +614,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         return contact
                 
-
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or not 'org_id' in import_params or not 'extra_fields' in import_params:
