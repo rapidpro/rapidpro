@@ -2671,7 +2671,7 @@ class VumiTest(TembaTest):
                 msg.next_attempt = timezone.now()
                 msg.save()
 
-                mock.return_value = MockResponse(400, "Permanent Error")
+                mock.return_value = MockResponse(400, "User has opted out")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -2682,6 +2682,11 @@ class VumiTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
+
+                # could should now be failed as well
+                joe = Contact.objects.get(id=joe.id)
+                self.assertTrue(joe.is_failed)
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -3770,6 +3775,25 @@ class TwitterTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.clear_cache()
+
+            with patch('twython.Twython.send_direct_message') as mock:
+                mock.side_effect = TwythonError("You cannot send messages to users who are not following you.",
+                                                error_code=403)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # fail the message
+                msg = bcast.get_messages()[0]
+                self.assertEquals(FAILED, msg.status)
+                self.assertEquals(1, msg.error_count)
+
+                # contact should be failed
+                contact = Contact.objects.get(pk=joe.pk)
+                self.assertTrue(contact.is_failed)
+
         finally:
             settings.SEND_MESSAGES = False
 

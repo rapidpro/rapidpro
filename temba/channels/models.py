@@ -1104,6 +1104,7 @@ class Channel(SmartModel):
     @classmethod
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+        from temba.contacts.models import Contact
 
         channel.config['transport_name'] = 'mtech_ng_smpp_transport'
 
@@ -1144,6 +1145,10 @@ class Channel(SmartModel):
         if response.status_code != 200 and response.status_code != 201:
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
+
+            # if this is fatal due to the user opting out, fail this contact permanently
+            if response.text and response.text.find('has opted out'):
+                Contact.objects.get(id=msg.contact).fail()
 
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='PUT',
@@ -1464,6 +1469,7 @@ class Channel(SmartModel):
     @classmethod
     def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+        from temba.contacts.models import Contact
 
         consumer_key = settings.TWITTER_API_KEY
         consumer_secret = settings.TWITTER_API_SECRET
@@ -1473,7 +1479,26 @@ class Channel(SmartModel):
         twitter = Twython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
         start = time.time()
 
-        dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+        try:
+            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+        except Exception as e:
+            error_code = getattr(e, 'error_code', 400)
+            fatal = False
+
+            # this handle doesn't exist anymore or we can't send to them, fail them
+            if error_code == 404 or \
+              (error_code == 403 and str(e).index('users who are not following you')):
+                fatal = True
+                Contact.objects.get(id=msg.contact).fail()
+
+            raise SendException(str(e),
+                                'https://api.twitter.com/1.1/direct_messages/new.json',
+                                'POST',
+                                urlencode(dict(screen_name=msg.urn_path, text=text)), # not complete, but useful in the log
+                                str(e),
+                                error_code,
+                                fatal=fatal)
+
         external_id = dm['id']
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
@@ -1581,7 +1606,6 @@ class Channel(SmartModel):
                                request=json.dumps(payload),
                                response=plivo_response,
                                response_status=plivo_response_status)
-
 
     @classmethod
     def get_pending_messages(cls, org):
