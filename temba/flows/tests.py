@@ -325,20 +325,6 @@ class RuleTest(TembaTest):
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
         self.assertFalse(self.flow.find_and_handle(extra))
 
-        # check that our context processor is stuffing in our unread count
-        self.login(self.admin)
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEquals(1, response.context['flows_unread_count'])
-
-        # visit our list page, clears the count
-        response = self.client.get(reverse('flows.flow_list'))
-        self.assertEquals(0, response.context['flows_unread_count'])
-
-        response = self.client.get(reverse('msgs.msg_inbox'))
-        self.assertEquals(0, response.context['flows_unread_count'])
-
-        self.client.logout()
-
         # try exporting this flow
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
         self.assertEquals(302, exported.status_code)
@@ -3200,12 +3186,10 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
 
-
 class DuplicateValueTest(FlowFileTest):
 
     def test_duplicate_value_test(self):
         flow = self.get_flow('favorites')
-
         self.assertEquals("I don't know that color. Try again.", self.send_message(flow, "carpet"))
 
         # get the run for our contact
@@ -3221,6 +3205,7 @@ class DuplicateValueTest(FlowFileTest):
         # we should now still have only one value, but the category should be Red now
         value = Value.objects.get(run=run)
         self.assertEquals("Red", value.category)
+
 
 class WebhookLoopTest(FlowFileTest):
 

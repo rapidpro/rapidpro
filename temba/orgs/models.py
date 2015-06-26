@@ -36,6 +36,9 @@ from twilio.rest import TwilioRestClient
 from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
+UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
+UNREAD_FLOW_MSGS = 'unread_flow_msgs'
+
 CURRENT_EXPORT_VERSION = 4
 EARLIEST_IMPORT_VERSION = 3
 
@@ -1340,6 +1343,30 @@ class Org(SmartModel):
 
         return recommended
 
+    def increment_unread_msg_count(self, type):
+        """
+        Increments our redis cache of how many unread messages exist for this org and type.
+        @param type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
+        """
+        r = get_redis_connection()
+        r.hincrby(type, self.id, 1)
+
+    def get_unread_msg_count(self, msg_type):
+        """
+        Gets the value of our redis cache of how many unread messages exist for this org and type.
+        @param msg_type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
+        """
+        r = get_redis_connection()
+        count = r.hget(msg_type, self.id)
+        return 0 if count is None else int(count)
+
+    def clear_unread_msg_count(self, msg_type):
+        """
+        Clears our redis cache of how many unread messages exist for this org and type.
+        @param msg_type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
+        """
+        r = get_redis_connection()
+        r.hdel(msg_type, self.id)
 
     def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
         """

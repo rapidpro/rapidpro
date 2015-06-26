@@ -37,34 +37,6 @@ from temba.utils import analytics, build_json_response, percentage, datetime_to_
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
-def flow_unread_response_count_processor(request):
-    """
-    Context processor to calculate the number of unread responses on flows so we can
-    display that in the menu.
-    """
-    context = dict()
-    user = request.user
-
-    if user.is_superuser or user.is_anonymous():
-        return context
-
-    org = user.get_org()
-
-    if org:
-        flows_last_viewed = org.flows_last_viewed
-        unread_response_count = Flow.get_org_responses_since(org, flows_last_viewed)
-
-        if request.path.find("/flow/") == 0:
-            org.flows_last_viewed = timezone.now()
-            org.save()
-            unread_response_count = 0
-
-        context['flows_last_viewed'] = flows_last_viewed
-        context['flows_unread_count'] = unread_response_count
-
-    return context
-
-
 class BaseFlowForm(forms.ModelForm):
     expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
                                               help_text=_("When inactive contacts should be removed from the flow"),
