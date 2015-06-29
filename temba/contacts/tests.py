@@ -525,6 +525,11 @@ class ContactTest(TembaTest):
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_blocked))
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
 
+        # don't allow blocking or failing of test contacts
+        test_contact = Contact.get_test_contact(self.user)
+        self.assertRaises(ValueError, test_contact.block)
+        self.assertRaises(ValueError, test_contact.fail)
+
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
 
