@@ -807,6 +807,9 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         Blocks this contact removing it from all groups
         """
+        if self.is_test:
+            raise ValueError("Can't block a test contact")
+
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
@@ -824,6 +827,9 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         Fails this contact, provided it is currently normal
         """
+        if self.is_test:
+            raise ValueError("Can't fail a test contact")
+
         self.is_failed = True
         self.save(update_fields=['is_failed'])
 
