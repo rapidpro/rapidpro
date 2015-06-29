@@ -5,7 +5,7 @@ from django.db import migrations
 from django.db.models import Q
 
 
-def fix_test_contacts(apps, schema_editor):
+def fix_sim_contacts(apps, schema_editor):
     Contact = apps.get_model('contacts', 'Contact')
     wonky = Contact.objects.filter(is_test=True).filter(Q(is_failed=True) | Q(is_blocked=True))
     updated = wonky.update(is_failed=False, is_blocked=False)
@@ -19,5 +19,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(fix_test_contacts)
+        migrations.RunPython(fix_sim_contacts)
     ]
