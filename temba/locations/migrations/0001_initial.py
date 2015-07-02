@@ -13,6 +13,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL('CREATE EXTENSION IF NOT EXISTS postgis'),
+        migrations.RunSQL('CREATE EXTENSION IF NOT EXISTS postgis_topology'),
         migrations.CreateModel(
             name='AdminBoundary',
             fields=[

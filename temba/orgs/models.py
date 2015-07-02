@@ -36,6 +36,10 @@ from twilio.rest import TwilioRestClient
 from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
+
+UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
+UNREAD_FLOW_MSGS = 'unread_flow_msgs'
+
 CURRENT_EXPORT_VERSION = 5
 EARLIEST_IMPORT_VERSION = 3
 
@@ -216,7 +220,9 @@ class Org(SmartModel):
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
-    webhook = models.CharField(verbose_name=_("Webhook"), max_length=255, blank=True, null=True)
+    webhook = models.TextField(null=True, verbose_name=_("Webhook"),
+                              help_text=_("Webhook endpoint and configuration"))
+
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
 
@@ -237,6 +243,7 @@ class Org(SmartModel):
 
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
                                          help_text=_('The primary language will be used for contacts with no language preference.'), on_delete=models.SET_NULL)
+
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -568,6 +575,20 @@ class Org(SmartModel):
 
         setattr(self, cache_attr, schemes)
         return schemes
+
+    def get_webhook_url(self):
+        """
+        Returns a string with webhook url.
+        """
+        return json.loads(self.webhook).get('url') if self.webhook else None
+
+    def get_webhook_headers(self):
+        """
+        Returns a dictionary of any webhook headers, e.g.:
+        {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
+         'X-My-Special-Header': 'woo'}
+        """
+        return json.loads(self.webhook).get('headers', dict()) if self.webhook else dict()
 
     @classmethod
     def get_possible_countries(cls):
@@ -1323,6 +1344,30 @@ class Org(SmartModel):
 
         return recommended
 
+    def increment_unread_msg_count(self, type):
+        """
+        Increments our redis cache of how many unread messages exist for this org and type.
+        @param type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
+        """
+        r = get_redis_connection()
+        r.hincrby(type, self.id, 1)
+
+    def get_unread_msg_count(self, msg_type):
+        """
+        Gets the value of our redis cache of how many unread messages exist for this org and type.
+        @param msg_type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
+        """
+        r = get_redis_connection()
+        count = r.hget(msg_type, self.id)
+        return 0 if count is None else int(count)
+
+    def clear_unread_msg_count(self, msg_type):
+        """
+        Clears our redis cache of how many unread messages exist for this org and type.
+        @param msg_type: either UNREAD_INBOX_MSGS or UNREAD_FLOW_MSGS
+        """
+        r = get_redis_connection()
+        r.hdel(msg_type, self.id)
 
     def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
         """

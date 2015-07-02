@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import logging
 import json
 
 from context_processors import GroupPermWrapper
@@ -15,10 +16,11 @@ from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
+from temba.orgs.models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 
 
@@ -154,6 +156,34 @@ class OrgTest(TembaTest):
         # check that our user settings have changed
         settings = self.admin.get_settings()
         self.assertEquals('pt-br', settings.language)
+
+    def test_webhook_headers(self):
+        update_url = reverse('orgs.org_webhook')
+        login_url = reverse('users.user_login')
+
+        # no access if anonymous
+        response = self.client.get(update_url)
+        self.assertRedirect(response, login_url)
+
+        self.login(self.admin)
+
+        response = self.client.get(update_url)
+        self.assertEquals(200, response.status_code)
+
+        # set a webhook with headers
+        post_data = response.context['form'].initial
+        post_data['webhook'] = 'http://webhooks.uniceflabs.org'
+        post_data['header_1_key'] = 'Authorization'
+        post_data['header_1_value'] = 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='
+
+        response = self.client.post(update_url, post_data)
+        self.assertEquals(302, response.status_code)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # check that our webhook settings have changed
+        org = Org.objects.get(pk=self.org.pk)
+        self.assertEquals('http://webhooks.uniceflabs.org/', org.get_webhook_url())
+        self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, org.get_webhook_headers())
 
     def test_org_administration(self):
         manage_url = reverse('orgs.org_manage')
@@ -1037,11 +1067,11 @@ class OrgCRUDLTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # try setting our webhook and subscribe to one of the events
-        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://www.foo.com/', mt_sms=1))
+        response = self.client.post(reverse('orgs.org_webhook'), dict(webhook='http://fake.com/webhook.php', mt_sms=1))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         org = Org.objects.get(name="Relieves World")
-        self.assertEquals("http://www.foo.com/", org.webhook)
+        self.assertEquals("http://fake.com/webhook.php", org.get_webhook_url())
         self.assertTrue(org.is_notified_of_mt_sms())
         self.assertFalse(org.is_notified_of_mo_sms())
         self.assertFalse(org.is_notified_of_mt_call())
@@ -1403,3 +1433,78 @@ class BulkExportTest(TembaTest):
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
         self.assertEquals(60, confirm_appointment.expires_after_minutes)
+
+
+class UnreadCountTest(FlowFileTest):
+
+    def test_unread_count_test(self):
+        flow = self.get_flow('favorites')
+
+        # create a trigger for 'favs'
+        Trigger.objects.create(org=self.org, flow=flow, keyword='favs', created_by=self.admin, modified_by=self.admin)
+
+        # start our flow by firing an incoming message
+        contact = self.create_contact('Anakin Skywalker', '+12067791212')
+        msg = self.create_msg(contact=contact, text="favs")
+
+        # process it
+        Msg.process_message(msg)
+
+        # our flow unread count should have gone up
+        self.assertEquals(1, flow.get_and_clear_unread_responses())
+
+        # cleared by the first call
+        self.assertEquals(0, flow.get_and_clear_unread_responses())
+
+        # at this point our flow should have started.. go to our trigger list page to see if our context is correct
+        self.login(self.admin)
+        trigger_list = reverse('triggers.trigger_list')
+        response = self.client.get(trigger_list)
+
+        self.assertEquals(0, response.context['msgs_unread_count'])
+        self.assertEquals(1, response.context['flows_unread_count'])
+
+        # answer another question in the flow
+        msg = self.create_msg(contact=contact, text="red")
+        Msg.process_message(msg)
+
+        response = self.client.get(trigger_list)
+        self.assertEquals(0, response.context['msgs_unread_count'])
+        self.assertEquals(2, response.context['flows_unread_count'])
+
+        # finish the flow and send a message outside it
+        msg = self.create_msg(contact=contact, text="primus")
+        Msg.process_message(msg)
+
+        msg = self.create_msg(contact=contact, text="nic")
+        Msg.process_message(msg)
+
+        msg = self.create_msg(contact=contact, text="Hello?")
+        Msg.process_message(msg)
+
+        response = self.client.get(trigger_list)
+        self.assertEquals(4, response.context['flows_unread_count'])
+        self.assertEquals(1, response.context['msgs_unread_count'])
+
+        # visit the msg pane
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertEquals(4, response.context['flows_unread_count'])
+        self.assertEquals(0, response.context['msgs_unread_count'])
+
+        # now the flow list pane
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertEquals(0, response.context['flows_unread_count'])
+        self.assertEquals(0, response.context['msgs_unread_count'])
+
+        # make sure a test contact doesn't update our counts
+        test_contact = self.create_contact("Test Contact", "+12065551214", is_test=True)
+
+        msg = self.create_msg(contact=test_contact, text="favs")
+        Msg.process_message(msg)
+
+        # assert our counts weren't updated
+        self.assertEquals(0, self.org.get_unread_msg_count(UNREAD_INBOX_MSGS))
+        self.assertEquals(0, self.org.get_unread_msg_count(UNREAD_FLOW_MSGS))
+
+        # wasn't counted for the individual flow
+        self.assertEquals(0, flow.get_and_clear_unread_responses())

@@ -228,7 +228,7 @@ class MsgBulkActionSerializer(WriteSerializer):
         msg_ids = attrs['messages']
         action = attrs['action']
 
-        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids)
+        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).select_related('contact')
 
         if action == 'label':
             attrs['label'].toggle_label(msgs, add=True)

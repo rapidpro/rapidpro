@@ -559,8 +559,17 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 urn_scheme = TEL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
+                # at this point the number might be a decimal, something that looks like '18094911278.0' due to
+                # excel formatting that field as numeric.. try to parse it into an int instead
+                try:
+                    value = str(int(float(value)))
+                except ValueError:
+                    # oh well, neither of those, stick to the plan, maybe we can make sense of it below
+                    pass
+
                 # only allow valid numbers
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)
+
                 if not is_valid:
                     return None
                 # in the past, test contacts have ended up in exports. Don't re-import them
@@ -605,7 +614,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         return contact
                 
-
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or not 'org_id' in import_params or not 'extra_fields' in import_params:
@@ -799,13 +807,14 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         Blocks this contact removing it from all groups
         """
+        if self.is_test:
+            raise ValueError("Can't block a test contact")
+
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
-        for group in self.all_groups.all():
+        for group in self.user_groups.all():
             group.update_contacts([self], False)
-
-        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
 
     def unblock(self):
         """
@@ -814,21 +823,15 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
-        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
-
-        # if contact is failed then it should go back into the failed group
-        if self.is_failed:
-            ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
-
     def fail(self):
         """
         Fails this contact, provided it is currently normal
         """
+        if self.is_test:
+            raise ValueError("Can't fail a test contact")
+
         self.is_failed = True
         self.save(update_fields=['is_failed'])
-
-        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
 
     def unfail(self):
         """
@@ -836,8 +839,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         self.is_failed = False
         self.save(update_fields=['is_failed'])
-
-        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.remove(self)
 
     def release(self):
         """
@@ -852,7 +853,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             self.urns.update(contact=None)
 
             # remove contact from all groups
-            for group in self.all_groups.all():
+            for group in self.user_groups.all():
                 group.update_contacts((self,), False)
 
             # delete all messages with this contact
@@ -1396,6 +1397,9 @@ class ContactGroup(TembaModel, SmartModel):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
+        if self.group_type != USER_DEFINED_GROUP:
+            raise ValueError("Can't add or remove test contacts from system groups")
+
         changed = set()
         group_contacts = self.contacts.all()
 

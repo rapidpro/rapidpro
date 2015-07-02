@@ -300,60 +300,6 @@ class MsgTest(TembaTest):
         post_data['add'] = True
         return self.client.post(reverse('msgs.msg_inbox'), post_data, follow=True)
 
-    def test_unread_msg_count(self):
-        # visit the main page as a user not in the organization
-        self.login(self.non_org_user)
-        response = self.client.get('/', follow=True)
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-        self.client.logout()
-
-        # visit the main page as superuser
-        self.login(self.superuser)
-        response = self.client.get('/', follow=True)
-        # no orgs for superusers so they can't have the unread sms values
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-        self.client.logout()
-
-        # visit the main page as a user of the orgnization
-        self.login(self.admin)
-        response = self.client.get('/', follow=True)
-
-        # there is no unread sms
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-
-        self.org.msg_last_viewed = timezone.now() - timedelta(hours=3)
-        self.org.save()
-
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "test msg")
-        msg.created_on = timezone.now() - timedelta(hours=1)
-        msg.save()
-
-        # clear our cache
-        key = 'org_unread_msg_count_%d' % self.org.pk
-        cache.delete(key)
-
-        response = self.client.get(reverse('flows.flow_list'), follow=True)
-        self.assertIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-
-        # test the badge is rendered in the browser
-        self.assertIn("messages</div></a><divclass=\'notification\'>1<", response.content.replace(" ","").replace("\n", ""))
-
-        cache.delete(key)
-
-        response = self.client.get(reverse('msgs.msg_inbox'), follow=True)
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertIn('msg_last_viewed', response.context)
-
-        cache.delete(key)
-
-        response = self.client.get('/', follow=True)
-        self.assertNotIn('unread_msg_count', response.context)
-        self.assertNotIn('msg_last_viewed', response.context)
-
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
 
@@ -746,12 +692,11 @@ class MsgCRUDLTest(TembaTest):
         msg4 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test4", visibility=ARCHIVED)
         msg5 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test5", visibility=DELETED)
         msg6 = self.create_msg(direction='I', msg_type='F', contact=self.joe, text="flow test")
-        msg7 = self.create_msg(direction='I', msg_type='F', contact=Contact.get_test_contact(self.user), text="sim")
 
         # apply the labels
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg2, msg3], add=True)
-        label3.toggle_label([msg1, msg2, msg3, msg4, msg5, msg6, msg7], add=True)
+        label3.toggle_label([msg1, msg2, msg3, msg4, msg5, msg6], add=True)
 
         # can't visit a filter page as a non-org user
         self.login(self.non_org_user)
@@ -892,10 +837,7 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url + "?simulation=true")
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
 
-        test_contact = self.create_contact("simulation contact", "543")
-        test_contact.is_test = True
-        test_contact.org = self.joe.org
-        test_contact.save()
+        test_contact = Contact.get_test_contact(self.admin)
 
         post_data = dict(text="you simulator display this", omnibox="c-%d,c-%d,c-%d" % (self.joe.pk, self.frank.pk, test_contact.pk))
         self.client.post(send_url + "?simulation=true", post_data)
@@ -1245,43 +1187,64 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
-    def test_visible_count(self):
+    def test_toggle_label(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')
         msg2 = self.create_msg(text="Message 2", contact=self.joe, direction='I')
         msg3 = self.create_msg(text="Message 3", contact=self.joe, direction='I')
-        msg4 = self.create_msg(text="Message 4", contact=Contact.get_test_contact(self.user), direction='I')
 
         self.assertEqual(label.get_visible_count(), 0)
 
-        label.toggle_label([msg1, msg2, msg3, msg4], add=True)  # msg from test contact will be ignored
+        label.toggle_label([msg1, msg2, msg3], add=True)  # add label to 3 messages
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 3)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 3)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
-        label.toggle_label([msg3], add=False)
+        label.toggle_label([msg3], add=False)  # remove label from a message
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 2)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.restore()  # msg back in visible count
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 2)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.release()  # removes label message bo longer visible
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertEqual(set(label.get_messages()), {msg1})
 
         msg3.archive()
         label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         msg3.restore()  # but then restoring that message will
 
-        self.assertEqual(Label.user_labels.get(pk=label.pk).get_visible_count(), 2)
+        label = Label.user_labels.get(pk=label.pk)
+        self.assertEqual(label.get_visible_count(), 2)
+        self.assertEqual(set(label.get_messages()), {msg1, msg3})
+
+        # can't label test messages
+        msg4 = self.create_msg(text="Message", contact=Contact.get_test_contact(self.user), direction='I')
+        self.assertRaises(ValueError, label.toggle_label, [msg4], add=True)
+
+        # can't label outgoing messages
+        msg5 = self.create_msg(text="Message", contact=self.joe, direction='O')
+        self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")

@@ -48,12 +48,12 @@ class TembaTest(SmartminTest):
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
-        state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
-        state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
-        AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=state2)
-        AdminBoundary.objects.create(osm_id='1711163', name='Kayonza', level=2, parent=state2)
-        AdminBoundary.objects.create(osm_id='60485579', name='Kigali', level=2, parent=state1)
-        AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=state2)
+        self.state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
+        self.state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
+        self.district1 = AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
+        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayonza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.objects.create(osm_id='60485579', name='Kigali', level=2, parent=self.state1)
+        self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
 
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country,
                                       created_by=self.user, modified_by=self.user)
@@ -114,7 +114,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize()
 
-    def create_contact(self, name=None, number=None, twitter=None):
+    def create_contact(self, name=None, number=None, twitter=None, is_test=False):
         """
         Create a contact in the master test org
         """
@@ -127,7 +127,7 @@ class TembaTest(SmartminTest):
         if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
-        return Contact.get_or_create(self.org, self.user, name, urns=urns)
+        return Contact.get_or_create(self.org, self.user, name, urns=urns, is_test=is_test)
 
     def create_group(self, name, contacts):
         group = ContactGroup.create(self.org, self.user, name)
@@ -205,7 +205,6 @@ class TembaTest(SmartminTest):
                 r.destination = destination
         ruleset.set_rules(rules)
         ruleset.save()
-
 
 
 class FlowFileTest(TembaTest):

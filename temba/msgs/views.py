@@ -53,31 +53,6 @@ def send_message_auto_complete_processor(request):
     return dict(completions=json.dumps(completions))
 
 
-def unread_msg_count_processor(request):
-    ctxt_data = dict()
-    user = request.user
-
-    if user.is_superuser or user.is_anonymous():
-        return ctxt_data
-
-    org = user.get_org()
-    if org:
-        msg_last_viewed = org.msg_last_viewed
-        unread_msg_count = Msg.get_unread_msg_count(user)
-
-        if request.path == reverse('msgs.msg_inbox'):
-            org.msg_last_viewed = timezone.now()
-            org.save()
-
-            unread_msg_count = 0
-            ctxt_data['msg_last_viewed'] = msg_last_viewed
-
-        if unread_msg_count:
-            ctxt_data['unread_msg_count'] = unread_msg_count
-
-    return ctxt_data
-
-
 class SendMessageForm(Form):
     omnibox = OmniboxField()
     text = forms.CharField(widget=forms.Textarea, max_length=640)
@@ -807,7 +782,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE, contact__is_test=False)
+            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
 
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 

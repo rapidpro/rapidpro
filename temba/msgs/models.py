@@ -20,7 +20,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language
+from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language, UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics
@@ -638,6 +638,10 @@ class Msg(models.Model, OrgModelMixin):
 
         cls.mark_handled(msg)
 
+        # if this is an inbox message, increment our unread inbox count
+        if msg.msg_type == INBOX:
+            msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+
         # record our handling latency for this object
         if msg.queued_on:
             analytics.track("System", "temba.handling_latency", properties=dict(value=(msg.delivered_on - msg.queued_on).total_seconds()))
@@ -1237,22 +1241,25 @@ class Msg(models.Model, OrgModelMixin):
 
     def archive(self):
         """
-        Archives this message, provided it is currently visible
+        Archives this message
         """
-        if self.direction != INCOMING:
-            raise ValueError("Can only archive incoming messages")
+        if self.direction != INCOMING or self.contact.is_test:
+            raise ValueError("Can only archive incoming non-test messages")
 
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
 
     def restore(self):
         """
-        Restores (i.e. un-archives) this message, provided it is currently archived
+        Restores (i.e. un-archives) this message
         """
+        if self.direction != INCOMING or self.contact.is_test:
+            raise ValueError("Can only restore incoming non-test messages")
+
         self._update_state(dict(visibility=ARCHIVED), dict(visibility=VISIBLE), OrgEvent.msg_restored)
 
     def release(self):
         """
-        Releases (i.e. deletes) this message, provided it is not currently deleted
+        Releases (i.e. deletes) this message
         """
         # handle VISIBLE > ARCHIVED state change first if necessary
         self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
@@ -1490,6 +1497,9 @@ class Label(TembaModel, SmartModel):
         for msg in msgs:
             if msg.direction != INCOMING:
                 raise ValueError("Can only apply labels to incoming messages")
+
+            if msg.contact.is_test:
+                raise ValueError("Cannot apply labels to test messages")
 
             # if we are adding the label and this message doesnt have it, add it
             if add:

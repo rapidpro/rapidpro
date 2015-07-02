@@ -8,21 +8,11 @@ from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, SmartUpdate
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import build_json_response
-
+from django.utils.translation import ugettext_lazy as _
 
 class BoundaryCRUDL(SmartCRUDL):
-    actions = ('list', 'alias', 'geometry', 'boundaries')
+    actions = ('alias', 'geometry', 'boundaries')
     model = AdminBoundary
-
-    class List(OrgPermsMixin, SmartListView):
-        link_fields = ('name',)
-        search_fields = ('name__icontains', 'osm_id__icontains')
-
-        def get_geometry(self, obj):
-            return obj.geometry.num_coords
-
-        def get_simplified_geometry(self, obj):
-            return obj.simplified_geometry.num_coords
 
     class Alias(OrgPermsMixin, SmartReadView):
 
@@ -38,7 +28,7 @@ class BoundaryCRUDL(SmartCRUDL):
             if not response:
                 org = request.user.get_org()
                 if not org.country:
-                    messages.add_message(request, 'alert', _("You must select a country for your organization."))
+                    messages.warning(request, _("You must select a country for your organization."))
                     return HttpResponseRedirect(reverse('orgs.org_home'))
 
             return None
@@ -48,6 +38,7 @@ class BoundaryCRUDL(SmartCRUDL):
             return org.country
 
     class Geometry(OrgPermsMixin, SmartReadView):
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed in, that is derived
@@ -90,12 +81,12 @@ class BoundaryCRUDL(SmartCRUDL):
             org = request.user.get_org()
 
             try:
-                json_dict = json.loads(json_string)
+                json_list = json.loads(json_string)
             except Exception as e:
                 return build_json_response(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
             # this can definitely be optimized
-            for state in json_dict:
+            for state in json_list:
                 state_boundary = AdminBoundary.objects.filter(osm_id=state['osm_id']).first()
                 state_aliases = state.get('aliases', '')
                 if state_boundary:
@@ -106,7 +97,7 @@ class BoundaryCRUDL(SmartCRUDL):
                             district_aliases = district.get('aliases', '')
                             update_aliases(district_boundary, district_aliases)
 
-            return build_json_response(json_dict)
+            return build_json_response(json_list)
 
         def get(self, request, *args, **kwargs):
             tops = list(AdminBoundary.objects.filter(parent__osm_id=self.get_object().osm_id).order_by('name'))
