@@ -48,11 +48,11 @@ class Migration(migrations.Migration):
                     ruleset.operand = '@step.value'
 
                 if ruleset.response_type == 'K':
-                    ruleset.ruleset_type = RULESET_WAIT_DIGITS
+                    ruleset.ruleset_type = 'wait_digits'
                 elif ruleset.response_type == 'M':
-                    ruleset.ruleset_type = RULESET_WAIT_DIGIT
+                    ruleset.ruleset_type = 'wait_digit'
                 elif ruleset.response_type == 'R':
-                    ruleset.ruleset_type = RULESET_WAIT_RECORDING
+                    ruleset.ruleset_type = 'wait_recording'
                 else:
                     ruleset.result_type = 'wait_message'
 
