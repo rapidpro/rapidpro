@@ -23,7 +23,7 @@ class Command(BaseCommand): # pragma: no cover
         seen_osm_ids = []
 
         # parse our filename.. they are in the format: 192787admin2_simplified.json
-        match = regex.match(r'(\w\d+)admin(\d)(_simplified)?\.json$', filename)
+        match = regex.match(r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, regex.V0)
         if not match:
             print "Skipping '%s', doesn't match file pattern." % filename
 

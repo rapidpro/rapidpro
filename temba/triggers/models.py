@@ -179,7 +179,7 @@ class Trigger(SmartModel):
     @classmethod
     def find_and_handle(cls, msg):
         # get the first word out of our message
-        words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE)
+        words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE | regex.V0)
 
         while words and not words[0]:
             words = words[1:]

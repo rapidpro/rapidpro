@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import math
 import operator
 import regex
+
 from datetime import date as _date, time as _time
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -472,5 +473,5 @@ def get_words(text, by_spaces):
     :param by_spaces: whether words should be split only by spaces or by punctuation like '-', '.' etc
     """
     rexp = r'\s+' if by_spaces else r'\W+'
-    splits = regex.split(rexp, text, flags=regex.MULTILINE | regex.UNICODE)
+    splits = regex.split(rexp, text, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
     return [split for split in splits if split]   # return only non-empty

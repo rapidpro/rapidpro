@@ -3,11 +3,12 @@ from __future__ import unicode_literals
 import json
 import pycountry
 import regex
+
 from collections import OrderedDict
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
@@ -20,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
-from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS, USER_DEFINED_GROUP
+from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -298,7 +299,7 @@ class ContactCRUDL(SmartCRUDL):
         class CustomizeForm(forms.ModelForm):
             def clean(self):
                 # don't allow users to specify field keys or labels
-                re_col_name_field = regex.compile(r'column_\w+_label')
+                re_col_name_field = regex.compile(r'column_\w+_label', regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value

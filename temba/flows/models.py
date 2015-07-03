@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-from collections import OrderedDict
 
 import copy
 import json
@@ -12,6 +11,7 @@ import time
 import xlwt
 import urllib2
 
+from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -1230,7 +1230,7 @@ class Flow(TembaModel, SmartModel):
 
         if results and results[0]:
             for value in results[0]['values']:
-                field = regex.sub(r'[^a-z0-9]+', '_', value['label'].lower())
+                field = regex.sub(r'[^a-z0-9]+', '_', value['label'].lower(), regex.V0)
                 flow_context[field] = value_wrapper(value)
                 values.append("%s: %s" % (value['label'], value['rule_value']))
 
@@ -3635,7 +3635,7 @@ class EmailAction(Action):
             print "!! Skipping email send, SEND_EMAILS set to False"
         else:
             # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-            subject = regex.sub('\s+', ' ', subject)
+            subject = regex.sub('\s+', ' ', subject, regex.V0)
             send_mail(subject, message, from_email, emails)
 
     def get_description(self):
@@ -4722,11 +4722,11 @@ class ContainsTest(TranslatableTest):
         test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE)
+        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE)
+        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
+        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
         # run through each of our tests
         matches = []
@@ -4758,11 +4758,11 @@ class ContainsAnyTest(ContainsTest):
         test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE)
+        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE)
+        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
+        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
         # run through each of our tests
         matches = []
@@ -4982,7 +4982,7 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = regex.match(r"^(\d+).*$", word, regex.UNICODE)
+                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
                 if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
@@ -4993,7 +4993,7 @@ class NumericTest(Test):
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
         text = text.replace(',', '')
-        for word in regex.split(r"\s+", text, flags=regex.UNICODE):
+        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
             try:
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(run, context, decimal):
@@ -5077,7 +5077,7 @@ class SimpleNumericTest(Test):
         test, has_missing = Msg.substitute_variables(str(self.test), run.contact, context, org=run.flow.org)
 
         text = text.replace(',', '')
-        for word in regex.split(r"\s+", text, flags=regex.UNICODE):
+        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
             try:
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(decimal, Decimal(test)):
@@ -5187,7 +5187,7 @@ class RegexTest(TranslatableTest):
             test = run.flow.get_localized_text(self.test, run.contact)
 
             # check whether we match
-            rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
+            rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE | regex.V0)
             match = rexp.search(text)
 
             # if so, $0 will be what we return

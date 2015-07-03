@@ -7,6 +7,7 @@ import json
 import ply.lex as lex
 import ply.yacc as yacc
 import regex
+
 from datetime import timedelta, date, datetime, time
 from decimal import Decimal, DivisionByZero
 from django.utils.http import urlquote
@@ -85,7 +86,7 @@ def evaluate_template_old(template, context, url_encode=False):
     pattern = r'\B@([\w]+[\.][\w\.\|]*[\w](:([\"\']).*?\3)?|' + context_keys_joined_pattern + r'[\|\w]*)'
 
     # substitute classic style @xxx.yyy[|filter[:"param"]] expressions
-    rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE)
+    rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
     return rexp.sub(resolve_expression, template), errors
 
 
@@ -148,13 +149,13 @@ def apply_filter_old(value, filter_key, tz, dayfirst):
     elif filter_key == 'title_case':
         return value.title()
     elif filter_key == 'first_word':
-        words = regex.split(r"[\W]+", value.strip(), flags=regex.UNICODE)
+        words = regex.split(r"[\W]+", value.strip(), flags=regex.UNICODE | regex.V0)
         if words:
             return words[0]
         else:
             return value
     elif filter_key == 'remove_first_word':
-        words = regex.split(r"([\W]+)", value.strip(), flags=regex.UNICODE)
+        words = regex.split(r"([\W]+)", value.strip(), flags=regex.UNICODE | regex.V0)
         if len(words) > 2:
             return "".join(words[2:])
         else:

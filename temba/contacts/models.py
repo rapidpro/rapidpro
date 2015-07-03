@@ -54,8 +54,8 @@ class ContactField(models.Model, OrgModelMixin):
 
     @classmethod
     def make_key(cls, label):
-        key = regex.sub(r'([^a-z0-9]+)', ' ', label.lower())
-        return regex.sub(r'([^a-z0-9]+)', '_', key.strip())
+        key = regex.sub(r'([^a-z0-9]+)', ' ', label.lower(), regex.V0)
+        return regex.sub(r'([^a-z0-9]+)', '_', key.strip(), regex.V0)
 
     @classmethod
     def api_make_key(cls, label):
@@ -68,7 +68,7 @@ class ContactField(models.Model, OrgModelMixin):
 
     @classmethod
     def is_valid_label(cls, label):
-        return regex.match(r'^[A-Za-z0-9\- ]+$', label)
+        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
 
     @classmethod
     def hide_field(cls, org, key):
@@ -125,7 +125,7 @@ class ContactField(models.Model, OrgModelMixin):
             else:
                 # we need to create a new contact field, use our key with invalid chars removed
                 if not label:
-                    label = regex.sub(r'([A-Za-z0-9\- ]+)', ' ', key).title()
+                    label = regex.sub(r'([A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
 
                 if not value_type:
                     value_type = TEXT
@@ -1209,7 +1209,7 @@ class ContactURN(models.Model):
 
             return True  # if we don't have a channel with country, we can't for now validate tel numbers
         elif scheme == TWITTER_SCHEME:
-            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path)
+            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
         else:
             return False  # only tel and twitter currently supported
 
@@ -1243,7 +1243,7 @@ class ContactURN(models.Model):
             number = number[0:-4].replace('.', '')
 
         # remove other characters
-        number = regex.sub('[^0-9a-z\+]', '', number.lower())
+        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
         if len(number) > 11 and number[0] != '+':
@@ -1263,7 +1263,7 @@ class ContactURN(models.Model):
             pass
 
         # this must be a local number of some kind, just lowercase and save
-        return regex.sub('[^0-9a-z]', '', number.lower()), False
+        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
 
     def ensure_number_normalization(self, channel):
         """
@@ -1436,7 +1436,7 @@ class ContactGroup(TembaModel, SmartModel):
 
         self.query_fields.clear()
 
-        for match in regex.finditer(r'\w+', self.query):
+        for match in regex.finditer(r'\w+', self.query, regex.V0):
             field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
             if field:
                 self.query_fields.add(field)
