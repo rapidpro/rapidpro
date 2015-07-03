@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import pycountry
-import re
+import regex
 from collections import OrderedDict
 from django import forms
 from django.conf import settings
@@ -298,7 +298,7 @@ class ContactCRUDL(SmartCRUDL):
         class CustomizeForm(forms.ModelForm):
             def clean(self):
                 # don't allow users to specify field keys or labels
-                re_col_name_field = re.compile(r'column_\w+_label')
+                re_col_name_field = regex.compile(r'column_\w+_label')
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value

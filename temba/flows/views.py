@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from collections import Counter
 
 import json
-import re
+import regex
 import time
 
 from datetime import datetime
@@ -63,7 +63,7 @@ class BaseFlowForm(forms.ModelForm):
         keyword_triggers = self.cleaned_data.get('keyword_triggers', '').strip()
 
         for keyword in keyword_triggers.split(','):
-            if keyword and not re.match('^\w+$', keyword, flags=re.UNICODE):
+            if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE):
                 wrong_format.append(keyword)
 
             # make sure it is unique on this org

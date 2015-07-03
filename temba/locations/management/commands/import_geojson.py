@@ -1,6 +1,6 @@
 from optparse import make_option
 import os
-import re
+import regex
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
 from django.core.management.base import BaseCommand, CommandError
@@ -23,7 +23,7 @@ class Command(BaseCommand): # pragma: no cover
         seen_osm_ids = []
 
         # parse our filename.. they are in the format: 192787admin2_simplified.json
-        match = re.match(r'(\w\d+)admin(\d)(_simplified)?\.json$', filename)
+        match = regex.match(r'(\w\d+)admin(\d)(_simplified)?\.json$', filename)
         if not match:
             print "Skipping '%s', doesn't match file pattern." % filename
 

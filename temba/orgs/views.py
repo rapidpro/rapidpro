@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import plivo
 import pycountry
-import re
+import regex
 
 from collections import OrderedDict
 from django import forms
@@ -921,7 +921,7 @@ class OrgCRUDL(SmartCRUDL):
             # now update the org accounts
             for field in self.form.fields:
                 if self.form.cleaned_data[field]:
-                    matcher = re.match("(\w+)_(\d+)", field)
+                    matcher = regex.match("(\w+)_(\d+)", field)
                     if matcher:
                         user_type = matcher.group(1)
                         user_id = matcher.group(2)

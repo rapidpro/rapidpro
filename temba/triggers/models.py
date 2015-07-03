@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-import re
+import regex
 
 from django.db import models
 from django.utils import timezone
@@ -179,7 +179,7 @@ class Trigger(SmartModel):
     @classmethod
     def find_and_handle(cls, msg):
         # get the first word out of our message
-        words = re.split(r"[\W]+", msg.text.strip(), flags=re.UNICODE)
+        words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE)
 
         while words and not words[0]:
             words = words[1:]

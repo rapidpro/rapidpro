@@ -7,7 +7,7 @@ from urlparse import urlparse
 import os
 import pytz
 import random
-import re
+import regex
 import stripe
 import traceback
 
@@ -836,12 +836,12 @@ class Org(SmartModel):
 
         if not boundary:
             # try removing punctuation and try that
-            bare_name = re.sub(r"\W+", " ", location_string, flags=re.UNICODE).strip()
+            bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 
         # if we didn't find it, tokenize it
         if not boundary:
-            words = re.split(r"\W+", location_string.lower(), flags=re.UNICODE)
+            words = regex.split(r"\W+", location_string.lower(), flags=regex.UNICODE)
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)

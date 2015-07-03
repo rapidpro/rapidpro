@@ -41,10 +41,16 @@ class TriggerTest(TembaTest):
         response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
         self.assertEquals(1, len(response.context['form'].errors))
 
-        # unicode keyword
+        # unicode keyword (Arabic)
         post_data = dict(keyword='١٠٠', flow=flow.pk)
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
         trigger = Trigger.objects.get(keyword=u'١٠٠')
+        self.assertEquals(flow.pk, trigger.flow.pk)
+
+        # unicode keyword (Hindi)
+        post_data = dict(keyword='मिलाए', flow=flow.pk)
+        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        trigger = Trigger.objects.get(keyword=u'मिलाए')
         self.assertEquals(flow.pk, trigger.flow.pk)
 
         # a valid keyword
