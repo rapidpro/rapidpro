@@ -921,7 +921,7 @@ class OrgCRUDL(SmartCRUDL):
             # now update the org accounts
             for field in self.form.fields:
                 if self.form.cleaned_data[field]:
-                    matcher = regex.match("(\w+)_(\d+)", field | regex.V0)
+                    matcher = regex.match("(\w+)_(\d+)", field, regex.V0)
                     if matcher:
                         user_type = matcher.group(1)
                         user_id = matcher.group(2)
