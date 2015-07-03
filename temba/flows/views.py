@@ -1,13 +1,11 @@
 from __future__ import unicode_literals
-from collections import Counter
 
 import json
-import re
-import time
+import regex
 
+from collections import Counter
 from datetime import datetime
 from django.conf import settings
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
@@ -20,7 +18,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 from itertools import chain
-from redis_cache import get_redis_connection
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView, SmartDeleteView, SmartTemplateView
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
@@ -63,7 +60,7 @@ class BaseFlowForm(forms.ModelForm):
         keyword_triggers = self.cleaned_data.get('keyword_triggers', '').strip()
 
         for keyword in keyword_triggers.split(','):
-            if keyword and not re.match('^\w+$', keyword, flags=re.UNICODE):
+            if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
                 wrong_format.append(keyword)
 
             # make sure it is unique on this org
