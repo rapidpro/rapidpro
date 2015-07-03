@@ -593,6 +593,21 @@ class ChannelTest(TembaTest):
 
         self.assertTrue(len(response.context['latest_sync_events']) <= 5)
 
+        self.org.administrators.add(self.user)
+        response = self.fetch_protected(reverse('orgs.org_home'), self.user)
+        self.assertNotContains(response, 'Enable Voice')
+
+        # Add twilio credentials to make sure we can add calling for our android channel
+        twilio_config = {ACCOUNT_SID: 'SID', ACCOUNT_TOKEN: 'TOKEN', APPLICATION_SID: 'APP SID'}
+        config = self.org.config_json()
+        config.update(twilio_config)
+        self.org.config = json.dumps(config)
+        self.org.save(update_fields=['config'])
+
+        response = self.fetch_protected(reverse('orgs.org_home'), self.user)
+        self.assertTrue(self.org.is_connected_to_twilio())
+        self.assertContains(response, 'Enable Voice')
+
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
         # make sure our channel is old enough to trigger alerts
@@ -1935,5 +1950,3 @@ class ChannelAlertTest(TembaTest):
         alert = Alert.objects.all().latest('ended_on')
         self.assertTrue(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
-
-
