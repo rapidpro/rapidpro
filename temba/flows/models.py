@@ -5196,7 +5196,7 @@ class RegexTest(TranslatableTest):
 
                 # build up a dictionary that contains indexed values
                 group_dict = match.groupdict()
-                for idx in range(regex.groups + 1):
+                for idx in range(rexp.groups + 1):
                     group_dict[str(idx)] = match.group(idx)
 
                 # set it on run@extra
