@@ -245,7 +245,7 @@
                 %td
                   %h4
                     -trans "ERRORS"
-                  {{ channel_errors|length }}
+                  {{ channel.error_log_count }}
 
                   -if 'S' in object.role
                     %a{ href:"{% url 'channels.channellog_list' %}?channel={{object.get_sender.id}}" }
