@@ -744,14 +744,10 @@ class Channel(SmartModel):
         # clear our cache for this channel
         Channel.clear_cached_channel(self.id)
 
-        if self.channel_type == TWITTER:
-            from temba.triggers.models import Trigger, FOLLOW_TRIGGER
-            Trigger.objects.filter(channel=self, trigger_type=FOLLOW_TRIGGER, org=org).update(is_active=False)
-
-            if notify_mage:
-                # notify Mage so that it deactivates this channel
-                from .tasks import MageStreamAction, notify_mage_task
-                notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
+        if notify_mage and self.channel_type == TWITTER:
+            # notify Mage so that it deactivates this channel
+            from .tasks import MageStreamAction, notify_mage_task
+            notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
 
         # if we just lost calling capabilities archive our voice flows
         if CALL in self.role:
@@ -766,6 +762,10 @@ class Channel(SmartModel):
             if not org.get_schemes(ANSWER):
                 from temba.triggers.models import Trigger, INBOUND_CALL_TRIGGER
                 Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, org=org, is_archived=False).update(is_archived=True)
+
+        from temba.triggers.models import Trigger
+        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
+
 
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """

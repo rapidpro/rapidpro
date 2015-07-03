@@ -280,26 +280,24 @@ class ChannelTest(TembaTest):
                                         post_data=dict(remove=True), user=self.superuser)
         self.assertRedirect(response, reverse("orgs.org_home"))
 
-        # add twitter follow trigger
-        from temba.triggers.models import Trigger, FOLLOW_TRIGGER
-        Trigger.objects.create(org=self.org, trigger_type=FOLLOW_TRIGGER, flow=self.create_flow(),
-                               channel=self.twitter_channel, modified_by=self.admin, created_by=self.admin)
+        # create a channel
+        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
+                                         org=self.org, created_by=self.user, modified_by=self.user,
+                                         secret="12345", gcm_id="123")
+        # add channel trigger
+        from temba.triggers.models import Trigger
+        Trigger.objects.create(org=self.org, flow=self.create_flow(), channel=channel,
+                               modified_by=self.admin, created_by=self.admin)
 
-        self.assertTrue(Trigger.objects.filter(trigger_type=FOLLOW_TRIGGER,
-                                               channel=self.twitter_channel,
-                                               is_active=True))
-        with patch('temba.channels.tasks.notify_mage_task') as mock_notify_mage:
-            mock_notify_mage.return_value = "NOTIFIED"
+        self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
 
-            response = self.fetch_protected(reverse('channels.channel_delete', args=[self.twitter_channel.pk]),
-                                                    post_data=dict(remove=True), user=self.superuser)
+        response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]),
+                                        post_data=dict(remove=True), user=self.superuser)
 
-            self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertRedirect(response, reverse("orgs.org_home"))
 
-            # follow trigger should have be removed
-            self.assertFalse(Trigger.objects.filter(trigger_type=FOLLOW_TRIGGER,
-                                                    channel=self.twitter_channel,
-                                                    is_active=True))
+        # channel trigger should have be removed
+        self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))
 
     def test_list(self):
         # de-activate existing channels
