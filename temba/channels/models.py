@@ -1838,7 +1838,7 @@ class ChannelLog(models.Model):
 
     @classmethod
     def log_exception(cls, msg, e):
-        cls.write(ChannelLog.objects.create(channel=msg.channel_id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
                                             msg_id=msg.id,
                                             is_error=True,
                                             description=unicode(e.description)[:255],
@@ -1850,14 +1850,14 @@ class ChannelLog(models.Model):
 
     @classmethod
     def log_error(cls, msg, description):
-        cls.write(ChannelLog.objects.create(channel=msg.channel_id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
                                             msg_id=msg.id,
                                             is_error=True,
                                             description=description[:255]))
 
     @classmethod
     def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None):
-        cls.write(ChannelLog.objects.create(channel=msg.channel_id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
                                             msg_id=msg.id,
                                             is_error=False,
                                             description=description[:255],
