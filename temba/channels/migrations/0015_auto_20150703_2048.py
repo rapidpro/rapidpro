@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
                 UPDATE channels_channel SET error_log_count=0, success_log_count=0;
               END IF;
 
-              RETURN NEW;
+              RETURN NULL;
             END;
             $$ LANGUAGE plpgsql;
 
