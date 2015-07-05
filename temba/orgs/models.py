@@ -1378,7 +1378,7 @@ class Org(SmartModel):
             brand = BrandingMiddleware.get_branding_for_host('')
 
         self.create_system_groups()
-        self.create_sample_flows(brand['api_link'])
+        self.create_sample_flows(brand.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
     @classmethod

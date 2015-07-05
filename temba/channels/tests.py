@@ -280,6 +280,25 @@ class ChannelTest(TembaTest):
                                         post_data=dict(remove=True), user=self.superuser)
         self.assertRedirect(response, reverse("orgs.org_home"))
 
+        # create a channel
+        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
+                                         org=self.org, created_by=self.user, modified_by=self.user,
+                                         secret="12345", gcm_id="123")
+        # add channel trigger
+        from temba.triggers.models import Trigger
+        Trigger.objects.create(org=self.org, flow=self.create_flow(), channel=channel,
+                               modified_by=self.admin, created_by=self.admin)
+
+        self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
+
+        response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]),
+                                        post_data=dict(remove=True), user=self.superuser)
+
+        self.assertRedirect(response, reverse("orgs.org_home"))
+
+        # channel trigger should have be removed
+        self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))
+
     def test_list(self):
         # de-activate existing channels
         Channel.objects.all().update(is_active=False)

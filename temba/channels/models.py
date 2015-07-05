@@ -763,6 +763,10 @@ class Channel(SmartModel):
                 from temba.triggers.models import Trigger, INBOUND_CALL_TRIGGER
                 Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, org=org, is_archived=False).update(is_archived=True)
 
+        from temba.triggers.models import Trigger
+        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
+
+
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """
         Sends a GCM command to trigger a sync on the client

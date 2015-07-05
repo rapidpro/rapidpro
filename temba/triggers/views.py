@@ -266,7 +266,7 @@ class TriggerActionMixin(SmartListView):
 
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
-    actions = ('list', 'create', 'update', 'delete', 'archived',
+    actions = ('list', 'create', 'update', 'archived',
                'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow')
 
     class OrgMixin(OrgPermsMixin):
