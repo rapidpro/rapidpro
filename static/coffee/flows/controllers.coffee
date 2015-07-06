@@ -315,6 +315,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             label: "Response " + (Flow.flow.rule_sets.length + 1)
             operand: "@step.value"
             webhook_action: null,
+            ruleset_type:'wait_message',
             rules: [
               test:
                 test: "true"
@@ -878,8 +879,8 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   flow = Flow.flow
   $scope.flowFields = Flow.getFlowFields(ruleset)
 
-  formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand)
-  formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand)
+  formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
+  formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
 
   $scope.hasRules = () ->
     if $scope.formData.rulesetConfig

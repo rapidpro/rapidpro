@@ -638,7 +638,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # translates a string into a slug
     slugify: (label) ->
-      return label.toLowerCase()
+      label = label.toString().toLowerCase().replace(/([^a-z0-9]+)/, ' ')
+      return label.replace(/([^a-z0-9]+)/, '_')
 
     # Get an array of current flow fields as:
     # [ { id: 'label_name', name: 'Label Name' } ]
@@ -659,22 +660,34 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # Takes an operand (@flow.split_on_name) and returns the
     # corresponding field object
-    getFieldSelection: (fields, operand) ->
+    getFieldSelection: (fields, operand, isFlowFields) ->
 
       if fields.length == 0
         return null
 
+      isFlow = false
+      isContact = false
+
       # trim off @flow
       if operand.length > 6 and operand.slice(0, 5) == '@flow'
+        isFlow = true
         operand = operand.slice(6)
 
       # trim off @contact
       else if operand.length > 9 and operand.slice(0, 8) == '@contact'
+        isContact = true
         operand = operand.slice(9)
 
       for field in fields
         if field.id == operand
           return field
+
+      # if our field is missing, add our selves accordingly
+      if (isFlow and isFlowFields) or (isContact and !isFlowFields)
+        slugged = Flow.slugify(operand)
+        field = {id:operand,  text:slugged + ' (missing)'}
+        fields.push(field)
+        return field
 
       return fields[0]
 

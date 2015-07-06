@@ -35,7 +35,7 @@
     .flow-field{ng-if:'formData.rulesetConfig.type == "flow_field"'}><
       #split-on
         -trans "If the flow field "
-        %select{name:'flowField', required:"true", ng-model:"formData.flowField", ng-options:"field as field.text for field in flowFields"}
+        %select{ name:'flowField', required:"true", ng-model:"formData.flowField", ng-options:"field as field.text for field in flowFields"}
 
     .contact-field{ng-if:'formData.rulesetConfig.type == "contact_field"'}><
       #split-on

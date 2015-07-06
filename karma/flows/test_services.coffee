@@ -252,6 +252,47 @@ describe 'Services:', ->
         allowed = flowService.isConnectionAllowed(endOfFlow, messageSplitA)
         expect(allowed).toBe(true, 'Failed to find expression step value')
 
+    describe 'getFieldSelection()', ->
+
+      flow = null
+      flowFields = null
+      contactFields = null
+
+      beforeEach ->
+        flowService.fetch(flows.favorites.id).then ->
+          flow = flowService.flow
+        $http.flush()
+
+        flowFields = [
+          {id:'response_1', name:'Response 1'},
+          {id:'response_2', name:'Response 2'},
+          {id:'response_3', name:'Response 3'}
+        ]
+
+        contactFields = [
+          {id:'name', name:'Contact Name'},
+          {id:'email', name:'Contact Email'},
+          {id:'district', name:'Contact District'}
+        ]
+
+      it 'should identify flow fields', ->
+        previousFieldCount = flowFields.length
+        selection = flowService.getFieldSelection(flowFields, '@flow.response_1', true)
+        expect(selection.id).toBe('response_1')
+        expect(flowFields.length).toBe(previousFieldCount)
+
+      it 'should return first element if not found', ->
+        previousFieldCount = contactFields.length
+        selection = flowService.getFieldSelection(contactFields, '@flow.response_1', false)
+        expect(selection).toBe(contactFields[0])
+        expect(flowFields.length).toBe(previousFieldCount)
+
+      it 'should add a missing element if appropriate', ->
+        previousFieldCount = flowFields.length
+        selection = flowService.getFieldSelection(flowFields, '@flow.favorite_color', true)
+        expect(selection.text).toBe('favorite_color (missing)')
+        expect(flowFields.length).toBe(previousFieldCount + 1)
+
     describe 'updateDestination()', ->
       colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
       colorRulesId = '1a08ec37-2218-48fd-b6b0-846b14407041'
