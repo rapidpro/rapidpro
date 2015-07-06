@@ -613,12 +613,12 @@ class RuleTest(TembaTest):
         if extra:
             context['extra'] = extra
 
-        tuple = test.evaluate(run, self.sms, context, self.sms.text)
+        result = test.evaluate(run, self.sms, context, self.sms.text)
         if expected_test:
-            self.assertTrue(tuple[0])
+            self.assertTrue(result[0])
         else:
-            self.assertFalse(tuple[0])
-        self.assertEquals(expected_value, tuple[1])
+            self.assertFalse(result[0])
+        self.assertEquals(expected_value, result[1])
 
         # return our run for later inspection
         return run

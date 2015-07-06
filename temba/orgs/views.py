@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import plivo
 import pycountry
-import re
+import regex
 
 from collections import OrderedDict
 from django import forms
@@ -33,7 +33,7 @@ from temba.utils import analytics, build_json_response
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 
 
@@ -921,7 +921,7 @@ class OrgCRUDL(SmartCRUDL):
             # now update the org accounts
             for field in self.form.fields:
                 if self.form.cleaned_data[field]:
-                    matcher = re.match("(\w+)_(\d+)", field)
+                    matcher = regex.match("(\w+)_(\d+)", field, regex.V0)
                     if matcher:
                         user_type = matcher.group(1)
                         user_id = matcher.group(2)
@@ -1350,10 +1350,10 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def add_channel_section(self, formax, channel):
-            from temba.channels.views import get_channel_icon
-            icon = get_channel_icon(channel.channel_type)
 
             if self.has_org_perm('channels.channel_read'):
+                from temba.channels.views import get_channel_icon
+                icon = get_channel_icon(channel.channel_type)
                 formax.add_section('channel', reverse('channels.channel_read', args=[channel.pk]), icon=icon, action='link')
 
         def derive_formax_sections(self, formax, context):

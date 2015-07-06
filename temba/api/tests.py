@@ -3466,11 +3466,28 @@ class TwilioTest(TembaTest):
             # there should be two log items for the two times we sent
             self.assertEquals(2, len(response.context['channellog_list']))
 
+            # of items on this page should be right as well
+            self.assertEquals(2, response.context['paginator'].count)
+
+            # the counts on our relayer should be correct as well
+            self.channel = Channel.objects.get(id=self.channel.pk)
+            self.assertEquals(1, self.channel.error_log_count)
+            self.assertEquals(1, self.channel.success_log_count)
+
             # view the detailed information for one of them
             response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
 
             # check that it contains the log of our exception
             self.assertContains(response, "Failed to send message")
+
+            # delete our error entry
+            ChannelLog.objects.filter(is_error=True).delete()
+
+            # our counts should be right
+            # the counts on our relayer should be correct as well
+            self.channel = Channel.objects.get(id=self.channel.pk)
+            self.assertEquals(0, self.channel.error_log_count)
+            self.assertEquals(1, self.channel.success_log_count)
 
         finally:
             settings.SEND_MESSAGES = False

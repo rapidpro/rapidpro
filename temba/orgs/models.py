@@ -3,11 +3,10 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
-from urlparse import urlparse
 import os
 import pytz
 import random
-import re
+import regex
 import stripe
 import traceback
 
@@ -16,7 +15,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import Sum, Count, F
+from django.db.models import Sum, F
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -29,10 +28,11 @@ from smartmin.models import SmartModel
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, datetime_to_ms, random_string
+from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
+from urlparse import urlparse
 from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
@@ -837,12 +837,12 @@ class Org(SmartModel):
 
         if not boundary:
             # try removing punctuation and try that
-            bare_name = re.sub(r"\W+", " ", location_string, flags=re.UNICODE).strip()
+            bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 
         # if we didn't find it, tokenize it
         if not boundary:
-            words = re.split(r"\W+", location_string.lower(), flags=re.UNICODE)
+            words = regex.split(r"\W+", location_string.lower(), flags=regex.UNICODE | regex.V0)
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
@@ -1379,7 +1379,7 @@ class Org(SmartModel):
             brand = BrandingMiddleware.get_branding_for_host('')
 
         self.create_system_groups()
-        self.create_sample_flows(brand['api_link'])
+        self.create_sample_flows(brand.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
     @classmethod

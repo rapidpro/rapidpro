@@ -559,8 +559,6 @@ class ChannelCRUDL(SmartCRUDL):
                 context['sms_count'] = "~%d" % context['sms_count']
                 context['ivr_count'] = 0
 
-            context['channel_errors'] = ChannelLog.objects.filter(msg__channel=self.object, is_error=True)
-
             ## power source stats data
             source_stats = [[event['power_source'], event['count']] for event in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
             context['source_stats'] = source_stats
@@ -2027,12 +2025,15 @@ class ChannelLogCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, SmartListView):
         fields = ('channel', 'description', 'created_on')
         link_fields = ('channel', 'description', 'created_on')
+        paginate_by = 50
 
         def derive_queryset(self, **kwargs):
             channel = Channel.objects.get(pk=self.request.REQUEST['channel'])
-            errors = ChannelLog.objects.filter(msg__channel=channel,
-                                               msg__channel__org=self.request.user.get_org).order_by('-created_on')
-            return errors
+            events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
+
+            # monkey patch our queryset for the total count
+            events.count = lambda: channel.error_log_count + channel.success_log_count
+            return events
 
         def get_context_data(self, **kwargs):
             context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)

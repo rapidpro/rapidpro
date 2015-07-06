@@ -280,6 +280,25 @@ class ChannelTest(TembaTest):
                                         post_data=dict(remove=True), user=self.superuser)
         self.assertRedirect(response, reverse("orgs.org_home"))
 
+        # create a channel
+        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
+                                         org=self.org, created_by=self.user, modified_by=self.user,
+                                         secret="12345", gcm_id="123")
+        # add channel trigger
+        from temba.triggers.models import Trigger
+        Trigger.objects.create(org=self.org, flow=self.create_flow(), channel=channel,
+                               modified_by=self.admin, created_by=self.admin)
+
+        self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
+
+        response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]),
+                                        post_data=dict(remove=True), user=self.superuser)
+
+        self.assertRedirect(response, reverse("orgs.org_home"))
+
+        # channel trigger should have be removed
+        self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))
+
     def test_list(self):
         # de-activate existing channels
         Channel.objects.all().update(is_active=False)
@@ -592,6 +611,21 @@ class ChannelTest(TembaTest):
         self.assertEquals(1,response.context['network_stats'][1][1])
 
         self.assertTrue(len(response.context['latest_sync_events']) <= 5)
+
+        self.org.administrators.add(self.user)
+        response = self.fetch_protected(reverse('orgs.org_home'), self.user)
+        self.assertNotContains(response, 'Enable Voice')
+
+        # Add twilio credentials to make sure we can add calling for our android channel
+        twilio_config = {ACCOUNT_SID: 'SID', ACCOUNT_TOKEN: 'TOKEN', APPLICATION_SID: 'APP SID'}
+        config = self.org.config_json()
+        config.update(twilio_config)
+        self.org.config = json.dumps(config)
+        self.org.save(update_fields=['config'])
+
+        response = self.fetch_protected(reverse('orgs.org_home'), self.user)
+        self.assertTrue(self.org.is_connected_to_twilio())
+        self.assertContains(response, 'Enable Voice')
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
@@ -1935,5 +1969,3 @@ class ChannelAlertTest(TembaTest):
         alert = Alert.objects.all().latest('ended_on')
         self.assertTrue(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
-
-

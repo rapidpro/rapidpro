@@ -153,6 +153,12 @@ class Channel(SmartModel):
                             help_text=_("The roles this channel can fulfill"))
     parent = models.ForeignKey('self', blank=True, null=True,
                                help_text=_("The channel this channel is working on behalf of"))
+
+    success_log_count = models.IntegerField(default=0,
+                                            verbose_name=_("The number of success messages in our ChannelLog"))
+    error_log_count = models.IntegerField(default=0,
+                                          verbose_name=_("The number of error messages in our ChannelLog"))
+
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
 
@@ -762,6 +768,10 @@ class Channel(SmartModel):
             if not org.get_schemes(ANSWER):
                 from temba.triggers.models import Trigger, INBOUND_CALL_TRIGGER
                 Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, org=org, is_archived=False).update(is_archived=True)
+
+        from temba.triggers.models import Trigger
+        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
+
 
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """
@@ -1800,15 +1810,26 @@ class SendException(Exception):
 
 
 class ChannelLog(models.Model):
-    msg = models.ForeignKey('msgs.Msg')
-    description = models.CharField(max_length=255)
-    is_error = models.BooleanField(default=None)
-    url = models.TextField(null=True)
-    method = models.CharField(max_length=16, null=True)
-    request = models.TextField(null=True)
-    response = models.TextField(null=True)
-    response_status = models.IntegerField(null=True)
-    created_on = models.DateTimeField(auto_now_add=True)
+    channel = models.ForeignKey(Channel, related_name='logs',
+                                help_text=_("The channel the message was sent on"))
+    msg = models.ForeignKey('msgs.Msg',
+                            help_text=_("The message that was sent"))
+    description = models.CharField(max_length=255,
+                                   help_text=_("A description of the status of this message send"))
+    is_error = models.BooleanField(default=None,
+                                   help_text=_("Whether an error was encountered when sending the message"))
+    url = models.TextField(null=True,
+                           help_text=_("The URL used when sending the message"))
+    method = models.CharField(max_length=16, null=True,
+                              help_text=_("The HTTP method used when sending the message"))
+    request = models.TextField(null=True,
+                               help_text=_("The body of the request used when sending the message"))
+    response = models.TextField(null=True,
+                                help_text=_("The body of the response received when sending the message"))
+    response_status = models.IntegerField(null=True,
+                                          help_text=_("The response code received when sending the message"))
+    created_on = models.DateTimeField(auto_now_add=True,
+                                      help_text=_("When this log message was logged"))
 
     @classmethod
     def write(cls, log):
@@ -1819,10 +1840,10 @@ class ChannelLog(models.Model):
             print("[%d] SENT - %s %s \"%s\" %s \"%s\"" %
                   (log.msg.pk, log.method, log.url, log.request, log.response_status, log.response))
 
-
     @classmethod
     def log_exception(cls, msg, e):
-        cls.write(ChannelLog.objects.create(msg_id=msg.id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
+                                            msg_id=msg.id,
                                             is_error=True,
                                             description=unicode(e.description)[:255],
                                             method=e.method,
@@ -1833,14 +1854,15 @@ class ChannelLog(models.Model):
 
     @classmethod
     def log_error(cls, msg, description):
-        cls.write(ChannelLog.objects.create(msg_id=msg.id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
+                                            msg_id=msg.id,
                                             is_error=True,
                                             description=description[:255]))
 
-
     @classmethod
     def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None):
-        cls.write(ChannelLog.objects.create(msg_id=msg.id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
+                                            msg_id=msg.id,
                                             is_error=False,
                                             description=description[:255],
                                             method=method,
