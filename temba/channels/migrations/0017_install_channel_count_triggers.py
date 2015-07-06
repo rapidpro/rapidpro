@@ -74,7 +74,7 @@ class Migration(migrations.Migration):
                 UPDATE channels_dailychannelcount SET "count"="count"-1
                   WHERE channel_id=channel_id AND count_type=count_type AND "day" = count_day;
               END;
-            $$
+            $$ LANGUAGE plpgsql;
 
             CREATE OR REPLACE FUNCTION increment_daily_channel_count(channel_id, count_type, count_day) RETURNS TRIGGER AS $$
               BEGIN
@@ -98,7 +98,7 @@ class Migration(migrations.Migration):
                   END;
                 END LOOP;
               END;
-            $$
+            $$ LANGUAGE plpgsql;
 
             CREATE OR REPLACE FUNCTION update_daily_channel_count() RETURNS TRIGGER AS $$
             DECLARE
