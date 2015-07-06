@@ -1528,7 +1528,7 @@ class APITest(TembaTest):
         self.assertEquals(204, response.status_code)
 
         # check that label was created and applied to messages 1 and 2 but not 4 (because it's outgoing)
-        label = Label.user_labels.get(name='Test')
+        label = Label.label_objects.get(name='Test')
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # try to add an invalid label by name
@@ -1589,7 +1589,7 @@ class APITest(TembaTest):
         self.assertEqual(201, response.status_code)
 
         # check it exists
-        screened = Label.user_labels.get(name='Screened')
+        screened = Label.label_objects.get(name='Screened')
         self.assertIsNone(screened.folder)
 
         # can't create another with same name
@@ -1600,14 +1600,14 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name='Junk'))
         self.assertEquals(201, response.status_code)
 
-        junk = Label.user_labels.get(name='Junk')
+        junk = Label.label_objects.get(name='Junk')
         self.assertIsNone(junk.folder)
 
         # update changing name
         response = self.postJSON(url, dict(uuid=screened.uuid, name='Important'))
         self.assertEquals(201, response.status_code)
 
-        screened = Label.user_labels.get(uuid=screened.uuid)
+        screened = Label.label_objects.get(uuid=screened.uuid)
         self.assertEqual(screened.name, 'Important')
 
         # can't update name to something already used

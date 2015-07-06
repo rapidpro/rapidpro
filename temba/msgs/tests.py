@@ -56,7 +56,7 @@ class MsgTest(TembaTest):
         msg1 = Msg.objects.get(pk=msg1.pk)
         self.assertEqual(msg1.visibility, DELETED)
         self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
-        self.assertTrue(Label.user_labels.filter(pk=label.pk).exists())  # though don't delete the label object
+        self.assertTrue(Label.label_objects.filter(pk=label.pk).exists())  # though don't delete the label object
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
@@ -368,7 +368,7 @@ class MsgTest(TembaTest):
         post_data = dict(name="Foo")
         response = self.client.post(reverse('msgs.label_update', args=[label1.pk]), post_data)
         self.assertEquals(302, response.status_code)
-        label1 = Label.user_labels.get(pk=label1.pk)
+        label1 = Label.label_objects.get(pk=label1.pk)
         self.assertEquals("Foo", label1.name)
 
         # test deleting the label
@@ -377,7 +377,7 @@ class MsgTest(TembaTest):
 
         response = self.client.post(reverse('msgs.label_delete', args=[label1.pk]))
         self.assertEquals(302, response.status_code)
-        self.assertFalse(Label.user_labels.filter(pk=label1.id))
+        self.assertFalse(Label.label_objects.filter(pk=label1.id))
 
         # shouldn't have a remove on the update page
 
@@ -1197,44 +1197,44 @@ class LabelTest(TembaTest):
 
         label.toggle_label([msg1, msg2, msg3], add=True)  # add label to 3 messages
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 3)
         self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
         label.toggle_label([msg3], add=False)  # remove label from a message
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 1)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.restore()  # msg back in visible count
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.release()  # removes label message bo longer visible
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 1)
         self.assertEqual(set(label.get_messages()), {msg1})
 
         msg3.archive()
         label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 1)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         msg3.restore()  # but then restoring that message will
 
-        label = Label.user_labels.get(pk=label.pk)
+        label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
@@ -1292,17 +1292,17 @@ class LabelTest(TembaTest):
 
         folder1.delete()
 
-        self.assertFalse(Label.user_all.filter(pk=folder1.pk).exists())
+        self.assertFalse(Label.objects.filter(pk=folder1.pk).exists())
 
         # check that contained labels are also deleted
-        self.assertEqual(Label.user_all.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
+        self.assertEqual(Label.objects.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
         self.assertEqual(set(Msg.objects.get(pk=msg1.pk).labels.all()), set())
         self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
 
         label3.delete()
 
-        self.assertFalse(Label.user_all.filter(pk=label3.pk).exists())
+        self.assertFalse(Label.objects.filter(pk=label3.pk).exists())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
 
 
@@ -1321,7 +1321,7 @@ class LabelCRUDLTest(TembaTest):
         # try again with valid name
         self.client.post(create_label_url, dict(name="label_one"), follow=True)
 
-        label_one = Label.user_labels.get()
+        label_one = Label.label_objects.get()
         self.assertEqual(label_one.name, "label_one")
         self.assertIsNone(label_one.folder)
 
@@ -1331,17 +1331,17 @@ class LabelCRUDLTest(TembaTest):
 
         # create a folder
         self.client.post(create_folder_url, dict(name="Folder"), follow=True)
-        folder = Label.user_folders.get(name="Folder")
+        folder = Label.folder_objects.get(name="Folder")
 
         # and a label in it
         self.client.post(create_label_url, dict(name="label_two", folder=folder.pk), follow=True)
-        label_two = Label.user_labels.get(name="label_two")
+        label_two = Label.label_objects.get(name="label_two")
         self.assertEqual(label_two.folder, folder)
 
         # update label one
         self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="label_1"))
 
-        label_one = Label.user_labels.get(pk=label_one.pk)
+        label_one = Label.label_objects.get(pk=label_one.pk)
         self.assertEqual(label_one.name, "label_1")
         self.assertIsNone(label_one.folder)
 

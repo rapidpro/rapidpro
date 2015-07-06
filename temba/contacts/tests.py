@@ -497,7 +497,7 @@ class ContactTest(TembaTest):
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
         self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
-        self.assertEqual(0, Label.user_labels.get(pk=label.pk).msgs.count())
+        self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_inbox))
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_flows))
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_archived))

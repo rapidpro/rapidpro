@@ -116,7 +116,7 @@ class FolderListView(OrgPermsMixin, SmartListView):
 
         context['folders'] = folders
         context['labels'] = Label.get_hierarchy(org)
-        context['has_labels'] = Label.user_labels.filter(org=org).exists()
+        context['has_labels'] = Label.label_objects.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
@@ -357,7 +357,7 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'user_labels'
+    LABEL_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
@@ -474,7 +474,7 @@ class MsgActionForm(BaseActionForm):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'user_labels'
+    LABEL_CLASS_MANAGER = 'label_objects'
 
     HAS_IS_ACTIVE = False
 
@@ -582,7 +582,7 @@ class MsgCRUDL(SmartCRUDL):
 
             label = None
             if label_id:
-                label = Label.user_labels.get(pk=label_id)
+                label = Label.label_objects.get(pk=label_id)
 
             host = self.request.branding['host']
 
@@ -778,7 +778,7 @@ class MsgCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<label_id>\d+)/$' % (path, action)
 
         def derive_label(self):
-            return Label.user_all.get(pk=self.kwargs['label_id'])
+            return Label.objects.get(pk=self.kwargs['label_id'])
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
@@ -795,7 +795,7 @@ class BaseLabelForm(forms.ModelForm):
             raise forms.ValidationError("Name must not be blank or begin with punctuation")
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.user_all.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+        if Label.objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
             raise forms.ValidationError("Name must be unique")
 
         return name
@@ -805,7 +805,7 @@ class BaseLabelForm(forms.ModelForm):
 
 
 class LabelForm(BaseLabelForm):
-    folder = forms.ModelChoiceField(Label.user_folders.none(), required=False, label=_("Folder"))
+    folder = forms.ModelChoiceField(Label.folder_objects.none(), required=False, label=_("Folder"))
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -814,7 +814,7 @@ class LabelForm(BaseLabelForm):
 
         super(LabelForm, self).__init__(*args, **kwargs)
 
-        self.fields['folder'].queryset = Label.user_folders.filter(org=self.org)
+        self.fields['folder'].queryset = Label.folder_objects.filter(org=self.org)
 
 
 class FolderForm(BaseLabelForm):
@@ -835,7 +835,7 @@ class LabelCRUDL(SmartCRUDL):
         paginate_by = None
 
         def derive_queryset(self, **kwargs):
-            return Label.user_labels.filter(org=self.request.user.get_org())
+            return Label.label_objects.filter(org=self.request.user.get_org())
 
         def render_to_response(self, context, **response_kwargs):
             results = [dict(id=l.pk, text=l.name) for l in context['object_list']]

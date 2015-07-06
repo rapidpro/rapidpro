@@ -1384,14 +1384,53 @@ class Call(SmartModel):
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
+class SystemLabel(models.Model):
+    """
+    Sets of messages of different types maintained by database level triggers
+    """
+    TYPE_INBOX = 'I'
+    TYPE_FLOWS = 'W'
+    TYPE_ARCHIVED = 'A'
+    TYPE_OUTBOX = 'O'
+    TYPE_SENT = 'S'
+    TYPE_FAILED = 'X'
+
+    TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
+                    (TYPE_FLOWS, "Flows"),
+                    (TYPE_ARCHIVED, "Archived"),
+                    (TYPE_OUTBOX, "Outbox"),
+                    (TYPE_SENT, "Sent"),
+                    (TYPE_FAILED, "Failed"))
+
+    org = models.ForeignKey(Org)
+
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+
+    msgs = models.ManyToManyField('Msg', related_name='system_labels', verbose_name=_("Messages"),
+                                  help_text=_("Messages with this system label"))
+
+    count = models.PositiveIntegerField(default=0, help_text=_("Number of messages with this system label"))
+
+    @classmethod
+    def get_queryset(cls, org, label_type):
+        return cls.objects.get(org=org, label_type=label_type).msgs.all()
+
+    @classmethod
+    def get_counts(cls, org):
+        """
+        Gets all system label counts by type for the given org
+        """
+        return {f.label_type: f.count for f in cls.objects.filter(org=org)}
+
+
 class UserFolderManager(models.Manager):
     def get_queryset(self):
-        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.USER_FOLDER)
+        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.TYPE_FOLDER)
 
 
 class UserLabelManager(models.Manager):
     def get_queryset(self):
-        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.USER_LABEL)
+        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
 class Label(TembaModel, SmartModel):
@@ -1399,11 +1438,11 @@ class Label(TembaModel, SmartModel):
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
-    USER_FOLDER = 'F'
-    USER_LABEL = 'L'
+    TYPE_FOLDER = 'F'
+    TYPE_LABEL = 'L'
 
-    TYPE_CHOICES = ((USER_FOLDER, "User Defined Folder"),
-                    (USER_LABEL, "User Defined Label"))
+    TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"),
+                    (TYPE_LABEL, "Regular label"))
 
     org = models.ForeignKey(Org)
 
@@ -1411,15 +1450,15 @@ class Label(TembaModel, SmartModel):
 
     folder = models.ForeignKey('Label', verbose_name=_("Folder"), null=True, related_name="children")
 
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL, help_text=_("Label type"))
 
     visible_count = models.PositiveIntegerField(default=0,
                                                 help_text=_("Number of non-archived messages with this label"))
 
     # define some custom managers to do the filtering of label types for us
-    user_all = models.Manager()
-    user_folders = UserFolderManager()
-    user_labels = UserLabelManager()
+    objects = models.Manager()
+    folder_objects = UserFolderManager()
+    label_objects = UserLabelManager()
 
     @classmethod
     def get_or_create(cls, org, user, name, folder=None):
@@ -1428,14 +1467,14 @@ class Label(TembaModel, SmartModel):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
-        if folder and folder.label_type != cls.USER_FOLDER:
+        if folder and not folder.is_folder():
             raise ValueError("%s is not a label folder" % unicode(folder))
 
-        label = cls.user_labels.filter(org=org, name__iexact=name).first()
+        label = cls.label_objects.filter(org=org, name__iexact=name).first()
         if label:
             return label
 
-        return cls.user_labels.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
+        return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
     def get_or_create_folder(cls, org, user, name):
@@ -1444,11 +1483,11 @@ class Label(TembaModel, SmartModel):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid folder name: %s" % name)
 
-        folder = cls.user_folders.filter(org=org, name__iexact=name).first()
+        folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:
             return folder
 
-        return cls.user_folders.create(org=org, name=name, label_type=Label.USER_FOLDER,
+        return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                        created_by=user, modified_by=user)
 
     @classmethod
@@ -1456,10 +1495,10 @@ class Label(TembaModel, SmartModel):
         """
         Gets top-level user labels and folders, with children pre-fetched and ordered by name
         """
-        qs = Label.user_all.filter(org=org).order_by('name')
-        qs = qs.filter(Q(label_type=cls.USER_LABEL, folder=None) | Q(label_type=cls.USER_FOLDER))
+        qs = Label.objects.filter(org=org).order_by('name')
+        qs = qs.filter(Q(label_type=cls.TYPE_LABEL, folder=None) | Q(label_type=cls.TYPE_FOLDER))
 
-        children_prefetch = Prefetch('children', queryset=Label.user_all.order_by('name'))
+        children_prefetch = Prefetch('children', queryset=Label.objects.order_by('name'))
 
         return qs.select_related('folder').prefetch_related(children_prefetch)
 
@@ -1489,7 +1528,7 @@ class Label(TembaModel, SmartModel):
         """
         Adds or removes this label from the given messages
         """
-        if self.label_type != self.USER_LABEL:
+        if self.is_folder():
             raise ValueError("Can only assign messages to user labels")
 
         changed = set()
@@ -1516,7 +1555,7 @@ class Label(TembaModel, SmartModel):
         return changed
 
     def is_folder(self):
-        return self.label_type == Label.USER_FOLDER
+        return self.label_type == Label.TYPE_FOLDER
 
     def __unicode__(self):
         if self.folder:
@@ -1555,7 +1594,7 @@ class ExportMessagesTask(SmartModel):
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
-        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.user_labels.order_by('name')))
+        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.label_objects.order_by('name')))
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())

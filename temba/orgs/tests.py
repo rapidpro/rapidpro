@@ -1286,7 +1286,7 @@ class BulkExportTest(TembaTest):
             self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='C', is_archived=False).count())
             self.assertEquals(1, Trigger.objects.filter(org=self.org, trigger_type='M', is_archived=False).count())
             self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
-            self.assertEquals(1, Label.user_labels.filter(org=self.org).count())
+            self.assertEquals(1, Label.label_objects.filter(org=self.org).count())
 
         # import all our bits
         self.import_file('the-clinic')

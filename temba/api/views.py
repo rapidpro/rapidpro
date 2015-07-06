@@ -1062,7 +1062,7 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
-        queryset = self.model.user_labels.filter(org=self.request.user.get_org()).order_by('-pk')
+        queryset = self.model.label_objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
