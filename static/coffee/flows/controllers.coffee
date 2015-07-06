@@ -1220,8 +1220,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     else if ruleset.ruleset_type == 'wait_message'
       ruleset.operand = '@step.value'
 
-    $log.debug('Saving ruleset:', rulesetConfig.type, ruleset.operand)
-
     # update our rules accordingly
     $scope.updateRules(ruleset, rulesetConfig)
 
@@ -1238,7 +1236,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # remove any connections that shouldn't be allowed
     for rule in $scope.ruleset.rules
-      if not Flow.isConnectionAllowed(ruleset.uuid + '_' + rule.uuid, rule.destination)
+      if rule.destination and not Flow.isConnectionAllowed(ruleset.uuid + '_' + rule.uuid, rule.destination)
         Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
 
     # steal the old connections if we are replacing an actionset with ourselves

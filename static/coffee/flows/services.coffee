@@ -912,8 +912,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     replaceRuleset: (ruleset, markDirty=true) ->
 
-      $log.debug(ruleset)
-
       # find the ruleset we are replacing by uuid
       found = false
 
