@@ -12,7 +12,7 @@
         %p
           -blocktrans
             When somebody arrives at this point in your flow
-        %select{ng-model:"formData.rulesetConfig", ng-options:"config as config.verbose_name for config in rulesetConfigs",style:"width:320px;height:34px",class:"split-type",select2:""}
+        %select{ng-model:"formData.rulesetConfig", ng-options:"config as config.verbose_name for config in rulesetConfigs|filter:isVisibleRulesetType",style:"width:320px;height:34px",class:"split-type",select2:""}
 
       %form{name:"variable"}
         #variable-name
@@ -41,6 +41,10 @@
       #split-on
         -trans "If the contact field "
         %select{name:'contactField', required:"true", ng-model:"formData.contactField", ng-options:"field as field.text for field in contactFields"}
+
+    .wait-digits{ng-if:'formData.rulesetConfig.type == "wait_digits"'}><
+      #split-on
+        -trans "If the keypad entry before the # symbol.."
 
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
       .split-margin
@@ -83,6 +87,14 @@
           -blocktrans
             In this example @extra.product and @extra.stock_level would be
             added for all future steps.
+
+    %span{ng-if:'formData.rulesetConfig.type == "wait_digit"'}
+      %form{name:"menu",class:"ivr-menu"}
+        .option{class:'option-[[option.number]]', ng-repeat:"option in numbers"}
+          .number
+            [[option.number]]
+          %input{ng-model:"option.category.base",type:"text"}
+
     // RULE EDITOR
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules()'}><
@@ -92,7 +104,7 @@
           .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule.config.type != "true"'}
             <ng-form name="inner">
               .icon.icon-menu
-              %select{ng-model:"rule.config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:operator.name="!Other"', class:"operator-select",ng-change:"updateCategory(rule)"}
+              %select{ng-model:"rule.config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
 
               // between is the only one with two operands
               .operation{ng-if:"rule.config.operands == 2"}

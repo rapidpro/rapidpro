@@ -982,6 +982,23 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       rule.category =
         base: categoryName
 
+  $scope.isVisibleOperator = (operator) ->
+    if $scope.formData.rulesetConfig.type == 'wait_digits'
+      if not operator.voice
+        return false
+
+    if operator.name == "Other"
+      return false
+
+    return true
+
+  $scope.isVisibleRulesetType = (rulesetConfig) ->
+    if window.ivr
+      return rulesetConfig.ivr
+    else
+      return rulesetConfig.text
+
+
   $scope.getDefaultCategory = (rule) ->
 
     categoryName = ''
@@ -1081,7 +1098,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     rules = []
 
     # create rules off of an IVR menu configuration
-    if ruleset.ruleset_type == 'wait_menu'
+    if ruleset.ruleset_type == 'wait_digit'
       for option in $scope.numbers
         if option.category and option.category.base
           if flow.base_language
