@@ -1795,6 +1795,35 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
+
+class DailyChannelCount(models.Model):
+    """
+    This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
+    on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
+    of message usage over the course of time.
+    """
+    INCOMING_MSG = 'IM'
+    OUTGOING_MSG = 'OM'
+    INCOMING_IVR = 'IV'
+    OUTGOING_IVR = 'OV'
+
+    COUNT_TYPES = ((INCOMING_MSG, _("Incoming Message")),
+                   (OUTGOING_MSG, _("Outgoing Message")),
+                   (INCOMING_IVR, _("Incoming Voice")),
+                   (OUTGOING_IVR, _("Outgoing Voice")))
+
+    channel = models.ForeignKey(Channel,
+                                help_text=_("The channel this is a daily summary count for"))
+    count_type = models.CharField(choices=COUNT_TYPES, max_length=2,
+                                  help_text=_("What type of message this row is counting"))
+    day = models.DateField(help_text=_("The day this count is for"))
+    count = models.IntegerField(default=0,
+                                help_text=_("The count of messages on this day"))
+
+    class Meta:
+        unique_together = ('channel', 'day', 'count_type')
+
+
 class SendException(Exception):
 
     def __init__(self, description, url, method, request, response, response_status, fatal=False):
