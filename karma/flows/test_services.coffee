@@ -281,17 +281,37 @@ describe 'Services:', ->
         expect(selection.id).toBe('response_1')
         expect(flowFields.length).toBe(previousFieldCount)
 
-      it 'should return first element if not found', ->
+      it 'should add a missing element if appropriate', ->
+        previousFieldCount = flowFields.length
+        selection = flowService.getFieldSelection(flowFields, '@flow.favorite_color', true)
+        expect(selection.id).toBe('favorite_color')
+        expect(selection.text).toBe('favorite_color (missing)')
+        expect(flowFields.length).toBe(previousFieldCount + 1)
+
+      it 'should handle contact field lookups', ->
+        previousFieldCount = contactFields.length
+        selection = flowService.getFieldSelection(contactFields, '@contact.name', false)
+        expect(selection.id).toBe('name')
+        expect(contactFields.length).toBe(previousFieldCount)
+
+      it 'should handle missing contact field lookups', ->
+        previousFieldCount = contactFields.length
+        selection = flowService.getFieldSelection(contactFields, '@contact.favorite_donut', false)
+        expect(selection.id).toBe('favorite_donut')
+        expect(selection.text).toBe('favorite_donut (missing)')
+        expect(contactFields.length).toBe(previousFieldCount+1)
+
+      it 'should return first contact field if not found', ->
         previousFieldCount = contactFields.length
         selection = flowService.getFieldSelection(contactFields, '@flow.response_1', false)
         expect(selection).toBe(contactFields[0])
         expect(flowFields.length).toBe(previousFieldCount)
 
-      it 'should add a missing element if appropriate', ->
+      it 'should return first flow field if not found', ->
         previousFieldCount = flowFields.length
-        selection = flowService.getFieldSelection(flowFields, '@flow.favorite_color', true)
-        expect(selection.text).toBe('favorite_color (missing)')
-        expect(flowFields.length).toBe(previousFieldCount + 1)
+        selection = flowService.getFieldSelection(flowFields, '@contact.favorite_donut', true)
+        expect(selection).toBe(flowFields[0])
+        expect(flowFields.length).toBe(previousFieldCount)
 
     describe 'updateDestination()', ->
       colorActionsId = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'

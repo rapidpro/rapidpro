@@ -882,6 +882,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
 
+
   $scope.hasRules = () ->
     if $scope.formData.rulesetConfig
       return $scope.formData.rulesetConfig.type in Flow.supportsRules

@@ -598,7 +598,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # break out if our target is a pausing ruleset
       node = @getNode(targetId)
-      if @isPausingRuleset(node)
+      if node and @isPausingRuleset(node)
         return false
 
       # check if we just ate our tail
@@ -615,7 +615,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           if rule.destination
             @detectLoop(node.uuid, rule.destination, path)
       else
-        if node.destination
+        if node?.destination
           @detectLoop(node.uuid, node.destination, path)
 
     isConnectionAllowed: (sourceId, targetId) ->
@@ -648,7 +648,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       # find our unique set of keys
       flowFields = {}
       for ruleset in @flow.rule_sets
-        if ruleset.uuid != excludeRuleset.uuid
+        if ruleset.uuid != excludeRuleset?.uuid
           flowFields[@slugify(ruleset.label)] = ruleset.label
 
       # as an array
@@ -661,9 +661,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     # Takes an operand (@flow.split_on_name) and returns the
     # corresponding field object
     getFieldSelection: (fields, operand, isFlowFields) ->
-
-      if fields.length == 0
-        return null
 
       isFlow = false
       isContact = false
