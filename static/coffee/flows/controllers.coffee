@@ -315,7 +315,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             label: "Response " + (Flow.flow.rule_sets.length + 1)
             operand: "@step.value"
             webhook_action: null,
-            ruleset_type:'wait_message',
+            ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
             rules: [
               test:
                 test: "true"
@@ -812,8 +812,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       uuid: uuid()
       actions: [ action ]
 
-    formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
-
   else if options.nodeType == 'actions'
 
     actionset = options.actionset
@@ -828,6 +826,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       label: "Response " + (Flow.flow.rule_sets.length + 1)
       operand: "@step.value"
       webhook_action: null,
+      ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
       rules: [
         test:
           test: "true"
@@ -841,6 +840,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       ruleset.rules[0].category = { base:'All Responses' }
       ruleset.rules[0].category[Flow.flow.base_language] = 'All Responses'
 
+  formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
   $scope.updateActionForm = (config) ->
 
@@ -1264,12 +1264,14 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       $timeout ->
         ruleset_uuid = ruleset.uuid
         for source of connections
-          Flow.updateDestination(source, ruleset_uuid)
+          if Flow.isConnectionAllowed(source, ruleset_uuid)
+            Flow.updateDestination(source, ruleset_uuid)
       ,0
 
     # link us up if necessary, we need to do this after our element is created
     if $scope.options.dragSource
-      Flow.updateDestination($scope.options.dragSource, ruleset.uuid)
+      if Flow.isConnectionAllowed($scope.options.dragSource, ruleset.uuid)
+        Flow.updateDestination($scope.options.dragSource, ruleset.uuid)
 
     # finally, make sure we get saved
     Flow.markDirty()
