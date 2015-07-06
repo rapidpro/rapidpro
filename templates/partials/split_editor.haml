@@ -3,7 +3,7 @@
 
 .modal-header.title
   %span{ng-model:"formData.rulesetConfig",data-icon:"show",class:"modal-title ruleset-name"}><
-.modal-body
+.modal-body.split-editor
 
   <ng-form name="splitEditor">
 
@@ -98,8 +98,6 @@
     // RULE EDITOR
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules()'}><
-
-
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
           .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule.config.type != "true"'}
             <ng-form name="inner">

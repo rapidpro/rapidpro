@@ -993,6 +993,14 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     return true
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
+
+    if rulesetConfig.type == 'flow_field' and $scope.flowFields.length == 0
+      return false
+
+    if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
+      return false
+
+
     if window.ivr
       return rulesetConfig.ivr
     else
