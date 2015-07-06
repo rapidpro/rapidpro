@@ -436,20 +436,8 @@
           .flow-start{ng-show:'ruleset.uuid == flow.entry'}
             -trans "Flow Start"
 
-          .webhook-header{ng-show:'ruleset.webhook != null', ng-click:'clickWebhook(ruleset)'}
-            .title
-              -trans "Webhook"
 
-            .remove-warning
-              -trans "Remove Webhook?"
-
-            .remove.icon-close{ ng-click: 'confirmRemoveWebhook($event, ruleset); $event.stopPropagation()' }
-
-            .url
-              [[ruleset.webhook]]
-
-
-          .rule-header{ng-click:'clickRuleset(ruleset)'}
+          .rule-header{ng-class:'{webhook:ruleset.ruleset_type=="webhook"}', ng-click:'clickRuleset(ruleset)'}
             .title
               [[ruleset.label]]
 

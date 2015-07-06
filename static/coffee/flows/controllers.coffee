@@ -401,21 +401,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.removeNote = (note) ->
     Flow.removeNote(note)
 
-  $scope.clickWebhook = (ruleset) ->
-
-    DragHelper.hide()
-
-    if window.dragging or not window.mutable
-      return
-
-    modal = $modal.open
-      templateUrl: "/partials/rule_webhook?v=" + version
-      controller: RuleOptionsController
-      resolve:
-        type: -> 'api'
-        methods: -> ['GET', 'POST']
-        ruleset: -> ruleset
-
   $scope.clickRuleset = (ruleset, dragSource=null) ->
     if window.dragging or not window.mutable
       return
@@ -882,6 +867,9 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
 
+  # default webhook action
+  if not $scope.ruleset.webhook_action
+    $scope.ruleset.webhook_action = 'GET'
 
   $scope.hasRules = () ->
     if $scope.formData.rulesetConfig
@@ -1195,6 +1183,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   $scope.okRules = ->
 
+
     # close our dialog
     $modalInstance.close ""
     stopWatching()
@@ -1219,6 +1208,12 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # or just want to evaluate against a message
     else if ruleset.ruleset_type == 'wait_message'
       ruleset.operand = '@step.value'
+
+    # clear our webhook if we aren't the right type
+    # TODO: this should live in a json config blog
+    if ruleset.ruleset_type != 'webhook'
+      ruleset.webhook = null
+      ruleset.webhook_action = null
 
     # update our rules accordingly
     $scope.updateRules(ruleset, rulesetConfig)

@@ -421,21 +421,6 @@
         border-collapse: collapse;
       }
 
-      .webhook-header {
-        .title {
-          text-shadow: 0px 1px @color-webhook - #222;
-          .bg-gradient(@color-webhook, @color-webhook - #101010);
-          min-width: 200px;
-          border: none;
-        }
-
-        .url {
-          font-size: 14px;
-          padding: 5px;
-          word-wrap: break-word;
-        }
-      }
-
       .rule-header {
         .title {
           text-shadow: 0px 1px @color-rules - #222;
@@ -444,6 +429,15 @@
           border: none;
           padding-right: 15px;
           padding-left: 15px;
+        }
+
+        &.webhook {
+          .title {
+            text-shadow: 0px 1px @color-webhook - #222;
+            .bg-gradient(@color-webhook, @color-webhook - #101010);
+            min-width: 200px;
+            border: none;
+          }
         }
       }
 

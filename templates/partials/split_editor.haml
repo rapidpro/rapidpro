@@ -5,7 +5,7 @@
   %span{ng-model:"formData.rulesetConfig",data-icon:"show",class:"modal-title ruleset-name"}><
 .modal-body
 
-  <ng-form name="split_editor">
+  <ng-form name="splitEditor">
 
     .split-header
       .split-choice.pull-left
@@ -83,7 +83,6 @@
           -blocktrans
             In this example @extra.product and @extra.stock_level would be
             added for all future steps.
-
     // RULE EDITOR
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules()'}><
@@ -126,7 +125,8 @@
                 -trans "Please enter a category name."
             </ng-form>
 .modal-footer
+  <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid)',ng-click:"okRules()",class:"btn btn-primary"}
+  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules()",class:"btn btn-primary"}
     -trans "Ok"
