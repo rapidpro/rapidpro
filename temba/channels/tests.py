@@ -402,15 +402,16 @@ class ChannelTest(TembaTest):
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # but put it in the past
-        msg.created_on = timezone.now() - timedelta(hours=3)
-        msg.save()
+        msg.delete()
+        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250788123123'), "test",
+                                  created_on=timezone.now() - timedelta(hours=3))
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # if there is a successfully sent message after sms was created we do not consider it as delayed
-        success_msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250788123123'), "success-send")
-        success_msg.created_on = timezone.now() - timedelta(hours=2)
+        success_msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250788123123'), "success-send",
+                                          created_on=timezone.now() - timedelta(hours=2))
         success_msg.sent_on = timezone.now() - timedelta(hours=2)
         success_msg.status = 'S'
         success_msg.save()
@@ -639,9 +640,7 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message')
-        msg.created_on = two_hours_ago
-        msg.save()
+        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message', created_on=two_hours_ago)
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.user)
         self.assertIn('delayed_sync_event', response.context_data.keys())
@@ -1922,8 +1921,9 @@ class ChannelAlertTest(TembaTest):
         # consider the sent message was sent before our queued msg
         sent_msg.sent_on = three_hours_ago
         sent_msg.save()
-        msg1.created_on = two_hours_ago
-        msg1.save()
+
+        msg1.delete()
+        msg1 = self.create_msg(text="Message One", contact=contact, created_on=two_hours_ago, status='Q')
 
         # check our channel again
         check_channels_task()

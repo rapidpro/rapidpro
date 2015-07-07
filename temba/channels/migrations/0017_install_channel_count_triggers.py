@@ -69,10 +69,10 @@ class Migration(migrations.Migration):
         """
         #language=SQL
         install_trigger = """
-            CREATE OR REPLACE FUNCTION decrement_daily_channel_count(_channel_id INTEGER, _msg_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
+            CREATE OR REPLACE FUNCTION decrement_daily_channel_count(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
               BEGIN
                 UPDATE channels_dailychannelcount SET "count"="count"-1
-                  WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day" = _count_day;
+                  WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
               END;
             $$ LANGUAGE plpgsql;
 
@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
                 LOOP
                   -- first try incrementing
                   UPDATE channels_dailychannelcount SET "count"="count"+1
-                    WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day" = _count_day;
+                    WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
                   IF found THEN
                     RETURN;
                   END IF;
@@ -104,13 +104,13 @@ class Migration(migrations.Migration):
             DECLARE
               is_test boolean;
             BEGIN
-              -- Return if there is no channel on this message
-              IF NEW.channel_id IS NULL THEN
-                RETURN NULL;
-              END IF;
-
               -- Message being updated
               IF TG_OP = 'INSERT' THEN
+                -- Return if there is no channel on this message
+                IF NEW.channel_id IS NULL THEN
+                  RETURN NULL;
+                END IF;
+
                 -- Find out if this is a test contact
                 SELECT contacts_contact.is_test INTO STRICT is_test FROM contacts_contact WHERE id=NEW.contact_id;
 
@@ -148,12 +148,12 @@ class Migration(migrations.Migration):
                   RAISE EXCEPTION 'Cannot change direction on messages';
                 END IF;
 
-                -- Cannot move from IVR to Text
-                IF NEW.msg_type = 'V' and OLD.msg_type <> 'V' THEN
-                  RAISE EXCEPTION 'Cannot change a message from voice to something else';
+                -- Cannot move from IVR to Text, or IVR to Text
+                IF (OLD.msg_type <> 'V' AND NEW.msg_type = 'V') OR (OLD.msg_type = 'V' AND NEW.msg_type <> 'V') THEN
+                  RAISE EXCEPTION 'Cannot change a message from voice to something else or vice versa';
                 END IF;
 
-               -- Cannot change created_on
+                -- Cannot change created_on
                 IF NEW.created_on <> OLD.created_on THEN
                   RAISE EXCEPTION 'Cannot change created_on on messages';
                 END IF;
@@ -169,23 +169,23 @@ class Migration(migrations.Migration):
                 END IF;
 
                 -- This is an incoming message
-                IF NEW.direction = 'I' THEN
+                IF OLD.direction = 'I' THEN
                   -- And it is voice
-                  IF NEW.msg_type = 'V' THEN
-                    PERFORM decrement_daily_channel_count(NEW.channel_id, 'IV', DAY(NEW.created_on));
+                  IF OLD.msg_type = 'V' THEN
+                    PERFORM decrement_daily_channel_count(OLD.channel_id, 'IV', OLD.created_on::date);
                   -- Otherwise, this is a normal message
                   ELSE
-                    PERFORM decrement_daily_channel_count(NEW.channel_id, 'IM', DAY(NEW.created_on));
+                    PERFORM decrement_daily_channel_count(OLD.channel_id, 'IM', OLD.created_on::date);
                   END IF;
 
                 -- This is an outgoing message
-                ELSIF NEW.direction = 'O' THEN
+                ELSIF OLD.direction = 'O' THEN
                   -- And it is voice
-                  IF NEW.msg_type = 'V' THEN
-                    PERFORM decrement_daily_channel_count(NEW.channel_id, 'OV', DAY(NEW.created_on));
+                  IF OLD.msg_type = 'V' THEN
+                    PERFORM decrement_daily_channel_count(OLD.channel_id, 'OV', OLD.created_on::date);
                   -- Otherwise, this is a normal message
                   ELSE
-                    PERFORM decrement_daily_channel_count(NEW.channel_id, 'OM', DAY(NEW.created_on));
+                    PERFORM decrement_daily_channel_count(OLD.channel_id, 'OM', OLD.created_on::date);
                   END IF;
                 END IF;
 
