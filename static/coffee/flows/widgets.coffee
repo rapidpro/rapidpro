@@ -43,7 +43,7 @@ app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
 ]
 
 # Ajax backed select2 widget
-app.directive "autoComplete", ["$timeout", "$http", "$log", ($timeout, $http, $log) ->
+app.directive "autoComplete", ["$timeout", "$http", "$log", "Flow", ($timeout, $http, $log, Flow) ->
 
   filters = [
     { name:'title_case', display:'changes to title case'},
@@ -101,7 +101,7 @@ app.directive "autoComplete", ["$timeout", "$http", "$log", ($timeout, $http, $l
 
     element.atwho
       at: "@",
-      data: scope.$root.completions
+      data: Flow.completions
       insert_space: false
       limit: 15
       space_after: false

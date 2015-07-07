@@ -99,30 +99,30 @@
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules()'}><
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule.config.type != "true"'}
+          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.type != "true"'}
             <ng-form name="inner">
               .icon.icon-menu
-              %select{ng-model:"rule.config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
+              %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
 
               // between is the only one with two operands
-              .operation{ng-if:"rule.config.operands == 2"}
+              .operation{ng-if:"rule._config.operands == 2"}
                 %input{ng-model:"rule.test.min",name:"min",number:"",ng-required:"rule.test.min.length > 0 || rule.test.max.length > 0 || rule.category.base.length > 0",ng-change:"updateCategory(rule)",lower-than:"[[rule.test.max]]",type:"text",class:"operand-small"}
                 -trans "and"
                 %input{ng-model:"rule.test.max", name:"max",number:"",ng-required:"rule.test.min.length > 0 || rule.test.max.length > 0 || rule.category.base.length > 0",ng-change:"updateCategory(rule)",type:"text",class:"operand-small"}
 
               // single operand based rules that aren't dates
-              .operation{ng-if:'rule.config.operands == 1 && rule.config.validate !="date"'}
-                %input{ng-model:"rule.test.base",name:"operand",placeholder:"[[rule.config.placeholder]]",auto-complete:"rule.config.auto_complete",flow:"[[flowId]]",ng-required:"rule.category.base",ng-change:"updateCategory(rule)",type:"text",class:"operand",validate-type:"[[rule.config.type]]",uuid:"[[ruleset.uuid]]"}
+              .operation{ng-if:'rule._config.operands == 1 && rule._config.validate !="date"'}
+                %input{ng-model:"rule.test.base",name:"operand",placeholder:"[[rule._config.placeholder]]",auto-complete:"rule._config.auto_complete",flow:"[[flowId]]",ng-required:"rule.category.base",ng-change:"updateCategory(rule)",type:"text",class:"operand",validate-type:"[[rule._config.type]]",uuid:"[[ruleset.uuid]]"}
 
               // single operand rules with relative dates
-              .operation{ng-if:'rule.config.operands == 1 && rule.config.validate =="date"'}
+              .operation{ng-if:'rule._config.operands == 1 && rule._config.validate =="date"'}
                 -trans "today +"
                 %input{ng-model:"rule.test.base",name:"days",number:"",ng-required:"rule.category.base",type:"text",class:"operand-small"}
                 -trans "days"
-              .operation{ng-if:"rule.config.operands == 0"}
+              .operation{ng-if:"rule._config.operands == 0"}
               .categorize
                 -trans "categorize as"
-                %input{ng-model:"rule.category.base",name:"category",ng-required:"rule.config.operands==0 || (rule.config.operands==1 && rule.test.base) || (rule.config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"rule.category._autoName = false",type:"text",class:"category"}
+                %input{ng-model:"rule.category.base",name:"category",ng-required:"rule._config.operands==0 || (rule._config.operands==1 && rule.test.base) || (rule._config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"rule.category._autoName = false",type:"text",class:"category"}
               .icon.icon-close{ng-click:"remove(rule)"}
               .error{ng-show:"inner.min.$error.lowerThan"}
                 -blocktrans

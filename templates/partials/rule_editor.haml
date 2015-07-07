@@ -68,7 +68,7 @@
 
           // single operand based rules that aren't dates
           .operation{ng-if:'rule.config.operands == 1 && rule.config.validate !="date"'}
-            %input{ng-model:"rule.test.base",name:"operand",placeholder:"[[rule.config.placeholder]]",auto-complete:"rule.config.auto_complete",flow:"[[flowId]]",ng-required:"rule.category.base",ng-change:"updateCategory(rule)",type:"text",class:"operand",validate-type:"[[rule.config.type]]",uuid:"[[ruleset.uuid]]"}
+            %input{ng-model:"rule.test.base",name:"operand",placeholder:"[[rule.config.placeholder]]",auto-complete:"true",flow:"[[flowId]]",ng-required:"rule.category.base",ng-change:"updateCategory(rule)",type:"text",class:"operand",validate-type:"[[rule.config.type]]",uuid:"[[ruleset.uuid]]"}
 
           // single operand rules with relative dates
           .operation{ng-if:'rule.config.operands == 1 && rule.config.validate =="date"'}

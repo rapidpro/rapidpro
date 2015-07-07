@@ -906,7 +906,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       continue
 
     # the config is the meta data about our type of operator
-    rule.config = Flow.getOperatorConfig(rule.test.type)
+    rule._config = Flow.getOperatorConfig(rule.test.type)
 
     # we need to parse our dates
     if rule.test.type in ['date_before', 'date_after', 'date_equal']
@@ -917,7 +917,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # set the operands
     else if rule.test.type != "between"
 
-      if flow.base_language and rule.test.test and rule.config.localized
+      if flow.base_language and rule.test.test and rule._config.localized
         rule.test.base = rule.test.test[flow.base_language]
       else
         rule.test =
@@ -987,7 +987,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       if not operator.voice
         return false
 
-    if operator.name == "Other"
+    if operator.type == "true"
       return false
 
     return true
@@ -1013,7 +1013,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     if rule.test and rule.test.base
       categoryName = rule.test.base.strip()
 
-    op = rule.config.type
+    op = rule._config.type
     if op in ["between"]
       if rule.test.min
         categoryName = rule.test.min
@@ -1064,7 +1064,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
           categoryName = categoryName.charAt(0) + categoryName.substr(1).toLowerCase()
 
     else
-      named = $rootScope.opNames[op]
+      named = Flow.opNames[op]
       if named
         categoryName = named + categoryName
 
@@ -1075,15 +1075,15 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if not rule.config.operands == 0
+      if not rule._config.operands == 0
         if not rule.category or not rule.category.base
           complete = false
           break
-      else if rule.config.operands == 1
+      else if rule._config.operands == 1
         if not rule.category or not rule.category.base or not rule.test.base
           complete = false
           break
-      else if rule.config.operands == 2
+      else if rule._config.operands == 2
         if not rule.category or not rule.category.base or not rule.test.min or not rule.test.min
           complete = false
           break
@@ -1097,7 +1097,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
         category:
           _autoName: true
           base: ''
-        config: if window.ivr then Flow.getOperatorConfig('starts') else Flow.getOperatorConfig('contains_any')
+        _config: if window.ivr then Flow.getOperatorConfig('starts') else Flow.getOperatorConfig('contains_any')
   , true
 
   $scope.updateRules = (ruleset, rulesetConfig) ->
@@ -1135,11 +1135,11 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
       for rule in ruleset.rules
         # we'll tack our everything rule on the end
-        if rule.config.type == "true"
+        if rule._config.type == "true"
           continue
 
         # between categories are not required, populate their category name
-        if (not rule.category or not rule.category.base) and rule.config.type == 'between' and rule.test.min and rule.test.max
+        if (not rule.category or not rule.category.base) and rule._config.type == 'between' and rule.test.min and rule.test.max
             rule.category =
               base: rule.test.min + " - " + rule.test.max
 
@@ -1147,13 +1147,13 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
         if not rule.category or rule.category.base.strip().length == 0
           continue
 
-        rule.test.type = rule.config.type
+        rule.test.type = rule._config.type
 
         # add our time delta filter for our date operators
-        if rule.config.type in ["date_before", "date_after", "date_equal"]
+        if rule._config.type in ["date_before", "date_after", "date_equal"]
           rule.test.test = "@date.today|time_delta:'" + rule.test.base + "'"
         else
-          if flow.base_language and rule.config.localized
+          if flow.base_language and rule._config.localized
             if not rule.test.test
               rule.test.test = {}
             rule.test.test[flow.base_language] = rule.test.base
@@ -1176,7 +1176,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     ruleId = uuid()
     destination = null
     for rule in ruleset.rules
-      if rule.config.type == 'true'
+      if rule._config.type == 'true'
         destination = rule.destination
         category = rule.category
         ruleId = rule.uuid
