@@ -612,7 +612,7 @@ class ChannelCRUDL(SmartCRUDL):
                 if unsent_msgs:
                     context['unsent_msgs_count'] = unsent_msgs.count()
 
-            end_date = (timezone.now() - timedelta(days=60)).date()
+            end_date = (timezone.now() + timedelta(days=1)).date()
             start_date = end_date - timedelta(days=30)
 
             context['start_date'] = start_date
