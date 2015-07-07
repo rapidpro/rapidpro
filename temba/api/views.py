@@ -2580,7 +2580,7 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
       * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
-      * **expires** - the time (in minutes) when this flow's inactive contacts will exipire (integer)
+      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
       * **participants** - the number of contacts who have participated in this flow (integer)
       * **runs** - the total number of runs for this flow (integer)
       * **completed_runs** - the number of completed runs for this flow (integer)
