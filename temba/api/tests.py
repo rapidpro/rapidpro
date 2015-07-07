@@ -27,7 +27,7 @@ from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
-from temba.msgs.models import MSG_SENT_KEY, Label, VISIBLE, ARCHIVED, DELETED
+from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVED, DELETED
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
 from temba.utils import dict_to_struct, datetime_to_json_date
@@ -3853,13 +3853,17 @@ class MageHandlerTest(TembaTest):
         url = reverse('api.mage_handler', args=['handle_message'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
 
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_inbox))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_FLOWS])
+
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(1000, self.org.get_credits_remaining())
 
         msg = self.create_message_like_mage(text="Hello 1", contact=self.joe)
 
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_inbox))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(1000, self.org.get_credits_remaining())
 
@@ -3880,7 +3884,8 @@ class MageHandlerTest(TembaTest):
         event = json.loads(WebHookEvent.objects.get(org=self.org, event=SMS_RECEIVED).data)
         self.assertEqual(msg.id, event['sms'])
 
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(999, self.org.get_credits_remaining())
 
@@ -3890,7 +3895,8 @@ class MageHandlerTest(TembaTest):
         msg.save()
 
         self.client.post(url, dict(message_id=msg.pk, new_contact=False), **headers)
-        self.assertEqual(2, self.org.get_folder_count(OrgFolder.msgs_inbox))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(2, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(998, self.org.get_credits_remaining())
 
@@ -3905,7 +3911,8 @@ class MageHandlerTest(TembaTest):
         self.assertEqual('H', msg.status)
         self.assertEqual(self.welcome_topup, msg.topup)
 
-        self.assertEqual(3, self.org.get_folder_count(OrgFolder.msgs_inbox))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(3, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(2, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(997, self.org.get_credits_remaining())
 

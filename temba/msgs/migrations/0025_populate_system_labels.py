@@ -8,12 +8,10 @@ SYS_LABEL_FILTERS = {
     'I': dict(direction='I', visibility='V', msg_type='I'),
     'W': dict(direction='I', visibility='V', msg_type='F'),
     'A': dict(direction='I', visibility='A'),
-    'O': dict(direction='O', status='Q'),
-    'S': dict(direction='O', status='S'),
+    'O': dict(direction='O', status__in=('P', 'Q', 'W')),
+    'S': dict(direction='O', status__in=('S', 'D')),
     'X': dict(direction='O', status='F')
 }
-
-INSERT_BATCH_SIZE = 10000
 
 
 def populate_system_labels(apps, schema_editor):
@@ -32,10 +30,9 @@ def populate_system_labels(apps, schema_editor):
 
             print " > fetched %d" % len(msgs)
 
-            # insert into associative table in batches so we don't lock the table too long
-            for i in xrange(0, len(msgs), INSERT_BATCH_SIZE):
-                chunk = msgs[i:i + INSERT_BATCH_SIZE]
-                label.msgs.add(*chunk)
+            # we won't maintain an associative relationship for Sent as it's too big
+            if label_type != 'S':
+                label.msgs.add(*msgs)
 
             label.count = len(msgs)
             label.save(update_fields=('count',))

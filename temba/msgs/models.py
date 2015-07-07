@@ -20,7 +20,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language, UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
+from temba.orgs.models import Org, OrgEvent, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics
@@ -468,7 +468,7 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class Msg(models.Model, OrgModelMixin):
+class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
@@ -719,8 +719,6 @@ class Msg(models.Model, OrgModelMixin):
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
 
-        msg.org.update_caches(OrgEvent.msg_handled, msg)
-
     @classmethod
     def mark_error(cls, r, channel, msg, fatal=False):
         """
@@ -927,7 +925,6 @@ class Msg(models.Model, OrgModelMixin):
         # mark ourselves as resent
         self.status = RESENT
         self.topup = None
-        self.visibility = ARCHIVED
         self.save()
 
         # update our broadcast
@@ -1018,7 +1015,6 @@ class Msg(models.Model, OrgModelMixin):
             msg_args['topup_id'] = topup_id
 
         msg = Msg.objects.create(**msg_args)
-        msg.org.update_caches(OrgEvent.msg_new_incoming, msg)
 
         if channel:
             analytics.track('System', 'temba.msg_incoming_%s' % channel.channel_type.lower())
@@ -1176,10 +1172,7 @@ class Msg(models.Model, OrgModelMixin):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        msg = Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
-
-        org.update_caches(OrgEvent.msg_new_outgoing, msg)
-        return msg
+        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
     def resolve_recipient(org, user, recipient, channel, scheme=SEND):
@@ -1216,7 +1209,9 @@ class Msg(models.Model, OrgModelMixin):
         """
         Fails this message, provided it is currently not failed
         """
-        self._update_state(None, dict(status=FAILED), OrgEvent.msg_failed)
+        self.status = FAILED
+        self.save(update_fields=('status',))
+
         Channel.track_status(self.channel, "Failed")
 
     def status_sent(self):
@@ -1246,7 +1241,8 @@ class Msg(models.Model, OrgModelMixin):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only archive incoming non-test messages")
 
-        self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
+        self.visibility = ARCHIVED
+        self.save(update_fields=('visibility',))
 
     def restore(self):
         """
@@ -1255,18 +1251,18 @@ class Msg(models.Model, OrgModelMixin):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only restore incoming non-test messages")
 
-        self._update_state(dict(visibility=ARCHIVED), dict(visibility=VISIBLE), OrgEvent.msg_restored)
+        self.visibility = VISIBLE
+        self.save(update_fields=('visibility',))
 
     def release(self):
         """
         Releases (i.e. deletes) this message
         """
-        # handle VISIBLE > ARCHIVED state change first if necessary
-        self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
+        self.visibility = DELETED
+        self.save(update_fields=('visibility',))
 
-        if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
-            # remove labels
-            self.labels.clear()
+        # remove labels
+        self.labels.clear()
 
     @classmethod
     def apply_action_label(cls, msgs, label, add):
@@ -1402,7 +1398,7 @@ class SystemLabel(models.Model):
                     (TYPE_SENT, "Sent"),
                     (TYPE_FAILED, "Failed"))
 
-    org = models.ForeignKey(Org)
+    org = models.ForeignKey(Org, related_name='system_labels')
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
@@ -1412,15 +1408,32 @@ class SystemLabel(models.Model):
     count = models.PositiveIntegerField(default=0, help_text=_("Number of messages with this system label"))
 
     @classmethod
+    def create_all(cls, org):
+        """
+        Creates all system labels for the given org
+        """
+        labels = []
+        for label_type, _name in cls.TYPE_CHOICES:
+            labels.append(cls.objects.create(org=org, label_type=label_type))
+        return labels
+
+    @classmethod
     def get_queryset(cls, org, label_type):
         return cls.objects.get(org=org, label_type=label_type).msgs.all()
 
     @classmethod
-    def get_counts(cls, org):
+    def get_counts(cls, org, label_types=None):
         """
         Gets all system label counts by type for the given org
         """
-        return {f.label_type: f.count for f in cls.objects.filter(org=org)}
+        labels = cls.objects.filter(org=org)
+        if label_types:
+            labels = labels.filter(label_type__in=label_types)
+
+        return {f.label_type: f.count for f in labels}
+
+    class Meta:
+        unique_together = ('org', 'label_type')
 
 
 class UserFolderManager(models.Manager):

@@ -10,44 +10,70 @@ TRIGGER_SQL = """
 -- Toggle a system label on a message
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION
-  msg_toggle_system_label(_msg_id INT, _org_id INT, _label_type CHAR(1), _add BOOLEAN)
+  msg_toggle_system_label(_msg msgs_msg, _label_type CHAR(1), _add BOOLEAN)
 RETURNS VOID AS $$
 DECLARE
   _label_id INT;
 BEGIN
-  -- lookup the label id
-  SELECT id INTO STRICT _label_id FROM msgs_label
-  WHERE org_id = _org_id AND label_type = _label_type;
+  -- lookup the system label id
+  SELECT id INTO STRICT _label_id FROM msgs_systemlabel WHERE org_id = _msg.org_id AND label_type = _label_type;
 
   -- bail if label doesn't exist for some inexplicable reason
   IF _label_id IS NULL THEN
     RAISE EXCEPTION 'System label of type % does not exist for org #%', _label_type, _org_id;
   END IF;
 
-  IF _add THEN
-    BEGIN
-      INSERT INTO msgs_systemlabel_msgs (systemlabel_id, msg_id) VALUES (_label_id, _msg_id);
+  -- don't maintain associative table for Sent
+  IF _label_type = 'S' THEN
+    IF _add THEN
       UPDATE msgs_systemlabel SET "count" = "count" + 1 WHERE id = _label_id;
-    EXCEPTION WHEN unique_violation THEN
-      -- do nothing as message already had label
-    END;
-  ELSE
-    DELETE FROM msgs_msg_labels WHERE label_id = _label_id AND msg_id = _msg_id;
-    IF found THEN
+    ELSE
       UPDATE msgs_systemlabel SET "count" = "count" - 1 WHERE id = _label_id;
+    END IF;
+  ELSE
+    IF _add THEN
+      BEGIN
+        INSERT INTO msgs_systemlabel_msgs (systemlabel_id, msg_id) VALUES (_label_id, _msg.id);
+        UPDATE msgs_systemlabel SET "count" = "count" + 1 WHERE id = _label_id;
+      EXCEPTION WHEN unique_violation THEN
+        -- do nothing as message already had label
+      END;
+    ELSE
+      DELETE FROM msgs_systemlabel_msgs WHERE systemlabel_id = _label_id AND msg_id = _msg.id;
+      IF found THEN
+        UPDATE msgs_systemlabel SET "count" = "count" - 1 WHERE id = _label_id;
+      END IF;
     END IF;
   END IF;
 END;
 $$ LANGUAGE plpgsql;
 
 ----------------------------------------------------------------------
--- Convenience method to call msg_toggle_system_label with a row
+-- Determines the (mutually exclusive) system label for a msg record
 ----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION
-  msg_toggle_system_label(_msg msgs_msg, _label_type CHAR(1), _add BOOLEAN)
-RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION msg_determine_system_label(_msg msgs_msg) RETURNS CHAR(1) AS $$
 BEGIN
-  PERFORM msg_toggle_system_label(_msg.id, _msg.org_id, _label_type, _add);
+  IF _msg.direction = 'I' THEN
+    IF _msg.visibility = 'V' THEN
+      IF _msg.msg_type = 'I' THEN
+        RETURN 'I';
+      ELSIF _msg.msg_type = 'F' THEN
+        RETURN 'W';
+      END IF;
+    ELSIF _msg.visibility = 'A' THEN
+      RETURN 'A';
+    END IF;
+  ELSE
+    IF _msg.status = 'P' OR _msg.status = 'Q' OR _msg.status = 'W' THEN
+      RETURN 'O';
+    ELSIF _msg.status = 'S' OR _msg.status = 'D' THEN
+      RETURN 'S';
+    ELSIF _msg.status = 'F' THEN
+      RETURN 'X';
+    END IF;
+  END IF;
+
+  RETURN NULL; -- might not match any label
 END;
 $$ LANGUAGE plpgsql;
 
@@ -55,51 +81,48 @@ $$ LANGUAGE plpgsql;
 -- Trigger procedure to update message system labels on column changes
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION update_msg_system_labels() RETURNS TRIGGER AS $$
+DECLARE
+  _new_label_type CHAR(1);
+  _old_label_type CHAR(1);
 BEGIN
-  IF NEW.direction = 'O' AND NEW.visibility = 'A' THEN
-    RAISE EXCEPTION 'Cannot archive outgoing messages';
+  -- prevent illegal message states
+  IF NEW IS NOT NULL THEN
+    IF NEW.direction = 'I' AND NEW.status NOT IN ('P', 'H') THEN
+      RAISE EXCEPTION 'Incoming messages can only be PENDING or HANDLED';
+    END IF;
+    IF NEW.direction = 'O' AND (NEW.visibility = 'A' OR NEW.visibility = 'D') THEN
+      RAISE EXCEPTION 'Cannot archive or delete outgoing messages';
+    END IF;
   END IF;
 
-  -- new message added
+  -- new message inserted
   IF TG_OP = 'INSERT' THEN
-    IF NEW.direction = 'I' THEN
-      IF NEW.visibility = 'V' THEN
-        IF NEW.msg_type = 'I' THEN
-          PERFORM msg_toggle_system_label(NEW, 'I', true);
-        ELSIF NEW.msg_type = 'F' THEN
-          PERFORM msg_toggle_system_label(NEW, 'W', true);
-        END IF;
-      ELSIF NEW.visibility = 'A' THEN
-        PERFORM msg_toggle_system_label(NEW, 'A', true);
-      END IF;
-    ELSIF NEW.direction = 'O' THEN
-      IF NEW.status = 'Q' THEN
-        PERFORM msg_toggle_system_label(NEW, 'O', true);
-      ELSIF NEW.status = 'S' THEN
-        PERFORM increment_system_label(NEW.org_id, 'S', 1);
-      ELSIF NEW.status = 'F' THEN
-        PERFORM msg_toggle_system_label(NEW, 'X', true);
-      END IF;
+    SELECT msg_determine_system_label(NEW) INTO STRICT _new_label_type;
+    IF _new_label_type IS NOT NULL THEN
+      PERFORM msg_toggle_system_label(NEW, _new_label_type, true);
     END IF;
 
   -- existing message updated
   ELSIF TG_OP = 'UPDATE' THEN
-    -- is being classified
-    IF OLD.msg_type IS NULL AND NEW.msg_type IS NOT NULL THEN
-      IF NEW.msg_type = 'I' THEN -- as INBOX
-        PERFORM msg_toggle_system_label(NEW, 'I', true);
-      ELSIF NEW.msg_type = 'F' THEN -- as FLOW
-        PERFORM msg_toggle_system_label(NEW, 'W', true);
+    SELECT msg_determine_system_label(OLD) INTO STRICT _old_label_type;
+    SELECT msg_determine_system_label(NEW) INTO STRICT _new_label_type;
+
+    IF _old_label_type IS DISTINCT FROM _new_label_type THEN
+      IF _old_label_type IS NOT NULL THEN
+        PERFORM msg_toggle_system_label(NEW, _old_label_type, false);
       END IF;
-
-    -- is being archived
-    IF OLD.visibility = 'V' AND NEW.visibility = 'A' THEN
-
-    -- is being restored
-    ELSIF OLD.visibility = 'A' AND NEW.visibility = 'V' THEN
-
+      IF _new_label_type IS NOT NULL THEN
+        PERFORM msg_toggle_system_label(NEW, _new_label_type, true);
+      END IF;
     END IF;
 
+  -- existing message deleted
+  ELSIF TG_OP = 'DELETE' THEN
+    SELECT msg_determine_system_label(OLD) INTO STRICT _old_label_type;
+
+    IF _old_label_type IS NOT NULL THEN
+      PERFORM msg_toggle_system_label(OLD, _old_label_type, true);
+    END IF;
   END IF;
 
   RETURN NULL;

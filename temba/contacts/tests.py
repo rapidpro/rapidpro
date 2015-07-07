@@ -9,8 +9,6 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.db import connection
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
@@ -21,9 +19,9 @@ from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgFolder
 from temba.channels.models import Channel
-from temba.msgs.models import Msg, Call, Label
+from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
-from temba.triggers.models import Trigger, KEYWORD_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import STATE, DATETIME
 
@@ -408,10 +406,10 @@ class ContactTest(TembaTest):
 
         self.clear_cache()
 
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
         self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
@@ -452,9 +450,10 @@ class ContactTest(TembaTest):
 
         # but his messages are unchanged
         self.assertEqual(2, Msg.objects.filter(contact=self.joe, visibility='V').count())
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         self.joe.unblock()
 
@@ -498,9 +497,11 @@ class ContactTest(TembaTest):
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
         self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
         self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_inbox))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_flows))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_archived))
+
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         # and he shouldn't be in any groups
         self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())

@@ -16,7 +16,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock
+from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.models import TembaModel
@@ -36,7 +36,7 @@ END_TEST_CONTACT_PATH = 12065550199
 
 
 
-class ContactField(models.Model, OrgModelMixin):
+class ContactField(models.Model):
     """
     Represents a type of field that can be put on Contacts.
     """
@@ -148,7 +148,7 @@ class ContactField(models.Model, OrgModelMixin):
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel, OrgModelMixin):
+class Contact(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -448,8 +448,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 # add it to our All Contacts group
                 if not contact.is_test:
                     ContactGroup.system_groups.get(org=org, group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
-
-                org.update_caches(OrgEvent.contact_new, contact)
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True

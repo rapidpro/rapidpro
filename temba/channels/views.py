@@ -10,7 +10,6 @@ import pycountry
 import pytz
 import time
 
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from django import forms
 from django.conf import settings
@@ -28,7 +27,7 @@ from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
 from temba.ivr.models import IVRCall, INCOMING, OUTGOING
-from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR, FLOW, INBOX
+from temba.msgs.models import Broadcast, Call, Msg, SystemLabel, QUEUED, PENDING, IVR
 from temba.orgs.models import Org, ACCOUNT_SID, OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
@@ -548,7 +547,9 @@ class ChannelCRUDL(SmartCRUDL):
             if not channel.is_active:
                 raise Http404("No active channel with that id")
 
-            context['sms_count'] = channel.org.get_folder_count(OrgFolder.msgs_inbox) + channel.org.get_folder_count(OrgFolder.msgs_outbox)
+            msg_counts = SystemLabel.get_counts(channel.org, (SystemLabel.TYPE_INBOX, SystemLabel.TYPE_OUTBOX))
+
+            context['sms_count'] = msg_counts[SystemLabel.TYPE_INBOX] + msg_counts[SystemLabel.TYPE_OUTBOX]
             is_jumbo = context['sms_count'] > 1000000
 
             # calculate the count for real if it won't be too expensive

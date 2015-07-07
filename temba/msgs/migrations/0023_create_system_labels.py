@@ -10,7 +10,7 @@ def create_system_labels(apps, schema_editor):
 
     for org in Org.objects.all():
         for label_type in ('I', 'W', 'A', 'O', 'S', 'X'):
-            SystemLabel.objects.create(org=org, label_type=label_type, count=0)
+            SystemLabel.objects.create(org=org, label_type=label_type)
 
 
 class Migration(migrations.Migration):

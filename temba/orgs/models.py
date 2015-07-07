@@ -108,34 +108,15 @@ class OrgFolder(Enum):
     contacts_blocked = 3
 
     # used on the messages page
-    msgs_inbox = 4
-    msgs_archived = 5
-    msgs_outbox = 6
-    broadcasts_outbox = 7
     calls_all = 8
-    msgs_flows = 9
     broadcasts_scheduled = 10
-    msgs_failed = 11
 
 
 class OrgEvent(Enum):
     """
     Represents an internal org event
     """
-    contact_new = 1
-    contact_blocked = 2
-    contact_unblocked = 3
-    contact_failed = 4
-    contact_unfailed = 5
-    contact_deleted = 6
     broadcast_new = 7
-    msg_new_incoming = 8
-    msg_new_outgoing = 9
-    msg_handled = 10
-    msg_failed = 11
-    msg_archived = 12
-    msg_restored = 13
-    msg_deleted = 14
     call_new = 15
     topup_new = 16
     topup_updated = 17
@@ -157,34 +138,6 @@ class OrgCache(Enum):
     """
     display = 1
     credits = 2
-
-
-class OrgModelMixin(object):
-    """
-    Mixin for objects like contacts, messages which are owned by orgs and affect org caches
-    """
-    def _update_state(self, required_state, new_state, event):
-        """
-        Updates the state of this org-owned asset and triggers an org event, if it is currently in another state
-        """
-        qs = type(self).objects.filter(pk=self.pk)
-
-        # required state is either provided explicitly, or is inverse of new_state
-        if required_state:
-            qs = qs.filter(**required_state)
-        else:
-            qs = qs.exclude(**new_state)
-
-        # tells us if object state was actually changed at a db-level
-        rows_updated = qs.update(**new_state)
-        if rows_updated:
-            # update current object to new state
-            for attr_name, value in new_state.iteritems():
-                setattr(self, attr_name, value)
-
-            self.org.update_caches(event, self)
-
-        return bool(rows_updated)
 
 
 class Org(SmartModel):
@@ -274,7 +227,7 @@ class Org(SmartModel):
         """
         Gets the queryset for the given contact or message folder for this org
         """
-        from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, FLOW, FAILED as M_FAILED
+        from temba.msgs.models import Broadcast, Call
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         if folder == OrgFolder.contacts_all:
@@ -283,22 +236,12 @@ class Org(SmartModel):
             return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
         elif folder == OrgFolder.contacts_blocked:
             return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.msgs_inbox:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX)
-        elif folder == OrgFolder.msgs_archived:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=True)
-        elif folder == OrgFolder.msgs_outbox:
-            return Msg.get_messages(self, direction=OUTGOING, is_archived=False)
         elif folder == OrgFolder.broadcasts_outbox:
             return Broadcast.get_broadcasts(self, scheduled=False)
         elif folder == OrgFolder.calls_all:
             return Call.get_calls(self)
-        elif folder == OrgFolder.msgs_flows:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=FLOW)
         elif folder == OrgFolder.broadcasts_scheduled:
             return Broadcast.get_broadcasts(self, scheduled=True)
-        elif folder == OrgFolder.msgs_failed:
-            return Msg.get_messages(self, direction=OUTGOING, is_archived=False).filter(status=M_FAILED)
 
     def get_folder_count(self, folder):
         """
@@ -350,66 +293,28 @@ class Org(SmartModel):
         """
         Gets whether this org has any messages (or calls)
         """
-        return (self.get_folder_count(OrgFolder.msgs_inbox)
-                + self.get_folder_count(OrgFolder.msgs_outbox)
-                + self.get_folder_count(OrgFolder.calls_all)) > 0
+        from temba.msgs.models import SystemLabel
+
+        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX, SystemLabel.TYPE_OUTBOX))
+        num_calls = self.get_folder_count(OrgFolder.calls_all)
+        return (msg_counts[SystemLabel.TYPE_INBOX] + msg_counts[SystemLabel.TYPE_OUTBOX] + num_calls) > 0
 
     def update_caches(self, event, entity):
         """
         Update org-level caches in response to an event
         """
-        from temba.msgs.models import INCOMING, INBOX, FAILED as M_FAILED
-
-        #print "ORG EVENT: %s for %s #%d" % (event.name, type(entity).__name__, entity.pk)
-
         r = get_redis_connection()
 
         def update_folder_count(folder, delta):
-            #print " > %d to folder %s" % (delta, folder.name)
-
             cache_key = self._get_folder_count_cache_key(folder)
             incrby_existing(cache_key, delta, r)
 
         # helper methods for modifying all the keys
         clear_value = lambda key: r.delete(key)
         increment_count = lambda folder: update_folder_count(folder, 1)
-        decrement_count = lambda folder: update_folder_count(folder, -1)
 
-        if event == OrgEvent.broadcast_new:
-            if entity.schedule:
-                increment_count(OrgFolder.broadcasts_scheduled)
-            else:
-                increment_count(OrgFolder.broadcasts_outbox)
-
-        elif event == OrgEvent.msg_new_incoming:
-            pass  # message will be pending and won't appear in the inbox
-
-        elif event == OrgEvent.msg_new_outgoing:
-            increment_count(OrgFolder.msgs_outbox)
-
-        elif event == OrgEvent.msg_handled:
-            increment_count(OrgFolder.msgs_inbox if entity.msg_type == INBOX else OrgFolder.msgs_flows)
-
-        elif event == OrgEvent.msg_failed:
-            increment_count(OrgFolder.msgs_failed)
-
-        elif event == OrgEvent.msg_archived:
-            if entity.direction == INCOMING:
-                decrement_count(OrgFolder.msgs_inbox if entity.msg_type == INBOX else OrgFolder.msgs_flows)
-            else:
-                decrement_count(OrgFolder.msgs_outbox)
-            increment_count(OrgFolder.msgs_archived)
-            if entity.status == M_FAILED:
-                decrement_count(OrgFolder.msgs_failed)
-
-        elif event == OrgEvent.msg_restored:
-            increment_count(OrgFolder.msgs_inbox if entity.direction == INCOMING else OrgFolder.msgs_outbox)
-            decrement_count(OrgFolder.msgs_archived)
-            if entity.status == M_FAILED:
-                increment_count(OrgFolder.msgs_failed)
-
-        elif event == OrgEvent.msg_deleted:
-            decrement_count(OrgFolder.msgs_archived)
+        if event == OrgEvent.broadcast_new and entity.schedule:
+            increment_count(OrgFolder.broadcasts_outbox)
 
         elif event == OrgEvent.call_new:
             increment_count(OrgFolder.calls_all)
@@ -921,11 +826,14 @@ class Org(SmartModel):
     def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
         return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
 
-    def create_system_groups(self):
+    def create_system_labels_and_groups(self):
         """
-        Initializes our system groups for this organization so that we can keep track of counts etc..
+        Creates our system labels and groups for this organization so that we can keep track of counts etc..
         """
+        from temba.msgs.models import SystemLabel
         from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
+
+        SystemLabel.create_all(self)
 
         self.all_groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
                                created_by=self.created_by, modified_by=self.modified_by)
@@ -1377,7 +1285,7 @@ class Org(SmartModel):
         if not brand:
             brand = BrandingMiddleware.get_branding_for_host('')
 
-        self.create_system_groups()
+        self.create_system_labels_and_groups()
         self.create_sample_flows(brand.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 

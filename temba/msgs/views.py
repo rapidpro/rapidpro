@@ -21,7 +21,7 @@ from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, VISIBLE
+from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
 
 
 def send_message_auto_complete_processor(request):
@@ -71,7 +71,7 @@ class SendMessageForm(Form):
         return valid
 
 
-class FolderListView(OrgPermsMixin, SmartListView):
+class MsgListView(OrgPermsMixin, SmartListView):
     """
     Base class for message list views with message folders and labels listed by the side
     """
@@ -82,12 +82,12 @@ class FolderListView(OrgPermsMixin, SmartListView):
     paginate_by = 100
 
     def pre_process(self, request, *args, **kwargs):
-        if hasattr(self, 'folder'):
+        if hasattr(self, 'system_label'):
             org = request.user.get_org()
-            self.queryset = org.get_folder_queryset(self.folder)
+            self.queryset = SystemLabel.get_queryset(org, self.system_label)
 
     def get_queryset(self, **kwargs):
-        queryset = super(FolderListView, self).get_queryset(**kwargs)
+        queryset = super(MsgListView, self).get_queryset(**kwargs)
 
         # if we are searching, limit to last 90
         if 'search' in self.request.REQUEST:
@@ -104,15 +104,18 @@ class FolderListView(OrgPermsMixin, SmartListView):
         if hasattr(self, 'folder') and 'search' not in self.request.REQUEST:
             org.patch_folder_queryset(self.object_list, self.folder, self.request)
 
-        context = super(FolderListView, self).get_context_data(**kwargs)
+        context = super(MsgListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=org.get_folder_count(OrgFolder.msgs_inbox), label=_("Inbox"), url=reverse('msgs.msg_inbox')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_archived), label=_("Archived"), url=reverse('msgs.msg_archived')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_outbox), label=_("Outbox"), url=reverse('msgs.broadcast_outbox')),
+        msg_counts = SystemLabel.get_counts(org)
+
+        folders = [dict(count=msg_counts[SystemLabel.TYPE_INBOX], label=_("Inbox"), url=reverse('msgs.msg_inbox')),
+                   dict(count=msg_counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
+                   dict(count=msg_counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse('msgs.msg_flow')),
+                   dict(count=msg_counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
+                   dict(count=msg_counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
                    dict(count=org.get_folder_count(OrgFolder.calls_all), label=_("Calls"), url=reverse('msgs.call_list')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_flows), label=_("Flows"), url=reverse('msgs.msg_flow')),
                    dict(count=org.get_folder_count(OrgFolder.broadcasts_scheduled), label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_failed), label=_("Failed"), url=reverse('msgs.msg_failed'))]
+                   dict(count=msg_counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
         context['folders'] = folders
         context['labels'] = Label.get_hierarchy(org)
@@ -145,7 +148,7 @@ class BroadcastForm(forms.ModelForm):
         model = Broadcast
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ('send', 'outbox', 'read', 'update', 'schedule_read', 'schedule_list')
+    actions = ('send', 'update', 'schedule_read', 'schedule_list')
     model = Broadcast
 
     class ScheduleRead(FormaxMixin, OrgObjPermsMixin, SmartReadView):
@@ -202,39 +205,7 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast.save()
             return broadcast
 
-    class Read(OrgObjPermsMixin, SmartReadView):
-        refresh = 10000
-
-        def get_context_data(self, **kwargs):
-            context = super(BroadcastCRUDL.Read, self).get_context_data(**kwargs)
-            context['msgs'] = self.object.get_messages_by_status()
-            context['msg_substitution_complete'] = self.object.get_messages_substitution_complete()
-            context['msg_substitution_incomplete'] = self.object.get_messages_substitution_incomplete()
-            context['msg_count'] = self.object.get_message_count()
-            context['msg_sending_count'] = self.object.get_message_sending_count()
-            context['msg_sent_count'] = self.object.get_message_sent_count()
-            context['msg_delivered_count'] = self.object.get_message_delivered_count()
-            context['msg_failed_count'] = self.object.get_message_failed_count()
-
-            return context
-
-    class Outbox(FolderListView):
-        title = _("Outbox")
-        fields = ('contacts', 'msgs', 'sent', 'status',)
-        search_fields = ('msgs__text__icontains', 'contacts__urns__path__icontains')
-        template_name = 'msgs/broadcast_outbox.haml'
-        default_order = ('-created_on')
-        folder = OrgFolder.broadcasts_outbox
-
-        def get_queryset(self, **kwargs):
-            qs = super(BroadcastCRUDL.Outbox, self).get_queryset(**kwargs)
-            
-            if 'search' in self.request.GET:  # searching is performed on related messages
-                qs = qs.distinct()
-
-            return qs.order_by('-created_on')
-
-    class ScheduleList(FolderListView):
+    class ScheduleList(MsgListView):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
@@ -551,7 +522,7 @@ class ExportForm(Form):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ('inbox', 'flow', 'failed', 'filter', 'archived', 'test', 'export')
+    actions = ('inbox', 'flow', 'archived', 'outbox', 'sent', 'failed', 'filter', 'test', 'export')
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -663,10 +634,10 @@ class MsgCRUDL(SmartCRUDL):
             kwargs['org'] = self.request.user.get_org()
             return kwargs
 
-    class Inbox(MsgActionMixin, FolderListView):
+    class Inbox(MsgActionMixin, MsgListView):
         title = _("Inbox")
         template_name = 'msgs/message_box.haml'
-        folder = OrgFolder.msgs_inbox
+        system_label = SystemLabel.TYPE_INBOX
 
         def get_gear_links(self):
             links = []
@@ -686,10 +657,24 @@ class MsgCRUDL(SmartCRUDL):
             context['org'] = self.request.user.get_org()
             return context
 
-    class Archived(MsgActionMixin, FolderListView):
+    class Flow(MsgActionMixin, MsgListView):
+        title = _("Flow Messages")
+        template_name = 'msgs/message_box.haml'
+        system_label = SystemLabel.TYPE_FLOWS
+
+        def get_queryset(self, **kwargs):
+            qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
+            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(MsgCRUDL.Flow, self).get_context_data(*args, **kwargs)
+            context['actions'] = ['label']
+            return context
+
+    class Archived(MsgActionMixin, MsgListView):
         title = _("Archived")
         template_name = 'msgs/msg_archived.haml'
-        folder = OrgFolder.msgs_archived
+        system_label = SystemLabel.TYPE_ARCHIVED
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Archived, self).get_queryset(**kwargs)
@@ -700,25 +685,39 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['restore', 'label', 'delete']
             return context
 
-    class Flow(MsgActionMixin, FolderListView):
-        title = _("Flow Messages")
+    class Outbox(MsgActionMixin, MsgListView):
+        title = _("Outbox Messages")
         template_name = 'msgs/message_box.haml'
-        folder = OrgFolder.msgs_flows
+        system_label = SystemLabel.TYPE_OUTBOX
 
         def get_queryset(self, **kwargs):
-            qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
+            qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
-            context = super(MsgCRUDL.Flow, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['label',]
+            context = super(MsgCRUDL.Outbox, self).get_context_data(*args, **kwargs)
+            context['actions'] = ['label']
             return context
 
-    class Failed(MsgActionMixin, FolderListView):
+    class Sent(MsgActionMixin, MsgListView):
+        title = _("Sent Messages")
+        template_name = 'msgs/message_box.haml'
+        system_label = SystemLabel.TYPE_SENT
+
+        def get_queryset(self, **kwargs):
+            qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
+            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
+            context['actions'] = ['label']
+            return context
+
+    class Failed(MsgActionMixin, MsgListView):
         title = _("Failed Outgoing Messages")
         template_name = 'msgs/msg_failed.haml'
         success_message = ''
-        folder = OrgFolder.msgs_failed
+        system_label = SystemLabel.TYPE_FAILED
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
@@ -729,7 +728,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['resend']
             return context
 
-    class Filter(MsgActionMixin, FolderListView):
+    class Filter(MsgActionMixin, MsgListView):
         template_name = 'msgs/msg_filter.haml'
 
         def derive_title(self, *args, **kwargs):
@@ -913,7 +912,7 @@ class CallCRUDL(SmartCRUDL):
     model = Call
     actions = ('list',)
 
-    class List(FolderListView):
+    class List(MsgListView):
         fields = ('call_type', 'contact', 'channel', 'time')
         default_order = '-time'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')

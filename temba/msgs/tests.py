@@ -5,7 +5,6 @@ import json
 
 from datetime import timedelta
 from django.conf import settings
-from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
@@ -14,8 +13,8 @@ from temba.contacts.models import ContactField, TEL_SCHEME
 from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
-from temba.msgs.models import Broadcast, Label, Call, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, SENT
+from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
@@ -1153,17 +1152,12 @@ class BroadcastCRUDLTest(_CRUDLTest):
 
         self._do_test_view('outbox')
 
-    def testRead(self):
+    def test_send(self):
         self._do_test_view('send', post_data=dict(omnibox="c-%d,c-%d" % (self.joe.pk, self.frank.pk), text="Hey guys"))
-        broadcast = Broadcast.objects.get(text="Hey guys")
+        broadcast = Broadcast.objects.get()
 
-        response = self._do_test_view('read', broadcast)
-        self.assertEquals(response.context['msg_sending_count'], 2)
-        self.assertEquals(response.context['msg_sent_count'], 0)
-        self.assertEquals(response.context['msg_delivered_count'], 0)
-        self.assertEquals(response.context['msg_failed_count'], 0)
-
-        self.assertContains(response, "Hey guys")
+        self.assertEqual(broadcast.text, "Hey guys")
+        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
 
 
 class LabelTest(TembaTest):
@@ -1609,3 +1603,55 @@ class BroadcastLanguageTest(TembaTest):
         self.wilbert.save()
 
         self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))
+
+
+class SystemLabelTest(TembaTest):
+    def test_get_counts(self):
+        self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 0, SystemLabel.TYPE_FLOWS: 0,
+                                                            SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
+                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0})
+
+        contact1 = self.create_contact("Bob", number="0783835001")
+        contact2 = self.create_contact("Jim", number="0783835002")
+        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 1")
+        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
+        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
+        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
+        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
+
+        self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 4, SystemLabel.TYPE_FLOWS: 0,
+                                                            SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
+                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0})
+
+        msg3.archive()
+        bcast1.send(status=QUEUED)
+        msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
+
+        self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 3, SystemLabel.TYPE_FLOWS: 0,
+                                                            SystemLabel.TYPE_ARCHIVED: 1, SystemLabel.TYPE_OUTBOX: 2,
+                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0})
+
+        msg1.archive()
+        msg3.release()  # deleting an archived msg
+        msg4.release()  # deleting a visible msg
+        msg5.fail()
+        msg6.status_sent()
+
+        self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 1, SystemLabel.TYPE_FLOWS: 0,
+                                                            SystemLabel.TYPE_ARCHIVED: 1, SystemLabel.TYPE_OUTBOX: 0,
+                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 1})
+
+        msg1.restore()
+        msg3.release()  # already released
+        msg5.fail()  # already failed
+        msg6.status_delivered()
+
+        self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
+                                                            SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
+                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 1})
+
+        msg5.resend()
+
+        self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
+                                                            SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,
+                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 0})
