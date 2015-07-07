@@ -1930,11 +1930,14 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **run** - the id of the run (long) (filterable: ```run``` repeatable)
+    * **uuid** - the UUID of the run (string) (filterable: ```uuid``` repeatable)
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
+    * **completed** - boolean indicating whether this run has completed the flow (boolean)
+    * **expires_on** - the datetime when this run will expire (datetime) (filterable: ```before``` and ```after```)
+    * **expired_on** - the datetime when this run expired or null if it has not yet expired (datetime or null)
     * **steps** - steps visited by the contact on the flow (array of dictionaries)
     * **values** - values collected during the flow run (array of dictionaries)
 
@@ -1954,6 +1957,8 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-03-02T17:28:12",
+                "expires_on": "2015-07-08T01:10:43.111Z",
+                "expired_on": null
                 "steps": [
                     {
                         "node": "22bd934e-953b-460d-aaf5-42a84ec8f8af",
@@ -2575,7 +2580,11 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
       * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
-      * **rulesets** - the rulesets on this flow, including their node UUID and label
+      * **expires** - the time (in minutes) when this flow's inactive contacts will exipire (integer)
+      * **participants** - the number of contacts who have participated in this flow (integer)
+      * **runs** - the total number of runs for this flow (integer)
+      * **completed_runs** - the number of completed runs for this flow (integer)
+      * **rulesets** - the rulesets on this flow, including their node UUID, response type, and label
 
     Example:
 
@@ -2591,17 +2600,23 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             {
                 "uuid": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
                 "archived": false,
+                "expires": 720,
                 "name": "Thrift Shop Status",
                 "labels": [ "Polls" ],
+                "participants": 1,
+                "runs": 3,
+                "completed_runs": 0,
                 "rulesets": [
                    {
                     "id": 17122,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
+                    "response_type": "N",
                     "label": "Age"
                    },
                    {
                     "id": 17128,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
+                    "response_type": "C",
                     "label": "Gender"
                    }
                 ]
