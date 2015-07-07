@@ -1936,7 +1936,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
     * **completed** - boolean indicating whether this run has completed the flow (boolean)
-    * **expires_on** - the datetime when this run will expire (datetime) (filterable: ```before``` and ```after```)
+    * **expires_on** - the datetime when this run will expire (datetime)
     * **expired_on** - the datetime when this run expired or null if it has not yet expired (datetime or null)
     * **steps** - steps visited by the contact on the flow (array of dictionaries)
     * **values** - values collected during the flow run (array of dictionaries)
