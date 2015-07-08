@@ -525,11 +525,7 @@ class ChannelCRUDL(SmartCRUDL):
                                       style='btn-primary',
                                       href="#",
                                       js_class='remove-caller'))
-                # TODO: Can't posterize from menu, so this shortcut won't work yet
-                # elif self.org.is_connected_to_twilio() and self.request.user.is_beta():
-                #    links.append(dict(title=_('Enable Voice Calling'),
-                #                      style='posterize',
-                #                      href="%s?channel=%d" % (reverse("channels.channel_create_caller"), self.get_object().pk)))
+
             if self.has_org_perm("channels.channel_delete"):
                 links.append(dict(title=_('Remove'),
                                   js_class='remove-channel',
@@ -664,7 +660,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             message_stats_table = []
 
-            month_start = (timezone.now() - timedelta(days=365)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            # we'll show totals for every month since this channel was started
+            month_start = channel.created_on.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
             # get our totals grouped by month
             monthly_totals = list(DailyChannelCount.objects.filter(channel=channel, day__gte=month_start)\
@@ -674,7 +671,8 @@ class ChannelCRUDL(SmartCRUDL):
                                                            .annotate(count_sum=Sum('count')))
 
             # calculate our summary table for last 12 months
-            for i in range(12):
+            now = timezone.now()
+            while month_start < now:
                 msg_in = 0
                 msg_out = 0
                 ivr_in = 0
