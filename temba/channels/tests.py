@@ -24,8 +24,9 @@ from smartmin.tests import SmartminTest
 from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import Msg, Broadcast, Call
-from temba.channels.models import Channel, SyncEvent, Alert, ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
+from temba.msgs.models import Msg, Broadcast, Call, IVR
+from temba.channels.models import Channel, DailyChannelCount, SyncEvent, Alert
+from temba.channels.models import ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
 from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -1969,3 +1970,68 @@ class ChannelAlertTest(TembaTest):
         alert = Alert.objects.all().latest('ended_on')
         self.assertTrue(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
+
+class DailyCountTest(TembaTest):
+
+    def assertDailyCount(self, count, count_type, day):
+        dcc = DailyChannelCount.objects.get()
+        self.assertEquals(day, dcc.day)
+        self.assertEquals(count, dcc.count)
+        self.assertEquals(count_type, dcc.count_type)
+
+    def test_daily_counts(self):
+        # test that messages to test contacts aren't counted
+        self.admin.set_org(self.org)
+        test_contact = Contact.get_test_contact(self.admin)
+        Msg.create_outgoing(self.org, self.admin, test_contact, "Test Message", channel=self.channel)
+
+        # no channel counts
+        self.assertFalse(DailyChannelCount.objects.all())
+
+        # real contact, but no channel
+        Msg.create_incoming(None, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
+
+        # still no channel counts
+        self.assertFalse(DailyChannelCount.objects.all())
+
+        # incoming msg with a channel
+        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
+        self.assertDailyCount(1, DailyChannelCount.INCOMING_MSG, msg.created_on.date())
+
+        # delete it, back to 0
+        msg.delete()
+        self.assertDailyCount(0, DailyChannelCount.INCOMING_MSG, msg.created_on.date())
+
+        DailyChannelCount.objects.all().delete()
+
+        # ok, test outgoing now
+        real_contact = Contact.get_or_create(self.org, self.admin, urns=[(TEL_SCHEME, '+250788111222')])
+        msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
+        self.assertDailyCount(1, DailyChannelCount.OUTGOING_MSG, msg.created_on.date())
+
+        # delete it, should be gone now
+        msg.delete()
+        self.assertDailyCount(0, DailyChannelCount.OUTGOING_MSG, msg.created_on.date())
+
+        DailyChannelCount.objects.all().delete()
+
+        # incoming IVR
+        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'),
+                                  "Test Message", org=self.org, msg_type=IVR)
+        self.assertDailyCount(1, DailyChannelCount.INCOMING_IVR, msg.created_on.date())
+
+        # delete it, should be gone now
+        msg.delete()
+        self.assertDailyCount(0, DailyChannelCount.INCOMING_IVR, msg.created_on.date())
+
+        DailyChannelCount.objects.all().delete()
+
+        # outgoing ivr
+        msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Voice",
+                                  channel=self.channel, msg_type=IVR)
+        self.assertDailyCount(1, DailyChannelCount.OUTGOING_IVR, msg.created_on.date())
+
+        # delete it, should be gone now
+        msg.delete()
+        self.assertDailyCount(0, DailyChannelCount.OUTGOING_IVR, msg.created_on.date())
+
