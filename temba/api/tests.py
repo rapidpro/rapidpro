@@ -2834,8 +2834,16 @@ class InfobipTest(TembaTest):
         # should get 404 as the channel wasn't found
         self.assertEquals(404, response.status_code)
 
-        # change our message to incoming
-        sms.direction = 'I'
+    def test_delivered(self):
+        # change our channel to zenvia channel
+        self.channel.channel_type = 'IB'
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.address = '+2347030767144'
+        self.channel.country = 'NG'
+        self.channel.save()
+
+        contact = self.create_contact("Joe", '+2347030767143')
+        sms = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
         sms.external_id = '254021015120766124'
         sms.save()
 
@@ -3559,6 +3567,20 @@ class ClickatellTest(TembaTest):
         self.assertEquals(2012, msg1.created_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
+    def test_status(self):
+        # change our channel to a clickatell channel
+        self.channel.channel_type = CLICKATELL
+        self.channel.uuid = uuid.uuid4()
+        self.channel.save()
+
+        self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
+        self.channel.org.save()
+
+        contact = self.create_contact("Joe", "+250788383383")
+        sms = Msg.create_outgoing(self.org, self.user, contact, "test")
+        sms.external_id = 'id1234'
+        sms.save()
+
         data = {'apiMsgId': 'id1234', 'status': '001'}
         encoded_message = urlencode(data)
 
@@ -3567,8 +3589,8 @@ class ClickatellTest(TembaTest):
 
         self.assertEquals(200, response.status_code)
 
-        # load our message
-        sms = Msg.objects.all().order_by('-pk').first()
+        # reload our message
+        sms = Msg.objects.get(pk=sms.pk)
 
         # make sure it is marked as failed
         self.assertEquals(FAILED, sms.status)

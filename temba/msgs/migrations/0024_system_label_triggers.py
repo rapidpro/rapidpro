@@ -98,8 +98,8 @@ BEGIN
     IF NEW.direction = 'I' AND NEW.status NOT IN ('P', 'H') THEN
       RAISE EXCEPTION 'Incoming messages can only be PENDING or HANDLED';
     END IF;
-    IF NEW.direction = 'O' AND (NEW.visibility = 'A' OR NEW.visibility = 'D') THEN
-      RAISE EXCEPTION 'Cannot archive or delete outgoing messages';
+    IF NEW.direction = 'O' AND NEW.visibility = 'A' THEN
+      RAISE EXCEPTION 'Outgoing messages cannot be archived';
     END IF;
 
     SELECT is_test INTO STRICT _is_test FROM contacts_contact WHERE id = NEW.contact_id;
