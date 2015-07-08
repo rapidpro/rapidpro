@@ -98,19 +98,18 @@ class MsgListView(OrgPermsMixin, SmartListView):
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
+        msg_counts = SystemLabel.get_counts(org)
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'folder') and 'search' not in self.request.REQUEST:
-            org.patch_folder_queryset(self.object_list, self.folder, self.request)
+        if hasattr(self, 'system_label') and 'search' not in self.request.REQUEST:
+            self.object_list.count = lambda: msg_counts[self.system_label]
 
         context = super(MsgListView, self).get_context_data(**kwargs)
 
-        msg_counts = SystemLabel.get_counts(org)
-
         folders = [dict(count=msg_counts[SystemLabel.TYPE_INBOX], label=_("Inbox"), url=reverse('msgs.msg_inbox')),
-                   dict(count=msg_counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
                    dict(count=msg_counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse('msgs.msg_flow')),
+                   dict(count=msg_counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
                    dict(count=msg_counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
                    dict(count=msg_counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
                    dict(count=org.get_folder_count(OrgFolder.calls_all), label=_("Calls"), url=reverse('msgs.call_list')),
@@ -212,7 +211,10 @@ class BroadcastCRUDL(SmartCRUDL):
         search_fields = ('text__icontains', 'contacts__urns__path__icontains')
         template_name = 'msgs/broadcast_schedule_list.haml'
         default_order = ('schedule__status', 'schedule__next_fire', '-created_on')
-        folder = OrgFolder.broadcasts_scheduled
+
+        def pre_process(self, request, *args, **kwargs):
+            org = request.user.get_org()
+            self.queryset = org.get_folder_queryset(OrgFolder.broadcasts_scheduled)
 
         def get_queryset(self, **kwargs):
             qs = super(BroadcastCRUDL.ScheduleList, self).get_queryset(**kwargs)
@@ -916,7 +918,10 @@ class CallCRUDL(SmartCRUDL):
         fields = ('call_type', 'contact', 'channel', 'time')
         default_order = '-time'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
-        folder = OrgFolder.calls_all
+
+        def pre_process(self, request, *args, **kwargs):
+            org = request.user.get_org()
+            self.queryset = org.get_folder_queryset(OrgFolder.calls_all)
 
         def get_queryset(self, **kwargs):
             qs = super(CallCRUDL.List, self).get_queryset(**kwargs)

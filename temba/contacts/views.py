@@ -88,9 +88,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
     add_button = True
 
     def pre_process(self, request, *args, **kwargs):
-        if hasattr(self, 'folder'):
+        if hasattr(self, 'system_group'):
             org = request.user.get_org()
-            self.queryset = org.get_folder_queryset(self.folder)
+            self.queryset = ContactGroup.get_system_group_queryset(org, self.system_group)
 
     def get_queryset(self, **kwargs):
         qs = super(ContactListView, self).get_queryset(**kwargs)
@@ -112,17 +112,18 @@ class ContactListView(OrgPermsMixin, SmartListView):
             
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
+        contact_counts = ContactGroup.get_system_group_counts(org)
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'folder') and 'search' not in self.request.REQUEST:
-            org.patch_folder_queryset(self.object_list, self.folder, self.request)
+        if hasattr(self, 'system_group') and 'search' not in self.request.REQUEST:
+            self.object_list.count = lambda: contact_counts[self.system_group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=org.get_folder_count(OrgFolder.contacts_all), label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=org.get_folder_count(OrgFolder.contacts_failed), label=_("Failed"), url=reverse('contacts.contact_failed')),
-                   dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
+        folders = [dict(count=contact_counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
+                   dict(count=contact_counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
+                   dict(count=contact_counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
         groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
@@ -604,7 +605,7 @@ class ContactCRUDL(SmartCRUDL):
     class List(ContactActionMixin, ContactListView):
         title = _("Contacts")
         refresh = 30000
-        folder = OrgFolder.contacts_all
+        system_group = ContactGroup.TYPE_ALL
 
         def get_gear_links(self):
             links = []
@@ -634,7 +635,7 @@ class ContactCRUDL(SmartCRUDL):
     class Blocked(ContactActionMixin, ContactListView):
         title = _("Blocked Contacts")
         template_name = 'contacts/contact_list.haml'
-        folder = OrgFolder.contacts_blocked
+        system_group = ContactGroup.TYPE_BLOCKED
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
@@ -644,7 +645,7 @@ class ContactCRUDL(SmartCRUDL):
     class Failed(ContactActionMixin, ContactListView):
         title = _("Failed Contacts")
         template_name = 'contacts/contact_failed.haml'
-        folder = OrgFolder.contacts_failed
+        system_group = ContactGroup.TYPE_FAILED
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Failed, self).get_context_data(*args, **kwargs)

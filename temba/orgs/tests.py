@@ -707,141 +707,42 @@ class OrgTest(TembaTest):
             self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
             self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
 
-
-    def test_patch_folder_queryset(self):
-        self.create_contact(name="Bob", number="123")
-        self.create_contact(name="Jim", number="234")
-        self.create_contact(name="Ann", number="345")
-
-        contact_qs = self.org.get_folder_queryset(OrgFolder.contacts_all)
-
-        with self.assertNumQueries(1):
-            self.assertEquals(3, contact_qs.count())
-
-        self.org.patch_folder_queryset(contact_qs, OrgFolder.contacts_all, None)
-
-        with self.assertNumQueries(1):
-            self.assertEquals(3, contact_qs.count())
-
-    def test_contact_folder_counts(self):
-        folders = (OrgFolder.contacts_all, OrgFolder.contacts_failed, OrgFolder.contacts_blocked)
+    def test_folder_counts(self):
+        folders = (OrgFolder.calls_all, OrgFolder.broadcasts_scheduled)
         get_all_counts = lambda org: {key.name: org.get_folder_count(key) for key in folders}
 
-        with self.assertNumQueries(3):
-            self.assertEqual(dict(contacts_all=0, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
-
-        with self.assertNumQueries(2):
-            self.assertFalse(self.org.has_contacts())
-
-        hannibal = self.create_contact("Hannibal", number="0783835001")
-        face = self.create_contact("Face", number="0783835002")
-        ba = self.create_contact("B.A.", number="0783835003")
-        murdock = self.create_contact("Murdock", number="0783835004")
-
-        with self.assertNumQueries(5):
-            self.assertTrue(self.org.has_contacts())
-            self.assertEqual(dict(contacts_all=4, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
-
-        # call methods twice to check counts don't change twice
-        murdock.block()
-        murdock.block()
-        face.block()
-        ba.fail()
-        ba.fail()
-
-        with self.assertNumQueries(3):
-            self.assertEqual(dict(contacts_all=2, contacts_failed=1, contacts_blocked=2), get_all_counts(self.org))
-
-        murdock.release()
-        murdock.release()
-        face.unblock()
-        face.unblock()
-        ba.unfail()
-        ba.unfail()
-
-        with self.assertNumQueries(3):
-            self.assertEqual(dict(contacts_all=3, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
-
-        self.org.clear_caches([OrgCache.display])
-
-        with self.assertNumQueries(3):
-            self.assertEqual(dict(contacts_all=3, contacts_failed=0, contacts_blocked=0), get_all_counts(self.org))
-
-    def test_message_folder_counts(self):
-        r = get_redis_connection()
-
-        folders = (OrgFolder.msgs_inbox, OrgFolder.msgs_archived, OrgFolder.msgs_outbox, OrgFolder.broadcasts_outbox,
-                   OrgFolder.calls_all, OrgFolder.msgs_flows, OrgFolder.broadcasts_scheduled, OrgFolder.msgs_failed)
-        get_all_counts = lambda org: {key.name: org.get_folder_count(key) for key in folders}
-
-        with self.assertNumQueries(8):  # from db
-            self.assertEqual(dict(msgs_inbox=0, msgs_archived=0, msgs_outbox=0, broadcasts_outbox=0, calls_all=0,
-                                  msgs_flows=0, broadcasts_scheduled=0, msgs_failed=0), get_all_counts(self.org))
+        with self.assertNumQueries(2):  # from db
+            self.assertEqual(dict(calls_all=0, broadcasts_scheduled=0), get_all_counts(self.org))
         with self.assertNumQueries(0):  # from cache
-            self.assertEqual(dict(msgs_inbox=0, msgs_archived=0, msgs_outbox=0, broadcasts_outbox=0, calls_all=0,
-                                  msgs_flows=0, broadcasts_scheduled=0, msgs_failed=0), get_all_counts(self.org))
+            self.assertEqual(dict(calls_all=0, broadcasts_scheduled=0), get_all_counts(self.org))
 
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(1):  # to get message counts rather than calls
             self.assertFalse(self.org.has_messages())
 
         contact1 = self.create_contact("Bob", number="0783835001")
         contact2 = self.create_contact("Jim", number="0783835002")
-        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 1")
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
-        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
-        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
         Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                                   schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(1):
             self.assertTrue(self.org.has_messages())
-            self.assertEqual(dict(msgs_inbox=4, msgs_archived=0, msgs_outbox=0, broadcasts_outbox=1, calls_all=1,
-                                  msgs_flows=0, broadcasts_scheduled=1, msgs_failed=0), get_all_counts(self.org))
 
-        msg3.archive()
-        bcast1.send()
-        msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
+        with self.assertNumQueries(0):
+            self.assertEqual(dict(calls_all=1, broadcasts_scheduled=1), get_all_counts(self.org))
+
         Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 
         with self.assertNumQueries(0):
-            self.assertEqual(dict(msgs_inbox=3, msgs_archived=1, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=0), get_all_counts(self.org))
-
-        msg1.archive()
-        msg3.release()  # deleting an archived msg
-        msg4.release()  # deleting a visible msg
-        msg5.fail()
-
-        with self.assertNumQueries(0):
-            self.assertEqual(dict(msgs_inbox=1, msgs_archived=1, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
-
-        msg1.restore()
-        msg3.release()  # already released
-        msg5.fail()  # already failed
-
-        with self.assertNumQueries(0):
-            self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=1), get_all_counts(self.org))
-
-        Msg.mark_error(r, self.channel, msg6)
-        Msg.mark_error(r, self.channel, msg6)
-        Msg.mark_error(r, self.channel, msg6)
-        Msg.mark_error(r, self.channel, msg6)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
+            self.assertEqual(dict(calls_all=2, broadcasts_scheduled=2), get_all_counts(self.org))
 
         self.org.clear_caches([OrgCache.display])
 
-        with self.assertNumQueries(8):
-            self.assertEqual(dict(msgs_inbox=2, msgs_archived=0, msgs_outbox=2, broadcasts_outbox=1, calls_all=2,
-                                  msgs_flows=0, broadcasts_scheduled=2, msgs_failed=2), get_all_counts(self.org))
+        with self.assertNumQueries(2):
+            self.assertEqual(dict(calls_all=2, broadcasts_scheduled=2), get_all_counts(self.org))
 
     def test_download(self):
         response = self.client.get('/org/download/messages/123/')
@@ -901,8 +802,8 @@ class AnonOrgTest(TembaTest):
         # should have one SMS
         self.assertEquals(1, Msg.objects.all().count())
 
-        # shouldn't show the number on the outgoing page (for now this only shows recipient count)
-        response = self.client.get(reverse('msgs.broadcast_outbox'))
+        # shouldn't show the number on the outgoing page
+        response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertNotContains(response, "788 123 123")
 

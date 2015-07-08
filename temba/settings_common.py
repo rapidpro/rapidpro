@@ -449,6 +449,7 @@ PERMISSIONS = {
                  'outbox',
                  'sent',
                  'test',
+                 'update',
                  ),
 
     'msgs.broadcast': ('api',
@@ -617,6 +618,7 @@ GROUP_PERMISSIONS = {
         'msgs.msg_label',
         'msgs.msg_outbox',
         'msgs.msg_sent',
+        'msgs.msg_update',
 
         'triggers.trigger.*',
 
@@ -721,6 +723,7 @@ GROUP_PERMISSIONS = {
         'msgs.msg_label',
         'msgs.msg_outbox',
         'msgs.msg_sent',
+        'msgs.msg_update',
 
         'triggers.trigger.*',
 

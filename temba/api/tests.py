@@ -3857,14 +3857,18 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_FLOWS])
 
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
         self.assertEqual(1000, self.org.get_credits_remaining())
 
         msg = self.create_message_like_mage(text="Hello 1", contact=self.joe)
 
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
+
         self.assertEqual(1000, self.org.get_credits_remaining())
 
         # check that GET doesn't work
@@ -3886,7 +3890,10 @@ class MageHandlerTest(TembaTest):
 
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
+
         self.assertEqual(999, self.org.get_credits_remaining())
 
         # check that a message that has a topup, doesn't decrement twice
@@ -3897,7 +3904,10 @@ class MageHandlerTest(TembaTest):
         self.client.post(url, dict(message_id=msg.pk, new_contact=False), **headers)
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(2, msg_counts[SystemLabel.TYPE_INBOX])
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_all))
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
+
         self.assertEqual(998, self.org.get_credits_remaining())
 
         # simulate scenario where Mage has added new contact with name that should put it into a dynamic group
@@ -3913,7 +3923,10 @@ class MageHandlerTest(TembaTest):
 
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(3, msg_counts[SystemLabel.TYPE_INBOX])
-        self.assertEqual(2, self.org.get_folder_count(OrgFolder.contacts_all))
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
+
         self.assertEqual(997, self.org.get_credits_remaining())
 
         # check that contact ended up dynamic group
@@ -3949,7 +3962,9 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, flow.runs.all().count())
-        self.assertEqual(self.org.get_folder_count(OrgFolder.contacts_all), 2)
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
 
         # simulate scenario where Mage has added new contact with name that should put it into a dynamic group
         mage_contact, mage_contact_urn = self.create_contact_like_mage("Bob", "bobby81")
@@ -3962,8 +3977,9 @@ class MageHandlerTest(TembaTest):
         # check that contact ended up dynamic group
         self.assertEqual([mage_contact], list(self.dyn_group.contacts.order_by('name')))
 
-        # check cached contact count updated
-        self.assertEqual(self.org.get_folder_count(OrgFolder.contacts_all), 3)
+        # check contact count updated
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
 
 
 class WebHookTest(TembaTest):

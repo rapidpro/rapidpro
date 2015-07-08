@@ -1259,7 +1259,8 @@ class Msg(models.Model):
         Releases (i.e. deletes) this message
         """
         self.visibility = DELETED
-        self.save(update_fields=('visibility',))
+        self.text = ""
+        self.save(update_fields=('visibility', 'text'))
 
         # remove labels
         self.labels.clear()
@@ -1419,6 +1420,12 @@ class SystemLabel(models.Model):
 
     @classmethod
     def get_queryset(cls, org, label_type):
+        # sent and flow messages are special case due to size
+        if label_type == cls.TYPE_SENT:
+            return Msg.objects.filter(org=org, direction=OUTGOING, status__in=(WIRED, SENT, DELIVERED))
+        elif label_type == cls.TYPE_FLOWS:
+            return Msg.objects.filter(org=org, direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+
         return cls.objects.get(org=org, label_type=label_type).msgs.all()
 
     @classmethod
@@ -1430,7 +1437,7 @@ class SystemLabel(models.Model):
         if label_types:
             labels = labels.filter(label_type__in=label_types)
 
-        return {f.label_type: f.count for f in labels}
+        return {l.label_type: l.count for l in labels}
 
     class Meta:
         unique_together = ('org', 'label_type')

@@ -102,11 +102,6 @@ ORG_DISPLAY_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
 class OrgFolder(Enum):
-    # used on the contacts page
-    contacts_all = 1
-    contacts_failed = 2
-    contacts_blocked = 3
-
     # used on the messages page
     calls_all = 8
     broadcasts_scheduled = 10
@@ -228,17 +223,8 @@ class Org(SmartModel):
         Gets the queryset for the given contact or message folder for this org
         """
         from temba.msgs.models import Broadcast, Call
-        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
-        if folder == OrgFolder.contacts_all:
-            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.contacts_failed:
-            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.contacts_blocked:
-            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.broadcasts_outbox:
-            return Broadcast.get_broadcasts(self, scheduled=False)
-        elif folder == OrgFolder.calls_all:
+        if folder == OrgFolder.calls_all:
             return Call.get_calls(self)
         elif folder == OrgFolder.broadcasts_scheduled:
             return Broadcast.get_broadcasts(self, scheduled=True)
@@ -247,47 +233,23 @@ class Org(SmartModel):
         """
         Gets the (cached) count for the given contact folder
         """
-        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
+        def calculate(_folder):
+            return self.get_folder_queryset(_folder).count()
 
-        if folder == OrgFolder.contacts_all:
-            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).count
-        elif folder == OrgFolder.contacts_blocked:
-            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).count
-        elif folder == OrgFolder.contacts_failed:
-            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).count
-        else:
-            def calculate(_folder):
-                return self.get_folder_queryset(_folder).count()
-
-            cache_key = self._get_folder_count_cache_key(folder)
-            return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
+        cache_key = self._get_folder_count_cache_key(folder)
+        return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
 
     def _get_folder_count_cache_key(self, folder):
         return ORG_FOLDER_COUNT_CACHE_KEY % (self.pk, folder.name)
-
-    def patch_folder_queryset(self, queryset, folder, request):
-        """
-        Patches the given queryset so that it's count function fetches from our folder count cache
-        """
-        def patched_count():
-            cached_count = self.get_folder_count(folder)
-            # if our cache calculations are wrong we might have a negative value that will crash a paginator
-            if cached_count >= 0:
-                return cached_count
-            else:
-                logger = logging.getLogger(__name__)
-                msg = 'Cached count for folder %s in org #%d is negative (%d)' % (folder.name, self.id, cached_count)
-                logger.error(msg, exc_info=True, extra=dict(request=request))
-                return queryset._real_count()  # defer to the real count function
-
-        queryset._real_count = queryset.count  # backup the real count function
-        queryset.count = patched_count
 
     def has_contacts(self):
         """
         Gets whether this org has any contacts
         """
-        return (self.get_folder_count(OrgFolder.contacts_all) + self.get_folder_count(OrgFolder.contacts_blocked)) > 0
+        from temba.contacts.models import ContactGroup
+
+        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
+        return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     def has_messages(self):
         """
@@ -301,7 +263,7 @@ class Org(SmartModel):
 
     def update_caches(self, event, entity):
         """
-        Update org-level caches in response to an event
+        Update org-level caches in response to an event.
         """
         r = get_redis_connection()
 
@@ -314,7 +276,7 @@ class Org(SmartModel):
         increment_count = lambda folder: update_folder_count(folder, 1)
 
         if event == OrgEvent.broadcast_new and entity.schedule:
-            increment_count(OrgFolder.broadcasts_outbox)
+            increment_count(OrgFolder.broadcasts_scheduled)
 
         elif event == OrgEvent.call_new:
             increment_count(OrgFolder.calls_all)
@@ -830,16 +792,16 @@ class Org(SmartModel):
         """
         Creates our system labels and groups for this organization so that we can keep track of counts etc..
         """
+        from temba.contacts.models import ContactGroup
         from temba.msgs.models import SystemLabel
-        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
 
         SystemLabel.create_all(self)
 
-        self.all_groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
+        self.all_groups.create(name='All Contacts', group_type=ContactGroup.TYPE_ALL,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Blocked Contacts', group_type=BLOCKED_CONTACTS_GROUP,
+        self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
+        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_FAILED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):

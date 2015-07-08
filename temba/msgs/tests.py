@@ -102,7 +102,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.status, 'F')
 
     def test_send_message_auto_completion_processor(self):
-        outbox_url = reverse('msgs.broadcast_outbox')
+        outbox_url = reverse('msgs.msg_outbox')
 
         # login in as manager, with contacts but without extra contactfields yet
         self.login(self.admin)
@@ -254,50 +254,50 @@ class MsgTest(TembaTest):
 
         # now send the broadcast so we have messages
         broadcast1.send(trigger_send=False)
+        (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        response = self.client.get(reverse('msgs.broadcast_outbox'))
+        response = self.client.get(reverse('msgs.msg_outbox'))
         self.assertContains(response, "Outbox (1)")
-        self.assertEquals(1, len(response.context_data['object_list']))
+        self.assertEqual(set(response.context_data['object_list']), {msg1})
 
         broadcast2 = Broadcast.create(self.channel.org, self.admin, 'kLab is an awesome place for @contact.name',
                                       [self.kevin, self.joe_and_frank])
 
         # now send the broadcast so we have messages
         broadcast2.send(trigger_send=False)
+        msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2))
         
-        response = self.client.get(reverse('msgs.broadcast_outbox'))
+        response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
-        self.assertEquals(2, len(response.context_data['object_list']))
-        self.assertEquals(2, response.context_data['object_list'].count())  # count() gets value from cache
+        self.assertEqual(set(response.context_data['object_list']), {msg4, msg3, msg2, msg1})
 
-        response = self.client.get("%s?search=kevin" % reverse('msgs.broadcast_outbox'))
-        self.assertEquals(1, len(response.context_data['object_list']))
-        self.assertEquals(1, response.context_data['object_list'].count())  # count() now calculates from database
+        response = self.client.get("%s?search=kevin" % reverse('msgs.msg_outbox'))
+        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.kevin)})
 
-        response = self.client.get("%s?search=joe" % reverse('msgs.broadcast_outbox'))
-        self.assertEquals(1, len(response.context_data['object_list']))
+        response = self.client.get("%s?search=joe" % reverse('msgs.msg_outbox'))
+        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.joe)})
 
-        response = self.client.get("%s?search=frank" % reverse('msgs.broadcast_outbox'))
-        self.assertEquals(1, len(response.context_data['object_list']))
+        response = self.client.get("%s?search=frank" % reverse('msgs.msg_outbox'))
+        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.frank)})
 
-        response = self.client.get("%s?search=just" % reverse('msgs.broadcast_outbox'))
-        self.assertEquals(0, len(response.context_data['object_list']))
+        response = self.client.get("%s?search=just" % reverse('msgs.msg_outbox'))
+        self.assertEqual(set(response.context_data['object_list']), set())
 
-        response = self.client.get("%s?search=is" % reverse('msgs.broadcast_outbox'))
-        self.assertEquals(2, len(response.context_data['object_list']))
+        response = self.client.get("%s?search=is" % reverse('msgs.msg_outbox'))
+        self.assertEqual(set(response.context_data['object_list']), {msg4, msg3, msg2, msg1})
 
         # make sure variables that are replaced in text messages match as well
-        response = self.client.get("%s?search=durant" % reverse('msgs.broadcast_outbox'))
-        self.assertEquals(1, len(response.context_data['object_list']))
+        response = self.client.get("%s?search=durant" % reverse('msgs.msg_outbox'))
+        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.kevin)})
 
-    def label_messages(self, msgs, label, action='label'):
+    def do_msg_action(self, url, msgs, action, label=None, label_add=True):
         post_data = dict()
         post_data['action'] = action
-        post_data['objects'] = msgs
-        post_data['label'] = label
-        post_data['add'] = True
-        return self.client.post(reverse('msgs.msg_inbox'), post_data, follow=True)
+        post_data['objects'] = [m.id for m in msgs]
+        post_data['label'] = label.pk if label else None
+        post_data['add'] = label_add
+        return self.client.post(url, post_data, follow=True)
 
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
@@ -328,7 +328,7 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['folders'][0]['count'], 5)
         self.assertEquals(response.context['actions'], ['archive', 'label'])
 
-        # visit inbox page as adminstrator
+        # visit inbox page as administrator
         response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEquals(response.context['object_list'].count(), 5)
@@ -341,21 +341,15 @@ class MsgTest(TembaTest):
         label3 = Label.get_or_create(self.org, self.user, "label3")
 
         # test labeling a messages
-        self.label_messages([msg1.pk, msg2.pk], label1.pk)
+        self.do_msg_action(inbox_url, [msg1, msg2], 'label', label1)
         self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg2, msg1])
 
         # test removing a label
-        post_data = dict()
-        post_data['action'] = 'label'
-        post_data['objects'] = [msg2.pk]
-        post_data['label'] = label1.pk
-        post_data['add'] = False
-
-        self.client.post(inbox_url, post_data, follow=True)
+        self.do_msg_action(inbox_url, [msg2], 'label', label1, label_add=False)
         self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
 
         # label more messages
-        self.label_messages([msg1.pk, msg2.pk, msg3.pk], label3.pk)
+        self.do_msg_action(inbox_url, [msg1, msg2, msg3], 'label', label3)
         self.assertEqual(list(Msg.objects.filter(labels=label1)), [msg1])
         self.assertEqual(list(Msg.objects.filter(labels=label3)), [msg3, msg2, msg1])
 
@@ -474,22 +468,20 @@ class MsgTest(TembaTest):
         response = self.client.get("%s?search=joe" % inbox_url)
         self.assertEqual(len(response.context_data['object_list']), 4)
 
-    def test_survey_messages(self):
-        survey_msg_url = reverse('msgs.msg_flow')
+    def test_flows(self):
+        url = reverse('msgs.msg_flow')
         
-        self.msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "message number 1")
-        self.msg1.msg_type = 'F'
-        self.msg1.save()
+        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "test 1", msg_type='F')
 
-        # visit survey messages page  as a user not in the organization
+        # user not in org can't access
         self.login(self.non_org_user)
-        response = self.client.get(survey_msg_url)
-        self.assertEquals(302, response.status_code)
-        
-        # visit survey messages page as a manager of the organization
-        response = self.fetch_protected(survey_msg_url, self.admin)
+        self.assertLoginRedirect(self.client.get(url))
 
-        self.assertEquals(response.context['object_list'].count(), 1)
+        # org viewer can
+        self.login(self.admin)
+        response = self.client.get(url)
+
+        self.assertEquals(set(response.context['object_list']), {msg1})
         self.assertEquals(response.context['actions'], ['label'])
 
     def test_failed(self):
@@ -1150,8 +1142,6 @@ class BroadcastCRUDLTest(_CRUDLTest):
         Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
         Msg.create_outgoing(self.org, self.user, contact, "Do you have any children?")
 
-        self._do_test_view('outbox')
-
     def test_send(self):
         self._do_test_view('send', post_data=dict(omnibox="c-%d,c-%d" % (self.joe.pk, self.frank.pk), text="Hey guys"))
         broadcast = Broadcast.objects.get()
@@ -1213,7 +1203,7 @@ class LabelTest(TembaTest):
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
-        msg2.release()  # removes label message bo longer visible
+        msg2.release()  # removes label message no longer visible
 
         label = Label.label_objects.get(pk=label.pk)
         self.assertEqual(label.get_visible_count(), 1)

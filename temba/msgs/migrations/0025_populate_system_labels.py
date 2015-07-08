@@ -8,8 +8,8 @@ SYS_LABEL_FILTERS = {
     'I': dict(direction='I', visibility='V', msg_type='I'),
     'W': dict(direction='I', visibility='V', msg_type='F'),
     'A': dict(direction='I', visibility='A'),
-    'O': dict(direction='O', status__in=('P', 'Q', 'W')),
-    'S': dict(direction='O', status__in=('S', 'D')),
+    'O': dict(direction='O', status__in=('P', 'Q')),
+    'S': dict(direction='O', status__in=('W', 'S', 'D')),
     'X': dict(direction='O', status='F')
 }
 
@@ -19,8 +19,10 @@ def populate_system_labels(apps, schema_editor):
     SystemLabel = apps.get_model('msgs', 'SystemLabel')
     Msg = apps.get_model('msgs', 'Msg')
 
-    for org in Org.objects.all():
-        print "Populating system labels for org %s" % org.name
+    orgs = Org.objects.all()
+
+    for index, org in enumerate(orgs):
+        print "Populating system labels for org %s (%d of %d)" % (org.name, (index+1), len(orgs))
 
         for label_type, msg_filter in SYS_LABEL_FILTERS.iteritems():
             print " > populating %s..." % label_type
@@ -30,8 +32,8 @@ def populate_system_labels(apps, schema_editor):
 
             print " > fetched %d" % len(msgs)
 
-            # we won't maintain an associative relationship for Sent as it's too big
-            if label_type != 'S':
+            # we won't maintain an associative relationship for Flows or Sent
+            if label_type not in ('W', 'S'):
                 label.msgs.add(*msgs)
 
             label.count = len(msgs)
