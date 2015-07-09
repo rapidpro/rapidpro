@@ -300,7 +300,7 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class ContactGroupReadSerializer(serializers.ModelSerializer):
-    group = serializers.Field(source='id')  # deprecated, use uuid 
+    group = serializers.Field(source='id')  # deprecated, use uuid
     uuid = serializers.Field(source='uuid')
     name = serializers.Field(source='name')
     size = serializers.SerializerMethodField('get_size')
@@ -926,6 +926,7 @@ class CampaignWriteSerializer(WriteSerializer):
 class FlowReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
     archived = serializers.Field(source='is_archived')
+    expires = serializers.Field(source='expires_after_minutes')
     labels = serializers.SerializerMethodField('get_labels')
     rulesets = serializers.SerializerMethodField('get_rulesets')
     runs = serializers.SerializerMethodField('get_runs')
@@ -957,7 +958,7 @@ class FlowReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
+        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
                   'created_on', 'flow')
 
 
@@ -1168,6 +1169,8 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     steps = serializers.SerializerMethodField('get_steps')
     contact = serializers.SerializerMethodField('get_contact_uuid')
     completed = serializers.SerializerMethodField('is_completed')
+    expires_on = serializers.Field(source='expires_on')
+    expired_on = serializers.Field(source='expired_on')
     flow = serializers.SerializerMethodField('get_flow')  # deprecated, use flow_uuid
 
     def get_flow(self, obj):
@@ -1203,7 +1206,8 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values', 'steps', 'created_on')
+        fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values',
+                  'steps', 'created_on', 'expires_on', 'expired_on')
 
 
 class BroadcastReadSerializer(serializers.ModelSerializer):
