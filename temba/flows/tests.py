@@ -330,11 +330,23 @@ class RuleTest(TembaTest):
         self.assertEquals(302, exported.status_code)
 
         self.login(self.admin)
+
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, host='test',
+                                                               created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk, follow=True)
+
+        self.assertContains(response, "already an export in progress")
+
+        # ok, mark that one as finished and try again
+        blocking_export.is_finished = True
+        blocking_export.save()
+
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
 
         self.assertEquals(302, exported.status_code)
 
-        task = ExportFlowResultsTask.objects.all()[0]
+        task = ExportFlowResultsTask.objects.all().order_by('-id').first()
 
         # read it back in, check values
         from xlrd import open_workbook

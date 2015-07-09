@@ -4,8 +4,9 @@ import json
 import regex
 
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.conf import settings
+from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
@@ -830,21 +831,34 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            host = self.request.branding['host']
-            export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host)
-            for flow in self.get_queryset().order_by('created_on'):
-                export.flows.add(flow)
-            export_flow_results_task.delay(export.pk)
+            # is there already an export taking place?
+            existing = ExportFlowResultsTask.objects.filter(org=org, is_finished=False,
+                                                            created_on__gt=timezone.now() - timedelta(hours=24))\
+                                                    .order_by('-created_on').first()
 
-            from django.contrib import messages
-            if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                messages.info(self.request, _("We are preparing your export. ") +
-                                            _("We will e-mail you at %s when it is ready.") % self.request.user.username)
-
+            # if there is an existing export, don't allow it
+            if existing:
+                messages.info(self.request,
+                              _("There is already an export in progress, started by %s. You must wait "
+                                "for that export to complete before starting another." % existing.created_by.username))
             else:
-                export = ExportFlowResultsTask.objects.get(id=export.pk)
-                dl_url = reverse('assets.download', kwargs=dict(type='results_export', identifier=export.pk))
-                messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                host = self.request.branding['host']
+                export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host)
+                for flow in self.get_queryset().order_by('created_on'):
+                    export.flows.add(flow)
+                export_flow_results_task.delay(export.pk)
+
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                    messages.info(self.request,
+                                  _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                                  % self.request.user.username)
+
+                else:
+                    export = ExportFlowResultsTask.objects.get(id=export.pk)
+                    dl_url = reverse('assets.download', kwargs=dict(type='results_export', identifier=export.pk))
+                    messages.info(self.request,
+                                  _("Export complete, you can find it here: %s (production users will get an email)")
+                                  % dl_url)
 
             return HttpResponseRedirect(reverse('flows.flow_list'))
 

@@ -195,10 +195,9 @@ def export_sms_task(id):
     """
     Export messages to a file and e-mail a link to the user
     """
-    tasks = ExportMessagesTask.objects.filter(pk=id)
-    if tasks:
-        export_task = tasks[0]
-        export_task.do_export()
+    export_task = ExportMessagesTask.objects.filter(pk=id).first()
+    if export_task:
+        export_task.start_export()
 
 @task(track_started=True, name="handle_event_task", time_limit=90, soft_time_limit=60)
 def handle_event_task():
