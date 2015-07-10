@@ -15,7 +15,7 @@ from mock import patch
 from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
+from temba.orgs.models import Org, OrgCache, OrgEvent, TopUp, Invitation, DAYFIRST, MONTHFIRST
 from temba.orgs.models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
@@ -706,43 +706,6 @@ class OrgTest(TembaTest):
             # plivo should be added to the session
             self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
             self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
-
-    def test_folder_counts(self):
-        folders = (OrgFolder.calls_all, OrgFolder.broadcasts_scheduled)
-        get_all_counts = lambda org: {key.name: org.get_folder_count(key) for key in folders}
-
-        with self.assertNumQueries(2):  # from db
-            self.assertEqual(dict(calls_all=0, broadcasts_scheduled=0), get_all_counts(self.org))
-        with self.assertNumQueries(0):  # from cache
-            self.assertEqual(dict(calls_all=0, broadcasts_scheduled=0), get_all_counts(self.org))
-
-        with self.assertNumQueries(1):  # to get message counts rather than calls
-            self.assertFalse(self.org.has_messages())
-
-        contact1 = self.create_contact("Bob", number="0783835001")
-        contact2 = self.create_contact("Jim", number="0783835002")
-        Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
-        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
-        bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
-                                  schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
-
-        with self.assertNumQueries(1):
-            self.assertTrue(self.org.has_messages())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(dict(calls_all=1, broadcasts_scheduled=1), get_all_counts(self.org))
-
-        Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
-        Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
-                         schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
-
-        with self.assertNumQueries(0):
-            self.assertEqual(dict(calls_all=2, broadcasts_scheduled=2), get_all_counts(self.org))
-
-        self.org.clear_caches([OrgCache.display])
-
-        with self.assertNumQueries(2):
-            self.assertEqual(dict(calls_all=2, broadcasts_scheduled=2), get_all_counts(self.org))
 
     def test_download(self):
         response = self.client.get('/org/download/messages/123/')

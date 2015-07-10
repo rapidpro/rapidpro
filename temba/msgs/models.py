@@ -207,9 +207,6 @@ class Broadcast(models.Model):
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
-
-        org.update_caches(OrgEvent.broadcast_new, broadcast)
-
         return broadcast
 
     def update_recipients(self, recipients):
@@ -1370,12 +1367,15 @@ class Call(SmartModel):
         if call_type == CALL_IN_MISSED:
             Trigger.catch_triggers(call, MISSED_CALL_TRIGGER)
 
-        call.org.update_caches(OrgEvent.call_new, call)
         return call
 
     @classmethod
     def get_calls(cls, org):
         return Call.objects.filter(org=org)
+
+    def release(self):
+        self.is_active = False
+        self.save(update_fields=('is_active',))
 
 
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
@@ -1383,7 +1383,7 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
 
 class SystemLabel(models.Model):
     """
-    Sets of messages of different types maintained by database level triggers
+    Counts of messages/broadcasts/calls maintained by database level triggers
     """
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
@@ -1391,22 +1391,23 @@ class SystemLabel(models.Model):
     TYPE_OUTBOX = 'O'
     TYPE_SENT = 'S'
     TYPE_FAILED = 'X'
+    TYPE_SCHEDULED = 'E'
+    TYPE_CALLS = 'C'
 
     TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
                     (TYPE_FLOWS, "Flows"),
                     (TYPE_ARCHIVED, "Archived"),
                     (TYPE_OUTBOX, "Outbox"),
                     (TYPE_SENT, "Sent"),
-                    (TYPE_FAILED, "Failed"))
+                    (TYPE_FAILED, "Failed"),
+                    (TYPE_SCHEDULED, "Scheduled"),
+                    (TYPE_CALLS, "Calls"))
 
     org = models.ForeignKey(Org, related_name='system_labels')
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
-    msgs = models.ManyToManyField('Msg', related_name='system_labels', verbose_name=_("Messages"),
-                                  help_text=_("Messages with this system label"))
-
-    count = models.PositiveIntegerField(default=0, help_text=_("Number of messages with this system label"))
+    count = models.PositiveIntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
     def create_all(cls, org):
@@ -1420,13 +1421,37 @@ class SystemLabel(models.Model):
 
     @classmethod
     def get_queryset(cls, org, label_type):
-        # sent and flow messages are special case due to size
-        if label_type == cls.TYPE_SENT:
-            return Msg.objects.filter(org=org, direction=OUTGOING, status__in=(WIRED, SENT, DELIVERED))
+        """
+        Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
+        trigger used to maintain the label counts.
+        """
+        if label_type == cls.TYPE_INBOX:
+            qs = Msg.objects.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            return Msg.objects.filter(org=org, direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.objects.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+        elif label_type == cls.TYPE_ARCHIVED:
+            qs = Msg.objects.filter(direction=INCOMING, visibility=ARCHIVED)
+        elif label_type == cls.TYPE_OUTBOX:
+            qs = Msg.objects.filter(direction=OUTGOING, status__in=(PENDING, QUEUED))
+        elif label_type == cls.TYPE_SENT:
+            qs = Msg.objects.filter(direction=OUTGOING, status__in=(WIRED, SENT, DELIVERED))
+        elif label_type == cls.TYPE_FAILED:
+            qs = Msg.objects.filter(direction=OUTGOING, status=FAILED)
+        elif label_type == cls.TYPE_SCHEDULED:
+            qs = Broadcast.objects.exclude(schedule=None)
+        elif label_type == cls.TYPE_CALLS:
+            qs = Call.objects.filter(is_active=True)
+        else:
+            raise ValueError("Invalid label type: %s" % label_type)
 
-        return cls.objects.get(org=org, label_type=label_type).msgs.all()
+        qs = qs.filter(org=org)
+
+        if label_type == cls.TYPE_SCHEDULED:
+            qs = qs.exclude(contacts__is_test=True)
+        else:
+            qs = qs.exclude(contact__is_test=True)
+
+        return qs
 
     @classmethod
     def get_counts(cls, org, label_types=None):

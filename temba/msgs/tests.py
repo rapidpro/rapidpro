@@ -14,7 +14,8 @@ from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, CALL_IN
+from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
 from temba.values.models import DATETIME, DECIMAL
@@ -1599,7 +1600,8 @@ class SystemLabelTest(TembaTest):
     def test_get_counts(self):
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 0, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
-                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0})
+                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0,
+                                                            SystemLabel.TYPE_SCHEDULED: 0, SystemLabel.TYPE_CALLS: 0})
 
         contact1 = self.create_contact("Bob", number="0783835001")
         contact2 = self.create_contact("Jim", number="0783835002")
@@ -1607,29 +1609,39 @@ class SystemLabelTest(TembaTest):
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
+        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
+        bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
+                                  schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 4, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
-                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0})
+                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0,
+                                                            SystemLabel.TYPE_SCHEDULED: 1, SystemLabel.TYPE_CALLS: 1})
 
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
+        Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
+        Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
+                         schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 3, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 1, SystemLabel.TYPE_OUTBOX: 2,
-                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0})
+                                                            SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0,
+                                                            SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 2})
 
         msg1.archive()
         msg3.release()  # deleting an archived msg
         msg4.release()  # deleting a visible msg
         msg5.fail()
         msg6.status_sent()
+        call1.release()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 1, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 1, SystemLabel.TYPE_OUTBOX: 0,
-                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 1})
+                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 1,
+                                                            SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
 
         msg1.restore()
         msg3.release()  # already released
@@ -1638,10 +1650,12 @@ class SystemLabelTest(TembaTest):
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
-                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 1})
+                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 1,
+                                                            SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
 
         msg5.resend()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,
-                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 0})
+                                                            SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 0,
+                                                            SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})

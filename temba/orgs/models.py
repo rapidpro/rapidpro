@@ -91,28 +91,18 @@ ORG_LOW_CREDIT_THRESHOLD = 500
 
 # cache keys and TTLs
 ORG_LOCK_KEY = 'org:%d:lock:%s'
-ORG_FOLDER_COUNT_CACHE_KEY = 'org:%d:cache:folder_count:%s'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
 ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
-ORG_DISPLAY_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
-
-
-class OrgFolder(Enum):
-    # used on the messages page
-    calls_all = 8
-    broadcasts_scheduled = 10
 
 
 class OrgEvent(Enum):
     """
     Represents an internal org event
     """
-    broadcast_new = 7
-    call_new = 15
     topup_new = 16
     topup_updated = 17
 
@@ -218,30 +208,6 @@ class Org(SmartModel):
 
         return r.lock(lock_key, ORG_LOCK_TTL)
 
-    def get_folder_queryset(self, folder):
-        """
-        Gets the queryset for the given contact or message folder for this org
-        """
-        from temba.msgs.models import Broadcast, Call
-
-        if folder == OrgFolder.calls_all:
-            return Call.get_calls(self)
-        elif folder == OrgFolder.broadcasts_scheduled:
-            return Broadcast.get_broadcasts(self, scheduled=True)
-
-    def get_folder_count(self, folder):
-        """
-        Gets the (cached) count for the given contact folder
-        """
-        def calculate(_folder):
-            return self.get_folder_queryset(_folder).count()
-
-        cache_key = self._get_folder_count_cache_key(folder)
-        return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
-
-    def _get_folder_count_cache_key(self, folder):
-        return ORG_FOLDER_COUNT_CACHE_KEY % (self.pk, folder.name)
-
     def has_contacts(self):
         """
         Gets whether this org has any contacts
@@ -257,50 +223,34 @@ class Org(SmartModel):
         """
         from temba.msgs.models import SystemLabel
 
-        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX, SystemLabel.TYPE_OUTBOX))
-        num_calls = self.get_folder_count(OrgFolder.calls_all)
-        return (msg_counts[SystemLabel.TYPE_INBOX] + msg_counts[SystemLabel.TYPE_OUTBOX] + num_calls) > 0
+        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX,
+                                                   SystemLabel.TYPE_OUTBOX,
+                                                   SystemLabel.TYPE_CALLS))
+        return (msg_counts[SystemLabel.TYPE_INBOX] +
+                msg_counts[SystemLabel.TYPE_OUTBOX] +
+                msg_counts[SystemLabel.TYPE_CALLS]) > 0
 
     def update_caches(self, event, entity):
         """
-        Update org-level caches in response to an event.
+        Update org-level caches in response to an event
         """
         r = get_redis_connection()
 
-        def update_folder_count(folder, delta):
-            cache_key = self._get_folder_count_cache_key(folder)
-            incrby_existing(cache_key, delta, r)
-
-        # helper methods for modifying all the keys
-        clear_value = lambda key: r.delete(key)
-        increment_count = lambda folder: update_folder_count(folder, 1)
-
-        if event == OrgEvent.broadcast_new and entity.schedule:
-            increment_count(OrgFolder.broadcasts_scheduled)
-
-        elif event == OrgEvent.call_new:
-            increment_count(OrgFolder.calls_all)
-
-        elif event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
-            clear_value(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
-            clear_value(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
+        if event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
+            r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
+            r.delete(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
     def clear_caches(self, caches):
         """
-        Clears the given cache types (display, credits) for this org. Returns number of keys actually deleted
+        Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
         """
-        keys = []
-        if OrgCache.display in caches:
-            for folder in OrgFolder.__members__.values():
-                keys.append(self._get_folder_count_cache_key(folder))
-
         if OrgCache.credits in caches:
-            keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
-            keys.append(ORG_CREDITS_USED_CACHE_KEY % self.pk)
-            keys.append(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
-
-        r = get_redis_connection()
-        return r.delete(*keys)
+            r = get_redis_connection()
+            return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
+                            ORG_CREDITS_USED_CACHE_KEY % self.pk,
+                            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
+        else:
+            return 0
 
     def import_app(self, data, user, site=None):
         from temba.flows.models import Flow

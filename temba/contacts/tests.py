@@ -17,7 +17,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org, OrgFolder
+from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest

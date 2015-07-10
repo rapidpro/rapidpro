@@ -23,7 +23,6 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartX
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
 from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
 from temba.contacts.tasks import export_contacts_task
-from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
@@ -112,18 +111,18 @@ class ContactListView(OrgPermsMixin, SmartListView):
             
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
-        contact_counts = ContactGroup.get_system_group_counts(org)
+        counts = ContactGroup.get_system_group_counts(org)
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
         if hasattr(self, 'system_group') and 'search' not in self.request.REQUEST:
-            self.object_list.count = lambda: contact_counts[self.system_group]
+            self.object_list.count = lambda: counts[self.system_group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=contact_counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=contact_counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
-                   dict(count=contact_counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
+        folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
+                   dict(count=counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
+                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
         groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')

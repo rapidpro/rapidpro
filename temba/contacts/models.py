@@ -850,9 +850,13 @@ class Contact(TembaModel, SmartModel):
             for group in self.user_groups.all():
                 group.update_contacts((self,), False)
 
-            # delete all messages with this contact
+            # release all messages with this contact
             for msg in self.msgs.all():
                 msg.release()
+
+            # release all calls with this contact
+            for call in self.calls.all():
+                call.release()
 
             # remove all flow runs and steps
             for run in self.runs.all():
