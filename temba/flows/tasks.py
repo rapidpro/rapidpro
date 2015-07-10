@@ -40,10 +40,9 @@ def export_flow_results_task(id):
     """
     Export a flow to a file and e-mail a link to the user
     """
-    tasks = ExportFlowResultsTask.objects.filter(pk=id)
-    if tasks:
-        task = tasks[0]
-        task.do_export()
+    export_task = ExportFlowResultsTask.objects.filter(pk=id).first()
+    if export_task:
+        export_task.start_export()
 
 
 @task(track_started=True, name='start_flow_task')

@@ -574,9 +574,19 @@ class MsgTest(TembaTest):
         msg3.visibility = ARCHIVED
         msg3.save()
 
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ExportMessagesTask.objects.create(org=self.org, host='test',
+                                                            created_by=self.admin, modified_by=self.admin)
+        response = self.client.post(reverse('msgs.msg_export'), follow=True)
+        self.assertContains(response, "already an export in progress")
+
+        # ok, mark that one as finished and try again
+        blocking_export.is_finished = True
+        blocking_export.save()
+
         # request export of all messages
         self.client.post(reverse('msgs.msg_export'))
-        task = ExportMessagesTask.objects.get()
+        task = ExportMessagesTask.objects.all().order_by('-id').first()
 
         filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
         workbook = open_workbook(filename, 'rb')

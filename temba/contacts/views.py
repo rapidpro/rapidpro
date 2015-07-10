@@ -5,6 +5,7 @@ import pycountry
 import regex
 
 from collections import OrderedDict
+from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -279,18 +280,34 @@ class ContactCRUDL(SmartCRUDL):
 
             host = self.request.branding['host']
 
-            export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group, host=host)
-            export_contacts_task.delay(export.pk)
+            # is there already an export taking place?
+            existing = ExportContactsTask.objects.filter(org=org, is_finished=False,
+                                                         created_on__gt=timezone.now() - timedelta(hours=24))\
+                                                 .order_by('-created_on').first()
 
-            from django.contrib import messages
-            if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                messages.info(self.request, _("We are preparing your export. ") +
-                                            _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+            # if there is an existing export, don't allow it
+            if existing:
+                messages.info(self.request,
+                              _("There is already an export in progress, started by %s. You must wait "
+                                "for that export to complete before starting another." % existing.created_by.username))
 
+            # otherwise, off we go
             else:
-                export = ExportContactsTask.objects.get(id=export.pk)
-                dl_url = reverse('assets.download', kwargs=dict(type='contact_export', identifier=export.pk))
-                messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org,
+                                                           group=group, host=host)
+                export_contacts_task.delay(export.pk)
+
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                    messages.info(self.request,
+                                  _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                                  % self.request.user.username)
+
+                else:
+                    export = ExportContactsTask.objects.get(id=export.pk)
+                    dl_url = reverse('assets.download', kwargs=dict(type='contact_export', identifier=export.pk))
+                    messages.info(self.request,
+                                  _("Export complete, you can find it here: %s (production users will get an email)")
+                                  % dl_url)
 
             return HttpResponseRedirect(reverse('contacts.contact_list'))
 

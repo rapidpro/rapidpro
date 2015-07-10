@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from django import forms
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from django.contrib import messages
 from django.db import IntegrityError
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
@@ -590,22 +591,34 @@ class MsgCRUDL(SmartCRUDL):
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
 
-            export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, host=host,
-                                                  label=label, start_date=start_date, end_date=end_date)
-            for group in groups:
-                export.groups.add(group)
+            # is there already an export taking place?
+            existing = ExportMessagesTask.objects.filter(org=org, is_finished=False,
+                                                         created_on__gt=timezone.now() - timedelta(hours=24))\
+                                                 .order_by('-created_on').first()
 
-            export_sms_task.delay(export.pk)
+            # if there is an existing export, don't allow it
+            if existing:
+                messages.info(self.request,
+                              _("There is already an export in progress, started by %s. You must wait "
+                                "for that export to complete before starting another." % existing.created_by.username))
 
-            from django.contrib import messages
-            if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                messages.info(self.request, _("We are preparing your export. ") +
-                                            _("We will e-mail you at %s when it is ready.") % self.request.user.username)
-
+            # otherwise, off we go
             else:
-                export = ExportMessagesTask.objects.get(id=export.pk)
-                dl_url = reverse('assets.download', kwargs=dict(type='message_export', identifier=export.pk))
-                messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, host=host,
+                                                           label=label, start_date=start_date, end_date=end_date)
+                for group in groups:
+                    export.groups.add(group)
+
+                export_sms_task.delay(export.pk)
+
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                    messages.info(self.request, _("We are preparing your export. ") +
+                                                _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+
+                else:
+                    export = ExportMessagesTask.objects.get(id=export.pk)
+                    dl_url = reverse('assets.download', kwargs=dict(type='message_export', identifier=export.pk))
+                    messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
 
             try:
                 messages.success(self.request, self.derive_success_message())
