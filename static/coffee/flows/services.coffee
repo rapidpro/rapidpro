@@ -688,6 +688,19 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       return fields[0]
 
+    getContactFieldName: (ruleset) ->
+      if Flow.contactFieldSearch
+        field = @getFieldSelection(Flow.contactFieldSearch, ruleset.operand, false)
+        if field
+          return field.text
+
+    getFlowFieldName: (ruleset) ->
+      fields = Flow.getFlowFields(ruleset)
+      field = @getFieldSelection(fields, ruleset.operand, true)
+      if field
+        return field.text
+
+
     applyActivity: (node, activity) ->
 
       # $log.debug("Applying activity:", node, activity)

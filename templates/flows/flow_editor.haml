@@ -437,9 +437,25 @@
             -trans "Flow Start"
 
 
-          .rule-header{ng-class:'{webhook:ruleset.ruleset_type=="webhook"}', ng-click:'clickRuleset(ruleset)'}
-            .title
+          .rule-header{ng-click:'clickRuleset(ruleset)'}
+            .title.wait-message{ng-show:'ruleset.ruleset_type=="wait_message"'}
+              -trans "Wait for "
               [[ruleset.label]]
+
+            .title.passive.contact-field{ng-show:'ruleset.ruleset_type=="contact_field"'}
+                -trans "Split on "
+                [[getContactFieldName(ruleset)]]
+
+            .title.passive.flow-field{ng-show:'ruleset.ruleset_type=="flow_field"'}
+                -trans "Split on "
+                [[getFlowFieldName(ruleset)]]
+
+
+            .title.passive.webhook-header{ng-show:'ruleset.ruleset_type=="webhook"'}
+                -trans "Call Webhook"
+
+            .title.passive.expression{ng-show:'ruleset.ruleset_type=="expression"'}
+                -trans "Split by Expression"
 
             .remove-warning
               Remove Rules?

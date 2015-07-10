@@ -10,6 +10,13 @@ class Migration(migrations.Migration):
         ('flows', '0022_ruleset_ruleset_type'),
     ]
 
+    def rollback_ruleset_type(apps, schema_editor):
+        RuleSet = apps.get_model("flows", "RuleSet")
+        RuleSet.objects.filter(ruleset_type='wait_digits').update(response_type='K')
+        RuleSet.objects.filter(ruleset_type='wait_digit').update(response_type='M')
+        RuleSet.objects.filter(ruleset_type='wait_recording').update(response_type='R')
+        RuleSet.objects.filter(ruleset_type__in=['wait_message', 'expression','contact_field','flow_field']).update(response_type='C')
+
     def populate_ruleset_type(apps, schema_editor):
 
         def requires_step(operand):
@@ -28,10 +35,6 @@ class Migration(migrations.Migration):
             return False
 
         RuleSet = apps.get_model("flows", "RuleSet")
-
-        #RuleSet.objects.filter(response_type='M').update(ruleset_type='wait_digit')
-        #RuleSet.objects.filter(response_type='K').update(ruleset_type='wait_digits')
-        #RuleSet.objects.filter(response_type='R').update(ruleset_type='recording')
 
         for ruleset in RuleSet.objects.all():
 
@@ -75,7 +78,7 @@ class Migration(migrations.Migration):
                 ruleset.save()
 
     operations = [
-        migrations.RunPython(populate_ruleset_type),
+        migrations.RunPython(populate_ruleset_type, rollback_ruleset_type),
         migrations.RemoveField(
             model_name='ruleset',
             name='response_type',

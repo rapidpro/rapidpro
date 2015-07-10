@@ -374,6 +374,7 @@ class Flow(TembaModel, SmartModel):
             # migrate our flow definition forward if necessary
             if export_version < CURRENT_EXPORT_VERSION:
                 definition = FlowVersion.migrate_definition(definition, export_version)
+                # print json.dumps(definition, indent=2)
 
             flow_spec['flow'].import_definition(definition)
 
@@ -2473,7 +2474,7 @@ class RuleSet(models.Model):
 
         context = run.flow.build_message_context(run.contact, msg)
 
-        if self.webhook_url:
+        if self.ruleset_type == RULESET_WEBHOOK:
             from temba.api.models import WebHookEvent
             (value, missing) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                         org=run.flow.org, url_encode=True)
@@ -2664,30 +2665,97 @@ class FlowVersion(SmartModel):
     @classmethod
     def migrate_definition(cls, json, version):
 
+        def requires_step(operand):
+
+            if not operand:
+                operand = '@step.value'
+
+            # remove any padding
+            operand = operand.strip()
+
+            # if we start with =( then we are an expression
+            is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
+            if '@step' in operand or (is_expression and 'step' in operand):
+                return True
+            return False
+
+        def remove_extra_rules(ruleset):
+            rules = []
+            old_rules = ruleset.get('rules')
+            for rule in old_rules:
+                if rule['test']['type'] == 'true':
+                    rules.append(rule)
+            ruleset['rules'] = rules
+
+        def insert_node(json, node, _next):
+
+            def update_destination(node_to_update, old_uuid, uuid):
+                if node_to_update.get('actions', []):
+                    if node_to_update.get('destination') == old_uuid:
+                        node_to_update['destination'] = uuid
+                else:
+                    for rule in node_to_update.get('rules',[]):
+                        if rule.get('destination') == old_uuid:
+                            rule['destination'] = uuid
+
+            # make sure we have a fresh uuid
+            node['uuid'] = unicode(uuid4())
+
+            # bump everybody down
+            for actionset in json.get('action_sets'):
+                if actionset.get('y') >= node.get('y'):
+                    actionset['y'] += 100
+                update_destination(actionset, _next['uuid'], node['uuid'])
+
+            for ruleset in json.get('rule_sets'):
+                if ruleset.get('y') >= node.get('y'):
+                    ruleset['y'] += 100
+                update_destination(ruleset, _next['uuid'], node['uuid'])
+
+            # we are an actionset
+            if node.get('actions', []):
+                node.destination = _next.uuid
+                json['action_sets'].append(node)
+
+            # otherwise point all rules to the same place
+            else:
+                for rule in node.get('rules', []):
+                    rule['destination'] = _next['uuid']
+                json['rule_sets'].append(node)
+
+
         while (version != CURRENT_EXPORT_VERSION):
 
-            # print 'Migrating old flow defintion (version: %d)' % version
+            print 'Migrating flow defintion (version: %d)' % version
+
             # Move from version 4 to version 5
             if version == 4:
 
-                def requires_step(operand):
-
-                    if not operand:
-                        operand = '@step.value'
-
-                    # remove any padding
-                    operand = operand.strip()
-
-                    # if we start with =( then we are an expression
-                    is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
-                    if '@step' in operand or (is_expression and 'step' in operand):
-                        return True
-                    return False
 
                 for ruleset in json.get('rule_sets'):
-                    response_type = ruleset.get('response_type', None)
 
-                    if response_type:
+                    # webhooks now live in their own ruleset, insert one
+                    webhook_url = ruleset.get('webhook', None)
+                    has_old_webhook = webhook_url and ruleset.get('ruleset_type', None) != RULESET_WEBHOOK
+
+                    if has_old_webhook:
+                        webhook_ruleset = copy.deepcopy(ruleset)
+                        webhook_ruleset['ruleset_type'] = RULESET_WEBHOOK
+                        remove_extra_rules(webhook_ruleset)
+
+                        # get rid of our old properties
+                        del webhook_ruleset['response_type']
+                        del ruleset['webhook']
+                        del ruleset['webhook_action']
+
+                        # stick us in the flow!
+                        insert_node(json, webhook_ruleset, ruleset)
+
+
+                    response_type = ruleset.get('response_type', None)
+                    ruleset_type = ruleset.get('ruleset_type', None)
+
+                    if response_type and not ruleset_type:
 
                         # determine our type from our operand
                         operand = ruleset.get('operand')
@@ -2710,19 +2778,26 @@ class FlowVersion(SmartModel):
                             elif response_type == 'R':
                                 ruleset['ruleset_type'] = RULESET_WAIT_RECORDING
                             else:
-                                ruleset['ruleset_type'] = 'wait_message'
+                                ruleset['ruleset_type'] = RULESET_WAIT_MESSAGE
 
                         else:
                             # if there's no reference to step, figure out our type
-                            ruleset['ruleset_type'] = 'expression'
+                            ruleset['ruleset_type'] = RULESET_EXPRESSION
                             # special case contact and flow fields
                             if ' ' not in operand and '|' not in operand:
                                 if operand == '@contact.groups':
-                                    ruleset['ruleset_type'] = 'expression'
+                                    ruleset['ruleset_type'] = RULESET_EXPRESSION
                                 elif operand.find('@contact.') == 0:
-                                    ruleset['ruleset_type'] = 'contact_field'
+                                    ruleset['ruleset_type'] = RULESET_CONTACT_FIELD
                                 elif operand.find('@flow.') == 0:
-                                    ruleset['ruleset_type'] = 'flow_field'
+                                    ruleset['ruleset_type'] = RULESET_FLOW_FIELD
+
+                            # we used to stop at webhooks, now we need a new node
+                            if has_old_webhook:
+                                pausing_ruleset = copy.deepcopy(ruleset)
+                                remove_extra_rules(pausing_ruleset)
+                                pausing_ruleset['ruleset_type'] = RULESET_WAIT_MESSAGE
+                                insert_node(json, pausing_ruleset, ruleset)
 
             # look for our next version
             version +=1

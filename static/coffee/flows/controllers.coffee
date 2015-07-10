@@ -81,6 +81,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $rootScope.gearLinks = []
   $rootScope.ivr = window.ivr
 
+  $scope.getContactFieldName = (ruleset) ->
+    return Flow.getContactFieldName(ruleset)
+
+  $scope.getFlowFieldName = (ruleset) ->
+    return Flow.getFlowFieldName(ruleset)
+
   # when they click on an injected gear item
   $scope.clickGearMenuItem = (id) ->
 

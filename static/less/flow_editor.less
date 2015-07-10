@@ -10,6 +10,7 @@
 @color-rules:@flat-grey + #333;
 @color-send-email:@flat-mutedpurple;
 @color-webhook:@flat-mutedorange;
+@color-passive:@flat-darkwhite;
 @color-save-to-contact: #00ac9a;
 @color-start-flow: #c05093;
 @color-trigger-flow: #c05093;
@@ -429,6 +430,13 @@
           border: none;
           padding-right: 15px;
           padding-left: 15px;
+
+          &.passive {
+            text-shadow: 0px 1px @color-passive - #222;
+            .bg-gradient(@color-passive, @color-passive - #101010);
+            min-width: 200px;
+            border: none;
+          }
         }
 
         &.webhook {
@@ -1248,7 +1256,7 @@
     input {
       width:206px;
       margin-left:5px;
-      
+
     }
   }
 
