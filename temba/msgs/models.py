@@ -1332,7 +1332,7 @@ class Call(SmartModel):
     channel = models.ForeignKey(Channel,
                                 null=True, verbose_name=_("Channel"),
                                 help_text=_("The channel where this call took place"))
-    contact = models.ForeignKey(Contact, verbose_name=_("Contact"),
+    contact = models.ForeignKey(Contact, verbose_name=_("Contact"), related_name='calls',
                                 help_text=_("The phone number for this call"))
     time = models.DateTimeField(verbose_name=_("Time"), help_text=_("When this call took place"))
     duration = models.IntegerField(default=0, verbose_name=_("Duration"),
@@ -1432,11 +1432,11 @@ class SystemLabel(models.Model):
         elif label_type == cls.TYPE_ARCHIVED:
             qs = Msg.objects.filter(direction=INCOMING, visibility=ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.objects.filter(direction=OUTGOING, status__in=(PENDING, QUEUED))
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.objects.filter(direction=OUTGOING, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.objects.filter(direction=OUTGOING, status=FAILED)
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
