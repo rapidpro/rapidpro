@@ -8,14 +8,14 @@ from django.db.models import Count
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0016_dailychannelcount'),
+        ('channels', '0016_channelcount'),
     ]
 
     def calculate_counts(apps, schema_editor):
         """
         Iterate across all our channels, calculate our message counts for each category
         """
-        DailyChannelCount = apps.get_model('channels', 'DailyChannelCount')
+        ChannelCount = apps.get_model('channels', 'ChannelCount')
         Channel = apps.get_model('channels', 'Channel')
         Msg = apps.get_model('msgs', 'Msg')
 
@@ -23,8 +23,8 @@ class Migration(migrations.Migration):
             for daily_count in daily_counts:
                 print "Adding %d - %s - %s" % (channel.id, count_type, str(daily_count))
 
-                DailyChannelCount.objects.create(channel=channel, count_type=count_type,
-                                                 day=daily_count['created'], count=daily_count['count'])
+                ChannelCount.objects.create(channel=channel, count_type=count_type,
+                                            day=daily_count['created'], count=daily_count['count'])
 
         for channel in Channel.objects.all():
             # incoming msgs
@@ -69,18 +69,18 @@ class Migration(migrations.Migration):
         """
         #language=SQL
         install_trigger = """
-            CREATE OR REPLACE FUNCTION temba_decrement_dailychannelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
+            CREATE OR REPLACE FUNCTION temba_decrement_channelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
               BEGIN
                 UPDATE channels_dailychannelcount SET "count"="count"-1
                   WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
               END;
             $$ LANGUAGE plpgsql;
 
-            CREATE OR REPLACE FUNCTION temba_increment_dailychannelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
+            CREATE OR REPLACE FUNCTION temba_increment_channelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
               BEGIN
                 LOOP
                   -- first try incrementing
-                  UPDATE channels_dailychannelcount SET "count"="count"+1
+                  UPDATE channels_channelcount SET "count"="count"+1
                     WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
                   IF found THEN
                     RETURN;
@@ -90,7 +90,7 @@ class Migration(migrations.Migration):
                   -- if someone else inserts the same key concurrently,
                   -- we will get a unique-key failure
                   BEGIN
-                    INSERT INTO channels_dailychannelcount("channel_id", "count_type", "day", "count")
+                    INSERT INTO channels_channelcount("channel_id", "count_type", "day", "count")
                       VALUES(_channel_id, _count_type, _count_day, 1);
                     RETURN;
                   EXCEPTION WHEN unique_violation THEN
@@ -100,7 +100,7 @@ class Migration(migrations.Migration):
               END;
             $$ LANGUAGE plpgsql;
 
-            CREATE OR REPLACE FUNCTION temba_update_dailychannelcount() RETURNS TRIGGER AS $$
+            CREATE OR REPLACE FUNCTION temba_update_channelcount() RETURNS TRIGGER AS $$
             DECLARE
               is_test boolean;
             BEGIN
@@ -123,20 +123,20 @@ class Migration(migrations.Migration):
                 IF NEW.direction = 'I' THEN
                   -- This is a voice message, increment that count
                   IF NEW.msg_type = 'V' THEN
-                    PERFORM temba_increment_dailychannelcount(NEW.channel_id, 'IV', NEW.created_on::date);
+                    PERFORM temba_increment_channelcount(NEW.channel_id, 'IV', NEW.created_on::date);
                   -- Otherwise, this is a normal message
                   ELSE
-                    PERFORM temba_increment_dailychannelcount(NEW.channel_id, 'IM', NEW.created_on::date);
+                    PERFORM temba_increment_channelcount(NEW.channel_id, 'IM', NEW.created_on::date);
                   END IF;
 
                 -- This is an outgoing message
                 ELSIF NEW.direction = 'O' THEN
                   -- This is a voice message, increment that count
                   IF NEW.msg_type = 'V' THEN
-                    PERFORM temba_increment_dailychannelcount(NEW.channel_id, 'OV', NEW.created_on::date);
+                    PERFORM temba_increment_channelcount(NEW.channel_id, 'OV', NEW.created_on::date);
                   -- Otherwise, this is a normal message
                   ELSE
-                    PERFORM temba_increment_dailychannelcount(NEW.channel_id, 'OM', NEW.created_on::date);
+                    PERFORM temba_increment_channelcount(NEW.channel_id, 'OM', NEW.created_on::date);
                   END IF;
 
                 END IF;
@@ -172,26 +172,26 @@ class Migration(migrations.Migration):
                 IF OLD.direction = 'I' THEN
                   -- And it is voice
                   IF OLD.msg_type = 'V' THEN
-                    PERFORM temba_decrement_dailychannelcount(OLD.channel_id, 'IV', OLD.created_on::date);
+                    PERFORM temba_decrement_channelcount(OLD.channel_id, 'IV', OLD.created_on::date);
                   -- Otherwise, this is a normal message
                   ELSE
-                    PERFORM temba_decrement_dailychannelcount(OLD.channel_id, 'IM', OLD.created_on::date);
+                    PERFORM temba_decrement_channelcount(OLD.channel_id, 'IM', OLD.created_on::date);
                   END IF;
 
                 -- This is an outgoing message
                 ELSIF OLD.direction = 'O' THEN
                   -- And it is voice
                   IF OLD.msg_type = 'V' THEN
-                    PERFORM temba_decrement_dailychannelcount(OLD.channel_id, 'OV', OLD.created_on::date);
+                    PERFORM temba_decrement_channelcount(OLD.channel_id, 'OV', OLD.created_on::date);
                   -- Otherwise, this is a normal message
                   ELSE
-                    PERFORM temba_decrement_dailychannelcount(OLD.channel_id, 'OM', OLD.created_on::date);
+                    PERFORM temba_decrement_channelcount(OLD.channel_id, 'OM', OLD.created_on::date);
                   END IF;
                 END IF;
 
               -- Table being cleared, reset all counts
               ELSIF TG_OP = 'TRUNCATE' THEN
-                TRUNCATE channels_dailychannelcount;
+                TRUNCATE channels_channelcount;
               END IF;
 
               RETURN NULL;
@@ -199,19 +199,19 @@ class Migration(migrations.Migration):
             $$ LANGUAGE plpgsql;
 
             -- Install INSERT, UPDATE and DELETE triggers
-            DROP TRIGGER IF EXISTS temba_msg_update_dailychannelcount on msgs_msg;
-            CREATE TRIGGER temba_msg_update_dailychannelcount
+            DROP TRIGGER IF EXISTS temba_msg_update_channelcount on msgs_msg;
+            CREATE TRIGGER temba_msg_update_channelcount
                AFTER INSERT OR DELETE OR UPDATE OF direction, msg_type, created_on
                ON msgs_msg
                FOR EACH ROW
-               EXECUTE PROCEDURE temba_update_dailychannelcount();
+               EXECUTE PROCEDURE temba_update_channelcount();
 
             -- Install TRUNCATE trigger
-            DROP TRIGGER IF EXISTS temba_msg_clear_dailychannelcount on msgs_msg;
-            CREATE TRIGGER temba_msg_clear_dailychannelcount
+            DROP TRIGGER IF EXISTS temba_msg_clear_channelcount on msgs_msg;
+            CREATE TRIGGER temba_msg_clear_channelcount
               AFTER TRUNCATE
               ON msgs_msg
-              EXECUTE PROCEDURE temba_update_dailychannelcount();
+              EXECUTE PROCEDURE temba_update_channelcount();
         """
         cursor = connection.cursor()
         cursor.execute(install_trigger)

@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import Q, Max
+from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
 from django.utils import timezone
@@ -153,11 +153,6 @@ class Channel(SmartModel):
                             help_text=_("The roles this channel can fulfill"))
     parent = models.ForeignKey('self', blank=True, null=True,
                                help_text=_("The channel this channel is working on behalf of"))
-
-    success_log_count = models.IntegerField(default=0,
-                                            verbose_name=_("The number of success messages in our ChannelLog"))
-    error_log_count = models.IntegerField(default=0,
-                                          verbose_name=_("The number of error messages in our ChannelLog"))
 
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
@@ -1781,6 +1776,22 @@ class Channel(SmartModel):
         else:
             return unicode(self.pk)
 
+    def get_count(self, count_types):
+        return ChannelCount.objects.filter(channel=self, count_types__in=count_types)\
+                                   .aggregate(Sum('count')).get('count__sum', 0)
+
+    def get_msg_count(self):
+        return self.get_count([ChannelCount.INCOMING_MSG_COUNT, ChannelCount.OUTGOING_MSG_TYPE])
+
+    def get_ivr_count(self):
+        return self.get_count([ChannelCount.INCOMING_IVR_COUNT, ChannelCount.OUTGOING_IVR_TYPE])
+
+    def get_log_count(self):
+        return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
+
+    def get_error_log_count(self):
+        return self.get_count([ChannelCount.ERROR_LOG_TYPE])
+
     class Meta:
         ordering = ('-last_seen', '-pk')
 
@@ -1796,29 +1807,33 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 
-class DailyChannelCount(models.Model):
+class ChannelCount(models.Model):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
-    INCOMING_MSG = 'IM'
-    OUTGOING_MSG = 'OM'
-    INCOMING_IVR = 'IV'
-    OUTGOING_IVR = 'OV'
+    INCOMING_MSG_TYPE = 'IM'  # Incoming message
+    OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
+    INCOMING_IVR_TYPE = 'IV'  # Incoming IVR step
+    OUTGOING_IVR_TYPE = 'OV'  # Outgoing IVR step
+    SUCCESS_LOG_TYPE = 'LS'   # ChannelLog record
+    ERROR_LOG_TYPE = 'LE'     # ChannelLog record that is an error
 
-    COUNT_TYPES = ((INCOMING_MSG, _("Incoming Message")),
-                   (OUTGOING_MSG, _("Outgoing Message")),
-                   (INCOMING_IVR, _("Incoming Voice")),
-                   (OUTGOING_IVR, _("Outgoing Voice")))
+    COUNT_TYPE_CHOICES = ((INCOMING_MSG_TYPE, _("Incoming Message")),
+                          (OUTGOING_MSG_TYPE, _("Outgoing Message")),
+                          (INCOMING_IVR_TYPE, _("Incoming Voice")),
+                          (OUTGOING_IVR_TYPE, _("Outgoing Voice")),
+                          (SUCCESS_LOG_TYPE, _("Success Log Record")),
+                          (ERROR_LOG_TYPE, _("Error Log Record")))
 
     channel = models.ForeignKey(Channel,
                                 help_text=_("The channel this is a daily summary count for"))
-    count_type = models.CharField(choices=COUNT_TYPES, max_length=2,
+    count_type = models.CharField(choices=COUNT_TYPE_CHOICES, max_length=2,
                                   help_text=_("What type of message this row is counting"))
-    day = models.DateField(help_text=_("The day this count is for"))
+    day = models.DateField(null=True, help_text=_("The day this count is for"))
     count = models.IntegerField(default=0,
-                                help_text=_("The count of messages on this day"))
+                                help_text=_("The count of messages on this day and type"))
 
     class Meta:
         unique_together = ('channel', 'day', 'count_type')

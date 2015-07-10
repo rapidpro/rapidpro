@@ -36,7 +36,7 @@ from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, DailyChannelCount
+from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
@@ -545,28 +545,21 @@ class ChannelCRUDL(SmartCRUDL):
             if not channel.is_active:
                 raise Http404("No active channel with that id")
 
-            context['sms_count'] = DailyChannelCount.objects.filter(channel=channel,
-                                                                    count_type__in=[DailyChannelCount.INCOMING_MSG,
-                                                                                    DailyChannelCount.OUTGOING_MSG])\
-                                                             .aggregate(Sum('count')).get('count__sum', 0)
-
-            context['ivr_count'] = DailyChannelCount.objects.filter(channel=channel,
-                                                                    count_type__in=[DailyChannelCount.INCOMING_IVR,
-                                                                                    DailyChannelCount.OUTGOING_IVR])\
-                                                             .aggregate(Sum('count')).get('count__sum', 0)
+            context['msg_count'] = channel.get_msg_count()
+            context['ivr_count'] = channel.get_ivr_count()
 
             # power source stats data
             source_stats = [[event['power_source'], event['count']]
                             for event in sync_events.order_by('power_source')
-                                .values('power_source')
-                                .annotate(count=Count('power_source'))]
+                                                    .values('power_source')
+                                                    .annotate(count=Count('power_source'))]
             context['source_stats'] = source_stats
 
             # network connected to stats
             network_stats = [[event['network_type'], event['count']]
                              for event in sync_events.order_by('network_type')
-                                 .values('network_type')
-                                 .annotate(count=Count('network_type'))]
+                                                     .values('network_type')
+                                                     .annotate(count=Count('network_type'))]
             context['network_stats'] = network_stats
 
             total_network = 0
@@ -634,23 +627,27 @@ class ChannelCRUDL(SmartCRUDL):
                 message_stats.append(dict(name=_('Outgoing IVR'), data=ivr_out))
 
             # get all our counts for that period
-            daily_counts = list(DailyChannelCount.objects.filter(channel__in=channels, day__gte=start_date)
-                                                         .values('day', 'count_type')
-                                                         .order_by('day', 'count_type')
-                                                         .annotate(count_sum=Sum('count')))
+            daily_counts = list(ChannelCount.objects.filter(channel__in=channels, day__gte=start_date)
+                                                    .filter(count_type__in=[ChannelCount.INCOMING_MSG_TYPE,
+                                                                            ChannelCount.OUTGOING_MSG_TYPE,
+                                                                            ChannelCount.INCOMING_IVR_TYPE,
+                                                                            ChannelCount.OUTGOING_IVR_TYPE])
+                                                    .values('day', 'count_type')
+                                                    .order_by('day', 'count_type')
+                                                    .annotate(count_sum=Sum('count')))
 
             current = start_date
             while current <= end_date:
                 # for every date we care about
                 while daily_counts and daily_counts[0]['day'] == current:
                     daily_count = daily_counts.pop(0)
-                    if daily_count['count_type'] == DailyChannelCount.INCOMING_MSG:
+                    if daily_count['count_type'] == ChannelCount.INCOMING_MSG_TYPE:
                         msg_in.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
-                    elif daily_count['count_type'] == DailyChannelCount.OUTGOING_MSG:
+                    elif daily_count['count_type'] == ChannelCount.OUTGOING_MSG_TYPE:
                         msg_out.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
-                    elif daily_count['count_type'] == DailyChannelCount.INCOMING_IVR:
+                    elif daily_count['count_type'] == ChannelCount.INCOMING_IVR_TYPE:
                         ivr_in.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
-                    elif daily_count['count_type'] == DailyChannelCount.OUTGOING_IVR:
+                    elif daily_count['count_type'] == ChannelCount.OUTGOING_IVR_TYPE:
                         ivr_out.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
 
                 current = current + timedelta(days=1)
@@ -664,11 +661,15 @@ class ChannelCRUDL(SmartCRUDL):
             month_start = channel.created_on.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
             # get our totals grouped by month
-            monthly_totals = list(DailyChannelCount.objects.filter(channel=channel, day__gte=month_start)\
-                                                           .extra({'month': "date_trunc('month', day)"})\
-                                                           .values('month', 'count_type')\
-                                                           .order_by('month', 'count_type')\
-                                                           .annotate(count_sum=Sum('count')))
+            monthly_totals = list(ChannelCount.objects.filter(channel=channel, day__gte=month_start)
+                                                      .filter(count_type__in=[ChannelCount.INCOMING_MSG_TYPE,
+                                                                              ChannelCount.OUTGOING_MSG_TYPE,
+                                                                              ChannelCount.INCOMING_IVR_TYPE,
+                                                                              ChannelCount.OUTGOING_IVR_TYPE])
+                                                      .extra({'month': "date_trunc('month', day)"})
+                                                      .values('month', 'count_type')
+                                                      .order_by('month', 'count_type')
+                                                      .annotate(count_sum=Sum('count')))
 
             # calculate our summary table for last 12 months
             now = timezone.now()
@@ -680,13 +681,13 @@ class ChannelCRUDL(SmartCRUDL):
 
                 while monthly_totals and monthly_totals[0]['month'] == month_start:
                     monthly_total = monthly_totals.pop(0)
-                    if monthly_total['count_type'] == DailyChannelCount.INCOMING_MSG:
+                    if monthly_total['count_type'] == ChannelCount.INCOMING_MSG_TYPE:
                         msg_in = monthly_total['count_sum']
-                    elif monthly_total['count_type'] == DailyChannelCount.OUTGOING_MSG:
+                    elif monthly_total['count_type'] == ChannelCount.OUTGOING_MSG_TYPE:
                         msg_out = monthly_total['count_sum']
-                    elif monthly_total['count_type'] == DailyChannelCount.INCOMING_IVR:
+                    elif monthly_total['count_type'] == ChannelCount.INCOMING_IVR_TYPE:
                         ivr_in = monthly_total['count_sum']
-                    elif monthly_total['count_type'] == DailyChannelCount.OUTGOING_IVR:
+                    elif monthly_total['count_type'] == ChannelCount.OUTGOING_IVR_TYPE:
                         ivr_out = monthly_total['count_sum']
 
                 message_stats_table.append(dict(month_start=month_start,
@@ -2031,7 +2032,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
 
             # monkey patch our queryset for the total count
-            events.count = lambda: channel.error_log_count + channel.success_log_count
+            events.count = lambda: channel.get_log_count()
             return events
 
         def get_context_data(self, **kwargs):

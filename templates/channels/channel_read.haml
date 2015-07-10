@@ -233,7 +233,7 @@
                 %td
                   %h4
                     -trans "Messages"
-                  {{ sms_count|intcomma }}
+                  {{ msg_count|intcomma }}
 
               -if ivr_count
                 %tr
@@ -245,7 +245,7 @@
                 %td
                   %h4
                     -trans "ERRORS"
-                  {{ channel.error_log_count|intcomma }}
+                  {{ channel.get_error_log_count|intcomma }}
 
                   -if 'S' in object.role
                     %a{ href:"{% url 'channels.channellog_list' %}?channel={{object.get_sender.id}}" }
