@@ -15,7 +15,7 @@ def fix_archived_outgoing(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0020_update_label_triggers'),
+        ('msgs', '0021_exportmessagestask_is_finished'),
     ]
 
     operations = [

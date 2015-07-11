@@ -398,7 +398,7 @@ CREATE TRIGGER temba_msg_labels_on_truncate_trg
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0023_create_system_labels'),
+        ('msgs', '0024_create_system_labels'),
     ]
 
     operations = [

@@ -304,6 +304,7 @@ class APITest(TembaTest):
                                                                           label='color')],
                                                            participants=0,
                                                            created_on=datetime_to_json_date(flow.created_on),
+                                                           expires=flow.expires_after_minutes,
                                                            archived=False))
 
         # try fetching as XML
@@ -579,6 +580,8 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0]['flow_uuid'], flow.uuid)
         self.assertEqual(response.json['results'][0]['contact'], self.joe.uuid)
         self.assertEqual(response.json['results'][0]['completed'], False)
+        self.assertEqual(response.json['results'][0]['expires_on'], datetime_to_json_date(run.expires_on))
+        self.assertEqual(response.json['results'][0]['expired_on'], None)
 
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)

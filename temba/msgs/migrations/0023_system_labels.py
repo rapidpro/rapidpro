@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('orgs', '0005_auto_20150416_0729'),
-        ('msgs', '0021_no_archived_outgoing'),
+        ('msgs', '0022_no_archived_outgoing'),
     ]
 
     operations = [

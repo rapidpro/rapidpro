@@ -1896,8 +1896,19 @@ class ContactFieldTest(TembaTest):
 
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ExportContactsTask.objects.create(org=self.org, host='test',
+                                                            created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.get(reverse('contacts.contact_export'), dict(), follow=True)
+        self.assertContains(response, "already an export in progress")
+
+        # ok, mark that one as finished and try again
+        blocking_export.is_finished = True
+        blocking_export.save()
+
         self.client.get(reverse('contacts.contact_export'), dict())
-        task = ExportContactsTask.objects.get()
+        task = ExportContactsTask.objects.all().order_by('-id').first()
 
         filename = "%s/test_orgs/%d/contact_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
         workbook = open_workbook(filename, 'rb')

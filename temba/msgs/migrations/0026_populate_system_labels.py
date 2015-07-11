@@ -51,7 +51,7 @@ def populate_system_labels(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0024_system_label_triggers'),
+        ('msgs', '0025_system_label_triggers'),
     ]
 
     operations = [

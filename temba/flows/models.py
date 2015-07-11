@@ -2912,6 +2912,22 @@ class ExportFlowResultsTask(SmartModel):
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     task_id = models.CharField(null=True, max_length=64)
+    is_finished = models.BooleanField(default=False,
+                                      help_text=_("Whether this export is complete"))
+
+    def start_export(self):
+        """
+        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
+        """
+        try:
+            start = time.time()
+            self.do_export()
+        finally:
+            elapsed = time.time() - start
+            analytics.track(self.created_by.username, 'temba.flowresult_export_latency', properties=dict(value=elapsed))
+
+            self.is_finished = True
+            self.save(update_fields=['is_finished'])
 
     def do_export(self):
         from xlwt import Workbook
