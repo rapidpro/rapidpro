@@ -2746,7 +2746,9 @@ class FlowVersion(SmartModel):
                         # get rid of our old properties
                         del webhook_ruleset['response_type']
                         del ruleset['webhook']
-                        del ruleset['webhook_action']
+
+                        if 'webhook_action' in ruleset:
+                            del ruleset['webhook_action']
 
                         # stick us in the flow!
                         insert_node(json, webhook_ruleset, ruleset)

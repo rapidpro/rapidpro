@@ -2056,21 +2056,30 @@ class WebhookTest(TembaTest):
 
         run = FlowRun.create(self.flow, self.contact)
 
-        rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0)
+        from temba.flows.models import RULESET_WEBHOOK, RULESET_EXPRESSION
+
+        # webhook ruleset comes first
+        webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RULESET_WEBHOOK)
+        webhook.webhook_url = "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164"
+        webhook.webhook_action = "GET"
+        webhook.set_rules_dict([Rule(uuid(15), "All Responses", uuid(200), 'R', TrueTest()).as_json()])
+        webhook.save()
+
+        # and a ruleset to split off the results
+        rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(200), x=0, y=200, ruleset_type=RULESET_EXPRESSION)
         rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), 'A', ContainsTest("valid")).as_json(),
                               Rule(uuid(13), "Invalid", uuid(3), 'A', ContainsTest("invalid")).as_json()])
         rules.save()
 
-        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
-                                       step_uuid=rules.uuid, arrived_on=timezone.now())
+        webhook_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
+                                       step_uuid=webhook.uuid, arrived_on=timezone.now())
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="1001")
 
-        (match, value) = rules.find_matching_rule(step, run, incoming)
+        (match, value) = rules.find_matching_rule(webhook_step, run, incoming)
         self.assertIsNone(match)
         self.assertIsNone(value)
 
-        rules.webhook_url = "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164"
-        rules.webhook_action = "GET"
+
         rules.operand = "@extra.text @extra.blank"
         rules.save()
 
@@ -2080,16 +2089,16 @@ class WebhookTest(TembaTest):
                 post.return_value = MockResponse(200, '{ "text": "Post", "blank": "" }')
 
                 # first do a GET
-                rules.find_matching_rule(step, run, incoming)
+                webhook.find_matching_rule(webhook_step, run, incoming)
                 self.assertEquals(dict(__default__='blank: , text: Get', text="Get", blank=""), run.field_dict())
 
                 # assert our phone number got encoded
                 self.assertEquals("http://ordercheck.com/check_order.php?phone=%2B250788383383", get.call_args[0][0])
 
                 # now do a POST
-                rules.webhook_action = "POST"
-                rules.save()
-                rules.find_matching_rule(step, run, incoming)
+                webhook.webhook_action = "POST"
+                webhook.save()
+                webhook.find_matching_rule(webhook_step, run, incoming)
                 self.assertEquals(dict(__default__='blank: , text: Post', text="Post", blank=""), run.field_dict())
 
                 self.assertEquals("http://ordercheck.com/check_order.php?phone=%2B250788383383", post.call_args[0][0])
@@ -2102,10 +2111,14 @@ class WebhookTest(TembaTest):
         run.fields = json.dumps(dict())
         run.save()
 
+        rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
+                                       step_uuid=rules.uuid, arrived_on=timezone.now())
+
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid" }')
 
-            (match, value) = rules.find_matching_rule(step, run, incoming)
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
 
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
@@ -2114,7 +2127,8 @@ class WebhookTest(TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1001" }')
 
-            (match, value) = rules.find_matching_rule(step, run, incoming)
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
             self.assertEquals(dict(__default__='order_number: PX1001, text: Valid', text="Valid", order_number="PX1001"), run.field_dict())
@@ -2125,7 +2139,8 @@ class WebhookTest(TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1002" }')
 
-            (match, value) = rules.find_matching_rule(step, run, incoming)
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
             self.assertEquals(dict(__default__='order_number: PX1002, text: Valid', text="Valid", order_number="PX1002"), run.field_dict())
@@ -2135,10 +2150,11 @@ class WebhookTest(TembaTest):
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "asdfasdfasdf")
-            step.run.fields = None
-            step.run.save()
+            rule_step.run.fields = None
+            rule_step.run.save()
 
-            (match, value) = rules.find_matching_rule(step, run, incoming)
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
@@ -2148,10 +2164,11 @@ class WebhookTest(TembaTest):
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "12345")
-            step.run.fields = None
-            step.run.save()
+            rule_step.run.fields = None
+            rule_step.run.save()
 
-            (match, value) = rules.find_matching_rule(step, run, incoming)
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
@@ -2161,10 +2178,11 @@ class WebhookTest(TembaTest):
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(500, "Server Error")
-            step.run.fields = None
-            step.run.save()
+            rule_step.run.fields = None
+            rule_step.run.save()
 
-            (match, value) = rules.find_matching_rule(step, run, incoming)
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
