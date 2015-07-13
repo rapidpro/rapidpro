@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
         install_trigger = """
             CREATE OR REPLACE FUNCTION temba_decrement_channelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
               BEGIN
-                UPDATE channels_dailychannelcount SET "count"="count"-1
+                UPDATE channels_channelcount SET "count"="count"-1
                   WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
               END;
             $$ LANGUAGE plpgsql;

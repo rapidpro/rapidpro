@@ -1781,10 +1781,10 @@ class Channel(SmartModel):
                                    .aggregate(Sum('count')).get('count__sum', 0)
 
     def get_msg_count(self):
-        return self.get_count([ChannelCount.INCOMING_MSG_COUNT, ChannelCount.OUTGOING_MSG_TYPE])
+        return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
 
     def get_ivr_count(self):
-        return self.get_count([ChannelCount.INCOMING_IVR_COUNT, ChannelCount.OUTGOING_IVR_TYPE])
+        return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
 
     def get_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
