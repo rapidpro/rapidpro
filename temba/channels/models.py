@@ -1777,7 +1777,7 @@ class Channel(SmartModel):
             return unicode(self.pk)
 
     def get_count(self, count_types):
-        return ChannelCount.objects.filter(channel=self, count_types__in=count_types)\
+        return ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
                                    .aggregate(Sum('count')).get('count__sum', 0)
 
     def get_msg_count(self):
@@ -1791,6 +1791,9 @@ class Channel(SmartModel):
 
     def get_error_log_count(self):
         return self.get_count([ChannelCount.ERROR_LOG_TYPE])
+
+    def get_success_log_count(self):
+        return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     class Meta:
         ordering = ('-last_seen', '-pk')

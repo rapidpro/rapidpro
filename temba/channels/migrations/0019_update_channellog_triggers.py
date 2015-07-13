@@ -29,10 +29,10 @@ class Migration(migrations.Migration):
               IF TG_OP = 'INSERT' THEN
                 -- Error, increment our error count
                 IF NEW.is_error THEN
-                  PERFORM temba_increment_channelcount(OLD.channel_id, 'LE', NULL::date);
+                  PERFORM temba_increment_channelcount(NEW.channel_id, 'LE', NULL::date);
                 -- Success, increment that count instead
                 ELSE
-                  PERFORM temba_increment_channelcount(OLD.channel_id, 'LS', NULL::date);
+                  PERFORM temba_increment_channelcount(NEW.channel_id, 'LS', NULL::date);
                 END IF;
 
               -- ChannelLog being removed

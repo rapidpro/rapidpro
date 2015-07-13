@@ -71,8 +71,13 @@ class Migration(migrations.Migration):
         install_trigger = """
             CREATE OR REPLACE FUNCTION temba_decrement_channelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
               BEGIN
-                UPDATE channels_channelcount SET "count"="count"-1
-                  WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
+                IF _count_day IS NULL THEN
+                  UPDATE channels_channelcount SET "count"="count"-1
+                    WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day" IS NULL;
+                ELSE
+                  UPDATE channels_channelcount SET "count"="count"-1
+                    WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
+                END IF;
               END;
             $$ LANGUAGE plpgsql;
 
@@ -80,8 +85,14 @@ class Migration(migrations.Migration):
               BEGIN
                 LOOP
                   -- first try incrementing
-                  UPDATE channels_channelcount SET "count"="count"+1
-                    WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
+                  IF _count_day IS NULL THEN
+                    UPDATE channels_channelcount SET "count"="count"+1
+                      WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day" IS NULL;
+                  ELSE
+                    UPDATE channels_channelcount SET "count"="count"+1
+                      WHERE "channel_id"=_channel_id AND "count_type"=_count_type AND "day"=_count_day;
+                  END IF;
+
                   IF found THEN
                     RETURN;
                   END IF;
