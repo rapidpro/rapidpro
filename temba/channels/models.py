@@ -1777,8 +1777,10 @@ class Channel(SmartModel):
             return unicode(self.pk)
 
     def get_count(self, count_types):
-        return ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
-                                   .aggregate(Sum('count')).get('count__sum', 0)
+        count = ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
+                                    .aggregate(Sum('count')).get('count__sum', 0)
+
+        return 0 if count is None else count
 
     def get_msg_count(self):
         return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
