@@ -859,8 +859,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       Flow = @
       $http.get('/flow/json/' + flowId + '/').success (data) ->
 
-        Flow.flow = data.flow
-        flow = Flow.flow
+        flow = data.flow
 
         # add uuids for the individual actions, need this for the UI
         for actionset in flow.action_sets
@@ -892,6 +891,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               name: gettext('Default')
 
         Flow.languages = languages
+        $log.debug(Flow.languages)
+        Flow.flow = flow
+
 
         # fire our completion trigger if it was given to us
         if onComplete
@@ -959,6 +961,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     updateTranslationStats: ->
 
+      $log.debug('update stats', @language)
       if @language
         # look at all translatable bits in our flow and check for completeness
         flow = @flow

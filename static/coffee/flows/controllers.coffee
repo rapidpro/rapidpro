@@ -95,11 +95,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     # setting our default language
     if id == 'default_language'
-      modal = new ConfirmationModal(gettext('Default Language'), gettext('The default language for the flow is used for contacts which have no preferred language. Are you sure you want to set the default language for this flow to') + ' <span class="attn">' + $rootScope.language.name + "</span>?")
+      modal = new ConfirmationModal(gettext('Default Language'), gettext('The default language for the flow is used for contacts which have no preferred language. Are you sure you want to set the default language for this flow to') + ' <span class="attn">' + Flow.language.name + "</span>?")
       modal.addClass('warning')
       modal.setListeners
         onPrimary: ->
-          $scope.setBaseLanguage($rootScope.language)
+          $scope.setBaseLanguage(Flow.language)
       modal.show()
 
     return false
@@ -133,12 +133,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.setBaseLanguage = (lang) ->
 
     # now we have a real base language, remove the default placeholder
-    if $rootScope.languages[0].name == gettext('Default')
-      $rootScope.languages.splice(0, 1)
+    if Flow.languages[0].name == gettext('Default')
+      Flow.languages.splice(0, 1)
 
     # reorder our languages so the base language is first
-    $rootScope.languages.splice($rootScope.languages.indexOf(lang), 1)
-    $rootScope.languages.unshift(lang)
+    Flow.languages.splice(Flow.languages.indexOf(lang), 1)
+    Flow.languages.unshift(lang)
 
 
     # set the base language
@@ -191,7 +191,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       if Flow.flow.base_language
         if not action.recording
           action.recording = {}
-        action.recording[$rootScope.language.iso_code] = data['path']
+        action.recording[Flow.language.iso_code] = data['path']
       else
         action.recording = data['path']
 
@@ -214,8 +214,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.setLanguage = (lang) ->
     Flow.setMissingTranslation(false)
-    $rootScope.language = lang
+    Flow.language = lang
+    $scope.language = lang
     Plumb.repaint()
+
+    $log.debug('Setting language', $scope.language)
 
   $scope.updateActivity = ->
 
@@ -252,6 +255,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.$watch (->Flow.flow), (current) ->
 
     $scope.flow = Flow.flow
+    $scope.languages = Flow.languages
+    $scope.language = Flow.language
+    $log.debug($scope.flow, $scope.languages)
 
     if current
       jsPlumb.bind('connectionDrag', (connection) -> $scope.onConnectorDrag(connection))
@@ -371,7 +377,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.createFirstAction = ->
 
     msg = ''
-    if Flow.base_language
+    if Flow.flowbase_language
       msg = {}
       msg[Flow.flow.base_language] = ''
 
