@@ -25,23 +25,26 @@ You'll need the following to get started:
 ## Create temba user for PostgreSQL
 
 {% highlight bash %}
-$ createuser temba --pwprompt -d
+$ sudo apt-get install postgresql-client postgresql-server-dev-9.3 postgis*
+$ sudo -u postgres createuser temba --pwprompt -d
 Enter password for new role:
 Enter it again:
+$ sudo adduser temba
 {% endhighlight %}
 
 ## Create temba database, add PostGIS
 
 Create the database as temba user:
 {% highlight bash %}
-$ psql --user=temba postgres
+$ sudo -u temba psql --user=temba postgres
 postgres=> create database temba;
 CREATE DATABASE
+\q
 {% endhighlight %}
 
 Now connect as a superuser that can install extensions:
 {% highlight bash %}
-$ psql
+$ sudo -u postgres psql
 postgres=# \c temba
 You are now connected to database "temba" as user "psql".
 temba=# create extension postgis;
@@ -58,8 +61,15 @@ Now clone the RapidPro repository and link up the development settings:
 
 {% highlight bash %}
 $ git clone git@github.com:rapidpro/rapidpro.git
-$ cd rapidpro
-$ ln -s temba/settings.py.dev temba/settings.py
+$ cd rapidpro/temba
+$ ln -s settings.py.dev settings.py
+{% endhighlight %}
+
+At this point, you should edit the rapidpro/settings.py to adjust the password for the postgresql connection.
+
+##Install Node 
+{% highlight bash %}
+$ sudo apt-get install node node-less coffee-script
 {% endhighlight %}
 
 ## Build virtual environment
@@ -69,6 +79,7 @@ pinned dependencies for RapidPro can be found in ```pip-freeze.txt```. You can
 build the needed environment as follows (from the root rapidpro directory):
 
 {% highlight bash %}
+$ sudo apt-get install python-virtualenv postgresql-server-dev-9.3 python-dev ncurses-dev
 $ virtualenv env
 $ source env/bin/activate
 (env) $ pip install -r pip-freeze.txt
@@ -92,3 +103,6 @@ will be available at ```http://localhost:8000```
 {% highlight bash %}
 $ python manage.py runserver
 {% endhighlight %}
+
+See these [instructions](https://docs.djangoproject.com/en/1.7/ref/django-admin/#runserver-port-or-address-port) if you wish to change the port.
+
