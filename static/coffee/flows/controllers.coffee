@@ -5,7 +5,10 @@ app = angular.module('temba.controllers', ['ui.bootstrap', 'temba.services', 'ng
 
 version = new Date().getTime()
 
-app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout', 'Flow', ($scope, $rootScope, $log, $timeout, Flow) ->
+app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout', 'Flow', 'Versions', ($scope, $rootScope, $log, $timeout, Flow, Versions) ->
+
+  $scope.versions = ->
+    return Versions.versions
 
   # apply the current flow as our definition
   $scope.apply = ->
@@ -13,8 +16,8 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
 
   # go back to our original version
   $scope.cancel = ->
-    if $rootScope.original
-      $scope.applyDefinition($rootScope.original)
+    if Versions.original
+      $scope.applyDefinition(Versions.original)
     else
       $scope.hideVersions()
 
@@ -22,13 +25,13 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
   $scope.showVersion = (version) ->
 
     # show our version selection
-    for other in $rootScope.versions
+    for other in Versions.versions
       other.selected = false
     version.selected = true
 
     # store our original definition
-    if not $rootScope.original
-      $rootScope.original = Flow.flow
+    if not Versions.original
+      Versions.original = Flow.flow
 
     # show the version definition
     $scope.showDefinition(version.definition)
@@ -53,12 +56,12 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
           action.uuid = uuid()
 
     # remove all version selection
-    for other in $rootScope.versions
+    for other in Versions.versions
       other.selected = false
 
     markDirty = false
-    if definition != $rootScope.original
-      definition.last_saved = $rootScope.original.last_saved
+    if definition != Versions.original
+      definition.last_saved = Versions.original.last_saved
       markDirty = true
 
     $scope.showDefinition definition, ->
@@ -248,6 +251,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.$watch (->Flow.flow), (current) ->
 
+    $scope.flow = Flow.flow
+
     if current
       jsPlumb.bind('connectionDrag', (connection) -> $scope.onConnectorDrag(connection))
       jsPlumb.bind('connectionDragStop', (connection) -> $scope.onConnectorDrop(connection))
@@ -393,8 +398,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
     lastAction = actionset.actions[actionset.actions.length - 1]
-    if Flow.flow.base_language
-      if Flow.flow.base_language != Flow.language.iso_code
+    if $scope.flow.base_language
+      if $scope.flow.base_language != Flow.language.iso_code
         if lastAction.msg and lastAction.type in ['reply', 'send', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
           return true
 

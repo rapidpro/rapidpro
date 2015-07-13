@@ -367,13 +367,14 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     return connections
 ]
 
-app.service "Versions", ['$http', '$log', ($http, $log) ->
+app.factory "Versions", ['$http', '$log', ($http, $log) ->
   new class Versions
     updateVersions: (flowId) ->
+      _this = @
       $http.get('/flow/versions/' + flowId + '/').success (data, status, headers) ->
         # only set the versions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
-          @versions = data
+          _this.versions = data
 ]
 
 app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->
@@ -647,9 +648,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # find our unique set of keys
       flowFields = {}
-      for ruleset in @flow.rule_sets
-        if ruleset.uuid != excludeRuleset?.uuid
-          flowFields[@slugify(ruleset.label)] = ruleset.label
+      if @flow
+        for ruleset in @flow.rule_sets
+          if ruleset.uuid != excludeRuleset?.uuid
+            flowFields[@slugify(ruleset.label)] = ruleset.label
 
       # as an array
       result = []

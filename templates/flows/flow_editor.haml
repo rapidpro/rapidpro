@@ -183,7 +183,7 @@
   #versions{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
     %h4
       Revision History
-    .version{ng-repeat:'version in versions', ng-class:'{selected:version.selected}'}
+    .version{ng-repeat:'version in versions()', ng-class:'{selected:version.selected}'}
 
 
       <a ng-click='showVersion(version)' href='#'>[[version.created_on|date:'medium']]</a>
