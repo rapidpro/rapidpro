@@ -891,7 +891,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               name: gettext('Default')
 
         Flow.languages = languages
-        $log.debug(Flow.languages)
         Flow.flow = flow
 
 
@@ -961,7 +960,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     updateTranslationStats: ->
 
-      $log.debug('update stats', @language)
       if @language
         # look at all translatable bits in our flow and check for completeness
         flow = @flow

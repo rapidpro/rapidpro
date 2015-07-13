@@ -145,7 +145,6 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
   link = (scope, element, attrs) ->
 
     scope.updateTranslationStatus = (action, baseLanguage, currentLanguage) ->
-      $log.debug("Update:", baseLanguage, currentLanguage)
 
       action._missingTranslation = false
       # grab the appropriate translated version

@@ -218,8 +218,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     $scope.language = lang
     Plumb.repaint()
 
-    $log.debug('Setting language', $scope.language)
-
   $scope.updateActivity = ->
 
     # activity from simulation is updated separately
@@ -257,7 +255,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     $scope.flow = Flow.flow
     $scope.languages = Flow.languages
     $scope.language = Flow.language
-    $log.debug($scope.flow, $scope.languages)
 
     if current
       jsPlumb.bind('connectionDrag', (connection) -> $scope.onConnectorDrag(connection))
