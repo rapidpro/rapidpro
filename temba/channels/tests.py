@@ -1996,42 +1996,42 @@ class CountTest(TembaTest):
 
         # incoming msg with a channel
         msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
-        self.assertDailyCount(1, ChannelCount.INCOMING_MSG, msg.created_on.date())
+        self.assertDailyCount(1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         # delete it, back to 0
         msg.delete()
-        self.assertDailyCount(0, ChannelCount.INCOMING_MSG, msg.created_on.date())
+        self.assertDailyCount(0, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
         real_contact = Contact.get_or_create(self.org, self.admin, urns=[(TEL_SCHEME, '+250788111222')])
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
-        self.assertDailyCount(1, ChannelCount.OUTGOING_MSG, msg.created_on.date())
+        self.assertDailyCount(1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(0, ChannelCount.OUTGOING_MSG, msg.created_on.date())
+        self.assertDailyCount(0, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # incoming IVR
         msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'),
                                   "Test Message", org=self.org, msg_type=IVR)
-        self.assertDailyCount(1, ChannelCount.INCOMING_IVR, msg.created_on.date())
+        self.assertDailyCount(1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(0, ChannelCount.INCOMING_IVR, msg.created_on.date())
+        self.assertDailyCount(0, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Voice",
                                   channel=self.channel, msg_type=IVR)
-        self.assertDailyCount(1, ChannelCount.OUTGOING_IVR, msg.created_on.date())
+        self.assertDailyCount(1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(0, ChannelCount.OUTGOING_IVR, msg.created_on.date())
+        self.assertDailyCount(0, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
