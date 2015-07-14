@@ -3472,8 +3472,8 @@ class TwilioTest(TembaTest):
 
             # the counts on our relayer should be correct as well
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.error_log_count)
-            self.assertEquals(1, self.channel.success_log_count)
+            self.assertEquals(1, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
             response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
@@ -3487,8 +3487,8 @@ class TwilioTest(TembaTest):
             # our counts should be right
             # the counts on our relayer should be correct as well
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.error_log_count)
-            self.assertEquals(1, self.channel.success_log_count)
+            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_success_log_count())
 
         finally:
             settings.SEND_MESSAGES = False

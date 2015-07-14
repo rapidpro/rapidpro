@@ -476,7 +476,7 @@ class Msg(models.Model, OrgModelMixin):
     Messages are either inbound or outbound and can have varying states depending on their
     direction. Generally an outbound message will go through the following states:
 
-      QUEUED > WIRED > SENT > DELIVERED
+      INITIALIZING > QUEUED > WIRED > SENT > DELIVERED
 
     If things go wrong, they can be put into an ERRORED state where they can be retried. Once
     we've given up then they can be put in the FAILED state.

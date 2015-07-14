@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -36,7 +36,8 @@ from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL
+from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
@@ -524,11 +525,7 @@ class ChannelCRUDL(SmartCRUDL):
                                       style='btn-primary',
                                       href="#",
                                       js_class='remove-caller'))
-                # TODO: Can't posterize from menu, so this shortcut won't work yet
-                # elif self.org.is_connected_to_twilio() and self.request.user.is_beta():
-                #    links.append(dict(title=_('Enable Voice Calling'),
-                #                      style='posterize',
-                #                      href="%s?channel=%d" % (reverse("channels.channel_create_caller"), self.get_object().pk)))
+
             if self.has_org_perm("channels.channel_delete"):
                 links.append(dict(title=_('Remove'),
                                   js_class='remove-channel',
@@ -548,23 +545,21 @@ class ChannelCRUDL(SmartCRUDL):
             if not channel.is_active:
                 raise Http404("No active channel with that id")
 
-            context['sms_count'] = channel.org.get_folder_count(OrgFolder.msgs_inbox) + channel.org.get_folder_count(OrgFolder.msgs_outbox)
-            is_jumbo = context['sms_count'] > 1000000
+            context['msg_count'] = channel.get_msg_count()
+            context['ivr_count'] = channel.get_ivr_count()
 
-            # calculate the count for real if it won't be too expensive
-            if not is_jumbo:
-                context['sms_count'] = Msg.objects.filter(channel=self.object).exclude(msg_type=IVR).exclude(contact__is_test=True).count()
-                context['ivr_count'] = Msg.objects.filter(channel=self.object, msg_type=IVR).exclude(contact__is_test=True).count()
-            else:
-                context['sms_count'] = "~%d" % context['sms_count']
-                context['ivr_count'] = 0
-
-            ## power source stats data
-            source_stats = [[event['power_source'], event['count']] for event in sync_events.order_by('power_source').values('power_source').annotate(count=Count('power_source'))]
+            # power source stats data
+            source_stats = [[event['power_source'], event['count']]
+                            for event in sync_events.order_by('power_source')
+                                                    .values('power_source')
+                                                    .annotate(count=Count('power_source'))]
             context['source_stats'] = source_stats
 
-            ## network connected to stats
-            network_stats = [[event['network_type'], event['count']] for event in sync_events.order_by('network_type').values('network_type').annotate(count=Count('network_type'))]
+            # network connected to stats
+            network_stats = [[event['network_type'], event['count']]
+                             for event in sync_events.order_by('network_type')
+                                                     .values('network_type')
+                                                     .annotate(count=Count('network_type'))]
             context['network_stats'] = network_stats
 
             total_network = 0
@@ -606,100 +601,105 @@ class ChannelCRUDL(SmartCRUDL):
                 if unsent_msgs:
                     context['unsent_msgs_count'] = unsent_msgs.count()
 
-            end_date = timezone.now() + timedelta(days=1)
-            start_date = end_date - timedelta(days=31)
+            end_date = (timezone.now() + timedelta(days=1)).date()
+            start_date = end_date - timedelta(days=30)
 
-            context['start_date'] = start_date.date()
-            context['end_date'] = end_date.date()
+            context['start_date'] = start_date
+            context['end_date'] = end_date
 
             message_stats = []
 
             # build up the channels we care about for outgoing messages
-            outgoing_channels = [channel]
+            channels = [channel]
             for sender in Channel.objects.filter(parent=channel):
-                outgoing_channels.append(sender)
+                channels.append(sender)
 
-            # Show sms messages in a stacked column
-            incoming = list(channel.msgs.filter(created_on__gte=start_date, direction='I', contact__is_test=False).exclude(msg_type=IVR).extra(
-                {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
-
-            outgoing = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False).exclude(msg_type=IVR).extra(
-                {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
-
-            message_stats.append(dict(name=_('Incoming Text'), data=incoming))
-            message_stats.append(dict(name=_('Outgoing Text'), data=outgoing))
-
-            # Show ivr messages in the same stack
+            msg_in = []
+            msg_out = []
             ivr_in = []
             ivr_out = []
-            if context['ivr_count']:
-                ivr_out = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False, msg_type=IVR).extra(
-                    {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
 
-                ivr_in = list(Msg.objects.filter(channel__in=outgoing_channels, created_on__gte=start_date, direction='I', contact__is_test=False, msg_type=IVR).extra(
-                    {'date': "date(msgs_msg.created_on)"}).order_by('date').values('date').annotate(count=Count('id')))
+            message_stats.append(dict(name=_('Incoming Text'), data=msg_in))
+            message_stats.append(dict(name=_('Outgoing Text'), data=msg_out))
+
+            if context['ivr_count']:
                 message_stats.append(dict(name=_('Incoming IVR'), data=ivr_in))
                 message_stats.append(dict(name=_('Outgoing IVR'), data=ivr_out))
 
-                from django.db.models import Sum
-                context['call_duration'] = list(IVRCall.objects.filter(
-                    channel__in=outgoing_channels, created_on__gte=start_date, direction='O', contact__is_test=False)
-                    .extra({'date': "date(ivr_ivrcall.created_on)"})
-                    .order_by('date').values('date')
-                    .annotate(duration=Sum('duration')))
+            # get all our counts for that period
+            daily_counts = list(ChannelCount.objects.filter(channel__in=channels, day__gte=start_date)
+                                                    .filter(count_type__in=[ChannelCount.INCOMING_MSG_TYPE,
+                                                                            ChannelCount.OUTGOING_MSG_TYPE,
+                                                                            ChannelCount.INCOMING_IVR_TYPE,
+                                                                            ChannelCount.OUTGOING_IVR_TYPE])
+                                                    .values('day', 'count_type')
+                                                    .order_by('day', 'count_type')
+                                                    .annotate(count_sum=Sum('count')))
 
-                print context['call_duration']
+            current = start_date
+            while current <= end_date:
+                # for every date we care about
+                while daily_counts and daily_counts[0]['day'] == current:
+                    daily_count = daily_counts.pop(0)
+                    if daily_count['count_type'] == ChannelCount.INCOMING_MSG_TYPE:
+                        msg_in.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
+                    elif daily_count['count_type'] == ChannelCount.OUTGOING_MSG_TYPE:
+                        msg_out.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
+                    elif daily_count['count_type'] == ChannelCount.INCOMING_IVR_TYPE:
+                        ivr_in.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
+                    elif daily_count['count_type'] == ChannelCount.OUTGOING_IVR_TYPE:
+                        ivr_out.append(dict(date=daily_count['day'], count=daily_count['count_sum']))
+
+                current = current + timedelta(days=1)
 
             context['message_stats'] = message_stats
-            context['has_messages'] = len(incoming) or len(outgoing) or len(ivr_in) or len(ivr_out)
+            context['has_messages'] = len(msg_in) or len(msg_out) or len(ivr_in) or len(ivr_out)
 
             message_stats_table = []
 
+            # we'll show totals for every month since this channel was started
+            month_start = channel.created_on.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            # get our totals grouped by month
+            monthly_totals = list(ChannelCount.objects.filter(channel=channel, day__gte=month_start)
+                                                      .filter(count_type__in=[ChannelCount.INCOMING_MSG_TYPE,
+                                                                              ChannelCount.OUTGOING_MSG_TYPE,
+                                                                              ChannelCount.INCOMING_IVR_TYPE,
+                                                                              ChannelCount.OUTGOING_IVR_TYPE])
+                                                      .extra({'month': "date_trunc('month', day)"})
+                                                      .values('month', 'count_type')
+                                                      .order_by('month', 'count_type')
+                                                      .annotate(count_sum=Sum('count')))
+
+            # calculate our summary table for last 12 months
             now = timezone.now()
-            month_end_time = now
-            month_start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            while month_start < now:
+                msg_in = 0
+                msg_out = 0
+                ivr_in = 0
+                ivr_out = 0
 
-            channel_added_on = channel.created_on
+                while monthly_totals and monthly_totals[0]['month'] == month_start:
+                    monthly_total = monthly_totals.pop(0)
+                    if monthly_total['count_type'] == ChannelCount.INCOMING_MSG_TYPE:
+                        msg_in = monthly_total['count_sum']
+                    elif monthly_total['count_type'] == ChannelCount.OUTGOING_MSG_TYPE:
+                        msg_out = monthly_total['count_sum']
+                    elif monthly_total['count_type'] == ChannelCount.INCOMING_IVR_TYPE:
+                        ivr_in = monthly_total['count_sum']
+                    elif monthly_total['count_type'] == ChannelCount.OUTGOING_IVR_TYPE:
+                        ivr_out = monthly_total['count_sum']
 
-            def get_direction_count(result, direction):
-                filtered = [r for r in result if r['direction'] == direction]
-                if filtered:
-                    return filtered[0]['count']
-                else:
-                    return 0
+                message_stats_table.append(dict(month_start=month_start,
+                                                incoming_messages_count=msg_in,
+                                                outgoing_messages_count=msg_out,
+                                                incoming_ivr_count=ivr_in,
+                                                outgoing_ivr_count=ivr_out))
 
-            summary_months = 12
-            if is_jumbo: summary_months = 3
+                month_start = (month_start + timedelta(days=32)).replace(day=1)
 
-            for i in range(summary_months):
-                if month_end_time > channel_added_on:
-                    msg_counts = Msg.objects.filter(channel=self.object,
-                                                    created_on__lt=month_end_time,
-                                                    created_on__gte=month_start_time,
-                                                    contact__is_test=False,
-                                                    direction__in=[INCOMING, OUTGOING]).exclude(msg_type=IVR)\
-                                                    .order_by('direction').values('direction').annotate(count=Count('direction'))
-
-                    if context['ivr_count']:
-                        ivr_counts = Msg.objects.filter(channel=self.object,
-                                                        created_on__lt=month_end_time,
-                                                        created_on__gte=month_start_time,
-                                                        contact__is_test=False,
-                                                        direction__in=[INCOMING, OUTGOING],
-                                                        msg_type=IVR).order_by('direction').values('direction')\
-                                                        .annotate(count=Count('direction'))
-                    else:
-                        ivr_counts = []
-
-                    message_stats_table.append(dict(month_start=month_start_time,
-                                                    incoming_messages_count=get_direction_count(msg_counts, 'I'),
-                                                    outgoing_messages_count=get_direction_count(msg_counts, 'O'),
-                                                    incoming_ivr_count=get_direction_count(ivr_counts, 'I'),
-                                                    outgoing_ivr_count=get_direction_count(ivr_counts, 'O')))
-                month_end_time = month_start_time
-                month_start_time = (month_start_time - timedelta(days=7)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-
+            # reverse our table so most recent is first
+            message_stats_table.reverse()
             context['message_stats_table'] = message_stats_table
 
             return context
@@ -2032,7 +2032,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
 
             # monkey patch our queryset for the total count
-            events.count = lambda: channel.error_log_count + channel.success_log_count
+            events.count = lambda: channel.get_log_count()
             return events
 
         def get_context_data(self, **kwargs):
