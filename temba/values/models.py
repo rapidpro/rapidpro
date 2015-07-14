@@ -342,7 +342,7 @@ class Value(models.Model):
             { contact_field: "Country", values: ["US", "EN", "RW"] } // segment by a contact field for these values
         """
         from temba.contacts.models import ContactGroup, ContactField
-        from temba.flows.models import TrueTest
+        from temba.flows.models import TrueTest, RuleSet
 
         start = time.time()
         results = []
@@ -352,8 +352,7 @@ class Value(models.Model):
 
         org = ruleset.flow.org if ruleset else contact_field.org
 
-        from temba.flows.models import RULESET_WAIT_MESSAGE
-        open_ended = ruleset and ruleset.ruleset_type == RULESET_WAIT_MESSAGE and len(ruleset.get_rules()) == 1
+        open_ended = ruleset and ruleset.ruleset_type == RuleSet.TYPE_WAIT_MESSAGE and len(ruleset.get_rules()) == 1
 
         # default our filters to an empty list if None are passed in
         if filters is None:

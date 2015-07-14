@@ -2056,17 +2056,15 @@ class WebhookTest(TembaTest):
 
         run = FlowRun.create(self.flow, self.contact)
 
-        from temba.flows.models import RULESET_WEBHOOK, RULESET_EXPRESSION
-
         # webhook ruleset comes first
-        webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RULESET_WEBHOOK)
+        webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
         webhook.webhook_url = "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164"
         webhook.webhook_action = "GET"
         webhook.set_rules_dict([Rule(uuid(15), "All Responses", uuid(200), 'R', TrueTest()).as_json()])
         webhook.save()
 
         # and a ruleset to split off the results
-        rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(200), x=0, y=200, ruleset_type=RULESET_EXPRESSION)
+        rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(200), x=0, y=200, ruleset_type=RuleSet.TYPE_EXPRESSION)
         rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), 'A', ContainsTest("valid")).as_json(),
                               Rule(uuid(13), "Invalid", uuid(3), 'A', ContainsTest("invalid")).as_json()])
         rules.save()

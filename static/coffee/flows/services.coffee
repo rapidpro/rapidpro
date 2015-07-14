@@ -375,6 +375,15 @@ app.factory "Versions", ['$http', '$log', ($http, $log) ->
         # only set the versions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.versions = data
+
+    getVersion: (version) ->
+      _this = @
+      return $http.get('/flow/versions/' + flowId + '/?definition=' + version.id).success (data, status, headers) ->
+        # only set the versions if we get back json, if we don't have permission we'll get a login page
+        if headers('content-type') == 'application/json'
+          _this.definition = data
+          $log.debug(data)
+
 ]
 
 app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->

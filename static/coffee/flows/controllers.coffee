@@ -34,7 +34,10 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
       Versions.original = Flow.flow
 
     # show the version definition
-    $scope.showDefinition(version.definition)
+    Versions.getVersion(version).then ->
+      $log.debug('then!')
+      $log.debug(Versions.definition)
+      $scope.showDefinition(Versions.definition)
 
   # Show a definition from a version or our original definition
   $scope.showDefinition = (definition, onChange) ->
