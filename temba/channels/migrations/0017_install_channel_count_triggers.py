@@ -19,14 +19,17 @@ class Migration(migrations.Migration):
         Channel = apps.get_model('channels', 'Channel')
         Msg = apps.get_model('msgs', 'Msg')
 
-        def add_daily_counts(channel, count_type, daily_counts):
-            for daily_count in daily_counts:
-                print "Adding %d - %s - %s" % (channel.id, count_type, str(daily_count))
+        def add_daily_counts(count_channel, count_type, count_totals):
+            for daily_count in count_totals:
+                print "Adding %d - %s - %s" % (count_channel.id, count_type, str(daily_count))
 
                 ChannelCount.objects.create(channel=channel, count_type=count_type,
                                             day=daily_count['created'], count=daily_count['count'])
 
         for channel in Channel.objects.all():
+            # remove any previous counts
+            ChannelCount.objects.filter(channel=channel, count_type__in=['IM', 'OM', 'IV', 'OV']).delete()
+
             # incoming msgs
             daily_counts = Msg.objects.filter(channel=channel, contact__is_test=False, direction='I')\
                                       .exclude(msg_type='V')\
@@ -62,6 +65,7 @@ class Migration(migrations.Migration):
                                       .annotate(count=Count('id'))\
                                       .order_by('created')
             add_daily_counts(channel, 'OV', daily_counts)
+
 
     def install_channelcount_trigger(apps, schema_editor):
         """
