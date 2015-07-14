@@ -5,6 +5,17 @@ from django.db import models, migrations, connection
 
 class Migration(migrations.Migration):
 
+    dependencies = [
+        ('channels', '0018_auto_20150710_2047'),
+    ]
+
+    def clear_channel_logs(apps, schema_editor):
+        """
+        Clear out all our channel logs, we'll start anew
+        """
+        ChannelCount = apps.get_model('channels', 'ChannelCount')
+        ChannelCount.objects.all().delete()
+
     def install_channellog_trigger(apps, schema_editor):
         """
         Installs a Postgres trigger that will increment or decrement our our success and error
@@ -12,26 +23,26 @@ class Migration(migrations.Migration):
         """
         #language=SQL
         install_trigger = """
-            CREATE OR REPLACE FUNCTION update_channellog_count() RETURNS TRIGGER AS $$
+            CREATE OR REPLACE FUNCTION temba_update_channellog_count() RETURNS TRIGGER AS $$
             BEGIN
               -- ChannelLog being added
               IF TG_OP = 'INSERT' THEN
                 -- Error, increment our error count
                 IF NEW.is_error THEN
-                  UPDATE channels_channel SET error_log_count=error_log_count+1 WHERE id=NEW.channel_id;
+                  PERFORM temba_increment_channelcount(NEW.channel_id, 'LE', NULL::date);
                 -- Success, increment that count instead
                 ELSE
-                  UPDATE channels_channel SET success_log_count=success_log_count+1 WHERE id=NEW.channel_id;
+                  PERFORM temba_increment_channelcount(NEW.channel_id, 'LS', NULL::date);
                 END IF;
 
               -- ChannelLog being removed
               ELSIF TG_OP = 'DELETE' THEN
                 -- Error, decrement our error count
                 if OLD.is_error THEN
-                  UPDATE channels_channel SET error_log_count=error_log_count-1 WHERE id=OLD.channel_id;
+                  PERFORM temba_decrement_channelcount(OLD.channel_id, 'LE', NULL::date);
                 -- Success, decrement that count instead
                 ELSE
-                  UPDATE channels_channel SET success_log_count=success_log_count-1 WHERE id=OLD.channel_id;
+                  PERFORM temba_decrement_channelcount(OLD.channel_id, 'LS', NULL::date);
                 END IF;
 
               -- Updating is_error is forbidden
@@ -40,7 +51,7 @@ class Migration(migrations.Migration):
 
               -- Table being cleared, reset all counts
               ELSIF TG_OP = 'TRUNCATE' THEN
-                UPDATE channels_channel SET error_log_count=0, success_log_count=0;
+                UPDATE channels_channel SET count=0 WHERE count_type IN ('LE', 'LS');
               END IF;
 
               RETURN NULL;
@@ -48,33 +59,26 @@ class Migration(migrations.Migration):
             $$ LANGUAGE plpgsql;
 
             -- Install INSERT, UPDATE and DELETE triggers
-            DROP TRIGGER IF EXISTS when_channellog_changes_then_update_channel_trg on channels_channellog;
-            CREATE TRIGGER when_channellog_changes_then_update_channel_trg
+            DROP TRIGGER IF EXISTS temba_channellog_update_channelcount on channels_channellog;
+            CREATE TRIGGER temba_channellog_update_channelcount
                AFTER INSERT OR DELETE OR UPDATE OF is_error, channel_id
                ON channels_channellog
                FOR EACH ROW
-               EXECUTE PROCEDURE update_channellog_count();
+               EXECUTE PROCEDURE temba_update_channellog_count();
 
             -- Install TRUNCATE trigger
-            DROP TRIGGER IF EXISTS when_channellog_truncate_then_update_channel_trg on channels_channellog;
-            CREATE TRIGGER when_channellog_truncate_then_update_channel_trg
+            DROP TRIGGER IF EXISTS temba_channellog_truncate_channelcount on channels_channellog;
+            CREATE TRIGGER temba_channellog_truncate_channelcount
               AFTER TRUNCATE
               ON channels_channellog
-              EXECUTE PROCEDURE update_channellog_count();
+              EXECUTE PROCEDURE temba_update_channellog_count();
         """
         cursor = connection.cursor()
         cursor.execute(install_trigger)
 
-    dependencies = [
-        ('channels', '0014_create_channellog_index'),
-    ]
-
     operations = [
-        migrations.AlterField(
-            model_name='channellog',
-            name='channel',
-            field=models.ForeignKey(related_name='logs', to='channels.Channel', help_text='The channel the message was sent on'),
-            preserve_default=True,
+         migrations.RunPython(
+            clear_channel_logs,
         ),
         migrations.RunPython(
             install_channellog_trigger,
