@@ -1479,21 +1479,24 @@ class SyncEventTest(SmartminTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.tel_channel = Channel.objects.create(name="Test Channel", address="0785551212", org=self.org,
-                                                  created_by=self.user, modified_by=self.user,
+                                                  created_by=self.user, modified_by=self.user, country='RW',
                                                   secret="12345", gcm_id="123")
 
     def test_sync_event_model(self):
-        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc='RW'), [1,2])
+        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI",
+                                                                  pending=[1, 2], retry=[3, 4], cc='RW'), [1,2])
         self.assertEquals(SyncEvent.objects.all().count(), 1)
         self.assertEquals(self.sync_event.get_pending_messages(), [1, 2])
         self.assertEquals(self.sync_event.get_retry_messages(), [3, 4])
         self.assertEquals(self.sync_event.incoming_command_count, 0)
 
-        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc='US'), [1])
+        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI",
+                                                                  pending=[1, 2], retry=[3, 4], cc='US'), [1])
         self.assertEquals(self.sync_event.incoming_command_count, 0)
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
-        self.assertEquals('US', self.tel_channel.country)
 
+        # we shouldn't update country once the relayer is claimed
+        self.assertEquals('RW', self.tel_channel.country)
 
 class ChannelAlertTest(TembaTest):
 

@@ -1944,7 +1944,6 @@ class SyncEvent(SmartModel):
     @classmethod
     def create(cls, channel, cmd, incoming_commands):
         # update country, device and OS on our channel
-        country = cmd.get('cc', None)
         device = cmd.get('dev', None)
         os = cmd.get('os', None)
 
