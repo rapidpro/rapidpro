@@ -1993,16 +1993,6 @@ class Flow(TembaModel, SmartModel):
                 if node.get('ruleset_type', None) in RuleSet.TYPE_WAIT:
                     return []
 
-                # rules on @step.value require user input
-                #operand = node.get('operand', '@step.value')
-
-                #if not operand or RuleSet.contains_step(operand):
-                #    return []
-
-                # webhooks require user input for now
-                #if node.get('webhook', None):
-                #    return []
-
                 for rule in rules:
                     if rule.get('destination'):
                         destinations.append(rule.get('destination'))
@@ -2694,8 +2684,6 @@ class FlowVersion(SmartModel):
 
         def insert_node(flow, node, _next):
 
-            print 'inserting %s' % node
-
             def update_destination(node_to_update, old_uuid, uuid):
                 if node_to_update.get('actions', []):
                     if node_to_update.get('destination') == old_uuid:
@@ -2733,13 +2721,10 @@ class FlowVersion(SmartModel):
 
         while (version != CURRENT_EXPORT_VERSION):
 
-            print 'Migrating flow defintion (version: %d)' % version
-
             # Move from version 4 to version 5
             if version == 4:
 
                 for ruleset in json_flow.get('rule_sets'):
-
 
                     response_type = ruleset.pop('response_type', None)
                     ruleset_type = ruleset.get('ruleset_type', None)
@@ -2808,7 +2793,6 @@ class FlowVersion(SmartModel):
             # look for our next version
             version +=1
 
-        print 'migrated: %s' % json.dumps(json_flow, indent=2)
         return json_flow
 
     def get_definition_json(self):

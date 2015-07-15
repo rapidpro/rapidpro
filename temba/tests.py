@@ -97,14 +97,28 @@ class TembaTest(SmartminTest):
         """
         shutil.rmtree('media/test_orgs', ignore_errors=True)
 
-    def import_file(self, file, site='http://rapidpro.io'):
+    def import_file(self, file, site='http://rapidpro.io', substitutions=None):
 
-        handle = open('%s/test_imports/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
         data = handle.read()
         handle.close()
 
+        if substitutions:
+            for k,v in substitutions.iteritems():
+                print 'Replacing "%s" with "%s"' % (k,v)
+                data = data.replace(k, str(v))
+
         # import all our bits
         self.org.import_app(json.loads(data), self.admin, site=site)
+
+    def get_flow(self, filename, substitutions=None):
+        last_flow = Flow.objects.all().order_by('-pk').first()
+        self.import_file(filename, substitutions=substitutions)
+
+        if last_flow:
+            return Flow.objects.filter(pk__gt=last_flow.pk).first()
+
+        return Flow.objects.all().first()
 
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
@@ -199,12 +213,13 @@ class TembaTest(SmartminTest):
             actionset.save()
 
         ruleset = RuleSet.get(flow, node)
-        rules = ruleset.get_rules()
-        for r in rules:
-            if r.uuid == rule:
-                r.destination = destination
-        ruleset.set_rules(rules)
-        ruleset.save()
+        if ruleset:
+            rules = ruleset.get_rules()
+            for r in rules:
+                if r.uuid == rule:
+                    r.destination = destination
+            ruleset.set_rules(rules)
+            ruleset.save()
 
 
 class FlowFileTest(TembaTest):
@@ -256,33 +271,9 @@ class FlowFileTest(TembaTest):
         finally:
             Contact.set_simulation(False)
 
-    def get_flow(self, filename, substitutions=None, flow_type=Flow.FLOW):
-        flow = Flow.create(self.org, self.admin, name=filename, flow_type=flow_type)
-        self.update_flow(flow, filename, substitutions)
-        return flow
-
-    def update_flow(self, flow, filename, substitutions=None):
-        from django.conf import settings
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename), 'r+')
-        contents = handle.read()
-        handle.close()
-
-        if substitutions:
-            for key in substitutions.keys():
-                contents = contents.replace(key, str(substitutions[key]))
-
-        from temba.flows.models import FlowVersion
-        definition = FlowVersion.migrate_definition(json.loads(contents), 4)
-
-        print json.dumps(definition, indent=2)
-
-        flow.update(definition)
-        return flow
-
 
 from selenium.webdriver.firefox.webdriver import WebDriver
 from HTMLParser import HTMLParser
-
 
 class MLStripper(HTMLParser):
     def __init__(self):

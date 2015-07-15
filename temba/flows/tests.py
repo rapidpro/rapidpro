@@ -2207,7 +2207,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertEquals(len(json_dict['messages']), 2)
-        self.assertEquals('Ben Haggerty has entered the &quot;pick_a_number&quot; flow', json_dict['messages'][0]['text'])
+        self.assertEquals('Ben Haggerty has entered the &quot;Pick a Number&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("Pick a number between 1-10.", json_dict['messages'][1]['text'])
 
         post_data['new_message'] = "3"
@@ -2249,15 +2249,20 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url)
         self.assertEquals([], json.loads(response.content))
 
-        first_action_set_uuid = 'ec4c8328-f7b6-4386-90c0-b7e6a3517e9b'
-        first_action_set_destination = '1a08ec37-2218-48fd-b6b0-846b14407041'
+        actionset = ActionSet.objects.filter(flow=flow, y=0).first()
+        first_action_set_uuid = actionset.uuid
+        first_action_set_destination = actionset.destination
 
-        first_ruleset_uuid = '1a08ec37-2218-48fd-b6b0-846b14407041'
-        other_rule_destination = 'dcd9541a-0263-474e-b3f1-03a28993f95a'
-        other_rule_uuid = 'e342d6af-7149-485c-b2ac-0e56c6cc1aa9'
+        ruleset = RuleSet.objects.filter(flow=flow, label='Color').first()
+        first_ruleset_uuid = ruleset.uuid
 
-        blue_rule_uuid = 'ad45fa86-0e4e-4d91-a1ff-a96308267216'
-        blue_rule_destination = '2469ada5-3c36-4d74-bf73-daab0a56c37c'
+        other_rule = ruleset.get_rules()[-1]
+        other_rule_destination = other_rule.destination
+        other_rule_uuid = other_rule.uuid
+
+        blue_rule = ruleset.get_rules()[-2]
+        blue_rule_uuid = blue_rule.uuid
+        blue_rule_destination = blue_rule.destination
 
         # use the right get params
         self.send_message(flow, 'chartreuse')
@@ -2337,14 +2342,20 @@ class FlowsTest(FlowFileTest):
         # clear our previous redis activity
         self.clear_activity(flow)
 
-        other_rule_to_msg = 'e342d6af-7149-485c-b2ac-0e56c6cc1aa9:dcd9541a-0263-474e-b3f1-03a28993f95a'
-        msg_to_color_step = 'dcd9541a-0263-474e-b3f1-03a28993f95a:1a08ec37-2218-48fd-b6b0-846b14407041'
+        other_action = ActionSet.objects.get(y=8, flow=flow)
+        beer = RuleSet.objects.get(label='Beer', flow=flow)
+        color = RuleSet.objects.get(label='Color', flow=flow)
+        color_other_uuid = color.get_rules()[-1].uuid
+
+        other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
+        msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
         self.send_message(flow, 'chartreuse')
         (active, visited) = flow.get_activity()
+
         self.assertEquals(1, len(active))
-        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, active[color.uuid])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
@@ -2357,7 +2368,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'mauve')
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
-        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, active[color.uuid])
         self.assertEquals(2, visited[other_rule_to_msg])
         self.assertEquals(2, visited[msg_to_color_step])
 
@@ -2366,15 +2377,15 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'blue')
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
-        self.assertEquals(1, active['0784d7f8-3534-4432-99ad-7e4ea41cfbdb'])
+        self.assertEquals(1, active[beer.uuid])
 
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
         self.send_message(flow, 'burnt sienna', contact=ryan)
         (active, visited) = flow.get_activity()
         self.assertEquals(2, len(active))
-        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
-        self.assertEquals(1, active['0784d7f8-3534-4432-99ad-7e4ea41cfbdb'])
+        self.assertEquals(1, active[color.uuid])
+        self.assertEquals(1, active[beer.uuid])
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(3, visited[msg_to_color_step])
         self.assertEquals(2, flow.get_total_runs())
@@ -2384,7 +2395,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'blue', contact=ryan)
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
-        self.assertEquals(2, active['0784d7f8-3534-4432-99ad-7e4ea41cfbdb'])
+        self.assertEquals(2, active[beer.uuid])
 
         # now move our first contact forward to the end, back to two nodes with active
         self.send_message(flow, 'Turbo King')
@@ -2503,7 +2514,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'azul', contact=tupac)
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
-        self.assertEquals(1, active['1a08ec37-2218-48fd-b6b0-846b14407041'])
+        self.assertEquals(1, active[color.uuid])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
@@ -2527,7 +2538,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('pick_a_number')
 
         # our start points to a ruleset
-        start = ActionSet.objects.get(uuid='2f2adf23-87db-41d3-9436-afe48ab5403c')
+        start = ActionSet.objects.get(flow=flow, y=0)
         self.assertEquals(RULE_SET, start.destination_type)
 
         # and that ruleset points to an actionset
@@ -2536,7 +2547,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(ACTION_SET, rule.destination_type)
 
         # point our rule to a ruleset
-        self.update_destination(flow, rule.uuid, '12610fb2-f841-11e4-a322-1697f925ec7b')
+        passive = RuleSet.objects.get(flow=flow, label='passive')
+        self.update_destination(flow, rule.uuid, passive.uuid)
         ruleset = RuleSet.objects.get(uuid=start.destination)
         self.assertEquals(RULE_SET, ruleset.get_rules()[0].destination_type)
 
@@ -2549,24 +2561,30 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('pick_a_number')
         self.assertEquals("You picked 3!", self.send_message(flow, "3"))
 
+        pick_a_number = ActionSet.objects.get(flow=flow, y=0)
+        you_picked = ActionSet.objects.get(flow=flow, y=228)
+
         # send a message, no flow should handle us since we are done
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
         handled = flow.find_and_handle(incoming)
         self.assertFalse(handled)
 
         # now wire up our finished action to the start of our flow
-        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '2f2adf23-87db-41d3-9436-afe48ab5403c')
+        flow = self.update_destination(flow, you_picked.uuid, pick_a_number.uuid)
         self.assertEquals("Pick a number between 1-10.", self.send_message(flow, "next message please"))
 
     def test_orphaned_action_to_input_rule(self):
         """
         Orphaned at an action, then routed to a rule that evaluates on input
         """
-
         flow = self.get_flow('pick_a_number')
+
         self.assertEquals("You picked 6!", self.send_message(flow, "6"))
 
-        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '06bb3899-5de4-4cbc-ad5f-70b9634d80c4')
+        you_picked = ActionSet.objects.get(flow=flow, y=228)
+        number = RuleSet.objects.get(flow=flow, label='number')
+
+        flow = self.update_destination(flow, you_picked.uuid, number.uuid)
         self.assertEquals("You picked 9!", self.send_message(flow, "9"))
 
     def test_orphaned_action_to_passive_rule(self):
@@ -2575,49 +2593,46 @@ class FlowsTest(FlowFileTest):
         to a rule that evaluates on input
         """
         flow = self.get_flow('pick_a_number')
+
+        you_picked = ActionSet.objects.get(flow=flow, y=228)
+        passive_ruleset = RuleSet.objects.get(flow=flow, label='passive')
         self.assertEquals("You picked 6!", self.send_message(flow, "6"))
 
-        flow = self.update_destination(flow, '9a8ba8b2-8c80-4635-9f5d-015c15fdc44a', '12610fb2-f841-11e4-a322-1697f925ec7b')
+        flow = self.update_destination(flow, you_picked.uuid, passive_ruleset.uuid)
         self.assertEquals("You picked 9!", self.send_message(flow, "9"))
-
-    def test_server_cycle_detection(self):
-
-        flow = self.get_flow('loop_detection')
-
-        message_one = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
-        group_split = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
-        group_one = '605e4e98-5d85-45e7-a885-9c198977b63c'
-        rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
-
-        # rule turning back on ourselves
-        with self.assertRaises(FlowException):
-            self.update_destination(flow, group_one, group_split)
-
-        # non-blocking rule to non-blocking rule and back
-        with self.assertRaises(FlowException):
-            self.update_destination(flow, rowan, group_split)
-
-        # our non-blocking rule to an action and back to us again
-        with self.assertRaises(FlowException):
-            self.update_destination(flow, group_one, message_one)
 
     def test_server_runtime_cycle(self):
 
-        message_one = '13977cf2-68ee-49b9-8d88-2b9dbce12c5b'
-        group_split = '9e348f0c-f7fa-4c06-a78b-9ffa839e5779'
-        group_one = '605e4e98-5d85-45e7-a885-9c198977b63c'
-        name_split = '782e9e71-c116-4195-add3-1867132f95b6'
-        rowan = 'f78edeea-4339-4f06-b95e-141975b97cb8'
+        flow = self.get_flow('loop_detection')
+        first_actionset = ActionSet.objects.get(flow=flow, y=0)
+        group_ruleset = RuleSet.objects.get(flow=flow, label='Group Split A')
+        group_one_rule = group_ruleset.get_rules()[0]
+        name_ruleset = RuleSet.objects.get(flow=flow, label='Name Split')
+        rowan_rule = name_ruleset.get_rules()[0]
+
+        print group_ruleset
+        print name_ruleset
 
         # rule turning back on ourselves
-        flow = self.get_flow('loop_detection')
-        self.update_destination_no_check(flow, group_split, group_split, rule=group_one)
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, group_one_rule.uuid, group_ruleset.uuid)
+
+        # non-blocking rule to non-blocking rule and back
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, rowan_rule.uuid, group_ruleset.uuid)
+
+        # our non-blocking rule to an action and back to us again
+        with self.assertRaises(FlowException):
+            self.update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
+
+        # rule turning back on ourselves
+        self.update_destination_no_check(flow, group_ruleset.uuid, group_ruleset.uuid, rule=group_one_rule.uuid)
         self.send_message(flow, "1", assert_reply=False)
         flow.delete()
 
         # non-blocking rule to non-blocking rule and back
         flow = self.get_flow('loop_detection')
-        self.update_destination_no_check(flow, name_split, group_split, rowan)
+        self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rowan_rule.uuid)
         self.send_message(flow, "2", assert_reply=False)
         flow.delete()
 
@@ -2812,8 +2827,8 @@ class FlowsTest(FlowFileTest):
                                                 TRIGGER_FLOW=self.get_flow('pain_flow').pk))
         response = self.client.get(reverse('flows.flow_export', args=[flow.pk]))
         self.assertContains(response, "Sorry, this flow cannot be exported")
-        self.assertContains(response, "new_mother")
-        self.assertContains(response, "pain_flow")
+        self.assertContains(response, "New Mother")
+        self.assertContains(response, "Pain Flow")
 
         # now try importing it into a completey different org
         trey = self.create_user("Trey Anastasio")
@@ -2824,7 +2839,7 @@ class FlowsTest(FlowFileTest):
         definition = json.loads(response.content)
 
         Flow.import_flows(definition, trey_org, trey)
-        self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="new_mother").first())
+        self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="New Mother").first())
 
     def test_start_flow_action(self):
         self.import_file('flow-starts')
@@ -2912,7 +2927,7 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(isinstance(action.msg, dict))
 
         # now update with the old definition
-        self.update_flow(flow, 'favorites')
+        self.get_flow('favorites')
 
         # should no longer be localized
         self.assertIsNone(Flow.objects.get(pk=flow.pk).base_language)
@@ -2923,8 +2938,8 @@ class FlowsTest(FlowFileTest):
 
     def test_requires_step(self):
 
-        self.get_flow('favorites')
-        ruleset = RuleSet.objects.get(uuid='1a08ec37-2218-48fd-b6b0-846b14407041')
+        flow = self.get_flow('favorites')
+        ruleset = RuleSet.objects.filter(flow=flow, label='Color').first()
 
         # default is on @step.value
         self.assertEquals(True, ruleset.requires_step())
@@ -3007,10 +3022,6 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('preprocess')
         self.assertEquals('http://preprocessor.com/endpoint.php', flow.rule_sets.all()[0].webhook_url)
 
-        # now update to one without a preprocess url and make sure it disappears
-        flow = self.update_flow(flow, 'pick_a_number')
-        self.assertIsNone(flow.rule_sets.all()[0].webhook_url)
-
     def test_flow_loops(self):
         # this tests two flows that start each other
         flow1 = self.create_flow()
@@ -3051,7 +3062,7 @@ class FlowsTest(FlowFileTest):
 
         # tests that a contact is properly updated when a child flow is called
         child = self.get_flow('child')
-        parent = self.get_flow('parent', dict(CHILD_ID=child.id))
+        parent = self.get_flow('parent', substitutions=dict(CHILD_ID=child.id))
 
         # create a campaign with a single event
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", group)

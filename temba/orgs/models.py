@@ -966,6 +966,9 @@ class Org(SmartModel):
 
                         except Exception as e:
                             import traceback
+                            logger = logging.getLogger(__name__)
+                            msg = 'Failed creating sample flow: %s' % (flow_name)
+                            logger.error(msg, exc_info=True, extra=dict(definition=json.loads(org_example)))
                             traceback.print_exc()
 
     def is_notified_of_mt_sms(self):
