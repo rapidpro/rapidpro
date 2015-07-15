@@ -21,7 +21,7 @@ describe 'Directives:', ->
       # TODO: directives should not depend on root scope
       #       hack it in until we clean that up
 
-      Flow.flow = getJSONFixture('favorites.json')
+      Flow.flow = getJSONFixture('favorites.json').flows[0].definition
       scope = $rootScope.$new()
       scope.$root = $rootScope
 
