@@ -860,17 +860,33 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.get_receive_channel(TEL_SCHEME).is_delegate_sender())
 
         # create a US channel and try claiming it next to our RW channels
-        post_data = json.dumps(dict(cmds=[dict(cmd="gcm", gcm_id="claim_test", uuid='uuid'), dict(cmd='status', cc='US', dev='Nexus')]))
+        post_data = json.dumps(dict(cmds=[dict(cmd="gcm", gcm_id="claim_test", uuid='uuid'),
+                                          dict(cmd='status', cc='US', dev='Nexus')]))
         response = self.client.post(reverse('register'), content_type='application/json', data=post_data)
         channel = json.loads(response.content)['cmds'][0]
 
-        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.user, post_data=dict(claim_code=channel['relayer_claim_code'], phone_number="0788382382"), failOnFormValidation=False)
+        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.user,
+                                        post_data=dict(claim_code=channel['relayer_claim_code'],
+                                                       phone_number="0788382382"),
+                                        failOnFormValidation=False)
         self.assertEquals(200, response.status_code, "Claimed channels from two different countries")
         self.assertContains(response, "you can only add numbers for the same country")
 
+        # but if we submit with a fully qualified Rwandan number it should work
+        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.user,
+                                        post_data=dict(claim_code=channel['relayer_claim_code'],
+                                                       phone_number="+250788382382"),
+                                        failOnFormValidation=False)
+
+        self.assertRedirect(response, reverse('public.public_welcome'))
+
+        # should be added with RW as a country
+        self.assertTrue(Channel.objects.get(address='+250788382382', country='RW', org=self.org))
+
         response = self.fetch_protected(reverse('channels.channel_claim'), self.user)
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, Sweden, United Kingdom or United States")
+        self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, "
+                                                                "Sweden, United Kingdom or United States")
 
         # Test both old and new Cameroon phone format
         number = phonenumbers.parse('+23761234567', 'CM')
