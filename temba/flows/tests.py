@@ -534,9 +534,6 @@ class RuleTest(TembaTest):
         # back out as json
         json_dict = self.flow.as_json()
 
-        print json.dumps(json_dict, indent=2)
-        print json.dumps(self.definition, indent=2)
-
         self.maxDiff = None
         self.definition['last_saved'] = datetime_to_str(self.flow.saved_on)
         self.assertEquals(json_dict, self.definition)

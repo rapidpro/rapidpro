@@ -81,6 +81,7 @@ class FlowLock(Enum):
     """
     participation = 1
     activity = 2
+    definition = 3
 
 
 class FlowPropsCache(Enum):
@@ -356,7 +357,6 @@ class Flow(TembaModel, SmartModel):
             # migrate our flow definition forward if necessary
             if export_version < CURRENT_EXPORT_VERSION:
                 definition = FlowVersion.migrate_definition(definition, export_version)
-                # print json.dumps(definition, indent=2)
 
             flow_spec['flow'].import_definition(definition)
 
@@ -549,7 +549,7 @@ class Flow(TembaModel, SmartModel):
         # if we were orphaned at an actionset, advance us to the next node
         action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
         for step in action_sets:
-            flow = step.run.flow
+            FlowVersion.ensure_current_version(step.run.flow)
             action_set = ActionSet.get(flow, step.step_uuid)
 
             destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
@@ -562,7 +562,7 @@ class Flow(TembaModel, SmartModel):
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
-            flow = step.run.flow
+            FlowVersion.ensure_current_version(step.run.flow)
             arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
@@ -1386,6 +1386,8 @@ class Flow(TembaModel, SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        FlowVersion.ensure_current_version(self)
+
         if started_flows is None:
             started_flows = []
 
@@ -2092,10 +2094,6 @@ class Flow(TembaModel, SmartModel):
                 if actions:
                     current_actionsets[uuid] = actions
 
-            entry = json_dict.get('entry', None)
-            if entry:
-                destinations.add(entry)
-
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
                 uuid = ruleset.get(Flow.UUID)
                 current_rulesets[uuid] = ruleset
@@ -2245,20 +2243,26 @@ class Flow(TembaModel, SmartModel):
                 if not destination in existing_rulesets and not destination in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
+
+            entry = json_dict.get('entry', None)
+
+            # check if we are pointing to a destination that is no longer valid
+            if entry not in existing_rulesets and entry not in existing_actionsets:
+                entry = None
+
             if not entry and top_uuid:
                 entry = top_uuid
 
             # set our entry
-            if entry:
-                if entry in existing_actionsets:
-                    self.entry_uuid = entry
-                    self.entry_type = Flow.ACTIONS_ENTRY
-                elif entry in existing_rulesets:
-                    self.entry_uuid = entry
-                    self.entry_type = Flow.RULES_ENTRY
-                else:
-                    self.entry_uuid = None
-                    self.entry_type = None
+            if entry in existing_actionsets:
+                self.entry_uuid = entry
+                self.entry_type = Flow.ACTIONS_ENTRY
+            elif entry in existing_rulesets:
+                self.entry_uuid = entry
+                self.entry_type = Flow.RULES_ENTRY
+            else:
+                self.entry_uuid = None
+                self.entry_type = None
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
@@ -2284,7 +2288,6 @@ class Flow(TembaModel, SmartModel):
             self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
 
             # create a new version
-            # print json.dumps(json_dict, indent=2)
             self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
@@ -2348,8 +2351,10 @@ class RuleSet(models.Model):
     value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
                                   help_text="The type of value this ruleset saves")
 
-    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES, default=TYPE_WAIT_MESSAGE,
-                                     help_text="The type of ruleset")
+    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
+                                    help_text="The type of ruleset")
+
+    response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -2550,7 +2555,7 @@ class RuleSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
-                    finished_key=self.finished_key, ruleset_type=self.ruleset_type,
+                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand)
 
     def __unicode__(self):
@@ -2658,23 +2663,16 @@ class FlowVersion(SmartModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
     @classmethod
+    def ensure_current_version(cls, flow):
+        with flow.lock_on(FlowLock.definition):
+            if not flow.versions.filter(version_number=CURRENT_EXPORT_VERSION):
+                flow.update(FlowVersion.migrate_definition(flow.as_json(), CURRENT_EXPORT_VERSION-1))
+
+    @classmethod
     def migrate_definition(cls, json_flow, version):
 
-        def requires_step(operand):
-
-            if not operand:
-                operand = '@step.value'
-
-            # remove any padding
-            operand = operand.strip()
-
-            # if we start with =( then we are an expression
-            is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
-            if '@step' in operand or (is_expression and 'step' in operand):
-                return True
-            return False
-
         def remove_extra_rules(ruleset):
+            """ Remove all rules but the all responses rule """
             rules = []
             old_rules = ruleset.get('rules')
             for rule in old_rules:
@@ -2683,6 +2681,7 @@ class FlowVersion(SmartModel):
             ruleset['rules'] = rules
 
         def insert_node(flow, node, _next):
+            """ Inserts a node right before _next """
 
             def update_destination(node_to_update, old_uuid, uuid):
                 if node_to_update.get('actions', []):
@@ -2718,16 +2717,34 @@ class FlowVersion(SmartModel):
                     rule['destination'] = _next['uuid']
                 flow['rule_sets'].append(node)
 
-
         while (version != CURRENT_EXPORT_VERSION):
 
             # Move from version 4 to version 5
             if version == 4:
 
+                def requires_step(operand):
+
+                    if not operand:
+                        operand = '@step.value'
+
+                    # remove any padding
+                    operand = operand.strip()
+
+                    # if we start with =( then we are an expression
+                    is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
+                    if '@step' in operand or (is_expression and 'step' in operand):
+                        return True
+                    return False
+
                 for ruleset in json_flow.get('rule_sets'):
 
                     response_type = ruleset.pop('response_type', None)
                     ruleset_type = ruleset.get('ruleset_type', None)
+
+                    # remove config from any rules, these are turds
+                    for rule in ruleset.get('rules'):
+                        if 'config' in rule:
+                            del rule['config']
 
                     if response_type and not ruleset_type:
 
@@ -2769,7 +2786,7 @@ class FlowVersion(SmartModel):
                                 elif operand.find('@contact.') == 0:
                                     ruleset['ruleset_type'] = RuleSet.TYPE_CONTACT_FIELD
                                 elif operand.find('@flow.') == 0:
-                                    ruleset['ruleset_type'] = RuleSet.TYPE_FlOW_FIELD
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_FLOW_FIELD
 
                             # we used to stop at webhooks, now we need a new node
                             # to make sure processing stops at this step now
@@ -2788,7 +2805,6 @@ class FlowVersion(SmartModel):
                             remove_extra_rules(webhook_ruleset)
 
                             insert_node(json_flow, webhook_ruleset, ruleset)
-
 
             # look for our next version
             version +=1

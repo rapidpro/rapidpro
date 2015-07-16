@@ -1173,7 +1173,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
 
-            flow = self.get_object()
+            flow = FlowVersion.ensure_current_version(self.get_object())
 
             # all the translation languages for our org
             languages = [lang.as_json() for lang in flow.org.languages.all().order_by('orgs')]
