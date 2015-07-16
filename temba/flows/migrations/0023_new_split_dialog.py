@@ -21,17 +21,37 @@ class Migration(migrations.Migration):
             preserve_default=True,
         ),
 
+        migrations.AddField(
+            model_name='flow',
+            name='version_number',
+            field=models.IntegerField(help_text='The flow version this definition is in', null=True),
+            preserve_default=True,
+        ),
+
         # assume all previous versions as version 4
         migrations.RunSQL(
             sql='update flows_flowversion set version_number=4',
             reverse_sql='update flows_flowversion set version_number=null',
         ),
 
+        # assume all current versions as version 4
+        migrations.RunSQL(
+            sql='update flows_flow set version_number=4',
+            reverse_sql='update flows_flow set version_number=null',
+        ),
+
         # set our flow version to be required
         migrations.AlterField(
             model_name='flowversion',
             name='version_number',
-            field=models.IntegerField(default=5, help_text='The flow version this definition is in'),
+            field=models.IntegerField(help_text='The flow version this definition is in'),
+            preserve_default=True,
+        ),
+
+        migrations.AlterField(
+            model_name='flow',
+            name='version_number',
+            field=models.IntegerField(help_text='The flow version this definition is in'),
             preserve_default=True,
         ),
 

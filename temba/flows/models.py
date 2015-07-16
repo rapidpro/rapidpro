@@ -212,6 +212,8 @@ class Flow(TembaModel, SmartModel):
     base_language = models.CharField(max_length=3, null=True, blank=True,
                                      help_text=_('The primary language for editing this flow'))
 
+    version_number = models.IntegerField(help_text=_("The flow version this definition is in"))
+
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
         flow = Flow.objects.create(org=org, name=name, flow_type=flow_type,
@@ -550,7 +552,7 @@ class Flow(TembaModel, SmartModel):
         action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
         for step in action_sets:
             flow = step.run.flow
-            FlowVersion.ensure_current_version(flow)
+            flow.ensure_current_version()
             action_set = ActionSet.get(flow, step.step_uuid)
 
             destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
@@ -564,7 +566,7 @@ class Flow(TembaModel, SmartModel):
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
             flow = step.run.flow
-            FlowVersion.ensure_current_version(flow)
+            flow.ensure_current_version()
             arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
@@ -1388,7 +1390,7 @@ class Flow(TembaModel, SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
-        FlowVersion.ensure_current_version(self)
+        self.ensure_current_version()
 
         if started_flows is None:
             started_flows = []
@@ -2029,6 +2031,17 @@ class Flow(TembaModel, SmartModel):
                     path.popitem()
         return None
 
+    def ensure_current_version(self):
+        """
+        Makes sure the flow is at the current version. If it isn't it will
+        migrate the defintion forward updating the flow accordingly.
+        """
+        if self.version_number < CURRENT_EXPORT_VERSION:
+            with self.lock_on(FlowLock.definition):
+                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number)
+                self.update(json_flow)
+                # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
+
     def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow.
@@ -2277,6 +2290,7 @@ class Flow(TembaModel, SmartModel):
             if user:
                 self.saved_by = user
             self.saved_on = timezone.now()
+            self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
             # clear property cache
@@ -2290,7 +2304,10 @@ class Flow(TembaModel, SmartModel):
             self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
 
             # create a new version
-            self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)
+            self.versions.create(definition=json.dumps(json_dict),
+                                 created_by=user,
+                                 modified_by=user,
+                                 version_number=CURRENT_EXPORT_VERSION)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
 
@@ -2662,13 +2679,7 @@ class FlowVersion(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='versions')
     definition = models.TextField(help_text=_("The JSON flow definition"))
-    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
-
-    @classmethod
-    def ensure_current_version(cls, flow):
-        with flow.lock_on(FlowLock.definition):
-            if not flow.versions.filter(version_number=CURRENT_EXPORT_VERSION):
-                flow.update(FlowVersion.migrate_definition(flow.as_json(), CURRENT_EXPORT_VERSION-1))
+    version_number = models.IntegerField(help_text=_("The flow version this definition is in"))
 
     @classmethod
     def migrate_definition(cls, json_flow, version):
