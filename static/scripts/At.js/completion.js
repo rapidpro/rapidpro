@@ -1926,34 +1926,42 @@ var functions = [{
 
 var variables_and_functions = variables.concat(functions);
 
-function find_context_query(query) {
-  var num_par = 0;
-  while (query.slice(-1) === ")" || query.slice(-1) === ",") {
+function findContextQuery(query) {
+  var numPar = 0, lastOpenPar, queryRegex, match;
+
+  if (!query) {
+    return query;
+  }
+
+  if (query.match(/^\($/g) !== null || query.match(/,[ ]+$/g) !== null) {
+    return "";
+  }
+
+  while (query.match(/[,)]$/g) !== null) {
     query = query.slice(0, -1);
-    num_par++;
+    numPar += 1;
   }
 
-  var last_open_par = query.length;
-  while (num_par > 0) {
-    last_open_par = query.lastIndexOf("(");
-    query = query.slice(0, last_open_par);
-    num_par--;
+  lastOpenPar = query.length;
+  while (numPar > 0) {
+    lastOpenPar = query.lastIndexOf("(");
+    query = query.slice(0, lastOpenPar);
+    numPar -= 1;
   }
 
-  var queryRegex = new RegExp("([A-Za-z_\d\.]*)(?:[), ]*)?$", "gi");
-  var match = queryRegex.exec(query);
+  queryRegex = new RegExp("([A-Za-z_\d\.]*)(?:[), ]*)?$", "gi");
+  match = queryRegex.exec(query);
   if (match) {
     query = match[1] || match[0];
   }
 
   return query;
-
 };
 
 function findMatches(query, data, start, lastIdx, prependChar) {
   var display, matched, name, nextDot, option, results, suffix, _i, _len;
 
-  if (prependChar == null) {
+  if (prependChar === null) {
     prependChar = void 0;
   }
   matched = {};
@@ -2027,36 +2035,13 @@ function beforeInsert(value, item) {
     value += ' ';
   }
 
-
   return value;
 };
 
-function matcher(flag, subtext, escapeChar, should_startWithSpace, acceptSpaceBar) {
-
-  var _a, _y, escapePrefix, match, regexp, space;
-  if (escapeChar) {
-    escapeChar = escapeChar.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-  }
-  flag = flag.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-  escapePrefix = "";
-  if (escapeChar && should_startWithSpace) {
-    escapePrefix = "(?:^|\\s|[^" + escapeChar + "])";
-  } else if (escapeChar && !should_startWithSpace) {
-    escapePrefix = "(?:[^" + escapeChar + "]|^)";
-  } else if (!escapeChar && should_startWithSpace) {
-    escapePrefix = "(?:^|\\s)";
-  }
-  flag = escapePrefix + flag;
-  _a = decodeURI("%C3%80");
-  _y = decodeURI("%C3%BF");
-  space = acceptSpaceBar ? "\ " : "";
-  //regexp = new RegExp(flag + "([\\(\\)A-Za-z" + _a + "-" + _y + "0-9_" + space + "\.\+\-]*)$|" + flag + "([\\(\\)^\\x00-\\xff]*)$", 'gi');
+function matcher(flag, subtext) {
+  var match, regexp;
   regexp = new RegExp("(?:^|\\s)@([()A-Za-z\.\+]*(?:[ ]*[+][ ]*[()A-Za-z,\.\+]*|,[ ]*[()A-Za-z,\.\+]*|$))$", "gi");
-
-  console.log(regexp);
   match = regexp.exec(subtext);
-  console.log(subtext);
-  console.log(match);
   if (match) {
     return match[2] || match[1];
   } else {
@@ -2065,35 +2050,30 @@ function matcher(flag, subtext, escapeChar, should_startWithSpace, acceptSpaceBa
 };
 
 function filter(query, data, searchKey) {
-  var results, i, item, len;
-  if (query[0] == '(') {
+  var contextQuery, results, lastIdx, start, regexp, match, found, _i, item, _len, filterQuery;
 
+  if (query && query[0] == '(') {
     data = variables_and_functions;
-
-    if (query.length == 1) {
-      query = "";
-    } else {
-      query = find_context_query(query);
-    }
   }
 
-  q = query;
-  lastIdx = q.lastIndexOf('.');
-  start = q.substring(0, lastIdx);
-  results = findMatches(q, data, start, lastIdx);
+  contextQuery = findContextQuery(query);
+  lastIdx = contextQuery.lastIndexOf('.');
+  start = contextQuery.substring(0, lastIdx);
+  results = findMatches(contextQuery, data, start, lastIdx);
+
   if (results.length > 0) {
     return results;
   }
-  flag = "@";
-  flag = "(?:^|\\s)" + flag.replace(/[\-\[\]\/\{\}\(\)\*\+\?\\\^\$\|]/g, "\\$&");
+
   regexp = new RegExp("([A-Za-z0-9_+-.]*\\|)([A-Za-z0-9_+-.]*)", "gi");
-  match = regexp.exec(q);
+  match = regexp.exec(contextQuery);
+
   if (match) {
-    name = q.substring(0, q.indexOf('|'));
+    name = contextQuery.substring(0, q.indexOf('|'));
     found = false;
     for (_i = 0, _len = data.length; _i < _len; _i++) {
-      d = data[_i];
-      if (d.name === name) {
+      item = data[_i];
+      if (item.name === name) {
         found = true;
         break;
       }
@@ -2101,49 +2081,44 @@ function filter(query, data, searchKey) {
     if (!found) {
       return results;
     }
-    filterQuery = match[2];
-    lastIdx = q.lastIndexOf('|') + 1;
-    start = q.substring(0, lastIdx - 1);
-    filterQuery = q.substring(lastIdx);
-    results = findMatches(filterQuery, filters, start, q.lastIndexOf('|'), '|');
+
+    lastIdx = contextQuery.lastIndexOf('|') + 1;
+    start = contextQuery.substring(0, lastIdx - 1);
+    filterQuery = contextQuery.substring(lastIdx);
+    results = findMatches(filterQuery, filters, start, contextQuery.lastIndexOf('|'), '|');
   }
 
   return results;
 };
 
 function sorter(query, items, searchKey) {
-  var _results, i, item, len;
+  var contextQuery, _results, i, item, len, lastOptFunctions;
+
+  lastOptFunctions = {'name': '(', 'display': "Functions"};
+
   if (!query) {
-    items.push({'name': '(', 'display': "Functions"});
+    items.push(lastOptFunctions);
     return items;
   }
 
-  var whole_query = query;
-
-  if (query[0] == '(') {
-
+  if (query && query[0] == '(') {
     data = variables_and_functions;
-
-    if (query.length == 1) {
-      query = "";
-    } else {
-      query = find_context_query(query);
-    }
   }
+
+  contextQuery = findContextQuery(query);
 
   _results = [];
   for (i = 0, len = items.length; i < len; i++) {
     item = items[i];
-    item.atwho_order = new String(item[searchKey]).toLowerCase().indexOf(query.toLowerCase());
+    item.atwho_order = new String(item[searchKey]).toLowerCase().indexOf(contextQuery.toLowerCase());
     if (item.atwho_order > -1) {
       _results.push(item);
     }
   }
 
-  if (whole_query[0] != '(') {
-    _results.push({'name': '(', 'display': "Functions"})
+  if (query && query[0] != '(') {
+    _results.push(lastOptFunctions);
   }
-
 
   return _results.sort(function (a, b) {
     return a.atwho_order - b.atwho_order;
@@ -2156,10 +2131,7 @@ function highlighter(li, query) {
     return li;
   }
 
-
-  query = query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-
-  regexp = new RegExp(">\\s*(\\w*?)(" + query.replace("+", "\\+") + ")(\\w*)\\s*<", 'ig');
+  regexp = new RegExp(">\\s*(\\w*?)(" + query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&") + ")(\\w*)\\s*<", 'ig');
   return li.replace(regexp, function (str, $1, $2, $3) {
     return '> ' + $1 + '<strong>' + $2 + '</strong>' + $3 + ' <';
   });
@@ -2171,29 +2143,20 @@ function tplval(tpl, map, action) {
 
   var query = this.query.text;
   var whole_query = query;
-  if (query[0] == '(') {
-
+  if (query && query[0] == '(') {
 
     data = variables_and_functions;
-
-    if (query.length == 1) {
-      query = "";
-    } else {
-      query = find_context_query(query);
-    }
-
-
-    if (action == 'onInsert') {
-
-      if (query == "") {
-        template = '@(${name}';
-      } else {
-        regexp = new RegExp(query + "$");
-        template = ('@' + whole_query).replace(regexp, '${name}');
-      }
-    }
+    query = findContextQuery(query);
   }
 
+  if (action == 'onInsert') {
+    if (query == "") {
+      template = '@(${name}';
+    } else {
+      regexp = new RegExp(query + "$");
+      template = ('@' + whole_query).replace(regexp, '${name}');
+    }
+  }
 
   try {
     if (typeof tpl !== 'string') {
