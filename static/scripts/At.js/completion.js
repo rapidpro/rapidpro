@@ -1992,8 +1992,8 @@ function findMatches(query, data, start, lastIdx, prependChar) {
       if (!(name in matched)) {
         matched[name] = name;
         results.push({
-          name: name,
-          display: display
+          'name': name,
+          'display': display
         });
       }
     }
@@ -2050,7 +2050,7 @@ function matcher(flag, subtext) {
 };
 
 function filter(query, data, searchKey) {
-  var contextQuery, results, lastIdx, start, regexp, match, found, _i, item, _len, filterQuery;
+  var contextQuery, results, lastIdx, start, regexp, match, found, _i, item, _len, filterQuery, name;
 
   if (query && query[0] == '(') {
     data = variables_and_functions;
@@ -2138,23 +2138,22 @@ function highlighter(li, query) {
 };
 
 function tplval(tpl, map, action) {
-  var error, template, regexp;
+  var error, template, regexp, contextQuery;
   template = tpl;
 
   var query = this.query.text;
-  var whole_query = query;
   if (query && query[0] == '(') {
 
     data = variables_and_functions;
-    query = findContextQuery(query);
+    contextQuery = findContextQuery(query);
   }
 
   if (action == 'onInsert') {
-    if (query == "") {
+    if (contextQuery == "") {
       template = '@(${name}';
     } else {
-      regexp = new RegExp(query + "$");
-      template = ('@' + whole_query).replace(regexp, '${name}');
+      regexp = new RegExp(contextQuery + "$");
+      template = ('@' + query).replace(regexp, '${name}');
     }
   }
 
@@ -2162,7 +2161,7 @@ function tplval(tpl, map, action) {
     if (typeof tpl !== 'string') {
       template = tpl(map);
     }
-    if (typeof map.example != 'undefined' && map['name'] == query && action == "onDisplay") {
+    if (typeof map.example != 'undefined' && map['name'] == contextQuery && action == "onDisplay") {
       template = "<li><h5>${name}</h5><div>${example}</div><div>${hint}</div><div>BLABLABLABAL</div></li>"
     }
 

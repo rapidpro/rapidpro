@@ -132,5 +132,48 @@
     });
   });
 
+  describe('Find matches', function () {
+    var data = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
+      {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
+      {"name":"contact.urn.path.tel.number", "display":"Contact URN tel number"},
+      {"name":"channel.address", "display":"Channel Address"}
+    ];
+
+    var results, expected;
+
+    it('should give unique first parts for empty string query', function () {
+      results = findMatches('', data, '', -1);
+      expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}];
+      expect(results).toEqual(expected);
+    });
+
+    it('should match first parts filtered', function() {
+      results = findMatches('c', data, '', -1);
+      expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}];
+      expect(results).toEqual(expected);
+
+      results = findMatches('con', data, '', -1);
+      expected = [{"name":"contact", "display":"Contact Name"}];
+      expect(results).toEqual(expected);
+    });
+
+    it('should start showing second ; only show display if name is full', function () {
+      results = findMatches('contact.', data, 'contact', 7);
+      expected = [
+        {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
+        {"name":"contact.urn", "display":null}];
+      expect(results).toEqual(expected);
+    });
+
+    it('should start showing thirt parts...; only show display if name is full', function () {
+      results = findMatches('contact.urn.pa', data, 'contact.urn', 11);
+      expected = [
+        {"name":"contact.urn.path", "display":null}];
+      expect(results).toEqual(expected);
+    });
+  });
+
+
+
 
 })();
