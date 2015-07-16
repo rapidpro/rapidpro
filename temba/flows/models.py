@@ -549,7 +549,8 @@ class Flow(TembaModel, SmartModel):
         # if we were orphaned at an actionset, advance us to the next node
         action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
         for step in action_sets:
-            FlowVersion.ensure_current_version(step.run.flow)
+            flow = step.run.flow
+            FlowVersion.ensure_current_version(flow)
             action_set = ActionSet.get(flow, step.step_uuid)
 
             destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
@@ -562,7 +563,8 @@ class Flow(TembaModel, SmartModel):
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
-            FlowVersion.ensure_current_version(step.run.flow)
+            flow = step.run.flow
+            FlowVersion.ensure_current_version(flow)
             arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
