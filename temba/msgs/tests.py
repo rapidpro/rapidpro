@@ -114,6 +114,7 @@ class MsgTest(TembaTest):
                        dict(name='contact.tel_e164', display="Contact Phone - E164"),
                        dict(name='contact.groups', display="Contact Groups"),
                        dict(name='contact.uuid', display="Contact UUID"),
+                       dict(name='contact.language', display="Contact Language"),
                        dict(name="date", display="Current Date and Time"),
                        dict(name="date.now", display="Current Date and Time"),
                        dict(name="date.yesterday", display="Yesterday's Date"),
