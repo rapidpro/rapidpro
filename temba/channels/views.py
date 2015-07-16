@@ -1363,8 +1363,13 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code'])[0]
 
             country = self.object.country
-            if not country:
-                country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'])
+            phone_country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'],
+                                                              str(self.object.country))
+
+            # always prefer the country of the phone number they are entering if we have one
+            if phone_country and phone_country != country:
+                country = phone_country
+                self.object.country = phone_country
 
             # get all other channels with a country
             other_channels = org.channels.filter(is_active=True).exclude(pk=self.object.pk)
@@ -1373,12 +1378,13 @@ class ChannelCRUDL(SmartCRUDL):
             # are there any that have a different country?
             other_countries = with_countries.exclude(country=country).first()
             if other_countries:
-                form._errors['claim_code'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
+                form._errors['claim_code'] = form.error_class([_("Sorry, you can only add numbers for the "
+                                                                 "same country (%s)" % other_countries.country)])
                 return self.form_invalid(form)
 
             # clear any channels that are dupes of this gcm/uuid pair for this org
-            for dupe in Channel.objects.filter(gcm_id=self.object.gcm_id, uuid=self.object.uuid, org=org).exclude(
-                                               pk=self.object.pk).exclude(gcm_id=None).exclude(uuid=None):
+            for dupe in Channel.objects.filter(gcm_id=self.object.gcm_id, uuid=self.object.uuid, org=org)\
+                                       .exclude(pk=self.object.pk).exclude(gcm_id=None).exclude(uuid=None):
                 dupe.is_active = False
                 dupe.gcm_id = None
                 dupe.uuid = None
