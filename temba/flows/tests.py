@@ -61,6 +61,7 @@ class RuleTest(TembaTest):
                                           operand=None,
                                           webhook=None,
                                           webhook_action=None,
+                                          response_type='',
                                           ruleset_type='wait_message',
                                           rules=[
                                               dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test='orange'), category="Orange"),
@@ -3017,7 +3018,7 @@ class FlowsTest(FlowFileTest):
 
         # test a preprocess url
         flow = self.get_flow('preprocess')
-        self.assertEquals('http://preprocessor.com/endpoint.php', flow.rule_sets.all()[0].webhook_url)
+        self.assertEquals('http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].webhook_url)
 
     def test_flow_loops(self):
         # this tests two flows that start each other
