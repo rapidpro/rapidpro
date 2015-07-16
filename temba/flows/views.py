@@ -686,6 +686,7 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
                 dict(name='contact.uuid', display=unicode(_("Contact UUID"))),
                 dict(name='contact.groups', display=unicode(_('Contact Groups'))),
+                dict(name='contact.language', display=unicode(_('Contact Language'))),
             ]
             contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
 

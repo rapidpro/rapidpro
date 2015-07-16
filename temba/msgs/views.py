@@ -43,6 +43,7 @@ def send_message_auto_complete_processor(request):
         completions.insert(4, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
         completions.insert(5, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
         completions.insert(6, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
+        completions.insert(6, dict(name='contact.language', display=unicode(_("Contact Language"))))
 
         completions.insert(7, dict(name="date", display=unicode(_("Current Date and Time"))))
         completions.insert(8, dict(name="date.now", display=unicode(_("Current Date and Time"))))
