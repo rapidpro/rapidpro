@@ -313,6 +313,25 @@ class OrgTest(TembaTest):
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
 
+        # upgrade one of our users to an admin
+        self.org.editors.remove(self.user)
+        self.org.administrators.add(self.user)
+
+        # now remove ourselves as an admin
+        post_data = {
+            'administrators_%d' % self.user.pk: 'on',
+            'editors_%d' % self.editor.pk: 'on',
+            'user_group': 'E'
+        }
+
+        response = self.client.post(manage_accounts_url, post_data)
+
+        # should be redirected to chooser page
+        self.assertRedirect(response, reverse('orgs.org_choose'))
+
+        # and should no longer be an admin
+        self.assertFalse(self.admin in self.org.administrators.all())
+
     @patch('temba.temba_email.send_multipart_email')
     def test_join(self, mock_send_multipart_email):
         editor_invitation = Invitation.objects.create(org=self.org,
