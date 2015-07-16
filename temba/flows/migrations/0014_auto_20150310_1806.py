@@ -3,13 +3,22 @@ from __future__ import unicode_literals
 from uuid import uuid4
 
 from django.db import models, migrations
-from temba.flows.models import RuleSet, Flow, TrueTest, Rule
+from temba.flows.models import RuleSet, TrueTest, Rule
 from django.utils import timezone
 import pytz
 import json
 
 
 def fix_missing_other_rule(apps, schema_editor):
+
+    # Excuted migration actually used real model, to allow below
+    # method call to flow.update(). With the model
+    # definition changing at 0023_new_split_dialog we can no longer
+    # fetch this model. This data migration will be removed
+    # when we squash for the first community release.
+
+    # from temba.flows.models import Flow
+    Flow = apps.get_model('flows', 'Flow')
 
     # only consider flows with a version created after previous migration
     start_time = timezone.datetime(2015, 3, 2, 20, 20, 0, 0, tzinfo=pytz.utc)

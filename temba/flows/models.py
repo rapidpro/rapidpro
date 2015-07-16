@@ -212,7 +212,7 @@ class Flow(TembaModel, SmartModel):
     base_language = models.CharField(max_length=3, null=True, blank=True,
                                      help_text=_('The primary language for editing this flow'))
 
-    version_number = models.IntegerField(help_text=_("The flow version this definition is in"))
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
@@ -2290,7 +2290,6 @@ class Flow(TembaModel, SmartModel):
             if user:
                 self.saved_by = user
             self.saved_on = timezone.now()
-            self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
             # clear property cache
@@ -2306,8 +2305,7 @@ class Flow(TembaModel, SmartModel):
             # create a new version
             self.versions.create(definition=json.dumps(json_dict),
                                  created_by=user,
-                                 modified_by=user,
-                                 version_number=CURRENT_EXPORT_VERSION)
+                                 modified_by=user)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
 
@@ -2679,7 +2677,7 @@ class FlowVersion(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='versions')
     definition = models.TextField(help_text=_("The JSON flow definition"))
-    version_number = models.IntegerField(help_text=_("The flow version this definition is in"))
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
     @classmethod
     def migrate_definition(cls, json_flow, version):
