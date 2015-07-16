@@ -168,12 +168,12 @@ class Channel(SmartModel):
         return [t for t, config in RELAYER_TYPE_CONFIG.iteritems() if config['scheme'] == scheme]
 
     @classmethod
-    def derive_country_from_phone(cls, phone):
+    def derive_country_from_phone(cls, phone, country=None):
         """
         Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
         """
         try:
-            parsed = phonenumbers.parse(phone, None)
+            parsed = phonenumbers.parse(phone, country)
             return phonenumbers.region_code_for_number(parsed)
         except:
             return None
@@ -1944,13 +1944,12 @@ class SyncEvent(SmartModel):
     @classmethod
     def create(cls, channel, cmd, incoming_commands):
         # update country, device and OS on our channel
-        country = cmd.get('cc', None)
         device = cmd.get('dev', None)
         os = cmd.get('os', None)
 
         # update our channel if anything is new
-        if channel.country != country or channel.device != device or channel.os != os:
-            Channel.objects.filter(pk=channel.pk).update(country=country, device=device, os=os)
+        if channel.device != device or channel.os != os:
+            Channel.objects.filter(pk=channel.pk).update(device=device, os=os)
 
         args = dict()
 
