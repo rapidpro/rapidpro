@@ -92,3 +92,23 @@ will be available at ```http://localhost:8000```
 {% highlight bash %}
 $ python manage.py runserver
 {% endhighlight %}
+
+
+# Testing with the RapidPro SMS Channel Android app
+
+## Configure to connect to your development server
+
+There is a hidden feature of the [RapidPro SMS Channel Android app](https://github.com/rapidpro/android-channel) for testing your
+RapidPro development instance on a local network.
+
+If you tap the rapidpro logo in the app 11 times you can unlock the advanced settings,
+which will let you enter any an IP address. The app will attempt to connect to RapidPro
+using the given IP address on port 8000 so you can claim the relayer and test
+sending/receiving with real SMS messages. If you need to use a different port, you can
+append it to the IP address like: ```192.168.1.15:80```.
+
+Android only allows a single app to send a certain number of messages per hour.
+However, you can increase your message throughput by installing "SMS Channel Pack" apps,
+which effectively raise the allowed number of messages for the RapidPro SMS Channel Android app.
+On the RapidPro SMS Channel app's page in the Play Store, click on 'More by Nyaruka Ltd.' and
+install up to 9 of the SMS Channel Packs to increase your message volume.
