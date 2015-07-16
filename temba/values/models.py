@@ -529,20 +529,18 @@ class Value(models.Model):
             if ruleset and len(ruleset.get_rules()) == 1 and isinstance(ruleset.get_rules()[0].test, TrueTest):
                 cursor = connection.cursor()
 
-                custom_sql = """
-                  SELECT w.label, count(*) AS count FROM (
+                custom_sql = """SELECT w.label, count(*) AS count FROM (
                     SELECT
                       regexp_split_to_table(LOWER(text), E'[^[:alnum:]_]') AS label
-                    FROM msgs_msg
-                    WHERE id IN (
+                    FROM msgs_msg INNER JOIN contacts_contact ON ( msgs_msg.contact_id = contacts_contact.id )
+                    WHERE msgs_msg.id IN (
                       SELECT
                         msg_id
                         FROM flows_flowstep_messages, flows_flowstep
                         WHERE flowstep_id = flows_flowstep.id AND
                         flows_flowstep.step_uuid = '%s'
-                      )
-                  ) w group by w.label order by count desc;
-                """ % ruleset.uuid
+                      ) AND contacts_contact.is_test = False
+                  ) w group by w.label order by count desc;""" % ruleset.uuid
 
                 cursor.execute(custom_sql)
                 unclean_categories = get_dict_from_cursor(cursor)
