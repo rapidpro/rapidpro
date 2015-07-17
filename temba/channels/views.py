@@ -1301,18 +1301,19 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-
     class ClaimAfricasTalking(OrgPermsMixin, SmartFormView):
         class ATClaimForm(forms.Form):
             shortcode = forms.CharField(max_length=6, min_length=1,
                                         help_text=_("Your short code on Africa's Talking"))
+            is_shared = forms.BooleanField(initial=False, required=False,
+                                           help_text=_("Whether this short code is shared with others"))
             username = forms.CharField(max_length=32,
                                        help_text=_("Your username on Africa's Talking"))
             api_key = forms.CharField(max_length=64,
                                       help_text=_("Your api key, should be 64 characters"))
 
         title = _("Connect Africa's Talking Account")
-        fields = ('shortcode', 'username', 'api_key')
+        fields = ('shortcode', 'is_shared', 'username', 'api_key')
         form_class = ATClaimForm
         success_url = "id@channels.channel_configuration"
 
@@ -1324,7 +1325,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
             self.object = Channel.add_africas_talking_channel(org, self.request.user,
-                                                              phone=data['shortcode'], username=data['username'], api_key=data['api_key'])
+                                                              phone=data['shortcode'], username=data['username'],
+                                                              api_key=data['api_key'], is_shared=data['is_shared'])
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()
