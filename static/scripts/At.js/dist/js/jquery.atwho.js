@@ -192,6 +192,8 @@ App = (function() {
       case KEY_CODE.DOWN:
       case KEY_CODE.UP:
       case KEY_CODE.CTRL:
+      case KEY_CODE.LEFT:
+      case KEY_CODE.RIGHT:
         $.noop();
         break;
       case KEY_CODE.P:
@@ -944,7 +946,9 @@ View = (function() {
 
 KEY_CODE = {
   DOWN: 40,
+  RIGHT: 39,
   UP: 38,
+  LEFT: 37,
   ESC: 27,
   TAB: 9,
   ENTER: 13,
