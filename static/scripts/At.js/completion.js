@@ -2049,7 +2049,7 @@ function beforeInsert(value, item) {
 
 function matcher(flag, subtext) {
   var match, regexp;
-  regexp = new RegExp("(?:^|\\s)@([()A-Za-z\.\+]*(?:[ ]*[+][ ]*[()A-Za-z,\.\+]*|,[ ]*[()A-Za-z,\.\+]*|$))$", "gi");
+  regexp = new RegExp("(?:^|\\s)@([()A-Za-z_\.\+]*(?:[ ]*[+][ ]*[()A-Za-z_,\.\+]*|,[ ]*[()A-Za-z_,\.\+]*|$)*)$", "gi");
   match = regexp.exec(subtext);
   if (match) {
     return match[2] || match[1];

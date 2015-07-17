@@ -59,6 +59,11 @@
       expect(matched).toBe("(SUM(contact.age, step.value");
     });
 
+    it('should match the function as long as possible, may commas, underscores', function () {
+      matched = matcher("@", "some texts before @(SUM(contact.age, step.value, date.now_time", "@");
+      expect(matched).toBe("(SUM(contact.age, step.value, date.now_time");
+    });
+
     it('should match the function as long as possible', function () {
       matched = matcher("@", "some texts before @(SUM(contact.age, step.value))))", "@");
       expect(matched).toBe("(SUM(contact.age, step.value))))");
