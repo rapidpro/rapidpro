@@ -134,10 +134,6 @@ App = (function() {
           return c.view.hide(e, c.getOpt("displayTimeout"));
         }
       };
-    })(this)).on('click.atwhoInner', (function(_this) {
-      return function(e) {
-        return _this.dispatch(e);
-      };
     })(this)).on('scroll.atwhoInner', (function(_this) {
       return function() {
         var lastScrollTop;

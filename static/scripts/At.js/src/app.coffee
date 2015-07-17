@@ -83,8 +83,6 @@ class App
         if c = this.controller()
           c.expectedQueryCBId = null
           c.view.hide(e,c.getOpt("displayTimeout"))
-      .on 'click.atwhoInner', (e) =>
-        this.dispatch e
       .on 'scroll.atwhoInner', do =>
         # make returned handler handle the very first call properly
         lastScrollTop = @$inputor.scrollTop()
