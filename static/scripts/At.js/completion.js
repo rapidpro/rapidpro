@@ -2002,21 +2002,26 @@ function findMatches(query, data, start, lastIdx, prependChar) {
 };
 
 function beforeInsert(value, item) {
-  var data_variables, data_functions, hasMore, option, _i, _len, isFunction;
+  var data_variables, data_functions, hasMore, option, _i, _len, isFunction, valueForName, completionChars, match;
+
+  completionChars = new RegExp("([A-Za-z_\d\.]*)$", 'gi');
+  valueForName = "";
+  match = completionChars.exec(value);
+  if (match) {
+    valueForName = match[2] || match[1];
+  }
 
   data_variables = variables;
   hasMore = false;
   for (_i = 0, _len = data_variables.length; _i < _len; _i++) {
     option = data_variables[_i];
-    if (option.name.indexOf(value.slice(1)) === 0 && option.name !== value) {
+    if (valueForName && option.name.indexOf(valueForName) === 0 && option.name !== valueForName) {
       hasMore = true;
       break;
     }
   }
   if (hasMore) {
     value += '.';
-  } else {
-    value += '';
   }
 
   data_functions = functions;
@@ -2024,15 +2029,19 @@ function beforeInsert(value, item) {
   for (_i = 0, _len = data_functions.length; _i < _len; _i++) {
     option = data_functions[_i];
 
-    if (option.name.indexOf(value.slice(2)) === 0 && option.name == value.slice(2)) {
+    if (valueForName && option.name.indexOf(valueForName) === 0 && option.name == valueForName) {
       isFunction = true;
       break;
     }
   }
   if (isFunction) {
     value += '()';
-  } else {
-    value += ' ';
+  }
+
+  if (valueForName === "" && value === '@(') {
+    value += ')';
+  } else if (valueForName && !hasMore && !isFunction) {
+    value += " ";
   }
 
   return value;
@@ -2101,10 +2110,6 @@ function sorter(query, items, searchKey) {
     return items;
   }
 
-  if (query && query[0] == '(') {
-    data = variables_and_functions;
-  }
-
   contextQuery = findContextQuery(query);
 
   _results = [];
@@ -2116,7 +2121,7 @@ function sorter(query, items, searchKey) {
     }
   }
 
-  if (query && query[0] != '(') {
+  if (query.match(/[(.]/g) == null) {
     _results.push(lastOptFunctions);
   }
 
@@ -2143,13 +2148,13 @@ function tplval(tpl, map, action) {
 
   var query = this.query.text;
   if (query && query[0] == '(') {
-
     data = variables_and_functions;
-    contextQuery = findContextQuery(query);
   }
 
+  contextQuery = findContextQuery(query);
+
   if (action == 'onInsert') {
-    if (contextQuery == "") {
+    if (query && query[0] == '(' && query.length == 1 && contextQuery == "") {
       template = '@(${name}';
     } else {
       regexp = new RegExp(contextQuery + "$");
@@ -2201,4 +2206,30 @@ var at_config = {
 $inputor = $('#inputor').atwho(at_config); //.atwho(functions_config);
 $inputor.caret('pos', 47);
 $inputor.focus().atwho('run');
+  $inputor.on('inserted.atwho', function (atEvent, li, browserEvent) {
+    var caretPos, content, subtext;
+    content = $inputor.val();
+    caretPos = $inputor.caret('pos');
+    subtext = content.slice(0, caretPos);
+    if (subtext.match(/\(\)$/) !== null) {
+      $inputor.caret('pos', subtext.length - 1);
+    }
+  });
+
+ $inputor.keyup(function() {
+   var caretPos, content, subtext, text;
+   content = $(this).val();
+   caretPos = $(this).caret('pos');
+   subtext = content.slice(0, caretPos);
+   if (subtext.slice(-2) === '@(') {
+      text = subtext + ')' + content.slice(caretPos + 1);
+      $(this).val(text);
+    }
+    $(this).caret('pos', caretPos);
+    if (!$(this).is(':focus')) {
+      $(this).focus();
+    }
+    return $(this).change();
+ });
+
 });

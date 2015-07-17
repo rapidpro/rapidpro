@@ -130,6 +130,12 @@
       ctxtQuery = findContextQuery("(SUM(contact.date_added, ABS(step.value))");
       expect(ctxtQuery).toBe('SUM');
     });
+
+    it('should not include previous (', function () {
+      ctxtQuery = findContextQuery("(contact.age");
+      expect(ctxtQuery).toBe('contact.age');
+    })
+
   });
 
   describe('Find matches', function () {
