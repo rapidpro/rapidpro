@@ -106,12 +106,15 @@ class App
     c.lookUp(e) for _, c of @controllers
 
   onKeyup: (e) ->
+    view = this.controller()?.view
     switch e.keyCode
       when KEY_CODE.ESC
         e.preventDefault()
-        this.controller()?.view.hide()
-      when KEY_CODE.DOWN, KEY_CODE.UP, KEY_CODE.CTRL, KEY_CODE.LEFT, KEY_CODE.RIGHT
-        $.noop()
+        view.hide()
+      when KEY_CODE.DOWN, KEY_CODE.UP, KEY_CODE.CTRL
+        $.noop
+      when KEY_CODE.LEFT, KEY_CODE.RIGHT
+        this.dispatch e if view.visible()
       when KEY_CODE.P, KEY_CODE.N
         this.dispatch e if not e.ctrlKey
       else

@@ -181,20 +181,23 @@ App = (function() {
   };
 
   App.prototype.onKeyup = function(e) {
-    var ref;
+    var ref, view;
+    view = (ref = this.controller()) != null ? ref.view : void 0;
     switch (e.keyCode) {
       case KEY_CODE.ESC:
         e.preventDefault();
-        if ((ref = this.controller()) != null) {
-          ref.view.hide();
-        }
+        view.hide();
         break;
       case KEY_CODE.DOWN:
       case KEY_CODE.UP:
       case KEY_CODE.CTRL:
+        $.noop;
+        break;
       case KEY_CODE.LEFT:
       case KEY_CODE.RIGHT:
-        $.noop();
+        if (view.visible()) {
+          this.dispatch(e);
+        }
         break;
       case KEY_CODE.P:
       case KEY_CODE.N:
