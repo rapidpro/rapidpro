@@ -3223,6 +3223,58 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
 
+class FlowMigrationTest(FlowFileTest):
+
+    def test_migrate_from_4_to_5(self):
+
+        flow = self.get_flow('favorites')
+
+        # start the flow for our contact
+        flow.start(groups=[], contacts=[self.contact])
+
+        # we should be sitting at the ruleset waiting for a message
+        step = FlowStep.objects.get(run__flow=flow, step_type='R')
+        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
+        self.assertEquals('wait_message', ruleset.ruleset_type)
+
+        # fake a version 4 flow
+        RuleSet.objects.filter(flow=flow).update(response_type='C', ruleset_type=None)
+        flow.version_number = 4
+        flow.save()
+
+        # pretend our current ruleset was stopped at a webhook with a passive rule
+        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
+        ruleset.webhook_url = 'http://wwww.google.com'
+        ruleset.operand = '@extra.value'
+        ruleset.save()
+
+        # now migrate our flow
+        flow.ensure_current_version()
+        self.assertEquals(5, Flow.objects.get(pk=flow.pk).version_number)
+
+        # we should be sitting at a wait node
+        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
+        self.assertEquals('wait_message', ruleset.ruleset_type)
+        self.assertEquals('@step.value', ruleset.operand)
+
+        # we should be pointing to a newly created webhook rule
+        webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
+        self.assertEquals('webhook', webhook.ruleset_type)
+
+        # which should in turn point to a new expression split on @extra.value
+        expression = RuleSet.objects.get(flow=flow, uuid=webhook.get_rules()[0].destination)
+        self.assertEquals('expression', expression.ruleset_type)
+        self.assertEquals('@extra.value', expression.operand)
+
+        # set our expression to operate on the last inbound message
+        expression.operand = '@step.value'
+        expression.save()
+
+        # now move our straggler forward with a message, should get a reply
+        reply = self.send_message(flow, 'red')
+        self.assertEquals("Good choice, I like Red too! What is your favorite beer?", reply)
+
+
 class DuplicateValueTest(FlowFileTest):
 
     def test_duplicate_value_test(self):

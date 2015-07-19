@@ -265,6 +265,10 @@ class Flow(TembaModel, SmartModel):
         exported_flows = []
 
         for flow in flows:
+
+            # only export current versions
+            flow.ensure_current_version()
+
             # get our json with group names
             flow_definition = flow.as_json(expand_contacts=True)
             if fail_on_dependencies:
@@ -2290,6 +2294,7 @@ class Flow(TembaModel, SmartModel):
             if user:
                 self.saved_by = user
             self.saved_on = timezone.now()
+            self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
             # clear property cache
@@ -2305,7 +2310,8 @@ class Flow(TembaModel, SmartModel):
             # create a new version
             self.versions.create(definition=json.dumps(json_dict),
                                  created_by=user,
-                                 modified_by=user)
+                                 modified_by=user,
+                                 version_number=CURRENT_EXPORT_VERSION)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
 
@@ -2694,28 +2700,26 @@ class FlowVersion(SmartModel):
         def insert_node(flow, node, _next):
             """ Inserts a node right before _next """
 
-            def update_destination(node_to_update, old_uuid, uuid):
+            def update_destination(node_to_update, uuid):
                 if node_to_update.get('actions', []):
-                    if node_to_update.get('destination') == old_uuid:
-                        node_to_update['destination'] = uuid
+                    node_to_update['destination'] = uuid
                 else:
                     for rule in node_to_update.get('rules',[]):
-                        if rule.get('destination') == old_uuid:
-                            rule['destination'] = uuid
+                        rule['destination'] = uuid
 
             # make sure we have a fresh uuid
-            node['uuid'] = unicode(uuid4())
+            node['uuid'] = _next['uuid']
+            _next['uuid'] = unicode(uuid4())
+            update_destination(node, _next['uuid'])
 
             # bump everybody down
             for actionset in flow.get('action_sets'):
                 if actionset.get('y') >= node.get('y'):
                     actionset['y'] += 100
-                update_destination(actionset, _next['uuid'], node['uuid'])
 
             for ruleset in flow.get('rule_sets'):
                 if ruleset.get('y') >= node.get('y'):
                     ruleset['y'] += 100
-                update_destination(ruleset, _next['uuid'], node['uuid'])
 
             # we are an actionset
             if node.get('actions', []):
@@ -2805,6 +2809,7 @@ class FlowVersion(SmartModel):
                                 pausing_ruleset = copy.deepcopy(ruleset)
                                 remove_extra_rules(pausing_ruleset)
                                 pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                pausing_ruleset['operand'] = '@step.value'
                                 insert_node(json_flow, pausing_ruleset, ruleset)
 
                         # finally insert our webhook node if necessary
