@@ -339,9 +339,8 @@ class Channel(SmartModel):
                                       org=org, created_by=user, modified_by=user, role=SEND+RECEIVE+CALL+ANSWER)
 
     @classmethod
-    def add_africas_talking_channel(cls, org, user, phone, username, api_key):
-        config = dict(username=username,
-                      api_key=api_key)
+    def add_africas_talking_channel(cls, org, user, phone, username, api_key, is_shared=False):
+        config = dict(username=username, api_key=api_key, is_shared=is_shared)
 
         return Channel.objects.create(channel_type=AFRICAS_TALKING, country='KE',
                                       name="Africa's Talking: %s" % phone, address=phone, uuid=str(uuid4()),
@@ -1411,7 +1410,10 @@ class Channel(SmartModel):
         payload = dict(username=channel.config['username'],
                        to=msg.urn_path,
                        message=text)
-        payload['from'] = channel.address
+
+        # if this isn't a shared shortcode, send the from address
+        if not channel.config.get('is_shared', False):
+            payload['from'] = channel.address
 
         headers = dict(Accept='application/json', apikey=channel.config['api_key'])
         headers.update(TEMBA_HEADERS)
