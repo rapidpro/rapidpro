@@ -3225,6 +3225,29 @@ class FlowsTest(FlowFileTest):
 
 class FlowMigrationTest(FlowFileTest):
 
+    def test_migrate_from_4_to_5_language(self):
+
+        flow = self.get_flow('multi-language-flow')
+
+        # fake a version 4 flow
+        RuleSet.objects.filter(flow=flow).update(response_type='C', ruleset_type=None)
+        flow.version_number = 4
+        flow.save()
+
+        # force a node insertion
+        ruleset = RuleSet.objects.get(flow=flow)
+        ruleset.operand = '@step.value|lower_case'
+        ruleset.save()
+
+        # now migrate us forward
+        flow.ensure_current_version()
+
+        wait_ruleset = RuleSet.objects.get(flow=flow, ruleset_type='wait_message')
+        self.assertEquals(1, len(wait_ruleset.get_rules()))
+        self.assertEquals('All Responses', wait_ruleset.get_rules()[0].category['eng'])
+        self.assertEquals('Otro', wait_ruleset.get_rules()[0].category['spa'])
+
+
     def test_migrate_from_4_to_5(self):
 
         flow = self.get_flow('favorites')
@@ -3243,10 +3266,16 @@ class FlowMigrationTest(FlowFileTest):
         flow.save()
 
         # pretend our current ruleset was stopped at a webhook with a passive rule
-        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
+        ruleset = RuleSet.objects.get(flow=flow, uuid=step.step_uuid)
         ruleset.webhook_url = 'http://wwww.google.com'
+        ruleset.webhook_action = 'POST'
         ruleset.operand = '@extra.value'
         ruleset.save()
+
+        # make beer use @step.value with a filter to test node creation
+        beer_ruleset = RuleSet.objects.get(flow=flow, label='Beer')
+        beer_ruleset.operand = '@step.value|lower_case'
+        beer_ruleset.save()
 
         # now migrate our flow
         flow.ensure_current_version()
@@ -3260,11 +3289,30 @@ class FlowMigrationTest(FlowFileTest):
         # we should be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEquals('webhook', webhook.ruleset_type)
+        self.assertEquals('http://wwww.google.com', webhook.webhook_url)
+        self.assertEquals('POST', webhook.webhook_action)
+        self.assertEquals('@step.value', webhook.operand)
 
         # which should in turn point to a new expression split on @extra.value
         expression = RuleSet.objects.get(flow=flow, uuid=webhook.get_rules()[0].destination)
         self.assertEquals('expression', expression.ruleset_type)
         self.assertEquals('@extra.value', expression.operand)
+
+        # takes us to the next question
+        beer_question = ActionSet.objects.get(flow=flow, uuid=expression.get_rules()[0].destination)
+
+        # which should pause for the response
+        wait_beer = RuleSet.objects.get(flow=flow, uuid=beer_question.destination)
+        self.assertEquals('wait_message', wait_beer.ruleset_type)
+        self.assertEquals('@step.value', wait_beer.operand)
+        self.assertEquals(1, len(wait_beer.get_rules()))
+        self.assertEquals('All Responses', wait_beer.get_rules()[0].category)
+
+        # and then split on the expression for various beer choices
+        beer_expression = RuleSet.objects.get(flow=flow, uuid=wait_beer.get_rules()[0].destination)
+        self.assertEquals('expression', beer_expression.ruleset_type)
+        self.assertEquals('@step.value|lower_case', beer_expression.operand)
+        self.assertEquals(5, len(beer_expression.get_rules()))
 
         # set our expression to operate on the last inbound message
         expression.operand = '@step.value'
@@ -3272,7 +3320,10 @@ class FlowMigrationTest(FlowFileTest):
 
         # now move our straggler forward with a message, should get a reply
         reply = self.send_message(flow, 'red')
-        self.assertEquals("Good choice, I like Red too! What is your favorite beer?", reply)
+        self.assertEquals('Good choice, I like Red too! What is your favorite beer?', reply)
+
+        reply = self.send_message(flow, 'Turbo King')
+        self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
 
 
 class DuplicateValueTest(FlowFileTest):

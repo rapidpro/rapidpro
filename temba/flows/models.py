@@ -2694,7 +2694,12 @@ class FlowVersion(SmartModel):
             old_rules = ruleset.get('rules')
             for rule in old_rules:
                 if rule['test']['type'] == 'true':
+                    if 'base_language' in json_flow:
+                        rule['category'][json_flow['base_language']] = 'All Responses'
+                    else:
+                        rule['category'] = 'All Responses'
                     rules.append(rule)
+
             ruleset['rules'] = rules
 
         def insert_node(flow, node, _next):
@@ -2790,7 +2795,22 @@ class FlowVersion(SmartModel):
                             elif response_type == 'R':
                                 ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_RECORDING
                             else:
-                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+
+                                if operand == '@step.value':
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                else:
+
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+
+                                    # if it's not a plain split, make us wait and create
+                                    # an expression split node to handle our response
+                                    pausing_ruleset = copy.deepcopy(ruleset)
+                                    pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                    pausing_ruleset['operand'] = '@step.value'
+                                    pausing_ruleset['label'] = label + ' Response'
+                                    remove_extra_rules(pausing_ruleset)
+                                    insert_node(json_flow, pausing_ruleset, ruleset)
+
 
                         else:
                             # if there's no reference to step, figure out our type
@@ -2808,10 +2828,10 @@ class FlowVersion(SmartModel):
                             # to make sure processing stops at this step now
                             if has_old_webhook:
                                 pausing_ruleset = copy.deepcopy(ruleset)
-                                remove_extra_rules(pausing_ruleset)
                                 pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                                 pausing_ruleset['operand'] = '@step.value'
                                 pausing_ruleset['label'] = label + ' Response'
+                                remove_extra_rules(pausing_ruleset)
                                 insert_node(json_flow, pausing_ruleset, ruleset)
 
                         # finally insert our webhook node if necessary
@@ -2819,6 +2839,7 @@ class FlowVersion(SmartModel):
                             webhook_ruleset = copy.deepcopy(ruleset)
                             webhook_ruleset['webhook'] = webhook_url
                             webhook_ruleset['webhook_action'] = webhook_action
+                            webhook_ruleset['operand'] = '@step.value'
                             webhook_ruleset['ruleset_type'] = RuleSet.TYPE_WEBHOOK
                             webhook_ruleset['label'] = label + ' Webhook'
                             remove_extra_rules(webhook_ruleset)
