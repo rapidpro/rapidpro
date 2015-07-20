@@ -693,24 +693,19 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       # if our field is missing, add our selves accordingly
       if (isFlow and isFlowFields) or (isContact and !isFlowFields)
         slugged = Flow.slugify(operand)
-        field = {id:operand,  text:slugged + ' (missing)'}
+        field = {id:operand,  text:slugged + ' (missing)', missing:true }
         fields.push(field)
         return field
 
       return fields[0]
 
-    getContactFieldName: (ruleset) ->
+    getContactField: (ruleset) ->
       if Flow.contactFieldSearch
-        field = @getFieldSelection(Flow.contactFieldSearch, ruleset.operand, false)
-        if field
-          return field.text
+        return @getFieldSelection(Flow.contactFieldSearch, ruleset.operand, false)
 
-    getFlowFieldName: (ruleset) ->
+    getFlowField: (ruleset) ->
       fields = Flow.getFlowFields(ruleset)
-      field = @getFieldSelection(fields, ruleset.operand, true)
-      if field
-        return field.text
-
+      return @getFieldSelection(fields, ruleset.operand, true)
 
     applyActivity: (node, activity) ->
 

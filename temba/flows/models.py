@@ -2755,6 +2755,7 @@ class FlowVersion(SmartModel):
 
                     response_type = ruleset.pop('response_type', None)
                     ruleset_type = ruleset.get('ruleset_type', None)
+                    label = ruleset.get('label')
 
                     # remove config from any rules, these are turds
                     for rule in ruleset.get('rules'):
@@ -2811,6 +2812,7 @@ class FlowVersion(SmartModel):
                                 pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                                 pausing_ruleset['operand'] = '@step.value'
                                 insert_node(json_flow, pausing_ruleset, ruleset)
+                                ruleset['label'] = label + ' Expression'
 
                         # finally insert our webhook node if necessary
                         if has_old_webhook:
@@ -2818,8 +2820,8 @@ class FlowVersion(SmartModel):
                             webhook_ruleset['webhook'] = webhook_url
                             webhook_ruleset['webhook_action'] = webhook_action
                             webhook_ruleset['ruleset_type'] = RuleSet.TYPE_WEBHOOK
+                            webhook_ruleset['label'] = label + ' Webhook'
                             remove_extra_rules(webhook_ruleset)
-
                             insert_node(json_flow, webhook_ruleset, ruleset)
 
             # look for our next version

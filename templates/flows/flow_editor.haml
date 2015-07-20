@@ -442,14 +442,13 @@
               -trans "Wait for "
               [[ruleset.label]]
 
-            .title.passive.contact-field{ng-show:'ruleset.ruleset_type=="contact_field"'}
+            .title.passive.contact-field{ng-class:"{missing:getContactFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="contact_field"'}
                 -trans "Split on "
-                [[getContactFieldName(ruleset)]]
+                [[getContactFieldName(ruleset).text]]
 
-            .title.passive.flow-field{ng-show:'ruleset.ruleset_type=="flow_field"'}
+            .title.passive.flow-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="flow_field"'}
                 -trans "Split on "
-                [[getFlowFieldName(ruleset)]]
-
+                [[getFlowFieldName(ruleset).text]]
 
             .title.passive.webhook-header{ng-show:'ruleset.ruleset_type=="webhook"'}
                 -trans "Call Webhook"

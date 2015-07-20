@@ -11,6 +11,7 @@
 @color-send-email:@flat-mutedpurple;
 @color-webhook:@flat-mutedorange;
 @color-passive:@flat-darkwhite;
+@color-missing:@flat-mutedred + #444;
 @color-save-to-contact: #00ac9a;
 @color-start-flow: #c05093;
 @color-trigger-flow: #c05093;
@@ -436,6 +437,11 @@
             .bg-gradient(@color-passive, @color-passive - #101010);
             min-width: 200px;
             border: none;
+          }
+
+          &.missing {
+            text-shadow: 0px 1px @color-missing - #222;
+            .bg-gradient(@color-missing, @color-missing - #101010);
           }
         }
 
@@ -1011,6 +1017,13 @@
 }
 
 .rule-editor {
+
+  &.contact_field, &.flow_field, &.expression, &.webhook {
+    .title {
+      text-shadow: 0px 1px @color-passive - #222;
+      .bg-gradient(@color-passive, @color-passive - #101010);
+    }
+  }
 
   .split-header {
     padding: 20px 20px 0px;

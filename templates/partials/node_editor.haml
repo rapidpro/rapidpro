@@ -3,7 +3,7 @@
 .flip
   .card{ ng-class:'{"flipped":isFlipped}'}
     .face{ng-class:'{"back":nodeType=="actions","front":nodeType!="actions"}'}
-      .rule-editor.modal.translation.wide-dialog
+      .rule-editor.modal.translation.wide-dialog{ class:'[[formData.rulesetConfig.type]]', data-dismiss:'modal'}
         .flip-button{ng-click:'isFlipped=!isFlipped', ng-show:'showFlip()'}
           .icon-menu-2
         .rules
