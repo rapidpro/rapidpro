@@ -35,8 +35,6 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
 
     # show the version definition
     Versions.getVersion(version).then ->
-      $log.debug('then!')
-      $log.debug(Versions.definition)
       $scope.showDefinition(Versions.definition)
 
   # Show a definition from a version or our original definition
