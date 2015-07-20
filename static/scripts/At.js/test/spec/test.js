@@ -184,7 +184,57 @@
     });
   });
 
+  describe('Sorter', function () {
+    var items, results;
+
+    it('should include "Functions" for null query', function () {
+      items = [];
+      results = sorter(null, items, 'name');
+      expect(results).toEqual([{'name': '(', 'display': 'Functions'}]);
+
+    });
+
+    it('should include "Functions" for empty query', function () {
+      items = [];
+      results = sorter("", items, 'name');
+      expect(results).toEqual([{'name': '(', 'display':'Functions'}]);
+
+    });
+
+    it('should include "Functions" for null query', function () {
+      items = [{'name':'contact.addition', 'display':'Contact Addition'}, {'name':'econtact.added', 'display':'e-Contact Added'}];
+      results = sorter(null, items, 'name');
+      expect(results).toEqual([{'name': 'contact.addition', 'display': 'Contact Addition'},
+        {'name': 'econtact.added', 'display': 'e-Contact Added'},
+        {'name': '(', 'display': 'Functions'}]);
+    });
+
+    it('should include "Functions" for empty query', function () {
+      items = [{'name':'contact.addition', 'display':'Contact Addition'}, {'name':'econtact.added', 'display':'e-Contact Added'}];
+      results = sorter("", items, 'name');
+      expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition'},
+                               {'name':'econtact.added', 'display':'e-Contact Added'},
+                               {'name': '(', 'display':'Functions'}]);
+    });
 
 
+    it('should include "Functions" for query that do not have a dot', function () {
+      items = [{'name':'contact.addition', 'display':'Contact Addition'}, {'name':'econtact.added', 'display':'e-Contact Added'}];
+      results = sorter("contact", items, 'name');
+      expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'atwho_order': 0},
+                               {'name':'econtact.added', 'display':'e-Contact Added', 'atwho_order': 1},
+                               {'name': '(', 'display':'Functions'}]);
+
+    });
+
+    it('should not include "Functions" for query that have a dot', function () {
+      items = [{'name':'contact.addition', 'display':'Contact Addition'}, {'name':'econtact.added', 'display':'e-Contact Added'}];
+      results = sorter("contact.add", items, 'name');
+      expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'atwho_order':0},
+                               {'name':'econtact.added', 'display':'e-Contact Added', 'atwho_order':1}]);
+
+    });
+
+  });
 
 })();
