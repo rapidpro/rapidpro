@@ -237,4 +237,34 @@
 
   });
 
+  describe('Filter', function () {
+    var data = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
+      {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
+      {"name":"contact.urn.path.tel.number", "display":"Contact URN tel number"},
+      {"name":"channel.address", "display":"Channel Address"}
+    ];
+
+    var results, expected;
+
+    it('should filter using findMatches', function () {
+      spyOn(window, "findMatches").and.callThrough();
+      results = filter("", data, 'name');
+      expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}];
+      expect(results).toEqual(expected);
+      expect(window.findMatches).toHaveBeenCalledWith("", data, "", -1);
+
+      results = filter("con", data, 'name');
+      expected = [{"name":"contact", "display":"Contact Name"}];
+      expect(results).toEqual(expected);
+      expect(window.findMatches).toHaveBeenCalledWith("con", data, "", -1);
+
+      results = filter("contact.a", data, 'name');
+      expected = [{"name":"contact.age", "display":"Contact Age"}];
+      expect(results).toEqual(expected);
+      expect(window.findMatches).toHaveBeenCalledWith("contact.a", data, "contact", 7);
+
+    });
+
+  });
+
 })();
