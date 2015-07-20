@@ -337,7 +337,7 @@ class OrgTest(TembaTest):
         editor_invitation = Invitation.objects.create(org=self.org,
                                                       user_group="E",
                                                       email="norkans7@gmail.com",
-                                                      host='rapidpro.io',
+                                                      host='app.rapidpro.io',
                                                       created_by=self.admin,
                                                       modified_by=self.admin)
 
@@ -345,9 +345,9 @@ class OrgTest(TembaTest):
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "RapidPro Invitation")
-        self.assertIn('https://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
+        self.assertIn('https://app.rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('https://rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
+        self.assertIn('https://app.rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
         editor_join_url = reverse('orgs.org_join', args=[editor_invitation.secret])
@@ -1382,14 +1382,14 @@ class BulkExportTest(TembaTest):
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
         self.assertEquals(5, exported.get('version', 0))
-        self.assertEquals('https://rapidpro.io', exported.get('site', None))
+        self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))
         self.assertEquals(4, len(exported.get('triggers', [])))
         self.assertEquals(1, len(exported.get('campaigns', [])))
 
         # finally let's try importing our exported file
-        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='http://app.rapidpro.io')
         assert_object_counts()
 
         # let's rename a flow and import our export again
@@ -1406,7 +1406,7 @@ class BulkExportTest(TembaTest):
         group.save()
 
         # it should fall back on ids and not create new objects even though the names changed
-        self.org.import_app(exported, self.admin, site='http://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='http://app.rapidpro.io')
         assert_object_counts()
 
         # and our objets should have the same names as before
@@ -1447,7 +1447,7 @@ class BulkExportTest(TembaTest):
 
         # delete our flow, and reimport
         confirm_appointment.delete()
-        self.org.import_app(exported, self.admin, site='https://rapidpro.io')
+        self.org.import_app(exported, self.admin, site='https://app.rapidpro.io')
 
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')

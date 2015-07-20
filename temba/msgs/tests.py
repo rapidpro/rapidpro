@@ -600,9 +600,9 @@ class MsgTest(TembaTest):
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "Your messages export is ready")
-        self.assertIn('https://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('https://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
         ExportMessagesTask.objects.all().delete()
