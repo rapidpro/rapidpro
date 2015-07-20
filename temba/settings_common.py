@@ -271,7 +271,7 @@ LOGGING = {
 #-----------------------------------------------------------------------------------
 from django.utils.translation import ugettext_lazy as _
 BRANDING = {
-    'app.rapidpro.io': {
+    'rapidpro.io': {
         'slug': 'rapidpro',
         'name': 'RapidPro',
         'org': 'UNICEF',
@@ -291,7 +291,7 @@ BRANDING = {
         'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
-DEFAULT_BRAND = 'app.rapidpro.io'
+DEFAULT_BRAND = 'rapidpro.io'
 
 #-----------------------------------------------------------------------------------
 # Directory Configuration
