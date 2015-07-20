@@ -2811,7 +2811,7 @@ class FlowVersion(SmartModel):
                                 remove_extra_rules(pausing_ruleset)
                                 pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                                 pausing_ruleset['operand'] = '@step.value'
-                                pausing_ruleset['label'] = 'Wait for ' + label
+                                pausing_ruleset['label'] = label + ' Response'
                                 insert_node(json_flow, pausing_ruleset, ruleset)
 
                         # finally insert our webhook node if necessary
