@@ -3250,7 +3250,11 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_from_4_to_5(self):
 
+
+        settings.SEND_WEBHOOKS = True
+
         flow = self.get_flow('favorites')
+
 
         # start the flow for our contact
         flow.start(groups=[], contacts=[self.contact])
@@ -3267,7 +3271,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # pretend our current ruleset was stopped at a webhook with a passive rule
         ruleset = RuleSet.objects.get(flow=flow, uuid=step.step_uuid)
-        ruleset.webhook_url = 'http://wwww.google.com'
+        ruleset.webhook_url = 'http://www.mywebhook.com/lookup'
         ruleset.webhook_action = 'POST'
         ruleset.operand = '@extra.value'
         ruleset.save()
@@ -3289,9 +3293,10 @@ class FlowMigrationTest(FlowFileTest):
         # we should be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEquals('webhook', webhook.ruleset_type)
-        self.assertEquals('http://wwww.google.com', webhook.webhook_url)
+        self.assertEquals('http://www.mywebhook.com/lookup', webhook.webhook_url)
         self.assertEquals('POST', webhook.webhook_action)
         self.assertEquals('@step.value', webhook.operand)
+        self.assertEquals('Color Webhook', webhook.label)
 
         # which should in turn point to a new expression split on @extra.value
         expression = RuleSet.objects.get(flow=flow, uuid=webhook.get_rules()[0].destination)
@@ -3318,12 +3323,22 @@ class FlowMigrationTest(FlowFileTest):
         expression.operand = '@step.value'
         expression.save()
 
-        # now move our straggler forward with a message, should get a reply
-        reply = self.send_message(flow, 'red')
-        self.assertEquals('Good choice, I like Red too! What is your favorite beer?', reply)
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status": "valid" }')
 
-        reply = self.send_message(flow, 'Turbo King')
-        self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
+            # now move our straggler forward with a message, should get a reply
+
+            first_response = ActionSet.objects.get(flow=flow, x=131)
+            actions = first_response.get_actions_dict()
+            actions[0]['msg'] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
+            first_response.set_actions_dict(actions)
+            first_response.save()
+
+            reply = self.send_message(flow, 'red')
+            self.assertEquals('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
+
+            reply = self.send_message(flow, 'Turbo King')
+            self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
 
 
 class DuplicateValueTest(FlowFileTest):

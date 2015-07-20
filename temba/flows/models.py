@@ -2501,32 +2501,36 @@ class RuleSet(models.Model):
             from temba.api.models import WebHookEvent
             (value, missing) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                         org=run.flow.org, url_encode=True)
-            WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                            run.contact, msg, self.webhook_action)
+            result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
+                                                     run.contact, msg, self.webhook_action)
 
             # rebuild our context again, the webhook may have populated something
             context = run.flow.build_message_context(run.contact, msg)
 
-        # if we have a custom operand, figure that out
-        text = None
-        if self.operand:
-            (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
-        elif msg:
-            text = msg.text
+            # return the webhook result body as the value
+            return self.get_rules()[0], result.body
 
-        try:
-            rules = self.get_rules()
-            for rule in rules:
-                (result, value) = rule.matches(run, msg, context, text)
-                if result > 0:
-                    # treat category as the base category
-                    rule.category = run.flow.get_base_text(rule.category)
-                    return rule, value
-        finally:
-            if msg:
-                msg.text = orig_text
+        else:
+            # if we have a custom operand, figure that out
+            text = None
+            if self.operand:
+                (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
+            elif msg:
+                text = msg.text
 
-        return None, None
+            try:
+                rules = self.get_rules()
+                for rule in rules:
+                    (result, value) = rule.matches(run, msg, context, text)
+                    if result > 0:
+                        # treat category as the base category
+                        rule.category = run.flow.get_base_text(rule.category)
+                        return rule, value
+            finally:
+                if msg:
+                    msg.text = orig_text
+
+            return None, None
 
     def save_run_value(self, run, rule, value, recording=False):
         value = unicode(value)[:640]
@@ -2776,10 +2780,7 @@ class FlowVersion(SmartModel):
                         has_old_webhook = webhook_url and ruleset_type != RuleSet.TYPE_WEBHOOK
 
                         # determine our type from our operand
-                        operand = ruleset.get('operand')
-
-                        if not operand:
-                            operand = ''
+                        operand = ruleset.get('operand', '@step.value')
                         operand = operand.strip()
 
                         # all previous ruleset that require step should be wait_message
@@ -2810,7 +2811,6 @@ class FlowVersion(SmartModel):
                                     pausing_ruleset['label'] = label + ' Response'
                                     remove_extra_rules(pausing_ruleset)
                                     insert_node(json_flow, pausing_ruleset, ruleset)
-
 
                         else:
                             # if there's no reference to step, figure out our type
