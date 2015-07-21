@@ -382,7 +382,6 @@ app.factory "Versions", ['$http', '$log', ($http, $log) ->
         # only set the versions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
-          $log.debug(data)
 
 ]
 
@@ -576,7 +575,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
               # update our auto completion options
               $http.get('/flow/completion/?flow=' + Flow.flowId).success (data) ->
-                $rootScope.completions = data
+                Flow.completions = data
 
               Versions.updateVersions(Flow.flowId)
 
