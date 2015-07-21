@@ -914,7 +914,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           contactFieldSearch.push
              id: "name"
-             text: "Contact Name"
+             text: "Full Name"
+
+          contactFieldSearch.push
+             id: "tel_e164"
+             text: "Phone Number"
 
           for field in fields
             contactFieldSearch.push
