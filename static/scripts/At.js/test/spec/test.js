@@ -139,7 +139,7 @@
     it('should not include previous (', function () {
       ctxtQuery = findContextQuery("(contact.age");
       expect(ctxtQuery).toBe('contact.age');
-    })
+    });
 
   });
 
@@ -268,21 +268,7 @@
   });
 
   describe('beforeInsert', function () {
-    var value, variables, functions;
-    beforeEach(function () {
-        variables = [{"display": "New Contact", "name": "new_contact"},
-                     {"display": "Contact Name", "name": "contact"},
-                     {"display": "Contact Name", "name": "contact.name"}];
-
-        functions = [{
-          "display": "Display: Returns the sum of all arguments",
-          "description": "Description: Returns the sum of all arguments",
-          "name": "SUM",
-          "hint": "Hint: Returns the sum of all arguments",
-          "example": "SUM(args)",
-          "arguments": [{"name": "args", "hint": "Hint for :-:args:-: arg"}]
-        }];
-    });
+    var value;
 
     it('should append a space for variables without more option', function () {
       value = beforeInsert("@new_contact");
@@ -305,4 +291,5 @@
     });
 
   });
+
 })();

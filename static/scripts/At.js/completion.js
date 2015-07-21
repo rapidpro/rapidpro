@@ -2145,10 +2145,6 @@ function tplval(tpl, map, action) {
   template = tpl;
 
   var query = this.query.text;
-  if (query && query[0] == '(') {
-    data = variables_and_functions;
-  }
-
   contextQuery = findContextQuery(query);
 
   if (action == 'onInsert') {
