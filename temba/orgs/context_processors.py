@@ -115,9 +115,3 @@ def unread_count_processor(request):
         context['msgs_unread_count'] = msgs_unread_count
 
     return context
-
-
-def link_components(request):
-    protocol = 'https' if request.is_secure() else 'http'
-    hostname = request.branding['domain']
-    return {'protocol': protocol, 'hostname': hostname}
