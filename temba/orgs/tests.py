@@ -14,7 +14,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch, Mock
 from redis_cache import get_redis_connection
-from smartmin.smartmin.tests import SmartminTest
+from smartmin.tests import SmartminTest
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.middleware import BrandingMiddleware
