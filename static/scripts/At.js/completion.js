@@ -1,6 +1,4 @@
 
-$.fn.atwho.debug = true;
-
 var variables =
     [{"display": "New Contact", "name": "new_contact"}, {
       "display": "Contact Name",

@@ -267,4 +267,42 @@
 
   });
 
+  describe('beforeInsert', function () {
+    var value, variables, functions;
+    beforeEach(function () {
+        variables = [{"display": "New Contact", "name": "new_contact"},
+                     {"display": "Contact Name", "name": "contact"},
+                     {"display": "Contact Name", "name": "contact.name"}];
+
+        functions = [{
+          "display": "Display: Returns the sum of all arguments",
+          "description": "Description: Returns the sum of all arguments",
+          "name": "SUM",
+          "hint": "Hint: Returns the sum of all arguments",
+          "example": "SUM(args)",
+          "arguments": [{"name": "args", "hint": "Hint for :-:args:-: arg"}]
+        }];
+    });
+
+    it('should append a space for variables without more option', function () {
+      value = beforeInsert("@new_contact");
+      expect(value).toBe("@new_contact ");
+    });
+
+    it('should append a dot if value is from variables and we have more options', function () {
+      value = beforeInsert('@contact', []);
+      expect(value).toBe("@contact.");
+    });
+
+    it('should balance parantheses', function () {
+      value = beforeInsert("@(", []);
+      expect(value).toBe("@()");
+    });
+
+    it('should append parantheses for function', function () {
+      value = beforeInsert("@(SUM", []);
+      expect(value).toBe("@(SUM()");
+    });
+
+  });
 })();
