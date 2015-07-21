@@ -12,20 +12,16 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.db import connection
-from django.http import HttpRequest
 from django.test import LiveServerTestCase
 from django.utils import timezone
 from smartmin.tests import SmartminTest
-from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.middleware import BrandingMiddleware
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FLOW
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
-from temba.temba_email import link_components
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
 
@@ -209,20 +205,6 @@ class TembaTest(SmartminTest):
                 r.destination = destination
         ruleset.set_rules(rules)
         ruleset.save()
-
-
-class EmailContextProcessorsTest(SmartminTest):
-    def setUp(self):
-        super(EmailContextProcessorsTest, self).setUp()
-
-        self.middleware = BrandingMiddleware()
-
-    def test_link_components(self):
-        self.request = Mock(spec=HttpRequest)
-        self.request.get_host.return_value = "rapidpro.io"
-        response = self.middleware.process_request(self.request)
-        self.assertIsNone(response)
-        self.assertEquals(link_components(self.request), dict(protocol="https", hostname="app.rapidpro.io"))
 
 
 class FlowFileTest(TembaTest):
