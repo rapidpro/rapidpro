@@ -442,6 +442,15 @@
               -trans "Wait for "
               [[ruleset.label]]
 
+            .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_recording"'}
+                -trans "Wait for Recording"
+
+            .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digit"'}
+                -trans "Wait for Menu"
+
+            .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digits"'}
+                -trans "Wait for Digits"
+
             .title.passive.contact-field{ng-class:"{missing:getContactFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="contact_field"'}
                 -trans "Split on "
                 [[getContactFieldName(ruleset).text]]

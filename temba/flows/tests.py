@@ -2333,6 +2333,30 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url + get_params_mixed)
         self.assertEquals([], json.loads(response.content))
 
+
+    def test_completion(self):
+
+        flow = self.get_flow('favorites')
+        self.login(self.admin)
+
+        response = self.client.get('%s?flow=%d' % (reverse('flows.flow_completion'), flow.pk))
+        response = json.loads(response.content)
+
+        def assertInResponse(response, key):
+            found = False
+            for item in response:
+                if key == item['name']:
+                    found = True
+            self.assertTrue(found, 'Key %s not found in %s' % (key, response))
+
+        assertInResponse(response, 'contact')
+        assertInResponse(response, 'contact.first_name')
+        assertInResponse(response, 'flow.color')
+        assertInResponse(response, 'flow.color.category')
+        assertInResponse(response, 'flow.color.text')
+        assertInResponse(response, 'flow.color.time')
+
+
     def test_activity(self):
 
         flow = self.get_flow('favorites')
