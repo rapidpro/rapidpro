@@ -31,6 +31,7 @@ module.exports = (config) ->
 
       # the code we are testing
       'static/coffee/flows/*.coffee',
+      'static/coffee/completions.coffee',
 
       # our json fixtures
       { pattern: 'media/test_flows/*.json', watched: true, served: true, included: false },
@@ -39,6 +40,7 @@ module.exports = (config) ->
       'karma/flows/test_services.coffee',
       'karma/flows/test_directives.coffee',
       'karma/flows/test_controllers.coffee',
+      'karma/test_completions.coffee',
 
     ]
 
