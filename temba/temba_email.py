@@ -4,7 +4,7 @@ from django.template import loader, Context
 from django.conf import settings
 
 
-def link_components(request):
+def link_components(request=None, user=None):
     protocol = 'https' if request.is_secure() else 'http'
     hostname = request.branding['domain']
     return {'protocol': protocol, 'hostname': hostname}

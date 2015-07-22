@@ -1536,7 +1536,7 @@ class UnreadCountTest(FlowFileTest):
 class EmailContextProcessorsTest(SmartminTest):
     def setUp(self):
         super(EmailContextProcessorsTest, self).setUp()
-
+        self.admin = self.create_user("Administrator")
         self.middleware = BrandingMiddleware()
 
     def test_link_components(self):
@@ -1544,6 +1544,6 @@ class EmailContextProcessorsTest(SmartminTest):
         self.request.get_host.return_value = "rapidpro.io"
         response = self.middleware.process_request(self.request)
         self.assertIsNone(response)
-        self.assertEquals(link_components(self.request), dict(protocol="https", hostname="app.rapidpro.io"))
+        self.assertEquals(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
 
 
