@@ -860,17 +860,33 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.get_receive_channel(TEL_SCHEME).is_delegate_sender())
 
         # create a US channel and try claiming it next to our RW channels
-        post_data = json.dumps(dict(cmds=[dict(cmd="gcm", gcm_id="claim_test", uuid='uuid'), dict(cmd='status', cc='US', dev='Nexus')]))
+        post_data = json.dumps(dict(cmds=[dict(cmd="gcm", gcm_id="claim_test", uuid='uuid'),
+                                          dict(cmd='status', cc='US', dev='Nexus')]))
         response = self.client.post(reverse('register'), content_type='application/json', data=post_data)
         channel = json.loads(response.content)['cmds'][0]
 
-        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.user, post_data=dict(claim_code=channel['relayer_claim_code'], phone_number="0788382382"), failOnFormValidation=False)
+        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.user,
+                                        post_data=dict(claim_code=channel['relayer_claim_code'],
+                                                       phone_number="0788382382"),
+                                        failOnFormValidation=False)
         self.assertEquals(200, response.status_code, "Claimed channels from two different countries")
         self.assertContains(response, "you can only add numbers for the same country")
 
+        # but if we submit with a fully qualified Rwandan number it should work
+        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.user,
+                                        post_data=dict(claim_code=channel['relayer_claim_code'],
+                                                       phone_number="+250788382382"),
+                                        failOnFormValidation=False)
+
+        self.assertRedirect(response, reverse('public.public_welcome'))
+
+        # should be added with RW as a country
+        self.assertTrue(Channel.objects.get(address='+250788382382', country='RW', org=self.org))
+
         response = self.fetch_protected(reverse('channels.channel_claim'), self.user)
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, Sweden, United Kingdom or United States")
+        self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, "
+                                                                "Sweden, United Kingdom or United States")
 
         # Test both old and new Cameroon phone format
         number = phonenumbers.parse('+23761234567', 'CM')
@@ -1463,21 +1479,24 @@ class SyncEventTest(SmartminTest):
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.tel_channel = Channel.objects.create(name="Test Channel", address="0785551212", org=self.org,
-                                                  created_by=self.user, modified_by=self.user,
+                                                  created_by=self.user, modified_by=self.user, country='RW',
                                                   secret="12345", gcm_id="123")
 
     def test_sync_event_model(self):
-        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc='RW'), [1,2])
+        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI",
+                                                                  pending=[1, 2], retry=[3, 4], cc='RW'), [1,2])
         self.assertEquals(SyncEvent.objects.all().count(), 1)
         self.assertEquals(self.sync_event.get_pending_messages(), [1, 2])
         self.assertEquals(self.sync_event.get_retry_messages(), [3, 4])
         self.assertEquals(self.sync_event.incoming_command_count, 0)
 
-        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc='US'), [1])
+        self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI",
+                                                                  pending=[1, 2], retry=[3, 4], cc='US'), [1])
         self.assertEquals(self.sync_event.incoming_command_count, 0)
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
-        self.assertEquals('US', self.tel_channel.country)
 
+        # we shouldn't update country once the relayer is claimed
+        self.assertEquals('RW', self.tel_channel.country)
 
 class ChannelAlertTest(TembaTest):
 

@@ -1301,18 +1301,19 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-
     class ClaimAfricasTalking(OrgPermsMixin, SmartFormView):
         class ATClaimForm(forms.Form):
             shortcode = forms.CharField(max_length=6, min_length=1,
                                         help_text=_("Your short code on Africa's Talking"))
+            is_shared = forms.BooleanField(initial=False, required=False,
+                                           help_text=_("Whether this short code is shared with others"))
             username = forms.CharField(max_length=32,
                                        help_text=_("Your username on Africa's Talking"))
             api_key = forms.CharField(max_length=64,
                                       help_text=_("Your api key, should be 64 characters"))
 
         title = _("Connect Africa's Talking Account")
-        fields = ('shortcode', 'username', 'api_key')
+        fields = ('shortcode', 'is_shared', 'username', 'api_key')
         form_class = ATClaimForm
         success_url = "id@channels.channel_configuration"
 
@@ -1324,7 +1325,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
             self.object = Channel.add_africas_talking_channel(org, self.request.user,
-                                                              phone=data['shortcode'], username=data['username'], api_key=data['api_key'])
+                                                              phone=data['shortcode'], username=data['username'],
+                                                              api_key=data['api_key'], is_shared=data['is_shared'])
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()
@@ -1363,8 +1365,13 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code'])[0]
 
             country = self.object.country
-            if not country:
-                country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'])
+            phone_country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'],
+                                                              str(self.object.country))
+
+            # always prefer the country of the phone number they are entering if we have one
+            if phone_country and phone_country != country:
+                country = phone_country
+                self.object.country = phone_country
 
             # get all other channels with a country
             other_channels = org.channels.filter(is_active=True).exclude(pk=self.object.pk)
@@ -1373,12 +1380,13 @@ class ChannelCRUDL(SmartCRUDL):
             # are there any that have a different country?
             other_countries = with_countries.exclude(country=country).first()
             if other_countries:
-                form._errors['claim_code'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
+                form._errors['claim_code'] = form.error_class([_("Sorry, you can only add numbers for the "
+                                                                 "same country (%s)" % other_countries.country)])
                 return self.form_invalid(form)
 
             # clear any channels that are dupes of this gcm/uuid pair for this org
-            for dupe in Channel.objects.filter(gcm_id=self.object.gcm_id, uuid=self.object.uuid, org=org).exclude(
-                                               pk=self.object.pk).exclude(gcm_id=None).exclude(uuid=None):
+            for dupe in Channel.objects.filter(gcm_id=self.object.gcm_id, uuid=self.object.uuid, org=org)\
+                                       .exclude(pk=self.object.pk).exclude(gcm_id=None).exclude(uuid=None):
                 dupe.is_active = False
                 dupe.gcm_id = None
                 dupe.uuid = None

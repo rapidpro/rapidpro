@@ -818,7 +818,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Invitation
                 fields = ('emails', 'user_group')
 
-
         form_class = InviteForm
         success_url = "@orgs.org_home"
         success_message = ""
@@ -909,10 +908,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # remove all the org users
             for user in self.get_object().get_org_admins():
-                if user != self.request.user:
-                    self.get_object().administrators.remove(user)
-                else:
-                    self.get_object().administrators.add(user)
+                self.get_object().administrators.remove(user)
             for user in self.get_object().get_org_editors():
                 self.get_object().editors.remove(user)
             for user in self.get_object().get_org_viewers():
@@ -947,6 +943,16 @@ class OrgCRUDL(SmartCRUDL):
             context['invites'] = Invitation.objects.filter(org=org, is_active=True)
 
             return context
+
+        def get_success_url(self):
+            # if we are no longer part of this form, redirect to the chooser
+            if self.request.user not in self.org_users:
+                return reverse('orgs.org_choose')
+
+            # otherwise, back to our home page
+            else:
+                return reverse('orgs.org_home')
+
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
@@ -1388,7 +1394,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
-                formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users')
+                formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users', action='redirect')
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

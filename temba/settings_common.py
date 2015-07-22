@@ -279,16 +279,16 @@ BRANDING = {
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
-        'link': 'https://rapidpro.io',
+        'link': 'https://app.rapidpro.io',
         'api_link': 'https://api.rapidpro.io',
-        'domain': 'rapidpro.io',
+        'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        'credits': _("Copyright &copy; 2012-2014 UNICEF, Nyaruka. All Rights Reserved.")
+        'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
 DEFAULT_BRAND = 'rapidpro.io'

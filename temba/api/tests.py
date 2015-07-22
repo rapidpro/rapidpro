@@ -2122,6 +2122,23 @@ class AfricasTalkingTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('msg1', msg.external_id)
 
+                # check that our from was set
+                self.assertEquals(self.channel.address, mock.call_args[1]['data']['from'])
+
+                self.clear_cache()
+
+            # test with a non-dedicated shortcode
+            self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key', is_shared=True))
+            self.channel.save()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # assert we didn't send the short code in our data
+                self.assertTrue('from' not in mock.call_args[1]['data'])
                 self.clear_cache()
 
             with patch('requests.post') as mock:
@@ -2137,7 +2154,6 @@ class AfricasTalkingTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
-
 
 class ExternalTest(TembaTest):
 
