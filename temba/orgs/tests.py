@@ -1546,4 +1546,18 @@ class EmailContextProcessorsTest(SmartminTest):
         self.assertIsNone(response)
         self.assertEquals(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
 
+        with self.settings(HOSTNAME="rapidpro.io"):
+            forget_url = reverse('users.user_forget')
+
+            post_data = dict()
+            post_data['email'] = 'nouser@nouser.com'
+
+            response = self.client.post(forget_url, post_data, follow=True)
+            self.assertEquals(1, len(mail.outbox))
+            sent_email = mail.outbox[0]
+            self.assertEqual(len(sent_email.to), 1)
+            self.assertEqual(sent_email.to[0], 'nouser@nouser.com')
+
+            # we have the domain of rapipro.io brand
+            self.assertTrue('app.rapidpro.io' in sent_email.body)
 
