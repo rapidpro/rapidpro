@@ -5,72 +5,72 @@
     var matched;
 
     it('should match "" after flag', function () {
-      matched = matcher("@", "some texts before @", "@");
+      matched = matcher("@", "some texts before @");
       expect(matched).toBe("");
     });
 
     it('should not match escaped texts', function () {
-      matched = matcher("@", "some texts before @@contact", "@");
+      matched = matcher("@", "some texts before @@contact");
       expect(matched).toBe(null);
     });
 
     it('should match variable after flag', function () {
-      matched = matcher("@", "some texts before @contact", "@");
+      matched = matcher("@", "some texts before @contact");
       expect(matched).toBe("contact");
     });
 
     it('should match variables with dot', function () {
-      matched = matcher("@", "some texts before @contact.born", "@");
+      matched = matcher("@", "some texts before @contact.born");
       expect(matched).toBe("contact.born");
     });
 
     it('should match variables with dot as big as possible', function () {
-      matched = matcher("@", "some texts before @contact.born.where.location", "@");
+      matched = matcher("@", "some texts before @contact.born.where.location");
       expect(matched).toBe("contact.born.where.location");
     });
 
     it('should not match space if we have a space at the end', function () {
-      matched = matcher("@", "some texts before @contact ", "@");
+      matched = matcher("@", "some texts before @contact ");
       expect(matched).toBe(null);
     });
 
     it('should not match space if if last word does not have flag', function () {
-      matched = matcher("@", "some texts before @contact contact", "@");
+      matched = matcher("@", "some texts before @contact contact");
       expect(matched).toBe(null);
     });
 
     it('should match functions', function () {
-      matched = matcher("@", "some texts before @(SUM", "@");
+      matched = matcher("@", "some texts before @(SUM");
       expect(matched).toBe("(SUM");
     });
 
     it('should not match escaped functions', function () {
-      matched = matcher("@", "some texts before @@(SUM", "@");
+      matched = matcher("@", "some texts before @@(SUM");
       expect(matched).toBe(null);
     });
 
     it('should match all the function', function () {
-      matched = matcher("@", "some texts before @(SUM()", "@");
+      matched = matcher("@", "some texts before @(SUM()");
       expect(matched).toBe("(SUM()");
     });
 
     it('should match the function as long as possible', function () {
-      matched = matcher("@", "some texts before @(SUM(contact.age, step.value", "@");
+      matched = matcher("@", "some texts before @(SUM(contact.age, step.value");
       expect(matched).toBe("(SUM(contact.age, step.value");
     });
 
     it('should match the function as long as possible, may commas, underscores', function () {
-      matched = matcher("@", "some texts before @(SUM(contact.age, step.value, date.now_time", "@");
+      matched = matcher("@", "some texts before @(SUM(contact.age, step.value, date.now_time");
       expect(matched).toBe("(SUM(contact.age, step.value, date.now_time");
     });
 
     it('should match the function as long as possible', function () {
-      matched = matcher("@", "some texts before @(SUM(contact.age, step.value))))", "@");
+      matched = matcher("@", "some texts before @(SUM(contact.age, step.value))))");
       expect(matched).toBe("(SUM(contact.age, step.value))))");
     });
 
     it('should not match if space after last )', function () {
-      matched = matcher("@", "some texts before @(SUM(contact.age, step.value)))) ", "@");
+      matched = matcher("@", "some texts before @(SUM(contact.age, step.value)))) ");
       expect(matched).toBe(null);
     });
   });
