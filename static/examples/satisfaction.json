@@ -2,7 +2,7 @@
   "rule_sets": [
     {
       "uuid": "8a6c4040-d9c5-4ef1-960c-00240c4652ee",
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -66,7 +66,7 @@
     },
     {
       "uuid": "4e23fb23-3acb-46d7-b96a-5fb5d5a9391f",
-      "response_type": "O",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -85,7 +85,7 @@
     },
     {
       "uuid": "9f459b42-e829-4f28-b227-b3c481d1183b",
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -113,7 +113,7 @@
     },
     {
       "uuid": "a037be9e-662b-4169-a00d-66abdf5f4b78",
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -177,7 +177,7 @@
     },
     {
       "uuid": "924bedd3-cfac-42dc-b06f-21078b65e167",
-      "response_type": "O",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -196,7 +196,7 @@
     },
     {
       "uuid": "73a054a5-ac1d-4a3c-826c-1156f73d2237",
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -233,7 +233,7 @@
     },
     {
       "uuid": "03f55140-a3cb-4b30-abe0-9229040552ef",
-      "response_type": "N",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
@@ -261,7 +261,7 @@
     },
     {
       "uuid": "09bf139d-4865-48ef-b7e9-78336a89f48e",
-      "response_type": "O",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {

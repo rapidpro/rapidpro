@@ -1,182 +1,242 @@
 {
-  "entry": "9486b2dd-884f-4723-8d06-1255d36c70c7", 
-  "rule_sets": [
-    {
-      "uuid": "8d73bea4-38e8-4d78-8fb9-533d7b8839d9",
-      "response_type": "O",
-      "rules": [
-        {
-          "test": {
-            "test": "true", 
-            "type": "true"
-          }, 
-          "category": "All Responses", 
-          "destination": "7172fbf8-bd14-4a55-ab3a-eaca0e5f210e", 
-          "uuid": "cbf329ca-a54e-4b4b-a244-deb809256444"
+        "entry": "7a1bf907-1874-46ca-ad84-e5aa58571244",
+        "rule_sets": [
+          {
+            "uuid": "3d06ece0-a2f8-4d27-a2d3-cdd86f30a5a0",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "All Responses",
+                "destination": "454b5541-c0f0-49bc-ba1e-560e91b287fd",
+                "uuid": "baa2735e-5436-4977-ab36-b5bc64876e2d",
+                "destination_type": "A"
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "wait_message",
+            "label": "Comment",
+            "operand": "@step.value",
+            "finished_key": null,
+            "y": 875,
+            "x": 389
+          },
+          {
+            "uuid": "997a2de8-a7e6-4216-a0cc-b70d2d7c97cb",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": "Shipped",
+                  "type": "contains"
+                },
+                "category": "Shipped",
+                "destination": "b87a8a9d-bac2-4e4b-b8ad-cfeee8bfb3f9",
+                "uuid": "148af3bd-8e6c-40fd-afca-fcd89ad15a59",
+                "destination_type": "A"
+              },
+              {
+                "test": {
+                  "test": "Pending",
+                  "type": "contains"
+                },
+                "category": "Pending",
+                "destination": "1b224565-65c5-4eb0-92b7-bc37bf8d2a93",
+                "uuid": "c50a0573-a4ab-4d25-862e-62a1dff3c61a",
+                "destination_type": "A"
+              },
+              {
+                "test": {
+                  "test": "Cancelled",
+                  "type": "contains"
+                },
+                "category": "Cancelled",
+                "destination": "9c4e0c13-d6b4-4277-a17b-fdcd92d2f54d",
+                "uuid": "c044c829-d165-4d1e-985b-f3c07d01e1f7",
+                "destination_type": "A"
+              },
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "Other",
+                "destination": "08396941-280d-4934-80ca-ab7455143049",
+                "uuid": "26aebd58-eb05-4ae1-a7b3-3097bf252e37",
+                "destination_type": "A"
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "expression",
+            "label": "Lookup",
+            "operand": "@extra.status",
+            "finished_key": null,
+            "y": 404,
+            "x": 355
+          },
+          {
+            "uuid": "8581f197-7294-4d41-8835-ac70c12a2924",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "All Responses",
+                "destination": null,
+                "uuid": "5ba0de2d-6dc5-42d9-af51-08c426f60f46"
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "wait_message",
+            "label": "Extra Comments",
+            "operand": "@step.value",
+            "finished_key": null,
+            "y": 1252,
+            "x": 389
+          },
+          {
+            "uuid": "84094b23-6c4f-4a10-be9c-b17feac73be4",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "Other",
+                "destination": "11e423e6-6b19-4528-9b4a-8ac310db7c52",
+                "uuid": "26aebd58-eb05-4ae1-a7b3-3097bf252e37",
+                "destination_type": "R"
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "wait_message",
+            "label": "Lookup",
+            "operand": "@extra.status",
+            "finished_key": null,
+            "y": 204,
+            "x": 355
+          },
+          {
+            "uuid": "11e423e6-6b19-4528-9b4a-8ac310db7c52",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "Other",
+                "destination": "997a2de8-a7e6-4216-a0cc-b70d2d7c97cb",
+                "uuid": "26aebd58-eb05-4ae1-a7b3-3097bf252e37",
+                "destination_type": "R"
+              }
+            ],
+            "webhook": "{{API_URL}}/demo/status/",
+            "ruleset_type": "webhook",
+            "label": "Lookup",
+            "operand": "@extra.status",
+            "finished_key": null,
+            "y": 304,
+            "x": 355
+          }
+        ],
+        "action_sets": [
+          {
+            "y": 991,
+            "x": 389,
+            "destination": "8581f197-7294-4d41-8835-ac70c12a2924",
+            "uuid": "454b5541-c0f0-49bc-ba1e-560e91b287fd",
+            "actions": [
+              {
+                "msg": "Thanks @extra.name, we'll be in touch ASAP about order # @extra.order.",
+                "type": "reply"
+              },
+              {
+                "msg": "Customer @extra.name has a problem with their order @extra.order for @extra.description.  Please look into it ASAP and call them back with the status.\n \nCustomer Comment: \"@flow.comment\"\nCustomer Name: @extra.name\nCustomer Phone: @contact.tel ",
+                "type": "email",
+                "emails": [
+                  "evanmwheeler+syria@gmail.com"
+                ],
+                "subject": "Order Comment: @flow.lookup: @extra.order"
+              }
+            ]
+          },
+          {
+            "y": 574,
+            "x": 612,
+            "destination": "3d06ece0-a2f8-4d27-a2d3-cdd86f30a5a0",
+            "uuid": "9c4e0c13-d6b4-4277-a17b-fdcd92d2f54d",
+            "actions": [
+              {
+                "msg": "Uh oh @extra.name!  Our record indicate that your order for @extra.description was cancelled on @extra.cancel_date. If you think this is in error, please reply with a comment and our orders department will get right on it!",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 572,
+            "x": 389,
+            "destination": "3d06ece0-a2f8-4d27-a2d3-cdd86f30a5a0",
+            "uuid": "1b224565-65c5-4eb0-92b7-bc37bf8d2a93",
+            "actions": [
+              {
+                "msg": "Hi @extra.name.  Hope you are patient because we haven't shipped your order for @extra.description yet.  We expect to ship it by @extra.ship_date though. If you have any questions, just reply and our customer service department will be notified.",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 572,
+            "x": 167,
+            "destination": "3d06ece0-a2f8-4d27-a2d3-cdd86f30a5a0",
+            "uuid": "b87a8a9d-bac2-4e4b-b8ad-cfeee8bfb3f9",
+            "actions": [
+              {
+                "msg": "Great news @extra.name! We shipped your order for @extra.description on @extra.ship_date and we expect it will be delivered on @extra.delivery_date. If you have any questions, just reply and our customer service department will be notified.",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 99,
+            "x": 787,
+            "destination": "84094b23-6c4f-4a10-be9c-b17feac73be4",
+            "uuid": "08396941-280d-4934-80ca-ab7455143049",
+            "actions": [
+              {
+                "msg": "Sorry that doesn't look like a valid order number.  Maybe try: CU001, CU002 or CU003?",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 0,
+            "x": 409,
+            "destination": "84094b23-6c4f-4a10-be9c-b17feac73be4",
+            "uuid": "7a1bf907-1874-46ca-ad84-e5aa58571244",
+            "actions": [
+              {
+                "msg": "Thanks for contacting the ThriftShop order status system. Please send your order # and we'll help you in a jiffy!",
+                "type": "reply"
+              }
+            ]
+          }
+        ],
+        "last_saved": "2015-07-14T19:51:09.816125Z",
+        "metadata": {
+          "notes": [
+            {
+              "body": "This flow demonstrates looking up an order using a webhook and giving the user different options based on the results.  After looking up the order the user has the option to send additional comments which are forwarded to customer support representatives.\n\nUse order numbers CU001, CU002 or CU003 to see the different cases in action.", 
+              "x": 59,
+              "y": 0,
+              "title": "Using Your Own Data"
+            }
+          ]
         }
-      ], 
-      "label": "Comment", 
-      "operand": "@step.value",
-      "y": 675, 
-      "x": 389
-    }, 
-    {
-      "uuid": "501a863a-1604-48ac-bcd4-851501851e43",
-      "response_type": "C",
-      "rules": [
-        {
-          "test": {
-            "test": "Shipped", 
-            "type": "contains"
-          }, 
-          "category": "Shipped", 
-          "destination": "debccabd-13b6-4263-95ea-41ebc5925395", 
-          "uuid": "fa9ad59e-05ca-4a8f-8574-c4f1550b471a"
-        }, 
-        {
-          "test": {
-            "test": "Pending", 
-            "type": "contains"
-          }, 
-          "category": "Pending", 
-          "destination": "5d472177-980b-4664-9749-061199536ba9", 
-          "uuid": "99a9192c-4085-4d13-80e2-8ecf5805937f"
-        }, 
-        {
-          "test": {
-            "test": "Cancelled", 
-            "type": "contains"
-          }, 
-          "category": "Cancelled", 
-          "destination": "a9714d94-8f93-46c1-8065-62cea31b6c0c", 
-          "uuid": "5484358e-a2c3-42b4-9570-8de4f4b774b7"
-        }, 
-        {
-          "test": {
-            "test": "true", 
-            "type": "true"
-          }, 
-          "category": "Other", 
-          "destination": "93043d1c-619d-474b-9c25-93ff9132d26a", 
-          "uuid": "765e61ad-899c-48aa-b3ce-deb7bb94b657"
-        }
-      ], 
-      "webhook": "{{API_URL}}/demo/status/",
-      "label": "Lookup", 
-      "operand": "@extra.status", 
-      "y": 198, 
-      "x": 356
-    }, 
-    {
-      "uuid": "6a067760-75e4-4201-a01f-4c16c2d62ee4",
-      "response_type": "O",
-      "rules": [
-        {
-          "test": {
-            "test": "true", 
-            "type": "true"
-          }, 
-          "category": "All Responses", 
-          "destination": null, 
-          "uuid": "59389dfb-2252-49c2-9f44-dabca39b246d"
-        }
-      ], 
-      "label": "Extra Comments", 
-      "operand": "@step.value",
-      "y": 1052, 
-      "x": 389
-    }
-  ], 
-  "action_sets": [
-    {
-      "y": 791, 
-      "x": 389, 
-      "destination": "6a067760-75e4-4201-a01f-4c16c2d62ee4", 
-      "uuid": "7172fbf8-bd14-4a55-ab3a-eaca0e5f210e", 
-      "actions": [
-        {
-          "msg": "Thanks @extra.name, we'll be in touch ASAP about order # @extra.order.", 
-          "type": "reply"
-        }, 
-        {
-          "msg": "Customer @extra.name has a problem with their order @extra.order for @extra.description.  Please look into it ASAP and call them back with the status.\n \nCustomer Comment: \"@flow.comment\"\nCustomer Name: @extra.name\nCustomer Phone: @contact.tel ",
-          "type": "email", 
-          "emails": [
-            "{{EMAIL}}"
-          ], 
-          "subject": "Order Comment: @flow.lookup: @extra.order"
-        }
-      ]
-    }, 
-    {
-      "y": 374, 
-      "x": 612, 
-      "destination": "8d73bea4-38e8-4d78-8fb9-533d7b8839d9", 
-      "uuid": "a9714d94-8f93-46c1-8065-62cea31b6c0c", 
-      "actions": [
-        {
-          "msg": "Uh oh @extra.name!  Our record indicate that your order for @extra.description was cancelled on @extra.cancel_date. If you think this is in error, please reply with a comment and our orders department will get right on it!", 
-          "type": "reply"
-        }
-      ]
-    }, 
-    {
-      "y": 372, 
-      "x": 389, 
-      "destination": "8d73bea4-38e8-4d78-8fb9-533d7b8839d9", 
-      "uuid": "5d472177-980b-4664-9749-061199536ba9", 
-      "actions": [
-        {
-          "msg": "Hi @extra.name.  Hope you are patient because we haven't shipped your order for @extra.description yet.  We expect to ship it by @extra.ship_date though. If you have any questions, just reply and our customer service department will be notified.", 
-          "type": "reply"
-        }
-      ]
-    }, 
-    {
-      "y": 372, 
-      "x": 167, 
-      "destination": "8d73bea4-38e8-4d78-8fb9-533d7b8839d9", 
-      "uuid": "debccabd-13b6-4263-95ea-41ebc5925395", 
-      "actions": [
-        {
-          "msg": "Great news @extra.name! We shipped your order for @extra.description on @extra.ship_date and we expect it will be delivered on @extra.delivery_date. If you have any questions, just reply and our customer service department will be notified.", 
-          "type": "reply"
-        }
-      ]
-    }, 
-    {
-      "y": 99, 
-      "x": 787, 
-      "destination": "501a863a-1604-48ac-bcd4-851501851e43", 
-      "uuid": "93043d1c-619d-474b-9c25-93ff9132d26a", 
-      "actions": [
-        {
-          "msg": "Sorry that doesn't look like a valid order number.  Maybe try: CU001, CU002 or CU003?", 
-          "type": "reply"
-        }
-      ]
-    }, 
-    {
-      "y": 0, 
-      "x": 409, 
-      "destination": "501a863a-1604-48ac-bcd4-851501851e43", 
-      "uuid": "9486b2dd-884f-4723-8d06-1255d36c70c7", 
-      "actions": [
-        {
-          "msg": "Thanks for contacting the ThriftShop order status system. Please send your order # and we'll help you in a jiffy!", 
-          "type": "reply"
-        }
-      ]
-    }
-  ], 
-  "metadata": {
-    "notes": [
-      {
-        "body": "This flow demonstrates looking up an order using a webhook and giving the user different options based on the results.  After looking up the order the user has the option to send additional comments which are forwarded to customer support representatives.\n\nUse order numbers CU001, CU002 or CU003 to see the different cases in action.", 
-        "x": 59, 
-        "y": 0, 
-        "title": "Using Your Own Data"
       }
-    ]
-  }
-}
