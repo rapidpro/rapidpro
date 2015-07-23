@@ -523,23 +523,28 @@ class FlowCRUDL(SmartCRUDL):
             keywords = set()
             user = self.request.user
             org = user.get_org()
-            existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj, is_archived=False, groups=None))
+            existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
+                                                                           trigger_type=KEYWORD_TRIGGER,
+                                                                           is_archived=False, groups=None))
 
             if len(self.form.cleaned_data['keyword_triggers']) > 0:
                 keywords = set(self.form.cleaned_data['keyword_triggers'].split(','))
 
             removed_keywords = existing_keywords.difference(keywords)
             for keyword in removed_keywords:
-                obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None, is_archived=False).update(is_archived=True)
+                obj.triggers.filter(org=org, flow=obj, keyword=keyword,
+                                    groups=None, is_archived=False).update(is_archived=True)
 
             added_keywords = keywords.difference(existing_keywords)
-            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, is_archived=True, groups=None)]
+            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=KEYWORD_TRIGGER,
+                                                                        is_archived=True, groups=None)]
             for keyword in added_keywords:
                 # first check if the added keyword is not amongst archived
                 if keyword in archived_keywords:
                     obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
                 else:
-                    Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
+                    Trigger.objects.create(org=org, keyword=keyword, trigger_type=KEYWORD_TRIGGER,
+                                           flow=obj, created_by=user, modified_by=user)
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
