@@ -1,192 +1,192 @@
 {
-  "entry": "82454975-b63d-4a21-b215-706d3a9dd2b5", 
+  "entry": "82454975-b63d-4a21-b215-706d3a9dd2b5",
   "rule_sets": [
     {
       "uuid": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {
-            "test": "nick", 
+            "test": "nick",
             "type": "starts"
-          }, 
-          "category": "nick", 
-          "destination": "ea9e15a7-3747-425b-973f-b38399bf27bf", 
+          },
+          "category": "nick",
+          "destination": "ea9e15a7-3747-425b-973f-b38399bf27bf",
           "uuid": "48522471-033e-4603-9a44-85e5fefda505"
-        }, 
+        },
         {
           "test": {
-            "test": "exit", 
+            "test": "exit",
             "type": "starts"
-          }, 
-          "category": "exit", 
-          "destination": "dda723d9-f99c-4e21-b6de-a1f4d374b5dd", 
+          },
+          "category": "exit",
+          "destination": "dda723d9-f99c-4e21-b6de-a1f4d374b5dd",
           "uuid": "a1e7966e-34a2-47cd-a893-ae82fb83328b"
-        }, 
+        },
         {
           "test": {
-            "test": "true", 
+            "test": "true",
             "type": "true"
-          }, 
-          "category": "Other", 
-          "destination": "d78b3676-d46d-46f9-acdb-a855aa68655e", 
+          },
+          "category": "Other",
+          "destination": "d78b3676-d46d-46f9-acdb-a855aa68655e",
           "uuid": "0ab3512a-66be-4a3b-9dca-b46532af78ab"
         }
-      ], 
-      "label": "Commands", 
+      ],
+      "label": "Commands",
       "operand": "@step.value",
-      "y": 315, 
+      "y": 315,
       "x": 413
     }
-  ], 
+  ],
   "action_sets": [
     {
-      "y": 0, 
-      "x": 446, 
-      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9", 
-      "uuid": "82454975-b63d-4a21-b215-706d3a9dd2b5", 
+      "y": 0,
+      "x": 446,
+      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
+      "uuid": "82454975-b63d-4a21-b215-706d3a9dd2b5",
       "actions": [
         {
-          "msg": "Welcome to group chat!  Send \"nick [your name]\" to set your name, send \"exit\" to exit.", 
+          "msg": "Welcome to group chat!  Send \"nick [your name]\" to set your name, send \"exit\" to exit.",
           "type": "reply"
-        }, 
+        },
         {
-          "msg": "@contact has joined the group.", 
-          "type": "send", 
+          "msg": "@contact has joined the group.",
+          "type": "send",
           "groups": [
             {
-              "name": "Group Chat", 
+              "name": "Group Chat",
               "id": 184
             }
-          ], 
+          ],
           "contacts": []
-        }, 
+        },
         {
           "group": {
-            "name": "Group Chat", 
+            "name": "Group Chat",
             "id": 184
-          }, 
+          },
           "type": "add_group"
         }
       ]
-    }, 
+    },
     {
-      "y": 444, 
-      "x": 148, 
-      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9", 
-      "uuid": "ea9e15a7-3747-425b-973f-b38399bf27bf", 
+      "y": 444,
+      "x": 148,
+      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
+      "uuid": "ea9e15a7-3747-425b-973f-b38399bf27bf",
       "actions": [
         {
           "group": {
-            "name": "Group Chat", 
+            "name": "Group Chat",
             "id": 184
-          }, 
+          },
           "type": "del_group"
-        }, 
+        },
         {
           "msg": "@contact is now known as @step.value|remove_first_word ",
-          "type": "send", 
+          "type": "send",
           "groups": [
             {
-              "name": "Group Chat", 
+              "name": "Group Chat",
               "id": 184
             }
-          ], 
+          ],
           "contacts": []
-        }, 
+        },
         {
           "group": {
-            "name": "Group Chat", 
+            "name": "Group Chat",
             "id": 184
-          }, 
+          },
           "type": "add_group"
-        }, 
+        },
         {
-          "field": "name", 
-          "type": "save", 
+          "field": "name",
+          "type": "save",
           "value": "@step.value|remove_first_word ",
           "label": "Contact Name"
-        }, 
+        },
         {
-          "msg": "You are now known as @contact.", 
+          "msg": "You are now known as @contact.",
           "type": "reply"
         }
       ]
-    }, 
+    },
     {
-      "y": 441, 
-      "x": 446, 
-      "destination": null, 
-      "uuid": "dda723d9-f99c-4e21-b6de-a1f4d374b5dd", 
+      "y": 441,
+      "x": 446,
+      "destination": null,
+      "uuid": "dda723d9-f99c-4e21-b6de-a1f4d374b5dd",
       "actions": [
         {
           "group": {
-            "name": "Group Chat", 
+            "name": "Group Chat",
             "id": 184
-          }, 
+          },
           "type": "del_group"
-        }, 
+        },
         {
-          "msg": "@contact has left the group.", 
-          "type": "send", 
+          "msg": "@contact has left the group.",
+          "type": "send",
           "groups": [
             {
-              "name": "Group Chat", 
+              "name": "Group Chat",
               "id": 184
             }
-          ], 
+          ],
           "contacts": []
-        }, 
+        },
         {
-          "msg": "You have left the chat.  Send 'join' to rejoin.", 
+          "msg": "You have left the chat.  Send 'join' to rejoin.",
           "type": "reply"
         }
       ]
-    }, 
+    },
     {
-      "y": 442, 
-      "x": 748, 
-      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9", 
-      "uuid": "d78b3676-d46d-46f9-acdb-a855aa68655e", 
+      "y": 442,
+      "x": 748,
+      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
+      "uuid": "d78b3676-d46d-46f9-acdb-a855aa68655e",
       "actions": [
         {
           "group": {
-            "name": "Group Chat", 
+            "name": "Group Chat",
             "id": 184
-          }, 
+          },
           "type": "del_group"
-        }, 
+        },
         {
           "msg": "@step.contact: @step.value",
-          "type": "send", 
+          "type": "send",
           "groups": [
             {
-              "name": "Group Chat", 
+              "name": "Group Chat",
               "id": 184
             }
-          ], 
+          ],
           "contacts": []
-        }, 
+        },
         {
           "group": {
-            "name": "Group Chat", 
+            "name": "Group Chat",
             "id": 184
-          }, 
+          },
           "type": "add_group"
-        }, 
+        },
         {
-          "msg": "Your message was sent.  Send 'nick [your name]' to set your name, send 'exit' to exit chat.", 
+          "msg": "Your message was sent.  Send 'nick [your name]' to set your name, send 'exit' to exit chat.",
           "type": "reply"
         }
       ]
     }
-  ], 
+  ],
   "metadata": {
     "notes": [
       {
-        "body": "You can use actions and clever routing in your flows to build complex applications.\n\nThis advanced flow creates an SMS \"chat room\". After joining, any message sent will be forwarded to the others in the room. They can change their name by sending \"nick [name]\" and they can exit the room by sending \"exit\".\n\nTo start using this flow, <a href='/trigger'>create a trigger</a> with the keyword \"join\" to start the flow.", 
-        "x": 59, 
-        "y": 0, 
+        "body": "You can use actions and clever routing in your flows to build complex applications.\n\nThis advanced flow creates an SMS \"chat room\". After joining, any message sent will be forwarded to the others in the room. They can change their name by sending \"nick [name]\" and they can exit the room by sending \"exit\".\n\nTo start using this flow, <a href='/trigger'>create a trigger</a> with the keyword \"join\" to start the flow.",
+        "x": 59,
+        "y": 0,
         "title": "Using Actions"
       }
     ]

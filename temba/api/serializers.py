@@ -951,7 +951,7 @@ class FlowReadSerializer(serializers.ModelSerializer):
         for ruleset in obj.rule_sets.all().order_by('y'):
             rulesets.append(dict(node=ruleset.uuid,
                                  label=ruleset.label,
-                                 response_type=ruleset.response_type,
+                                 ruleset_type=ruleset.ruleset_type,
                                  id=ruleset.id))  # deprecated
 
         return rulesets
@@ -1560,5 +1560,3 @@ class ChannelClaimSerializer(WriteSerializer):
             channel.trigger_sync()
 
         return attrs['channel']
-
-

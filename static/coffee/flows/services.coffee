@@ -257,6 +257,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
   setSourceEnabled: (source, enabled) ->
     jsPlumb.setSourceEnabled(source, enabled)
 
+
   connect: (sourceId, targetId, scope, fireEvent = true) ->
 
     #$log.debug(sourceId + ' > ' + targetId)
@@ -367,733 +368,811 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     return connections
 ]
 
-app.service "Versions", ['$rootScope', '$http', '$log', ($rootScope, $http, $log) ->
-  updateVersions: ->
+app.factory "Versions", ['$http', '$log', ($http, $log) ->
+  new class Versions
+    updateVersions: (flowId) ->
+      _this = @
+      $http.get('/flow/versions/' + flowId + '/').success (data, status, headers) ->
+        # only set the versions if we get back json, if we don't have permission we'll get a login page
+        if headers('content-type') == 'application/json'
+          _this.versions = data
 
-    $http.get('/flow/versions/' + $rootScope.flowId + '/').success (data, status, headers) ->
-      # only set the versions if we get back json, if we don't have permission we'll get a login page
-      if headers('content-type') == 'application/json'
-        $rootScope.versions = data
+    getVersion: (version) ->
+      _this = @
+      return $http.get('/flow/versions/' + flowId + '/?definition=' + version.id).success (data, status, headers) ->
+        # only set the versions if we get back json, if we don't have permission we'll get a login page
+        if headers('content-type') == 'application/json'
+          _this.definition = data
+
 ]
 
-app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->
+app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->
 
-  $rootScope.actions = [
-    { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true }
-    { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic'}
-    { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true }
-    { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true }
-    { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag' }
-    { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user'}
-    { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true }
-    { type:'del_group', name:'Remove from Groups', verbose_name:'Remove contact from a group', icon: 'icon-users-2', groups:true }
-    { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload' }
-    { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3' }
-    { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language'}
-    { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true }
-    { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true }
-  ]
+  new class Flow
+    constructor: ->
 
-  $rootScope.operators = [
-    { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
-    { type:'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true }
-    { type:'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true }
-    { type:'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true }
-    { type:'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, voice:true }
-    { type:'eq', name: 'Equal to', verbose_name:'has a number equal to', operands: 1, voice:true }
-    { type:'gt', name: 'More than', verbose_name:'has a number more than', operands: 1, voice:true }
-    { type:'between', name: 'Number between', verbose_name:'has a number between', operands: 2, voice:true }
-    { type:'date', name: 'Has date', verbose_name:'has a date', operands: 0, validate:'date' }
-    { type:'date_before', name: 'Date before', verbose_name:'has a date before', operands: 1, validate:'date' }
-    { type:'date_equal', name: 'Date equal to', verbose_name:'has a date equal to', operands: 1, validate:'date' }
-    { type:'date_after', name: 'Date after', verbose_name:'has a date after', operands: 1, validate:'date' }
-    { type:'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true }
-    { type:'state', name: 'Has a state', verbose_name:'has a state', operands: 0 }
-    { type:'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state' }
-    { type:'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true }
-    { type:'true', name: 'Other', verbose_name:'contains anything', operands: 0 }
-  ]
+      @actions = [
+        { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true }
+        { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic'}
+        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true }
+        { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true }
+        { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag' }
+        { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user'}
+        { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true }
+        { type:'del_group', name:'Remove from Groups', verbose_name:'Remove contact from a group', icon: 'icon-users-2', groups:true }
+        { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload' }
+        { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3' }
+        { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language'}
+        { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true }
+        { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true }
+      ]
 
-  $rootScope.opNames =
-    'lt': '< '
-    'gt': '> '
-    'eq': ''
-    'between': ''
-    'number': ''
-    'starts': ''
-    'contains': ''
-    'contains_any': ''
-    'date': ''
-    'date_before': ''
-    'date_equal': ''
-    'date_after': ''
-    'regex': ''
+      @rulesets = [
+        # text flows only
+        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', text:true, split:'message response'},
 
-  $rootScope.errorDelay = quietPeriod
+        # voice flows only
+        { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', ivr:true},
+        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', ivr:true},
+        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', ivr:true, split:'digits'},
 
-  determineFlowStart = (flow) ->
+        # all flows
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', ivr:true, text:true, split:'webhook response'},
+        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', ivr:true, text:true},
+        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', ivr:true, text:true},
+        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', ivr:true, text:true},
 
-    if not flow
-      flow = $rootScope.flow
+        # Not supported yet
+        # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
+        # { type: 'random', verbose_name: 'Split randomly', ivr:true, text:true},
+        # { type: 'pause', verbose_name: 'Pause the flow', ivr:true, text:true},
+      ]
 
-    topNode = null
+      @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits']
 
-    # see if this node is higher than our last one
-    checkTop = (node) ->
-      if topNode == null || node.y < topNode.y
-        topNode = node
-      else if topNode == null || topNode.y == node.y
-        if node.x < topNode.x
+      @operators = [
+        { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
+        { type:'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true }
+        { type:'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true }
+        { type:'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true }
+        { type:'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, voice:true }
+        { type:'eq', name: 'Equal to', verbose_name:'has a number equal to', operands: 1, voice:true }
+        { type:'gt', name: 'More than', verbose_name:'has a number more than', operands: 1, voice:true }
+        { type:'between', name: 'Number between', verbose_name:'has a number between', operands: 2, voice:true }
+        { type:'date', name: 'Has date', verbose_name:'has a date', operands: 0, validate:'date' }
+        { type:'date_before', name: 'Date before', verbose_name:'has a date before', operands: 1, validate:'date' }
+        { type:'date_equal', name: 'Date equal to', verbose_name:'has a date equal to', operands: 1, validate:'date' }
+        { type:'date_after', name: 'Date after', verbose_name:'has a date after', operands: 1, validate:'date' }
+        { type:'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true }
+        { type:'state', name: 'Has a state', verbose_name:'has a state', operands: 0 }
+        { type:'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state' }
+        { type:'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true }
+        { type:'true', name: 'Other', verbose_name:'contains anything', operands: 0 }
+      ]
+
+      @opNames =
+        'lt': '< '
+        'gt': '> '
+        'eq': ''
+        'between': ''
+        'number': ''
+        'starts': ''
+        'contains': ''
+        'contains_any': ''
+        'date': ''
+        'date_before': ''
+        'date_equal': ''
+        'date_after': ''
+        'regex': ''
+
+    $rootScope.errorDelay = quietPeriod
+
+    determineFlowStart: ->
+      topNode = null
+      # see if this node is higher than our last one
+      checkTop = (node) ->
+        if topNode == null || node.y < topNode.y
           topNode = node
+        else if topNode == null || topNode.y == node.y
+          if node.x < topNode.x
+            topNode = node
 
-    # check each node to see if they are the top
-    for actionset in flow.action_sets
-      checkTop(actionset)
-    for ruleset in flow.rule_sets
-      checkTop(ruleset)
+      # check each node to see if they are the top
+      for actionset in @flow.action_sets
+        checkTop(actionset)
+      for ruleset in @flow.rule_sets
+        checkTop(ruleset)
 
-    if topNode
-      flow.entry = topNode.uuid
+      if topNode
+        @flow.entry = topNode.uuid
 
-  $rootScope.$watch (->$rootScope.dirty), (current, prev) ->
+    $rootScope.$watch (->$rootScope.dirty), (current, prev) ->
 
-    # if we just became dirty, trigger a save
-    if current
+      # if we just became dirty, trigger a save
+      if current
 
-      if not window.mutable
-        $rootScope.error = "Your changes cannot be saved. You don't have permission to edit this flow."
-        return
-
-      $rootScope.dirty = false
-
-      # make sure we know our start point
-      determineFlowStart($rootScope.flow)
-
-
-      # schedule the save for a bit later in case more dirty events come in quick succession
-      if $rootScope.saving
-        cancelled = $timeout.cancel($rootScope.saving)
-
-        # If we fail to cancel the current save we need to wait until the previous save completes and try again
-        if not cancelled
-          $timeout ->
-            $rootScope.dirty = true
-          , quietPeriod
+        if not window.mutable
+          $rootScope.error = "Your changes cannot be saved. You don't have permission to edit this flow."
           return
 
-      $rootScope.saving = $timeout ->
+        $rootScope.dirty = false
 
-        $rootScope.error = null
+        # make sure we know our start point
+        Flow.determineFlowStart()
 
-        $log.debug("Saving.")
+        # schedule the save for a bit later in case more dirty events come in quick succession
+        if $rootScope.saving
+          cancelled = $timeout.cancel($rootScope.saving)
 
-        if $rootScope.saved_on
-          $rootScope.flow['last_saved'] = $rootScope.saved_on
-
-        $http.post('/flow/json/' + $rootScope.flowId + '/', utils.toJson($rootScope.flow)).error (data, statusCode) ->
-
-          if statusCode == 400
-            $rootScope.saving = false
-            if UserVoice
-              UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
-
-            modalInstance = $modal.open
-              templateUrl: "/partials/modal?v=" + version
-              controller: ModalController
-              resolve:
-                type: -> "error"
-                title: -> "Error Saving"
-                body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
-                ok: -> 'Reload'
-
-            modalInstance.result.then (reload) ->
-              if reload
-                document.location.reload()
-            return
-
-          $rootScope.errorDelay += quietPeriod
-
-          # we failed, could just be futzy internet, lets retry with backdown
-          if $rootScope.errorDelay < (quietPeriod * (errorRetries + 1))
-            $log.debug("Couldn't save changes, trying again in " + $rootScope.errorDelay)
+          # If we fail to cancel the current save we need to wait until the previous save completes and try again
+          if not cancelled
             $timeout ->
               $rootScope.dirty = true
-            , $rootScope.errorDelay
-          else
-            $rootScope.saving = false
-            $rootScope.error = "Your changes may not be saved. Please check your network connection."
-            $rootScope.errorDelay = quietPeriod
+            , quietPeriod
+            return
 
-        .success (data) ->
+        $rootScope.saving = $timeout ->
+
           $rootScope.error = null
-          $rootScope.errorDelay = quietPeriod
-          if data.status == 'unsaved'
-            modalInstance = $modal.open
-              templateUrl: "/partials/modal?v=" + version
-              controller: ModalController
-              resolve:
-                type: -> "error"
-                title: -> "Editing Conflict"
-                body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
-                ok: -> 'Reload'
 
-            modalInstance.result.then (reload) ->
-              if reload
-                document.location.reload()
+          $log.debug("Saving.")
 
-          else
-            $rootScope.saved_on = data.saved_on
+          if $rootScope.saved_on
+            Flow.flow['last_saved'] = $rootScope.saved_on
 
-            # update our auto completion options
-            $http.get('/flow/completion/?flow=' + $rootScope.flowId).success (data) ->
-              $rootScope.completions = data
+          $http.post('/flow/json/' + Flow.flowId + '/', utils.toJson(Flow.flow)).error (data, statusCode) ->
 
-            Versions.updateVersions()
+            if statusCode == 400
+              $rootScope.saving = false
+              if UserVoice
+                UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
 
-          $rootScope.saving = null
+              modalInstance = $modal.open
+                templateUrl: "/partials/modal?v=" + version
+                controller: ModalController
+                resolve:
+                  type: -> "error"
+                  title: -> "Error Saving"
+                  body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                  ok: -> 'Reload'
 
-      , quietPeriod
+              modalInstance.result.then (reload) ->
+                if reload
+                  document.location.reload()
+              return
+
+            $rootScope.errorDelay += quietPeriod
+
+            # we failed, could just be futzy internet, lets retry with backdown
+            if $rootScope.errorDelay < (quietPeriod * (errorRetries + 1))
+              $log.debug("Couldn't save changes, trying again in " + $rootScope.errorDelay)
+              $timeout ->
+                $rootScope.dirty = true
+              , $rootScope.errorDelay
+            else
+              $rootScope.saving = false
+              $rootScope.error = "Your changes may not be saved. Please check your network connection."
+              $rootScope.errorDelay = quietPeriod
+
+          .success (data) ->
+            $rootScope.error = null
+            $rootScope.errorDelay = quietPeriod
+            if data.status == 'unsaved'
+              modalInstance = $modal.open
+                templateUrl: "/partials/modal?v=" + version
+                controller: ModalController
+                resolve:
+                  type: -> "error"
+                  title: -> "Editing Conflict"
+                  body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
+                  ok: -> 'Reload'
+
+              modalInstance.result.then (reload) ->
+                if reload
+                  document.location.reload()
+
+            else
+              $rootScope.saved_on = data.saved_on
+
+              # update our auto completion options
+              $http.get('/flow/completion/?flow=' + Flow.flowId).success (data) ->
+                Flow.completions = data
+
+              Versions.updateVersions(Flow.flowId)
+
+            $rootScope.saving = null
+
+        , quietPeriod
 
 
-  getNode = (flow, uuid) ->
-    for actionset in flow.action_sets
-      if actionset.uuid == uuid
-        return actionset
+    getNode: (uuid) ->
+      for actionset in @flow.action_sets
+        if actionset.uuid == uuid
+          return actionset
 
-    for ruleset in flow.rule_sets
-      if ruleset.uuid == uuid
-        return ruleset
+      for ruleset in @flow.rule_sets
+        if ruleset.uuid == uuid
+          return ruleset
 
-  isPausingRuleset = (node) ->
-
-    if not node?.actions
-
-      if not node?.operand
-        return true
-
-      operand = node?.operand
-      if operand
-        operand = operand.trim()
-
-      isExpression = operand.length > 2 and operand.slice(0,2) == '=('
-      if operand?.indexOf('@step') > -1 or isExpression and operand?.indexOf('step') > -1
-        return true
-
-      if node?.webhook
-        return true
-
-    return false
-
-  # check if a potential connection would result in an invalid loop
-  detectLoop = (flow, nodeId, targetId, path=[]) ->
-
-    # can't go back on ourselves
-    if nodeId == targetId
-      throw new Error('Loop detected: ' + nodeId)
-
-    # break out if our target is a pausing ruleset
-    node = getNode(flow, targetId)
-    if isPausingRuleset(node)
+    isPausingRuleset: (node) ->
+      if not node?.actions
+        return node.ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
       return false
 
-    # check if we just ate our tail
-    if targetId in path
-      throw new Error('Loop detected: ' + path + ',' + targetId)
+    # check if a potential connection would result in an invalid loop
+    detectLoop: (nodeId, targetId, path=[]) ->
 
-    # add ourselves
-    path = path.slice()
-    path.push(targetId)
+      # can't go back on ourselves
+      if nodeId == targetId
+        throw new Error('Loop detected: ' + nodeId)
 
-    # if we have rules, check each one
-    if node?.rules
-      for rule in node.rules
-        if rule.destination
-          detectLoop(flow, node.uuid, rule.destination, path)
-    else
-      if node.destination
-        detectLoop(flow, node.uuid, node.destination, path)
+      # break out if our target is a pausing ruleset
+      node = @getNode(targetId)
+      if node and @isPausingRuleset(node)
+        return false
 
-    return true
+      # check if we just ate our tail
+      if targetId in path
+        throw new Error('Loop detected: ' + path + ',' + targetId)
 
-  isConnectionAllowed: (flow, sourceId, targetId) ->
+      # add ourselves
+      path = path.slice()
+      path.push(targetId)
 
-    source = sourceId.split('_')[0]
-    path = [ source ]
+      # if we have rules, check each one
+      if node?.rules
+        for rule in node.rules
+          if rule.destination
+            @detectLoop(node.uuid, rule.destination, path)
+      else
+        if node?.destination
+          @detectLoop(node.uuid, node.destination, path)
 
-    sourceNode = getNode(flow, source)
-    targetNode = getNode(flow, targetId)
+    isConnectionAllowed: (sourceId, targetId) ->
 
-    if isPausingRuleset(sourceNode) and isPausingRuleset(targetNode)
-      return false
+      source = sourceId.split('_')[0]
+      path = [ source ]
 
-    try
-      detectLoop(flow, source, targetId, path)
-    catch e
-      $log.debug(e.message)
-      return false
-    return true
+      sourceNode = @getNode(source)
+      targetNode = @getNode(targetId)
 
-  determineFlowStart: (flow=null) ->
-    determineFlowStart(flow)
+      if @isPausingRuleset(sourceNode) and @isPausingRuleset(targetNode)
+        return false
 
-  applyActivity: (node, activity) ->
+      try
+        @detectLoop(source, targetId, path)
+      catch e
+        $log.debug(e.message)
+        return false
+      return true
 
-    # $log.debug("Applying activity:", node, activity)
-    count = 0
-    if activity and activity.active and node.uuid of activity.active
-      count = activity.active[node.uuid]
-    node._active = count
+    # translates a string into a slug
+    slugify: (label) ->
+      label = label.toString().toLowerCase().replace(/([^a-z0-9]+)/, ' ')
+      return label.replace(/([^a-z0-9]+)/, '_')
 
-    # our visited counts for rules
-    if node._categories
-      for category in node._categories
-        count = 0
-        if activity and activity.visited
-          for source in category.sources
-            key = source + ':' + category.target
-            if key of activity.visited
-              count += activity.visited[key]
-        # $log.debug(category.name, category.target, count)
-        category._visited = count
+    # Get an array of current flow fields as:
+    # [ { id: 'label_name', name: 'Label Name' } ]
+    getFlowFields: (excludeRuleset) ->
 
-    else
-      # our visited counts for actions
-      key = node.uuid + ':' + node.destination
+      # find our unique set of keys
+      flowFields = {}
+      if @flow
+        for ruleset in @flow.rule_sets
+          if ruleset.uuid != excludeRuleset?.uuid
+            flowFields[@slugify(ruleset.label)] = ruleset.label
+
+      # as an array
+      result = []
+      for id, name of flowFields
+        result.push({ id: id, text: name})
+
+      return result
+
+    # Takes an operand (@flow.split_on_name) and returns the
+    # corresponding field object
+    getFieldSelection: (fields, operand, isFlowFields) ->
+
+      isFlow = false
+      isContact = false
+
+      # trim off @flow
+      if operand.length > 6 and operand.slice(0, 5) == '@flow'
+        isFlow = true
+        operand = operand.slice(6)
+
+      # trim off @contact
+      else if operand.length > 9 and operand.slice(0, 8) == '@contact'
+        isContact = true
+        operand = operand.slice(9)
+
+      for field in fields
+        if field.id == operand
+          return field
+
+      # if our field is missing, add our selves accordingly
+      if (isFlow and isFlowFields) or (isContact and !isFlowFields)
+        slugged = Flow.slugify(operand)
+        field = {id:operand,  text:slugged + ' (missing)', missing:true }
+        fields.push(field)
+        return field
+
+      return fields[0]
+
+    getContactField: (ruleset) ->
+      if Flow.contactFieldSearch
+        return @getFieldSelection(Flow.contactFieldSearch, ruleset.operand, false)
+
+    getFlowField: (ruleset) ->
+      fields = Flow.getFlowFields(ruleset)
+      return @getFieldSelection(fields, ruleset.operand, true)
+
+    applyActivity: (node, activity) ->
+
+      # $log.debug("Applying activity:", node, activity)
       count = 0
-      if activity and activity.visited and key of activity.visited
-        count += activity.visited[key]
-      node._visited = count
+      if activity and activity.active and node.uuid of activity.active
+        count = activity.active[node.uuid]
+      node._active = count
 
-    return
+      # our visited counts for rules
+      if node._categories
+        for category in node._categories
+          count = 0
+          if activity and activity.visited
+            for source in category.sources
+              key = source + ':' + category.target
+              if key of activity.visited
+                count += activity.visited[key]
+          # $log.debug(category.name, category.target, count)
+          category._visited = count
 
-  deriveCategories: (ruleset, base_language) ->
+      else
+        # our visited counts for actions
+        key = node.uuid + ':' + node.destination
+        count = 0
+        if activity and activity.visited and key of activity.visited
+          count += activity.visited[key]
+        node._visited = count
 
-    categories = []
+      return
 
-    for rule in ruleset.rules
+    deriveCategories: (ruleset, base_language) ->
 
-      if not rule.uuid
-        rule.uuid = uuid()
+      categories = []
 
-      if rule.test.type == "between"
-        if not rule.category
+      for rule in ruleset.rules
+
+        if not rule.uuid
+          rule.uuid = uuid()
+
+        if rule.test.type == "between"
+          if not rule.category
+            if base_language
+              rule.category = {}
+              rule.category[base_language] = rule.test.min + " - " + rule.test.max
+            else
+              rule.category = rule.test.min + " - " + rule.test.max
+
+        if rule.category
           if base_language
-            rule.category = {}
-            rule.category[base_language] = rule.test.min + " - " + rule.test.max
+            rule_cat = rule.category[base_language].toLocaleLowerCase()
+            existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
           else
-            rule.category = rule.test.min + " - " + rule.test.max
+            rule_cat = rule.category.toLocaleLowerCase()
+            existing = (category.name.toLocaleLowerCase() for category in categories)
 
-      if rule.category
-        if base_language
-          rule_cat = rule.category[base_language].toLocaleLowerCase()
-          existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
-        else
-          rule_cat = rule.category.toLocaleLowerCase()
-          existing = (category.name.toLocaleLowerCase() for category in categories)
+          # don't munge the Other category
+          if rule.test.type == 'true' or rule_cat not in existing
+            categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
+          else
 
-        # don't munge the Other category
-        if rule.test.type == 'true' or rule_cat not in existing
-          categories.push({name:rule.category, sources:[rule.uuid], target:rule.destination, type:rule.test.type})
-        else
+            for cat in categories
 
-          for cat in categories
+              # unlocalized flows just have a string name
+              name = cat.name
 
-            # unlocalized flows just have a string name
-            name = cat.name
+              if base_language and base_language of cat.name
+                name = cat.name[base_language]
 
-            if base_language and base_language of cat.name
-              name = cat.name[base_language]
+              # if we are localized, use the base name
+              if name?.toLocaleLowerCase() == rule_cat?.toLocaleLowerCase()
+                cat.sources.push(rule.uuid)
 
-            # if we are localized, use the base name
-            if name?.toLocaleLowerCase() == rule_cat?.toLocaleLowerCase()
-              cat.sources.push(rule.uuid)
+                if cat.target
+                  rule.destination = cat.target
 
-              if cat.target
-                rule.destination = cat.target
+      # shortcut our first source
+      for cat in categories
+        cat.source = cat.sources[0]
 
-    # shortcut our first source
-    for cat in categories
-      cat.source = cat.sources[0]
+      ruleset._categories = categories
+      @applyActivity(ruleset, $rootScope.visibleActivity)
+      return
 
-    ruleset._categories = categories
-    @applyActivity(ruleset, $rootScope.visibleActivity)
-    return
-
-  markDirty: ->
-    $timeout ->
-      $rootScope.dirty = true
-    ,0
-
-  # Updates a single source to a given target. Expects a source id and a target id.
-  # Source can be a rule or an actionset id.
-  updateDestination: (source, target) ->
-
-    source = source.split('_')
-
-    # We handle both UI described sources, or raw ids, trim off 'source' if its there
-    if source.length > 1 and source[source.length-1] == 'source'
-      source.pop()
-
-    # its a rule source
-    if source.length > 1
-      for ruleset in $rootScope.flow.rule_sets
-        if ruleset.uuid == source[0]
-
-          # find the category we are updating
-          if ruleset._categories
-            for category in ruleset._categories
-              if category.source == source[1]
-
-                # update our category target
-                category.target = target
-
-                # update all the rules in our category
-                for rule in ruleset.rules
-                  if rule.uuid in category.sources
-                    rule.destination = target
-                break
-
-          Plumb.updateConnections(ruleset)
-          break
-
-    # its an action source
-    else
-      # keep our destination up to date
-      for actionset in $rootScope.flow.action_sets
-        if actionset.uuid == source[0]
-          actionset.destination = target
-          Plumb.updateConnection(actionset)
-          @applyActivity(actionset, $rootScope.activity)
-          break
-
-  getActionConfig: (action) ->
-    for cfg in $rootScope.actions
-      if cfg.type == action.type
-        return cfg
-
-  getOperatorConfig: (operatorType) ->
-    for cfg in $rootScope.operators
-      if cfg.type == operatorType
-        return cfg
-
-  fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
-    return $http.get('/flow/recent_messages/' + $rootScope.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
-
-  fetch: (onComplete = null) ->
-
-    # here's where we bridge from our initial load into angular land
-    $rootScope.flowId = $window.flowId
-
-    Versions.updateVersions()
-
-    $http.get('/flow/json/' + $rootScope.flowId + '/').success (data) ->
-
-      # create a unique set of categories
-      flow = data.flow
-
-      for actionset in flow.action_sets
-        for action in actionset.actions
-          action.uuid = uuid()
-
-      languages = []
-
-      # show our base language first
-      for lang in data.languages
-        if lang.iso_code == flow.base_language
-          languages.push(lang)
-          $rootScope.language = lang
-
-      for lang in data.languages
-        if lang.iso_code != flow.base_language
-          languages.push(lang)
-
-      # if they don't have our base language in the org, force ourselves as the default
-      if not $rootScope.language and flow.base_language
-        $rootScope.language =
-          iso_code: flow.base_language
-
-      # if we have language choices, make sure our base language is one of them
-      if languages
-        if flow.base_language not in (lang.iso_code for lang in languages)
-          languages.unshift
-            iso_code:flow.base_language
-            name: gettext('Default')
-
-      $rootScope.languages = languages
-      $rootScope.flow = flow
-
-      # fire our completion trigger if it was given to us
-      if onComplete
-        onComplete()
-
-      # update our auto completion options
-      $http.get('/flow/completion/?flow=' + $rootScope.flowId).success (data) ->
-        $rootScope.completions = data
-
-      $http.get('/contactfield/json/').success (fields) ->
-        $rootScope.contactFields = fields
-
-        # now create a version that's select2 friendly
-        contactFieldSearch = []
-
-        contactFieldSearch.push
-           id: "name"
-           text: "Contact Name"
-
-        for field in fields
-          contactFieldSearch.push
-            id: field.key
-            text: field.label
-        $rootScope.contactFieldSearch = contactFieldSearch
-
-      $http.get('/label/').success (labels) ->
-        $rootScope.labels = labels
-
+    markDirty: ->
       $timeout ->
-        window.loaded = true
-        Plumb.repaint()
-      , 0
+        $rootScope.dirty = true
+      ,0
+
+    # Updates a single source to a given target. Expects a source id and a target id.
+    # Source can be a rule or an actionset id.
+    updateDestination: (source, target) ->
+
+      source = source.split('_')
+
+      # We handle both UI described sources, or raw ids, trim off 'source' if its there
+      if source.length > 1 and source[source.length-1] == 'source'
+        source.pop()
+
+      # its a rule source
+      if source.length > 1
+        for ruleset in Flow.flow.rule_sets
+          if ruleset.uuid == source[0]
+
+            # find the category we are updating
+            if ruleset._categories
+              for category in ruleset._categories
+                if category.source == source[1]
+
+                  # update our category target
+                  category.target = target
+
+                  # update all the rules in our category
+                  for rule in ruleset.rules
+                    if rule.uuid in category.sources
+                      rule.destination = target
+                  break
+
+            Plumb.updateConnections(ruleset)
+            break
+
+      # its an action source
+      else
+        # keep our destination up to date
+        for actionset in Flow.flow.action_sets
+          if actionset.uuid == source[0]
+            actionset.destination = target
+            Plumb.updateConnection(actionset)
+            @applyActivity(actionset, $rootScope.activity)
+            break
+
+    getActionConfig: (action) ->
+      for cfg in @actions
+        if cfg.type == action.type
+          return cfg
+
+    getRulesetConfig: (ruleset) ->
+      for cfg in @rulesets
+        if cfg.type == ruleset.type
+          return cfg
+
+    getOperatorConfig: (operatorType) ->
+      for cfg in @operators
+        if cfg.type == operatorType
+          return cfg
+
+    fetchRecentMessages: (step, connectionTo, connectionFrom='') ->
+      return $http.get('/flow/recent_messages/' + Flow.flowId + '/?step=' + step + '&destination=' + connectionTo + '&rule=' + connectionFrom).success (data) ->
+
+    fetch: (flowId, onComplete = null) ->
+
+      @flowId = flowId
+      Versions.updateVersions(flowId)
+
+      Flow = @
+      $http.get('/flow/json/' + flowId + '/').success (data) ->
+
+        flow = data.flow
+
+        # add uuids for the individual actions, need this for the UI
+        for actionset in flow.action_sets
+          for action in actionset.actions
+            action.uuid = uuid()
+
+        languages = []
+
+        # show our base language first
+        for lang in data.languages
+          if lang.iso_code == flow.base_language
+            languages.push(lang)
+            Flow.language = lang
+
+        for lang in data.languages
+          if lang.iso_code != flow.base_language
+            languages.push(lang)
+
+        # if they don't have our base language in the org, force ourselves as the default
+        if Flow.language and flow.base_language
+          Flow.language =
+            iso_code: flow.base_language
+
+        # if we have language choices, make sure our base language is one of them
+        if languages
+          if flow.base_language not in (lang.iso_code for lang in languages)
+            languages.unshift
+              iso_code:flow.base_language
+              name: gettext('Default')
+
+        Flow.languages = languages
+        Flow.flow = flow
 
 
+        # fire our completion trigger if it was given to us
+        if onComplete
+          onComplete()
 
-  replaceRuleset: (ruleset, markDirty=true) ->
+        # update our auto completion options
+        $http.get('/flow/completion/?flow=' + flowId).success (data) ->
+          Flow.completions = data
 
-    # find the ruleset we are replacing by uuid
-    found = false
+        $http.get('/contactfield/json/').success (fields) ->
+          Flow.contactFields = fields
 
-    # if there isn't an operand, infer it
-    if not ruleset.operand
-      ruleset.operand = '@step.value'
+          # now create a version that's select2 friendly
+          contactFieldSearch = []
 
-    for previous, idx in $rootScope.flow.rule_sets
-      if ruleset.uuid == previous.uuid
+          contactFieldSearch.push
+             id: "name"
+             text: "Full Name"
 
-        # group our rules by category and update the master ruleset
-        @deriveCategories(ruleset, $rootScope.flow.base_language)
+          contactFieldSearch.push
+             id: "tel_e164"
+             text: "Phone Number"
 
-        $rootScope.flow.rule_sets.splice(idx, 1, ruleset)
-        found = true
+          for field in fields
+            contactFieldSearch.push
+              id: field.key
+              text: field.label
+          Flow.contactFieldSearch = contactFieldSearch
 
+        $http.get('/label/').success (labels) ->
+          Flow.labels = labels
+
+        $timeout ->
+          window.loaded = true
+          Plumb.repaint()
+        , 0
+
+    replaceRuleset: (ruleset, markDirty=true) ->
+
+      # find the ruleset we are replacing by uuid
+      found = false
+
+      # if there isn't an operand, infer it
+      if not ruleset.operand
+        ruleset.operand = '@step.value'
+
+      for previous, idx in Flow.flow.rule_sets
+        if ruleset.uuid == previous.uuid
+
+          # group our rules by category and update the master ruleset
+          @deriveCategories(ruleset, Flow.flow.base_language)
+
+          Flow.flow.rule_sets.splice(idx, 1, ruleset)
+          found = true
+
+          if markDirty
+            @markDirty()
+          break
+
+      if not found
+        Flow.flow.rule_sets.push(ruleset)
         if markDirty
           @markDirty()
-        break
 
-    if not found
-      $rootScope.flow.rule_sets.push(ruleset)
-      if markDirty
+      #Plumb.repaint($('#' + rule.uuid))
+      Plumb.repaint()
+
+      return
+
+    updateTranslationStats: ->
+
+      if @language
+        # look at all translatable bits in our flow and check for completeness
+        flow = @flow
+        items = 0
+        missing = 0
+        for actionset in flow.action_sets
+          for action in actionset.actions
+            if action.type in ['send', 'reply', 'say']
+              items++
+              if action._missingTranslation
+                missing++
+
+        for ruleset in flow.rule_sets
+          for category in ruleset._categories
+              items++
+              if category._missingTranslation
+                missing++
+
+        # set our stats and translation status
+        flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
+        flow._missingTranslation = items > 0
+
+        if flow._pctTranslated == 100 and flow.base_language != @language.iso_code
+          $rootScope.gearLinks = [
+            {
+              title: 'Default Language'
+              id: 'default_language'
+            },
+            {
+              id: 'divider'
+            }
+          ]
+        else
+          $rootScope.gearLinks = []
+
+        return flow._pctTranslated
+
+    setMissingTranslation: (missing) ->
+      Flow.flow._missingTranslation = missing
+
+    removeConnection: (connection) ->
+      @updateDestination(connection.sourceId, null)
+
+    removeRuleset: (ruleset) ->
+
+      DragHelper.hide()
+
+      flow = Flow.flow
+
+      Flow = @
+      # disconnect all of our connections to and from the node
+      $timeout ->
+
+        # update our model to nullify rules that point to us
+        connections = Plumb.getConnectionMap({ target: ruleset.uuid })
+        for source of connections
+          Flow.updateDestination(source, null)
+
+        # then remove us
+        for rs, idx in flow.rule_sets
+          if rs.uuid == ruleset.uuid
+            flow.rule_sets.splice(idx, 1)
+            break
+      ,0
+
+      @markDirty()
+
+    addNote: (x, y) ->
+
+      if not Flow.flow.metadata.notes
+        Flow.flow.metadata.notes = []
+
+      Flow.flow.metadata.notes.push
+        x: x
+        y: y
+        title: 'New Note'
+        body: '...'
+
+    removeNote: (note) ->
+      idx = Flow.flow.metadata.notes.indexOf(note)
+      Flow.flow.metadata.notes.splice(idx, 1)
+      @markDirty()
+
+    moveActionUp: (actionset, action) ->
+      idx = actionset.actions.indexOf(action)
+      actionset.actions.splice(idx, 1)
+      actionset.actions.splice(idx-1, 0, action)
+      @markDirty()
+
+
+    removeActionSet: (actionset) ->
+      flow = Flow.flow
+
+      service = @
+      # disconnect all of our connections to and from action node
+      $timeout ->
+
+        # update our model to nullify rules that point to us
+        connections = Plumb.getConnectionMap({ target: actionset.uuid })
+        for source of connections
+          service.updateDestination(source, null)
+
+        # disconnect our connections, then remove it from the flow
+        # Plumb.disconnectAllConnections(actionset.uuid)
+        for as, idx in flow.action_sets
+          if as.uuid == actionset.uuid
+            flow.action_sets.splice(idx, 1)
+            break
+      ,0
+
+
+    removeAction: (actionset, action) ->
+
+      DragHelper.hide()
+
+      found = false
+      for previous, idx in actionset.actions
+        if previous.uuid == action.uuid
+          actionset.actions.splice(idx, 1)
+          found = true
+          break
+
+      if found
+
+        # if there are no actions left, remove our node
+        if actionset.actions.length == 0
+          @removeActionSet(actionset)
+        else
+          # if we still have actions, make sure our connection offsets are correct
+          Plumb.recalculateOffsets(actionset.uuid)
+
+        @checkTerminal(actionset)
         @markDirty()
 
-    #Plumb.repaint($('#' + rule.uuid))
-    Plumb.repaint()
+      return
 
-    return
+    checkTerminal: (actionset) ->
 
-  updateTranslationStats: ->
+      hasMessage = false
+      startsFlow = false
 
-    if $rootScope.language
-      # look at all translatable bits in our flow and check for completeness
-      flow = $rootScope.flow
-      items = 0
-      missing = 0
-      for actionset in flow.action_sets
-        for action in actionset.actions
-          if action.type in ['send', 'reply', 'say']
-            items++
-            if action._missingTranslation
-              missing++
+      for action in actionset.actions
+        if action.type == 'flow'
+          startsFlow = true
 
-      for ruleset in flow.rule_sets
-        for category in ruleset._categories
-            items++
-            if category._missingTranslation
-              missing++
+      # if they start another flow it's terminal
+      terminal = startsFlow
 
-      # set our stats and translation status
-      flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
-      flow._missingTranslation = items > 0
+      if actionset._terminal != terminal
+        actionset._terminal = terminal
 
-      if flow._pctTranslated == 100 and flow.base_language != $rootScope.language.iso_code
-        $rootScope.gearLinks = [
-          {
-            title: 'Default Language'
-            id: 'default_language'
-          },
-          {
-            id: 'divider'
-          }
-        ]
-      else
-        $rootScope.gearLinks = []
+    isMoveableAction: (action) ->
+      if not action
+        return true
 
-      return flow._pctTranslated
+      return action.type != 'flow'
 
-  setMissingTranslation: (missing) ->
-    $rootScope.flow._missingTranslation = missing
+    saveAction: (actionset, action) ->
 
-  removeConnection: (connection) ->
-    @updateDestination(connection.sourceId, null)
+      found = false
+      lastAction = null
+      for previous, idx in actionset.actions
+        lastAction = previous
+        if previous.uuid == action.uuid
 
-  removeRuleset: (ruleset) ->
-
-    DragHelper.hide()
-
-    flow = $rootScope.flow
-
-    Flow = @
-    # disconnect all of our connections to and from the node
-    $timeout ->
-
-      # update our model to nullify rules that point to us
-      connections = Plumb.getConnectionMap({ target: ruleset.uuid })
-      for source of connections
-        Flow.updateDestination(source, null)
-
-      # then remove us
-      for rs, idx in flow.rule_sets
-        if rs.uuid == ruleset.uuid
-          flow.rule_sets.splice(idx, 1)
+          # force immovable actions down
+          if not @isMoveableAction(action)
+            actionset.actions.splice(idx, 1)
+            actionset.actions.push(action)
+            found = true
+          else
+            actionset.actions.splice(idx, 1, action)
+            found = true
           break
-    ,0
 
-    @markDirty()
+      # if there isn't one that matches add a new one
+      if not found
+        action.uuid = uuid()
 
-  addNote: (x, y) ->
+        # if our last action isn't moveable go above it
+        if not @isMoveableAction(lastAction)
+          actionset.actions.splice(actionset.actions.length-1, 0, action)
+        else
+          actionset.actions.push(action)
 
-    if not $rootScope.flow.metadata.notes
-      $rootScope.flow.metadata.notes = []
+      Plumb.recalculateOffsets(actionset.uuid)
 
-    $rootScope.flow.metadata.notes.push
-      x: x
-      y: y
-      title: 'New Note'
-      body: '...'
-
-  removeNote: (note) ->
-    idx = $rootScope.flow.metadata.notes.indexOf(note)
-    $rootScope.flow.metadata.notes.splice(idx, 1)
-    @markDirty()
-
-  moveActionUp: (actionset, action) ->
-    idx = actionset.actions.indexOf(action)
-    actionset.actions.splice(idx, 1)
-    actionset.actions.splice(idx-1, 0, action)
-    @markDirty()
-
-
-  removeActionSet: (actionset) ->
-    flow = $rootScope.flow
-
-    service = @
-    # disconnect all of our connections to and from action node
-    $timeout ->
-
-      # update our model to nullify rules that point to us
-      connections = Plumb.getConnectionMap({ target: actionset.uuid })
-      for source of connections
-        service.updateDestination(source, null)
-
-      # disconnect our connections, then remove it from the flow
-      # Plumb.disconnectAllConnections(actionset.uuid)
-      for as, idx in flow.action_sets
+      # finally see if our actionset exists or if it needs to be added
+      found = false
+      for as in Flow.flow.action_sets
         if as.uuid == actionset.uuid
-          flow.action_sets.splice(idx, 1)
+          found = true
           break
-    ,0
 
+      if not found
+        Flow.flow.action_sets.push(actionset)
 
-  removeAction: (actionset, action) ->
-
-    DragHelper.hide()
-
-    found = false
-    for previous, idx in actionset.actions
-      if previous.uuid == action.uuid
-        actionset.actions.splice(idx, 1)
-        found = true
-        break
-
-    if found
-
-      # if there are no actions left, remove our node
-      if actionset.actions.length == 0
-        @removeActionSet(actionset)
-      else
-        # if we still have actions, make sure our connection offsets are correct
-        Plumb.recalculateOffsets(actionset.uuid)
+      if Flow.flow.action_sets.length == 1
+        $timeout ->
+          DragHelper.showSaveResponse($('#' + Flow.flow.action_sets[0].uuid + ' .source'))
+        ,0
 
       @checkTerminal(actionset)
       @markDirty()
 
-    return
-
-  checkTerminal: (actionset) ->
-
-    hasMessage = false
-    startsFlow = false
-
-    for action in actionset.actions
-      if action.type == 'flow'
-        startsFlow = true
-
-    # if they start another flow it's terminal
-    terminal = startsFlow
-
-    if actionset._terminal != terminal
-      actionset._terminal = terminal
-
-  isMoveableAction: (action) ->
-    if not action
-      return true
-
-    return action.type != 'flow'
-
-  saveAction: (actionset, action) ->
-
-    found = false
-    lastAction = null
-    for previous, idx in actionset.actions
-      lastAction = previous
-      if previous.uuid == action.uuid
-
-        # force immovable actions down
-        if not @isMoveableAction(action)
-          actionset.actions.splice(idx, 1)
-          actionset.actions.push(action)
-          found = true
-        else
-          actionset.actions.splice(idx, 1, action)
-          found = true
-        break
-
-    # if there isn't one that matches add a new one
-    if not found
-      action.uuid = uuid()
-
-      # if our last action isn't moveable go above it
-      if not @isMoveableAction(lastAction)
-        actionset.actions.splice(actionset.actions.length-1, 0, action)
-      else
-        actionset.actions.push(action)
-
-    Plumb.recalculateOffsets(actionset.uuid)
-
-    # finally see if our actionset exists or if it needs to be added
-    found = false
-    for as in $rootScope.flow.action_sets
-      if as.uuid == actionset.uuid
-        found = true
-        break
-
-    if not found
-      $rootScope.flow.action_sets.push(actionset)
-
-    if $rootScope.flow.action_sets.length == 1
-      $timeout ->
-        DragHelper.showSaveResponse($('#' + $rootScope.flow.action_sets[0].uuid + ' .source'))
-      ,0
-
-    @checkTerminal(actionset)
-    @markDirty()
 ]
 
 ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
