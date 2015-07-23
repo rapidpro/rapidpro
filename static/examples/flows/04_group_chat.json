@@ -1,9 +1,9 @@
 {
-  "entry": "82454975-b63d-4a21-b215-706d3a9dd2b5",
+  "entry": "fe0c6f61-96d9-44ea-84c4-f1c676abbff0",
   "rule_sets": [
     {
-      "uuid": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
-      "ruleset_type": "wait_message",
+      "uuid": "02d0ed74-a3ec-423e-8335-f57a2573f930",
+      "webhook_action": null,
       "rules": [
         {
           "test": {
@@ -11,8 +11,9 @@
             "type": "starts"
           },
           "category": "nick",
-          "destination": "ea9e15a7-3747-425b-973f-b38399bf27bf",
-          "uuid": "48522471-033e-4603-9a44-85e5fefda505"
+          "destination": "e7c9c219-dee9-4456-82da-16433ba52f14",
+          "uuid": "5b902531-9d87-40f9-9a2c-512bf9629ee5",
+          "destination_type": "A"
         },
         {
           "test": {
@@ -20,8 +21,9 @@
             "type": "starts"
           },
           "category": "exit",
-          "destination": "dda723d9-f99c-4e21-b6de-a1f4d374b5dd",
-          "uuid": "a1e7966e-34a2-47cd-a893-ae82fb83328b"
+          "destination": "de83e23b-ef5c-41f3-9e20-ba073d58e16f",
+          "uuid": "4932cd74-efa5-42d9-b7bc-3fbb0526c7c4",
+          "destination_type": "A"
         },
         {
           "test": {
@@ -29,12 +31,17 @@
             "type": "true"
           },
           "category": "Other",
-          "destination": "d78b3676-d46d-46f9-acdb-a855aa68655e",
-          "uuid": "0ab3512a-66be-4a3b-9dca-b46532af78ab"
+          "destination": "5a73479b-6777-4a80-9a49-e5181435bbe4",
+          "uuid": "807f4c05-664c-4aff-92ff-a19fd29e162a",
+          "destination_type": "A"
         }
       ],
+      "webhook": null,
+      "ruleset_type": "wait_message",
       "label": "Commands",
       "operand": "@step.value",
+      "finished_key": null,
+      "response_type": "C",
       "y": 315,
       "x": 413
     }
@@ -43,8 +50,8 @@
     {
       "y": 0,
       "x": 446,
-      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
-      "uuid": "82454975-b63d-4a21-b215-706d3a9dd2b5",
+      "destination": "02d0ed74-a3ec-423e-8335-f57a2573f930",
+      "uuid": "fe0c6f61-96d9-44ea-84c4-f1c676abbff0",
       "actions": [
         {
           "msg": "Welcome to group chat!  Send \"nick [your name]\" to set your name, send \"exit\" to exit.",
@@ -52,54 +59,62 @@
         },
         {
           "msg": "@contact has joined the group.",
+          "variables": [],
           "type": "send",
           "groups": [
             {
               "name": "Group Chat",
-              "id": 184
+              "id": 1079
             }
           ],
           "contacts": []
         },
         {
-          "group": {
-            "name": "Group Chat",
-            "id": 184
-          },
-          "type": "add_group"
+          "type": "add_group",
+          "groups": [
+            {
+              "name": "Group Chat",
+              "id": 1079
+            }
+          ]
         }
       ]
     },
     {
       "y": 444,
       "x": 148,
-      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
-      "uuid": "ea9e15a7-3747-425b-973f-b38399bf27bf",
+      "destination": "02d0ed74-a3ec-423e-8335-f57a2573f930",
+      "uuid": "e7c9c219-dee9-4456-82da-16433ba52f14",
       "actions": [
         {
-          "group": {
-            "name": "Group Chat",
-            "id": 184
-          },
-          "type": "del_group"
+          "type": "del_group",
+          "groups": [
+            {
+              "name": "Group Chat",
+              "id": 1079
+            }
+          ]
         },
         {
           "msg": "@contact is now known as @step.value|remove_first_word ",
+          "variables": [],
           "type": "send",
           "groups": [
             {
               "name": "Group Chat",
-              "id": 184
+              "id": 1079
             }
           ],
           "contacts": []
         },
         {
-          "group": {
-            "name": "Group Chat",
-            "id": 184
-          },
-          "type": "add_group"
+          "type": "add_group",
+          "groups": [
+            {
+              "name": "Group Chat",
+              "id": 1079
+            }
+          ]
         },
         {
           "field": "name",
@@ -117,22 +132,25 @@
       "y": 441,
       "x": 446,
       "destination": null,
-      "uuid": "dda723d9-f99c-4e21-b6de-a1f4d374b5dd",
+      "uuid": "de83e23b-ef5c-41f3-9e20-ba073d58e16f",
       "actions": [
         {
-          "group": {
-            "name": "Group Chat",
-            "id": 184
-          },
-          "type": "del_group"
+          "type": "del_group",
+          "groups": [
+            {
+              "name": "Group Chat",
+              "id": 1079
+            }
+          ]
         },
         {
           "msg": "@contact has left the group.",
+          "variables": [],
           "type": "send",
           "groups": [
             {
               "name": "Group Chat",
-              "id": 184
+              "id": 1079
             }
           ],
           "contacts": []
@@ -146,33 +164,38 @@
     {
       "y": 442,
       "x": 748,
-      "destination": "1554882b-ed87-4222-90e9-5a1b7f3389c9",
-      "uuid": "d78b3676-d46d-46f9-acdb-a855aa68655e",
+      "destination": "02d0ed74-a3ec-423e-8335-f57a2573f930",
+      "uuid": "5a73479b-6777-4a80-9a49-e5181435bbe4",
       "actions": [
         {
-          "group": {
-            "name": "Group Chat",
-            "id": 184
-          },
-          "type": "del_group"
+          "type": "del_group",
+          "groups": [
+            {
+              "name": "Group Chat",
+              "id": 1079
+            }
+          ]
         },
         {
           "msg": "@step.contact: @step.value",
+          "variables": [],
           "type": "send",
           "groups": [
             {
               "name": "Group Chat",
-              "id": 184
+              "id": 1079
             }
           ],
           "contacts": []
         },
         {
-          "group": {
-            "name": "Group Chat",
-            "id": 184
-          },
-          "type": "add_group"
+          "type": "add_group",
+          "groups": [
+            {
+              "name": "Group Chat",
+              "id": 1079
+            }
+          ]
         },
         {
           "msg": "Your message was sent.  Send 'nick [your name]' to set your name, send 'exit' to exit chat.",
@@ -181,6 +204,7 @@
       ]
     }
   ],
+  "last_saved": "2015-07-23T04:17:05.193357Z",
   "metadata": {
     "notes": [
       {
