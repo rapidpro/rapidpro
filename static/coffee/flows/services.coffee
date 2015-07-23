@@ -257,6 +257,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
   setSourceEnabled: (source, enabled) ->
     jsPlumb.setSourceEnabled(source, enabled)
 
+
   connect: (sourceId, targetId, scope, fireEvent = true) ->
 
     #$log.debug(sourceId + ' > ' + targetId)
