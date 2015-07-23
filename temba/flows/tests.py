@@ -19,7 +19,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEM
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
-from temba.triggers.models import Trigger
+from temba.triggers.models import Trigger, FOLLOW_TRIGGER, CATCH_ALL_TRIGGER, MISSED_CALL_TRIGGER, INBOUND_CALL_TRIGGER
+from temba.triggers.models import SCHEDULE_TRIGGER, KEYWORD_TRIGGER
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
@@ -1310,6 +1311,67 @@ class RuleTest(TembaTest):
         self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
         self.assertEquals(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
         self.assertEquals(Label.user_labels.get(pk=new_label.pk).get_visible_count(), 1)
+
+    def test_global_keywords_trigger_update(self):
+        self.login(self.admin)
+        flow = Flow.create(self.org, self.admin, "Flow")
+
+        # update flow triggers
+        post_data = dict()
+        post_data['name'] = "Flow With Keyword Triggers"
+        post_data['keyword_triggers'] = "it,changes,everything"
+        post_data['expires_after_minutes'] = 60*12
+        response = self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow_with_keywords = Flow.objects.get(name=post_data['name'])
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_list'))
+        self.assertTrue(flow_with_keywords in response.context['object_list'].all())
+        self.assertEquals(flow_with_keywords.triggers.count(), 3)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
+
+        # add triggers of other types
+        Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
+                               trigger_type=FOLLOW_TRIGGER, flow=flow_with_keywords, channel=self.channel)
+
+        Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
+                               trigger_type=CATCH_ALL_TRIGGER, flow=flow_with_keywords)
+
+        Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
+                               trigger_type=MISSED_CALL_TRIGGER, flow=flow_with_keywords)
+
+        Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
+                               trigger_type=INBOUND_CALL_TRIGGER, flow=flow_with_keywords)
+
+        Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
+                               trigger_type=SCHEDULE_TRIGGER, flow=flow_with_keywords)
+
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
+
+        # update flow triggers
+        post_data = dict()
+        post_data['name'] = "Flow With Keyword Triggers"
+        post_data['keyword_triggers'] = "it,join"
+        post_data['expires_after_minutes'] = 60*12
+        response = self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow_with_keywords = Flow.objects.get(name=post_data['name'])
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_list'))
+        self.assertTrue(flow_with_keywords in response.context['object_list'].all())
+        self.assertEquals(flow_with_keywords.triggers.count(), 9)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True, trigger_type=KEYWORD_TRIGGER).count(), 2)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True, trigger_type=KEYWORD_TRIGGER).count(), 2)
+
+        # only keyword triggers got archived, other are stil active
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=FOLLOW_TRIGGER))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=CATCH_ALL_TRIGGER))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=SCHEDULE_TRIGGER))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=MISSED_CALL_TRIGGER))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=INBOUND_CALL_TRIGGER))
 
     def test_views(self):
         self.create_secondary_org()
