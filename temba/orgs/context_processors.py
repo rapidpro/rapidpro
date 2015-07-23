@@ -1,6 +1,8 @@
 from django.core.urlresolvers import reverse
 from .models import get_stripe_credentials, UNREAD_INBOX_MSGS, UNREAD_FLOW_MSGS
 from django.utils import timezone
+from django.conf import settings
+
 
 class defaultdict(dict):
   def __missing__(self, key):

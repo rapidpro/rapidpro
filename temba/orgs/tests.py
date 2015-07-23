@@ -9,17 +9,21 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.urlresolvers import reverse
+from django.http import HttpRequest
 from django.test.utils import override_settings
 from django.utils import timezone
-from mock import patch
+from mock import patch, Mock
 from redis_cache import get_redis_connection
+from smartmin.tests import SmartminTest
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.middleware import BrandingMiddleware
 from temba.orgs.models import Org, OrgCache, OrgEvent, OrgFolder, TopUp, Invitation, DAYFIRST, MONTHFIRST
 from temba.orgs.models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Broadcast, Call, Label, Msg, Schedule, CALL_IN, INCOMING
+from temba.temba_email import link_components
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 
@@ -1527,3 +1531,33 @@ class UnreadCountTest(FlowFileTest):
 
         # wasn't counted for the individual flow
         self.assertEquals(0, flow.get_and_clear_unread_responses())
+
+
+class EmailContextProcessorsTest(SmartminTest):
+    def setUp(self):
+        super(EmailContextProcessorsTest, self).setUp()
+        self.admin = self.create_user("Administrator")
+        self.middleware = BrandingMiddleware()
+
+    def test_link_components(self):
+        self.request = Mock(spec=HttpRequest)
+        self.request.get_host.return_value = "rapidpro.io"
+        response = self.middleware.process_request(self.request)
+        self.assertIsNone(response)
+        self.assertEquals(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
+
+        with self.settings(HOSTNAME="rapidpro.io"):
+            forget_url = reverse('users.user_forget')
+
+            post_data = dict()
+            post_data['email'] = 'nouser@nouser.com'
+
+            response = self.client.post(forget_url, post_data, follow=True)
+            self.assertEquals(1, len(mail.outbox))
+            sent_email = mail.outbox[0]
+            self.assertEqual(len(sent_email.to), 1)
+            self.assertEqual(sent_email.to[0], 'nouser@nouser.com')
+
+            # we have the domain of rapipro.io brand
+            self.assertTrue('app.rapidpro.io' in sent_email.body)
+
