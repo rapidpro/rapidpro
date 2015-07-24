@@ -300,6 +300,7 @@ class APITest(TembaTest):
                                                            completed_runs=0,
                                                            rulesets=[dict(node=flow_ruleset1.uuid,
                                                                           id=flow_ruleset1.pk,
+                                                                          response_type='C',
                                                                           ruleset_type='wait_message',
                                                                           label='color')],
                                                            participants=0,

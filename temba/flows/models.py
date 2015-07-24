@@ -2780,7 +2780,10 @@ class FlowVersion(SmartModel):
                         has_old_webhook = webhook_url and ruleset_type != RuleSet.TYPE_WEBHOOK
 
                         # determine our type from our operand
-                        operand = ruleset.get('operand', '@step.value')
+                        operand = ruleset.get('operand')
+                        if not operand:
+                            operand = '@step.value'
+
                         operand = operand.strip()
 
                         # all previous ruleset that require step should be wait_message
