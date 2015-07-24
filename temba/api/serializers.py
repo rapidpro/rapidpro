@@ -948,10 +948,28 @@ class FlowReadSerializer(serializers.ModelSerializer):
 
     def get_rulesets(self, obj):
         rulesets = list()
+
+        obj.ensure_current_version()
+
+        from temba.flows.models import RuleSet
+
         for ruleset in obj.rule_sets.all().order_by('y'):
+
+            # backwards compat for old response types
+            response_type = 'C'
+            if ruleset.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
+                response_type = 'K'
+            elif ruleset.ruleset_type == RuleSet.TYPE_WAIT_DIGIT:
+                response_type = 'M'
+            elif ruleset.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+                response_type = 'R'
+            elif len(ruleset.get_rules()) == 1:
+                response_type = 'O'
+
             rulesets.append(dict(node=ruleset.uuid,
                                  label=ruleset.label,
                                  ruleset_type=ruleset.ruleset_type,
+                                 response_type=response_type, # deprecated
                                  id=ruleset.id))  # deprecated
 
         return rulesets
