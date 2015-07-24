@@ -1,9 +1,9 @@
 {
-  "entry": "fa616473-5853-4097-a955-504d1c0630bc",
+  "entry": "c4889a3b-e226-49df-8007-f2fd08380c4d",
   "rule_sets": [
     {
-      "uuid": "222a16a9-c7d4-420f-b687-d5c1efec96e5",
-      "ruleset_type": "wait_message",
+      "uuid": "5e17178e-524b-4d82-8602-6c976bb430b0",
+      "webhook_action": null,
       "rules": [
         {
           "test": {
@@ -11,8 +11,9 @@
             "type": "contains_any"
           },
           "category": "Yes",
-          "destination": "607c1b1c-d6b3-4f55-add5-6e894e04d0db",
-          "uuid": "670d15e3-762e-45a5-8fdc-5e3b99a0dc2d"
+          "destination": "e22137f0-873e-407f-89fd-c5ac47dad682",
+          "uuid": "69bfd395-1d95-4046-9a7a-191cde7ea6c8",
+          "destination_type": "A"
         },
         {
           "test": {
@@ -20,8 +21,9 @@
             "type": "contains_any"
           },
           "category": "No",
-          "destination": "3a2df235-b751-402f-a0e5-0c4f0f6923ce",
-          "uuid": "d260e37e-a53e-4759-9846-b07c35d88fd4"
+          "destination": "68ada584-a80b-471a-9496-79c271466176",
+          "uuid": "dde99c74-a3a2-44db-af94-94aa53b4e9d1",
+          "destination_type": "A"
         },
         {
           "test": {
@@ -29,22 +31,27 @@
             "type": "true"
           },
           "category": "Other",
-          "destination": "0c8fffa7-2667-432c-adca-2c13acad93a1",
-          "uuid": "7049489c-189d-4f74-8efc-765ec682e6b6"
+          "destination": "c0b99f60-2dba-480f-bc9e-c239684824c2",
+          "uuid": "67392c7c-77d0-4050-8e17-a9ffbcc0d59d",
+          "destination_type": "A"
         }
       ],
+      "webhook": null,
+      "ruleset_type": "wait_message",
       "label": "Filter Working",
       "operand": "@step.value",
-      "y": 181,
-      "x": 436
+      "finished_key": null,
+      "response_type": "C",
+      "y": 169,
+      "x": 407
     }
   ],
   "action_sets": [
     {
       "y": 0,
       "x": 469,
-      "destination": "222a16a9-c7d4-420f-b687-d5c1efec96e5",
-      "uuid": "fa616473-5853-4097-a955-504d1c0630bc",
+      "destination": "5e17178e-524b-4d82-8602-6c976bb430b0",
+      "uuid": "c4889a3b-e226-49df-8007-f2fd08380c4d",
       "actions": [
         {
           "msg": "Hi @contact.name, is your water filter working?  Answer with Yes or No.",
@@ -53,10 +60,10 @@
       ]
     },
     {
-      "y": 60,
-      "x": 790,
-      "destination": "222a16a9-c7d4-420f-b687-d5c1efec96e5",
-      "uuid": "0c8fffa7-2667-432c-adca-2c13acad93a1",
+      "y": 43,
+      "x": 783,
+      "destination": "5e17178e-524b-4d82-8602-6c976bb430b0",
+      "uuid": "c0b99f60-2dba-480f-bc9e-c239684824c2",
       "actions": [
         {
           "msg": "I'm sorry, I didn't understand that. Is your water filter still working?  Answer with Yes or No.",
@@ -65,10 +72,10 @@
       ]
     },
     {
-      "y": 346,
-      "x": 303,
+      "y": 335,
+      "x": 254,
       "destination": null,
-      "uuid": "607c1b1c-d6b3-4f55-add5-6e894e04d0db",
+      "uuid": "e22137f0-873e-407f-89fd-c5ac47dad682",
       "actions": [
         {
           "msg": "Great to hear, Thanks for your time!",
@@ -80,7 +87,7 @@
       "y": 346,
       "x": 543,
       "destination": null,
-      "uuid": "3a2df235-b751-402f-a0e5-0c4f0f6923ce",
+      "uuid": "68ada584-a80b-471a-9496-79c271466176",
       "actions": [
         {
           "msg": "Sorry to hear that, someone will be in touch to help you with your filter.",
@@ -89,10 +96,11 @@
       ]
     }
   ],
+  "last_saved": "2015-07-23T04:17:05.382269Z",
   "metadata": {
     "notes": [
       {
-        "body": "This single question poll demonstrates how flows can easily help measure what is happening in the field.",
+        "body": "This single question poll demonstrates how a Flow can easily help measure what is happening in the field.",
         "x": 93,
         "y": 59,
         "title": "Simple Poll"
