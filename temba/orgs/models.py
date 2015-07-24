@@ -36,10 +36,11 @@ from urlparse import urlparse
 from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
+
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 4
+CURRENT_EXPORT_VERSION = 5
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -965,6 +966,9 @@ class Org(SmartModel):
 
                         except Exception as e:
                             import traceback
+                            logger = logging.getLogger(__name__)
+                            msg = 'Failed creating sample flow: %s' % (flow_name)
+                            logger.error(msg, exc_info=True, extra=dict(definition=json.loads(org_example)))
                             traceback.print_exc()
 
     def is_notified_of_mt_sms(self):

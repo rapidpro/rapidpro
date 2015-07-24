@@ -2,10 +2,19 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-from temba.flows.models import RuleSet, Flow, ActionSet
+from temba.flows.models import RuleSet, ActionSet
 
 
 def fix_like_named_destinations(apps, schema_editor):
+
+    # Excuted migration actually used real model, to allow below
+    # method call to flow.update(). With the model
+    # definition changing at 0023_new_split_dialog we can no longer
+    # fetch this model. This data migration will be removed
+    # when we squash for the first community release.
+
+    # from temba.flows.models import Flow
+    Flow = apps.get_model('flows', 'Flow')
 
     # must have a label
     updated_rules = RuleSet.objects.filter(label=None).update(label='Response A')

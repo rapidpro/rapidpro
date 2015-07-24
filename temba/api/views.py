@@ -2584,7 +2584,7 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
       * **participants** - the number of contacts who have participated in this flow (integer)
       * **runs** - the total number of runs for this flow (integer)
       * **completed_runs** - the number of completed runs for this flow (integer)
-      * **rulesets** - the rulesets on this flow, including their node UUID, response type, and label
+      * **rulesets** - the rulesets on this flow, including their node UUID, ruleset type, and label
 
     Example:
 
@@ -2610,13 +2610,13 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                    {
                     "id": 17122,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "response_type": "N",
+                    "ruleset_type": "wait_message",
                     "label": "Age"
                    },
                    {
                     "id": 17128,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "response_type": "C",
+                    "ruleset_type": "wait_message",
                     "label": "Gender"
                    }
                 ]

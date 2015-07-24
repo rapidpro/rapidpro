@@ -2,7 +2,7 @@
   "rule_sets": [
     {
       "uuid": "1c7de3d2-fe7d-4582-b839-ddc66315121a",
-      "response_type": "C",
+      "ruleset_type": "wait_message",
       "rules": [
         {
           "test": {

@@ -301,6 +301,7 @@ class APITest(TembaTest):
                                                            rulesets=[dict(node=flow_ruleset1.uuid,
                                                                           id=flow_ruleset1.pk,
                                                                           response_type='C',
+                                                                          ruleset_type='wait_message',
                                                                           label='color')],
                                                            participants=0,
                                                            created_on=datetime_to_json_date(flow.created_on),
@@ -384,17 +385,17 @@ class APITest(TembaTest):
         self.assertEqual(response.json['name'], "Empty")
 
         # load flow definition from test data
-        handle = open('%s/test_flows/pick_a_number.json' % settings.MEDIA_ROOT, 'r+')
-        definition = json.loads(handle.read())
-        handle.close()
+        flow = self.get_flow('pick_a_number')
+        definition = flow.as_json()
+        flow.delete()
 
         # and create flow with a definition
-        response = self.postJSON(url, dict(name="Pick a number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(name="Pick a Number", flow_type='F', definition=definition))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a number")
+        self.assertEqual(response.json['name'], "Pick a Number")
 
         # make sure our flow is there as expected
-        flow = Flow.objects.get(name='Pick a number')
+        flow = Flow.objects.get(name='Pick a Number')
         self.assertEqual(flow.flow_type, 'F')
         self.assertEqual(flow.action_sets.count(), 2)
         self.assertEqual(flow.rule_sets.count(), 2)
@@ -405,13 +406,14 @@ class APITest(TembaTest):
         flow.save()
 
         # updating should overwrite local change
-        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='F', definition=definition))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a number")
+        self.assertEqual(response.json['name'], "Pick a Number")
 
         # make sure our flow is there as expected
-        flow = Flow.objects.get(name='Pick a number')
+        flow = Flow.objects.get(name='Pick a Number')
         self.assertEqual(flow.flow_type, 'F')
+
 
     def test_flow_results(self):
         url = reverse('api.results')
