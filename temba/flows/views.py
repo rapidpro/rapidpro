@@ -26,7 +26,7 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, STARTING, PENDING, ACTION_SET, RULE_SET
+from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowVersion, STARTING, PENDING, ACTION_SET, RULE_SET
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
@@ -116,7 +116,7 @@ class FlowActionMixin(SmartListView):
 
         if form.is_valid():
             form.execute()
-            
+
         return self.get(request, *args, **kwargs)
 
 
@@ -355,10 +355,18 @@ class FlowCRUDL(SmartCRUDL):
             return build_json_response(recent_messages[:5])
 
     class Versions(OrgObjPermsMixin, SmartReadView):
+
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-            versions = [version.as_json() for version in flow.versions.all().order_by('-created_on')[:25]]
-            return build_json_response(versions)
+
+            version_id = request.REQUEST.get('definition', None)
+
+            if version_id:
+                version = FlowVersion.objects.get(flow=flow, pk=version_id)
+                return build_json_response(version.get_definition_json())
+            else:
+                versions = [version.as_json() for version in flow.versions.all().order_by('-created_on')[:25]]
+                return build_json_response(versions)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
@@ -515,23 +523,28 @@ class FlowCRUDL(SmartCRUDL):
             keywords = set()
             user = self.request.user
             org = user.get_org()
-            existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj, is_archived=False, groups=None))
+            existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
+                                                                           trigger_type=KEYWORD_TRIGGER,
+                                                                           is_archived=False, groups=None))
 
             if len(self.form.cleaned_data['keyword_triggers']) > 0:
                 keywords = set(self.form.cleaned_data['keyword_triggers'].split(','))
 
             removed_keywords = existing_keywords.difference(keywords)
             for keyword in removed_keywords:
-                obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None, is_archived=False).update(is_archived=True)
+                obj.triggers.filter(org=org, flow=obj, keyword=keyword,
+                                    groups=None, is_archived=False).update(is_archived=True)
 
             added_keywords = keywords.difference(existing_keywords)
-            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, is_archived=True, groups=None)]
+            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=KEYWORD_TRIGGER,
+                                                                        is_archived=True, groups=None)]
             for keyword in added_keywords:
                 # first check if the added keyword is not amongst archived
                 if keyword in archived_keywords:
                     obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
                 else:
-                    Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
+                    Trigger.objects.create(org=org, keyword=keyword, trigger_type=KEYWORD_TRIGGER,
+                                           flow=obj, created_by=user, modified_by=user)
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
@@ -756,7 +769,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Edit"),
                                   js_class='update-rulesflow',
                                   href='#'))
-                
+
             if self.has_org_perm('flows.flow_copy'):
                 links.append(dict(title=_("Copy"),
                                   posterize=True,
@@ -1166,6 +1179,7 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
 
             flow = self.get_object()
+            flow.ensure_current_version()
 
             # all the translation languages for our org
             languages = [lang.as_json() for lang in flow.org.languages.all().order_by('orgs')]

@@ -124,14 +124,11 @@ class MsgTest(TembaTest):
 
         # all you get is only one item inside completions
         self.assertEquals(response.context['completions'], json.dumps(completions))
-        
+
         # lets add one extra contactfield
         field = ContactField.objects.create(org=self.org, label="Sector", key='sector')
         completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
         response = self.client.get(outbox_url)
-
-        print json.dumps(json.loads(response.context['completions']), indent=2)
-        print json.dumps(completions, indent=2)
 
         # now we have two items inside completions
         self.assertTrue(json.loads(response.context['completions']), completions)
@@ -210,10 +207,10 @@ class MsgTest(TembaTest):
         for number in range(0, 10):
             Msg.create_outgoing(self.org, self.admin, (TEL_SCHEME, self.channel.address), 'Infinite Loop')
 
-        # now that we have 10 same messages then, 
+        # now that we have 10 same messages then,
         must_return_none = Msg.create_outgoing(self.org, self.admin, (TEL_SCHEME, self.channel.address), 'Infinite Loop')
         self.assertIsNone(must_return_none)
-        
+
     def test_create_incoming(self):
 
         Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "It's going well")
@@ -320,10 +317,10 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(inbox_url)
         self.assertEquals(302, response.status_code)
-        
+
         # visit inbox page as a manager of the organization
         response = self.fetch_protected(inbox_url, self.admin)
-        
+
         self.assertEquals(response.context['object_list'].count(), 5)
         self.assertEquals(response.context['folders'][0]['url'], '/msg/inbox/')
         self.assertEquals(response.context['folders'][0]['count'], 5)
@@ -381,14 +378,14 @@ class MsgTest(TembaTest):
 
         response = self.client.post(inbox_url, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
-        
+
         # now one msg is archived
         self.assertEqual(list(Msg.objects.filter(visibility=ARCHIVED)), [msg1])
 
         # archiving doesn't remove labels
         msg1 = Msg.objects.get(pk=msg1.pk)
         self.assertEqual(set(msg1.labels.all()), {label3})
-        
+
         # visit the the archived messages page
         archive_url = reverse('msgs.msg_archived')
 
@@ -396,7 +393,7 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(archive_url)
         self.assertEquals(302, response.status_code)
-        
+
         # visit archived page as a manager of the organization
         response = self.fetch_protected(archive_url, self.admin)
 
@@ -409,7 +406,7 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(inbox_url)
         self.assertEquals(302, response.status_code)
-        
+
         # visit inbox page as an admin of the organization
         response = self.fetch_protected(inbox_url, self.admin)
 
@@ -517,7 +514,7 @@ class MsgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.get(failed_url)
         self.assertEquals(302, response.status_code)
-        
+
         # visit inbox page as an administrator
         response = self.fetch_protected(failed_url, self.admin)
 
@@ -595,9 +592,9 @@ class MsgTest(TembaTest):
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "Your messages export is ready")
-        self.assertIn('https://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('https://rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
         ExportMessagesTask.objects.all().delete()
@@ -773,7 +770,7 @@ class BroadcastTest(TembaTest):
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEquals('I', broadcast.status)
         self.assertEquals(4, broadcast.recipient_count)
-        
+
         broadcast.send(trigger_send=False)
         self.assertEquals('Q', broadcast.status)
         self.assertEquals(broadcast.get_message_count(), 4)
@@ -811,7 +808,7 @@ class BroadcastTest(TembaTest):
             msg.save()
 
         assertBroadcastStatus(broadcast.get_messages()[0], 'Q', 'Q')
-        # test queued broadcast logic 
+        # test queued broadcast logic
 
         # test sent broadcast logic
         broadcast.get_messages().update(status='D')
@@ -851,7 +848,7 @@ class BroadcastTest(TembaTest):
         # delete this broadcast to keep future test right
         Broadcast.objects.all()[0].delete()
 
-        # test when we have many channels 
+        # test when we have many channels
         Channel.objects.create(org=self.org, channel_type="A", secret="123456", gcm_id="1234",
                                created_by=self.user, modified_by=self.user)
         Channel.objects.create(org=self.org, channel_type="A", secret="12345", gcm_id="123",
@@ -1439,7 +1436,7 @@ class CallTest(SmartminTest):
         self.channel = Channel.objects.create(name="Test Channel", address="0785551212",
                                               org=self.org, created_by=self.user, modified_by=self.user,
                                               secret="12345", gcm_id="123")
-        
+
 
     def test_call_model(self):
         now = timezone.now()

@@ -1,0 +1,81 @@
+{
+  "version": 4,
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng",
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 100,
+            "destination": "7cc4d533-5683-457c-81c0-1a03e2cfbef7",
+            "uuid": "56e82b72-d1f6-4b1d-8000-8af5655dadd0",
+            "actions": [
+              {
+                "recording": {
+                  "eng": null
+                },
+                "msg": {
+                  "eng": "Enter your phone number followed by the pound sign."
+                },
+                "type": "say",
+                "uuid": "8af6fd9a-43c4-4b64-a3d5-374921d12b0c"
+              }
+            ]
+          },
+          {
+            "y": 267,
+            "x": 100,
+            "destination": null,
+            "uuid": "bfd145fd-39f2-4b5c-b709-bb652b4aceb7",
+            "actions": [
+              {
+                "recording": {
+                  "eng": null
+                },
+                "msg": {
+                  "eng": "Thank you for the recording, I have recorded your number as @flow.phone"
+                },
+                "type": "say",
+                "uuid": "bcef13b7-ccff-4ae8-98e4-95de6d082805"
+              }
+            ]
+          }
+        ],
+        "last_saved": "2015-02-05T04:50:59.366437Z",
+        "entry": "56e82b72-d1f6-4b1d-8000-8af5655dadd0",
+        "rule_sets": [
+          {
+            "uuid": "7cc4d533-5683-457c-81c0-1a03e2cfbef7",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "type": "true"
+                },
+                "category": {
+                  "base": "All Responses",
+                  "eng": "All Responses"
+                },
+                "destination": "bfd145fd-39f2-4b5c-b709-bb652b4aceb7",
+                "uuid": "1aa6478b-738e-4821-b077-69af368b9757"
+              }
+            ],
+            "webhook": null,
+            "label": "Phone",
+            "operand": "@step.value",
+            "finished_key": "#",
+            "response_type": "K",
+            "y": 145,
+            "x": 85
+          }
+        ],
+        "metadata": {}
+      },
+      "id": 700, 
+      "flow_type": "V",
+      "name": "Gather Digits"
+    }
+  ],
+  "triggers": []
+}

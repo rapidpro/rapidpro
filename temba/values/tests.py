@@ -362,17 +362,19 @@ class ResultTest(FlowFileTest):
         def run_flow(contact, word):
             self.assertEquals("Thank you", self.send_message(flow, word, contact=contact, restart_participants=True))
 
-        (c1, c2, c3, c4, c5) = (self.create_contact("Contact1", '0788111111'),
-                                self.create_contact("Contact2", '0788222222'),
-                                self.create_contact("Contact3", '0788333333'),
-                                self.create_contact("Contact4", '0788444444'),
-                                self.create_contact("Contact4", '0788555555'))
+        (c1, c2, c3, c4, c5, c6) = (self.create_contact("Contact1", '0788111111'),
+                                    self.create_contact("Contact2", '0788222222'),
+                                    self.create_contact("Contact3", '0788333333'),
+                                    self.create_contact("Contact4", '0788444444'),
+                                    self.create_contact("Contact5", '0788555555'),
+                                    self.create_contact("Contact6", '0788666666', is_test=True))
 
         run_flow(c1, "1 better place")
         run_flow(c2, "the great coffee")
         run_flow(c3, "1 cup of black tea")
         run_flow(c4, "awesome than this")
         run_flow(c5, "from an awesome place in kigali")
+        run_flow(c6, "awesome coffee")
 
         random = RuleSet.objects.get(flow=flow, label="Random")
 

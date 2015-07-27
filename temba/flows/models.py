@@ -33,7 +33,7 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS
+from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.cache import get_cacheable
@@ -43,20 +43,6 @@ from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Val
 from twilio import twiml
 from unidecode import unidecode
 from uuid import uuid4
-
-OPEN = 'O'
-MULTIPLE_CHOICE = 'C'
-NUMERIC = 'N'
-MENU = 'M'
-KEYPAD = 'K'
-RECORDING = 'R'
-
-RESPONSE_TYPE_CHOICES = ((OPEN, "Open Ended"),
-                         (MULTIPLE_CHOICE, "Multiple Choice"),
-                         (NUMERIC, "Numeric"),
-                         (MENU, "Menu"),
-                         (KEYPAD, "Keypad"),
-                         (RECORDING, "Recording"))
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
@@ -95,6 +81,7 @@ class FlowLock(Enum):
     """
     participation = 1
     activity = 2
+    definition = 3
 
 
 class FlowPropsCache(Enum):
@@ -164,7 +151,7 @@ class Flow(TembaModel, SmartModel):
     WEBHOOK_URL = 'webhook'
     WEBHOOK_ACTION = 'webhook_action'
     FINISHED_KEY = 'finished_key'
-    RESPONSE_TYPE = 'response_type'
+    RULESET_TYPE = 'ruleset_type'
     OPERAND = 'operand'
     METADATA = 'metadata'
     LAST_SAVED = 'last_saved'
@@ -225,6 +212,8 @@ class Flow(TembaModel, SmartModel):
     base_language = models.CharField(max_length=3, null=True, blank=True,
                                      help_text=_('The primary language for editing this flow'))
 
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
         flow = Flow.objects.create(org=org, name=name, flow_type=flow_type,
@@ -276,6 +265,10 @@ class Flow(TembaModel, SmartModel):
         exported_flows = []
 
         for flow in flows:
+
+            # only export current versions
+            flow.ensure_current_version()
+
             # get our json with group names
             flow_definition = flow.as_json(expand_contacts=True)
             if fail_on_dependencies:
@@ -310,8 +303,9 @@ class Flow(TembaModel, SmartModel):
         """
         Import flows from our flow export file
         """
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:
+        export_version = exported_json.get('version', 0)
+        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
+        if export_version < EARLIEST_IMPORT_VERSION:
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         created_flows = []
@@ -364,7 +358,13 @@ class Flow(TembaModel, SmartModel):
                             if existing_flow:
                                 action['id'] = existing_flow.pk
 
-            flow_spec['flow'].import_definition(flow_spec['definition'])
+            definition = flow_spec.get('definition')
+
+            # migrate our flow definition forward if necessary
+            if export_version < CURRENT_EXPORT_VERSION:
+                definition = FlowVersion.migrate_definition(definition, export_version)
+
+            flow_spec['flow'].import_definition(definition)
 
         # remap our flow ids according to how they were resolved
         if 'campaigns' in exported_json:
@@ -495,7 +495,7 @@ class Flow(TembaModel, SmartModel):
             gather = destination.get_voice_input(response, action=callback)
 
             # recordings have to be tacked on last
-            if destination.response_type == RECORDING:
+            if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
             elif gather:
                 # nest all of our previous verbs in our gather
@@ -556,6 +556,7 @@ class Flow(TembaModel, SmartModel):
         action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
         for step in action_sets:
             flow = step.run.flow
+            flow.ensure_current_version()
             action_set = ActionSet.get(flow, step.step_uuid)
 
             destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
@@ -569,6 +570,7 @@ class Flow(TembaModel, SmartModel):
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
             flow = step.run.flow
+            flow.ensure_current_version()
             arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
@@ -614,7 +616,7 @@ class Flow(TembaModel, SmartModel):
                 should_pause = False
 
                 # if we are a ruleset against @step or we have a webhook we wait
-                if destination.is_pause(force_execute_webhook):
+                if destination.is_pause():
                     should_pause = True
 
                 if user_input or not should_pause:
@@ -1392,6 +1394,8 @@ class Flow(TembaModel, SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        self.ensure_current_version()
+
         if started_flows is None:
             started_flows = []
 
@@ -1996,14 +2000,7 @@ class Flow(TembaModel, SmartModel):
             destinations = []
             if rules:
 
-                # rules on @step.value require user input
-                operand = node.get('operand', '@step.value')
-
-                if not operand or RuleSet.contains_step(operand):
-                    return []
-
-                # webhooks require user input for now
-                if node.get('webhook', None):
+                if node.get('ruleset_type', None) in RuleSet.TYPE_WAIT:
                     return []
 
                 for rule in rules:
@@ -2037,6 +2034,17 @@ class Flow(TembaModel, SmartModel):
                     # no more children; pop back up a level
                     path.popitem()
         return None
+
+    def ensure_current_version(self):
+        """
+        Makes sure the flow is at the current version. If it isn't it will
+        migrate the defintion forward updating the flow accordingly.
+        """
+        if self.version_number < CURRENT_EXPORT_VERSION:
+            with self.lock_on(FlowLock.definition):
+                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number)
+                self.update(json_flow)
+                # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
 
     def update(self, json_dict, user=None, force=False):
         """
@@ -2105,10 +2113,6 @@ class Flow(TembaModel, SmartModel):
                 if actions:
                     current_actionsets[uuid] = actions
 
-            entry = json_dict.get('entry', None)
-            if entry:
-                destinations.add(entry)
-
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
                 uuid = ruleset.get(Flow.UUID)
                 current_rulesets[uuid] = ruleset
@@ -2124,7 +2128,7 @@ class Flow(TembaModel, SmartModel):
                 webhook_action = ruleset.get(Flow.WEBHOOK_ACTION, None)
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
-                response_type = ruleset.get(Flow.RESPONSE_TYPE)
+                ruleset_type = ruleset.get(Flow.RULESET_TYPE)
 
                 # cap our lengths
                 label = label[:64]
@@ -2170,7 +2174,7 @@ class Flow(TembaModel, SmartModel):
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
-                    existing.response_type = response_type
+                    existing.ruleset_type = ruleset_type
                     (existing.x, existing.y) = (x, y)
                     existing.save()
                 else:
@@ -2182,7 +2186,7 @@ class Flow(TembaModel, SmartModel):
                                                       webhook_url=webhook_url,
                                                       webhook_action=webhook_action,
                                                       finished_key=finished_key,
-                                                      response_type=response_type,
+                                                      ruleset_type=ruleset_type,
                                                       operand=operand,
                                                       x=x, y=y)
 
@@ -2258,20 +2262,26 @@ class Flow(TembaModel, SmartModel):
                 if not destination in existing_rulesets and not destination in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
+
+            entry = json_dict.get('entry', None)
+
+            # check if we are pointing to a destination that is no longer valid
+            if entry not in existing_rulesets and entry not in existing_actionsets:
+                entry = None
+
             if not entry and top_uuid:
                 entry = top_uuid
 
             # set our entry
-            if entry:
-                if entry in existing_actionsets:
-                    self.entry_uuid = entry
-                    self.entry_type = Flow.ACTIONS_ENTRY
-                elif entry in existing_rulesets:
-                    self.entry_uuid = entry
-                    self.entry_type = Flow.RULES_ENTRY
-                else:
-                    self.entry_uuid = None
-                    self.entry_type = None
+            if entry in existing_actionsets:
+                self.entry_uuid = entry
+                self.entry_type = Flow.ACTIONS_ENTRY
+            elif entry in existing_rulesets:
+                self.entry_uuid = entry
+                self.entry_type = Flow.RULES_ENTRY
+            else:
+                self.entry_uuid = None
+                self.entry_type = None
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
@@ -2284,6 +2294,7 @@ class Flow(TembaModel, SmartModel):
             if user:
                 self.saved_by = user
             self.saved_on = timezone.now()
+            self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
             # clear property cache
@@ -2297,7 +2308,10 @@ class Flow(TembaModel, SmartModel):
             self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
 
             # create a new version
-            self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)
+            self.versions.create(definition=json.dumps(json_dict),
+                                 created_by=user,
+                                 modified_by=user,
+                                 version_number=CURRENT_EXPORT_VERSION)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
 
@@ -2317,6 +2331,27 @@ class Flow(TembaModel, SmartModel):
 
 
 class RuleSet(models.Model):
+
+    TYPE_WAIT_MESSAGE = 'wait_message'
+    TYPE_WAIT_RECORDING = 'wait_recording'
+    TYPE_WAIT_DIGIT = 'wait_digit'
+    TYPE_WAIT_DIGITS = 'wait_digits'
+    TYPE_WEBHOOK = 'webhook'
+    TYPE_FLOW_FIELD = 'flow_field'
+    TYPE_CONTACT_FIELD = 'contact_field'
+    TYPE_EXPRESSION = 'expression'
+
+    TYPE_WAIT = [ TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS ]
+
+    TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
+                    (TYPE_WAIT_RECORDING, "Wait for recording"),
+                    (TYPE_WAIT_DIGIT, "Wait for digit"),
+                    (TYPE_WAIT_DIGITS, "Wait for digits"),
+                    (TYPE_WEBHOOK, "Webhook"),
+                    (TYPE_FLOW_FIELD, "Split on flow field"),
+                    (TYPE_CONTACT_FIELD, "Split on contact field"),
+                    (TYPE_EXPRESSION, "Split by expression"))
+
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='rule_sets')
 
@@ -2339,8 +2374,10 @@ class RuleSet(models.Model):
     value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
                                   help_text="The type of value this ruleset saves")
 
-    response_type = models.CharField(max_length=1, choices=RESPONSE_TYPE_CHOICES, default=OPEN,
-                                     help_text="The type of response that is being saved")
+    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
+                                    help_text="The type of ruleset")
+
+    response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -2429,25 +2466,16 @@ class RuleSet(models.Model):
     def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
-        if self.response_type == RECORDING:
+        if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
             return voice_response
-        elif self.response_type == KEYPAD:
+        elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
         else:
             # otherwise we assume it's single digit entry
             return voice_response.gather(numDigits=1, timeout=60, action=action)
 
-    def is_pause(self, force_execute_webhook=False):
-        if self.webhook_url and not force_execute_webhook:
-            return True
-
-        if self.response_type in (RECORDING, MENU):
-            return True
-
-        if self.requires_step():
-            return True
-
-        return False
+    def is_pause(self):
+        return self.ruleset_type in RuleSet.TYPE_WAIT
 
     def requires_step(self):
         """
@@ -2469,36 +2497,40 @@ class RuleSet(models.Model):
 
         context = run.flow.build_message_context(run.contact, msg)
 
-        if self.webhook_url:
+        if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
             from temba.api.models import WebHookEvent
             (value, missing) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                         org=run.flow.org, url_encode=True)
-            WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                            run.contact, msg, self.webhook_action)
+            result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
+                                                     run.contact, msg, self.webhook_action)
 
             # rebuild our context again, the webhook may have populated something
             context = run.flow.build_message_context(run.contact, msg)
 
-        # if we have a custom operand, figure that out
-        text = None
-        if self.operand:
-            (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
-        elif msg:
-            text = msg.text
+            # return the webhook result body as the value
+            return self.get_rules()[0], result.body
 
-        try:
-            rules = self.get_rules()
-            for rule in rules:
-                (result, value) = rule.matches(run, msg, context, text)
-                if result > 0:
-                    # treat category as the base category
-                    rule.category = run.flow.get_base_text(rule.category)
-                    return rule, value
-        finally:
-            if msg:
-                msg.text = orig_text
+        else:
+            # if we have a custom operand, figure that out
+            text = None
+            if self.operand:
+                (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
+            elif msg:
+                text = msg.text
 
-        return None, None
+            try:
+                rules = self.get_rules()
+                for rule in rules:
+                    (result, value) = rule.matches(run, msg, context, text)
+                    if result > 0:
+                        # treat category as the base category
+                        rule.category = run.flow.get_base_text(rule.category)
+                        return rule, value
+            finally:
+                if msg:
+                    msg.text = orig_text
+
+            return None, None
 
     def save_run_value(self, run, rule, value, recording=False):
         value = unicode(value)[:640]
@@ -2550,7 +2582,7 @@ class RuleSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
-                    finished_key=self.finished_key, response_type=self.response_type,
+                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand)
 
     def __unicode__(self):
@@ -2655,10 +2687,188 @@ class FlowVersion(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='versions')
     definition = models.TextField(help_text=_("The JSON flow definition"))
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
-    def as_json(self):
-        return dict(user=dict(email=self.created_by.username, name=self.created_by.get_full_name()), created_on=datetime_to_str(self.created_on), definition=json.loads(self.definition))
+    @classmethod
+    def migrate_definition(cls, json_flow, version):
 
+        def remove_extra_rules(ruleset):
+            """ Remove all rules but the all responses rule """
+            rules = []
+            old_rules = ruleset.get('rules')
+            for rule in old_rules:
+                if rule['test']['type'] == 'true':
+                    if 'base_language' in json_flow:
+                        rule['category'][json_flow['base_language']] = 'All Responses'
+                    else:
+                        rule['category'] = 'All Responses'
+                    rules.append(rule)
+
+            ruleset['rules'] = rules
+
+        def insert_node(flow, node, _next):
+            """ Inserts a node right before _next """
+
+            def update_destination(node_to_update, uuid):
+                if node_to_update.get('actions', []):
+                    node_to_update['destination'] = uuid
+                else:
+                    for rule in node_to_update.get('rules',[]):
+                        rule['destination'] = uuid
+
+            # make sure we have a fresh uuid
+            node['uuid'] = _next['uuid']
+            _next['uuid'] = unicode(uuid4())
+            update_destination(node, _next['uuid'])
+
+            # bump everybody down
+            for actionset in flow.get('action_sets'):
+                if actionset.get('y') >= node.get('y'):
+                    actionset['y'] += 100
+
+            for ruleset in flow.get('rule_sets'):
+                if ruleset.get('y') >= node.get('y'):
+                    ruleset['y'] += 100
+
+            # we are an actionset
+            if node.get('actions', []):
+                node.destination = _next.uuid
+                flow['action_sets'].append(node)
+
+            # otherwise point all rules to the same place
+            else:
+                for rule in node.get('rules', []):
+                    rule['destination'] = _next['uuid']
+                flow['rule_sets'].append(node)
+
+        while (version != CURRENT_EXPORT_VERSION):
+
+            # Move from version 4 to version 5
+            if version == 4:
+
+                def requires_step(operand):
+
+                    if not operand:
+                        operand = '@step.value'
+
+                    # remove any padding
+                    operand = operand.strip()
+
+                    # if we start with =( then we are an expression
+                    is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
+                    if '@step' in operand or (is_expression and 'step' in operand):
+                        return True
+                    return False
+
+                for ruleset in json_flow.get('rule_sets'):
+
+                    response_type = ruleset.pop('response_type', None)
+                    ruleset_type = ruleset.get('ruleset_type', None)
+                    label = ruleset.get('label')
+
+                    # remove config from any rules, these are turds
+                    for rule in ruleset.get('rules'):
+                        if 'config' in rule:
+                            del rule['config']
+
+                    if response_type and not ruleset_type:
+
+                        # webhooks now live in their own ruleset, insert one
+                        webhook_url = ruleset.pop('webhook', None)
+                        webhook_action = ruleset.pop('webhook_action', None)
+
+                        has_old_webhook = webhook_url and ruleset_type != RuleSet.TYPE_WEBHOOK
+
+                        # determine our type from our operand
+                        operand = ruleset.get('operand')
+                        if not operand:
+                            operand = '@step.value'
+
+                        operand = operand.strip()
+
+                        # all previous ruleset that require step should be wait_message
+                        if requires_step(operand):
+                            # if we have an empty operand, go ahead and update it
+                            if not operand:
+                                ruleset['operand'] = '@step.value'
+
+                            if response_type == 'K':
+                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGITS
+                            elif response_type == 'M':
+                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGIT
+                            elif response_type == 'R':
+                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_RECORDING
+                            else:
+
+                                if operand == '@step.value':
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                else:
+
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+
+                                    # if it's not a plain split, make us wait and create
+                                    # an expression split node to handle our response
+                                    pausing_ruleset = copy.deepcopy(ruleset)
+                                    pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                    pausing_ruleset['operand'] = '@step.value'
+                                    pausing_ruleset['label'] = label + ' Response'
+                                    remove_extra_rules(pausing_ruleset)
+                                    insert_node(json_flow, pausing_ruleset, ruleset)
+
+                        else:
+                            # if there's no reference to step, figure out our type
+                            ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+                            # special case contact and flow fields
+                            if ' ' not in operand and '|' not in operand:
+                                if operand == '@contact.groups':
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+                                elif operand.find('@contact.') == 0:
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_CONTACT_FIELD
+                                elif operand.find('@flow.') == 0:
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_FLOW_FIELD
+
+                            # we used to stop at webhooks, now we need a new node
+                            # to make sure processing stops at this step now
+                            if has_old_webhook:
+                                pausing_ruleset = copy.deepcopy(ruleset)
+                                pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                pausing_ruleset['operand'] = '@step.value'
+                                pausing_ruleset['label'] = label + ' Response'
+                                remove_extra_rules(pausing_ruleset)
+                                insert_node(json_flow, pausing_ruleset, ruleset)
+
+                        # finally insert our webhook node if necessary
+                        if has_old_webhook:
+                            webhook_ruleset = copy.deepcopy(ruleset)
+                            webhook_ruleset['webhook'] = webhook_url
+                            webhook_ruleset['webhook_action'] = webhook_action
+                            webhook_ruleset['operand'] = '@step.value'
+                            webhook_ruleset['ruleset_type'] = RuleSet.TYPE_WEBHOOK
+                            webhook_ruleset['label'] = label + ' Webhook'
+                            remove_extra_rules(webhook_ruleset)
+                            insert_node(json_flow, webhook_ruleset, ruleset)
+
+            # look for our next version
+            version +=1
+
+        return json_flow
+
+    def get_definition_json(self):
+
+        definition = json.loads(self.definition)
+
+        # migrate our definition if necessary
+        if self.version_number < CURRENT_EXPORT_VERSION:
+            definition = FlowVersion.migrate_definition(definition, self.version_number)
+
+        return definition
+
+    def as_json(self, include_definition=False):
+        return dict(user=dict(email=self.created_by.username,
+                    name=self.created_by.get_full_name()),
+                    created_on=datetime_to_str(self.created_on),
+                    id=self.pk,
+                    version_number=self.version_number)
 
 class FlowRun(models.Model):
     flow = models.ForeignKey(Flow, related_name='runs')

@@ -13,13 +13,7 @@ install:
 - pip install --upgrade pip
 - pip install -r pip-freeze.txt --upgrade
 - pip install coveralls
-- npm install less
-- npm install coffee-script
-- npm install karma
-- npm install karma-jasmine
-- npm install karma-coverage@0.2.7
-- npm install karma-phantomjs-launcher
-- npm install karma-coffee-preprocessor
+- npm install
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
 - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"

@@ -5,16 +5,6 @@ from django.db import models, migrations, connection
 
 class Migration(migrations.Migration):
 
-    def calculate_counts(apps, schema_editor):
-        """
-        Iterate across all our channels, calculate how many errors and non-errors they have
-        """
-        Channel = apps.get_model('channels', 'Channel')
-        for channel in Channel.objects.all():
-            channel.success_log_count = channel.logs.filter(is_error=False).count()
-            channel.error_log_count = channel.logs.filter(is_error=True).count()
-            channel.save()
-
     def install_channellog_trigger(apps, schema_editor):
         """
         Installs a Postgres trigger that will increment or decrement our our success and error
@@ -85,9 +75,6 @@ class Migration(migrations.Migration):
             name='channel',
             field=models.ForeignKey(related_name='logs', to='channels.Channel', help_text='The channel the message was sent on'),
             preserve_default=True,
-        ),
-        migrations.RunPython(
-            calculate_counts,
         ),
         migrations.RunPython(
             install_channellog_trigger,

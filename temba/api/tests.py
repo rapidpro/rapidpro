@@ -301,6 +301,7 @@ class APITest(TembaTest):
                                                            rulesets=[dict(node=flow_ruleset1.uuid,
                                                                           id=flow_ruleset1.pk,
                                                                           response_type='C',
+                                                                          ruleset_type='wait_message',
                                                                           label='color')],
                                                            participants=0,
                                                            created_on=datetime_to_json_date(flow.created_on),
@@ -384,17 +385,17 @@ class APITest(TembaTest):
         self.assertEqual(response.json['name'], "Empty")
 
         # load flow definition from test data
-        handle = open('%s/test_flows/pick_a_number.json' % settings.MEDIA_ROOT, 'r+')
-        definition = json.loads(handle.read())
-        handle.close()
+        flow = self.get_flow('pick_a_number')
+        definition = flow.as_json()
+        flow.delete()
 
         # and create flow with a definition
-        response = self.postJSON(url, dict(name="Pick a number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(name="Pick a Number", flow_type='F', definition=definition))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a number")
+        self.assertEqual(response.json['name'], "Pick a Number")
 
         # make sure our flow is there as expected
-        flow = Flow.objects.get(name='Pick a number')
+        flow = Flow.objects.get(name='Pick a Number')
         self.assertEqual(flow.flow_type, 'F')
         self.assertEqual(flow.action_sets.count(), 2)
         self.assertEqual(flow.rule_sets.count(), 2)
@@ -405,13 +406,14 @@ class APITest(TembaTest):
         flow.save()
 
         # updating should overwrite local change
-        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='F', definition=definition))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a number")
+        self.assertEqual(response.json['name'], "Pick a Number")
 
         # make sure our flow is there as expected
-        flow = Flow.objects.get(name='Pick a number')
+        flow = Flow.objects.get(name='Pick a Number')
         self.assertEqual(flow.flow_type, 'F')
+
 
     def test_flow_results(self):
         url = reverse('api.results')
@@ -2122,6 +2124,23 @@ class AfricasTalkingTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('msg1', msg.external_id)
 
+                # check that our from was set
+                self.assertEquals(self.channel.address, mock.call_args[1]['data']['from'])
+
+                self.clear_cache()
+
+            # test with a non-dedicated shortcode
+            self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key', is_shared=True))
+            self.channel.save()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # assert we didn't send the short code in our data
+                self.assertTrue('from' not in mock.call_args[1]['data'])
                 self.clear_cache()
 
             with patch('requests.post') as mock:
@@ -2137,7 +2156,6 @@ class AfricasTalkingTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
-
 
 class ExternalTest(TembaTest):
 
@@ -3480,8 +3498,8 @@ class TwilioTest(TembaTest):
 
             # the counts on our relayer should be correct as well
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.error_log_count)
-            self.assertEquals(1, self.channel.success_log_count)
+            self.assertEquals(1, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
             response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
@@ -3495,8 +3513,8 @@ class TwilioTest(TembaTest):
             # our counts should be right
             # the counts on our relayer should be correct as well
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.error_log_count)
-            self.assertEquals(1, self.channel.success_log_count)
+            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_success_log_count())
 
         finally:
             settings.SEND_MESSAGES = False
