@@ -707,7 +707,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Outbox, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['label']
+            context['actions'] = []
             return context
 
     class Sent(MsgActionMixin, MsgListView):
@@ -721,7 +721,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['label']
+            context['actions'] = []
             return context
 
     class Failed(MsgActionMixin, MsgListView):
@@ -935,3 +935,8 @@ class CallCRUDL(SmartCRUDL):
 
         def get_contact(self, obj):
             return obj.contact.get_display(self.org)
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(CallCRUDL.List, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
+            return context
