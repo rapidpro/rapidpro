@@ -16,8 +16,7 @@
     "Caret.js": "~0.2.2"
   },
   "devDependencies": {
-    "jasmine-jquery": "~2.0.2",
-    "jasmine": "~2.3.4"
+    "jasmine-jquery": "~2.0.2"
   },
   "keywords": [
     "mention",

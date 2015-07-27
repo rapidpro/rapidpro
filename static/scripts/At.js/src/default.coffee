@@ -1,8 +1,6 @@
 KEY_CODE =
   DOWN: 40
-  RIGHT: 39
   UP: 38
-  LEFT: 37
   ESC: 27
   TAB: 9
   ENTER: 13

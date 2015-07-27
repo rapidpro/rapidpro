@@ -83,6 +83,8 @@ class App
         if c = this.controller()
           c.expectedQueryCBId = null
           c.view.hide(e,c.getOpt("displayTimeout"))
+      .on 'click.atwhoInner', (e) =>
+        this.dispatch e
       .on 'scroll.atwhoInner', do =>
         # make returned handler handle the very first call properly
         lastScrollTop = @$inputor.scrollTop()
@@ -104,15 +106,12 @@ class App
     c.lookUp(e) for _, c of @controllers
 
   onKeyup: (e) ->
-    view = this.controller()?.view
     switch e.keyCode
       when KEY_CODE.ESC
         e.preventDefault()
-        view.hide()
+        this.controller()?.view.hide()
       when KEY_CODE.DOWN, KEY_CODE.UP, KEY_CODE.CTRL
-        $.noop
-      when KEY_CODE.LEFT, KEY_CODE.RIGHT
-        this.dispatch e if view.visible()
+        $.noop()
       when KEY_CODE.P, KEY_CODE.N
         this.dispatch e if not e.ctrlKey
       else

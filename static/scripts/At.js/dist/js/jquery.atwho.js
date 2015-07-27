@@ -134,6 +134,10 @@ App = (function() {
           return c.view.hide(e, c.getOpt("displayTimeout"));
         }
       };
+    })(this)).on('click.atwhoInner', (function(_this) {
+      return function(e) {
+        return _this.dispatch(e);
+      };
     })(this)).on('scroll.atwhoInner', (function(_this) {
       return function() {
         var lastScrollTop;
@@ -177,23 +181,18 @@ App = (function() {
   };
 
   App.prototype.onKeyup = function(e) {
-    var ref, view;
-    view = (ref = this.controller()) != null ? ref.view : void 0;
+    var ref;
     switch (e.keyCode) {
       case KEY_CODE.ESC:
         e.preventDefault();
-        view.hide();
+        if ((ref = this.controller()) != null) {
+          ref.view.hide();
+        }
         break;
       case KEY_CODE.DOWN:
       case KEY_CODE.UP:
       case KEY_CODE.CTRL:
-        $.noop;
-        break;
-      case KEY_CODE.LEFT:
-      case KEY_CODE.RIGHT:
-        if (view.visible()) {
-          this.dispatch(e);
-        }
+        $.noop();
         break;
       case KEY_CODE.P:
       case KEY_CODE.N:
@@ -945,9 +944,7 @@ View = (function() {
 
 KEY_CODE = {
   DOWN: 40,
-  RIGHT: 39,
   UP: 38,
-  LEFT: 37,
   ESC: 27,
   TAB: 9,
   ENTER: 13,

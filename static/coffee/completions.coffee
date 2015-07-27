@@ -1,3 +1,6 @@
+KEY_LEFT = 37
+KEY_RIGHT = 39
+
 window.matcher = (flag, subtext) ->
   regexp = new RegExp("(?:^|\\s)@([()A-Za-z_\.\+]*(?:[ ]*[+][ ]*[()A-Za-z_,\.\+]*|,[ ]*[()A-Za-z_,\.\+]*|$)*)$", "gi")
   match = regexp.exec(subtext)
@@ -174,3 +177,66 @@ window.tplval = (tpl, map, action) ->
     template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
   catch error
     ""
+
+
+@initAtMessageText = (selector, completions=null) ->
+  variables = window.message_completions unless completions
+  functions = window.functions_completions
+  variables_and_functions = variables.concat(functions);
+
+  callbacks =
+    beforeInsert: beforeInsert
+    matcher: matcher
+    filter: filter
+    sorter: sorter
+    highlighter: highlighter
+    tplEval: tplval
+
+  at_config =
+    at: "@"
+    insertBackPos: 1
+    data: variables
+    searchKey: "name"
+    insertTpl: '@${name}'
+    startWithSpace: true
+    displayTpl: "<li>${name} <small>${display}</small></li>"
+    limit: 15
+    maxLen: 100
+    suffix: ""
+    callbacks: callbacks
+
+  $inputor = $(selector).atwho(at_config)
+  $inputor.focus().atwho('run')
+
+  $inputor.on 'inserted.atwho', (atEvent, li, browserEvent) ->
+    content = $inputor.val()
+    caretPos = $inputor.caret 'pos'
+    subtext = content.slice 0, caretPos
+    if subtext.match(/\(\)$/) isnt null
+      $inputor.caret 'pos', subtext.length - 1
+
+  $inputor.on 'click.atwhoInner', (e) ->
+    $inputor.noop()
+
+  $inputor.on 'keyup.atwhoInner', (e) ->
+    app = $inputor.data('atwho').setContextFor('@')
+    view = app.controller()?.view
+
+    switch e.keyCode
+      when KEY_LEFT, KEY_RIGHT
+        app.dispatch e if view.visible()
+        return
+      else
+        app.onKeyUp e
+
+    content = $inputor.val()
+    caretPos = $inputor.caret 'pos'
+    subtext = content.slice 0, caretPos
+    if subtext.slice(-2) is '@('
+      text = subtext + ')' + content.slice(caretPos + 1)
+      $inputor.val(text)
+
+    $inputor.caret 'pos', caretPos
+    unless $inputor.is(':focus')
+      $inputor.focus()
+    $inputor.change();
