@@ -678,23 +678,24 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             contact_variables = [
-                dict(name='new_contact', display=unicode(_('New Contact'))),
                 dict(name='contact', display=unicode(_('Contact Name'))),
-                dict(name='contact.name', display=unicode(_('Contact Name'))),
                 dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
+                dict(name='contact.groups', display=unicode(_('Contact Groups'))),
+                dict(name='contact.language', display=unicode(_('Contact Language'))),
+                dict(name='contact.name', display=unicode(_('Contact Name'))),
                 dict(name='contact.tel', display=unicode(_('Contact Phone'))),
                 dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
                 dict(name='contact.uuid', display=unicode(_("Contact UUID"))),
-                dict(name='contact.groups', display=unicode(_('Contact Groups'))),
+                dict(name='new_contact', display=unicode(_('New Contact')))
             ]
             contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
                 dict(name='date', display=unicode(_('Current Date and Time'))),
                 dict(name='date.now', display=unicode(_('Current Date and Time'))),
-                dict(name='date.yesterday', display=unicode(_("Yesterday's Date"))),
                 dict(name='date.today', display=unicode(_('Current Date'))),
-                dict(name='date.tomorrow', display=unicode(_("Tomorrow's Date")))
+                dict(name='date.tomorrow', display=unicode(_("Tomorrow's Date"))),
+                dict(name='date.yesterday', display=unicode(_("Yesterday's Date")))
             ]
 
             flow_variables = [

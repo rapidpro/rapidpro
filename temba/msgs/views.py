@@ -37,18 +37,19 @@ def send_message_auto_complete_processor(request):
             completions.append(dict(name="contact.%s" % str(field.key), display=unicode(_("Contact Field: %(label)s")) % {'label':field.label}))
 
         completions.insert(0, dict(name='contact', display=unicode(_("Contact Name"))))
-        completions.insert(1, dict(name='contact.name', display=unicode(_("Contact Name"))))
-        completions.insert(2, dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
-        completions.insert(3, dict(name='contact.tel', display=unicode(_("Contact Phone"))))
-        completions.insert(4, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
-        completions.insert(5, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
-        completions.insert(6, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
+        completions.insert(1, dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
+        completions.insert(2, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
+        completions.insert(3, dict(name='contact.language', display=unicode(_("Contact Language"))))
+        completions.insert(4, dict(name='contact.name', display=unicode(_("Contact Name"))))
+        completions.insert(5, dict(name='contact.tel', display=unicode(_("Contact Phone"))))
+        completions.insert(6, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
+        completions.insert(7, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
 
-        completions.insert(7, dict(name="date", display=unicode(_("Current Date and Time"))))
-        completions.insert(8, dict(name="date.now", display=unicode(_("Current Date and Time"))))
-        completions.insert(9, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
+        completions.insert(8, dict(name="date", display=unicode(_("Current Date and Time"))))
+        completions.insert(9, dict(name="date.now", display=unicode(_("Current Date and Time"))))
         completions.insert(10, dict(name="date.today", display=unicode(_("Current Date"))))
         completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
+        completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
     return dict(completions=json.dumps(completions))
 

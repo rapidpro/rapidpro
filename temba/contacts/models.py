@@ -24,7 +24,7 @@ from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETI
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name']
+RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name', 'language']
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
@@ -920,6 +920,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+        contact_dict['language'] = self.language
 
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
