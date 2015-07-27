@@ -448,7 +448,7 @@ app.directive "selectStatic", ['$timeout', ($timeout) ->
 #============================================================================
 # Directive for an omnibox
 #============================================================================
-app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
+app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 
   omniRemap = (element, callback) ->
     callback()
@@ -605,7 +605,7 @@ app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
 
     # pull our completions out of the scope if we're told to use them
     if options.completions
-      options.completions = scope.$root.completions
+      options.completions = Flow.completions
 
     data = []
     if scope.groups
