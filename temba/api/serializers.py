@@ -194,8 +194,11 @@ class MsgBulkActionSerializer(WriteSerializer):
     label_uuid = serializers.CharField(required=False)
 
     def validate(self, attrs):
-        if attrs['action'] in ('label', 'unlabel') and not ('label' in attrs or 'label_uuid' in attrs):
-            raise ValidationError("For action %s you must also specify label or label_uuid" % attrs['action'])
+        label_provided = attrs.get('label', None) or attrs.get('label_uuid', None)
+        if attrs['action'] in ('label', 'unlabel') and not label_provided:
+            raise ValidationError("For action %s you should also specify label or label_uuid" % attrs['action'])
+        elif attrs['action'] in ('archive', 'unarchive', 'delete') and label_provided:
+            raise ValidationError("For action %s you should not specify label or label_uuid" % attrs['action'])
         return attrs
 
     def validate_action(self, attrs, source):

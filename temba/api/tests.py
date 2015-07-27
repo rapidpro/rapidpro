@@ -1555,6 +1555,12 @@ class APITest(TembaTest):
         self.assertEquals(204, response.status_code)
         self.assertEqual(set(label.get_messages()), set())
 
+        # try to label without specifying a label
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label'))
+        self.assertResponseError(response, 'non_field_errors', "For action label you should also specify label or label_uuid")
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label=''))
+        self.assertResponseError(response, 'non_field_errors', "For action label you should also specify label or label_uuid")
+
         # archive all messages
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))
         self.assertEquals(204, response.status_code)
@@ -1578,6 +1584,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(messages=[msg2.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
         self.assertEqual(set(Msg.objects.filter(visibility=DELETED)), {msg2})
+
+        # try to provide a label for a non-labelling action
+        response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='archive', label='Test2'))
+        self.assertResponseError(response, 'non_field_errors', "For action archive you should not specify label or label_uuid")
 
     def test_api_labels(self):
         url = reverse('api.labels')
