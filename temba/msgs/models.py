@@ -1501,7 +1501,7 @@ class Label(TembaModel, SmartModel):
                                                 help_text=_("Number of non-archived messages with this label"))
 
     # define some custom managers to do the filtering of label types for us
-    objects = models.Manager()
+    all_objects = models.Manager()
     folder_objects = UserFolderManager()
     label_objects = UserLabelManager()
 

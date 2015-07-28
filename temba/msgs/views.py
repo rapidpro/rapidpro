@@ -327,7 +327,7 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'objects'
+    LABEL_CLASS_MANAGER = 'all_objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
