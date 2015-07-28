@@ -154,6 +154,9 @@ window.beforeInsert = (value, item) ->
 
   value
 
+window.highlighter = (li, query) ->
+  li
+
 window.tplval = (tpl, map, action) ->
 
   template = tpl;
@@ -178,11 +181,16 @@ window.tplval = (tpl, map, action) ->
   catch error
     ""
 
+window.functions_completions = [
+      {"display": "Display Returns the sum of all arguments", "description": "Description: Returns the sum of all arguments", "name": "SUM", "hint": "Hint: Returns the sum of all arguments", "example": "SUM(args)", "arguments": [{"name": "args", "hint": "Hint for :-:args:-: arg"}]}
+      {"display": "Display: Defines a time value", "description": "Description: Defines a time value", "name": "TIME", "hint": "Hint: Defines a time value", "example": "TIME(hours, minutes, seconds)","arguments": [{"name": "hours", "hint": "Hint for :-:hours:-: arg"}, {"name": "minutes","hint": "Hint for :-:minutes:-: arg"}]}
+    ]
+
 
 @initAtMessageText = (selector, completions=null) ->
-  variables = window.message_completions unless completions
-  functions = window.functions_completions
-  variables_and_functions = variables.concat(functions);
+  window.variables = window.message_completions unless completions
+  window.functions = window.functions_completions
+  window.variables_and_functions = variables.concat(functions);
 
   callbacks =
     beforeInsert: beforeInsert
@@ -215,10 +223,10 @@ window.tplval = (tpl, map, action) ->
     if subtext.match(/\(\)$/) isnt null
       $inputor.caret 'pos', subtext.length - 1
 
-  $inputor.on 'click.atwhoInner', (e) ->
-    $inputor.noop()
+  $inputor.off('click.atwhoInner').on 'click.atwhoInner', (e) ->
+    $.noop()
 
-  $inputor.on 'keyup.atwhoInner', (e) ->
+  $inputor.off('keyup.atwhoInner').on 'keyup.atwhoInner', (e) ->
     app = $inputor.data('atwho').setContextFor('@')
     view = app.controller()?.view
 
@@ -227,7 +235,7 @@ window.tplval = (tpl, map, action) ->
         app.dispatch e if view.visible()
         return
       else
-        app.onKeyUp e
+        app.onKeyup e
 
     content = $inputor.val()
     caretPos = $inputor.caret 'pos'
@@ -237,6 +245,3 @@ window.tplval = (tpl, map, action) ->
       $inputor.val(text)
 
     $inputor.caret 'pos', caretPos
-    unless $inputor.is(':focus')
-      $inputor.focus()
-    $inputor.change();
