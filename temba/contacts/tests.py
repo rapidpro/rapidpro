@@ -1614,18 +1614,11 @@ class ContactTest(TembaTest):
         lagos = AdminBoundary.objects.create(osm_id='R002', name='Lagos', level=1, parent=nigeria)
         sulurele = AdminBoundary.objects.create(osm_id='R003', name='Surulere', level=2, parent=lagos)
 
-        state_value = Value.objects.create(contact_field=state_field, org=self.org, contact=self.joe,
-                                           location_value=lagos)
-        district_value = Value.objects.create(contact_field=district_field, org=self.org, contact=self.joe,
-                                              location_value=sulurele)
-
         with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
             mock_parse_location.side_effect = [lagos, sulurele]
 
             self.joe.set_field('state', 'Lagos')
             mock_parse_location.assert_called_once_with('Lagos', 1)
-
-            mock_parse_location.return_value = district_value
 
             self.joe.set_field('district', 'Surulere')
             mock_parse_location.assert_called_with('Surulere', 2, lagos)
