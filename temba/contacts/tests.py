@@ -622,7 +622,15 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
+        state_field = ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
 
+        africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
+        rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
+        gatsibo = AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
+        kayonza = AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
+        kigali = AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
+
+        locations_boundaries = [gatsibo, kayonza, kigali]
         locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
         date_format = get_datetime_format(True)[0]
@@ -636,8 +644,13 @@ class ContactTest(TembaTest):
 
             # some field data so we can do some querying
             contact.set_field('age', '%s' % i)
-            contact.set_field('home', locations[(i + 2) % len(locations)])
-            contact.set_field('join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i), date_format))
+            contact.set_field('join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i),
+                                                                  date_format))
+            contact.set_field('state', "Rwanda")
+            index = (i + 2) % len(locations)
+            with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
+                mock_parse_location.return_value = locations_boundaries[index]
+                contact.set_field('home', locations[index])
 
         q = lambda query: Contact.search(self.org, query)[0].count()
 
