@@ -1284,17 +1284,17 @@ class LabelTest(TembaTest):
 
         folder1.delete()
 
-        self.assertFalse(Label.objects.filter(pk=folder1.pk).exists())
+        self.assertFalse(Label.all_objects.filter(pk=folder1.pk).exists())
 
         # check that contained labels are also deleted
-        self.assertEqual(Label.objects.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
+        self.assertEqual(Label.all_objects.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
         self.assertEqual(set(Msg.objects.get(pk=msg1.pk).labels.all()), set())
         self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
 
         label3.delete()
 
-        self.assertFalse(Label.objects.filter(pk=label3.pk).exists())
+        self.assertFalse(Label.all_objects.filter(pk=label3.pk).exists())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
 
 

@@ -1540,10 +1540,10 @@ class Label(TembaModel, SmartModel):
         """
         Gets top-level user labels and folders, with children pre-fetched and ordered by name
         """
-        qs = Label.objects.filter(org=org).order_by('name')
+        qs = Label.all_objects.filter(org=org).order_by('name')
         qs = qs.filter(Q(label_type=cls.TYPE_LABEL, folder=None) | Q(label_type=cls.TYPE_FOLDER))
 
-        children_prefetch = Prefetch('children', queryset=Label.objects.order_by('name'))
+        children_prefetch = Prefetch('children', queryset=Label.all_objects.order_by('name'))
 
         return qs.select_related('folder').prefetch_related(children_prefetch)
 
