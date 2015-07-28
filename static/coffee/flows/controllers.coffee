@@ -1380,6 +1380,15 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
+  # Saving the remove all groups action
+  $scope.delGroups = (actionType, groups) ->
+
+    $scope.action.type = actionType
+    $scope.action.groups = groups
+
+    Flow.saveAction(actionset, $scope.action)
+    $modalInstance.close()
+
   # Save the updating of a contact
   $scope.saveUpdateContact = (field, value) ->
 

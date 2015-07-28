@@ -387,6 +387,7 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user'}
     { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true }
     { type:'del_group', name:'Remove from Groups', verbose_name:'Remove contact from a group', icon: 'icon-users-2', groups:true }
+    { type:'del_groups', name:'Remove from All Groups', verbose_name:'Remove contact from all groups', icon: 'icon-users-2', groups:true }
     { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload' }
     { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3' }
     { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language'}
