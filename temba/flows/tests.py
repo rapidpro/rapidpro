@@ -31,7 +31,7 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, DeleteFromAllGroupsAction
 
 
 class RuleTest(TembaTest):
@@ -1248,7 +1248,7 @@ class RuleTest(TembaTest):
         self.assertTrue(group.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, group.contacts.all().count())
 
-        # we should have acreated a group with the name of the contact
+        # we should have created a group with the name of the contact
         replace_group = ContactGroup.user_groups.get(name=self.contact.name)
         self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, replace_group.contacts.all().count())
@@ -1275,6 +1275,41 @@ class RuleTest(TembaTest):
 
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
         self.assertEquals(0, group.contacts.all().count())
+
+        group1 = self.create_group("Flow Group 1", [])
+        group2 = self.create_group("Flow Group 2", [])
+
+        test = AddToGroupAction([group1, "@step.contact"])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        test = AddToGroupAction([group2, "@step.contact"])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        # user should be in both groups now
+        self.assertTrue(group1.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group1.contacts.all().count())
+        self.assertTrue(group2.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group2.contacts.all().count())
+
+        test = DeleteFromAllGroupsAction(["@step.contact"])
+        action_json = test.as_json()
+        test = DeleteFromAllGroupsAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        # user should be gone from both groups now
+        self.assertFalse(group1.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group1.contacts.all().count())
+        self.assertFalse(group2.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group2.contacts.all().count())
+
+
 
     def test_add_label_action(self):
         flow = self.flow
