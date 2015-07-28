@@ -283,6 +283,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             str_value = unicode(value)
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
+
             if field.value_type == DISTRICT:
                 state_field = ContactField.get_state_type_field(self.org)
                 state_value = self.get_field(state_field.key)

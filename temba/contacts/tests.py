@@ -25,7 +25,7 @@ from temba.msgs.models import Msg, Call, Label
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE, DATETIME
+from temba.values.models import STATE, DATETIME, DISTRICT, Value
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1605,6 +1605,30 @@ class ContactTest(TembaTest):
         self.joe.set_field('1234-1234', 'Joe', label="First Name")
         self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
         ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
+
+    def test_set_location_fields(self):
+        state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
+        district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
+
+        nigeria = AdminBoundary.objects.create(osm_id='R001', name='Nigeria', level=0)
+        lagos = AdminBoundary.objects.create(osm_id='R002', name='Lagos', level=1, parent=nigeria)
+        sulurele = AdminBoundary.objects.create(osm_id='R003', name='Surulere', level=2, parent=lagos)
+
+        state_value = Value.objects.create(contact_field=state_field, org=self.org, contact=self.joe,
+                                           location_value=lagos)
+        district_value = Value.objects.create(contact_field=district_field, org=self.org, contact=self.joe,
+                                              location_value=sulurele)
+
+        with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
+            mock_parse_location.side_effect = [lagos, sulurele]
+
+            self.joe.set_field('state', 'Lagos')
+            mock_parse_location.assert_called_once_with('Lagos', 1)
+
+            mock_parse_location.return_value = district_value
+
+            self.joe.set_field('district', 'Surulere')
+            mock_parse_location.assert_called_with('Surulere', 2, lagos)
 
     def test_message_context(self):
         message_context = self.joe.build_message_context()
