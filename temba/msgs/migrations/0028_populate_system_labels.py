@@ -51,7 +51,7 @@ def populate_system_labels(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0027_create_sent_index'),
+        ('msgs', '0027_create_outgoing_indexes'),
     ]
 
     operations = [
