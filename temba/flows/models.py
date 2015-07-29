@@ -1666,12 +1666,11 @@ class Flow(TembaModel, SmartModel):
                 if start_msg:
                     self.find_and_handle(start_msg, started_flows_by_contact)
 
-                # otherwise, if this ruleset doesn't operate on a step, then evaluate it immediately
-                elif not entry_rules.requires_step():
+                # if we didn't get an incoming message, see if we need to evaluate it passively
+                elif not entry_rules.is_pause():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact,
-                                            force_execute_webhook=True)
+                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
                 step.add_message(start_msg)
@@ -2507,8 +2506,11 @@ class RuleSet(models.Model):
             # rebuild our context again, the webhook may have populated something
             context = run.flow.build_message_context(run.contact, msg)
 
+            rule = self.get_rules()[0]
+            rule.category = run.flow.get_base_text(rule.category)
+
             # return the webhook result body as the value
-            return self.get_rules()[0], result.body
+            return rule, result.body
 
         else:
             # if we have a custom operand, figure that out
