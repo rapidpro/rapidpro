@@ -1622,26 +1622,26 @@ class ContactTest(TembaTest):
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
 
-        nigeria = AdminBoundary.objects.create(osm_id='R001', name='Nigeria', level=0)
-        lagos = AdminBoundary.objects.create(osm_id='R002', name='Lagos', level=1, parent=nigeria)
-        sulurele = AdminBoundary.objects.create(osm_id='R003', name='Surulere', level=2, parent=lagos)
+        kigali = AdminBoundary.objects.get(name="Kigali City")
+        remera = AdminBoundary.objects.create(osm_id='R003', name='Remera', level=2, parent=kigali)
 
-        with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-            mock_parse_location.side_effect = [lagos, sulurele]
+        joe = Contact.objects.get(pk=self.joe.pk)
+        joe.set_field('district', 'Remera')
+        self.assertFalse(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value)
 
-            self.joe.set_field('district', 'Surulere')
-            self.assertFalse(mock_parse_location.called)
+        state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
 
-            state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
+        joe.set_field('state', 'Kigali city')
+        self.assertTrue(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value)
+        self.assertTrue(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value.name,
+                        "Kigali City")
 
-            self.joe.set_field('district', 'Surulere')
-            self.assertFalse(mock_parse_location.called)
-
-            self.joe.set_field('state', 'Lagos')
-            mock_parse_location.assert_called_with('Lagos', 1)
-
-            self.joe.set_field('district', 'Surulere')
-            mock_parse_location.assert_called_with('Surulere', 2, lagos)
+        joe.set_field('district', 'Remera')
+        self.assertTrue(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value)
+        self.assertTrue(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.name,
+                        "Remera")
+        self.assertEquals(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.parent,
+                          kigali)
 
     def test_message_context(self):
         message_context = self.joe.build_message_context()
