@@ -265,6 +265,8 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(ContactEndpoint.get_write_explorer())
         endpoints.append(ContactEndpoint.get_delete_explorer())
 
+        endpoints.append(ContactBulkActionEndpoint.get_write_explorer())
+
         endpoints.append(GroupEndpoint.get_read_explorer())
 
         endpoints.append(FieldEndpoint.get_read_explorer())
@@ -313,19 +315,20 @@ def api(request, format=None):
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 
+     * [/api/v1/boundaries](/api/v1/boundaries) - To retrieve the geometries of the administrative boundaries on your account.
+     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
+     * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
+     * [/api/v1/campaigns](/api/v1/campaigns) - To list or modify campaigns on your account.
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
+     * [/api/v1/contact_actions](/api/v1/contact_actions) - To list or modify contacts.
+     * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
+     * [/api/v1/flows](/api/v1/flows) - To list active flows
+     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/messages](/api/v1/messages) - To list messages.
      * [/api/v1/message_actions](/api/v1/message_actions) - To perform bulk message actions.
-     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
-     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
-     * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
-     * [/api/v1/flows](/api/v1/flows) - To list active flows
      * [/api/v1/runs](/api/v1/runs) - To list or start flow runs for contacts
-     * [/api/v1/campaigns](/api/v1/campaigns) - To list or modify campaigns on your account.
-     * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
-     * [/api/v1/boundaries](/api/v1/boundaries) - To retrieve the geometries of the administrative boundaries on your account.
 
     You may wish to use the [API Explorer](/api/v1/explorer) to interactively experiment with API.
 
@@ -395,6 +398,7 @@ def api(request, format=None):
         'calls': reverse('api.calls', request=request),
         'campaigns': reverse('api.campaigns', request=request),
         'contacts': reverse('api.contacts', request=request),
+        'contact_actions': reverse('api.contact_actions', request=request),
         'events': reverse('api.campaignevents', request=request),
         'fields': reverse('api.contactfields', request=request),
         'flows': reverse('api.flows', request=request),
