@@ -1633,12 +1633,12 @@ class ContactTest(TembaTest):
 
         joe.set_field('state', 'Kigali city')
         self.assertTrue(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value)
-        self.assertTrue(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value.name,
+        self.assertEquals(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value.name,
                         "Kigali City")
 
         joe.set_field('district', 'Remera')
         self.assertTrue(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value)
-        self.assertTrue(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.name,
+        self.assertEquals(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.name,
                         "Remera")
         self.assertEquals(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.parent,
                           kigali)
