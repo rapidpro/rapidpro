@@ -8,6 +8,7 @@ def fix_district_contact_fields_values(apps, schema_editor):
     Value = apps.get_model('values', 'Value')
     ContactField = apps.get_model('contacts', 'ContactField')
 
+    updated = 0
     for district_value in Value.objects.filter(contact_field__value_type='I'):
         org = district_value.org
         contact = district_value.contact
@@ -25,6 +26,14 @@ def fix_district_contact_fields_values(apps, schema_editor):
                         level=2).first()
 
                     if new_district_boundary:
+                        updated += 1
+                        if updated > 0:
+
+                            print "Update %s - %s to %s - %s" % (district_value.location_value.name,
+                                                                 district_value.location_value.parent.name,
+                                                                 new_district_boundary.name,
+                                                                 state_value.location_value.name)
+
                         district_value.location_value = new_district_boundary
                         district_value.save()
 
