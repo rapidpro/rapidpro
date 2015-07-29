@@ -2475,18 +2475,6 @@ class RuleSet(models.Model):
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
-    def requires_step(self):
-        """
-        Returns whether this RuleSet requires a step for the contact, this is either a message or user
-        interaction of somekind. We derive this by looking to see if we have a webhook that uses step
-        or whether any of our rules use @step in them.
-        """
-
-        if not self.operand:
-            return True
-
-        return RuleSet.contains_step(self.operand)
-
     def find_matching_rule(self, step, run, msg):
 
         orig_text = None
