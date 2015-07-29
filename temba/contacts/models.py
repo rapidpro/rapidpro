@@ -1335,7 +1335,9 @@ class UserContactGroupManager(models.Manager):
 
 
 class ContactGroup(TembaModel, SmartModel):
-    name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
+    MAX_NAME_LEN = 64
+
+    name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name for this contact group"))
 
     group_type = models.CharField(max_length=1, choices=GROUP_TYPE_CHOICES, default=USER_DEFINED_GROUP,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
@@ -1369,7 +1371,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()[:64]
+        full_group_name = name.strip()[:cls.MAX_NAME_LEN]
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
@@ -1392,7 +1394,15 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and name[0] not in ('+', '-', '@')
+        # don't allow blanks, initial or trailing whitespace
+        if name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        # first character must be a word char
+        return regex.match('\w', name[0], flags=regex.UNICODE)
 
     def update_contacts(self, contacts, add):
         """

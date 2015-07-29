@@ -16,6 +16,10 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
 
+# Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
+# we may in the future.
+MAX_BULK_ACTION_ITEMS = 100
+
 
 # ------------------------------------------------------------------------------------------
 # Field types
@@ -645,6 +649,12 @@ class ContactBulkActionSerializer(WriteSerializer):
             raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
         return attrs
 
+    def validate_contacts(self, attrs, source):
+        contacts = attrs.get(source, [])
+        if len(contacts) > MAX_BULK_ACTION_ITEMS:
+            raise ValidationError("Maximum of %d contacts allowed" % MAX_BULK_ACTION_ITEMS)
+        return attrs
+
     def validate_action(self, attrs, source):
         if attrs[source] not in ('add', 'remove', 'block', 'unblock', 'delete'):
             raise ValidationError("Invalid action name: %s" % attrs[source])
@@ -653,10 +663,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     def validate_group(self, attrs, source):
         group_name = attrs.get(source, None)
         if group_name:
-            if not ContactGroup.is_valid_name(group_name):
-                raise ValidationError("Group name must not be blank or begin with + or -")
+            group = ContactGroup.user_groups.filter(org=self.org, name=group_name, is_active=True).first()
+            if not group:
+                raise ValidationError("No such group: %s" % group_name)
 
-            attrs['group'] = ContactGroup.get_or_create(self.org, self.user, group_name)
+            attrs['group'] = group
         return attrs
 
     def validate_group_uuid(self, attrs, source):

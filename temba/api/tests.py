@@ -1213,18 +1213,17 @@ class APITest(TembaTest):
         contact4.release()
         test_contact = Contact.get_test_contact(self.user)
 
-        # try adding contacts to a new group by name
+        group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
+
+        # add contacts to the group by name
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact4.uuid, test_contact.uuid],
-                                           action='add', group='Testers'))
+                                           action='add', group="Testers"))
         self.assertEquals(204, response.status_code)
+        self.assertEqual(set(group.contacts.all()), {contact1, contact2})  # not 4 (it's deleted) or the test contact
 
-        # check that group was created and contacts added, but not 4 (because it's deleted) or the test contact
-        group = ContactGroup.user_groups.get(name='Testers')
-        self.assertEqual(set(group.contacts.all()), {contact1, contact2})
-
-        # try to add to a group with an invalid name
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='+Testers'))
-        self.assertResponseError(response, 'group', "Group name must not be blank or begin with + or -")
+        # try to add to a non-existent group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Spammers'))
+        self.assertResponseError(response, 'group', "No such group: Spammers")
 
         # add contact 3 to a group by its UUID
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid=group.uuid))
@@ -1272,7 +1271,7 @@ class APITest(TembaTest):
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact4})
 
         # try to provide a group for a non-group action
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='block', group='Test2'))
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='block', group='Testers'))
         self.assertResponseError(response, 'non_field_errors', "For action block you should not specify group or group_uuid")
 
         # try to invoke an invalid action

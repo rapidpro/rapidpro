@@ -1194,6 +1194,17 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
+    def test_is_valid_name(self):
+        self.assertTrue(Label.is_valid_name('x'))
+        self.assertTrue(Label.is_valid_name('1'))
+        self.assertTrue(Label.is_valid_name('x' * 64))
+        self.assertFalse(Label.is_valid_name(' '))
+        self.assertFalse(Label.is_valid_name(' x'))
+        self.assertFalse(Label.is_valid_name('x '))
+        self.assertFalse(Label.is_valid_name('+x'))
+        self.assertFalse(Label.is_valid_name('@x'))
+        self.assertFalse(Label.is_valid_name('x' * 65))
+
     def test_toggle_label(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
         msg1 = self.create_msg(text="Message 1", contact=self.joe, direction='I')

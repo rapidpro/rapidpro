@@ -324,6 +324,7 @@ def api(request, format=None):
      * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
      * [/api/v1/flows](/api/v1/flows) - To list active flows
+     * [/api/v1/groups](/api/v1/groups) - To list or modify campaign events on your account.
      * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/messages](/api/v1/messages) - To list messages.
      * [/api/v1/message_actions](/api/v1/message_actions) - To perform bulk message actions.
@@ -1834,7 +1835,7 @@ class ContactBulkActionEndpoint(BaseAPIView):
 
     A **POST** can be used to perform an action on a set of contacts in bulk.
 
-    * **contacts** - either a single contact UUID or a JSON array of contact UUIDs (string or array of strings)
+    * **contacts** - either a single contact UUID or a JSON array of up to 100 contact UUIDs (string or array of strings)
     * **action** - the action to perform, a string one of:
 
             add - Add the contacts to the given group
