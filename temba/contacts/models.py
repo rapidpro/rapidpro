@@ -144,7 +144,7 @@ class ContactField(models.Model, OrgModelMixin):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
-    def get_state_type_field(cls, org):
+    def get_state_field(cls, org):
         return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
 
     def __unicode__(self):
@@ -286,7 +286,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             loc_value = None
 
             if field.value_type == DISTRICT:
-                state_field = ContactField.get_state_type_field(self.org)
+                state_field = ContactField.get_state_field(self.org)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
