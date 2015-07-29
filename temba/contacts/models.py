@@ -1392,7 +1392,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and not (name.startswith('+') or name.startswith('-'))
+        return name.strip() and name[0] not in ('+', '-', '@')
 
     def update_contacts(self, contacts, add):
         """

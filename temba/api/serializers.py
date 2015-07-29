@@ -631,6 +631,69 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return ContactField.get_or_create(self.org, key, label, value_type=value_type)
 
 
+class ContactBulkActionSerializer(WriteSerializer):
+    contacts = StringArrayField(required=True)
+    action = serializers.CharField(required=True)
+    group = serializers.CharField(required=False)
+    group_uuid = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        group_provided = attrs.get('group', None) or attrs.get('group_uuid', None)
+        if attrs['action'] in ('add', 'remove') and not group_provided:
+            raise ValidationError("For action %s you should also specify group or group_uuid" % attrs['action'])
+        elif attrs['action'] in ('block', 'unblock', 'delete') and group_provided:
+            raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
+        return attrs
+
+    def validate_action(self, attrs, source):
+        if attrs[source] not in ('add', 'remove', 'block', 'unblock', 'delete'):
+            raise ValidationError("Invalid action name: %s" % attrs[source])
+        return attrs
+
+    def validate_group(self, attrs, source):
+        group_name = attrs.get(source, None)
+        if group_name:
+            if not ContactGroup.is_valid_name(group_name):
+                raise ValidationError("Group name must not be blank or begin with + or -")
+
+            attrs['group'] = ContactGroup.get_or_create(self.org, self.user, group_name)
+        return attrs
+
+    def validate_group_uuid(self, attrs, source):
+        group_uuid = attrs.get(source, None)
+        if group_uuid:
+            group = ContactGroup.user_groups.filter(org=self.org, uuid=group_uuid).first()
+            if not group:
+                raise ValidationError("No such group with UUID: %s" % group_uuid)
+            attrs['group'] = group
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        contact_uuids = attrs['contacts']
+        action = attrs['action']
+
+        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
+
+        if action == 'add':
+            attrs['group'].update_contacts(contacts, add=True)
+        elif action == 'remove':
+            attrs['group'].update_contacts(contacts, add=False)
+        else:
+            for contact in contacts:
+                if action == 'block':
+                    contact.block()
+                elif action == 'unblock':
+                    contact.unblock()
+                elif action == 'delete':
+                    contact.release()
+
+    class Meta:
+        fields = ('contacts', 'action', 'group', 'group_uuid')
+
+
 class CampaignEventSerializer(serializers.ModelSerializer):
     campaign_uuid = serializers.SerializerMethodField('get_campaign_uuid')
     flow_uuid = serializers.SerializerMethodField('get_flow_uuid')

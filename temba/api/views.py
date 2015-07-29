@@ -19,10 +19,11 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
 from temba.api.models import WebHookEvent, WebHookResult
-from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, CallSerializer, CampaignSerializer
+from temba.api.serializers import BoundarySerializer, BroadcastCreateSerializer, BroadcastReadSerializer
+from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
+from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
@@ -1820,6 +1821,67 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                                help='The label of the field.  ex: "Nick name"'),
                           dict(name='value_type', required=False,
                                help='The value type code. ex: T, N, D, S, I')]
+        return spec
+
+
+class ContactBulkActionEndpoint(BaseAPIView):
+    """
+    ## Bulk Contact Updating
+
+    A **POST** can be used to perform an action on a set of contacts in bulk.
+
+    * **contacts** - either a single contact UUID or a JSON array of contact UUIDs (string or array of strings)
+    * **action** - the action to perform, a string one of:
+
+            add - Add the contacts to the given group
+            remove - Remove the contacts from the given group
+            block - Block the contacts
+            unblock - Un-block the contacts
+            delete - Permanently delete the contacts
+
+    * **group** - the name of a contact group (string, optional)
+    * **group_uuid** - the UUID of a contact group (string, optional)
+
+    Example:
+
+        POST /api/v1/contact_actions.json
+        {
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "a5901b62-ba76-4003-9c62-72fdacc1b7b8"],
+            "action": "add",
+            "group": "Testers"
+        }
+
+    You will receive an empty response if successful.
+    """
+    permission = 'contacts.contact_api'
+    serializer_class = ContactBulkActionSerializer
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.serializer_class(user=user, data=request.DATA)
+
+        if serializer.is_valid():
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Update one or more contacts",
+                    url=reverse('api.contact_actions'),
+                    slug='contact-actions',
+                    request='{ "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3"], "action": "add", '
+                            '"group_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
+
+        spec['fields'] = [dict(name='contacts', required=True,
+                               help="A JSON array of one or more strings, each a contact UUID."),
+                          dict(name='action', required=True,
+                               help="One of the following strings: add, remove, block, unblock, delete"),
+                          dict(name='group', required=False,
+                               help="The name of a contact group if the action is add or remove"),
+                          dict(name='label_uuid', required=False,
+                               help="The UUID of a contact group if the action is add or remove")]
         return spec
 
 
