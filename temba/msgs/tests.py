@@ -108,17 +108,18 @@ class MsgTest(TembaTest):
         # login in as manager, with contacts but without extra contactfields yet
         self.login(self.admin)
         completions = [dict(name='contact', display="Contact Name"),
-                       dict(name='contact.name', display="Contact Name"),
                        dict(name='contact.first_name', display="Contact First Name"),
+                       dict(name='contact.groups', display="Contact Groups"),
+                       dict(name='contact.language', display="Contact Language"),
+                       dict(name='contact.name', display="Contact Name"),
                        dict(name='contact.tel', display="Contact Phone"),
                        dict(name='contact.tel_e164', display="Contact Phone - E164"),
-                       dict(name='contact.groups', display="Contact Groups"),
                        dict(name='contact.uuid', display="Contact UUID"),
                        dict(name="date", display="Current Date and Time"),
                        dict(name="date.now", display="Current Date and Time"),
-                       dict(name="date.yesterday", display="Yesterday's Date"),
                        dict(name="date.today", display="Current Date"),
-                       dict(name="date.tomorrow", display="Tomorrow's Date")]
+                       dict(name="date.tomorrow", display="Tomorrow's Date"),
+                       dict(name="date.yesterday", display="Yesterday's Date")]
 
         response = self.client.get(outbox_url)
 
