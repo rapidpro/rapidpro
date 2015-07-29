@@ -1622,26 +1622,29 @@ class ContactTest(TembaTest):
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
 
+        # add duplicate district in different states
+        east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
+        AdminBoundary.objects.create(osm_id='R004', name='Remera', level=2, parent=east_province)
         kigali = AdminBoundary.objects.get(name="Kigali City")
-        remera = AdminBoundary.objects.create(osm_id='R003', name='Remera', level=2, parent=kigali)
+        AdminBoundary.objects.create(osm_id='R003', name='Remera', level=2, parent=kigali)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field('district', 'Remera')
-        self.assertFalse(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value)
+        value = Value.objects.filter(contact=joe, contact_field=district_field).first()
+        self.assertFalse(value.location_value)
 
         state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
 
         joe.set_field('state', 'Kigali city')
-        self.assertTrue(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value)
-        self.assertEquals(Value.objects.filter(contact=joe, contact_field=state_field).first().location_value.name,
-                        "Kigali City")
+        value = Value.objects.filter(contact=joe, contact_field=state_field).first()
+        self.assertTrue(value.location_value)
+        self.assertEquals(value.location_value.name, "Kigali City")
 
         joe.set_field('district', 'Remera')
-        self.assertTrue(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value)
-        self.assertEquals(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.name,
-                        "Remera")
-        self.assertEquals(Value.objects.filter(contact=joe, contact_field=district_field).first().location_value.parent,
-                          kigali)
+        value = Value.objects.filter(contact=joe, contact_field=district_field).first()
+        self.assertTrue(value.location_value)
+        self.assertEquals(value.location_value.name, "Remera")
+        self.assertEquals(value.location_value.parent, kigali)
 
     def test_message_context(self):
         message_context = self.joe.build_message_context()
