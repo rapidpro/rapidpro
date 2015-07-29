@@ -14,7 +14,7 @@ def rename_language_contactfields(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0017_remove_contact_fields'),
+        ('contacts', '0020_exportcontactstask_is_finished')
     ]
 
     operations = [
