@@ -22,7 +22,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
-from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
+from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS, STATE, DISTRICT
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -185,6 +185,8 @@ class ContactForm(forms.ModelForm):
     def add_extra_fields(self, inc_contact_fields):
 
         extra_fields = []
+        state_fields = []
+        district_fields = []
 
         # add all URN scheme fields if org is not anon
         if not self.org.is_anon:
@@ -205,9 +207,14 @@ class ContactForm(forms.ModelForm):
                 help_text = 'Custom field (@contact.%s)' % field.key
 
                 ctrl = forms.CharField(required=False, label=field.label, initial=initial, help_text=help_text)
-                extra_fields.append(('__field__' + field.key, ctrl))
+                if field.value_type == STATE:
+                    state_fields.append(('__field__' + field.key, ctrl))
+                elif field.value_type == DISTRICT:
+                    district_fields.append(('__field__' + field.key, ctrl))
+                else:
+                    extra_fields.append(('__field__' + field.key, ctrl))
 
-        self.fields = OrderedDict(self.fields.items() + extra_fields)
+        self.fields = OrderedDict(self.fields.items() + extra_fields + state_fields + district_fields)
 
     def clean(self):
         channel = self.org.get_receive_channel(TEL_SCHEME)
