@@ -594,8 +594,7 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False,
-                           force_execute_webhook=False):
+                           started_flows=None, is_test_contact=False, user_input=False):
 
         def add_to_path(path, uuid):
             if uuid in path:
