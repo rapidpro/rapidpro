@@ -1620,7 +1620,6 @@ class ContactTest(TembaTest):
         ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
 
     def test_set_location_fields(self):
-        state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
         district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
 
         nigeria = AdminBoundary.objects.create(osm_id='R001', name='Nigeria', level=0)
@@ -1630,8 +1629,16 @@ class ContactTest(TembaTest):
         with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
             mock_parse_location.side_effect = [lagos, sulurele]
 
+            self.joe.set_field('district', 'Surulere')
+            self.assertFalse(mock_parse_location.called)
+
+            state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
+
+            self.joe.set_field('district', 'Surulere')
+            self.assertFalse(mock_parse_location.called)
+
             self.joe.set_field('state', 'Lagos')
-            mock_parse_location.assert_called_once_with('Lagos', 1)
+            mock_parse_location.assert_called_with('Lagos', 1)
 
             self.joe.set_field('district', 'Surulere')
             mock_parse_location.assert_called_with('Surulere', 2, lagos)
