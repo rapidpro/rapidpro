@@ -9,20 +9,19 @@ def advance_stuck_runs(apps, schema_editor):
     from temba.flows.models import Flow, FlowStep, FlowRun, RuleSet
     from temba.msgs.models import Msg
 
-    flows = Flow.objects.filter(flow_type='F')
-    for flow in flows:
+    flows = Flow.objects.filter(flow_type='F', version_number=5)
 
-        # looking for flows that start with a passive ruleset
-        ruleset = RuleSet.objects.filter(uuid=flow.entry_uuid, flow=flow).first()
+    if flows:
+        print "%d version 5 flows" % len(flows)
 
-        if ruleset and not ruleset.is_pause():
+        for flow in flows:
 
-            # now see if there are any active steps at our current flow
-            steps = FlowStep.objects.filter(run__is_active=True, step_uuid=ruleset.uuid, rule_value=None, left_on=None).select_related('contact')
+            # looking for flows that start with a passive ruleset
+            ruleset = RuleSet.objects.filter(uuid=flow.entry_uuid, flow=flow).first()
 
-            if steps:
+            if ruleset and not ruleset.is_pause():
 
-                flow.ensure_current_version()
+                # now see if there are any active steps at our current flow
                 steps = FlowStep.objects.filter(run__is_active=True, step_uuid=ruleset.uuid, rule_value=None, left_on=None).select_related('contact')
 
                 if steps:
