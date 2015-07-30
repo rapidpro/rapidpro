@@ -12,7 +12,6 @@ def populate_system_labels(apps, schema_editor):
     Msg = apps.get_model('msgs', 'Msg')
     Broadcast = apps.get_model('msgs', 'Broadcast')
     Call = apps.get_model('msgs', 'Call')
-    start_time = timezone.now()
 
     # these should be consistent with those returned from SystemLabel.get_queryset
     SYSLABEL_QUERYSETS = {
@@ -27,9 +26,6 @@ def populate_system_labels(apps, schema_editor):
     }
 
     for label_type, queryset in SYSLABEL_QUERYSETS.iteritems():
-        # items created after this time will have been already included via triggers
-        queryset = queryset.filter(created_on__lt=start_time)
-
         # grab aggregate counts for all orgs - faster than doing org by org
         counts_by_org_id = queryset.values('org').annotate(total=Count('org')).order_by('org')
         counts_by_org_id = {pair['org']: pair['total'] for pair in counts_by_org_id}
@@ -42,10 +38,10 @@ def populate_system_labels(apps, schema_editor):
                 item_count = counts_by_org_id.get(org.pk, 0)
 
                 if item_count:
-                    # print(" > incrementing org '%s' count with %d" % (org.name, item_count))
+                    print(" > incrementing org '%s' count with %d" % (org.name, item_count))
 
                     # increment label count that might already have a value from triggers
-                    SystemLabel.objects.filter(org=org, label_type=label_type).update(count=F('count') + item_count)
+                    SystemLabel.objects.filter(org=org, label_type=label_type).update(count=item_count)
 
 
 class Migration(migrations.Migration):
