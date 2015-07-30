@@ -594,8 +594,7 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False,
-                           force_execute_webhook=False):
+                           started_flows=None, is_test_contact=False, user_input=False):
 
         def add_to_path(path, uuid):
             if uuid in path:
@@ -1666,12 +1665,11 @@ class Flow(TembaModel, SmartModel):
                 if start_msg:
                     self.find_and_handle(start_msg, started_flows_by_contact)
 
-                # otherwise, if this ruleset doesn't operate on a step, then evaluate it immediately
-                elif not entry_rules.requires_step():
+                # if we didn't get an incoming message, see if we need to evaluate it passively
+                elif not entry_rules.is_pause():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact,
-                                            force_execute_webhook=True)
+                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
                 step.add_message(start_msg)
@@ -2477,18 +2475,6 @@ class RuleSet(models.Model):
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
-    def requires_step(self):
-        """
-        Returns whether this RuleSet requires a step for the contact, this is either a message or user
-        interaction of somekind. We derive this by looking to see if we have a webhook that uses step
-        or whether any of our rules use @step in them.
-        """
-
-        if not self.operand:
-            return True
-
-        return RuleSet.contains_step(self.operand)
-
     def find_matching_rule(self, step, run, msg):
 
         orig_text = None
@@ -2507,8 +2493,11 @@ class RuleSet(models.Model):
             # rebuild our context again, the webhook may have populated something
             context = run.flow.build_message_context(run.contact, msg)
 
+            rule = self.get_rules()[0]
+            rule.category = run.flow.get_base_text(rule.category)
+
             # return the webhook result body as the value
-            return self.get_rules()[0], result.body
+            return rule, result.body
 
         else:
             # if we have a custom operand, figure that out
