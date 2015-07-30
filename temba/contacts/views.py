@@ -27,7 +27,7 @@ from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
-from temba.values.models import VALUE_TYPE_CHOICES, TEXT
+from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
 from temba.utils import analytics, slugify_with
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
@@ -200,7 +200,7 @@ class ContactForm(forms.ModelForm):
 
         # add all contact fields
         if inc_contact_fields:
-            for field in ContactField.objects.filter(org=self.org, is_active=True):
+            for field in ContactField.objects.filter(org=self.org, is_active=True).order_by('label'):
                 initial = self.instance.get_field_display(field.key) if self.instance else None
                 help_text = 'Custom field (@contact.%s)' % field.key
 
@@ -803,10 +803,22 @@ class ContactCRUDL(SmartCRUDL):
 
                 obj.update_urns(urns)
 
+            fields_to_save_later = dict()
             for field_key, value in self.form.cleaned_data.iteritems():
                 if field_key.startswith('__field__'):
                     key = field_key[9:]
-                    obj.set_field(key, value)
+                    contact_field = ContactField.objects.filter(org=self.org, key=key).first()
+                    contact_field_type = contact_field.value_type
+
+                    # district values are saved last to validate the states
+                    if contact_field_type == DISTRICT:
+                        fields_to_save_later[key] = value
+                    else:
+                        obj.set_field(key, value)
+
+            # now save our district fields
+            for key, value in fields_to_save_later.iteritems():
+                obj.set_field(key, value)
 
             return obj
 

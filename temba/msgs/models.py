@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import logging
 import pytz
+import regex
 import time
 import traceback
 
@@ -1483,6 +1484,8 @@ class Label(TembaModel, SmartModel):
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
+    MAX_NAME_LEN = 64
+
     TYPE_FOLDER = 'F'
     TYPE_LABEL = 'L'
 
@@ -1491,7 +1494,7 @@ class Label(TembaModel, SmartModel):
 
     org = models.ForeignKey(Org)
 
-    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
+    name = models.CharField(max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("The name of this label"))
 
     folder = models.ForeignKey('Label', verbose_name=_("Folder"), null=True, related_name="children")
 
@@ -1549,7 +1552,15 @@ class Label(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and name[0] not in ('+', '-', '@')
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        # first character must be a word char
+        return regex.match('\w', name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():

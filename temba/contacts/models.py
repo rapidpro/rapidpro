@@ -21,11 +21,11 @@ from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.models import TembaModel
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
+from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name']
+RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name', 'language']
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
@@ -142,6 +142,10 @@ class ContactField(models.Model):
     @classmethod
     def get_by_label(cls, org, label):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
+
+    @classmethod
+    def get_state_field(cls, org):
+        return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
 
     def __unicode__(self):
         return "%s" % self.label
@@ -279,7 +283,16 @@ class Contact(TembaModel, SmartModel):
             str_value = unicode(value)
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
-            loc_value = self.org.parse_location(value, 2 if field.value_type == DISTRICT else 1)
+            loc_value = None
+
+            if field.value_type == DISTRICT:
+                state_field = ContactField.get_state_field(self.org)
+                if state_field:
+                    state_value = self.get_field(state_field.key)
+                    if state_value:
+                        loc_value = self.org.parse_location(value, 2, state_value.location_value)
+            else:
+                loc_value = self.org.parse_location(value, 1)
 
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
@@ -920,6 +933,7 @@ class Contact(TembaModel, SmartModel):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+        contact_dict['language'] = self.language
 
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
@@ -1323,6 +1337,8 @@ class UserContactGroupManager(models.Manager):
 
 
 class ContactGroup(TembaModel, SmartModel):
+    MAX_NAME_LEN = 64
+
     TYPE_ALL = 'A'
     TYPE_BLOCKED = 'B'
     TYPE_FAILED = 'F'
@@ -1333,7 +1349,8 @@ class ContactGroup(TembaModel, SmartModel):
                     (TYPE_FAILED, "Failed Contacts"),
                     (TYPE_USER_DEFINED, "User Defined Groups"))
 
-    name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
+    name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
+                            help_text=_("The name of this contact group"))
 
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
@@ -1367,7 +1384,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()[:64]
+        full_group_name = name.strip()[:cls.MAX_NAME_LEN]
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
@@ -1390,7 +1407,15 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and not (name.startswith('+') or name.startswith('-'))
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        # first character must be a word char
+        return regex.match('\w', name[0], flags=regex.UNICODE)
 
     def update_contacts(self, contacts, add):
         """

@@ -108,17 +108,18 @@ class MsgTest(TembaTest):
         # login in as manager, with contacts but without extra contactfields yet
         self.login(self.admin)
         completions = [dict(name='contact', display="Contact Name"),
-                       dict(name='contact.name', display="Contact Name"),
                        dict(name='contact.first_name', display="Contact First Name"),
+                       dict(name='contact.groups', display="Contact Groups"),
+                       dict(name='contact.language', display="Contact Language"),
+                       dict(name='contact.name', display="Contact Name"),
                        dict(name='contact.tel', display="Contact Phone"),
                        dict(name='contact.tel_e164', display="Contact Phone - E164"),
-                       dict(name='contact.groups', display="Contact Groups"),
                        dict(name='contact.uuid', display="Contact UUID"),
                        dict(name="date", display="Current Date and Time"),
                        dict(name="date.now", display="Current Date and Time"),
-                       dict(name="date.yesterday", display="Yesterday's Date"),
                        dict(name="date.today", display="Current Date"),
-                       dict(name="date.tomorrow", display="Tomorrow's Date")]
+                       dict(name="date.tomorrow", display="Tomorrow's Date"),
+                       dict(name="date.yesterday", display="Yesterday's Date")]
 
         response = self.client.get(outbox_url)
 
@@ -1178,6 +1179,17 @@ class LabelTest(TembaTest):
 
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
+
+    def test_is_valid_name(self):
+        self.assertTrue(Label.is_valid_name('x'))
+        self.assertTrue(Label.is_valid_name('1'))
+        self.assertTrue(Label.is_valid_name('x' * 64))
+        self.assertFalse(Label.is_valid_name(' '))
+        self.assertFalse(Label.is_valid_name(' x'))
+        self.assertFalse(Label.is_valid_name('x '))
+        self.assertFalse(Label.is_valid_name('+x'))
+        self.assertFalse(Label.is_valid_name('@x'))
+        self.assertFalse(Label.is_valid_name('x' * 65))
 
     def test_toggle_label(self):
         label = Label.get_or_create(self.org, self.user, "Spam")

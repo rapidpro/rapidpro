@@ -16,6 +16,10 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
 
+# Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
+# we may in the future.
+MAX_BULK_ACTION_ITEMS = 100
+
 
 # ------------------------------------------------------------------------------------------
 # Field types
@@ -194,8 +198,11 @@ class MsgBulkActionSerializer(WriteSerializer):
     label_uuid = serializers.CharField(required=False)
 
     def validate(self, attrs):
-        if attrs['action'] in ('label', 'unlabel') and not ('label' in attrs or 'label_uuid' in attrs):
-            raise ValidationError("For action %s you must also specify label or label_uuid" % attrs['action'])
+        label_provided = attrs.get('label', None) or attrs.get('label_uuid', None)
+        if attrs['action'] in ('label', 'unlabel') and not label_provided:
+            raise ValidationError("For action %s you should also specify label or label_uuid" % attrs['action'])
+        elif attrs['action'] in ('archive', 'unarchive', 'delete') and label_provided:
+            raise ValidationError("For action %s you should not specify label or label_uuid" % attrs['action'])
         return attrs
 
     def validate_action(self, attrs, source):
@@ -627,6 +634,76 @@ class ContactFieldWriteSerializer(WriteSerializer):
         value_type = attrs.get('value_type')
 
         return ContactField.get_or_create(self.org, key, label, value_type=value_type)
+
+
+class ContactBulkActionSerializer(WriteSerializer):
+    contacts = StringArrayField(required=True)
+    action = serializers.CharField(required=True)
+    group = serializers.CharField(required=False)
+    group_uuid = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        group_provided = attrs.get('group', None) or attrs.get('group_uuid', None)
+        if attrs['action'] in ('add', 'remove') and not group_provided:
+            raise ValidationError("For action %s you should also specify group or group_uuid" % attrs['action'])
+        elif attrs['action'] in ('block', 'unblock', 'delete') and group_provided:
+            raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
+        return attrs
+
+    def validate_contacts(self, attrs, source):
+        contacts = attrs.get(source, [])
+        if len(contacts) > MAX_BULK_ACTION_ITEMS:
+            raise ValidationError("Maximum of %d contacts allowed" % MAX_BULK_ACTION_ITEMS)
+        return attrs
+
+    def validate_action(self, attrs, source):
+        if attrs[source] not in ('add', 'remove', 'block', 'unblock', 'delete'):
+            raise ValidationError("Invalid action name: %s" % attrs[source])
+        return attrs
+
+    def validate_group(self, attrs, source):
+        group_name = attrs.get(source, None)
+        if group_name:
+            group = ContactGroup.user_groups.filter(org=self.org, name=group_name, is_active=True).first()
+            if not group:
+                raise ValidationError("No such group: %s" % group_name)
+
+            attrs['group'] = group
+        return attrs
+
+    def validate_group_uuid(self, attrs, source):
+        group_uuid = attrs.get(source, None)
+        if group_uuid:
+            group = ContactGroup.user_groups.filter(org=self.org, uuid=group_uuid).first()
+            if not group:
+                raise ValidationError("No such group with UUID: %s" % group_uuid)
+            attrs['group'] = group
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        contact_uuids = attrs['contacts']
+        action = attrs['action']
+
+        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
+
+        if action == 'add':
+            attrs['group'].update_contacts(contacts, add=True)
+        elif action == 'remove':
+            attrs['group'].update_contacts(contacts, add=False)
+        else:
+            for contact in contacts:
+                if action == 'block':
+                    contact.block()
+                elif action == 'unblock':
+                    contact.unblock()
+                elif action == 'delete':
+                    contact.release()
+
+    class Meta:
+        fields = ('contacts', 'action', 'group', 'group_uuid')
 
 
 class CampaignEventSerializer(serializers.ModelSerializer):

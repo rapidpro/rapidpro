@@ -23,7 +23,7 @@ from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE, DATETIME
+from temba.values.models import STATE, DATETIME, DISTRICT, Value
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -228,6 +228,17 @@ class ContactGroupTest(TembaTest):
         ContactGroup.create(self.org, self.admin, " group one ")
         self.assertEquals(1, ContactGroup.user_groups.count())
         self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="group one"))
+
+    def test_is_valid_name(self):
+        self.assertTrue(ContactGroup.is_valid_name('x'))
+        self.assertTrue(ContactGroup.is_valid_name('1'))
+        self.assertTrue(ContactGroup.is_valid_name('x' * 64))
+        self.assertFalse(ContactGroup.is_valid_name(' '))
+        self.assertFalse(ContactGroup.is_valid_name(' x'))
+        self.assertFalse(ContactGroup.is_valid_name('x '))
+        self.assertFalse(ContactGroup.is_valid_name('+x'))
+        self.assertFalse(ContactGroup.is_valid_name('@x'))
+        self.assertFalse(ContactGroup.is_valid_name('x' * 65))
 
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
@@ -665,7 +676,15 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
+        state_field = ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
 
+        africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
+        rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
+        gatsibo = AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
+        kayonza = AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
+        kigali = AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
+
+        locations_boundaries = [gatsibo, kayonza, kigali]
         locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
         date_format = get_datetime_format(True)[0]
@@ -679,8 +698,13 @@ class ContactTest(TembaTest):
 
             # some field data so we can do some querying
             contact.set_field('age', '%s' % i)
-            contact.set_field('home', locations[(i + 2) % len(locations)])
-            contact.set_field('join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i), date_format))
+            contact.set_field('join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i),
+                                                                  date_format))
+            contact.set_field('state', "Rwanda")
+            index = (i + 2) % len(locations)
+            with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
+                mock_parse_location.return_value = locations_boundaries[index]
+                contact.set_field('home', locations[index])
 
         q = lambda query: Contact.search(self.org, query)[0].count()
 
@@ -1648,6 +1672,33 @@ class ContactTest(TembaTest):
         self.joe.set_field('1234-1234', 'Joe', label="First Name")
         self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
         ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
+
+    def test_set_location_fields(self):
+        district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
+
+        # add duplicate district in different states
+        east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
+        AdminBoundary.objects.create(osm_id='R004', name='Remera', level=2, parent=east_province)
+        kigali = AdminBoundary.objects.get(name="Kigali City")
+        AdminBoundary.objects.create(osm_id='R003', name='Remera', level=2, parent=kigali)
+
+        joe = Contact.objects.get(pk=self.joe.pk)
+        joe.set_field('district', 'Remera')
+        value = Value.objects.filter(contact=joe, contact_field=district_field).first()
+        self.assertFalse(value.location_value)
+
+        state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
+
+        joe.set_field('state', 'Kigali city')
+        value = Value.objects.filter(contact=joe, contact_field=state_field).first()
+        self.assertTrue(value.location_value)
+        self.assertEquals(value.location_value.name, "Kigali City")
+
+        joe.set_field('district', 'Remera')
+        value = Value.objects.filter(contact=joe, contact_field=district_field).first()
+        self.assertTrue(value.location_value)
+        self.assertEquals(value.location_value.name, "Remera")
+        self.assertEquals(value.location_value.parent, kigali)
 
     def test_message_context(self):
         message_context = self.joe.build_message_context()
