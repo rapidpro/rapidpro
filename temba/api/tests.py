@@ -1210,10 +1210,16 @@ class APITest(TembaTest):
         contact2 = self.create_contact("Bob", '+250788000002')
         contact3 = self.create_contact("Cat", '+250788000003')
         contact4 = self.create_contact("Don", '+250788000004')
+        contact4.block()
         contact4.release()
         test_contact = Contact.get_test_contact(self.user)
 
         group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
+
+        # start contacts in a flow
+        flow = self.create_flow()
+        flow.start([], [contact1, contact2, contact3])
+        runs = FlowRun.objects.filter(flow=flow)
 
         # add contacts to the group by name
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact4.uuid, test_contact.uuid],
@@ -1250,25 +1256,32 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, test_contact.uuid],
                                            action='block'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact4, test_contact})  # ignored
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3, contact4})
 
-        # un-block contact 1
+        # unblock contact 1
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='unblock'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact4, test_contact})
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
+
+        # can't unblock a deleted contact
+        response = self.postJSON(url, dict(contacts=[contact4.uuid], action='unblock'))
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
+
+        # expire contacts 1 and 2 from any active runs
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='expire'))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(FlowRun.objects.filter(contact__in=[contact1, contact2], is_active=True).exists())
+        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True).exists())
 
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact4})
         self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, test_contact})
-
-        # can't un-block a deleted contact
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='unblock'))
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact4})
 
         # try to provide a group for a non-group action
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='block', group='Testers'))
