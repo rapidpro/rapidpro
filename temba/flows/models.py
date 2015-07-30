@@ -2940,7 +2940,6 @@ class FlowRun(models.Model):
         """
         Expires a set of runs
         """
-
         # let's optimize by only selecting what we need
         runs = runs.order_by('flow').values('pk', 'flow')
 
@@ -3025,6 +3024,11 @@ class FlowRun(models.Model):
 
     def expire(self):
         self.do_expire_runs(FlowRun.objects.filter(pk=self.pk))
+
+    @classmethod
+    def expire_all_for_contacts(cls, contacts):
+        runs = cls.objects.filter(is_active=True, contact__in=contacts)
+        cls.do_expire_runs(runs)
 
     def update_fields(self, field_map):
         # validate our field

@@ -645,7 +645,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         group_provided = attrs.get('group', None) or attrs.get('group_uuid', None)
         if attrs['action'] in ('add', 'remove') and not group_provided:
             raise ValidationError("For action %s you should also specify group or group_uuid" % attrs['action'])
-        elif attrs['action'] in ('block', 'unblock', 'delete') and group_provided:
+        elif attrs['action'] in ('block', 'unblock', 'expire', 'delete') and group_provided:
             raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
         return attrs
 
@@ -656,7 +656,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         return attrs
 
     def validate_action(self, attrs, source):
-        if attrs[source] not in ('add', 'remove', 'block', 'unblock', 'delete'):
+        if attrs[source] not in ('add', 'remove', 'block', 'unblock', 'expire', 'delete'):
             raise ValidationError("Invalid action name: %s" % attrs[source])
         return attrs
 
@@ -692,6 +692,8 @@ class ContactBulkActionSerializer(WriteSerializer):
             attrs['group'].update_contacts(contacts, add=True)
         elif action == 'remove':
             attrs['group'].update_contacts(contacts, add=False)
+        elif action == 'expire':
+            FlowRun.expire_all_for_contacts(contacts)
         else:
             for contact in contacts:
                 if action == 'block':
