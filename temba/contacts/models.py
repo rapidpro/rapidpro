@@ -21,11 +21,11 @@ from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.models import TembaModel
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
+from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name']
+RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name', 'language']
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
@@ -142,6 +142,10 @@ class ContactField(models.Model, OrgModelMixin):
     @classmethod
     def get_by_label(cls, org, label):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
+
+    @classmethod
+    def get_state_field(cls, org):
+        return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
 
     def __unicode__(self):
         return "%s" % self.label
@@ -279,7 +283,16 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             str_value = unicode(value)
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
-            loc_value = self.org.parse_location(value, 2 if field.value_type == DISTRICT else 1)
+            loc_value = None
+
+            if field.value_type == DISTRICT:
+                state_field = ContactField.get_state_field(self.org)
+                if state_field:
+                    state_value = self.get_field(state_field.key)
+                    if state_value:
+                        loc_value = self.org.parse_location(value, 2, state_value.location_value)
+            else:
+                loc_value = self.org.parse_location(value, 1)
 
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
@@ -922,6 +935,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+        contact_dict['language'] = self.language
 
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
