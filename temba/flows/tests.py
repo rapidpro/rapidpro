@@ -1292,8 +1292,8 @@ class RuleTest(TembaTest):
         test.execute(run, None, msg)
 
         # new label should have been created with the name of the contact
-        new_label = Label.user_labels.get(name=self.contact.name)
-        label = Label.user_labels.get(pk=label.pk)
+        new_label = Label.label_objects.get(name=self.contact.name)
+        label = Label.label_objects.get(pk=label.pk)
 
         # and message should have been labeled with both labels
         msg = Msg.objects.get(pk=msg.pk)
@@ -1307,8 +1307,8 @@ class RuleTest(TembaTest):
         test.execute(run, None, msg)
 
         self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
-        self.assertEquals(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
-        self.assertEquals(Label.user_labels.get(pk=new_label.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)

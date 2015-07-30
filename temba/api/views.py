@@ -32,7 +32,7 @@ from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, USER_DEFINED_GROUP
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
@@ -817,12 +817,12 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         types = splitting_getlist(self.request, 'type')
         if types:
@@ -1068,7 +1068,7 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
-        queryset = self.model.user_labels.filter(org=self.request.user.get_org()).order_by('-pk')
+        queryset = self.model.label_objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1621,12 +1621,12 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(all_groups__name__in=groups,
-                                       all_groups__group_type=USER_DEFINED_GROUP)
+                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
         if group_uuids:
             queryset = queryset.filter(all_groups__uuid__in=group_uuids,
-                                       all_groups__group_type=USER_DEFINED_GROUP)
+                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
@@ -2167,12 +2167,12 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         contacts = splitting_getlist(self.request, 'contact')
         if contacts:

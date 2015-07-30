@@ -13,7 +13,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, INCOMING
+from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
@@ -222,7 +222,7 @@ class MsgBulkActionSerializer(WriteSerializer):
     def validate_label_uuid(self, attrs, source):
         label_uuid = attrs.get(source, None)
         if label_uuid:
-            label = Label.user_labels.filter(org=self.org, uuid=label_uuid).first()
+            label = Label.label_objects.filter(org=self.org, uuid=label_uuid).first()
             if not label:
                 raise ValidationError("No such label with UUID: %s" % label_uuid)
             attrs['label'] = label
@@ -235,7 +235,8 @@ class MsgBulkActionSerializer(WriteSerializer):
         msg_ids = attrs['messages']
         action = attrs['action']
 
-        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).select_related('contact')
+        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=DELETED)
+        msgs = msgs.select_related('contact')
 
         if action == 'label':
             attrs['label'].toggle_label(msgs, add=True)
@@ -276,7 +277,7 @@ class LabelWriteSerializer(WriteSerializer):
     def validate_uuid(self, attrs, source):
         uuid = attrs.get(source, None)
 
-        if uuid and not Label.user_labels.filter(org=self.org, uuid=uuid).exists():
+        if uuid and not Label.label_objects.filter(org=self.org, uuid=uuid).exists():
             raise ValidationError("No such message label with UUID: %s" % uuid)
 
         return attrs
@@ -285,7 +286,7 @@ class LabelWriteSerializer(WriteSerializer):
         uuid = attrs.get('uuid', None)
         name = attrs.get(source, None)
 
-        if Label.user_labels.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
+        if Label.label_objects.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
             raise ValidationError("Label name must be unique")
 
         return attrs
@@ -298,7 +299,7 @@ class LabelWriteSerializer(WriteSerializer):
         name = attrs.get('name', None)
 
         if uuid:
-            existing = Label.user_labels.get(org=self.org, uuid=uuid)
+            existing = Label.label_objects.get(org=self.org, uuid=uuid)
             existing.name = name
             existing.save()
             return existing

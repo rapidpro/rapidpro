@@ -4038,8 +4038,8 @@ class AddLabelAction(Action):
                 except (TypeError, ValueError):
                     label_id = 0
 
-                if label_id and Label.user_labels.filter(org=org, id=label_id).first():
-                    label = Label.user_labels.filter(org=org, id=label_id).first()
+                if label_id and Label.label_objects.filter(org=org, id=label_id).first():
+                    label = Label.label_objects.filter(org=org, id=label_id).first()
                     if label:
                         labels.append(label)
                 else:

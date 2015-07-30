@@ -17,7 +17,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock
+from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate
 from temba.utils.models import TembaModel
@@ -37,7 +37,7 @@ END_TEST_CONTACT_PATH = 12065550199
 
 
 
-class ContactField(models.Model, OrgModelMixin):
+class ContactField(models.Model):
     """
     Represents a type of field that can be put on Contacts.
     """
@@ -153,7 +153,7 @@ class ContactField(models.Model, OrgModelMixin):
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel, OrgModelMixin):
+class Contact(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -190,7 +190,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return self.all_groups.filter(group_type=USER_DEFINED_GROUP)
+        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     def as_json(self):
         obj = dict(id=self.pk, name=unicode(self))
@@ -458,12 +458,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             else:
                 updated_attrs = dict(name=name, org=org, created_by=user, modified_by=user, is_test=is_test)
                 contact = Contact.objects.create(**updated_attrs)
-
-                # add it to our All Contacts group
-                if not contact.is_test:
-                    ContactGroup.system_groups.get(org=org, group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
-
-                org.update_caches(OrgEvent.contact_new, contact)
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
@@ -870,9 +864,13 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             for group in self.user_groups.all():
                 group.update_contacts((self,), False)
 
-            # delete all messages with this contact
+            # release all messages with this contact
             for msg in self.msgs.all():
                 msg.release()
+
+            # release all calls with this contact
+            for call in self.calls.all():
+                call.release()
 
             # remove all flow runs and steps
             for run in self.runs.all():
@@ -1327,33 +1325,34 @@ class ContactURN(models.Model):
         unique_together = ('urn', 'org')
         ordering = ('-priority', 'id')
 
-USER_DEFINED_GROUP = 'U'
-BLOCKED_CONTACTS_GROUP = 'B'
-FAILED_CONTACTS_GROUP = 'F'
-ALL_CONTACTS_GROUP = 'A'
-
-GROUP_TYPE_CHOICES = ((ALL_CONTACTS_GROUP, "All Contacts"),
-                      (BLOCKED_CONTACTS_GROUP, "Blocked Contacts"),
-                      (FAILED_CONTACTS_GROUP, "Failed Contacts"),
-                      (USER_DEFINED_GROUP, "User Defined Groups"))
-
 
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=USER_DEFINED_GROUP)
+        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(UserContactGroupManager, self).get_queryset().filter(group_type=USER_DEFINED_GROUP)
+        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class ContactGroup(TembaModel, SmartModel):
     MAX_NAME_LEN = 64
 
-    name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name for this contact group"))
+    TYPE_ALL = 'A'
+    TYPE_BLOCKED = 'B'
+    TYPE_FAILED = 'F'
+    TYPE_USER_DEFINED = 'U'
 
-    group_type = models.CharField(max_length=1, choices=GROUP_TYPE_CHOICES, default=USER_DEFINED_GROUP,
+    TYPE_CHOICES = ((TYPE_ALL, "All Contacts"),
+                    (TYPE_BLOCKED, "Blocked Contacts"),
+                    (TYPE_FAILED, "Failed Contacts"),
+                    (TYPE_USER_DEFINED, "User Defined Groups"))
+
+    name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
+                            help_text=_("The name of this contact group"))
+
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
@@ -1422,7 +1421,7 @@ class ContactGroup(TembaModel, SmartModel):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
-        if self.group_type != USER_DEFINED_GROUP:
+        if self.group_type != self.TYPE_USER_DEFINED:
             raise ValueError("Can't add or remove test contacts from system groups")
 
         changed = set()
@@ -1491,6 +1490,24 @@ class ContactGroup(TembaModel, SmartModel):
                 group_change = True
 
         return group_change
+
+    @classmethod
+    def get_system_group_queryset(cls, org, group_type):
+        if group_type == cls.TYPE_USER_DEFINED:
+            raise ValueError("Can only get system group querysets")
+
+        return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
+
+    @classmethod
+    def get_system_group_counts(cls, org, group_types=None):
+        """
+        Gets all system label counts by type for the given org
+        """
+        groups = cls.system_groups.filter(org=org)
+        if group_types:
+            groups = groups.filter(group_type__in=group_types)
+
+        return {g.group_type: g.count for g in groups}
 
     def get_member_count(self):
         """
