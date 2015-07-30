@@ -8,7 +8,7 @@ def fix_district_contact_fields_values(apps, schema_editor):
     Value = apps.get_model('values', 'Value')
     ContactField = apps.get_model('contacts', 'ContactField')
 
-    for district_value in Value.objects.filter(contact_field__value_type='I'):
+    for district_value in Value.objects.filter(contact_field__value_type='I').exclude(location_value=None):
         org = district_value.org
         contact = district_value.contact
 
@@ -16,7 +16,8 @@ def fix_district_contact_fields_values(apps, schema_editor):
         if state_field:
             state_field_key = state_field.key
 
-            state_value = Value.objects.filter(contact=contact, contact_field__key__exact=state_field_key).first()
+            state_value = Value.objects.filter(contact=contact, contact_field__key__exact=state_field_key)\
+                .exclude(location_value=None).first()
 
             if state_value and district_value.location_value:
                 if district_value.location_value.parent != state_value.location_value:
