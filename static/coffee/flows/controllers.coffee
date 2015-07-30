@@ -281,6 +281,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     if not Flow.isConnectionAllowed(props.sourceId, props.targetId)
       $rootScope.ghost.hide()
       $rootScope.ghost = null
+
+      showDialog('Infinite Loop', 'Connecting these steps together would create an infinite loop in your flow. To connect these steps you need to pass through a step that waits for the user to respond.')
+
       return false
     return true
 
