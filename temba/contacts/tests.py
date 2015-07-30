@@ -231,6 +231,17 @@ class ContactGroupTest(TembaTest):
         self.assertEquals(1, ContactGroup.user_groups.count())
         self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="group one"))
 
+    def test_is_valid_name(self):
+        self.assertTrue(ContactGroup.is_valid_name('x'))
+        self.assertTrue(ContactGroup.is_valid_name('1'))
+        self.assertTrue(ContactGroup.is_valid_name('x' * 64))
+        self.assertFalse(ContactGroup.is_valid_name(' '))
+        self.assertFalse(ContactGroup.is_valid_name(' x'))
+        self.assertFalse(ContactGroup.is_valid_name('x '))
+        self.assertFalse(ContactGroup.is_valid_name('+x'))
+        self.assertFalse(ContactGroup.is_valid_name('@x'))
+        self.assertFalse(ContactGroup.is_valid_name('x' * 65))
+
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
 
