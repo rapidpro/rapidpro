@@ -1468,8 +1468,8 @@ class Label(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        # don't allow blanks, initial or trailing whitespace
-        if name.strip() != name:
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
             return False
 
         if len(name) > cls.MAX_NAME_LEN:
