@@ -13,8 +13,12 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, INCOMING
+from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
+
+# Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
+# we may in the future.
+MAX_BULK_ACTION_ITEMS = 100
 
 
 # ------------------------------------------------------------------------------------------
@@ -218,7 +222,7 @@ class MsgBulkActionSerializer(WriteSerializer):
     def validate_label_uuid(self, attrs, source):
         label_uuid = attrs.get(source, None)
         if label_uuid:
-            label = Label.user_labels.filter(org=self.org, uuid=label_uuid).first()
+            label = Label.label_objects.filter(org=self.org, uuid=label_uuid).first()
             if not label:
                 raise ValidationError("No such label with UUID: %s" % label_uuid)
             attrs['label'] = label
@@ -231,7 +235,8 @@ class MsgBulkActionSerializer(WriteSerializer):
         msg_ids = attrs['messages']
         action = attrs['action']
 
-        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).select_related('contact')
+        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=DELETED)
+        msgs = msgs.select_related('contact')
 
         if action == 'label':
             attrs['label'].toggle_label(msgs, add=True)
@@ -272,7 +277,7 @@ class LabelWriteSerializer(WriteSerializer):
     def validate_uuid(self, attrs, source):
         uuid = attrs.get(source, None)
 
-        if uuid and not Label.user_labels.filter(org=self.org, uuid=uuid).exists():
+        if uuid and not Label.label_objects.filter(org=self.org, uuid=uuid).exists():
             raise ValidationError("No such message label with UUID: %s" % uuid)
 
         return attrs
@@ -281,7 +286,7 @@ class LabelWriteSerializer(WriteSerializer):
         uuid = attrs.get('uuid', None)
         name = attrs.get(source, None)
 
-        if Label.user_labels.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
+        if Label.label_objects.filter(org=self.org, name=name).exclude(uuid=uuid).exists():
             raise ValidationError("Label name must be unique")
 
         return attrs
@@ -294,7 +299,7 @@ class LabelWriteSerializer(WriteSerializer):
         name = attrs.get('name', None)
 
         if uuid:
-            existing = Label.user_labels.get(org=self.org, uuid=uuid)
+            existing = Label.label_objects.get(org=self.org, uuid=uuid)
             existing.name = name
             existing.save()
             return existing
@@ -629,6 +634,78 @@ class ContactFieldWriteSerializer(WriteSerializer):
         value_type = attrs.get('value_type')
 
         return ContactField.get_or_create(self.org, key, label, value_type=value_type)
+
+
+class ContactBulkActionSerializer(WriteSerializer):
+    contacts = StringArrayField(required=True)
+    action = serializers.CharField(required=True)
+    group = serializers.CharField(required=False)
+    group_uuid = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        group_provided = attrs.get('group', None) or attrs.get('group_uuid', None)
+        if attrs['action'] in ('add', 'remove') and not group_provided:
+            raise ValidationError("For action %s you should also specify group or group_uuid" % attrs['action'])
+        elif attrs['action'] in ('block', 'unblock', 'expire', 'delete') and group_provided:
+            raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
+        return attrs
+
+    def validate_contacts(self, attrs, source):
+        contacts = attrs.get(source, [])
+        if len(contacts) > MAX_BULK_ACTION_ITEMS:
+            raise ValidationError("Maximum of %d contacts allowed" % MAX_BULK_ACTION_ITEMS)
+        return attrs
+
+    def validate_action(self, attrs, source):
+        if attrs[source] not in ('add', 'remove', 'block', 'unblock', 'expire', 'delete'):
+            raise ValidationError("Invalid action name: %s" % attrs[source])
+        return attrs
+
+    def validate_group(self, attrs, source):
+        group_name = attrs.get(source, None)
+        if group_name:
+            group = ContactGroup.user_groups.filter(org=self.org, name=group_name, is_active=True).first()
+            if not group:
+                raise ValidationError("No such group: %s" % group_name)
+
+            attrs['group'] = group
+        return attrs
+
+    def validate_group_uuid(self, attrs, source):
+        group_uuid = attrs.get(source, None)
+        if group_uuid:
+            group = ContactGroup.user_groups.filter(org=self.org, uuid=group_uuid).first()
+            if not group:
+                raise ValidationError("No such group with UUID: %s" % group_uuid)
+            attrs['group'] = group
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        contact_uuids = attrs['contacts']
+        action = attrs['action']
+
+        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
+
+        if action == 'add':
+            attrs['group'].update_contacts(contacts, add=True)
+        elif action == 'remove':
+            attrs['group'].update_contacts(contacts, add=False)
+        elif action == 'expire':
+            FlowRun.expire_all_for_contacts(contacts)
+        else:
+            for contact in contacts:
+                if action == 'block':
+                    contact.block()
+                elif action == 'unblock':
+                    contact.unblock()
+                elif action == 'delete':
+                    contact.release()
+
+    class Meta:
+        fields = ('contacts', 'action', 'group', 'group_uuid')
 
 
 class CampaignEventSerializer(serializers.ModelSerializer):

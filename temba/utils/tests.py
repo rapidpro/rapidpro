@@ -314,6 +314,9 @@ class ParserTest(TembaTest):
 
     def test_evaluate_template(self):
         contact = self.create_contact("Joe Blow", "123")
+        contact.language = u'eng'
+        contact.save()
+
         variables = dict()
         variables['contact'] = contact.build_message_context()
         variables['flow'] = dict(water_source="Well",     # key with underscore
@@ -343,6 +346,8 @@ class ParserTest(TembaTest):
                           evaluate_template('=("(" & """")',  context))  # string literals containing delimiters
         self.assertEquals(('Joe Blow and Joe Blow', []),
                           evaluate_template('@contact and =(contact)',  context))  # old and new style
+        self.assertEquals(("Joe Blow language is set to 'eng'", []),
+                          evaluate_template("@contact language is set to '@contact.language'", context))  # language
 
         # test LTR and RTL mixing
         self.assertEquals(("one two three four", []),

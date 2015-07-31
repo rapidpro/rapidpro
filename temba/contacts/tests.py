@@ -9,8 +9,6 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.db import connection
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
@@ -19,13 +17,13 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org, OrgFolder
+from temba.orgs.models import Org
 from temba.channels.models import Channel
-from temba.msgs.models import Msg, Call, Label
+from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
-from temba.triggers.models import Trigger, KEYWORD_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE, DATETIME
+from temba.values.models import STATE, DATETIME, DISTRICT, Value
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -231,6 +229,17 @@ class ContactGroupTest(TembaTest):
         self.assertEquals(1, ContactGroup.user_groups.count())
         self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="group one"))
 
+    def test_is_valid_name(self):
+        self.assertTrue(ContactGroup.is_valid_name('x'))
+        self.assertTrue(ContactGroup.is_valid_name('1'))
+        self.assertTrue(ContactGroup.is_valid_name('x' * 64))
+        self.assertFalse(ContactGroup.is_valid_name(' '))
+        self.assertFalse(ContactGroup.is_valid_name(' x'))
+        self.assertFalse(ContactGroup.is_valid_name('x '))
+        self.assertFalse(ContactGroup.is_valid_name('+x'))
+        self.assertFalse(ContactGroup.is_valid_name('@x'))
+        self.assertFalse(ContactGroup.is_valid_name('x' * 65))
+
     def test_member_count(self):
         group = ContactGroup.create(self.org, self.user, "Cool kids")
 
@@ -275,6 +284,40 @@ class ContactGroupTest(TembaTest):
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEquals(group.count, 0)
         self.assertEquals(set(group.contacts.all()), {test_contact})
+
+    def test_system_group_counts(self):
+        Contact.objects.all().delete()  # start with none
+
+        counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 0, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+
+        hannibal = self.create_contact("Hannibal", number="0783835001")
+        face = self.create_contact("Face", number="0783835002")
+        ba = self.create_contact("B.A.", number="0783835003")
+        murdock = self.create_contact("Murdock", number="0783835004")
+
+        counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 4, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+
+        # call methods twice to check counts don't change twice
+        murdock.block()
+        murdock.block()
+        face.block()
+        ba.fail()
+        ba.fail()
+
+        counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 2, ContactGroup.TYPE_BLOCKED: 2, ContactGroup.TYPE_FAILED: 1})
+
+        murdock.release()
+        murdock.release()
+        face.unblock()
+        face.unblock()
+        ba.unfail()
+        ba.unfail()
+
+        counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, 'age')
@@ -408,14 +451,15 @@ class ContactTest(TembaTest):
 
         self.clear_cache()
 
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
+                                          ContactGroup.TYPE_BLOCKED: 0,
+                                          ContactGroup.TYPE_FAILED: 0})
 
         self.assertEqual(3, label.msgs.count())
         self.assertEqual(1, group.contacts.count())
@@ -429,9 +473,10 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         # and added to failed group
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
+                                          ContactGroup.TYPE_BLOCKED: 0,
+                                          ContactGroup.TYPE_FAILED: 1})
         self.assertEqual(1, group.contacts.count())
 
         self.joe.block()
@@ -443,18 +488,20 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the all and failed groups, and added to the blocked group
-        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
+                                          ContactGroup.TYPE_BLOCKED: 1,
+                                          ContactGroup.TYPE_FAILED: 0})
 
         # and removed from the single user group
         self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
 
         # but his messages are unchanged
         self.assertEqual(2, Msg.objects.filter(contact=self.joe, visibility='V').count())
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_inbox))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_flows))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.msgs_archived))
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         self.joe.unblock()
 
@@ -465,9 +512,10 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the blocked group, and put back in the all and failed groups
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
+                                          ContactGroup.TYPE_BLOCKED: 0,
+                                          ContactGroup.TYPE_FAILED: 1})
 
         self.joe.unfail()
 
@@ -478,9 +526,10 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the failed group
-        self.assertEqual(4, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
+                                          ContactGroup.TYPE_BLOCKED: 0,
+                                          ContactGroup.TYPE_FAILED: 0})
 
         self.joe.release()
 
@@ -490,17 +539,20 @@ class ContactTest(TembaTest):
         self.assertFalse(self.joe.is_blocked)
         self.assertFalse(self.joe.is_active)
 
-        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
+                                          ContactGroup.TYPE_BLOCKED: 0,
+                                          ContactGroup.TYPE_FAILED: 0})
 
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
         self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
-        self.assertEqual(0, Label.user_labels.get(pk=label.pk).msgs.count())
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_inbox))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_flows))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.msgs_archived))
+        self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
+
+        msg_counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(0, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         # and he shouldn't be in any groups
         self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
@@ -512,18 +564,20 @@ class ContactTest(TembaTest):
         self.joe.block()
         self.joe.fail()
 
-        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(0, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
+                                          ContactGroup.TYPE_BLOCKED: 0,
+                                          ContactGroup.TYPE_FAILED: 0})
 
         # we don't let users undo releasing a contact... but if we have to do it for some reason
         self.joe.is_active = True
         self.joe.save()
 
         # check joe goes into the appropriate groups
-        self.assertEqual(3, self.org.get_folder_count(OrgFolder.contacts_all))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_blocked))
-        self.assertEqual(1, self.org.get_folder_count(OrgFolder.contacts_failed))
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
+                                          ContactGroup.TYPE_BLOCKED: 1,
+                                          ContactGroup.TYPE_FAILED: 1})
 
         # don't allow blocking or failing of test contacts
         test_contact = Contact.get_test_contact(self.user)
@@ -622,7 +676,15 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
+        state_field = ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
 
+        africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
+        rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
+        gatsibo = AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
+        kayonza = AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
+        kigali = AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
+
+        locations_boundaries = [gatsibo, kayonza, kigali]
         locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
         date_format = get_datetime_format(True)[0]
@@ -636,8 +698,13 @@ class ContactTest(TembaTest):
 
             # some field data so we can do some querying
             contact.set_field('age', '%s' % i)
-            contact.set_field('home', locations[(i + 2) % len(locations)])
-            contact.set_field('join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i), date_format))
+            contact.set_field('join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i),
+                                                                  date_format))
+            contact.set_field('state', "Rwanda")
+            index = (i + 2) % len(locations)
+            with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
+                mock_parse_location.return_value = locations_boundaries[index]
+                contact.set_field('home', locations[index])
 
         q = lambda query: Contact.search(self.org, query)[0].count()
 
@@ -1605,6 +1672,33 @@ class ContactTest(TembaTest):
         self.joe.set_field('1234-1234', 'Joe', label="First Name")
         self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
         ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
+
+    def test_set_location_fields(self):
+        district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
+
+        # add duplicate district in different states
+        east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
+        AdminBoundary.objects.create(osm_id='R004', name='Remera', level=2, parent=east_province)
+        kigali = AdminBoundary.objects.get(name="Kigali City")
+        AdminBoundary.objects.create(osm_id='R003', name='Remera', level=2, parent=kigali)
+
+        joe = Contact.objects.get(pk=self.joe.pk)
+        joe.set_field('district', 'Remera')
+        value = Value.objects.filter(contact=joe, contact_field=district_field).first()
+        self.assertFalse(value.location_value)
+
+        state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
+
+        joe.set_field('state', 'Kigali city')
+        value = Value.objects.filter(contact=joe, contact_field=state_field).first()
+        self.assertTrue(value.location_value)
+        self.assertEquals(value.location_value.name, "Kigali City")
+
+        joe.set_field('district', 'Remera')
+        value = Value.objects.filter(contact=joe, contact_field=district_field).first()
+        self.assertTrue(value.location_value)
+        self.assertEquals(value.location_value.name, "Remera")
+        self.assertEquals(value.location_value.parent, kigali)
 
     def test_message_context(self):
         message_context = self.joe.build_message_context()

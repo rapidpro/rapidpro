@@ -1292,8 +1292,8 @@ class RuleTest(TembaTest):
         test.execute(run, None, msg)
 
         # new label should have been created with the name of the contact
-        new_label = Label.user_labels.get(name=self.contact.name)
-        label = Label.user_labels.get(pk=label.pk)
+        new_label = Label.label_objects.get(name=self.contact.name)
+        label = Label.label_objects.get(pk=label.pk)
 
         # and message should have been labeled with both labels
         msg = Msg.objects.get(pk=msg.pk)
@@ -1307,8 +1307,8 @@ class RuleTest(TembaTest):
         test.execute(run, None, msg)
 
         self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
-        self.assertEquals(Label.user_labels.get(pk=label.pk).get_visible_count(), 1)
-        self.assertEquals(Label.user_labels.get(pk=new_label.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
@@ -2748,6 +2748,16 @@ class FlowsTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Hi there Tupac', msg.text)
 
+    def test_webhook_rule_first(self):
+
+        flow = self.get_flow('webhook_rule_first')
+        tupac = self.create_contact('Tupac', '+15432')
+        flow.start(groups=[], contacts=[tupac])
+
+        # a message should have been sent
+        msg = Msg.objects.filter(direction='O', contact=tupac).first()
+        self.assertEquals('Testing this out', msg.text)
+
     def test_substitution(self):
         flow = self.get_flow('substitution')
 
@@ -3019,38 +3029,6 @@ class FlowsTest(FlowFileTest):
         actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
         action = actionset.get_actions()[0]
         self.assertFalse(isinstance(action.msg, dict))
-
-    def test_requires_step(self):
-
-        flow = self.get_flow('favorites')
-        ruleset = RuleSet.objects.filter(flow=flow, label='Color').first()
-
-        # default is on @step.value
-        self.assertEquals(True, ruleset.requires_step())
-
-        # mention step without @ outside of expression
-        ruleset.operand = 'no step'
-        self.assertEquals(False, ruleset.requires_step())
-
-        # mention step as variable
-        ruleset.operand = '@step'
-        self.assertEquals(True, ruleset.requires_step())
-
-        # inside an expression doesn't require @
-        ruleset.operand = '=(step)'
-        self.assertEquals(True, ruleset.requires_step())
-
-        # no operand requires step
-        ruleset.operand = None
-        self.assertEquals(True, ruleset.requires_step())
-
-        # empty operand is treated as none
-        ruleset.operand = ''
-        self.assertEquals(True, ruleset.requires_step())
-
-        # should still do the right thing with padding
-        ruleset.operand = ' =(step) '
-        self.assertEquals(True, ruleset.requires_step())
 
     def test_different_expiration(self):
         flow = self.get_flow('favorites')

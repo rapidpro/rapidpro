@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, temba.orgs.models.OrgModelMixin),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name='ContactField',
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
             ],
             options={
             },
-            bases=(models.Model, temba.orgs.models.OrgModelMixin),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name='ContactGroup',

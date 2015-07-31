@@ -127,7 +127,7 @@ class Migration(migrations.Migration):
             options={
                 'ordering': ['-created_on', '-pk'],
             },
-            bases=(models.Model, temba.orgs.models.OrgModelMixin),
+            bases=(models.Model,),
         ),
         migrations.AlterUniqueTogether(
             name='label',

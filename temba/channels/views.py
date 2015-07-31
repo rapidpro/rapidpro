@@ -10,7 +10,6 @@ import pycountry
 import pytz
 import time
 
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from django import forms
 from django.conf import settings
@@ -27,9 +26,8 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
-from temba.ivr.models import IVRCall, INCOMING, OUTGOING
-from temba.msgs.models import Msg, Broadcast, Call, QUEUED, PENDING, IVR, FLOW, INBOX
-from temba.orgs.models import Org, ACCOUNT_SID, OrgFolder
+from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
+from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager

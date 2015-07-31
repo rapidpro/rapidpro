@@ -92,52 +92,18 @@ ORG_LOW_CREDIT_THRESHOLD = 500
 
 # cache keys and TTLs
 ORG_LOCK_KEY = 'org:%d:lock:%s'
-ORG_FOLDER_COUNT_CACHE_KEY = 'org:%d:cache:folder_count:%s'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
 ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
-ORG_DISPLAY_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
-
-
-class OrgFolder(Enum):
-    # used on the contacts page
-    contacts_all = 1
-    contacts_failed = 2
-    contacts_blocked = 3
-
-    # used on the messages page
-    msgs_inbox = 4
-    msgs_archived = 5
-    msgs_outbox = 6
-    broadcasts_outbox = 7
-    calls_all = 8
-    msgs_flows = 9
-    broadcasts_scheduled = 10
-    msgs_failed = 11
 
 
 class OrgEvent(Enum):
     """
     Represents an internal org event
     """
-    contact_new = 1
-    contact_blocked = 2
-    contact_unblocked = 3
-    contact_failed = 4
-    contact_unfailed = 5
-    contact_deleted = 6
-    broadcast_new = 7
-    msg_new_incoming = 8
-    msg_new_outgoing = 9
-    msg_handled = 10
-    msg_failed = 11
-    msg_archived = 12
-    msg_restored = 13
-    msg_deleted = 14
-    call_new = 15
     topup_new = 16
     topup_updated = 17
 
@@ -158,34 +124,6 @@ class OrgCache(Enum):
     """
     display = 1
     credits = 2
-
-
-class OrgModelMixin(object):
-    """
-    Mixin for objects like contacts, messages which are owned by orgs and affect org caches
-    """
-    def _update_state(self, required_state, new_state, event):
-        """
-        Updates the state of this org-owned asset and triggers an org event, if it is currently in another state
-        """
-        qs = type(self).objects.filter(pk=self.pk)
-
-        # required state is either provided explicitly, or is inverse of new_state
-        if required_state:
-            qs = qs.filter(**required_state)
-        else:
-            qs = qs.exclude(**new_state)
-
-        # tells us if object state was actually changed at a db-level
-        rows_updated = qs.update(**new_state)
-        if rows_updated:
-            # update current object to new state
-            for attr_name, value in new_state.iteritems():
-                setattr(self, attr_name, value)
-
-            self.org.update_caches(event, self)
-
-        return bool(rows_updated)
 
 
 class Org(SmartModel):
@@ -271,170 +209,49 @@ class Org(SmartModel):
 
         return r.lock(lock_key, ORG_LOCK_TTL)
 
-    def get_folder_queryset(self, folder):
-        """
-        Gets the queryset for the given contact or message folder for this org
-        """
-        from temba.msgs.models import Broadcast, Call, Msg, INCOMING, INBOX, OUTGOING, FLOW, FAILED as M_FAILED
-        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
-
-        if folder == OrgFolder.contacts_all:
-            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.contacts_failed:
-            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.contacts_blocked:
-            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).contacts.all()
-        elif folder == OrgFolder.msgs_inbox:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=INBOX)
-        elif folder == OrgFolder.msgs_archived:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=True)
-        elif folder == OrgFolder.msgs_outbox:
-            return Msg.get_messages(self, direction=OUTGOING, is_archived=False)
-        elif folder == OrgFolder.broadcasts_outbox:
-            return Broadcast.get_broadcasts(self, scheduled=False)
-        elif folder == OrgFolder.calls_all:
-            return Call.get_calls(self)
-        elif folder == OrgFolder.msgs_flows:
-            return Msg.get_messages(self, direction=INCOMING, is_archived=False, msg_type=FLOW)
-        elif folder == OrgFolder.broadcasts_scheduled:
-            return Broadcast.get_broadcasts(self, scheduled=True)
-        elif folder == OrgFolder.msgs_failed:
-            return Msg.get_messages(self, direction=OUTGOING, is_archived=False).filter(status=M_FAILED)
-
-    def get_folder_count(self, folder):
-        """
-        Gets the (cached) count for the given contact folder
-        """
-        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
-
-        if folder == OrgFolder.contacts_all:
-            return self.all_groups.get(group_type=ALL_CONTACTS_GROUP).count
-        elif folder == OrgFolder.contacts_blocked:
-            return self.all_groups.get(group_type=BLOCKED_CONTACTS_GROUP).count
-        elif folder == OrgFolder.contacts_failed:
-            return self.all_groups.get(group_type=FAILED_CONTACTS_GROUP).count
-        else:
-            def calculate(_folder):
-                return self.get_folder_queryset(_folder).count()
-
-            cache_key = self._get_folder_count_cache_key(folder)
-            return get_cacheable_result(cache_key, ORG_DISPLAY_CACHE_TTL, lambda: calculate(folder))
-
-    def _get_folder_count_cache_key(self, folder):
-        return ORG_FOLDER_COUNT_CACHE_KEY % (self.pk, folder.name)
-
-    def patch_folder_queryset(self, queryset, folder, request):
-        """
-        Patches the given queryset so that it's count function fetches from our folder count cache
-        """
-        def patched_count():
-            cached_count = self.get_folder_count(folder)
-            # if our cache calculations are wrong we might have a negative value that will crash a paginator
-            if cached_count >= 0:
-                return cached_count
-            else:
-                logger = logging.getLogger(__name__)
-                msg = 'Cached count for folder %s in org #%d is negative (%d)' % (folder.name, self.id, cached_count)
-                logger.error(msg, exc_info=True, extra=dict(request=request))
-                return queryset._real_count()  # defer to the real count function
-
-        queryset._real_count = queryset.count  # backup the real count function
-        queryset.count = patched_count
-
     def has_contacts(self):
         """
         Gets whether this org has any contacts
         """
-        return (self.get_folder_count(OrgFolder.contacts_all) + self.get_folder_count(OrgFolder.contacts_blocked)) > 0
+        from temba.contacts.models import ContactGroup
+
+        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
+        return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     def has_messages(self):
         """
         Gets whether this org has any messages (or calls)
         """
-        return (self.get_folder_count(OrgFolder.msgs_inbox)
-                + self.get_folder_count(OrgFolder.msgs_outbox)
-                + self.get_folder_count(OrgFolder.calls_all)) > 0
+        from temba.msgs.models import SystemLabel
+
+        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX,
+                                                   SystemLabel.TYPE_OUTBOX,
+                                                   SystemLabel.TYPE_CALLS))
+        return (msg_counts[SystemLabel.TYPE_INBOX] +
+                msg_counts[SystemLabel.TYPE_OUTBOX] +
+                msg_counts[SystemLabel.TYPE_CALLS]) > 0
 
     def update_caches(self, event, entity):
         """
         Update org-level caches in response to an event
         """
-        from temba.msgs.models import INCOMING, INBOX, FAILED as M_FAILED
-
-        #print "ORG EVENT: %s for %s #%d" % (event.name, type(entity).__name__, entity.pk)
-
         r = get_redis_connection()
 
-        def update_folder_count(folder, delta):
-            #print " > %d to folder %s" % (delta, folder.name)
-
-            cache_key = self._get_folder_count_cache_key(folder)
-            incrby_existing(cache_key, delta, r)
-
-        # helper methods for modifying all the keys
-        clear_value = lambda key: r.delete(key)
-        increment_count = lambda folder: update_folder_count(folder, 1)
-        decrement_count = lambda folder: update_folder_count(folder, -1)
-
-        if event == OrgEvent.broadcast_new:
-            if entity.schedule:
-                increment_count(OrgFolder.broadcasts_scheduled)
-            else:
-                increment_count(OrgFolder.broadcasts_outbox)
-
-        elif event == OrgEvent.msg_new_incoming:
-            pass  # message will be pending and won't appear in the inbox
-
-        elif event == OrgEvent.msg_new_outgoing:
-            increment_count(OrgFolder.msgs_outbox)
-
-        elif event == OrgEvent.msg_handled:
-            increment_count(OrgFolder.msgs_inbox if entity.msg_type == INBOX else OrgFolder.msgs_flows)
-
-        elif event == OrgEvent.msg_failed:
-            increment_count(OrgFolder.msgs_failed)
-
-        elif event == OrgEvent.msg_archived:
-            if entity.direction == INCOMING:
-                decrement_count(OrgFolder.msgs_inbox if entity.msg_type == INBOX else OrgFolder.msgs_flows)
-            else:
-                decrement_count(OrgFolder.msgs_outbox)
-            increment_count(OrgFolder.msgs_archived)
-            if entity.status == M_FAILED:
-                decrement_count(OrgFolder.msgs_failed)
-
-        elif event == OrgEvent.msg_restored:
-            increment_count(OrgFolder.msgs_inbox if entity.direction == INCOMING else OrgFolder.msgs_outbox)
-            decrement_count(OrgFolder.msgs_archived)
-            if entity.status == M_FAILED:
-                increment_count(OrgFolder.msgs_failed)
-
-        elif event == OrgEvent.msg_deleted:
-            decrement_count(OrgFolder.msgs_archived)
-
-        elif event == OrgEvent.call_new:
-            increment_count(OrgFolder.calls_all)
-
-        elif event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
-            clear_value(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
-            clear_value(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
+        if event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
+            r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
+            r.delete(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
 
     def clear_caches(self, caches):
         """
-        Clears the given cache types (display, credits) for this org. Returns number of keys actually deleted
+        Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
         """
-        keys = []
-        if OrgCache.display in caches:
-            for folder in OrgFolder.__members__.values():
-                keys.append(self._get_folder_count_cache_key(folder))
-
         if OrgCache.credits in caches:
-            keys.append(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
-            keys.append(ORG_CREDITS_USED_CACHE_KEY % self.pk)
-            keys.append(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
-
-        r = get_redis_connection()
-        return r.delete(*keys)
+            r = get_redis_connection()
+            return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
+                            ORG_CREDITS_USED_CACHE_KEY % self.pk,
+                            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
+        else:
+            return 0
 
     def import_app(self, data, user, site=None):
         from temba.flows.models import Flow
@@ -922,17 +739,20 @@ class Org(SmartModel):
     def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
         return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
 
-    def create_system_groups(self):
+    def create_system_labels_and_groups(self):
         """
-        Initializes our system groups for this organization so that we can keep track of counts etc..
+        Creates our system labels and groups for this organization so that we can keep track of counts etc..
         """
-        from temba.contacts.models import ALL_CONTACTS_GROUP, BLOCKED_CONTACTS_GROUP, FAILED_CONTACTS_GROUP
+        from temba.contacts.models import ContactGroup
+        from temba.msgs.models import SystemLabel
 
-        self.all_groups.create(name='All Contacts', group_type=ALL_CONTACTS_GROUP,
+        SystemLabel.create_all(self)
+
+        self.all_groups.create(name='All Contacts', group_type=ContactGroup.TYPE_ALL,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Blocked Contacts', group_type=BLOCKED_CONTACTS_GROUP,
+        self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=FAILED_CONTACTS_GROUP,
+        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_FAILED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):
@@ -1381,7 +1201,7 @@ class Org(SmartModel):
         if not brand:
             brand = BrandingMiddleware.get_branding_for_host('')
 
-        self.create_system_groups()
+        self.create_system_labels_and_groups()
         self.create_sample_flows(brand.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
