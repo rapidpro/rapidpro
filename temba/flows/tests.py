@@ -2418,6 +2418,37 @@ class FlowsTest(FlowFileTest):
         assertInResponse(response, 'flow.color.text')
         assertInResponse(response, 'flow.color.time')
 
+    def test_expiration(self):
+        flow = self.get_flow('favorites')
+        color = RuleSet.objects.get(label='Color', flow=flow)
+        self.clear_activity(flow)
+
+        contacts = []
+        for i in range(6):
+            contacts.append(self.create_contact("Run Contact %d" % i, "+25078838338%d" % i))
+
+        # add our contacts to the flow
+        for contact in contacts:
+            self.send_message(flow, 'chartreuse', contact=contact)
+
+        # should have six active flowruns
+        (active, visited) = flow.get_activity()
+        self.assertEquals(6, FlowRun.objects.filter(is_active=True).count())
+        self.assertEquals(0, FlowRun.objects.filter(is_active=False).count())
+        self.assertEquals(6, flow.get_total_runs())
+        self.assertEquals(6, flow.get_total_contacts())
+        self.assertEquals(6, active[color.uuid])
+
+        # go expire them all
+        FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True), batch_size=4)
+
+        # should all be expired
+        (active, visited) = flow.get_activity()
+        self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
+        self.assertEquals(6, FlowRun.objects.filter(is_active=False).count())
+        self.assertEquals(6, flow.get_total_runs())
+        self.assertEquals(6, flow.get_total_contacts())
+        self.assertEquals(0, len(active))
 
     def test_activity(self):
 

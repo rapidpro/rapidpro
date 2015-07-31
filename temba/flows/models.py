@@ -2936,12 +2936,12 @@ class FlowRun(models.Model):
             return unicode(fields), count+1
 
     @classmethod
-    def do_expire_runs(cls, runs):
+    def do_expire_runs(cls, runs, batch_size=1000):
         """
         Expires a set of runs
         """
-        # let's optimize by only selecting what we need
-        runs = runs.order_by('flow').values('pk', 'flow')
+        # let's optimize by only selecting what we need and loading the actual ids
+        runs = list(runs.order_by('flow').values('id', 'flow'))
 
         # remove activity for each run, batched by flow
         last_flow = None
@@ -2950,21 +2950,24 @@ class FlowRun(models.Model):
         for run in runs:
             if run['flow'] != last_flow:
                 if expired_runs:
-                    flow = Flow.objects.filter(pk=last_flow).first()
+                    flow = Flow.objects.filter(id=last_flow).first()
                     if flow:
                         flow.remove_active_for_run_ids(expired_runs)
                 expired_runs = []
-            expired_runs.append(run['pk'])
+            expired_runs.append(run['id'])
             last_flow = run['flow']
 
         # same thing for our last batch if we have one
         if expired_runs:
-            flow = Flow.objects.filter(pk=last_flow).first()
+            flow = Flow.objects.filter(id=last_flow).first()
             if flow:
                 flow.remove_active_for_run_ids(expired_runs)
 
-        # finally, update the columns in the database with new expiration
-        runs.filter(is_active=True).update(is_active=False, expired_on=timezone.now())
+        # finally, update our db with the new expirations
+        # batch this for 1,000 runs at a time so we don't grab locks for too long
+        batches = [runs[i:i + batch_size] for i in range(0, len(runs), batch_size)]
+        for batch in batches:
+            FlowRun.objects.filter(id__in=[f['id'] for f in batch]).update(is_active=False, expired_on=timezone.now())
 
     def release(self):
 

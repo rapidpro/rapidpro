@@ -32,7 +32,14 @@ def check_flows_task():
     """
     See if any flow runs need to be expired
     """
-    FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()))
+    r = get_redis_connection()
+
+    # only do this if we aren't already expiring things
+    key = 'check_flows'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            # expire all flows that should no longer be active
+            FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()))
 
 
 @task(track_started=True, name='export_flow_results_task')
