@@ -109,20 +109,23 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $rootScope.activityInterval = 5000
 
   # fetch our flow to get started
-  Flow.fetch window.flowId, ->
-    $scope.updateActivity()
-    $scope.flow = Flow.flow
+  $scope.init = ->
+    Flow.fetch window.flowId, ->
+      $scope.updateActivity()
+      $scope.flow = Flow.flow
 
   showDialog = (title, body, okButton='Okay', hideCancel=true) ->
 
-    return $modal.open
-      templateUrl: "/partials/modal?v=" + version
+    $scope.dialog = $modal.open
+      templateUrl: "/partials/modal"
       controller: SimpleMessageController
       resolve:
         title: -> title
         body: -> body
         okButton: -> okButton
         hideCancel: -> hideCancel
+
+    return $scope.dialog
 
   $scope.getAcceptedScopes = (nodeType) ->
     return 'actions rules'
@@ -278,9 +281,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     return category.sources[0]
 
   $scope.onBeforeConnectorDrop = (props) ->
+
     if not Flow.isConnectionAllowed(props.sourceId, props.targetId)
       $rootScope.ghost.hide()
       $rootScope.ghost = null
+      showDialog('Infinite Loop', 'Connecting these steps together would create an infinite loop in your flow. To connect these steps you need to pass through a step that waits for the user to respond.')
       return false
     return true
 
@@ -424,7 +429,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
       $modal.open
-        templateUrl: "/partials/translate_rules?v=" + version
+        templateUrl: "/partials/translate_rules"
         controller: TranslateRulesController
         resolve:
           languages: ->
@@ -435,7 +440,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
       if window.ivr
         $modal.open
-          templateUrl: "/partials/node_editor?v=" + version
+          templateUrl: "/partials/node_editor"
           controller: NodeEditorController
           resolve:
             options: ->
@@ -446,7 +451,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
       else
         $modal.open
-          templateUrl: "/partials/node_editor?v=" + version
+          templateUrl: "/partials/node_editor"
           controller: NodeEditorController
           resolve:
             options: ->
@@ -516,7 +521,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.clickActionSource = (actionset) ->
     if actionset._terminal
       $modal.open
-        templateUrl: "/partials/modal?v=" + version
+        templateUrl: "/partials/modal"
         controller: TerminalWarningController
         resolve:
           actionset: -> actionset
@@ -552,7 +557,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       return
 
     $modal.open
-      templateUrl: "/partials/node_editor?v=" + version
+      templateUrl: "/partials/node_editor"
       controller: NodeEditorController
       resolve:
         options: ->
@@ -615,7 +620,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         fromText = action.msg[Flow.flow.base_language]
 
         modalInstance = $modal.open(
-          templateUrl: "/partials/translation_modal?v=" + version
+          templateUrl: "/partials/translation_modal"
           controller: TranslationController
           resolve:
             languages: ->
@@ -641,7 +646,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     else
 
       $modal.open
-        templateUrl: "/partials/node_editor?v=" + version
+        templateUrl: "/partials/node_editor"
         controller: NodeEditorController
         resolve:
           options: ->
@@ -893,7 +898,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.updateWebhook = () ->
 
     $modal.open
-      templateUrl: "/partials/rule_webhook?v=" + version
+      templateUrl: "/partials/rule_webhook"
       controller: RuleOptionsController
       resolve:
         methods: ->
@@ -975,7 +980,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.updateSplitVariable = ->
 
     $modal.open
-      templateUrl: "/partials/split_variable?v=" + version
+      templateUrl: "/partials/split_variable"
       controller: RuleOptionsController
       resolve:
         methods: -> []
