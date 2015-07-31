@@ -40,6 +40,8 @@ module.exports = (config) ->
       'karma/flows/test_directives.coffee',
       'karma/flows/test_controllers.coffee',
 
+      'templates/partials/*.haml'
+
     ]
 
     # list of files to exclude
@@ -50,12 +52,33 @@ module.exports = (config) ->
     # preprocess matching files before serving them to the browser
     # available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'karma/**/*.coffee': ['coffee']
+      'templates/partials/*.haml': ["ng-html2js"],
+      'karma/**/*.coffee': ['coffee'],
       'static/**/*.coffee': ['coverage']
     }
 
+    ngHtml2JsPreprocessor: {
+
+      # file path
+      #stripSuffix: '.haml',
+      stripPrefix: 'templates/',
+
+      # url
+      # prependPrefix: "partials/",
+      #or define a custom transform function
+      cacheIdFromPath: (filepath) ->
+
+        filepath = filepath.replace('templates', '')
+        filepath = filepath.replace('.haml', '')
+        console.log(filepath)
+        return filepath
+
+      # the name of the Angular module to create
+      moduleName: "my.templates"
+    }
+
     # this makes sure that we get coffeescript line numbers instead
-    # of the line number from the transpiled 
+    # of the line number from the transpiled
     coffeePreprocessor:
       options:
         bare: true
@@ -102,4 +125,3 @@ module.exports = (config) ->
     # Continuous Integration mode
     # if true, Karma captures browsers, runs the tests and exits
     singleRun: false
-
