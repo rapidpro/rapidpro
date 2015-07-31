@@ -3,7 +3,7 @@ describe 'Controllers:', ->
   beforeEach ->
     # initialize our angular app
     module 'app'
-    module 'my.templates'
+    module 'partials'
 
   $rootScope = null
   $compile = null
@@ -90,5 +90,5 @@ describe 'Controllers:', ->
         expect($scope.dialog).toBe(undefined)
         $scope.onBeforeConnectorDrop(connection)
         expect($scope.dialog).not.toBe(undefined)
-        
+
       $http.flush()

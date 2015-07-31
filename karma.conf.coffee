@@ -40,6 +40,7 @@ module.exports = (config) ->
       'karma/flows/test_directives.coffee',
       'karma/flows/test_controllers.coffee',
 
+      # paritals templates to be loaded by ng-html2js
       'templates/partials/*.haml'
 
     ]
@@ -58,23 +59,10 @@ module.exports = (config) ->
     }
 
     ngHtml2JsPreprocessor: {
-
-      # file path
-      #stripSuffix: '.haml',
-      stripPrefix: 'templates/',
-
-      # url
-      # prependPrefix: "partials/",
-      #or define a custom transform function
-      cacheIdFromPath: (filepath) ->
-
-        filepath = filepath.replace('templates', '')
-        filepath = filepath.replace('.haml', '')
-        console.log(filepath)
-        return filepath
-
       # the name of the Angular module to create
-      moduleName: "my.templates"
+      moduleName: "partials"
+      cacheIdFromPath: (filepath) ->
+        return filepath.replace('templates', '').replace('.haml', '')
     }
 
     # this makes sure that we get coffeescript line numbers instead
