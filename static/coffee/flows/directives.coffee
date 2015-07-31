@@ -274,8 +274,8 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           else
             category._translation = category.name
 
-        Flow.updateTranslationStats()
-        Plumb.repaint(element)
+      Flow.updateTranslationStats()
+      Plumb.repaint(element)
 
     scope.$watch (->scope.ruleset), ->
       scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
