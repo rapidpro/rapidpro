@@ -174,7 +174,7 @@ window.tplval = (tpl, map, action) ->
   try
     template = tpl(map) unless typeof tpl is 'string'
 
-    if typeof map.example isnt undefined and map.name is contextQuery and action is "onDisplay"
+    if typeof map.example isnt "undefined" and map.name is contextQuery and action is "onDisplay"
       template = "<li><h5>${name}</h5><div>${example}</div><div>${hint}</div><div>BLABLABLABAL</div></li>"
 
     template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
