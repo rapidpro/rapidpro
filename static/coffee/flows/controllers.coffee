@@ -402,8 +402,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
     lastAction = actionset.actions[actionset.actions.length - 1]
-    if $scope.flow.base_language
-      if $scope.flow.base_language != Flow.language.iso_code
+    if Flow.language
+      if Flow.language.iso_code != Flow.flow.base_language
         if lastAction.msg and lastAction.type in ['reply', 'send', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
           return true
 
@@ -422,7 +422,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     DragHelper.hide()
 
-    if Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
       $modal.open
         templateUrl: "/partials/translate_rules?v=" + version
         controller: TranslateRulesController
@@ -608,7 +608,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     # if its the base language, don't show the from text
-    if Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
 
       if action.type in ["send", "reply", "say"]
 
@@ -727,12 +727,12 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
     if rule.category
       rule._translation = {category:{}, test:{}}
-      rule._translation.category['from'] = rule.category[$scope.$parent.flow.base_language]
-      rule._translation.category['to'] = rule.category[$scope.$parent.language.iso_code]
+      rule._translation.category['from'] = rule.category[Flow.flow.base_language]
+      rule._translation.category['to'] = rule.category[Flow.language.iso_code]
 
       if typeof(rule.test.test) == "object"
-        rule._translation.test['from'] = rule.test.test[$scope.$parent.flow.base_language]
-        rule._translation.test['to'] = rule.test.test[$scope.$parent.language.iso_code]
+        rule._translation.test['from'] = rule.test.test[Flow.flow.base_language]
+        rule._translation.test['to'] = rule.test.test[Flow.language.iso_code]
 
   $scope.ruleset = ruleset
   $scope.languages = languages
