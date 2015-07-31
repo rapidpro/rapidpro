@@ -619,7 +619,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
         fromText = action.msg[Flow.flow.base_language]
 
-        modalInstance = $modal.open(
+        $scope.dialog = $modal.open(
           templateUrl: "/partials/translation_modal"
           controller: TranslationController
           resolve:
@@ -631,10 +631,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               to: action.msg[Flow.language.iso_code]
         )
 
-        modalInstance.opened.then ->
+        $scope.dialog.opened.then ->
           $('textarea').focus()
 
-        modalInstance.result.then (translation) ->
+        $scope.dialog.result.then (translation) ->
           action = utils.clone(action)
           if translation and translation.strip().length > 0
              action.msg[Flow.language.iso_code] = translation
@@ -645,7 +645,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     else
 
-      $modal.open
+      $scope.dialog = $modal.open
         templateUrl: "/partials/node_editor"
         controller: NodeEditorController
         resolve:

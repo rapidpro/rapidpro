@@ -17,8 +17,6 @@ describe 'Controllers:', ->
 
   beforeEach inject((_$httpBackend_) ->
 
-
-
     $http = _$httpBackend_
 
     # wire up our mock flows
@@ -49,10 +47,13 @@ describe 'Controllers:', ->
       $http.whenGET('/flow/completion/?flow=' + config.id).respond([])
   )
 
-  beforeEach inject((_$rootScope_, _$compile_, _$log_, _$modal_) ->
+  $modalStack = null
+
+  beforeEach inject((_$rootScope_, _$compile_, _$log_, _$modal_, _$modalStack_) ->
       $rootScope = _$rootScope_.$new()
       $scope = $rootScope.$new()
       $modal = _$modal_
+      $modalStack = _$modalStack_
 
       $rootScope.ghost =
         hide: ->
@@ -89,6 +90,32 @@ describe 'Controllers:', ->
 
         expect($scope.dialog).toBe(undefined)
         $scope.onBeforeConnectorDrop(connection)
+
+        $scope.dialog.opened.then ->
+          modalScope = $modalStack.getTop().value.modalScope
+          expect(modalScope.title, 'Infinite Loop')
+
+      $http.flush()
+
+    it 'should view localized flows without org language', ->
+
+      # mock our contact fields
+      flowService.contactFieldSearch = []
+
+      flowService.fetch(flows.webhook_rule_first.id).then ->
+        actionset = flowService.flow.action_sets[0]
+        $scope.clickAction(actionset, actionset.actions[0])
         expect($scope.dialog).not.toBe(undefined)
+
+        $scope.dialog.opened.then ->
+          modalScope = $modalStack.getTop().value.modalScope
+
+          # we don't have a language
+          expect(flowService.language).toBe(undefined)
+
+          # but we do have base language
+          expect(modalScope.base_language, 'eng')
+          expect(modalScope.action.msg.eng, 'Testing this out')
+
 
       $http.flush()
