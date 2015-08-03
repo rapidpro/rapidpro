@@ -27,6 +27,7 @@
       $('#id_unit').on('change', toggleDeliveryHour);
 
       window.message_completions = {{completions|safe}};
+      window.functions_completions = {{functions_completions|safe}};
       $("#id_message").attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
       initAtMessageText("#id_message");
 

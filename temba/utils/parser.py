@@ -851,6 +851,7 @@ def get_function_listing():
 
         signature = '%s(%s)' % (fn_name.upper(), ', '.join(args))
         description = _(fn.__doc__.strip())
-        listing.append(dict(signature=signature, description=description))
+        listing.append(dict(signature=signature, description=description.capitalize(), name=fn_name.upper(),
+                            example=signature, display=description.capitalize()))
 
     return listing

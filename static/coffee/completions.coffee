@@ -65,7 +65,16 @@ window.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
 
       if name not of matched
         matched[name] = name
-        results.push({ name: name, display: display })
+
+        matchingOption =
+          name: name
+          display: display
+
+        for key in Object.keys(option)
+          if key isnt 'name' and key isnt 'display'
+            matchingOption[key] = option[key]
+
+        results.push(matchingOption)
 
   return results
 
@@ -174,17 +183,15 @@ window.tplval = (tpl, map, action) ->
   try
     template = tpl(map) unless typeof tpl is 'string'
 
-    if typeof map.example isnt "undefined" and map.name is contextQuery and action is "onDisplay"
-      template = "<li><h5>${name}</h5><div>${example}</div><div>${hint}</div><div>BLABLABLABAL</div></li>"
+
+    if typeof map.example isnt "undefined" and action is "onDisplay"
+      template = "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
+
+      console.log(template)
 
     template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
   catch error
     ""
-
-window.functions_completions = [
-      {"display": "Display Returns the sum of all arguments", "description": "Description: Returns the sum of all arguments", "name": "SUM", "hint": "Hint: Returns the sum of all arguments", "example": "SUM(args)", "arguments": [{"name": "args", "hint": "Hint for :-:args:-: arg"}]}
-      {"display": "Display: Defines a time value", "description": "Description: Defines a time value", "name": "TIME", "hint": "Hint: Defines a time value", "example": "TIME(hours, minutes, seconds)","arguments": [{"name": "hours", "hint": "Hint for :-:hours:-: arg"}, {"name": "minutes","hint": "Hint for :-:minutes:-: arg"}]}
-    ]
 
 
 @initAtMessageText = (selector, completions=null) ->
@@ -207,8 +214,8 @@ window.functions_completions = [
     searchKey: "name"
     insertTpl: '@${name}'
     startWithSpace: true
-    displayTpl: "<li>${name} <small>${display}</small></li>"
-    limit: 15
+    displayTpl: "<li>${name} <small>(${display})</small></li>"
+    limit: 100
     maxLen: 100
     suffix: ""
     callbacks: callbacks

@@ -21,6 +21,7 @@
       select2div("#id_register_action_join_group", "520px", '{% trans "Group to join" %}', '{% trans "Add Group: " %}');
       select2div("#id_register_flow", "520px", '{% trans "Flow to start" %}');
       window.message_completions = {{completions|safe}};
+      window.functions_completions = {{functions_completions|safe}};
       initAtMessageText("#id_register_response");
     });
 

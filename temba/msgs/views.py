@@ -21,6 +21,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
+from temba.utils.parser import get_function_listing
 from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
 
 
@@ -51,7 +52,8 @@ def send_message_auto_complete_processor(request):
         completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
         completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
-    return dict(completions=json.dumps(completions))
+    functions_completions = get_function_listing()
+    return dict(completions=json.dumps(completions), functions_completions=json.dumps(functions_completions))
 
 
 class SendMessageForm(Form):

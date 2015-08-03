@@ -127,6 +127,7 @@
 
     $(document).ready(function() {
       window.message_completions = {{completions|safe}};
+      window.functions_completions = {{functions_completions|safe}};
 
       {% if object.trigger_type == 'C' %}
         select2div("#id_catchall_flow", "520px", '{% trans "Flow to start" %}');
