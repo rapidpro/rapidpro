@@ -464,7 +464,11 @@ class ListAPIMixin(mixins.ListModelMixin):
             query_params = self.request.QUERY_PARAMS.copy()
             if 'page' in query_params:
                 del query_params['page']
-            query_key = urllib.urlencode(sorted(query_params.lists()), doseq=True)
+
+            # param values should be in UTF8
+            encoded_params = [(p[0], [v.encode('utf-8') for v in p[1]]) for p in query_params.lists()]
+
+            query_key = urllib.urlencode(sorted(encoded_params), doseq=True)
             count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
 
             # only try to use cached count for pages other than the first
