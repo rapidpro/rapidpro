@@ -1079,14 +1079,10 @@ class Msg(models.Model):
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
-        # normally we care about message sending urns
-        scheme = SEND
+        # for IVR messages we need a channel that can call
+        role = CALL if msg_type == IVR else SEND
 
-        # if its an IVR message, we want the call urn instead
-        if msg_type == IVR:
-            scheme = CALL
-
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, scheme=scheme)
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
         if not contact_urn:
             raise UnreachableException("No suitable URN found for contact")
@@ -1115,12 +1111,12 @@ class Msg(models.Model):
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
-                                                contact__is_test=False,
-                                                channel=channel,
-                                                recording_url=recording_url,
-                                                text=text,
-                                                direction=OUTGOING,
-                                                created_on__gte=created_on - timedelta(minutes=10))
+                                           contact__is_test=False,
+                                           channel=channel,
+                                           recording_url=recording_url,
+                                           text=text,
+                                           direction=OUTGOING,
+                                           created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1173,7 +1169,7 @@ class Msg(models.Model):
         return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel, scheme=SEND):
+    def resolve_recipient(org, user, recipient, channel, role=SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
@@ -1181,7 +1177,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(scheme)
+        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
