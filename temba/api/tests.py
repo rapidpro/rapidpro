@@ -1122,6 +1122,49 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.get(pk=shinonda.pk).is_active)
         self.assertFalse(Contact.objects.get(pk=chad.pk).is_active)
 
+    def test_api_contacts_with_multiple_pages(self):
+        url = reverse('api.contacts')
+
+        # bulk create more contacts than fits on one page
+        contacts = []
+        for c in range(0, 300):
+            contacts.append(Contact(org=self.org, name="Minion %d" % (c + 1),
+                                    created_by=self.admin, modified_by=self.admin))
+        Contact.objects.all().delete()
+        Contact.objects.bulk_create(contacts)
+
+        # login as administrator
+        self.login(self.admin)
+
+        # page is implicit
+        response = self.fetchJSON(url)
+        self.assertResultCount(response, 300)
+        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+
+        Contact.objects.create(org=self.org, name="Minion 301", created_by=self.admin, modified_by=self.admin)
+
+        # page 1 request always recalculates count
+        response = self.fetchJSON(url, 'page=1')
+        self.assertResultCount(response, 301)
+        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+
+        Contact.objects.create(org=self.org, name="Minion 302", created_by=self.admin, modified_by=self.admin)
+
+        # other page numbers won't
+        response = self.fetchJSON(url, 'page=2')
+        self.assertResultCount(response, 301)
+        self.assertEqual(response.json['results'][0]['name'], "Minion 251")
+
+        # handle non-ascii chars in params
+        response = self.fetchJSON(url, 'page=1&test=é')
+        self.assertResultCount(response, 302)
+
+        Contact.objects.create(org=self.org, name="Minion 303", created_by=self.admin, modified_by=self.admin)
+
+        # should force calculation for new query (e != é)
+        response = self.fetchJSON(url, 'page=2&test=e')
+        self.assertResultCount(response, 303)
+
     def test_api_fields(self):
         url = reverse('api.contactfields')
 
