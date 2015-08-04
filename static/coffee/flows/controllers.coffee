@@ -75,8 +75,6 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
       $rootScope.original = null
       $rootScope.visibleActivity = true
       $rootScope.showVersions = false
-
-
 ]
 
 app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $modal, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
