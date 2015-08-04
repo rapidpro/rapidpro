@@ -38,7 +38,7 @@ def populate_system_labels(apps, schema_editor):
                 item_count = counts_by_org_id.get(org.pk, 0)
 
                 if item_count:
-                    print(" > incrementing org '%s' count with %d" % (org.name, item_count))
+                    print(" > setting org '%s' count with %d" % (org.name, item_count))
 
                     # increment label count that might already have a value from triggers
                     SystemLabel.objects.filter(org=org, label_type=label_type).update(count=item_count)
