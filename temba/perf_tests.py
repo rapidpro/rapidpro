@@ -9,10 +9,10 @@ from django.db import connection, reset_queries
 from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
-from temba.utils import truncate
+from temba.utils import truncate, dict_to_struct
 from temba.values.models import Value, TEXT, DECIMAL
 from tests import TembaTest
 from timeit import default_timer
@@ -483,3 +483,15 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler(self, "Message inbox page (repeat)", True):
             self.client.get(reverse('msgs.msg_inbox'))
+
+    def test_channellog(self):
+        contact = self.create_contact("Test", "+250788383383")
+        msg = Msg.create_outgoing(self.org, self.admin, contact, "This is a test message")
+        msg = dict_to_struct('MockMsg', msg.as_task_json())
+
+
+        with SegmentProfiler(self, "Channel Log inserts (10,000)", True):
+            for i in range(10000):
+                ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",
+                                       request="GET http://foo", response="Ok", response_status="201")
+
