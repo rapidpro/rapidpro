@@ -5,7 +5,10 @@ from django.db import migrations
 
 # language=SQL
 CREATE_SQL = """
-DROP INDEX msgs_msg_org_failed_created_on;
+DROP INDEX IF EXISTS msgs_msg_org_failed_created_on;
+DROP INDEX IF EXISTS msgs_msg_sent_label;
+DROP INDEX IF EXISTS msgs_msg_outbox_label;
+DROP INDEX IF EXISTS msgs_msg_failed_label;
 
 CREATE INDEX msgs_msg_outbox_label ON msgs_msg(org_id, created_on DESC)
 WHERE direction = 'O' AND visibility = 'V' AND status IN ('P', 'Q');

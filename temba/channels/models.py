@@ -1842,9 +1842,18 @@ class ChannelCount(models.Model):
     count = models.IntegerField(default=0,
                                 help_text=_("The count of messages on this day and type"))
 
-    class Meta:
-        unique_together = ('channel', 'day', 'count_type')
+    @classmethod
+    def get_day_count(cls, channel, count_type, day):
+        count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day).\
+          order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
 
+        return 0 if not count else count['count_sum']
+
+    def __unicode__(self):
+        return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
+
+    class Meta:
+        index_together = ['channel', 'count_type', 'day']
 
 class SendException(Exception):
 
