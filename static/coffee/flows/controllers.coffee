@@ -1381,10 +1381,9 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     $modalInstance.close()
 
   # Saving the remove all groups action
-  $scope.delGroups = (actionType, groups) ->
+  $scope.delGroups = (actionType) ->
 
-    $scope.action.type = actionType
-    $scope.action.groups = groups
+    $scope.action.type = 'del_groups'
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
