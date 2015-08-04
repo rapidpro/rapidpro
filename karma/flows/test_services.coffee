@@ -182,7 +182,7 @@ describe 'Services:', ->
         expect($rootScope.errorDelay).toBe(500)
 
         # simulate our server going offline
-        post = $http.whenPOST('/flow/json/' + flows.favorites.id + '/').respond(500, '')
+        post = $http.whenPOST('/flow/json/' + flows.favorites.id + '/').respond(0, '')
 
         # mark as dirty
         flowService.dirty = true
