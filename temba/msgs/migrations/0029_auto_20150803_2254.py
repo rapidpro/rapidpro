@@ -12,8 +12,6 @@ TRIGGER_SQL = """
 CREATE OR REPLACE FUNCTION
   temba_increment_system_label(_org_id INT, _label_type CHAR(1), _add BOOLEAN)
 RETURNS VOID AS $$
-DECLARE
-  _label_id INT;
 BEGIN
   IF _add THEN
     INSERT INTO msgs_systemlabel("org_id", "label_type", "count") VALUES(_org_id, _label_type, 1);
