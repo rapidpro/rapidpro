@@ -31,7 +31,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION temba_maybe_squash_systemlabel(_org_id INTEGER, _label_type CHAR(1))
 RETURNS VOID AS $$
 BEGIN
-  IF RANDOM() < .01 THEN
+  IF RANDOM() < .001 THEN
     WITH deleted as (DELETE FROM msgs_systemlabel
       WHERE "org_id" = _org_id AND "label_type" = _label_type
       RETURNING "count")
