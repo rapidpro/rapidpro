@@ -21,7 +21,6 @@ describe 'Services:', ->
 
     for file, config of flows
 
-      $http.whenPOST('/flow/json/' + config.id + '/').respond()
       $http.whenGET('/flow/json/' + config.id + '/').respond(
         {
           flow: getJSONFixture(file + '.json').flows[0].definition,
@@ -42,13 +41,16 @@ describe 'Services:', ->
     $rootScope = null
     $compile = null
     flowService = null
+    $timeout = null
 
-    beforeEach inject((_$rootScope_, _$compile_, _$window_, _Flow_) ->
+    beforeEach inject((_$rootScope_, _$compile_, _$window_, _Flow_, _$timeout_) ->
       $rootScope = _$rootScope_.$new()
       $compile = _$compile_
       $window = _$window_
       flowService = _Flow_
+      $timeout = _$timeout_
     )
+
 
     it 'should set flow defintion after fetching', ->
       flowService.fetch(flows.rules_first.id).then (response) ->
@@ -166,6 +168,44 @@ describe 'Services:', ->
       ruleOther.category = {eng:'b'}
       flowService.deriveCategories(ruleset, 'eng')
       expect(ruleOther.destination).toBe(null)
+
+    describe 'makeDirty()', ->
+
+      it 'should handle saving with intermittent connections', ->
+
+        # execute our fetch
+        flowService.fetch(flows.favorites.id)
+        $http.flush()
+        $timeout.flush()
+
+        # we should start at the starting delay
+        expect($rootScope.errorDelay).toBe(500)
+
+        # simulate our server going offline
+        post = $http.whenPOST('/flow/json/' + flows.favorites.id + '/').respond(500, '')
+
+        # mark as dirty
+        flowService.dirty = true
+        $rootScope.$apply()
+        $timeout.flush()
+        $http.flush()
+
+        # we should now have a step down in effect now
+        expect($rootScope.errorDelay).toBe(1000)
+
+        # now our server comes back online
+        post.respond(200, '')
+
+        # run our delay which marks us dirty
+        $timeout.flush()
+
+        # apply our new dirty state
+        $rootScope.$apply()
+        $timeout.flush()
+        $http.flush()
+
+        # now we are back to a standard error delay after success
+        expect($rootScope.errorDelay).toBe(500)
 
     describe 'checkTerminal', ->
 
