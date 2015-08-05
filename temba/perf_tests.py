@@ -3,9 +3,7 @@ from __future__ import unicode_literals
 import json
 import random
 
-from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.db import connection, reset_queries
 from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
@@ -14,82 +12,8 @@ from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import truncate, dict_to_struct
 from temba.values.models import Value, TEXT, DECIMAL
+from temba.utils.profiler import SegmentProfiler
 from tests import TembaTest
-from timeit import default_timer
-
-
-MAX_QUERIES_PRINT = 16
-API_INITIAL_REQUEST_QUERIES = 9  # num of required db hits for an initial API request
-API_REQUEST_QUERIES = 7  # num of required db hits for a subsequent API request
-
-
-class SegmentProfiler(object):  # pragma: no cover
-    """
-    Used in a with block to profile a segment of code
-    """
-    def __init__(self, test, name, db_profile=True, assert_queries=None, assert_tx=None):
-        self.test = test
-        self.test.segments.append(self)
-        self.name = name
-        self.db_profile = db_profile
-        self.assert_queries = assert_queries
-        self.assert_tx = assert_tx
-
-        self.old_debug = settings.DEBUG
-
-        self.time_total = 0.0
-        self.time_queries = 0.0
-        self.queries = []
-
-    def __enter__(self):
-        if self.db_profile:
-            settings.DEBUG = True
-            reset_queries()
-
-        self.start_time = default_timer()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.time_total = default_timer() - self.start_time
-
-        if self.db_profile:
-            settings.DEBUG = self.old_debug
-            self.queries = connection.queries
-            self.num_tx = len([q for q in self.queries if q['sql'].startswith('SAVEPOINT')])
-
-            reset_queries()
-
-            # assert number of queries if specified
-            if self.assert_queries is not None:
-                self.test.assertEqual(len(self.queries), self.assert_queries)
-
-            # assert number of transactions if specified
-            if self.assert_tx is not None:
-                self.test.assertEqual(self.num_tx, self.assert_tx)
-
-    def __unicode__(self):
-        def format_query(q):
-            return "Query [%s] %.3f secs" % (truncate(q['sql'], 75), float(q['time']))
-
-        message = "Segment [%s] time: %.3f secs" % (self.name, self.time_total)
-        if self.db_profile:
-            num_queries = len(self.queries)
-            time_db = sum([float(q['time']) for q in self.queries])
-
-            message += ", %.3f secs db time, %d db queries, %d transaction(s)" % (time_db, num_queries, self.num_tx)
-
-            # if we have only have a few queries, include them all in order of execution
-            if len(self.queries) <= MAX_QUERIES_PRINT:
-                message += ":"
-                for query in self.queries:
-                    message += "\n\t%s" % format_query(query)
-            # if there are too many, only include slowest in order of duration
-            else:
-                message += ". %d slowest:" % MAX_QUERIES_PRINT
-                slowest = sorted(list(self.queries), key=lambda q: float(q['time']), reverse=True)[:MAX_QUERIES_PRINT]
-                for query in slowest:
-                    message += "\n\t%s" % format_query(query)
-
-        return message
 
 
 class PerformanceTest(TembaTest):  # pragma: no cover
@@ -254,21 +178,21 @@ class PerformanceTest(TembaTest):  # pragma: no cover
     def test_contact_create(self):
         num_contacts = 1000
 
-        with SegmentProfiler(self, "Creating new contacts", True):
+        with SegmentProfiler("Creating new contacts", self):
             self._create_contacts(num_contacts, ["Bobby"])
 
-        with SegmentProfiler(self, "Updating existing contacts", True):
+        with SegmentProfiler("Updating existing contacts", self):
             self._create_contacts(num_contacts, ["Jimmy"])
 
     def test_message_incoming(self):
         num_contacts = 300
 
-        with SegmentProfiler(self, "Creating incoming messages from new contacts", False):
+        with SegmentProfiler("Creating incoming messages from new contacts", self, False):
             for c in range(0, num_contacts):
                 scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
                 Msg.create_incoming(channel, (scheme, path), "Thanks #1", self.user)
 
-        with SegmentProfiler(self, "Creating incoming messages from existing contacts", False):
+        with SegmentProfiler("Creating incoming messages from existing contacts", self, False):
             for c in range(0, num_contacts):
                 scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
                 Msg.create_incoming(channel, (scheme, path), "Thanks #2", self.user)
@@ -285,7 +209,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         broadcast = self._create_broadcast("Hello message #1", contacts)
 
-        with SegmentProfiler(self, "Sending broadcast to new contacts", True):
+        with SegmentProfiler("Sending broadcast to new contacts", self, True):
             broadcast.send()
 
         # give all contact URNs an assigned channel as if they've been used for incoming
@@ -301,12 +225,12 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         broadcast = self._create_broadcast("Hello message #2", contacts)
 
-        with SegmentProfiler(self, "Sending broadcast when urns have channels", True):
+        with SegmentProfiler("Sending broadcast when urns have channels", self, True):
             broadcast.send()
 
         broadcast = self._create_broadcast("Hello =contact #3", contacts)
 
-        with SegmentProfiler(self, "Sending broadcast with expression", True):
+        with SegmentProfiler("Sending broadcast with expression", self, True):
             broadcast.send()
 
         # check messages for each channel
@@ -329,7 +253,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
                                                  created_by=self.user, modified_by=self.user)
 
-        with SegmentProfiler(self, "Export messages", True):
+        with SegmentProfiler("Export messages", self, True):
             task.do_export()
 
     def test_flow_start(self):
@@ -337,7 +261,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         groups = self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
         flow = self.create_flow()
 
-        with SegmentProfiler(self, "Starting a flow", True):
+        with SegmentProfiler("Starting a flow", self, True):
             flow.start(groups, [])
 
         self.assertEqual(10000, Msg.objects.all().count())
@@ -351,13 +275,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.login(self.user)
         self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch first page of contacts from API",
+        with SegmentProfiler("Fetch first page of contacts from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.contacts'))
 
         # query count now cached
 
-        with SegmentProfiler(self, "Fetch second page of contacts from API",
+        with SegmentProfiler("Fetch second page of contacts from API", self,
                              assert_queries=API_REQUEST_QUERIES+6, assert_tx=0):
             self._fetch_json('%s.json?page=2' % reverse('api.contacts'))
 
@@ -368,7 +292,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.login(self.user)
         self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch first page of groups from API",
+        with SegmentProfiler("Fetch first page of groups from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.contactgroups'))
 
@@ -382,13 +306,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.login(self.user)
         self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch first page of messages from API",
+        with SegmentProfiler("Fetch first page of messages from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.messages'))
 
         # query count now cached
 
-        with SegmentProfiler(self, "Fetch second page of messages from API",
+        with SegmentProfiler("Fetch second page of messages from API", self,
                              assert_queries=API_REQUEST_QUERIES+2, assert_tx=0):
             self._fetch_json('%s.json?page=2' % reverse('api.messages'))
 
@@ -400,17 +324,17 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.login(self.user)
         self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch first page of flow runs from API",
+        with SegmentProfiler("Fetch first page of flow runs from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0):
             self._fetch_json('%s.json' % reverse('api.runs'))
 
         # query count, terminal nodes and category nodes for the flow all now cached
 
-        with SegmentProfiler(self, "Fetch second page of flow runs from API",
+        with SegmentProfiler("Fetch second page of flow runs from API", self,
                              assert_queries=API_REQUEST_QUERIES+4, assert_tx=0):
             self._fetch_json('%s.json?page=2' % reverse('api.runs'))
 
-        with SegmentProfiler(self, "Create new flow runs via API endpoint", assert_tx=1):
+        with SegmentProfiler("Create new flow runs via API endpoint", self, assert_tx=1):
             data = {'flow': flow.pk, 'contact': [c.uuid for c in contacts]}
             self._post_json('%s.json' % reverse('api.runs'), data)
 
@@ -420,20 +344,20 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         self.login(self.user)
 
-        with SegmentProfiler(self, "Omnibox with telephone search", True):
+        with SegmentProfiler("Omnibox with telephone search", self):
             self._fetch_json("%s?search=078" % reverse("contacts.contact_omnibox"))
 
     def test_contact_search(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
         self._create_values(contacts, self.field_nick, lambda c: c.name.lower().replace(' ', '_'))
 
-        with SegmentProfiler(self, "Contact search with simple query", True):
+        with SegmentProfiler("Contact search with simple query", self):
             qs, is_complex = Contact.search(self.org, 'bob')
 
         self.assertEqual(3334, qs.count())
         self.assertEqual(False, is_complex)
 
-        with SegmentProfiler(self, "Contact search with complex query", True):
+        with SegmentProfiler("Contact search with complex query", self):
             qs, is_complex = Contact.search(self.org, 'name = bob or tel has 078 or twitter = tweep_123 or nick is bob')
 
         self.assertEqual(3377, qs.count())
@@ -444,12 +368,12 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         contacts = self._create_contacts(num_contacts, ["Bobby", "Jimmy", "Mary"])
         groups = self._create_groups(10, ["Big Group"], contacts)
 
-        with SegmentProfiler(self, "Contact group counts via regular queries", True):
+        with SegmentProfiler("Contact group counts via regular queries", self):
             for group in groups:
                 self.assertEqual(group.contacts.count(), num_contacts)
                 self.assertEqual(group.contacts.count(), num_contacts)
 
-        with SegmentProfiler(self, "Contact group counts with caching", True):
+        with SegmentProfiler("Contact group counts with caching", self):
             for group in groups:
                 self.assertEqual(group.get_member_count(), num_contacts)
                 self.assertEqual(group.get_member_count(), num_contacts)
@@ -472,16 +396,16 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         self.login(self.user)
 
-        with SegmentProfiler(self, "Contact list page", True):
+        with SegmentProfiler("Contact list page", self):
             self.client.get(reverse('contacts.contact_list'))
 
-        with SegmentProfiler(self, "Contact list page (repeat)", True):
+        with SegmentProfiler("Contact list page (repeat)", self):
             self.client.get(reverse('contacts.contact_list'))
 
-        with SegmentProfiler(self, "Message inbox page", True):
+        with SegmentProfiler("Message inbox page", self):
             self.client.get(reverse('msgs.msg_inbox'))
 
-        with SegmentProfiler(self, "Message inbox page (repeat)", True):
+        with SegmentProfiler("Message inbox page (repeat)", self):
             self.client.get(reverse('msgs.msg_inbox'))
 
     def test_channellog(self):
@@ -490,7 +414,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         msg = dict_to_struct('MockMsg', msg.as_task_json())
 
 
-        with SegmentProfiler(self, "Channel Log inserts (10,000)", True):
+        with SegmentProfiler("Channel Log inserts (10,000)", self):
             for i in range(10000):
                 ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",
                                        request="GET http://foo", response="Ok", response_status="201")
