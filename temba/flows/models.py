@@ -145,6 +145,7 @@ class Flow(TembaModel, SmartModel):
     RULE_SETS = 'rule_sets'
     ACTION_SETS = 'action_sets'
     RULES = 'rules'
+    CONFIG = 'config'
     ACTIONS = 'actions'
     DESTINATION = 'destination'
     LABEL = 'label'
@@ -2127,6 +2128,10 @@ class Flow(TembaModel, SmartModel):
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 ruleset_type = ruleset.get(Flow.RULESET_TYPE)
+                config = ruleset.get(Flow.CONFIG)
+
+                if not config:
+                    config = dict()
 
                 # cap our lengths
                 label = label[:64]
@@ -2173,6 +2178,7 @@ class Flow(TembaModel, SmartModel):
                     existing.label = label
                     existing.finished_key = finished_key
                     existing.ruleset_type = ruleset_type
+                    existing.set_config(config)
                     (existing.x, existing.y) = (x, y)
                     existing.save()
                 else:
@@ -2186,6 +2192,7 @@ class Flow(TembaModel, SmartModel):
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
+                                                      config=json.dumps(config),
                                                       x=x, y=y)
 
                 existing_rulesets[uuid] = existing
@@ -2336,6 +2343,7 @@ class RuleSet(models.Model):
     TYPE_WAIT_DIGITS = 'wait_digits'
     TYPE_WEBHOOK = 'webhook'
     TYPE_FLOW_FIELD = 'flow_field'
+    TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
@@ -2372,10 +2380,13 @@ class RuleSet(models.Model):
     value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
                                   help_text="The type of value this ruleset saves")
 
-    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
+    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES, null=True,
                                     help_text="The type of ruleset")
 
     response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
+
+    config = models.TextField(null=True, verbose_name=_("Ruleset Configuration"),
+                              help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -2401,6 +2412,15 @@ class RuleSet(models.Model):
             return True
 
         return False
+
+    def config_json(self):
+        if not self.config:
+            return dict()
+        else:
+            return json.loads(self.config)
+
+    def set_config(self, config):
+        self.config = json.dumps(config)
 
     def build_uuid_to_category_map(self):
         flow_language = self.flow.base_language
@@ -2507,6 +2527,23 @@ class RuleSet(models.Model):
             elif msg:
                 text = msg.text
 
+            print self.ruleset_type
+            if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+
+                config = self.config_json()
+
+                # determine the proper regex to split on
+                delim = config.get('field_delimiter', 'space')
+                if delim == 'space':
+                    delim = '\\s+'
+                elif delim == 'plus':
+                    delim = '\+'
+
+                fields = regex.split(delim, text)
+                index = config.get('field_index', 0)
+                if index < len(fields):
+                    text = fields[index]
+
             try:
                 rules = self.get_rules()
                 for rule in rules:
@@ -2572,7 +2609,7 @@ class RuleSet(models.Model):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand)
+                    operand=self.operand, config=self.config_json())
 
     def __unicode__(self):
         if self.label:

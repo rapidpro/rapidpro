@@ -421,6 +421,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', ivr:true, text:true},
         { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', ivr:true, text:true},
         { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', ivr:true, text:true},
+        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', ivr:false, text:true},
+
 
         # Not supported yet
         # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
@@ -428,7 +430,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # { type: 'pause', verbose_name: 'Pause the flow', ivr:true, text:true},
       ]
 
-      @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits']
+      @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
 
       @operators = [
         { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
@@ -679,21 +681,22 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       isContact = false
 
       # trim off @flow
-      if operand.length > 6 and operand.slice(0, 5) == '@flow'
-        isFlow = true
-        operand = operand.slice(6)
+      if operand
+        if operand.length > 6 and operand.slice(0, 5) == '@flow'
+          isFlow = true
+          operand = operand.slice(6)
 
-      # trim off @contact
-      else if operand.length > 9 and operand.slice(0, 8) == '@contact'
-        isContact = true
-        operand = operand.slice(9)
+        # trim off @contact
+        else if operand.length > 9 and operand.slice(0, 8) == '@contact'
+          isContact = true
+          operand = operand.slice(9)
 
       for field in fields
         if field.id == operand
           return field
 
       # if our field is missing, add our selves accordingly
-      if (isFlow and isFlowFields) or (isContact and !isFlowFields)
+      if operand and ((isFlow and isFlowFields) or (isContact and !isFlowFields))
         slugged = Flow.slugify(operand)
         field = {id:operand,  text:slugged + ' (missing)', missing:true }
         fields.push(field)

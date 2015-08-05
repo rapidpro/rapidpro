@@ -2289,6 +2289,40 @@ class FlowsTest(FlowFileTest):
         r = get_redis_connection()
         flow.clear_stats_cache()
 
+    def test_sms_forms(self):
+        flow = self.get_flow('sms-form')
+
+        def assert_response(message, response):
+            self.assertEquals(response, self.send_message(flow, message, restart_participants=True))
+
+        # invalid age
+        assert_response("101 M Seattle", "Sorry, 101 doesn't look like a valid age, please try again.")
+
+        # invalid gender
+        assert_response("36 elephant Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
+
+        # invalid location
+        assert_response("36 M Saturn", "I don't know the location Saturn. Please try again.")
+
+        # valid entry
+        assert_response("36 M Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+
+        # valid entry with extra spaces
+        assert_response("36   M  Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+
+        # now let's switch to pluses and make sure they do the right thing
+        for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
+            config = ruleset.config_json()
+            config['field_delimiter'] = 'plus'
+            ruleset.set_config(config)
+            ruleset.save()
+
+        assert_response("101+M+Seattle", "Sorry, 101 doesn't look like a valid age, please try again.")
+        assert_response("36+elephant+Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
+        assert_response("36+M+Saturn", "I don't know the location Saturn. Please try again.")
+        assert_response("36+M+Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+
+
     def test_write_protection(self):
         flow = self.get_flow('favorites')
         flow_json = flow.as_json()
