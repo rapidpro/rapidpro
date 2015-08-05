@@ -1085,9 +1085,9 @@ class ClickatellHandler(View):
                 # return 200 as clickatell pings our endpoint during configuration
                 return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
 
-            # dates come in the format "2014-04-18 03:54:20" GMT
+            # dates come in the format "2014-04-18 03:54:20" GMT+2
             sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
+            gmt_date = pytz.timezone('Europe/Berlin').localize(sms_date)
             text = request.REQUEST['text']
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn

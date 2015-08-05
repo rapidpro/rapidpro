@@ -5,8 +5,10 @@ from django.core.urlresolvers import reverse
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet
 from temba.tests import TembaTest
+from temba.campaigns.tasks import check_campaigns_task
 from .models import Campaign, CampaignEvent, EventFire
-
+from django.utils import timezone
+from datetime import timedelta
 
 class ScheduleTest(TembaTest):
 
@@ -370,8 +372,12 @@ class ScheduleTest(TembaTest):
         self.assertEquals(planting_reminder, event.event)
         self.assertEquals(9, event.scheduled.day)
 
-        # try firing the event
-        event.fire()
+        # change our fire date to sometimein the past so it gets triggered
+        event.scheduled = timezone.now() - timedelta(hours=1)
+        event.save()
+
+        # schedule our events to fire
+        check_campaigns_task()
 
         # should have one flow run now
         run = FlowRun.objects.get()

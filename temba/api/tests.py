@@ -3747,6 +3747,9 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
         self.assertEquals(2012, msg1.created_on.year)
+
+        # times are sent as GMT+2
+        self.assertEquals(8, msg1.created_on.hour)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_status(self):
