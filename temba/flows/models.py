@@ -2528,6 +2528,8 @@ class RuleSet(models.Model):
                 index = config.get('field_index', 0)
                 if index < len(fields):
                     text = fields[index]
+                else:
+                    text = ''
 
             try:
                 rules = self.get_rules()

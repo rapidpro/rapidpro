@@ -2309,11 +2309,17 @@ class FlowsTest(FlowFileTest):
         # invalid location
         assert_response("36 M Saturn", "I don't know the location Saturn. Please try again.")
 
+        # some missing fields
+        assert_response("36", "Sorry,  doesn't look like a valid gender. Try again.")
+        assert_response("36 M", "I don't know the location . Please try again.")
+
         # valid entry
         assert_response("36 M Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
 
         # valid entry with extra spaces
         assert_response("36   M  Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+
+
 
         # now let's switch to pluses and make sure they do the right thing
         for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
