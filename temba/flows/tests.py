@@ -145,6 +145,11 @@ class RuleTest(TembaTest):
         self.assertTrue('mutable' in response.context)
 
     def test_states(self):
+        # make sure to delete any old exports
+        from shutil import rmtree
+        export_dir = "%s/test_orgs/%d/results_exports/" % (settings.MEDIA_ROOT, self.org.pk)
+        rmtree(export_dir, ignore_errors=True)
+
         # set our flow
         self.flow.update(self.definition)
 
