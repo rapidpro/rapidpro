@@ -2527,7 +2527,6 @@ class RuleSet(models.Model):
             elif msg:
                 text = msg.text
 
-            print self.ruleset_type
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
 
                 config = self.config_json()
