@@ -386,6 +386,12 @@
                   .group-name.force-wrap{ng-hide:'group.name'}
                     [[group]]
 
+                // removing from all groups
+                %span{ng-show:'action.type == "del_groups"'}
+                  Contact will be removed from
+                  %span.attn
+                    All Groups
+
                 // updating contacts
                 %span{ng-show:'action.type == "save"'}
                   Update value for

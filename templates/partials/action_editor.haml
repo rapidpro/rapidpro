@@ -41,17 +41,16 @@
       %button{ng-click:"saveLabels(action_editor.msg_labels.selected)", class:"submit hide"}
         -trans "Ok"
 
-    %div{ng-if:'config.type == "add_group" || config.type == "del_group"'}
-      %p{class:"description"}
-        -blocktrans
-          %input{id: "del_groups", name:"del_groups", type:"checkbox", ng-model:"checked", remove-all-groups:""}
-          %label{for:"del_groups"} Remove from All Groups
-      %p{class:"description", ng-hide:"checked"}
-        -trans "or"
+    %div{ng-if:'config.type == "add_group" || config.type == "del_group" || config.type == "del_groups"'}
+      %p{class:"description", ng-if:"!checked"}
         -trans "Choose one or more groups below"
-      %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"g", "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"action.groups",type:"hidden", ng-hide:"checked"}
-      %button{ng-click:"saveGroups(config.type, action_editor.omnibox.selected)",class:"submit hide", ng-hide:"checked"}
-      %button{ng-click:"delGroups(config.type)",class:"submit hide", ng-show:"checked"}
+        %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"g", "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"action.groups",type:"hidden"}
+      %p{class:"description", ng-show:'config.type == "del_group" || config.type == "del_groups"'}
+        -blocktrans
+          %input{id: "del_groups", name:"del_groups", type:"checkbox", ng-model:"checked", ng-init:"checked=false"}
+          %label{for:"del_groups"} Remove from All Groups
+      %button{ng-click:"saveGroups(config.type, action_editor.omnibox.selected)", class:"submit hide", ng-if:"!checked"}
+      %button{ng-click:"delGroups(config.type)", class:"submit hide", ng-if:"checked"}
         -trans "Ok"
 
     %div{ng-if:'config.type == "lang"'}

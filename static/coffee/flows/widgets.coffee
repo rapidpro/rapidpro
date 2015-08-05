@@ -383,38 +383,6 @@ app.directive "selectEmail", ["$timeout", ($timeout) ->
 ]
 
 
-# TODO more descriptive name. something closer to enableOkButtonWhenCheckboxIsChecked...
-app.directive "removeAllGroups", ['$timeout', ($timeout) ->
-  link = (scope, element, attrs, form) ->
-
-    element.on 'change', (e) ->
-      console.log scope
-      console.log element
-      console.log attrs
-      console.log form
-
-      if e.target.checked
-	# TODO i believe this would be the place to 'enable' the 'Ok' button
-        form.omnibox.$setValidity("required", false)
-
-
-    $timeout ->
-      element.trigger('change')
-    , 0
-
-  return {
-    require: '^form'
-    restrict: 'A'
-    link: link
-    scope: {
-      groups: "="
-    }
-  }
-]
-
-
-
-
 #============================================================================
 # Create a select2 control for predefined data
 #============================================================================
