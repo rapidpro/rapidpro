@@ -11,7 +11,7 @@ class SegmentProfiler(object):  # pragma: no cover
     """
     Used in a with block to profile a segment of code
     """
-    def __init__(self, name, test=None, db_profile=True, assert_queries=None, assert_tx=None):
+    def __init__(self, name, test=None, db_profile=True, assert_queries=None, assert_tx=None, force_profile=False):
         self.name = name
 
         self.test = test
@@ -24,12 +24,13 @@ class SegmentProfiler(object):  # pragma: no cover
 
         self.old_debug = settings.DEBUG
 
+        self.do_profile = force_profile or settings.DEBUG
         self.time_total = 0.0
         self.time_queries = 0.0
         self.queries = []
 
     def __enter__(self):
-        if self.db_profile:
+        if self.db_profile and self.do_profile:
             settings.DEBUG = True
             reset_queries()
 
@@ -38,7 +39,7 @@ class SegmentProfiler(object):  # pragma: no cover
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.time_total = default_timer() - self.start_time
 
-        if self.db_profile:
+        if self.db_profile and self.do_profile:
             settings.DEBUG = self.old_debug
             self.queries = connection.queries
             self.num_tx = len([q for q in self.queries if q['sql'].startswith('SAVEPOINT')])
@@ -53,7 +54,7 @@ class SegmentProfiler(object):  # pragma: no cover
             if self.test and self.assert_tx is not None:
                 self.test.assertEqual(self.num_tx, self.assert_tx)
 
-        if not self.test:
+        if not self.test and self.do_profile:
             print unicode(self)
 
     def __unicode__(self):
