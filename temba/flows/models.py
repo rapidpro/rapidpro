@@ -22,7 +22,7 @@ from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -36,6 +36,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS,
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
+from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel
 from temba.utils.queues import push_task
@@ -1170,24 +1171,9 @@ class Flow(TembaModel, SmartModel):
         return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL, lambda: [rs.uuid for rs in self.rule_sets.all()])
 
     def get_columns(self):
-        runs = self.steps().filter(step_type=RULE_SET).exclude(rule_uuid=None).order_by('run').values('run').annotate(count=Count('run')).order_by('-count').first()
         node_order = []
-        existing = set()
-
-        if runs:
-            busiest_run = runs['run']
-            steps = self.steps().filter(run=busiest_run, step_type=RULE_SET).exclude(rule_uuid=None).order_by('arrived_on', 'pk')
-
-            for step in steps:
-                if step.step_uuid not in existing:
-                    existing.add(step.step_uuid)
-                    ruleset = RuleSet.get(step.run.flow, step.step_uuid)
-                    if ruleset:
-                        node_order.append(ruleset)
-
-        # add any nodes that weren't visited by this contact at the end
         for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk'):
-            if ruleset.uuid not in existing:
+            if ruleset.uuid:
                 node_order.append(ruleset)
 
         return node_order
@@ -2936,12 +2922,12 @@ class FlowRun(models.Model):
             return unicode(fields), count+1
 
     @classmethod
-    def do_expire_runs(cls, runs):
+    def do_expire_runs(cls, runs, batch_size=1000):
         """
         Expires a set of runs
         """
-        # let's optimize by only selecting what we need
-        runs = runs.order_by('flow').values('pk', 'flow')
+        # let's optimize by only selecting what we need and loading the actual ids
+        runs = list(runs.order_by('flow').values('id', 'flow'))
 
         # remove activity for each run, batched by flow
         last_flow = None
@@ -2950,21 +2936,24 @@ class FlowRun(models.Model):
         for run in runs:
             if run['flow'] != last_flow:
                 if expired_runs:
-                    flow = Flow.objects.filter(pk=last_flow).first()
+                    flow = Flow.objects.filter(id=last_flow).first()
                     if flow:
                         flow.remove_active_for_run_ids(expired_runs)
                 expired_runs = []
-            expired_runs.append(run['pk'])
+            expired_runs.append(run['id'])
             last_flow = run['flow']
 
         # same thing for our last batch if we have one
         if expired_runs:
-            flow = Flow.objects.filter(pk=last_flow).first()
+            flow = Flow.objects.filter(id=last_flow).first()
             if flow:
                 flow.remove_active_for_run_ids(expired_runs)
 
-        # finally, update the columns in the database with new expiration
-        runs.filter(is_active=True).update(is_active=False, expired_on=timezone.now())
+        # finally, update our db with the new expirations
+        # batch this for 1,000 runs at a time so we don't grab locks for too long
+        batches = [runs[i:i + batch_size] for i in range(0, len(runs), batch_size)]
+        for batch in batches:
+            FlowRun.objects.filter(id__in=[f['id'] for f in batch]).update(is_active=False, expired_on=timezone.now())
 
     def release(self):
 
@@ -3082,22 +3071,32 @@ class FlowRun(models.Model):
         return msg
 
 
-class MemorySavingQuerysetIterator(object):
+class FlowStepIterator(object):
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
     """
-    def __init__(self, queryset, max_obj_num=1000):
-        self._base_queryset = queryset
+    def __init__(self, ids, order_by=None, select_related=None, prefetch_related=None, max_obj_num=1000):
+        self._ids = ids
+        self._order_by = order_by
+        self._select_related = select_related
+        self._prefetch_related = prefetch_related
         self._generator = self._setup()
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in xrange(0, self._base_queryset.count(), self.max_obj_num):
-            # By making a copy of of the queryset and using that to actually access
-            # the objects we ensure that there are only `max_obj_num` objects in
-            # memory at any given time
-            smaller_queryset = copy.deepcopy(self._base_queryset)[i:i+self.max_obj_num]
-            for obj in smaller_queryset.iterator():
+        for i in xrange(0, len(self._ids), self.max_obj_num):
+            chunk_queryset = FlowStep.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
+
+            if self._order_by:
+                chunk_queryset = chunk_queryset.order_by(*self._order_by)
+
+            if self._select_related:
+                chunk_queryset = chunk_queryset.select_related(*self._select_related)
+
+            if self._prefetch_related:
+                chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
+
+            for obj in chunk_queryset:
                 yield obj
 
     def __iter__(self):
@@ -3145,8 +3144,9 @@ class ExportFlowResultsTask(SmartModel):
         # merge the columns for all of our flows
         columns = []
         flows = self.flows.all()
-        for flow in flows:
-            columns += flow.get_columns()
+        with SegmentProfiler("get columns"):
+            for flow in flows:
+                columns += flow.get_columns()
 
         org = None
         if flows:
@@ -3168,51 +3168,53 @@ class ExportFlowResultsTask(SmartModel):
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
         category_map = dict()
-        for ruleset in RuleSet.objects.filter(flow__in=flows).select_related('flow'):
-            for rule in ruleset.get_rules():
-                category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)
-        all_steps = all_steps.order_by('contact', 'run', 'arrived_on', 'pk').select_related('run', 'contact').prefetch_related('messages')
+        with SegmentProfiler("rule uuid to category to name"):
+            for ruleset in RuleSet.objects.filter(flow__in=flows).select_related('flow'):
+                for rule in ruleset.get_rules():
+                    category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
+
+        with SegmentProfiler("calculate all steps"):
+            all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)\
+                                        .order_by('contact', 'run', 'arrived_on', 'pk')
 
         # count of unique flow runs
-        all_runs_count = all_steps.values('run').distinct().count()
+        with SegmentProfiler("# of runs"):
+            all_runs_count = all_steps.values('run').distinct().count()
 
         # count of unique contacts
-        contacts_count = all_steps.values('contact').distinct().count()
+        with SegmentProfiler("# of contacts"):
+            contacts_count = all_steps.values('contact').distinct().count()
 
-        # first add the needed sheets in order
-        # predicted by the counts we have
-        runs_sheets = []
-        total_all_runs_sheet_count = 0
+        # grab the ids for all our steps so we don't have to ever calculate them again
+        with SegmentProfiler("calculate step ids"):
+            all_steps = FlowStep.objects.filter(run__flow__in=flows)\
+                                        .order_by('contact', 'run', 'arrived_on', 'pk')\
+                                        .values('id')
+            step_ids = [s['id'] for s in all_steps]
+
+        # build our sheets
+        run_sheets = []
+        total_run_sheet_count = 0
 
         # the full sheets we need for runs
-        for i in range(all_runs_count / max_rows):
-            total_all_runs_sheet_count += 1
-            sheet = book.add_sheet("Runs (%d)" % total_all_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
+        for i in range(all_runs_count / max_rows + 1):
+            total_run_sheet_count += 1
+            name = "Runs" if (i+1) <= 1 else "Runs (%d)" % (i+1)
+            sheet = book.add_sheet(name, cell_overwrite_ok=True)
+            run_sheets.append(sheet)
 
-        # some extra runs add an extra sheet for those
-        if all_runs_count % max_rows != 0 or all_runs_count == 0:
-            total_all_runs_sheet_count += 1
-            sheet = book.add_sheet("Runs (%d)" % total_all_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
-
-        total_merged_runs_sheet_count = 0
+        total_merged_run_sheet_count = 0
 
         # the full sheets we need for contacts
-        for i in range(contacts_count / max_rows):
-            total_merged_runs_sheet_count += 1
-            sheet = book.add_sheet("Contacts (%d)" % total_merged_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
+        for i in range(contacts_count / max_rows + 1):
+            total_merged_run_sheet_count += 1
+            name = "Contacts" if (i+1) <= 1 else "Contacts (%d)" % (i+1)
+            sheet = book.add_sheet(name, cell_overwrite_ok=True)
+            run_sheets.append(sheet)
 
-        # extra sheet if more contacts
-        if contacts_count % max_rows != 0 or contacts_count == 0:
-            total_merged_runs_sheet_count += 1
-            sheet = book.add_sheet("Contacts (%d)" % total_merged_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
-
-        for sheet in runs_sheets:
+        # then populate their header columns
+        for sheet in run_sheets:
             # build up our header row
             sheet.write(0, 0, "Phone")
             sheet.write(0, 1, "Name")
@@ -3235,156 +3237,171 @@ class ExportFlowResultsTask(SmartModel):
                 sheet.col(5+col*3+1).width = 15 * 256
                 sheet.col(5+col*3+2).width = 15 * 256
 
-        row = 0
+        run_row = 0
         merged_row = 0
+        msg_row = 0
+
         latest = None
         earliest = None
 
         last_run = 0
         last_contact = None
 
-        # initial sheet to write to
-        # one for all runs and the
-        all_runs_sheet_index = 0
-        merged_runs_sheet_index = total_all_runs_sheet_count
+        # index of sheets that we are currently writing to
+        run_sheet_index = 0
+        merged_run_sheet_index = total_run_sheet_count
+        msg_sheet_index = 0
 
-        all_runs = book.get_sheet(all_runs_sheet_index)
-        merged_runs = book.get_sheet(merged_runs_sheet_index)
+        # get our initial runs and merged runs to write to
+        runs = book.get_sheet(run_sheet_index)
+        merged_runs = book.get_sheet(merged_run_sheet_index)
+        msgs = None
 
-        for run_step in MemorySavingQuerysetIterator(all_steps):
+        processed_steps = 0
+        total_steps = len(step_ids)
+        start = time.time()
+        flow_names = ", ".join([f['name'] for f in self.flows.values('name')])
+
+        for run_step in FlowStepIterator(step_ids,
+                                         order_by=['contact', 'run', 'arrived_on', 'pk'],
+                                         select_related=['run', 'contact'],
+                                         prefetch_related=['messages', 'messages__channel', 'contact__all_groups']):
+
+            processed_steps += 1
+            if processed_steps % 10000 == 0:
+                print "Export of %s - %d%% complete in %0.2fs" % \
+                      (flow_names, processed_steps * 100 / total_steps, time.time() - start)
+
             # skip over test contacts
             if run_step.contact.is_test:
                 continue
 
-            if last_contact != run_step.contact.pk:
-                if merged_row % 1000 == 0:
-                    merged_runs.flush_row_data()
-                merged_row += 1
+            # if this is a rule step, write out the value collected
+            if run_step.step_type == RULE_SET:
 
-                if merged_row > max_rows:
-                    # get the next sheet to use for Contacts
-                    merged_row = 1
-                    merged_runs_sheet_index += 1
-                    merged_runs = book.get_sheet(merged_runs_sheet_index)
+                if last_contact != run_step.contact.pk:
+                    if merged_row % 1000 == 0:
+                        merged_runs.flush_row_data()
 
-            # a new run
-            if last_run != run_step.run.pk:
-                earliest = None
-                latest = None
+                    merged_row += 1
 
-                if row % 1000 == 0:
-                    all_runs.flush_row_data()
+                    if merged_row > max_rows:
+                        # get the next sheet to use for Contacts
+                        merged_row = 1
+                        merged_run_sheet_index += 1
+                        merged_runs = book.get_sheet(merged_run_sheet_index)
 
-                row += 1
+                # a new run
+                if last_run != run_step.run.pk:
+                    earliest = None
+                    latest = None
 
-                if row > max_rows:
-                    # get the next sheet to use for Runs
-                    row = 1
-                    all_runs_sheet_index += 1
-                    all_runs = book.get_sheet(all_runs_sheet_index)
+                    if run_row % 1000 == 0:
+                        runs.flush_row_data()
 
-                all_runs.write(row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
-                all_runs.write(row, 1, run_step.contact.name)
-                all_runs.write(row, 2, run_step.contact.groups_as_text())
+                    run_row += 1
 
-                merged_runs.write(merged_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
-                merged_runs.write(merged_row, 1, run_step.contact.name)
-                merged_runs.write(merged_row, 2, run_step.contact.groups_as_text())
+                    if run_row > max_rows:
+                        # get the next sheet to use for Runs
+                        run_row = 1
+                        run_sheet_index += 1
+                        runs = book.get_sheet(run_sheet_index)
 
-            if not latest or latest < run_step.arrived_on:
-                latest = run_step.arrived_on
+                    # build up our group names
+                    group_names = []
+                    for group in run_step.contact.all_groups.all():
+                        if group.group_type == ContactGroup.TYPE_USER_DEFINED:
+                            group_names.append(group.name)
 
-            if not earliest or earliest > run_step.arrived_on:
-                earliest = run_step.arrived_on
+                    group_names.sort()
+                    groups = ", ".join(group_names)
 
-            if earliest:
-                all_runs.write(row, 3, as_org_tz(earliest), date_format)
-                merged_runs.write(merged_row, 3, as_org_tz(earliest), date_format)
+                    runs.write(run_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                    runs.write(run_row, 1, run_step.contact.name)
+                    runs.write(run_row, 2, groups)
 
-            if latest:
-                all_runs.write(row, 4, as_org_tz(latest), date_format)
-                merged_runs.write(merged_row, 4, as_org_tz(latest), date_format)
+                    merged_runs.write(merged_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                    merged_runs.write(merged_row, 1, run_step.contact.name)
+                    merged_runs.write(merged_row, 2, groups)
 
-            # write the step data
-            col = column_map.get(run_step.step_uuid, 0)
-            if col:
-                category = category_map.get(run_step.rule_uuid, None)
-                if category:
-                    all_runs.write(row, col, category)
-                    merged_runs.write(merged_row, col, category)
-                elif run_step.rule_category:
-                    all_runs.write(row, col, run_step.rule_category)
-                    merged_runs.write(merged_row, col, run_step.rule_category)
+                if not latest or latest < run_step.arrived_on:
+                    latest = run_step.arrived_on
 
-                value = run_step.rule_value
-                if value:
-                    all_runs.write(row, col+1, value)
-                    merged_runs.write(merged_row, col+1, value)
+                if not earliest or earliest > run_step.arrived_on:
+                    earliest = run_step.arrived_on
 
-                text = run_step.get_text()
-                if text:
-                    all_runs.write(row, col+2, text)
-                    merged_runs.write(merged_row, col+2, text)
+                if earliest:
+                    runs.write(run_row, 3, as_org_tz(earliest), date_format)
+                    merged_runs.write(merged_row, 3, as_org_tz(earliest), date_format)
 
-            last_run = run_step.run.pk
-            last_contact = run_step.contact.pk
+                if latest:
+                    runs.write(run_row, 4, as_org_tz(latest), date_format)
+                    merged_runs.write(merged_row, 4, as_org_tz(latest), date_format)
 
-        row = 1
-        sheet_count = 0
+                # write the step data
+                col = column_map.get(run_step.step_uuid, 0)
+                if col:
+                    category = category_map.get(run_step.rule_uuid, None)
+                    if category:
+                        runs.write(run_row, col, category)
+                        merged_runs.write(merged_row, col, category)
+                    elif run_step.rule_category:
+                        runs.write(run_row, col, run_step.rule_category)
+                        merged_runs.write(merged_row, col, run_step.rule_category)
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on', 'pk')
-        all_steps = all_steps.select_related('run', 'contact').prefetch_related('messages')
+                    value = run_step.rule_value
+                    if value:
+                        runs.write(run_row, col+1, value)
+                        merged_runs.write(merged_row, col+1, value)
 
-        # now print out all the raw messages
-        all_messages = None
-        for step in MemorySavingQuerysetIterator(all_steps):
-            if step.contact.is_test:
-                continue
+                    text = run_step.get_text()
+                    if text:
+                        runs.write(run_row, col+2, text)
+                        merged_runs.write(merged_row, col+2, text)
 
-            # if the step has no message to display and no ivr action
-            if not step.get_text():
-                continue
+                last_run = run_step.run.pk
+                last_contact = run_step.contact.pk
 
-            if row > max_rows or not all_messages:
-                row = 1
-                sheet_count += 1
+            # write out any message associated with this step
+            if run_step.get_text():
+                msg_row += 1
 
-                name = "SMS"
-                if sheet_count > 1:
-                    name = "SMS (%d)" % sheet_count
+                if msg_row % 1000 == 0:
+                    msgs.flush_row_data()
 
-                all_messages = book.add_sheet(name)
+                if msg_row > max_rows or not msgs:
+                    msg_row = 1
+                    msg_sheet_index += 1
 
-                all_messages.write(0, 0, "Phone")
-                all_messages.write(0, 1, "Name")
-                all_messages.write(0, 2, "Date")
-                all_messages.write(0, 3, "Direction")
-                all_messages.write(0, 4, "Message")
-                all_messages.write(0, 5, "Channel")
+                    name = "Messages" if (msg_sheet_index+1) <= 1 else "Messages (%d)" % (msg_sheet_index+1)
+                    msgs = book.add_sheet(name)
 
-                all_messages.col(0).width = small_width
-                all_messages.col(1).width = medium_width
-                all_messages.col(2).width = medium_width
-                all_messages.col(3).width = small_width
-                all_messages.col(4).width = large_width
-                all_messages.col(5).width = small_width
+                    msgs.write(0, 0, "Phone")
+                    msgs.write(0, 1, "Name")
+                    msgs.write(0, 2, "Date")
+                    msgs.write(0, 3, "Direction")
+                    msgs.write(0, 4, "Message")
+                    msgs.write(0, 5, "Channel")
 
-            all_messages.write(row, 0, step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
-            all_messages.write(row, 1, step.contact.name)
-            arrived_on = as_org_tz(step.arrived_on)
+                    msgs.col(0).width = small_width
+                    msgs.col(1).width = medium_width
+                    msgs.col(2).width = medium_width
+                    msgs.col(3).width = small_width
+                    msgs.col(4).width = large_width
+                    msgs.col(5).width = small_width
 
-            all_messages.write(row, 2, arrived_on, date_format)
-            if step.step_type == RULE_SET:
-                all_messages.write(row, 3, "IN")
-            else:
-                all_messages.write(row, 3, "OUT")
+                msgs.write(msg_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                msgs.write(msg_row, 1, run_step.contact.name)
+                arrived_on = as_org_tz(run_step.arrived_on)
 
-            all_messages.write(row, 4, step.get_text())
-            all_messages.write(row, 5, step.get_channel_name())
-            row += 1
+                msgs.write(msg_row, 2, arrived_on, date_format)
+                if run_step.step_type == RULE_SET:
+                    msgs.write(msg_row, 3, "IN")
+                else:
+                    msgs.write(msg_row, 3, "OUT")
 
-            if row % 1000 == 0:
-                all_messages.flush_row_data()
+                msgs.write(msg_row, 4, run_step.get_text())
+                msgs.write(msg_row, 5, run_step.get_channel_name())
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)

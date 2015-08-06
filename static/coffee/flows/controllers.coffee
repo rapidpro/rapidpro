@@ -75,8 +75,6 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
       $rootScope.original = null
       $rootScope.visibleActivity = true
       $rootScope.showVersions = false
-
-
 ]
 
 app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $modal, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
@@ -109,20 +107,23 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $rootScope.activityInterval = 5000
 
   # fetch our flow to get started
-  Flow.fetch window.flowId, ->
-    $scope.updateActivity()
-    $scope.flow = Flow.flow
+  $scope.init = ->
+    Flow.fetch window.flowId, ->
+      $scope.updateActivity()
+      $scope.flow = Flow.flow
 
   showDialog = (title, body, okButton='Okay', hideCancel=true) ->
 
-    return $modal.open
-      templateUrl: "/partials/modal?v=" + version
+    $scope.dialog = $modal.open
+      templateUrl: "/partials/modal"
       controller: SimpleMessageController
       resolve:
         title: -> title
         body: -> body
         okButton: -> okButton
         hideCancel: -> hideCancel
+
+    return $scope.dialog
 
   $scope.getAcceptedScopes = (nodeType) ->
     return 'actions rules'
@@ -278,9 +279,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     return category.sources[0]
 
   $scope.onBeforeConnectorDrop = (props) ->
+
     if not Flow.isConnectionAllowed(props.sourceId, props.targetId)
       $rootScope.ghost.hide()
       $rootScope.ghost = null
+      showDialog('Infinite Loop', 'Connecting these steps together would create an infinite loop in your flow. To connect these steps you need to pass through a step that waits for the user to respond.')
       return false
     return true
 
@@ -402,8 +405,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
     lastAction = actionset.actions[actionset.actions.length - 1]
-    if $scope.flow.base_language
-      if $scope.flow.base_language != Flow.language.iso_code
+    if Flow.language
+      if Flow.language.iso_code != Flow.flow.base_language
         if lastAction.msg and lastAction.type in ['reply', 'send', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
           return true
 
@@ -422,9 +425,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     DragHelper.hide()
 
-    if Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
       $modal.open
-        templateUrl: "/partials/translate_rules?v=" + version
+        templateUrl: "/partials/translate_rules"
         controller: TranslateRulesController
         resolve:
           languages: ->
@@ -435,7 +438,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
       if window.ivr
         $modal.open
-          templateUrl: "/partials/node_editor?v=" + version
+          templateUrl: "/partials/node_editor"
           controller: NodeEditorController
           resolve:
             options: ->
@@ -446,7 +449,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
       else
         $modal.open
-          templateUrl: "/partials/node_editor?v=" + version
+          templateUrl: "/partials/node_editor"
           controller: NodeEditorController
           resolve:
             options: ->
@@ -516,7 +519,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $scope.clickActionSource = (actionset) ->
     if actionset._terminal
       $modal.open
-        templateUrl: "/partials/modal?v=" + version
+        templateUrl: "/partials/modal"
         controller: TerminalWarningController
         resolve:
           actionset: -> actionset
@@ -552,7 +555,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       return
 
     $modal.open
-      templateUrl: "/partials/node_editor?v=" + version
+      templateUrl: "/partials/node_editor"
       controller: NodeEditorController
       resolve:
         options: ->
@@ -608,14 +611,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     # if its the base language, don't show the from text
-    if Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
 
       if action.type in ["send", "reply", "say"]
 
         fromText = action.msg[Flow.flow.base_language]
 
-        modalInstance = $modal.open(
-          templateUrl: "/partials/translation_modal?v=" + version
+        $scope.dialog = $modal.open(
+          templateUrl: "/partials/translation_modal"
           controller: TranslationController
           resolve:
             languages: ->
@@ -626,10 +629,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               to: action.msg[Flow.language.iso_code]
         )
 
-        modalInstance.opened.then ->
+        $scope.dialog.opened.then ->
           $('textarea').focus()
 
-        modalInstance.result.then (translation) ->
+        $scope.dialog.result.then (translation) ->
           action = utils.clone(action)
           if translation and translation.strip().length > 0
              action.msg[Flow.language.iso_code] = translation
@@ -640,8 +643,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     else
 
-      $modal.open
-        templateUrl: "/partials/node_editor?v=" + version
+      $scope.dialog = $modal.open
+        templateUrl: "/partials/node_editor"
         controller: NodeEditorController
         resolve:
           options: ->
@@ -727,12 +730,12 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
     if rule.category
       rule._translation = {category:{}, test:{}}
-      rule._translation.category['from'] = rule.category[$scope.$parent.flow.base_language]
-      rule._translation.category['to'] = rule.category[$scope.$parent.language.iso_code]
+      rule._translation.category['from'] = rule.category[Flow.flow.base_language]
+      rule._translation.category['to'] = rule.category[Flow.language.iso_code]
 
       if typeof(rule.test.test) == "object"
-        rule._translation.test['from'] = rule.test.test[$scope.$parent.flow.base_language]
-        rule._translation.test['to'] = rule.test.test[$scope.$parent.language.iso_code]
+        rule._translation.test['from'] = rule.test.test[Flow.flow.base_language]
+        rule._translation.test['to'] = rule.test.test[Flow.language.iso_code]
 
   $scope.ruleset = ruleset
   $scope.languages = languages
@@ -893,7 +896,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.updateWebhook = () ->
 
     $modal.open
-      templateUrl: "/partials/rule_webhook?v=" + version
+      templateUrl: "/partials/rule_webhook"
       controller: RuleOptionsController
       resolve:
         methods: ->
@@ -975,7 +978,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.updateSplitVariable = ->
 
     $modal.open
-      templateUrl: "/partials/split_variable?v=" + version
+      templateUrl: "/partials/split_variable"
       controller: RuleOptionsController
       resolve:
         methods: -> []

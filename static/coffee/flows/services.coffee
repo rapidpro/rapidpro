@@ -3,7 +3,7 @@ app = angular.module('temba.services', [])
 version = new Date().getTime()
 
 quietPeriod = 500
-errorRetries = 5
+errorRetries = 10
 
 app.service "utils", ->
 
@@ -486,7 +486,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if topNode
         @flow.entry = topNode.uuid
 
-    $rootScope.$watch (->$rootScope.dirty), (current, prev) ->
+    Flow = @
+    $rootScope.$watch (->Flow.dirty), (current, prev) ->
 
       # if we just became dirty, trigger a save
       if current
@@ -495,7 +496,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           $rootScope.error = "Your changes cannot be saved. You don't have permission to edit this flow."
           return
 
-        $rootScope.dirty = false
+        Flow.dirty = false
 
         # make sure we know our start point
         Flow.determineFlowStart()
@@ -507,7 +508,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           # If we fail to cancel the current save we need to wait until the previous save completes and try again
           if not cancelled
             $timeout ->
-              $rootScope.dirty = true
+              Flow.dirty = true
             , quietPeriod
             return
 
@@ -541,20 +542,21 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                   document.location.reload()
               return
 
+            # we failed, could just be futzy internet, lets retry with backdown
             $rootScope.errorDelay += quietPeriod
 
-            # we failed, could just be futzy internet, lets retry with backdown
             if $rootScope.errorDelay < (quietPeriod * (errorRetries + 1))
               $log.debug("Couldn't save changes, trying again in " + $rootScope.errorDelay)
               $timeout ->
-                $rootScope.dirty = true
+                $rootScope.saving = false
+                Flow.dirty = true
               , $rootScope.errorDelay
             else
               $rootScope.saving = false
               $rootScope.error = "Your changes may not be saved. Please check your network connection."
               $rootScope.errorDelay = quietPeriod
 
-          .success (data) ->
+          .success (data, statusCode) ->
             $rootScope.error = null
             $rootScope.errorDelay = quietPeriod
             if data.status == 'unsaved'
@@ -791,8 +793,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       return
 
     markDirty: ->
+
+      Flow = @
       $timeout ->
-        $rootScope.dirty = true
+        Flow.dirty = true
       ,0
 
     # Updates a single source to a given target. Expects a source id and a target id.

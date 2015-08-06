@@ -150,12 +150,17 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       # grab the appropriate translated version
 
       if Flow.flow.base_language
+
+        iso_code = Flow.flow.base_language
+        if currentLanguage
+          iso_code = currentLanguage.iso_code
+
         if action.type in ['send', 'reply', 'say']
-          action._translation = action.msg[currentLanguage.iso_code]
+          action._translation = action.msg[iso_code]
 
           # translated recording for IVR
           if action.recording
-            action._translation_recording = action.recording[currentLanguage.iso_code]
+            action._translation_recording = action.recording[iso_code]
             if action._translation_recording
               action._translation_recording = window.recordingURL + action._translation_recording
 
@@ -247,12 +252,18 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
     Flow.replaceRuleset(scope.ruleset, false)
 
     scope.updateTranslationStatus = (ruleset, baseLanguage, currentLanguage) ->
+
+
+      iso_code = baseLanguage
+      if currentLanguage
+        iso_code = currentLanguage.iso_code
+
       for category in ruleset._categories
 
         category._missingTranslation = false
         if category.name
-          if Flow.flow.base_language
-            category._translation = category.name[currentLanguage.iso_code]
+          if baseLanguage
+            category._translation = category.name[iso_code]
 
             if category._translation is undefined
               category._translation = category.name[baseLanguage]

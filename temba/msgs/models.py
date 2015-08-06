@@ -14,7 +14,7 @@ from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
-from django.db.models import Q, Count, Prefetch
+from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -1079,14 +1079,10 @@ class Msg(models.Model):
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
-        # normally we care about message sending urns
-        scheme = SEND
+        # for IVR messages we need a channel that can call
+        role = CALL if msg_type == IVR else SEND
 
-        # if its an IVR message, we want the call urn instead
-        if msg_type == IVR:
-            scheme = CALL
-
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, scheme=scheme)
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
         if not contact_urn:
             raise UnreachableException("No suitable URN found for contact")
@@ -1115,12 +1111,12 @@ class Msg(models.Model):
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
-                                                contact__is_test=False,
-                                                channel=channel,
-                                                recording_url=recording_url,
-                                                text=text,
-                                                direction=OUTGOING,
-                                                created_on__gte=created_on - timedelta(minutes=10))
+                                           contact__is_test=False,
+                                           channel=channel,
+                                           recording_url=recording_url,
+                                           text=text,
+                                           direction=OUTGOING,
+                                           created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1173,7 +1169,7 @@ class Msg(models.Model):
         return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel, scheme=SEND):
+    def resolve_recipient(org, user, recipient, channel, role=SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
@@ -1181,7 +1177,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(scheme)
+        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1408,7 +1404,7 @@ class SystemLabel(models.Model):
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
-    count = models.PositiveIntegerField(default=0, help_text=_("Number of items with this system label"))
+    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
     def create_all(cls, org):
@@ -1462,11 +1458,12 @@ class SystemLabel(models.Model):
         labels = cls.objects.filter(org=org)
         if label_types:
             labels = labels.filter(label_type__in=label_types)
+        label_counts = labels.values('label_type').order_by('label_type').annotate(count_sum=Sum('count'))
 
-        return {l.label_type: l.count for l in labels}
+        return {l['label_type']: l['count_sum'] for l in label_counts}
 
     class Meta:
-        unique_together = ('org', 'label_type')
+        index_together = ('org', 'label_type')
 
 
 class UserFolderManager(models.Manager):
