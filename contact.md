@@ -15,10 +15,10 @@ on how to use RapidPro or want to share your experiences, please do so here.
 <a href="https://groups.google.com/forum/#!forum/rapidpro-dev">rapidpro-dev@googlegroups.com</a> -
 For questions and discussions for RapidPro developers. If you are not a developer you should **not** post to this group.
 
-## HipChat
+## Slack
 
 You can chat with the RapidPro developers in the public
-<a href="http://www.hipchat.com/gE9Mt3j2r">HipChat</a> room. You should not
+<a href="http://rapidprodev.herokuapp.com">Slack</a> room. You should not
 use this room unless you are a developer. If you require support, please contact
 your hosting provider.
 
