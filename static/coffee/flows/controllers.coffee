@@ -891,8 +891,8 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
                               {text:'eighth', id: 7},
                               {text:'ninth', id: 8}]
 
-  $scope.fieldDelimiterOptions = [{text:'space', id: 'space'},
-                                  {text:'plus', id: 'plus'}]
+  $scope.fieldDelimiterOptions = [{text:'space', id: ' '},
+                                  {text:'plus', id: '+'}]
 
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)

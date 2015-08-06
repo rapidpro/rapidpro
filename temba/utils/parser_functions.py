@@ -460,6 +460,27 @@ def f_word_slice(text, start, stop=0, by_spaces=False):
     # re-combine selected words with a single space
     return ' '.join(selection)
 
+def f_field(text, delimiter, index):
+    """
+    A field
+    :param text: the text to split
+    :param delimiter: the regex to split by
+    :param index: which index in the result to return
+    """
+
+    splits = text.split(delimiter)
+
+    # remove our delimiters and whitespace
+    splits = [ field for field in splits if field != delimiter and len(field.strip()) > 0 ]
+
+    index = int(index)
+    if index <= len(splits):
+        if index > 0:
+            index -= 1
+        return splits[index]
+
+    return ''
+
 
 #################################### Helper (not available in expressions) ####################################
 

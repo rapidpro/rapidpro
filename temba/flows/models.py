@@ -2506,6 +2506,13 @@ class RuleSet(models.Model):
             return rule, result.body
 
         else:
+
+            # if it's a form field, construct an expression accordingly
+            if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+                config = self.config_json()
+                delim = config.get('field_delimiter', ' ')
+                self.operand = '=field(%s, "%s", %d)' % (self.operand[1:], delim, config.get('field_index', 0) + 1)
+
             # if we have a custom operand, figure that out
             text = None
             if self.operand:
@@ -2513,23 +2520,6 @@ class RuleSet(models.Model):
             elif msg:
                 text = msg.text
 
-            if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
-
-                config = self.config_json()
-
-                # determine the proper regex to split on
-                delim = config.get('field_delimiter', 'space')
-                if delim == 'space':
-                    delim = '\\s+'
-                elif delim == 'plus':
-                    delim = '\+'
-
-                fields = regex.split(delim, text)
-                index = config.get('field_index', 0)
-                if index < len(fields):
-                    text = fields[index]
-                else:
-                    text = ''
 
             try:
                 rules = self.get_rules()

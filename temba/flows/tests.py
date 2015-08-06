@@ -2321,12 +2321,10 @@ class FlowsTest(FlowFileTest):
         # valid entry with extra spaces
         assert_response("36   M  Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
 
-
-
         # now let's switch to pluses and make sure they do the right thing
         for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
             config = ruleset.config_json()
-            config['field_delimiter'] = 'plus'
+            config['field_delimiter'] = '+'
             ruleset.set_config(config)
             ruleset.save()
 
