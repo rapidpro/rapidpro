@@ -64,6 +64,7 @@ class RuleTest(TembaTest):
                                           webhook_action=None,
                                           response_type='',
                                           ruleset_type='wait_message',
+                                          config={},
                                           rules=[
                                               dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test='orange'), category="Orange"),
                                               dict(uuid=uuid(13), destination=uuid(3), test=dict(type='contains', test='blue'), category="Blue"),
@@ -543,6 +544,7 @@ class RuleTest(TembaTest):
 
         self.maxDiff = None
         self.definition['last_saved'] = datetime_to_str(self.flow.saved_on)
+
         self.assertEquals(json_dict, self.definition)
 
         # remove one of our actions and rules
