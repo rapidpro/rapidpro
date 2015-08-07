@@ -2314,6 +2314,7 @@ class FlowsTest(FlowFileTest):
         # some missing fields
         assert_response("36", "Sorry,  doesn't look like a valid gender. Try again.")
         assert_response("36 M", "I don't know the location . Please try again.")
+        assert_response("36 M pequeño", "I don't know the location pequeño. Please try again.")
 
         # valid entry
         assert_response("36 M Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
@@ -2332,6 +2333,7 @@ class FlowsTest(FlowFileTest):
         assert_response("36+elephant+Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
         assert_response("36+M+Saturn", "I don't know the location Saturn. Please try again.")
         assert_response("36+M+Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+        assert_response("15+M+pequeño", "I don't know the location pequeño. Please try again.")
 
 
     def test_write_protection(self):
