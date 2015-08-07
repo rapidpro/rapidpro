@@ -2511,7 +2511,7 @@ class RuleSet(models.Model):
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
                 config = self.config_json()
                 delim = config.get('field_delimiter', ' ')
-                self.operand = '=field(%s, "%s", %d)' % (self.operand[1:], delim, config.get('field_index', 0) + 1)
+                self.operand = '=field(%s, %d, "%s")' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
 
             # if we have a custom operand, figure that out
             text = None
