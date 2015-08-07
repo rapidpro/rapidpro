@@ -8,13 +8,13 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from smartmin.tests import SmartminTest, _CRUDLTest
-from temba.contacts.models import ContactField, TEL_SCHEME
-from temba.orgs.models import Org, Language
+from smartmin.tests import SmartminTest
 from temba.channels.models import Channel
+from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, CALL_IN
+from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
@@ -22,6 +22,7 @@ from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
 from xlrd import open_workbook
 from .management.commands.msg_console import MessageConsole
+
 
 class MsgTest(TembaTest):
 
@@ -1117,46 +1118,102 @@ class BroadcastTest(TembaTest):
         self.assertFalse(sms_to_kevin.has_template_error)
 
 
-class BroadcastCRUDLTest(_CRUDLTest):
+class BroadcastCRUDLTest(TembaTest):
     def setUp(self):
-        from temba.msgs.views import BroadcastCRUDL
         super(BroadcastCRUDLTest, self).setUp()
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.org.initialize()
 
-        self.user.set_org(self.org)
-
-        self.channel = Channel.objects.create(org=self.org, created_by=self.user, modified_by=self.user, secret="12345", gcm_id="123")
-        self.crudl = BroadcastCRUDL
         self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
         self.frank = Contact.get_or_create(self.org, self.user, name="Frank Blow", urns=[(TEL_SCHEME, "1234")])
 
-    def getTestObject(self):
-        return Broadcast.create(self.org, self.user, 'Hi Mammy', [self.joe])
+    def test_send(self):
+        url = reverse('msgs.broadcast_send')
 
-    def getUpdatePostData(self):
-        return dict(message="Update Text", omnibox='c-%d' % self.joe.pk)
+        # can't send if you're not logged in
+        response = self.client.post(url, dict(text="Test", omnibox="c-%d" % self.joe.pk))
+        self.assertLoginRedirect(response)
 
-    def test_outgoing(self):
+        # or just a viewer user
+        self.login(self.user)
+        response = self.client.post(url, dict(text="Test", omnibox="c-%d" % self.joe.pk))
+        self.assertLoginRedirect(response)
+
+        # but editors can
+        self.login(self.editor)
+
         just_joe = ContactGroup.create(self.org, self.user, "Just Joe")
         just_joe.contacts.add(self.joe)
+        post_data = dict(omnibox="g-%d,c-%d,n-0780000001" % (just_joe.pk, self.frank.pk),
+                         text="Hey Joe, where you goin' with that gun in your hand?")
+        response = self.client.post(url + '?_format=json', post_data)
 
-        self._do_test_view('send', post_data=dict(omnibox="g-%d,c-%d" % (just_joe.pk, self.frank.pk),
-                                                  text="Hey Joe, where you goin' with that gun in your hand?"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content)['status'], 'success')
 
-        contact = Contact.get_or_create(self.org, self.user, urns=[(TEL_SCHEME, '250788382382')])
-        Msg.create_outgoing(self.org, self.user, contact, "How is it going?")
-        Msg.create_outgoing(self.org, self.user, contact, "What is your name?")
-        Msg.create_outgoing(self.org, self.user, contact, "Do you have any children?")
+        # raw number means a new contact created
+        new_urn = ContactURN.objects.get(path='+250780000001')
+        Contact.objects.get(urns=new_urn)
 
-    def test_send(self):
-        self._do_test_view('send', post_data=dict(omnibox="c-%d,c-%d" % (self.joe.pk, self.frank.pk), text="Hey guys"))
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, "Hey Joe, where you goin' with that gun in your hand?")
+        self.assertEqual(set(broadcast.groups.all()), {just_joe})
+        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
+        self.assertEqual(set(broadcast.urns.all()), {new_urn})
+
+    def test_update(self):
+        self.login(self.editor)
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+                                                              text="Lunch reminder", schedule=True))
+        broadcast = Broadcast.objects.get()
+        url = reverse('msgs.broadcast_update', args=[broadcast.pk])
+
+        response = self.client.get(url)
+        self.assertEqual(response.context['form'].fields.keys(), ['message', 'omnibox', 'loc'])
+
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%d" % self.frank.pk))
+        self.assertEqual(response.status_code, 302)
+
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, "Dinner reminder")
+        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
+
+    def test_schedule_list(self):
+        url = reverse('msgs.broadcast_schedule_list')
+
+        # can't view if you're not logged in
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.editor)
+
+        # send some messages - one immediately, one scheduled
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+                                                              text="See you later"))
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+                                                              text="Lunch reminder", schedule=True))
+
+        scheduled = Broadcast.objects.exclude(schedule=None).first()
+
+        response = self.client.get(url)
+        self.assertEqual(set(response.context['object_list']), {scheduled})
+
+    def test_schedule_read(self):
+        self.login(self.editor)
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+                                                              text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
-        self.assertEqual(broadcast.text, "Hey guys")
-        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
+        # view with empty Send History
+        response = self.client.get(reverse('msgs.broadcast_schedule_read', args=[broadcast.pk]))
+        self.assertEqual(response.context['object'], broadcast)
+
+        self.assertEqual(response.context['object_list'].count(), 0)
+
+        broadcast.fire()
+
+        # view again with 1 item in Send History
+        response = self.client.get(reverse('msgs.broadcast_schedule_read', args=[broadcast.pk]))
+        self.assertEqual(response.context['object'], broadcast)
+        self.assertEqual(response.context['object_list'].count(), 1)
 
 
 class LabelTest(TembaTest):
