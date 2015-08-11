@@ -426,7 +426,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
-      $modal.open
+      $scope.dialog = $modal.open
         templateUrl: "/partials/translate_rules"
         controller: TranslateRulesController
         resolve:
@@ -437,7 +437,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     else
 
       if window.ivr
-        $modal.open
+        $scope.dialog = $modal.open
           templateUrl: "/partials/node_editor"
           controller: NodeEditorController
           resolve:
@@ -448,7 +448,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             scope: $scope
 
       else
-        $modal.open
+        $scope.dialog = $modal.open
           templateUrl: "/partials/node_editor"
           controller: NodeEditorController
           resolve:
@@ -739,23 +739,23 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
   $scope.ruleset = ruleset
   $scope.languages = languages
-  $scope.language = $scope.$parent.language
+  $scope.language = Flow.language
 
   $scope.ok = ->
 
     for rule in ruleset.rules
       if rule.category
         if rule._translation.category.to and rule._translation.category.to.strip().length > 0
-          rule.category[$scope.$parent.language.iso_code] = rule._translation.category.to
+          rule.category[Flow.language.iso_code] = rule._translation.category.to
         else
-          delete rule.category[$scope.$parent.language.iso_code]
+          delete rule.category[Flow.language.iso_code]
 
         if typeof(rule.test.test) == "object"
 
           if rule._translation.test.to and rule._translation.test.to.strip().length > 0
-            rule.test.test[$scope.$parent.language.iso_code] = rule._translation.test.to
+            rule.test.test[Flow.language.iso_code] = rule._translation.test.to
           else
-            delete rule.test.test[$scope.$parent.language.iso_code]
+            delete rule.test.test[Flow.language.iso_code]
 
     Flow.replaceRuleset(ruleset)
     $modalInstance.close ""
