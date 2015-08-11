@@ -121,7 +121,7 @@ describe 'Controllers:', ->
 
       $http.flush()
 
-    it 'should should ruleset category translation', ->
+    it 'should ruleset category translation', ->
 
       # go grab our flow
       flowService.fetch(flows.webhook_rule_first.id)
