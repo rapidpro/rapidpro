@@ -1494,7 +1494,7 @@ class Channel(SmartModel):
 
             # this handle doesn't exist anymore or we can't send to them, fail them
             if error_code == 404 or \
-              (error_code == 403 and str(e).index('users who are not following you')):
+              (error_code == 403 and str(e).find('users who are not following you') >= 0):
                 fatal = True
                 Contact.objects.get(id=msg.contact).fail()
 
