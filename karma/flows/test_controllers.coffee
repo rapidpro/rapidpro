@@ -48,12 +48,14 @@ describe 'Controllers:', ->
   )
 
   $modalStack = null
+  $timeout = null
 
-  beforeEach inject((_$rootScope_, _$compile_, _$log_, _$modal_, _$modalStack_) ->
+  beforeEach inject((_$rootScope_, _$compile_, _$log_, _$modal_, _$modalStack_, _$timeout_) ->
       $rootScope = _$rootScope_.$new()
       $scope = $rootScope.$new()
       $modal = _$modal_
       $modalStack = _$modalStack_
+      $timeout = _$timeout_
 
       $rootScope.ghost =
         hide: ->
@@ -117,5 +119,37 @@ describe 'Controllers:', ->
           expect(modalScope.base_language, 'eng')
           expect(modalScope.action.msg.eng, 'Testing this out')
 
-
       $http.flush()
+
+    it 'should should ruleset category translation', ->
+
+      # go grab our flow
+      flowService.fetch(flows.webhook_rule_first.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # we don't have a language
+        expect(flowService.language).toBe(undefined)
+
+        # but we do have base language
+        expect(modalScope.base_language).toBe('eng')
+        expect(modalScope.ruleset.uuid).toBe(ruleset.uuid)
+
+      $timeout.flush()
+
+      # now toggle our language so we are in translation mode
+      flowService.language = {iso_code:'ara', name:'Arabic'}
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # we should be in translation mode now
+        expect(modalScope.languages.from).toBe('eng')
+        expect(modalScope.languages.to).toBe('ara')
+
+      $timeout.flush()
