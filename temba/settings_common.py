@@ -907,6 +907,10 @@ REDIS_PORT = 6379
 REDIS_DB = 10 if TESTING else 15
 
 BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
+
+# by default, celery doesn't have any timeout on our redis connections, this fixes that
+BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
+
 CELERY_RESULT_BACKEND = BROKER_URL
 
 IS_PROD = False
