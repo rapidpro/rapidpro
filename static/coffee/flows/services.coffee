@@ -435,6 +435,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @operators = [
         { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
         { type:'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true }
+        { type:'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true }
         { type:'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true }
         { type:'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true }
         { type:'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, voice:true }

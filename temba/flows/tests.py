@@ -30,7 +30,7 @@ from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
-from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest
+from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
 
@@ -903,6 +903,16 @@ class RuleTest(TembaTest):
         run = self.assertTest(True, "Kazoo", test)
         extra = run.field_dict()
         self.assertEquals("Kazoo", extra['0'])
+
+        # not empty
+        sms.text = ""
+        self.assertTest(False, None, NotEmptyTest())
+        sms.text = None
+        self.assertTest(False, None, NotEmptyTest())
+        sms.text = " "
+        self.assertTest(False, None, NotEmptyTest())
+        sms.text = "it works"
+        self.assertTest(True, "it works", NotEmptyTest())
 
         def perform_date_tests(sms, dayfirst):
             """

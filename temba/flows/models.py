@@ -4812,7 +4812,8 @@ class Test(object):
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
-                HasStateTest.TYPE: HasStateTest
+                HasStateTest.TYPE: HasStateTest,
+                NotEmptyTest.TYPE: NotEmptyTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -4948,6 +4949,28 @@ class TranslatableTest(Test):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.test, dict):
             self.test = {language_iso: self.test}
+
+class NotEmptyTest(Test):
+    """
+    { op: "not_empty" }
+    """
+
+    TYPE = 'not_empty'
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return NotEmptyTest()
+
+    def as_json(self):
+        return dict(type=NotEmptyTest.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        if text and len(text.strip()):
+            return 1, text
+        return 0, None
 
 class ContainsTest(TranslatableTest):
     """
