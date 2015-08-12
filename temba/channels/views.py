@@ -66,11 +66,19 @@ TWILIO_SUPPORTED_COUNTRIES = (('AU', _("Australia")),
                               ('AT', _("Austria")),
                               ('BE', _("Belgium")),
                               ('CA', _("Canada")),
+                              ('CL', _("Chile")), #Beta
+                              ('CZ', _("Czech Republic")), #Beta
+                              ('DK', _("Denmark")), #Beta
                               ('EE', _("Estonia")),
                               ('FI', _("Finland")),
+                              ('FR', _("France")), #Beta
+                              ('DE', _("Germany")),
                               ('HK', _("Hong Kong")),
+                              ('HU', _("Hungary")), #Beta
                               ('IE', _("Ireland")),
+                              ('IL', _("Israel")), #Beta
                               ('LT', _("Lithuania")),
+                              ('MX', _("Mexico")), #Beta
                               ('NO', _("Norway")),
                               ('PL', _("Poland")),
                               ('ES', _("Spain")),
@@ -79,7 +87,7 @@ TWILIO_SUPPORTED_COUNTRIES = (('AU', _("Australia")),
                               ('GB', _("United Kingdom")),
                               ('US', _("United States")))
 
-TWILIO_SUPPORTED_COUNTRY_CODES = [61, 43, 32, 1, 372, 358, 852, 353, 370, 47, 48, 34, 46, 41, 44]
+TWILIO_SUPPORTED_COUNTRY_CODES = [61, 43, 32, 1, 56, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 370, 52, 47, 48, 34, 46, 41, 44]
 
 NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('AT', _('Austria')),
