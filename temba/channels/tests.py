@@ -946,6 +946,20 @@ class ChannelTest(TembaTest):
             # make sure it is actually connected
             Channel.objects.get(channel_type='T', org=self.org)
 
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+4545335500')]
+            Channel.objects.all().delete()
+
+            response = self.client.get(claim_twilio)
+            self.assertContains(response, '45 33 55 00')
+
+            # claim it
+            response = self.client.post(claim_twilio, dict(country='DK', phone_number='4545335500'))
+            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+            # make sure it is actually connected
+            Channel.objects.get(channel_type='T', org=self.org)
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
