@@ -253,6 +253,7 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
     scope.updateTranslationStatus = (ruleset, baseLanguage, currentLanguage) ->
 
+      console.log(ruleset, baseLanguage, currentLanguage)
 
       iso_code = baseLanguage
       if currentLanguage
@@ -261,6 +262,7 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       for category in ruleset._categories
 
         category._missingTranslation = false
+        console.log(iso_code, category.name)
         if category.name
           if baseLanguage
             category._translation = category.name[iso_code]
@@ -281,7 +283,7 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
       Plumb.updateConnections(scope.ruleset)
 
-    scope.$watch (->scope.$root.language), ->
+    scope.$watch (->Flow.language), ->
       scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
 
 

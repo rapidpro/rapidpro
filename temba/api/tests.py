@@ -3988,6 +3988,8 @@ class TwitterTest(TembaTest):
 
                 self.clear_cache()
 
+            ChannelLog.objects.all().delete()
+
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("Failed to send message")
 
@@ -3999,8 +4001,26 @@ class TwitterTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+                self.assertEquals("Failed to send message", ChannelLog.objects.get(msg=msg).description)
 
                 self.clear_cache()
+
+            ChannelLog.objects.all().delete()
+
+            with patch('twython.Twython.send_direct_message') as mock:
+                mock.side_effect = TwythonError("Different 403 error.", error_code=403)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(2, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                # should record the right error
+                self.assertTrue(ChannelLog.objects.get(msg=msg).description.find("Different 403 error") >= 0)
 
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("You cannot send messages to users who are not following you.",
@@ -4012,15 +4032,16 @@ class TwitterTest(TembaTest):
                 # fail the message
                 msg = bcast.get_messages()[0]
                 self.assertEquals(FAILED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
 
                 # contact should be failed
                 contact = Contact.objects.get(pk=joe.pk)
                 self.assertTrue(contact.is_failed)
 
+                self.clear_cache()
+
         finally:
             settings.SEND_MESSAGES = False
-
 
 class MageHandlerTest(TembaTest):
 

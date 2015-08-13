@@ -10,10 +10,14 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
-from temba.utils import truncate, dict_to_struct
+from temba.utils import dict_to_struct
 from temba.values.models import Value, TEXT, DECIMAL
 from temba.utils.profiler import SegmentProfiler
 from tests import TembaTest
+
+
+API_INITIAL_REQUEST_QUERIES = 9  # num of required db hits for an initial API request
+API_REQUEST_QUERIES = 7  # num of required db hits for a subsequent API request
 
 
 class PerformanceTest(TembaTest):  # pragma: no cover

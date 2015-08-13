@@ -1494,7 +1494,7 @@ class Channel(SmartModel):
 
             # this handle doesn't exist anymore or we can't send to them, fail them
             if error_code == 404 or \
-              (error_code == 403 and str(e).index('users who are not following you')):
+              (error_code == 403 and str(e).find('users who are not following you') >= 0):
                 fatal = True
                 Contact.objects.get(id=msg.contact).fail()
 
@@ -1625,11 +1625,12 @@ class Channel(SmartModel):
         from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
 
         now = timezone.now()
-        hours_ago = now - timedelta(hours=2)
+        hours_ago = now - timedelta(hours=12)
 
-        pending = Msg.objects.filter(org=org, direction=OUTGOING).filter(Q(status=PENDING) |
-                                                                         Q(status=QUEUED, queued_on__lte=hours_ago) |
-                                                                         Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
+        pending = Msg.objects.filter(org=org, direction=OUTGOING)\
+                             .filter(Q(status=PENDING) |
+                                     Q(status=QUEUED, queued_on__lte=hours_ago) |
+                                     Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
 
         # only SMS'es that have a topup and aren't the test contact
         pending = pending.exclude(topup=None).exclude(contact__is_test=True)
