@@ -214,7 +214,7 @@ window.tplval = (tpl, map, action) ->
     searchKey: "name"
     insertTpl: '@${name}'
     startWithSpace: true
-    displayTpl: "<li>${name} <small>(${display})</small></li>"
+    displayTpl: "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
     limit: 100
     maxLen: 100
     suffix: ""
