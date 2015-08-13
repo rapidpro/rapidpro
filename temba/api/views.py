@@ -2184,11 +2184,15 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
         steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
 
+        msgs_prefetch = Prefetch('steps__messages')
+
         rulesets_prefetch = Prefetch('flow__rule_sets',
                                      queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
                                      to_attr='ruleset_prefetch')
 
-        return queryset.select_related('contact', 'flow').prefetch_related(steps_prefetch, rulesets_prefetch).order_by('-created_on')
+        queryset = queryset.select_related('contact', 'flow')
+        queryset = queryset.prefetch_related(steps_prefetch, msgs_prefetch, rulesets_prefetch)
+        return queryset.order_by('-pk')
 
     @classmethod
     def get_read_explorer(cls):
