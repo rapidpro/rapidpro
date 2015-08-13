@@ -197,6 +197,9 @@ class APITest(TembaTest):
         self.assertIsInstance(token, basestring)
         self.assertEqual(len(token), 40)
 
+        with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
+            self.assertEqual(self.admin.api_token, token)
+
         # browse as HTML
         response = self.fetchHTML(url)
         self.assertContains(response, token, status_code=200)  # displays their API token
