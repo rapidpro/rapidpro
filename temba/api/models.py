@@ -17,8 +17,8 @@ from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel, TEMBA_HEADERS
 from temba.msgs.models import CALL_OUT, CALL_OUT_MISSED, CALL_IN, CALL_IN_MISSED
-from temba.utils import datetime_to_str
-from temba.utils import prepped_request_to_str
+from temba.utils import datetime_to_str, prepped_request_to_str
+from temba.utils.cache import get_obj_cacheable
 from urllib import urlencode
 
 PENDING = 'P'
@@ -495,37 +495,44 @@ class APIToken(models.Model):
     class Meta:
         unique_together = ('user', 'org')
 
-#-----------------------------------------------------------------------------------------------
-# Takes care of creating API tokens for new users
-#-----------------------------------------------------------------------------------------------
 
-def api_token(obj):
-    if not obj.is_authenticated():
+def get_or_create_api_token(user):
+    """
+    Gets or (lazily creates) an API token for this user
+    """
+    if not user.is_authenticated():
         return None
 
-    org = obj.get_org()
+    org = user.get_org()
     if not org:
-        org = Org.get_org(obj)
+        org = Org.get_org(user)
 
     if org:
-        tokens = APIToken.objects.filter(user=obj, org=org)
+        tokens = APIToken.objects.filter(user=user, org=org)
 
         if tokens:
             return str(tokens[0])
         else:
-            token = APIToken.objects.create(user=obj, org=org)
+            token = APIToken.objects.create(user=user, org=org)
             return str(token)
     else:
         return None
 
-User.api_token = api_token
 
-#-----------------------------------------------------------------------------------------------
-# Returns a user that can be used to associate events created by the API service
-#-----------------------------------------------------------------------------------------------
+def api_token(user):
+    """
+    Cached property access to a user's lazily-created API token
+    """
+    return get_obj_cacheable(user, '__api_token', lambda: get_or_create_api_token(user))
+
+
+User.api_token = property(api_token)
+
 
 def get_api_user():
-    # create a Poll user.. this will be used by our SMS app to reply to messages
+    """
+    Returns a user that can be used to associate events created by the API service
+    """
     user = User.objects.filter(username='api')
     if user:
         return user[0]

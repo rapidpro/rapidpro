@@ -30,6 +30,20 @@ def get_cacheable_result(cache_key, cache_ttl, callable, r=None, force_dirty=Fal
     return int(get_cacheable(cache_key, cache_ttl, callable, r=r, force_dirty=force_dirty))
 
 
+def get_obj_cacheable(obj, attr_name, calculate):
+    """
+    Gets the result of a method call, using the given object and attribute name
+    as a cache
+    """
+    if hasattr(obj, attr_name):
+        return getattr(obj, attr_name)
+
+    calculated = calculate()
+    setattr(obj, attr_name, calculated)
+
+    return calculated
+
+
 def incrby_existing(key, delta, r=None):
     """
     Update a existing integer value in the cache. If value doesn't exist, nothing happens. If value has a TTL, then that
