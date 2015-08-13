@@ -570,10 +570,17 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
 
-        # now fetch them instead...
+        # now test fetching them instead.....
+
+        # no filtering
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 9)  # all the runs
+
+        flow.start([], [Contact.get_test_contact(self.user)])  # create a run for a test contact
+
+        response = self.fetchJSON(url)
+        self.assertResultCount(response, 9)  # test contact's run not included
 
         # filter by run id
         response = self.fetchJSON(url, "run=%d" % run.pk)
