@@ -30,7 +30,7 @@ from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
-from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest
+from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
 
@@ -64,6 +64,7 @@ class RuleTest(TembaTest):
                                           webhook_action=None,
                                           response_type='',
                                           ruleset_type='wait_message',
+                                          config={},
                                           rules=[
                                               dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test='orange'), category="Orange"),
                                               dict(uuid=uuid(13), destination=uuid(3), test=dict(type='contains', test='blue'), category="Blue"),
@@ -543,6 +544,7 @@ class RuleTest(TembaTest):
 
         self.maxDiff = None
         self.definition['last_saved'] = datetime_to_str(self.flow.saved_on)
+
         self.assertEquals(json_dict, self.definition)
 
         # remove one of our actions and rules
@@ -901,6 +903,16 @@ class RuleTest(TembaTest):
         run = self.assertTest(True, "Kazoo", test)
         extra = run.field_dict()
         self.assertEquals("Kazoo", extra['0'])
+
+        # not empty
+        sms.text = ""
+        self.assertTest(False, None, NotEmptyTest())
+        sms.text = None
+        self.assertTest(False, None, NotEmptyTest())
+        sms.text = " "
+        self.assertTest(False, None, NotEmptyTest())
+        sms.text = "it works"
+        self.assertTest(True, "it works", NotEmptyTest())
 
         def perform_date_tests(sms, dayfirst):
             """
@@ -2293,6 +2305,46 @@ class FlowsTest(FlowFileTest):
     def clear_activity(self, flow):
         r = get_redis_connection()
         flow.clear_stats_cache()
+
+    def test_sms_forms(self):
+        flow = self.get_flow('sms-form')
+
+        def assert_response(message, response):
+            self.assertEquals(response, self.send_message(flow, message, restart_participants=True))
+
+        # invalid age
+        assert_response("101 M Seattle", "Sorry, 101 doesn't look like a valid age, please try again.")
+
+        # invalid gender
+        assert_response("36 elephant Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
+
+        # invalid location
+        assert_response("36 M Saturn", "I don't know the location Saturn. Please try again.")
+
+        # some missing fields
+        assert_response("36", "Sorry,  doesn't look like a valid gender. Try again.")
+        assert_response("36 M", "I don't know the location . Please try again.")
+        assert_response("36 M pequeño", "I don't know the location pequeño. Please try again.")
+
+        # valid entry
+        assert_response("36 M Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+
+        # valid entry with extra spaces
+        assert_response("36   M  Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+
+        # now let's switch to pluses and make sure they do the right thing
+        for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
+            config = ruleset.config_json()
+            config['field_delimiter'] = '+'
+            ruleset.set_config(config)
+            ruleset.save()
+
+        assert_response("101+M+Seattle", "Sorry, 101 doesn't look like a valid age, please try again.")
+        assert_response("36+elephant+Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
+        assert_response("36+M+Saturn", "I don't know the location Saturn. Please try again.")
+        assert_response("36+M+Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+        assert_response("15+M+pequeño", "I don't know the location pequeño. Please try again.")
+
 
     def test_write_protection(self):
         flow = self.get_flow('favorites')

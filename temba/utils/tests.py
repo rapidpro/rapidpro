@@ -330,7 +330,7 @@ class ParserTest(TembaTest):
                                  joined=datetime(2014, 12, 1, 9, 0, 0, 0, timezone.utc),  # date as datetime
                                  started="1/12/14 9:00")  # date as string
         variables['a'] = '!'  # single char var
-        
+
         context = EvaluationContext(variables, dict(tz=timezone.utc, dayfirst=True))
 
         self.assertEquals(("Hello World", []), evaluate_template('Hello World', context))  # no expressions
@@ -758,6 +758,15 @@ class ParserTest(TembaTest):
         self.assertEqual('def', f_word_slice(' abc  def ghi-jkl ', 2, -1, True))
         self.assertEqual('واحد إثنان', f_word_slice(' واحد إثنان ثلاثة ', 1, 3))
         self.assertRaises(ValueError, f_word_slice, ' abc  def ghi-jkl ', 0)  # start can't be zero
+
+        self.assertEqual('15', f_field('15+M+Seattle', 1, '+'))
+        self.assertEqual('15', f_field('15 M Seattle', 1))
+        self.assertEqual('M', f_field('15+M+Seattle', 2, '+'))
+        self.assertEqual('Seattle', f_field('15+M+Seattle', 3, '+'))
+        self.assertEqual('', f_field('15+M+Seattle', 4, '+'))
+        self.assertEqual('M', f_field('15    M  Seattle', 2))
+        self.assertEqual('واحد', f_field(' واحد إثنان-ثلاثة ', 1))
+        self.assertRaises(ValueError, f_field, '15+M+Seattle', 0)
 
         # check function listing
         self.assertGreater(len(get_function_listing()), 0)

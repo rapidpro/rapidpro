@@ -829,7 +829,6 @@ fn_module = parser_functions
 expression_functions = {fn.__name__[2:]: fn for fn in fn_module.__dict__.copy().itervalues()
                         if inspect.isfunction(fn) and inspect.getmodule(fn) == fn_module and fn.__name__.startswith('f_')}
 
-
 def get_function_listing():
     """
     This code will eventually make it into a view to provide auto-completion of functions
