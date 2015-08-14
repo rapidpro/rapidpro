@@ -31,7 +31,7 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 # phone number for every org's test contact
-OLD_TEST_CONTACT_TEL = '+12065551212'
+OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
@@ -1259,7 +1259,7 @@ class ContactURN(models.Model):
         number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
-        if len(number) > 11 and number[0] != '+':
+        if len(number) >= 11 and number[0] != '+':
             number = '+' + number
 
         normalized = None
