@@ -4,9 +4,21 @@ describe 'Matcher:', ->
     matched = matcher "@", "some texts before @"
     expect(matched).toBe("")
 
-  it 'should not match escaped texts', ->
+  it 'should not match after @@ (escaped texts)', ->
     matched = matcher "@", "some texts before @@contact"
     expect(matched).toBe(null)
+
+  it 'should not match after @@@@', ->
+    matched = matcher "@", "some texts before @@@@contact"
+    expect(matched).toBe(null)
+
+  it 'should match after @@@', ->
+    matched = matcher "@", "some texts before @@@contact"
+    expect(matched).toBe("contact")
+
+  it 'should match after @@@@@', ->
+    matched = matcher "@", "some texts before @@@contact"
+    expect(matched).toBe("contact")
 
   it 'should match variable after flag', ->
     matched = matcher "@", "some texts before @contact"
@@ -283,4 +295,4 @@ describe 'tplEval:', ->
     it 'should switch template if we have example in map', ->
       window.query.text = "(SUM(contact,"
       displayed = tplval('<li>{name}<small>{display}</small></li>', {'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'onDisplay')
-      expect(displayed).toBe("<li><h5>SUM</h5><div>SUM(A, B)</div><div>hint for sum</div><div>BLABLABLABAL</div></li>")
+      expect(displayed).toBe("<li><div class='custom-atwho-display'><div class='option-name'>SUM</div><div class='option-example'><div class='display-labels'>Example</div>SUM(A, B)</div><div class='option-display'><div class='display-labels'>Summary</div>SUM of numbers</div></div></li>")
