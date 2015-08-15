@@ -30,7 +30,7 @@ def get_cacheable_result(cache_key, cache_ttl, callable, r=None, force_dirty=Fal
     return int(get_cacheable(cache_key, cache_ttl, callable, r=r, force_dirty=force_dirty))
 
 
-def get_obj_cacheable(obj, attr_name, calculate):
+def get_cacheable_attr(obj, attr_name, calculate):
     """
     Gets the result of a method call, using the given object and attribute name
     as a cache

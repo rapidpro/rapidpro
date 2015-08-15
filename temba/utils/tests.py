@@ -12,7 +12,7 @@ from mock import patch
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
-from .cache import get_cacheable_result, get_obj_cacheable, incrby_existing
+from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
@@ -173,13 +173,13 @@ class CacheTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from cache
 
-    def test_get_obj_cacheable(self):
+    def test_get_cacheable_attr(self):
         def calculate():
             return "CALCULATED"
 
-        self.assertEqual(get_obj_cacheable(self, '_test_value', calculate), "CALCULATED")
+        self.assertEqual(get_cacheable_attr(self, '_test_value', calculate), "CALCULATED")
         self._test_value = "CACHED"
-        self.assertEqual(get_obj_cacheable(self, '_test_value', calculate), "CACHED")
+        self.assertEqual(get_cacheable_attr(self, '_test_value', calculate), "CACHED")
 
     def test_incrby_existing(self):
         r = get_redis_connection()

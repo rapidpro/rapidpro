@@ -18,7 +18,7 @@ from temba.orgs.models import Org
 from temba.channels.models import Channel, TEMBA_HEADERS
 from temba.msgs.models import CALL_OUT, CALL_OUT_MISSED, CALL_IN, CALL_IN_MISSED
 from temba.utils import datetime_to_str, prepped_request_to_str
-from temba.utils.cache import get_obj_cacheable
+from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
 
 PENDING = 'P'
@@ -523,7 +523,7 @@ def api_token(user):
     """
     Cached property access to a user's lazily-created API token
     """
-    return get_obj_cacheable(user, '__api_token', lambda: get_or_create_api_token(user))
+    return get_cacheable_attr(user, '__api_token', lambda: get_or_create_api_token(user))
 
 
 User.api_token = property(api_token)
