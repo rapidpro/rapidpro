@@ -2134,19 +2134,45 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
+        org = self.request.user.get_org()
+        queryset = self.model.objects.all()
+
+        contact_uuids = splitting_getlist(self.request, 'contact')
+        contact_phones = splitting_getlist(self.request, 'phone')  # deprecated
+
+        # subquery on contacts to avoid join - if we're querying for specific contacts
+        if contact_uuids or contact_phones:
+            include_contacts = Contact.objects.filter(org=org, is_test=False, is_active=True)
+
+            if contact_uuids:
+                include_contacts = include_contacts.filter(uuid__in=contact_uuids)
+
+            if contact_phones:
+                include_contacts = include_contacts.filter(urns__path__in=contact_phones)
+
+            queryset = queryset.filter(contact__in=include_contacts)
+        else:
+            test_contacts = Contact.objects.filter(org=org, is_test=True)
+            queryset = queryset.exclude(contact__in=test_contacts)
+
+        # subquery on flows to avoid join
+        include_flows = Flow.objects.filter(org=org, is_active=True)
+
+        flow_ids = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
+        if flow_ids:
+            include_flows = include_flows.filter(pk__in=flow_ids)
+
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        if flow_uuids:
+            include_flows = include_flows.filter(uuid__in=flow_uuids)
+
+        queryset = queryset.filter(flow__in=include_flows)
+
+        # other queries on the runs themselves...
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)
-
-        flows = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
-        if flows:
-            queryset = queryset.filter(flow__pk__in=flows)
-
-        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
-        if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -2164,9 +2190,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phones = splitting_getlist(self.request, 'phone')  # deprecated
-        if phones:
-            queryset = queryset.filter(contact__urns__path__in=phones)
+        # it's faster to filter by contact group using a join than a subquery - especially for larger groups
 
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
@@ -2178,17 +2202,16 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
                                        contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        contacts = splitting_getlist(self.request, 'contact')
-        if contacts:
-            queryset = queryset.filter(contact__uuid__in=contacts)
-
         steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
 
         rulesets_prefetch = Prefetch('flow__rule_sets',
                                      queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
                                      to_attr='ruleset_prefetch')
 
-        return queryset.select_related('contact', 'flow').prefetch_related(steps_prefetch, rulesets_prefetch).order_by('-created_on')
+        # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
+        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+
+        return queryset.order_by('-pk')
 
     @classmethod
     def get_read_explorer(cls):

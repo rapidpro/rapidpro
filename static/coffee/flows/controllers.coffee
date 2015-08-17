@@ -881,9 +881,28 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.removed = []
   flow = Flow.flow
   $scope.flowFields = Flow.getFlowFields(ruleset)
+  $scope.fieldIndexOptions = [{text:'first', id: 0},
+                              {text:'second', id: 1},
+                              {text:'third', id: 2},
+                              {text:'fourth', id: 3},
+                              {text:'fifth', id: 4},
+                              {text:'sixth', id: 5},
+                              {text:'seventh', id: 6},
+                              {text:'eighth', id: 7},
+                              {text:'ninth', id: 8}]
+
+  $scope.fieldDelimiterOptions = [{text:'space', id: ' '},
+                                  {text:'plus', id: '+'}]
 
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
+
+  config = $scope.ruleset.config
+  if not config
+    config = {}
+
+  formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
+  formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
 
   # default webhook action
   if not $scope.ruleset.webhook_action
@@ -1012,7 +1031,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
 
-    if rulesetConfig.type == 'flow_field' and $scope.flowFields.length == 0
+    if (rulesetConfig.type == 'flow_field' or rulesetConfig.type == 'form_field') and $scope.flowFields.length == 0
       return false
 
     if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
@@ -1226,7 +1245,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   $scope.okRules = ->
 
-
     # close our dialog
     $modalInstance.close ""
     stopWatching()
@@ -1240,8 +1258,15 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # save whatever ruleset type they are setting us to
     ruleset.ruleset_type = rulesetConfig.type
 
+    # settings for a message form
+    if rulesetConfig.type == 'form_field'
+      ruleset.operand = '@flow.' + flowField.id
+      ruleset.config =
+        field_index: $scope.formData.fieldIndex.id
+        field_delimiter: $scope.formData.fieldDelimiter.id
+
     # update our operand if they selected a contact field explicitly
-    if ruleset.ruleset_type == 'contact_field'
+    else if ruleset.ruleset_type == 'contact_field'
       ruleset.operand = '@contact.' + contactField.id
 
     # or if they picked a flow field

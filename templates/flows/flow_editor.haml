@@ -459,6 +459,10 @@
                 -trans "Split on "
                 [[getFlowFieldName(ruleset).text]]
 
+            .title.passive.form-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="form_field"'}
+                -trans "Split on field in "
+                [[getFlowFieldName(ruleset).text]]
+
             .title.passive.webhook-header{ng-show:'ruleset.ruleset_type=="webhook"'}
                 -trans "Call Webhook"
 

@@ -1846,6 +1846,10 @@ class ContactURNTest(TembaTest):
         self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "2.50788383383E+11", None))
         self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "2.50788383383E+12", None))
         self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn('tel', "(917) 992-5253", "US"))
+        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn('tel', "19179925253", None))
+        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn('tel', "+62877747666", None))
+        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn('tel', "62877747666", "ID"))
+        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn('tel', "0877747666", "ID"))
 
         # invalid tel numbers
         self.assertEquals(('tel', "12345"), ContactURN.normalize_urn(TEL_SCHEME, "12345", "RW"))
