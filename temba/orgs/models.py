@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -838,12 +838,15 @@ class Org(SmartModel):
         return purchased_credits if purchased_credits else 0
 
     def _calculate_credits_total(self):
-        # these are the credits that are still active
         active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
         active_credits = active_credits if active_credits else 0
 
         # these are the credits that have been used in expired topups
-        expired_credits = self.topups.filter(is_active=True, expires_on__lte=timezone.now()).aggregate(Sum('used')).get('used__sum')
+        expired_credits = TopUpCredits.objects.filter(topup__org=self,
+                                                      topup__is_active=True,
+                                                      topup__expires_on__lte=timezone.now())\
+                                               .aggregate(Sum('used')).get('used__sum')
+
         expired_credits = expired_credits if expired_credits else 0
 
         return active_credits + expired_credits
@@ -856,7 +859,9 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        used_credits_sum = self.topups.filter(is_active=True).aggregate(Sum('used')).get('used__sum')
+        used_credits_sum = TopUpCredits.objects.filter(topup__org=self,
+                                                       topup__is_active=True)\
+                                                .aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
         unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
@@ -893,8 +898,9 @@ class Org(SmartModel):
         """
         Calculates the oldest non-expired topup that still has credits
         """
-        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now())
-        active_topups = non_expired_topups.filter(credits__gt=F('used')).order_by('expires_on')
+        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('expires_on')
+        active_topups = non_expired_topups.annotate(used_credits=Sum('topupcredits_used'))\
+                                          .filter(Q(used_credits__lte=F('credits')) | Q(used_credits=None))
         return active_topups.first()
 
     def apply_topups(self):
@@ -926,7 +932,7 @@ class Org(SmartModel):
                         break
 
                     current_topup = unexpired_topups.pop()
-                    current_topup_remaining = current_topup.credits - current_topup.used
+                    current_topup_remaining = current_topup.credits - current_topup.get_used()
 
                 if current_topup_remaining:
                     # if we found some credit, assign the item to the current topup
@@ -1448,8 +1454,6 @@ class TopUp(SmartModel):
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
-    used = models.IntegerField(verbose_name=_("Number of Credits used"), default=0,
-                               help_text=_("The number of credits used in this top up"))
     expires_on = models.DateTimeField(verbose_name=("Expiration Date"),
                                       help_text=_("The date that this top up will expire"))
     stripe_charge = models.CharField(verbose_name=_("Stripe Charge Id"), max_length=32, null=True, blank=True,
@@ -1495,8 +1499,24 @@ class TopUp(SmartModel):
             traceback.print_exc()
             return None
 
+    def get_used(self):
+        """
+        Calculates how many topups have actually been used
+        """
+        used = TopUpCredits.objects.filter(topup=self).aggregate(used=Sum('used'))
+        return 0 if not used else used['used']
+
     def __unicode__(self):
         return "%s Credits" % self.credits
+
+
+class TopUpCredits(models.Model):
+    """
+    Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
+    """
+    topup = models.ForeignKey(TopUp,
+                              help_text=_("The topup these credits are being used against"))
+    used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
 
 
 class CreditAlert(SmartModel):
