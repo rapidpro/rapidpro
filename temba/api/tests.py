@@ -193,7 +193,12 @@ class APITest(TembaTest):
 
         # login as administrator
         self.login(self.admin)
-        token = self.admin.api_token()  # generates token for the user
+        token = self.admin.api_token  # generates token for the user
+        self.assertIsInstance(token, basestring)
+        self.assertEqual(len(token), 40)
+
+        with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
+            self.assertEqual(self.admin.api_token, token)
 
         # browse as HTML
         response = self.fetchHTML(url)
@@ -271,13 +276,13 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         # test that this user has a token
-        self.assertTrue(self.admin.api_token())
+        self.assertTrue(self.admin.api_token)
 
         # blow it away
         Token.objects.all().delete()
 
         # should create one lazily
-        self.assertTrue(self.admin.api_token())
+        self.assertTrue(self.admin.api_token)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
