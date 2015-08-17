@@ -41,7 +41,7 @@ window.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
   results = [];
 
   for option in data
-    if option.name.indexOf(query) == 0
+    if option.name.toLowerCase().indexOf(query.toLowerCase()) == 0
       nextDot = option.name.indexOf('.', lastIdx + 1)
       if nextDot == -1
 
@@ -58,7 +58,7 @@ window.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
           name = start + "."
         name += suffix
 
-        if name.indexOf(query) != 0
+        if name.toLowerCase().indexOf(query.toLowerCase()) != 0
           continue
 
         display = null

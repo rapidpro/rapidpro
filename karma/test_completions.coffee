@@ -144,6 +144,14 @@ describe 'Find matches:', ->
     expected = [{"name":"contact", "display":"Contact Name"}]
     expect(results).toEqual(expected)
 
+    results = findMatches 'CON', data, '', -1
+    expected = [{"name":"contact", "display":"Contact Name"}]
+    expect(results).toEqual(expected)
+
+    results = findMatches 'CoN', data, '', -1
+    expected = [{"name":"contact", "display":"Contact Name"}]
+    expect(results).toEqual(expected)
+
   it 'should start showing second ; only show display if name is full', ->
     results = findMatches 'contact.', data, 'contact', 7
     expected = [
