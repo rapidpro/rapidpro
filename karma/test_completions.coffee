@@ -98,6 +98,17 @@ describe 'find context query', ->
     ctxtQuery = findContextQuery "(SUM"
     expect(ctxtQuery).toBe('SUM')
 
+  it 'ignore ( after function', ->
+    ctxtQuery = findContextQuery "(SUM("
+    expect(ctxtQuery).toBe('SUM')
+
+  it 'ignore ( followed by spaces after function', ->
+    ctxtQuery = findContextQuery "(SUM( "
+    expect(ctxtQuery).toBe('SUM')
+
+    ctxtQuery = findContextQuery "(SUM(  "
+    expect(ctxtQuery).toBe('SUM')
+
   it 'should give the last variable', ->
     ctxtQuery = findContextQuery "(SUM(contact.date_added"
     expect(ctxtQuery).toBe('contact.date_added')
@@ -108,7 +119,7 @@ describe 'find context query', ->
 
   it 'should return empty string after comma followed by space', ->
     ctxtQuery = findContextQuery "(SUM(contact.date_added,  "
-    expect(ctxtQuery).toBe('')
+    expect(ctxtQuery).toBe('SUM')
 
   it 'should ignore function out of balanced paratheses', ->
     ctxtQuery = findContextQuery "(SUM(contact.date_added, step)"

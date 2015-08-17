@@ -15,9 +15,11 @@ window.findContextQuery = (query) ->
   if not query
     return query
 
-  if query.match(/^\($/g) isnt null or query.match(/,[ ]+$/g) isnt null
-    return ""
+  # while a space or open parathesis at the end, ignore it
+  while query.match(/[( ]$/) isnt null
+    query = query.slice(0, -1)
 
+  # while comma or closed pararenthesis, count balanced parathesis
   while query.match(/[,)]$/g) isnt null
     query = query.slice(0, -1)
     numPar += 1
@@ -186,8 +188,6 @@ window.tplval = (tpl, map, action) ->
 
     if typeof map.example isnt "undefined" and action is "onDisplay"
       template = "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
-
-      console.log(template)
 
     template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
   catch error
