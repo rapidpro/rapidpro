@@ -24,7 +24,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION temba_maybe_squash_topupcredits(_topup_id INTEGER)
 RETURNS VOID AS $$
 BEGIN
-  IF RANDOM() < .001 THEN
+  IF RANDOM() < .01 THEN
     WITH deleted as (DELETE FROM orgs_topupcredits
       WHERE "topup_id" = _topup_id
       RETURNING "used")
