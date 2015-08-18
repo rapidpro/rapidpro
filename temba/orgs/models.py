@@ -1506,7 +1506,7 @@ class TopUp(SmartModel):
         Calculates how many topups have actually been used
         """
         used = TopUpCredits.objects.filter(topup=self).aggregate(used=Sum('used'))
-        return 0 if not used else used['used']
+        return 0 if not used['used'] else used['used']
 
     def __unicode__(self):
         return "%s Credits" % self.credits
