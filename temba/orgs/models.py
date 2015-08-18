@@ -899,8 +899,10 @@ class Org(SmartModel):
         Calculates the oldest non-expired topup that still has credits
         """
         non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('expires_on')
-        active_topups = non_expired_topups.annotate(used_credits=Sum('topupcredits_used'))\
-                                          .filter(Q(used_credits__lte=F('credits')) | Q(used_credits=None))
+        active_topups = non_expired_topups.annotate(used_credits=Sum('topupcredits__used'))\
+                                          .filter(credits__gt=0)\
+                                          .filter(Q(used_credits__lt=F('credits')) | Q(used_credits=None))
+
         return active_topups.first()
 
     def apply_topups(self):
