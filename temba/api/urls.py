@@ -9,7 +9,7 @@ from .channels import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHa
 from .channels import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .channels import SMSCentralHandler, MageHandler
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
-from .views import api, ApiExplorerView
+from .views import api, ApiExplorerView, AuthenticateEndpoint
 from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint, FlowEndpoint
 from .views import FlowResultsEndpoint, FlowRunEndpoint, CallEndpoint, ContactEndpoint, ContactBulkActionEndpoint
 from .views import GroupEndpoint, FieldEndpoint
@@ -46,6 +46,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/webhook/simulator/$', WebHookSimulatorView.as_view(), name='api.webhook_simulator'),
                        url(r'^/webhook/tunnel/$', login_required(csrf_protect(WebHookTunnelView.as_view())), name='api.webhook_tunnel'),
 
+                       url(r'^/authenticate$', AuthenticateEndpoint.as_view(), name='api.authenticate'),
                        url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.broadcasts'),
                        url(r'^/messages$', MessageEndpoint.as_view(), name='api.messages'),
                        url(r'^/message_actions$', MessageBulkActionEndpoint.as_view(), name='api.message_actions'),
@@ -67,5 +68,3 @@ urlpatterns = patterns('api.views',
 
 # Format suffixes
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'xml', 'api'])
-
-

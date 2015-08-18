@@ -36,6 +36,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEM
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
+from temba.orgs.models import Org
 from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
@@ -304,6 +305,39 @@ class ApiExplorerView(SmartTemplateView):
         context['endpoints'] = endpoints
 
         return context
+
+from smartmin.views import SmartFormView
+from django import forms
+from django.views.decorators.csrf import csrf_exempt
+from temba.utils import JsonResponse
+from django.contrib.auth import authenticate, login
+from temba.api.models import APIToken
+class AuthenticateEndpoint(SmartFormView):
+
+    class LoginForm(forms.Form):
+        email = forms.CharField()
+        password = forms.CharField()
+
+    form_class = LoginForm
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super(AuthenticateEndpoint, self).dispatch(*args, **kwargs)
+
+    def form_valid(self, form, *args, **kwargs):
+        username = form.cleaned_data.get('email')
+        password = form.cleaned_data.get('password')
+        user = authenticate(username=username, password=password)
+        if user and user.is_active:
+            login(self.request, user)
+
+            orgs = []
+            for org in Org.objects.filter(administrators__in=[user]):
+                tokens = APIToken.objects.filter(user=user, org=org)
+                if tokens:
+                    orgs.append(dict(id=org.pk, name=org.name, token=tokens[0].key))
+            return JsonResponse(orgs, safe=False)
+        else:
+            return HttpResponse(status=403)
 
 @api_view(['GET'])
 @permission_classes((SSLPermission, IsAuthenticated))
