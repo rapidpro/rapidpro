@@ -12,7 +12,7 @@ from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebH
 from .views import api, ApiExplorerView, AuthenticateEndpoint
 from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint, FlowEndpoint
 from .views import FlowResultsEndpoint, FlowRunEndpoint, CallEndpoint, ContactEndpoint, ContactBulkActionEndpoint
-from .views import GroupEndpoint, FieldEndpoint
+from .views import GroupEndpoint, FieldEndpoint, FlowDefinitionEndpoint
 from .views import ChannelEndpoint, CampaignEndpoint, CampaignEventEndpoint, BoundaryEndpoint, AssetEndpoint
 
 urlpatterns = patterns('api.views',
@@ -53,6 +53,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/sms$', MessageEndpoint.as_view(), name='api.sms'),  # deprecated
                        url(r'^/labels$', LabelEndpoint.as_view(), name='api.labels'),
                        url(r'^/flows$', FlowEndpoint.as_view(), name='api.flows'),
+                       url(r'^/flowdefinition$', FlowDefinitionEndpoint.as_view(), name='api.flowdefintion'),
                        url(r'^/results$', FlowResultsEndpoint.as_view(), name='api.results'),
                        url(r'^/runs$', FlowRunEndpoint.as_view(), name='api.runs'),
                        url(r'^/calls$', CallEndpoint.as_view(), name='api.calls'),

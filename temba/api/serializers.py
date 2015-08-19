@@ -1002,6 +1002,19 @@ class CampaignWriteSerializer(WriteSerializer):
 
         return campaign
 
+class FlowDefinitionReadSerializer(serializers.ModelSerializer):
+
+    uuid = serializers.Field(source='uuid')
+    definition = serializers.SerializerMethodField('get_definition')
+    archived = serializers.Field(source='is_archived')
+    expires = serializers.Field(source='expires_after_minutes')
+
+    def get_definition(self, obj):
+        return obj.as_json()
+
+    class Meta:
+        model = Flow
+        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition')
 
 class FlowReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')

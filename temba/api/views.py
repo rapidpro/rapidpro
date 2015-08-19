@@ -24,7 +24,7 @@ from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowDefinitionReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer
@@ -2673,6 +2673,28 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         return spec
 
 
+class FlowDefinitionEndpoint(BaseAPIView):
+    """
+    This endpoint returns a flow defintion given a flow uuid.
+    """
+    permission = 'flows.flow_api'
+    model = Flow
+    serializer_class = FlowDefinitionReadSerializer
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        org = user.get_org()
+
+        uuid = request.GET.get('uuid')
+        flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
+
+        if flow:
+            return Response(dict(results=flow.as_json()), status=status.HTTP_200_OK)
+        else:
+            return Response(dict(error="Invalid flow uuid", status=status.HTTP_400_BAD_REQUEST))
+
+
+
 class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list all the active flows on your account using the ```GET``` method.
@@ -2770,6 +2792,10 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         archived = self.request.QUERY_PARAMS.get('archived', None)
         if archived is not None:
             queryset = queryset.filter(is_archived=str_to_bool(archived))
+
+        flow_type = self.request.QUERY_PARAMS.getlist('type', None)
+        if flow_type:
+            queryset = queryset.filter(flow_type__in=flow_type)
 
         return queryset.prefetch_related('labels')
 
