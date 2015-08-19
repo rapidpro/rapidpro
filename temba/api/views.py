@@ -2241,10 +2241,10 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     title="Add one or more contacts to a Flow",
                     url=reverse('api.runs'),
                     slug='run-post',
-                    request='{ "flow": 15015, "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
+                    request='{ "flow_uuid":"f5901b62-ba76-4003-9c62-72fdacc1b7b7" , "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
 
-        spec['fields'] = [ dict(name='flow', required=True,
-                                help="The id of the flow to start the contact(s) on, the flow cannot be archived"),
+        spec['fields'] = [ dict(name='flow_uuid', required=True,
+                                help="The uuid of the flow to start the contact(s) on, the flow cannot be archived"),
                            dict(name='phone', required=True,
                                 help="A JSON array of one or more strings, each a phone number in E164 format"),
                            dict(name='contact', required=False,
