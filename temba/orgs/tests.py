@@ -140,6 +140,9 @@ class OrgTest(TembaTest):
         # should say we have a 1,000 credits too
         self.assertContains(response, "999")
 
+        # and that we have 999 credits left on our topup
+        self.assertContains(response, "1 of 1,000 Credits Used")
+
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
         login_url = reverse('users.user_login')
