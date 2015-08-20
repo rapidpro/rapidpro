@@ -3146,7 +3146,10 @@ class FlowsTest(FlowFileTest):
 
         # get our current expiration
         run = flow.runs.get()
+        self.assertEquals(flow.org, run.org)
+
         starting_expiration = run.expires_on
+        starting_modified = run.modified_on
 
         # now fire another messages
         self.assertEquals("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", self.send_message(flow, "turbo"))
@@ -3154,6 +3157,7 @@ class FlowsTest(FlowFileTest):
         # our new expiration should be later
         run = flow.runs.get()
         self.assertTrue(run.expires_on > starting_expiration)
+        self.assertTrue(run.modified_on > starting_modified)
 
     def test_flow_expiration(self):
         flow = self.get_flow('favorites')
