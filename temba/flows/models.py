@@ -561,13 +561,15 @@ class Flow(TembaModel, SmartModel):
             flow.ensure_current_version()
             action_set = ActionSet.get(flow, step.step_uuid)
 
-            destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
-            if destination:
-                flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
+            # our action set may have disappeared, in that case we just move on, ignoring this flow
+            if action_set:
+                destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
+                if destination:
+                    flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
 
-                # if we pushed them forward, we want to consider any step type
-                # they just arrived at instead of just rulesets
-                step_type_filter = None
+                    # if we pushed them forward, we want to consider any step type
+                    # they just arrived at instead of just rulesets
+                    step_type_filter = None
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
