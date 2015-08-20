@@ -3140,8 +3140,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(first_expires, first_run.expires_on)
 
         # new run should have a different expires on
-        new_run = flow.runs.all()[1]
-        self.assertTrue(new_run.expires_on != first_run.expires_on)
+        new_run = flow.runs.all().order_by('-expires_on').first()
+        self.assertTrue(new_run.expires_on > first_expires)
 
     def test_flow_expiration_updates(self):
         flow = self.get_flow('favorites')
