@@ -5,6 +5,7 @@ import datetime
 import json
 import os
 import pytz
+import time
 
 from datetime import timedelta
 from decimal import Decimal
@@ -3126,6 +3127,8 @@ class FlowsTest(FlowFileTest):
         first_run = flow.runs.all()[0]
         first_expires = first_run.expires_on
 
+        time.sleep(1)
+
         # start it again
         self.send_message(flow, "RED", restart_participants=True)
 
@@ -3150,6 +3153,8 @@ class FlowsTest(FlowFileTest):
 
         starting_expiration = run.expires_on
         starting_modified = run.modified_on
+
+        time.sleep(1)
 
         # now fire another messages
         self.assertEquals("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", self.send_message(flow, "turbo"))
