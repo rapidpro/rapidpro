@@ -663,7 +663,9 @@ class ParserTest(TembaTest):
             self.assertEqual(time(1, 30, 15), f_time(1, 30, 15))
             self.assertEqual(time(1, 30, 15), f_timevalue('1:30:15'))
             self.assertEqual(timezone.now().date(), f_today())
-            self.assertEqual(5, f_weekday(timezone.now()))  # thursday = 5
+            self.assertEqual(5, f_weekday(timezone.now()))  # Thu = 5
+            self.assertEqual(7, f_weekday(date(2015, 8, 15)))  # Sat = 7
+            self.assertEqual(1, f_weekday("16th Aug 2015"))  # Sun = 1
             self.assertEqual(2014, f_year(timezone.now()))
 
         # run some more in Kabul time for good measure
