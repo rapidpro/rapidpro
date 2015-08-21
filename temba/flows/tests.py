@@ -701,7 +701,7 @@ class RuleTest(TembaTest):
         self.assertTest(True, "this that", test)
 
         test = AndTest([TrueTest(), TrueTest()])
-        self.assertTest(True, "that and this is good and will match", test)
+        self.assertTest(True, "that and this is good and will match that and this is good and will match", test)
 
         test = AndTest([TrueTest(), FalseTest()])
         self.assertTest(False, None, test)
@@ -774,23 +774,23 @@ class RuleTest(TembaTest):
         test = EqTest(test="5")
         self.assertTest(False, None, test)
 
-        test = BetweenTest(min="5", max="10")
+        test = BetweenTest("5", "10")
         self.assertTest(False, None, test)
 
-        test = BetweenTest(min="4", max="10")
+        test = BetweenTest("4", "10")
         self.assertTest(True, Decimal("4"), test)
 
-        test = BetweenTest(min="0", max="4")
+        test = BetweenTest("0", "4")
         self.assertTest(True, Decimal("4"), test)
 
-        test = BetweenTest(min="0", max="3")
+        test = BetweenTest("0", "3")
         self.assertTest(False, None, test)
 
         sms.text = "My answer is or"
         self.assertTest(False, None, test)
 
         sms.text = "My answer is 4"
-        test = BetweenTest(min="1", max="5")
+        test = BetweenTest("1", "5")
         self.assertTest(True, Decimal("4"), test)
 
         sms.text = "My answer is 4rwf"
@@ -799,11 +799,11 @@ class RuleTest(TembaTest):
         sms.text = "My answer is a4rwf"
         self.assertTest(False, None, test)
 
-        test = BetweenTest(min="10", max="50")
+        test = BetweenTest("10", "50")
         sms.text = "My answer is lO"
         self.assertTest(True, Decimal("10"), test)
 
-        test = BetweenTest(min="1000", max="5000")
+        test = BetweenTest("1000", "5000")
         sms.text = "My answer is 4,000rwf"
         self.assertTest(True, Decimal("4000"), test)
 
@@ -812,10 +812,10 @@ class RuleTest(TembaTest):
 
         test = StartsWithTest(test="Green")
         sms.text = "  green beans"
-        self.assertTest(True, "Green", test)
+        self.assertTest(True, "green", test)
 
         sms.text = "greenbeans"
-        self.assertTest(True, "Green", test)
+        self.assertTest(True, "green", test)
 
         sms.text = "  beans Green"
         self.assertTest(False, None, test)

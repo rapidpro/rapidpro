@@ -4913,16 +4913,16 @@ class AndTest(Test):
         return dict(type=AndTest.TYPE, tests=[_.as_json() for _ in self.tests])
 
     def evaluate(self, run, sms, context, text):
-        sum = 0
+        matches = []
         for test in self.tests:
             (result, value) = test.evaluate(run, sms, context, text)
-            sum += result
+            if result:
+                matches.append(value)
+            else:
+                return 0, None
 
         # all came out true, we are true
-        if sum == len(self.tests):
-            return 1, value
-        else:
-            return 0, None
+        return 1, " ".join(matches)
 
 
 class OrTest(Test):
@@ -5102,9 +5102,10 @@ class StartsWithTest(TranslatableTest):
 
         # see whether we start with our test
         if text.lower().find(test.lower()) == 0:
-            return 1, self.test
+            return 1, text[:len(self.test)]
         else:
             return 0, None
+
 
 class HasStateTest(Test):
     TYPE = 'state'
@@ -5308,9 +5309,9 @@ class BetweenTest(NumericTest):
     MAX = 'max'
     TYPE = 'between'
 
-    def __init__(self, min, max):
-        self.min = min
-        self.max = max
+    def __init__(self, _min, _max):
+        self.min = _min
+        self.max = _max
 
     @classmethod
     def from_json(cls, org, json):
@@ -5320,13 +5321,16 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
-        min, has_missing = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
-        max, has_missing = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
+        _min, min_has_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
+        _max, max_has_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
 
-        if Decimal(min) <= decimal_value <= Decimal(max):
-            return True
-        else:
-            return False
+        if not min_has_errors and not max_has_errors:
+            try:
+                return Decimal(_min) <= decimal_value <= Decimal(_max)
+            except Exception:
+                pass
+
+        return False
 
 
 class NumberTest(NumericTest):
