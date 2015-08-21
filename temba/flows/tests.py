@@ -18,6 +18,7 @@ from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
+from temba.msgs.models import OUTGOING
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER, CATCH_ALL_TRIGGER, MISSED_CALL_TRIGGER, INBOUND_CALL_TRIGGER
@@ -3558,3 +3559,28 @@ class WebhookLoopTest(FlowFileTest):
         with patch('requests.get') as mock:
             mock.return_value = MockResponse(200, '{ "text": "second message" }')
             self.assertEquals("second message", self.send_message(flow, "second"))
+
+
+class GhostActionNodeTest(FlowFileTest):
+
+    def test_ghost_action_node_test(self):
+        # load our flows
+        self.get_flow('parent_child_flow')
+        flow = Flow.objects.get(name="Parent Flow")
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # at this point, our contact has to active flow runs:
+        # one for our parent flow at an action set (the start flow action), one in our child flow at the send message action
+
+        # let's remove the actionset we are stuck at
+        ActionSet.objects.filter(flow=flow).delete()
+
+        # create a new message and get it handled
+        msg = self.create_msg(contact=self.contact, direction='I', text="yes")
+        Flow.find_and_handle(msg)
+
+        # we should have gotten a response from our child flow
+        self.assertEquals("I like butter too.",
+                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
