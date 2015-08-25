@@ -2006,7 +2006,8 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
-    * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
+    * **created_on** - the datetime when this run was started (datetime)
+    * **modified_on** - the datetime when this run was last modified (datetime) (filterable: ```before``` and ```after```)
     * **completed** - boolean indicating whether this run has completed the flow (boolean)
     * **expires_on** - the datetime when this run will expire (datetime)
     * **expired_on** - the datetime when this run expired or null if it has not yet expired (datetime or null)
@@ -2095,6 +2096,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-08-19T19:11:20.838Z"
+                "modified_on": "2013-08-19T19:11:21.088Z"
                 "values": [],
                 "steps": [
                     {
@@ -2235,9 +2237,9 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by.(repeatable)  ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='before', required=False,
-                               help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                               help="Only return runs which were modified before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
-                               help="Only return runs which were created after this date.  ex: 2012-01-28T18:00:00.000")]
+                               help="Only return runs which were modified after this date.  ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
