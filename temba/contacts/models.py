@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
@@ -19,7 +20,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
@@ -262,6 +263,23 @@ class Contact(TembaModel, SmartModel):
 
         if field.value_type == DATETIME:
             return field.org.format_date(value.datetime_value)
+        elif field.value_type == DECIMAL:
+            return format_decimal(value.decimal_value)
+        elif value.category:
+            return value.category
+        else:
+            return value.string_value
+
+    @classmethod
+    def serialize_field_value(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == DATETIME:
+            return datetime_to_str(value.datetime_value)
         elif field.value_type == DECIMAL:
             return format_decimal(value.decimal_value)
         elif value.category:
