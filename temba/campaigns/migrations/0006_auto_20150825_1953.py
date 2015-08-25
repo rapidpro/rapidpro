@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     def recalculate_event_fires(apps, schema_editor):
         for event in CampaignEvent.objects.filter(is_active=True).select_related('campaign').order_by('campaign__org'):
-            print "%s: %s, %d%s" % (unicode(event.campaign.org.name), unicode(event.campaign.name), event.offset, event.unit)
+            # print "%s: %s, %d%s" % (unicode(event.campaign.org.name), unicode(event.campaign.name), event.offset, event.unit)
             EventFire.update_eventfires_for_event(event)
 
     dependencies = [
