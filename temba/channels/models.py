@@ -59,6 +59,7 @@ USERNAME = 'username'
 PASSWORD = 'password'
 KEY = 'key'
 API_ID = 'api_id'
+VERIFY_SSL = 'verify_ssl'
 
 SEND = 'S'
 RECEIVE = 'R'
@@ -831,7 +832,10 @@ class Channel(SmartModel):
         start = time.time()
 
         try:
-            response = requests.get(channel.config[SEND_URL], params=payload, timeout=15)
+            if channel.config.get(VERIFY_SSL, True):
+                response = requests.get(channel.config[SEND_URL], verify=True, params=payload, timeout=15)
+            else:
+                response = requests.get(channel.config[SEND_URL], verify=False, params=payload, timeout=15)
         except Exception as e:
             payload['password'] = 'x' * len(payload['password'])
             raise SendException(unicode(e),
