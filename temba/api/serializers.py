@@ -1305,7 +1305,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlowRun
         fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values',
-                  'steps', 'created_on', 'expires_on', 'expired_on')
+                  'steps', 'created_on', 'modified_on', 'expires_on', 'expired_on')
 
 
 class BroadcastReadSerializer(serializers.ModelSerializer):
