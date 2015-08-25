@@ -1673,13 +1673,15 @@ class ContactTest(TembaTest):
         self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
         ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
 
-    def test_datetime_fields(self):
-        ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
+    def test_serialize_field_value(self):
+        registration_field = ContactField.get_or_create(self.org, 'registration_date', "Registration Date",
+                                                        None, DATETIME)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field('registration_date', "2014-12-31 03:04:00")
-        self.assertEqual(joe.get_field_display('registration_date'), '31-12-2014 03:04')
-        self.assertEqual(joe.get_field_display('registration_date', True), '2014-12-31T01:04:00Z')
+        value = joe.get_field(registration_field.key)
+
+        self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T01:04:00.000000Z')
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)

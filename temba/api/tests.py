@@ -1039,7 +1039,7 @@ class APITest(TembaTest):
         self.assertContains(response, 'Andre')
         self.assertContains(response, "Jay-Z")
         self.assertContains(response, '123555')
-        self.assertContains(response, "2014-12-31T01:04:00Z")
+        self.assertContains(response, "2014-12-31T01:04:00.000000Z")
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")

@@ -20,7 +20,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
@@ -242,19 +242,19 @@ class Contact(TembaModel, SmartModel):
         value = self.get_field(key)
         return value.string_value if value else None
 
-    def get_field_display(self, key, normalize_datetime=False):
+    def get_field_display(self, key):
         """
         Gets either the field category if set, or the formatted field value
         """
         value = self.get_field(key)
         if value:
             field = value.contact_field
-            return Contact.get_field_display_for_value(field, value, normalize_datetime)
+            return Contact.get_field_display_for_value(field, value)
         else:
             return None
 
     @classmethod
-    def get_field_display_for_value(cls, field, value, normalize_datetime=False):
+    def get_field_display_for_value(cls, field, value):
         """
         Utility method to determine best display value for the passed in field, value pair.
         """
@@ -262,13 +262,26 @@ class Contact(TembaModel, SmartModel):
             return None
 
         if field.value_type == DATETIME:
-            if normalize_datetime:
-                utc_datetime_value = timezone.localtime(value.datetime_value, timezone.utc)
-                return utc_datetime_value.strftime('%Y-%m-%dT%H:%M:%SZ')
-
             return field.org.format_date(value.datetime_value)
         elif field.value_type == DECIMAL:
             return format_decimal(value.decimal_value)
+        elif value.category:
+            return value.category
+        else:
+            return value.string_value
+
+    @classmethod
+    def serialize_field_value(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == DATETIME:
+            return datetime_to_str(value.datetime_value)
+        elif field.value_type == DECIMAL:
+            return value.decimal_value
         elif value.category:
             return value.category
         else:
