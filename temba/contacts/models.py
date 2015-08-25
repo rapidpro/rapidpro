@@ -310,7 +310,7 @@ class Contact(TembaModel, SmartModel):
                     existing.category = None
 
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category'])
+                                             'location_value', 'category', 'modified_on'])
 
             # otherwise, create a new value for it
             else:
