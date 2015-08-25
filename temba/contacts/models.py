@@ -281,7 +281,7 @@ class Contact(TembaModel, SmartModel):
         if field.value_type == DATETIME:
             return datetime_to_str(value.datetime_value)
         elif field.value_type == DECIMAL:
-            return value.decimal_value
+            return format_decimal(value.decimal_value)
         elif value.category:
             return value.category
         else:
