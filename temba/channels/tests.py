@@ -1718,6 +1718,7 @@ class ChannelAlertTest(TembaTest):
         post_data['number'] = '3071'
         post_data['country'] = 'RW'
         post_data['url'] = 'http://kannel.temba.com/cgi-bin/sendsms'
+        post_data['verify_ssl'] = False
 
         response = self.client.post(reverse('channels.channel_claim_kannel'), post_data)
 
@@ -1727,6 +1728,7 @@ class ChannelAlertTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEquals(post_data['number'], channel.address)
         self.assertEquals(post_data['url'], channel.config_json()['send_url'])
+        self.assertEquals(False, channel.config_json()['verify_ssl'])
 
         # make sure we generated a username and password
         self.assertTrue(channel.config_json()['username'])

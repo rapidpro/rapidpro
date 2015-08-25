@@ -2589,13 +2589,23 @@ class KannelTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
+                # assert verify was set to true
+                self.assertTrue(mock.call_args[1]['verify'])
+
                 self.clear_cache()
+
+            self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
+                                                  send_url='http://foo/', verify_ssl=False))
+            self.channel.save()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # assert verify was set to False
+                self.assertFalse(mock.call_args[1]['verify'])
 
                 # message should be marked as an error
                 msg = bcast.get_messages()[0]
@@ -2604,6 +2614,7 @@ class KannelTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
 
 class NexmoTest(TembaTest):
 
