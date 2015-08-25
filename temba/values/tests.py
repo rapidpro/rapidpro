@@ -86,6 +86,13 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 0, "Male", 2)
         self.assertResult(result, 1, "Female", 1)
 
+        # check the modified date is tracked for fields
+        original_value = Value.objects.get(contact=c1, contact_field=gender)
+        c1.set_field('gender', 'unknown')
+        new_value = Value.objects.get(contact=c1, contact_field=gender)
+        self.assertTrue(new_value.modified_on > original_value.modified_on)
+        self.assertNotEqual(new_value.string_value, original_value.string_value)
+
     def run_color_gender_flow(self, contact, color, gender, age):
         self.assertEquals("What is your gender?", self.send_message(self.flow, color, contact=contact, restart_participants=True))
         self.assertEquals("What is your age?", self.send_message(self.flow, gender, contact=contact))
