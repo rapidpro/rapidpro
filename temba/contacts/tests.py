@@ -23,7 +23,7 @@ from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE, DATETIME, DISTRICT, Value
+from temba.values.models import STATE, DATETIME, DISTRICT, Value, DECIMAL, TEXT
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1677,11 +1677,25 @@ class ContactTest(TembaTest):
         registration_field = ContactField.get_or_create(self.org, 'registration_date', "Registration Date",
                                                         None, DATETIME)
 
+        weight_field = ContactField.get_or_create(self.org, 'weight', "Weight", None, DECIMAL)
+        color_field = ContactField.get_or_create(self.org, 'color', "Color", None, TEXT)
+
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field('registration_date', "2014-12-31 03:04:00")
-        value = joe.get_field(registration_field.key)
+        joe.set_field('weight', "75.888888")
+        joe.set_field('color', "green")
 
+        value = joe.get_field(registration_field.key)
         self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T01:04:00.000000Z')
+
+        value = joe.get_field(weight_field.key)
+        self.assertEqual(Contact.serialize_field_value(weight_field, value), '75.888888')
+
+        value = joe.get_field(color_field.key)
+        value.category = "Dark"
+        value.save()
+
+        self.assertEqual(Contact.serialize_field_value(color_field, value), 'Dark')
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
