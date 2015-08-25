@@ -31,7 +31,7 @@ from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVE
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
 from temba.utils import dict_to_struct, datetime_to_json_date
-from temba.values.models import Value
+from temba.values.models import Value, DATETIME
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
@@ -1026,6 +1026,8 @@ class APITest(TembaTest):
 
         drdre = Contact.objects.get()
         jay_z = self.create_contact("Jay-Z", number="123555")
+        ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
+        jay_z.set_field('registration_date', "2014-12-31 03:04:00")
 
         # fetch all with blank query
         self.clear_cache()
@@ -1037,6 +1039,7 @@ class APITest(TembaTest):
         self.assertContains(response, 'Andre')
         self.assertContains(response, "Jay-Z")
         self.assertContains(response, '123555')
+        self.assertContains(response, "2014-12-31T01:04:00Z")
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")

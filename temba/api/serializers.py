@@ -348,7 +348,7 @@ class ContactReadSerializer(serializers.ModelSerializer):
     def get_contact_fields(self, obj):
         fields = dict()
         for contact_field in self.context['contact_fields']:
-            fields[contact_field.key] = obj.get_field_display(contact_field.key)
+            fields[contact_field.key] = obj.get_field_display(contact_field.key, True)
         return fields
 
     def get_tel(self, obj):

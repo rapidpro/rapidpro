@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
@@ -241,19 +242,19 @@ class Contact(TembaModel, SmartModel):
         value = self.get_field(key)
         return value.string_value if value else None
 
-    def get_field_display(self, key):
+    def get_field_display(self, key, normalize_datetime=False):
         """
         Gets either the field category if set, or the formatted field value
         """
         value = self.get_field(key)
         if value:
             field = value.contact_field
-            return Contact.get_field_display_for_value(field, value)
+            return Contact.get_field_display_for_value(field, value, normalize_datetime)
         else:
             return None
 
     @classmethod
-    def get_field_display_for_value(cls, field, value):
+    def get_field_display_for_value(cls, field, value, normalize_datetime=False):
         """
         Utility method to determine best display value for the passed in field, value pair.
         """
@@ -261,6 +262,10 @@ class Contact(TembaModel, SmartModel):
             return None
 
         if field.value_type == DATETIME:
+            if normalize_datetime:
+                utc_datetime_value = timezone.localtime(value.datetime_value, timezone.utc)
+                return utc_datetime_value.strftime('%Y-%m-%dT%H:%M:%SZ')
+
             return field.org.format_date(value.datetime_value)
         elif field.value_type == DECIMAL:
             return format_decimal(value.decimal_value)
