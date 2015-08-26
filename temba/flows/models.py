@@ -236,6 +236,10 @@ class Flow(TembaModel, SmartModel):
         return flow
 
     @classmethod
+    def label_to_slug(cls, label):
+        return regex.sub(r'[^a-z0-9]+', '_', label.lower(), regex.V0)
+
+    @classmethod
     def create_join_group(cls, org, user, group, response=None, start_flow=None):
         """
         Creates a special 'join group' flow
@@ -1220,7 +1224,7 @@ class Flow(TembaModel, SmartModel):
 
         if results and results[0]:
             for value in results[0]['values']:
-                field = regex.sub(r'[^a-z0-9]+', '_', value['label'].lower(), regex.V0)
+                field = Flow.label_to_slug(value['label'])
                 flow_context[field] = value_wrapper(value)
                 values.append("%s: %s" % (value['label'], value['rule_value']))
 
@@ -1684,7 +1688,8 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, step,
+                 msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -2563,6 +2568,10 @@ class RuleSet(models.Model):
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
+
+        # output the new value if in the simulator
+        if run.contact.is_test:
+            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(self.label)))
 
     def get_step_type(self):
         return RULE_SET
