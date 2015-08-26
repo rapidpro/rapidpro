@@ -2296,10 +2296,11 @@ class SimulationTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
         json_dict = json.loads(response.content)
 
-        self.assertEquals(len(json_dict['messages']), 5)
+        self.assertEquals(len(json_dict['messages']), 6)
         self.assertEquals("3", json_dict['messages'][2]['text'])
-        self.assertEquals("You picked 3!", json_dict['messages'][3]['text'])
-        self.assertEquals('Ben Haggerty has exited this flow', json_dict['messages'][4]['text'])
+        self.assertEquals("Saved &#39;3&#39; as @flow.number", json_dict['messages'][3]['text'])
+        self.assertEquals("You picked 3!", json_dict['messages'][4]['text'])
+        self.assertEquals('Ben Haggerty has exited this flow', json_dict['messages'][5]['text'])
 
 
 class FlowsTest(FlowFileTest):
