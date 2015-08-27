@@ -249,7 +249,7 @@ def f_weekday(date):
     """
     Returns the day of the week of a date (1 for Sunday to 7 for Saturday)
     """
-    return (val_to_date_or_datetime(date).weekday() + 2) % 7
+    return ((val_to_date_or_datetime(date).weekday() + 1) % 7) + 1
 
 
 def f_year(date):
