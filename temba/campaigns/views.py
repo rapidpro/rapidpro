@@ -81,6 +81,28 @@ class CampaignCRUDL(SmartCRUDL):
             form_kwargs['user'] = self.request.user
             return form_kwargs
 
+        def form_valid(self, form):
+            previous_group = self.get_object().group
+            new_group = form.cleaned_data['group']
+
+            group_changed = new_group != previous_group
+            if group_changed:
+                fires = EventFire.objects.filter(event__campaign=self.object, event__campaign__group=previous_group, fired=None)
+                fires.delete()
+
+            # save our campaign
+            self.object = form.save(commit=False)
+            self.save(self.object)
+
+            # if our group changed, create our new fires
+            if group_changed:
+                EventFire.update_campaign_events(self.object)
+
+            response = self.render_to_response(self.get_context_data(form=form,
+                                                                     success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+            return response
 
     class Read(OrgMixin, SmartReadView):
         def get_gear_links(self):
@@ -337,7 +359,6 @@ class CampaignEventCRUDL(SmartCRUDL):
                 flow.is_active = False
                 flow.save()
                 obj.message = None
-                # print "Deactivating previous flow %s [%d]" % (flow, flow.pk)
 
             obj = super(CampaignEventCRUDL.Update, self).pre_save(obj)
             self.form.pre_save(self.request, obj)
