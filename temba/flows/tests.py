@@ -786,6 +786,12 @@ class RuleTest(TembaTest):
         test = BetweenTest("0", "3")
         self.assertTest(False, None, test)
 
+        test = BetweenTest("@extra.min", "@extra.max")
+        self.assertTest(True, Decimal('4'), test, extra=dict(min=2, max=5))
+
+        test = BetweenTest("0", "@xxx")  # invalid expression
+        self.assertTest(False, None, test)
+
         sms.text = "My answer is or"
         self.assertTest(False, None, test)
 
