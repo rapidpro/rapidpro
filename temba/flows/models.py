@@ -5318,9 +5318,9 @@ class BetweenTest(NumericTest):
     MAX = 'max'
     TYPE = 'between'
 
-    def __init__(self, _min, _max):
-        self.min = _min
-        self.max = _max
+    def __init__(self, min_val, max_val):
+        self.min = min_val
+        self.max = max_val
 
     @classmethod
     def from_json(cls, org, json):
@@ -5330,12 +5330,12 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
-        _min, min_has_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
-        _max, max_has_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
+        min_val, min_has_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
+        max_val, max_has_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
 
         if not min_has_errors and not max_has_errors:
             try:
-                return Decimal(_min) <= decimal_value <= Decimal(_max)
+                return Decimal(min_val) <= decimal_value <= Decimal(max_val)
             except Exception:
                 pass
 
