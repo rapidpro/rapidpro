@@ -36,32 +36,46 @@ def check_campaigns_task(sched_id=None):
 
 @task(track_started=True, name='update_event_fires_task') # pragma: no cover
 def update_event_fires(event_id):
-    try:
-        with transaction.atomic():
-            event = CampaignEvent.objects.filter(pk=event_id).first()
-            if event:
-                EventFire.do_update_eventfires_for_event(event)
 
-    except Exception as e:
+    # get a lock
+    r = get_redis_connection()
+    key = 'event_fires_event_%d' % event_id
 
-        # requeue our task to try again in five minutes
-        update_event_fires(event_id).delay(countdown=60*5)
+    with r.lock(key, timeout=300):
+        try:
 
-        # bubble up the exception so sentry sees it
-        raise e
+            with transaction.atomic():
+                event = CampaignEvent.objects.filter(pk=event_id).first()
+                if event:
+                    EventFire.do_update_eventfires_for_event(event)
+
+        except Exception as e:
+
+            # requeue our task to try again in five minutes
+            update_event_fires(event_id).delay(countdown=60*5)
+
+            # bubble up the exception so sentry sees it
+            raise e
 
 @task(track_started=True, name='update_event_fires_for_campaign_task') # pragma: no cover
 def update_event_fires_for_campaign(campaign_id):
-    try:
-        with transaction.atomic():
-            campaign = Campaign.objects.filter(pk=campaign_id).first()
-            if campaign:
-                EventFire.do_update_campaign_events(campaign)
 
-    except Exception as e:
+    # get a lock
+    r = get_redis_connection()
+    key = 'event_fires_campaign_%d' % campaign_id
 
-        # requeue our task to try again in five minutes
-        update_event_fires_for_campaign(campaign_id).delay(countdown=60*5)
+    with r.lock(key, timeout=300):
 
-        # bubble up the exception so sentry sees it
-        raise e
+        try:
+            with transaction.atomic():
+                campaign = Campaign.objects.filter(pk=campaign_id).first()
+                if campaign:
+                    EventFire.do_update_campaign_events(campaign)
+
+        except Exception as e:
+
+            # requeue our task to try again in five minutes
+            update_event_fires_for_campaign(campaign_id).delay(countdown=60*5)
+
+            # bubble up the exception so sentry sees it
+            raise e
