@@ -236,6 +236,10 @@ class Flow(TembaModel, SmartModel):
         return flow
 
     @classmethod
+    def label_to_slug(cls, label):
+        return regex.sub(r'[^a-z0-9]+', '_', label.lower(), regex.V0)
+
+    @classmethod
     def create_join_group(cls, org, user, group, response=None, start_flow=None):
         """
         Creates a special 'join group' flow
@@ -1220,7 +1224,7 @@ class Flow(TembaModel, SmartModel):
 
         if results and results[0]:
             for value in results[0]['values']:
-                field = regex.sub(r'[^a-z0-9]+', '_', value['label'].lower(), regex.V0)
+                field = Flow.label_to_slug(value['label'])
                 flow_context[field] = value_wrapper(value)
                 values.append("%s: %s" % (value['label'], value['rule_value']))
 
@@ -1684,7 +1688,8 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, step,
+                 msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -2564,6 +2569,10 @@ class RuleSet(models.Model):
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
 
+        # output the new value if in the simulator
+        if run.contact.is_test:
+            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(self.label)))
+
     def get_step_type(self):
         return RULE_SET
 
@@ -2877,7 +2886,7 @@ class FlowVersion(SmartModel):
                     version_number=self.version_number)
 
 class FlowRun(models.Model):
-    org = models.ForeignKey(Org, null=True, related_name='runs', db_index=False)
+    org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
     flow = models.ForeignKey(Flow, related_name='runs')
 
@@ -2901,7 +2910,7 @@ class FlowRun(models.Model):
     expired_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run expired"))
 
-    modified_on = models.DateTimeField(auto_now=True, null=True,
+    modified_on = models.DateTimeField(auto_now=True,
                                        help_text=_("When this flow run was last updated"))
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',

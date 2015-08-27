@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from django.db import transaction
 from datetime import datetime
 from django.utils import timezone
 from djcelery_transactions import task
@@ -35,6 +36,16 @@ def check_campaigns_task(sched_id=None):
 
 @task(track_started=True, name='update_event_fires_task') # pragma: no cover
 def update_event_fires(event_id):
-    event = CampaignEvent.objects.filter(pk=event_id).first()
-    if event:
-        EventFire.do_update_eventfires_for_event(event)
+    try:
+        with transaction.atomic():
+            event = CampaignEvent.objects.filter(pk=event_id).first()
+            if event:
+                EventFire.do_update_eventfires_for_event(event)
+
+    except Exception as e:
+
+        # requeue our task to try again in five minutes
+        update_event_fires(event_id).delay(countdown=60*5)
+
+        # bubble up the exception so sentry sees it
+        raise e
