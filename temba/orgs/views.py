@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import plivo
 import pycountry
-import re
+import regex
 
 from collections import OrderedDict
 from django import forms
@@ -818,7 +818,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Invitation
                 fields = ('emails', 'user_group')
 
-
         form_class = InviteForm
         success_url = "@orgs.org_home"
         success_message = ""
@@ -909,10 +908,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # remove all the org users
             for user in self.get_object().get_org_admins():
-                if user != self.request.user:
-                    self.get_object().administrators.remove(user)
-                else:
-                    self.get_object().administrators.add(user)
+                self.get_object().administrators.remove(user)
             for user in self.get_object().get_org_editors():
                 self.get_object().editors.remove(user)
             for user in self.get_object().get_org_viewers():
@@ -921,7 +917,7 @@ class OrgCRUDL(SmartCRUDL):
             # now update the org accounts
             for field in self.form.fields:
                 if self.form.cleaned_data[field]:
-                    matcher = re.match("(\w+)_(\d+)", field)
+                    matcher = regex.match("(\w+)_(\d+)", field, regex.V0)
                     if matcher:
                         user_type = matcher.group(1)
                         user_id = matcher.group(2)
@@ -947,6 +943,16 @@ class OrgCRUDL(SmartCRUDL):
             context['invites'] = Invitation.objects.filter(org=org, is_active=True)
 
             return context
+
+        def get_success_url(self):
+            # if we are no longer part of this form, redirect to the chooser
+            if self.request.user not in self.org_users:
+                return reverse('orgs.org_choose')
+
+            # otherwise, back to our home page
+            else:
+                return reverse('orgs.org_home')
+
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
@@ -1350,10 +1356,10 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def add_channel_section(self, formax, channel):
-            from temba.channels.views import get_channel_icon
-            icon = get_channel_icon(channel.channel_type)
 
             if self.has_org_perm('channels.channel_read'):
+                from temba.channels.views import get_channel_icon
+                icon = get_channel_icon(channel.channel_type)
                 formax.add_section('channel', reverse('channels.channel_read', args=[channel.pk]), icon=icon, action='link')
 
         def derive_formax_sections(self, formax, context):
@@ -1388,7 +1394,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
-                formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users')
+                formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users', action='redirect')
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

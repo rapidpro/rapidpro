@@ -5,8 +5,10 @@ from django.core.urlresolvers import reverse
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet
 from temba.tests import TembaTest
+from temba.campaigns.tasks import check_campaigns_task
 from .models import Campaign, CampaignEvent, EventFire
-
+from django.utils import timezone
+from datetime import timedelta
 
 class ScheduleTest(TembaTest):
 
@@ -254,6 +256,90 @@ class ScheduleTest(TembaTest):
         response = self.client.get(reverse('campaigns.campaign_read', args=[campaign.pk]))
         self.assertNotContains(response, "Color Flow")
 
+    def test_deleting_reimport_contact_groups(self):
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        # create a reminder for our first planting event
+        planting_reminder = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
+                                                            offset=3, unit='D', flow=self.reminder_flow)
+
+        self.assertEquals(0, EventFire.objects.all().count())
+        self.farmer1.set_field('planting_date', "10-05-2020 12:30:10")
+        self.farmer2.set_field('planting_date', "15-05-2020 12:30:10")
+
+        # now we have event fires accordingly
+        self.assertEquals(2, EventFire.objects.all().count())
+
+        # farmer one fire
+        scheduled = EventFire.objects.get(contact=self.farmer1, event=planting_reminder).scheduled
+        self.assertEquals("13-5-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+
+        # farmer two fire
+        scheduled = EventFire.objects.get(contact=self.farmer2, event=planting_reminder).scheduled
+        self.assertEquals("18-5-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+
+        # delete our farmers group
+        self.farmers.release()
+
+        # this should have removed all the event fires for that group
+        self.assertEquals(0, EventFire.objects.filter(event=planting_reminder).count())
+
+        # and our group is no longer active
+        self.assertFalse(campaign.group.is_active)
+
+        # now import the group again
+        filename = 'farmers.csv'
+        extra_fields = [dict(key='planting_date', header='planting_date', label='Planting Date', type='D')]
+        import_params = dict(org_id=self.org.id, timezone=self.org.timezone, extra_fields=extra_fields, original_filename=filename)
+
+        from temba.contacts.models import ImportTask, Contact
+        import json
+        task = ImportTask.objects.create(
+            created_by=self.admin, modified_by=self.admin,
+            csv_file='test_imports/' + filename,
+            model_class="Contact", import_params=json.dumps(import_params), import_log="", task_id="A")
+        Contact.import_csv(task, log=None)
+
+        # check that we have new planting dates
+        self.farmer1 = Contact.objects.get(pk=self.farmer1.pk)
+        self.farmer2 = Contact.objects.get(pk=self.farmer2.pk)
+
+        planting = self.farmer1.get_field('planting_date').datetime_value
+        self.assertEquals("10-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
+
+        planting = self.farmer2.get_field('planting_date').datetime_value
+        self.assertEquals("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
+
+        # now update the campaign
+        from temba.contacts.models import ContactGroup
+        self.farmers = ContactGroup.user_groups.get(name='Farmers', is_active=True)
+        self.login(self.admin)
+        post_data = dict(name="Planting Reminders", group=self.farmers.pk)
+        self.client.post(reverse('campaigns.campaign_update', args=[campaign.pk]), post_data)
+
+        # should have two fresh new fires
+        self.assertEquals(2, EventFire.objects.all().count())
+
+        # check their new planting dates
+        scheduled = EventFire.objects.get(contact=self.farmer1, event=planting_reminder).scheduled
+        self.assertEquals("13-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+
+        # farmer two fire
+        scheduled = EventFire.objects.get(contact=self.farmer2, event=planting_reminder).scheduled
+        self.assertEquals("18-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+
+        # give our non farmer a planting date
+        self.nonfarmer.set_field('planting_date', "20-05-2020 12:30:10")
+
+        # now update to the non-farmer group
+        self.nonfarmers = self.create_group("Not Farmers", [self.nonfarmer])
+        post_data = dict(name="Planting Reminders", group=self.nonfarmers.pk)
+        self.client.post(reverse('campaigns.campaign_update', args=[campaign.pk]), post_data)
+
+        # only one fire for the non-farmer the previous two should be deleted by the group change
+        self.assertEquals(1, EventFire.objects.all().count())
+        self.assertEquals(1, EventFire.objects.filter(contact=self.nonfarmer).count())
+
     def test_scheduling(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -370,8 +456,12 @@ class ScheduleTest(TembaTest):
         self.assertEquals(planting_reminder, event.event)
         self.assertEquals(9, event.scheduled.day)
 
-        # try firing the event
-        event.fire()
+        # change our fire date to sometimein the past so it gets triggered
+        event.scheduled = timezone.now() - timedelta(hours=1)
+        event.save()
+
+        # schedule our events to fire
+        check_campaigns_task()
 
         # should have one flow run now
         run = FlowRun.objects.get()

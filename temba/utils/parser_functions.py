@@ -2,7 +2,8 @@ from __future__ import unicode_literals
 
 import math
 import operator
-import re
+import regex
+
 from datetime import date as _date, time as _time
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -248,7 +249,7 @@ def f_weekday(date):
     """
     Returns the day of the week of a date (1 for Sunday to 7 for Saturday)
     """
-    return (val_to_date_or_datetime(date).weekday() + 2) % 7
+    return ((val_to_date_or_datetime(date).weekday() + 1) % 7) + 1
 
 
 def f_year(date):
@@ -459,6 +460,28 @@ def f_word_slice(text, start, stop=0, by_spaces=False):
     # re-combine selected words with a single space
     return ' '.join(selection)
 
+def f_field(text, index, delimiter=' '):
+    """
+    Reference a field in string separated by a delimiter
+    :param text: the text to split
+    :param index: which index in the result to return
+    :param delimiter: the character to split by
+    """
+
+    splits = text.split(delimiter)
+
+    # remove our delimiters and whitespace
+    splits = [field for field in splits if field != delimiter and len(field.strip()) > 0]
+
+    index = val_to_integer(index)
+    if index < 1:
+        raise ValueError('Field index cannot be less than 1')
+
+    if index <= len(splits):
+        return splits[index-1]
+
+    return ''
+
 
 #################################### Helper (not available in expressions) ####################################
 
@@ -471,6 +494,6 @@ def get_words(text, by_spaces):
     :param text: the text to split
     :param by_spaces: whether words should be split only by spaces or by punctuation like '-', '.' etc
     """
-    regex = r'\s+' if by_spaces else r'\W+'
-    splits = re.split(regex, text, flags=re.MULTILINE | re.UNICODE)
+    rexp = r'\s+' if by_spaces else r'\W+'
+    splits = regex.split(rexp, text, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
     return [split for split in splits if split]   # return only non-empty

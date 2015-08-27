@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import Q, Max
+from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
 from django.utils import timezone
@@ -59,6 +59,7 @@ USERNAME = 'username'
 PASSWORD = 'password'
 KEY = 'key'
 API_ID = 'api_id'
+VERIFY_SSL = 'verify_ssl'
 
 SEND = 'S'
 RECEIVE = 'R'
@@ -153,6 +154,7 @@ class Channel(SmartModel):
                             help_text=_("The roles this channel can fulfill"))
     parent = models.ForeignKey('self', blank=True, null=True,
                                help_text=_("The channel this channel is working on behalf of"))
+
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
 
@@ -167,12 +169,12 @@ class Channel(SmartModel):
         return [t for t, config in RELAYER_TYPE_CONFIG.iteritems() if config['scheme'] == scheme]
 
     @classmethod
-    def derive_country_from_phone(cls, phone):
+    def derive_country_from_phone(cls, phone, country=None):
         """
         Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
         """
         try:
-            parsed = phonenumbers.parse(phone, None)
+            parsed = phonenumbers.parse(phone, country)
             return phonenumbers.region_code_for_number(parsed)
         except:
             return None
@@ -338,9 +340,8 @@ class Channel(SmartModel):
                                       org=org, created_by=user, modified_by=user, role=SEND+RECEIVE+CALL+ANSWER)
 
     @classmethod
-    def add_africas_talking_channel(cls, org, user, phone, username, api_key):
-        config = dict(username=username,
-                      api_key=api_key)
+    def add_africas_talking_channel(cls, org, user, phone, username, api_key, is_shared=False):
+        config = dict(username=username, api_key=api_key, is_shared=is_shared)
 
         return Channel.objects.create(channel_type=AFRICAS_TALKING, country='KE',
                                       name="Africa's Talking: %s" % phone, address=phone, uuid=str(uuid4()),
@@ -763,6 +764,10 @@ class Channel(SmartModel):
                 from temba.triggers.models import Trigger, INBOUND_CALL_TRIGGER
                 Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, org=org, is_archived=False).update(is_archived=True)
 
+        from temba.triggers.models import Trigger
+        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
+
+
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """
         Sends a GCM command to trigger a sync on the client
@@ -827,7 +832,10 @@ class Channel(SmartModel):
         start = time.time()
 
         try:
-            response = requests.get(channel.config[SEND_URL], params=payload, timeout=15)
+            if channel.config.get(VERIFY_SSL, True):
+                response = requests.get(channel.config[SEND_URL], verify=True, params=payload, timeout=15)
+            else:
+                response = requests.get(channel.config[SEND_URL], verify=False, params=payload, timeout=15)
         except Exception as e:
             payload['password'] = 'x' * len(payload['password'])
             raise SendException(unicode(e),
@@ -1104,6 +1112,7 @@ class Channel(SmartModel):
     @classmethod
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+        from temba.contacts.models import Contact
 
         channel.config['transport_name'] = 'mtech_ng_smpp_transport'
 
@@ -1144,6 +1153,10 @@ class Channel(SmartModel):
         if response.status_code != 200 and response.status_code != 201:
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
+
+            # if this is fatal due to the user opting out, fail this contact permanently
+            if response.text and response.text.find('has opted out'):
+                Contact.objects.get(id=msg.contact).fail()
 
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='PUT',
@@ -1401,7 +1414,10 @@ class Channel(SmartModel):
         payload = dict(username=channel.config['username'],
                        to=msg.urn_path,
                        message=text)
-        payload['from'] = channel.address
+
+        # if this isn't a shared shortcode, send the from address
+        if not channel.config.get('is_shared', False):
+            payload['from'] = channel.address
 
         headers = dict(Accept='application/json', apikey=channel.config['api_key'])
         headers.update(TEMBA_HEADERS)
@@ -1464,6 +1480,7 @@ class Channel(SmartModel):
     @classmethod
     def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+        from temba.contacts.models import Contact
 
         consumer_key = settings.TWITTER_API_KEY
         consumer_secret = settings.TWITTER_API_SECRET
@@ -1473,7 +1490,26 @@ class Channel(SmartModel):
         twitter = Twython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
         start = time.time()
 
-        dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+        try:
+            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+        except Exception as e:
+            error_code = getattr(e, 'error_code', 400)
+            fatal = False
+
+            # this handle doesn't exist anymore or we can't send to them, fail them
+            if error_code == 404 or \
+              (error_code == 403 and str(e).find('users who are not following you') >= 0):
+                fatal = True
+                Contact.objects.get(id=msg.contact).fail()
+
+            raise SendException(str(e),
+                                'https://api.twitter.com/1.1/direct_messages/new.json',
+                                'POST',
+                                urlencode(dict(screen_name=msg.urn_path, text=text)), # not complete, but useful in the log
+                                str(e),
+                                error_code,
+                                fatal=fatal)
+
         external_id = dm['id']
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
@@ -1582,7 +1618,6 @@ class Channel(SmartModel):
                                response=plivo_response,
                                response_status=plivo_response_status)
 
-
     @classmethod
     def get_pending_messages(cls, org):
         """
@@ -1594,11 +1629,12 @@ class Channel(SmartModel):
         from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
 
         now = timezone.now()
-        hours_ago = now - timedelta(hours=2)
+        hours_ago = now - timedelta(hours=12)
 
-        pending = Msg.objects.filter(org=org, direction=OUTGOING).filter(Q(status=PENDING) |
-                                                                         Q(status=QUEUED, queued_on__lte=hours_ago) |
-                                                                         Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
+        pending = Msg.objects.filter(org=org, direction=OUTGOING)\
+                             .filter(Q(status=PENDING) |
+                                     Q(status=QUEUED, queued_on__lte=hours_ago) |
+                                     Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
 
         # only SMS'es that have a topup and aren't the test contact
         pending = pending.exclude(topup=None).exclude(contact__is_test=True)
@@ -1747,6 +1783,27 @@ class Channel(SmartModel):
         else:
             return unicode(self.pk)
 
+    def get_count(self, count_types):
+        count = ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
+                                    .aggregate(Sum('count')).get('count__sum', 0)
+
+        return 0 if count is None else count
+
+    def get_msg_count(self):
+        return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
+
+    def get_ivr_count(self):
+        return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
+
+    def get_log_count(self):
+        return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
+
+    def get_error_log_count(self):
+        return self.get_count([ChannelCount.ERROR_LOG_TYPE])
+
+    def get_success_log_count(self):
+        return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
+
     class Meta:
         ordering = ('-last_seen', '-pk')
 
@@ -1760,6 +1817,48 @@ STATUS_CHARGING = "CHA"
 STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
+
+
+class ChannelCount(models.Model):
+    """
+    This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
+    on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
+    of message usage over the course of time.
+    """
+    INCOMING_MSG_TYPE = 'IM'  # Incoming message
+    OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
+    INCOMING_IVR_TYPE = 'IV'  # Incoming IVR step
+    OUTGOING_IVR_TYPE = 'OV'  # Outgoing IVR step
+    SUCCESS_LOG_TYPE = 'LS'   # ChannelLog record
+    ERROR_LOG_TYPE = 'LE'     # ChannelLog record that is an error
+
+    COUNT_TYPE_CHOICES = ((INCOMING_MSG_TYPE, _("Incoming Message")),
+                          (OUTGOING_MSG_TYPE, _("Outgoing Message")),
+                          (INCOMING_IVR_TYPE, _("Incoming Voice")),
+                          (OUTGOING_IVR_TYPE, _("Outgoing Voice")),
+                          (SUCCESS_LOG_TYPE, _("Success Log Record")),
+                          (ERROR_LOG_TYPE, _("Error Log Record")))
+
+    channel = models.ForeignKey(Channel,
+                                help_text=_("The channel this is a daily summary count for"))
+    count_type = models.CharField(choices=COUNT_TYPE_CHOICES, max_length=2,
+                                  help_text=_("What type of message this row is counting"))
+    day = models.DateField(null=True, help_text=_("The day this count is for"))
+    count = models.IntegerField(default=0,
+                                help_text=_("The count of messages on this day and type"))
+
+    @classmethod
+    def get_day_count(cls, channel, count_type, day):
+        count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day).\
+          order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
+
+        return 0 if not count else count['count_sum']
+
+    def __unicode__(self):
+        return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
+
+    class Meta:
+        index_together = ['channel', 'count_type', 'day']
 
 class SendException(Exception):
 
@@ -1776,15 +1875,26 @@ class SendException(Exception):
 
 
 class ChannelLog(models.Model):
-    msg = models.ForeignKey('msgs.Msg')
-    description = models.CharField(max_length=255)
-    is_error = models.BooleanField(default=None)
-    url = models.TextField(null=True)
-    method = models.CharField(max_length=16, null=True)
-    request = models.TextField(null=True)
-    response = models.TextField(null=True)
-    response_status = models.IntegerField(null=True)
-    created_on = models.DateTimeField(auto_now_add=True)
+    channel = models.ForeignKey(Channel, related_name='logs',
+                                help_text=_("The channel the message was sent on"))
+    msg = models.ForeignKey('msgs.Msg',
+                            help_text=_("The message that was sent"))
+    description = models.CharField(max_length=255,
+                                   help_text=_("A description of the status of this message send"))
+    is_error = models.BooleanField(default=None,
+                                   help_text=_("Whether an error was encountered when sending the message"))
+    url = models.TextField(null=True,
+                           help_text=_("The URL used when sending the message"))
+    method = models.CharField(max_length=16, null=True,
+                              help_text=_("The HTTP method used when sending the message"))
+    request = models.TextField(null=True,
+                               help_text=_("The body of the request used when sending the message"))
+    response = models.TextField(null=True,
+                                help_text=_("The body of the response received when sending the message"))
+    response_status = models.IntegerField(null=True,
+                                          help_text=_("The response code received when sending the message"))
+    created_on = models.DateTimeField(auto_now_add=True,
+                                      help_text=_("When this log message was logged"))
 
     @classmethod
     def write(cls, log):
@@ -1795,10 +1905,10 @@ class ChannelLog(models.Model):
             print("[%d] SENT - %s %s \"%s\" %s \"%s\"" %
                   (log.msg.pk, log.method, log.url, log.request, log.response_status, log.response))
 
-
     @classmethod
     def log_exception(cls, msg, e):
-        cls.write(ChannelLog.objects.create(msg_id=msg.id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
+                                            msg_id=msg.id,
                                             is_error=True,
                                             description=unicode(e.description)[:255],
                                             method=e.method,
@@ -1809,14 +1919,15 @@ class ChannelLog(models.Model):
 
     @classmethod
     def log_error(cls, msg, description):
-        cls.write(ChannelLog.objects.create(msg_id=msg.id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
+                                            msg_id=msg.id,
                                             is_error=True,
                                             description=description[:255]))
 
-
     @classmethod
     def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None):
-        cls.write(ChannelLog.objects.create(msg_id=msg.id,
+        cls.write(ChannelLog.objects.create(channel_id=msg.channel,
+                                            msg_id=msg.id,
                                             is_error=False,
                                             description=description[:255],
                                             method=method,
@@ -1849,13 +1960,12 @@ class SyncEvent(SmartModel):
     @classmethod
     def create(cls, channel, cmd, incoming_commands):
         # update country, device and OS on our channel
-        country = cmd.get('cc', None)
         device = cmd.get('dev', None)
         os = cmd.get('os', None)
 
         # update our channel if anything is new
-        if channel.country != country or channel.device != device or channel.os != os:
-            Channel.objects.filter(pk=channel.pk).update(country=country, device=device, os=os)
+        if channel.device != device or channel.os != os:
+            Channel.objects.filter(pk=channel.pk).update(device=device, os=os)
 
         args = dict()
 

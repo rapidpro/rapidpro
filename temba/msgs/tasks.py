@@ -32,18 +32,19 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
 
     # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
     key = 'pcm_%d' % msg.contact_id
-    with r.lock(key, timeout=60):
-        print "[%09d] Processing - %s" % (msg.id, msg.text)
-        start = time.time()
+    if not r.get(key):
+        with r.lock(key, timeout=120):
+            print "M[%09d] Processing - %s" % (msg.id, msg.text)
+            start = time.time()
 
-        # if message was created in Mage...
-        if from_mage:
-            mage_handle_new_message(msg.org, msg)
-            if new_contact:
-                mage_handle_new_contact(msg.org, msg.contact)
+            # if message was created in Mage...
+            if from_mage:
+                mage_handle_new_message(msg.org, msg)
+                if new_contact:
+                    mage_handle_new_contact(msg.org, msg.contact)
 
-        Msg.process_message(msg)
-        print "[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
+            Msg.process_message(msg)
+            print "M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
 
 @task(track_started=True, name='send_broadcast')
 def send_broadcast_task(broadcast_id):
@@ -195,10 +196,9 @@ def export_sms_task(id):
     """
     Export messages to a file and e-mail a link to the user
     """
-    tasks = ExportMessagesTask.objects.filter(pk=id)
-    if tasks:
-        export_task = tasks[0]
-        export_task.do_export()
+    export_task = ExportMessagesTask.objects.filter(pk=id).first()
+    if export_task:
+        export_task.start_export()
 
 @task(track_started=True, name="handle_event_task", time_limit=90, soft_time_limit=60)
 def handle_event_task():
@@ -225,10 +225,16 @@ def handle_event_task():
 
     elif event_task['type'] == FIRE_EVENT:
         # use a lock to make sure we don't do two at once somehow
-        with r.lock('fire_campaign_%s' % event_task['id'], timeout=120):
-            event = EventFire.objects.filter(pk=event_task['id'], fired=None).first()
-            if event:
-                event.fire()
+        key = 'fire_campaign_%s' % event_task['id']
+        if not r.get(key):
+            with r.lock(key, timeout=120):
+                event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
+                                         .select_related('event', 'event__campaign', 'event__campaign__org').first()
+                if event:
+                    print "E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name)
+                    start = time.time()
+                    event.fire()
+                    print "E[%09d] %08.3f s" % (event.id, time.time() - start)
 
     else:
         raise Exception("Unexpected event type: %s" % event_task)

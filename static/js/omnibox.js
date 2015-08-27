@@ -130,11 +130,16 @@ function initializeOmnibox(initial) {
 
     var omnibox = $("#omnibox").removeClass("loading").select2(options);
 
+    // if we have some initial data set it
     if (initial) {
         $("#omnibox").select2('data', initial);
         $("#omni-select2").show();
         $("#loading").hide();
         $("#send-message .ok").text(gettext("Send Message")).removeClass("disabled");
+    }
+    // otherwise, make sure our data is cleared
+    else {
+        $("#omnibox").select2('data', null);
     }
 }
 

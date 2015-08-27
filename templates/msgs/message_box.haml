@@ -163,9 +163,10 @@
                   -for object in object_list
                     %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}{% if object.created_on > msg_last_viewed %}new{% endif %}', data-object-id:'{{ object.id }}',
                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
-                      - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
-                        %td.checkbox.sms.object-row-checkbox
-                          .glyph.object-row-checkbox
+                      - if actions
+                        - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
+                          %td.checkbox.sms.object-row-checkbox
+                            .glyph.object-row-checkbox
                       %td.value-phone.field_phone
                         %nobr
                           {{ object.contact|short_name:user_org }}

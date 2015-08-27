@@ -349,6 +349,7 @@ class CampaignEvent(SmartModel):
     def __unicode__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
+
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -388,6 +389,11 @@ class EventFire(Model):
         Updates all the scheduled events for each user for the passed in campaign.
         Should be called anytime a campaign changes.
         """
+        from temba.campaigns.tasks import update_event_fires_for_campaign
+        update_event_fires_for_campaign.delay(campaign.pk)
+
+    @classmethod
+    def do_update_campaign_events(cls, campaign):
         for contact in campaign.group.contacts.exclude(is_test=True):
             cls.update_campaign_events_for_contact(campaign, contact)
 

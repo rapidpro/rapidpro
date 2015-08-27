@@ -2,12 +2,14 @@ from __future__ import unicode_literals
 
 import json
 import pycountry
-import re
+import regex
+
 from collections import OrderedDict
+from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
@@ -20,13 +22,12 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
-from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS, USER_DEFINED_GROUP
+from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
 from temba.contacts.tasks import export_contacts_task
-from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
-from temba.values.models import VALUE_TYPE_CHOICES, TEXT
+from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
 from temba.utils import analytics, slugify_with
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
@@ -87,9 +88,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
     add_button = True
 
     def pre_process(self, request, *args, **kwargs):
-        if hasattr(self, 'folder'):
+        if hasattr(self, 'system_group'):
             org = request.user.get_org()
-            self.queryset = org.get_folder_queryset(self.folder)
+            self.queryset = ContactGroup.get_system_group_queryset(org, self.system_group)
 
     def get_queryset(self, **kwargs):
         qs = super(ContactListView, self).get_queryset(**kwargs)
@@ -111,17 +112,18 @@ class ContactListView(OrgPermsMixin, SmartListView):
             
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
+        counts = ContactGroup.get_system_group_counts(org)
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'folder') and 'search' not in self.request.REQUEST:
-            org.patch_folder_queryset(self.object_list, self.folder, self.request)
+        if hasattr(self, 'system_group') and 'search' not in self.request.REQUEST:
+            self.object_list.count = lambda: counts[self.system_group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=org.get_folder_count(OrgFolder.contacts_all), label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=org.get_folder_count(OrgFolder.contacts_failed), label=_("Failed"), url=reverse('contacts.contact_failed')),
-                   dict(count=org.get_folder_count(OrgFolder.contacts_blocked), label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
+        folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
+                   dict(count=counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
+                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
         groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
@@ -198,7 +200,7 @@ class ContactForm(forms.ModelForm):
 
         # add all contact fields
         if inc_contact_fields:
-            for field in ContactField.objects.filter(org=self.org, is_active=True):
+            for field in ContactField.objects.filter(org=self.org, is_active=True).order_by('label'):
                 initial = self.instance.get_field_display(field.key) if self.instance else None
                 help_text = 'Custom field (@contact.%s)' % field.key
 
@@ -278,18 +280,34 @@ class ContactCRUDL(SmartCRUDL):
 
             host = self.request.branding['host']
 
-            export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group, host=host)
-            export_contacts_task.delay(export.pk)
+            # is there already an export taking place?
+            existing = ExportContactsTask.objects.filter(org=org, is_finished=False,
+                                                         created_on__gt=timezone.now() - timedelta(hours=24))\
+                                                 .order_by('-created_on').first()
 
-            from django.contrib import messages
-            if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                messages.info(self.request, _("We are preparing your export. ") +
-                                            _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+            # if there is an existing export, don't allow it
+            if existing:
+                messages.info(self.request,
+                              _("There is already an export in progress, started by %s. You must wait "
+                                "for that export to complete before starting another." % existing.created_by.username))
 
+            # otherwise, off we go
             else:
-                export = ExportContactsTask.objects.get(id=export.pk)
-                dl_url = reverse('assets.download', kwargs=dict(type='contact_export', identifier=export.pk))
-                messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org,
+                                                           group=group, host=host)
+                export_contacts_task.delay(export.pk)
+
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                    messages.info(self.request,
+                                  _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                                  % self.request.user.username)
+
+                else:
+                    export = ExportContactsTask.objects.get(id=export.pk)
+                    dl_url = reverse('assets.download', kwargs=dict(type='contact_export', identifier=export.pk))
+                    messages.info(self.request,
+                                  _("Export complete, you can find it here: %s (production users will get an email)")
+                                  % dl_url)
 
             return HttpResponseRedirect(reverse('contacts.contact_list'))
 
@@ -298,7 +316,7 @@ class ContactCRUDL(SmartCRUDL):
         class CustomizeForm(forms.ModelForm):
             def clean(self):
                 # don't allow users to specify field keys or labels
-                re_col_name_field = re.compile(r'column_\w+_label')
+                re_col_name_field = regex.compile(r'column_\w+_label', regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value
@@ -603,7 +621,7 @@ class ContactCRUDL(SmartCRUDL):
     class List(ContactActionMixin, ContactListView):
         title = _("Contacts")
         refresh = 30000
-        folder = OrgFolder.contacts_all
+        system_group = ContactGroup.TYPE_ALL
 
         def get_gear_links(self):
             links = []
@@ -633,7 +651,7 @@ class ContactCRUDL(SmartCRUDL):
     class Blocked(ContactActionMixin, ContactListView):
         title = _("Blocked Contacts")
         template_name = 'contacts/contact_list.haml'
-        folder = OrgFolder.contacts_blocked
+        system_group = ContactGroup.TYPE_BLOCKED
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
@@ -643,7 +661,7 @@ class ContactCRUDL(SmartCRUDL):
     class Failed(ContactActionMixin, ContactListView):
         title = _("Failed Contacts")
         template_name = 'contacts/contact_failed.haml'
-        folder = OrgFolder.contacts_failed
+        system_group = ContactGroup.TYPE_FAILED
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Failed, self).get_context_data(*args, **kwargs)
@@ -785,10 +803,22 @@ class ContactCRUDL(SmartCRUDL):
 
                 obj.update_urns(urns)
 
+            fields_to_save_later = dict()
             for field_key, value in self.form.cleaned_data.iteritems():
                 if field_key.startswith('__field__'):
                     key = field_key[9:]
-                    obj.set_field(key, value)
+                    contact_field = ContactField.objects.filter(org=self.org, key=key).first()
+                    contact_field_type = contact_field.value_type
+
+                    # district values are saved last to validate the states
+                    if contact_field_type == DISTRICT:
+                        fields_to_save_later[key] = value
+                    else:
+                        obj.set_field(key, value)
+
+            # now save our district fields
+            for key, value in fields_to_save_later.iteritems():
+                obj.set_field(key, value)
 
             return obj
 

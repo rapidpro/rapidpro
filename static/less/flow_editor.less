@@ -10,6 +10,8 @@
 @color-rules:@flat-grey + #333;
 @color-send-email:@flat-mutedpurple;
 @color-webhook:@flat-mutedorange;
+@color-passive:@flat-darkwhite;
+@color-missing:@flat-mutedred + #444;
 @color-save-to-contact: #00ac9a;
 @color-start-flow: #c05093;
 @color-trigger-flow: #c05093;
@@ -421,21 +423,6 @@
         border-collapse: collapse;
       }
 
-      .webhook-header {
-        .title {
-          text-shadow: 0px 1px @color-webhook - #222;
-          .bg-gradient(@color-webhook, @color-webhook - #101010);
-          min-width: 200px;
-          border: none;
-        }
-
-        .url {
-          font-size: 14px;
-          padding: 5px;
-          word-wrap: break-word;
-        }
-      }
-
       .rule-header {
         .title {
           text-shadow: 0px 1px @color-rules - #222;
@@ -444,6 +431,27 @@
           border: none;
           padding-right: 15px;
           padding-left: 15px;
+
+          &.passive {
+            text-shadow: 0px 1px @color-passive - #222;
+            .bg-gradient(@color-passive, @color-passive - #101010);
+            min-width: 200px;
+            border: none;
+          }
+
+          &.missing {
+            text-shadow: 0px 1px @color-missing - #222;
+            .bg-gradient(@color-missing, @color-missing - #101010);
+          }
+        }
+
+        &.webhook {
+          .title {
+            text-shadow: 0px 1px @color-webhook - #222;
+            .bg-gradient(@color-webhook, @color-webhook - #101010);
+            min-width: 200px;
+            border: none;
+          }
         }
       }
 
@@ -451,7 +459,6 @@
         border-collapse:collapse;
 
         .rule {
-          border-right: 1px solid @flat-white;
           border-left: 1px solid @flat-white;
           padding: 6px 4px;
           font-size: 14px;
@@ -584,6 +591,12 @@
       }
     }
   }
+}
+
+.modal-body {
+  font-size: 15px;
+  line-height: 18px;
+  padding-bottom: 5px;
 }
 
 .modal.error {
@@ -991,10 +1004,6 @@
       width: 400px;
       margin-left: 7px;
     }
-    p {
-      font-size: 15px;
-      line-height: 18px;
-    }
   }
 
   .modal-header, .modal-header {
@@ -1008,27 +1017,30 @@
 
 .rule-editor {
 
+  &.contact_field, &.flow_field, &.expression, &.webhook {
+    .title {
+      text-shadow: 0px 1px @color-passive - #222;
+      .bg-gradient(@color-passive, @color-passive - #101010);
+    }
+  }
+
+  .split-header {
+    padding: 20px 20px 0px;
+
+    .split-choice {
+      width: 330px;
+    }
+
+  }
+  .split-margin {
+    padding: 0 20px;
+  }
+
   input[type=text] {
     height: 20px;
 
     &.ng-invalid {
       border-color: red;
-    }
-  }
-
-  #content-numeric {
-
-    margin-left: 20px;
-    margin-bottom: 10px;
-
-    .operand-small {
-      width: 50px;
-      display: inline-block
-    }
-
-    .message {
-      font-size: 16px;
-      display: inline-block;
     }
   }
 
@@ -1045,11 +1057,6 @@
     text-align:center;
     padding: 0 10px 10px;
 
-  }
-
-  .modal-body {
-    font-size: 14px;
-    padding-bottom: 5px;
   }
 
   .rule {
@@ -1085,7 +1092,7 @@
       }
 
       .operand-small {
-        width: 50px;
+        width: 49px;
         display: inline-block
       }
     }
@@ -1206,15 +1213,22 @@
       }
     }
   }
+  .modal-body {
+    padding-bottom:20px;
+  }
+  .modal-body input.url {
+    width: 490px;
+    margin-left:5px;
+    height: 24px;
+  }
 
   #variable-name {
     border-bottom: 0px solid #eee;
     margin-right: 20px;
-    margin-left: 20px;
-    margin-top: 5px;
-    padding-top: 5px;
+    margin-left:343px;
 
-    font-size: 16px;
+    //margin-top: 5px;
+    //padding-top: 5px;
 
     .message {
       margin-bottom: -10px;
@@ -1223,9 +1237,9 @@
     }
 
     input[type=text] {
-      width: 200px;
+      width: 260px;
       display: inline-block;
-      height: 22px;
+      height: 28px;
       margin-top: 10px;
       padding-top: 2px;
       padding-bottom: 2px;
@@ -1249,6 +1263,11 @@
 
     .split-variable {
       display:inline-block;
+    }
+
+    input {
+      width:206px;
+      margin-left:5px;
     }
   }
 
@@ -1625,4 +1644,33 @@
   background: transparent;
   box-shadow: none;
   border: none;
+}
+
+.split-editor {
+
+  .flow-field {
+    select{
+      width:234px;
+      margin-left:4px;
+    }
+  }
+
+  .form-field {
+    select {
+      &.field-index {
+        width: 85px;
+      }
+
+      &.field-delimiter {
+        width: 80px;
+      }
+    }
+  }
+
+  .contact-field {
+    select {
+      width:214px;
+      margin-left:4px;
+    }
+  }
 }

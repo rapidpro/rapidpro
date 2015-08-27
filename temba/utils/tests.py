@@ -12,7 +12,7 @@ from mock import patch
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
-from .cache import get_cacheable_result, incrby_existing
+from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
 from .parser_functions import *
@@ -147,6 +147,7 @@ class InitTest(TembaTest):
         # any invalid timezones should return ""
         self.assertEqual('', timezone_to_country_code('Nyamirambo'))
 
+
 class CacheTest(TembaTest):
 
     def test_get_cacheable_result(self):
@@ -171,6 +172,14 @@ class CacheTest(TembaTest):
             self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from db
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result('test_contact_count', 60, calculate), 2)  # from cache
+
+    def test_get_cacheable_attr(self):
+        def calculate():
+            return "CALCULATED"
+
+        self.assertEqual(get_cacheable_attr(self, '_test_value', calculate), "CALCULATED")
+        self._test_value = "CACHED"
+        self.assertEqual(get_cacheable_attr(self, '_test_value', calculate), "CACHED")
 
     def test_incrby_existing(self):
         r = get_redis_connection()
@@ -330,7 +339,7 @@ class ParserTest(TembaTest):
                                  joined=datetime(2014, 12, 1, 9, 0, 0, 0, timezone.utc),  # date as datetime
                                  started="1/12/14 9:00")  # date as string
         variables['a'] = '!'  # single char var
-        
+
         context = EvaluationContext(variables, dict(tz=timezone.utc, dayfirst=True))
 
         self.assertEquals(("Hello World", []), evaluate_template('Hello World', context))  # no expressions
@@ -654,7 +663,9 @@ class ParserTest(TembaTest):
             self.assertEqual(time(1, 30, 15), f_time(1, 30, 15))
             self.assertEqual(time(1, 30, 15), f_timevalue('1:30:15'))
             self.assertEqual(timezone.now().date(), f_today())
-            self.assertEqual(5, f_weekday(timezone.now()))  # thursday = 5
+            self.assertEqual(5, f_weekday(timezone.now()))  # Thu = 5
+            self.assertEqual(7, f_weekday(date(2015, 8, 15)))  # Sat = 7
+            self.assertEqual(1, f_weekday("16th Aug 2015"))  # Sun = 1
             self.assertEqual(2014, f_year(timezone.now()))
 
         # run some more in Kabul time for good measure
@@ -758,6 +769,15 @@ class ParserTest(TembaTest):
         self.assertEqual('def', f_word_slice(' abc  def ghi-jkl ', 2, -1, True))
         self.assertEqual('واحد إثنان', f_word_slice(' واحد إثنان ثلاثة ', 1, 3))
         self.assertRaises(ValueError, f_word_slice, ' abc  def ghi-jkl ', 0)  # start can't be zero
+
+        self.assertEqual('15', f_field('15+M+Seattle', 1, '+'))
+        self.assertEqual('15', f_field('15 M Seattle', 1))
+        self.assertEqual('M', f_field('15+M+Seattle', 2, '+'))
+        self.assertEqual('Seattle', f_field('15+M+Seattle', 3, '+'))
+        self.assertEqual('', f_field('15+M+Seattle', 4, '+'))
+        self.assertEqual('M', f_field('15    M  Seattle', 2))
+        self.assertEqual('واحد', f_field(' واحد إثنان-ثلاثة ', 1))
+        self.assertRaises(ValueError, f_field, '15+M+Seattle', 0)
 
         # check function listing
         self.assertGreater(len(get_function_listing()), 0)

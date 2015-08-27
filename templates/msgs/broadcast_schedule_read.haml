@@ -1,20 +1,16 @@
--extends "msgs/broadcast_outbox.haml"
+-extends "smartmin/list.html"
 -load smartmin sms temba compress
--load i18n
+-load i18n humanize
 
 -block page-top
   %h2
     {{ title }}
-
 
 -block title-icon
   %span.title-icon
     .glyph.icon-clock
 
 -block top-form
-
--block extra-script
-  {{block.super}}
 
 -block content
 
@@ -26,13 +22,31 @@
     .row
       .span12
         %h3
-          -trans "Message History"
+          -trans "Send History"
 
       .span12
-        -block message-list
-          {{block.super}}
+        %table.list-table.sms_list.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}'}
+          %tbody
+            -for object in object_list
+              %tr{class:'{% cycle row1 row2 %}'}
+                %td
+                  -if object.recipient_count
+                    {% blocktrans with count_comma=object.recipient_count|intcomma count cc=object.recipient_count %}
+                      {{ count_comma }} recipient
+                    {% plural %}
+                      {{ count_comma }} recipients
+                    {% endblocktrans %}
+                %td
+                  -get_value object 'text'
+                %td
+                  %nobr
+                    {{ object.created_on|gmail_time }}
 
+        -block paginator
+          = block.super
 
+-block extra-script
+  {{block.super}}
 
 -block extra-less
   -compress css inline

@@ -1,5 +1,5 @@
 -extends "smartmin/read.html"
--load smartmin rules sms temba compress humanize i18n
+-load smartmin sms temba compress humanize i18n
 
 -block title-icon
   .title-icon
@@ -11,9 +11,12 @@
       {{title}}
     %h5
       .icon-users-2
-      Events for the
-      %a{href:"{% url 'contacts.contact_filter' object.group.pk %}"}= object.group.name
-      group
+      -if object.group.is_active
+        Events for the
+        %a{href:"{% url 'contacts.contact_filter' object.group.pk %}"}= object.group.name
+        group
+      -else
+        -trans "No group assigned to this campaign"
 
 -block content
   -if not object.events.all
@@ -21,7 +24,7 @@
       %body
         %tr.empty_list
           %td
-            No events in this campaign yet.
+            -trans "No events in this campaign yet."
 
   -else
     %table.events
