@@ -1541,6 +1541,10 @@ class ContactGroup(TembaModel, SmartModel):
         self.save()
         self.contacts.clear()
 
+        # delete any event fires related to our group
+        from temba.campaigns.models import EventFire
+        EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
+
         Value.invalidate_cache(group=self)
 
     @property
