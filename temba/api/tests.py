@@ -257,6 +257,33 @@ class APITest(TembaTest):
         self.channel.save()
         self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
 
+    def test_api_org(self):
+        url = reverse('api.org')
+
+        # can't access, get 403
+        self.assert403(url)
+
+        # login as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # login as editor
+        self.login(self.editor)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+
+        # fetch as JSON
+        response = self.fetchJSON(url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.json, dict(name="Temba",
+                                             country="RW",
+                                             primary_language=None,
+                                             timezone="Africa/Kigali",
+                                             date_style="day_first",
+                                             anon=False))
+
     def test_api_flows(self):
         url = reverse('api.flows')
 

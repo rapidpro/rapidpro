@@ -2835,3 +2835,43 @@ class AssetEndpoint(BaseAPIView):
             return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
 
         return handle_asset_request(request.user, AssetType[type_name], identifier)
+
+
+class OrgEndpoint(BaseAPIView):
+    """
+    ## Viewing Current Organization
+
+    A **GET** returns the details of your organization. There are no parameters.
+
+    Example:
+
+        GET /api/v1/org.json
+
+    Response containing your organization:
+
+        {
+            "name": "Nyaruka",
+            "country": "RW",
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "anon": false
+        }
+    """
+    permission = 'orgs.org_api'
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+
+        data = dict(name=org.name,
+                    country=org.get_country_code(),
+                    primary_language=org.primary_language,
+                    timezone=org.timezone,
+                    date_style=('day_first' if org.get_dayfirst() else 'month_first'),
+                    anon=org.is_anon)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(method="GET", title="View Current Org", url=reverse('api.org'), slug='org-read', request="")

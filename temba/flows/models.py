@@ -4345,9 +4345,9 @@ class VariableContactAction(Action):
                 if variable_group:
                     groups.append(variable_group)
                 else:
-                    channel = run.flow.org.get_receive_channel(TEL_SCHEME)
-                    if channel:
-                        (number, valid) = ContactURN.normalize_number(variable, channel.country if channel else None)
+                    country = run.flow.org.get_country_code()
+                    if country:
+                        (number, valid) = ContactURN.normalize_number(variable, country)
                         if number and valid:
                             contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[(TEL_SCHEME, number)])
                             contacts.append(contact)
@@ -5383,23 +5383,22 @@ class PhoneTest(Test):
         org = run.flow.org
 
         # try to find a phone number in the text we have been sent
-        channel = org.get_receive_channel(TEL_SCHEME)
-        if channel:
-            channel_country = channel.country.code
-        else:
-            channel_country = 'US'
+        country_code = org.get_country_code()
+        if not country_code:
+            country_code = 'US'
 
         number = None
-        matches = phonenumbers.PhoneNumberMatcher(text, channel_country)
+        matches = phonenumbers.PhoneNumberMatcher(text, country_code)
 
         # try it as an international number if we failed
         if not matches.has_next():
-            matches = phonenumbers.PhoneNumberMatcher('+' + text, channel_country)
+            matches = phonenumbers.PhoneNumberMatcher('+' + text, country_code)
 
         for match in matches:
             number = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
 
         return number, number
+
 
 class RegexTest(TranslatableTest):
     """

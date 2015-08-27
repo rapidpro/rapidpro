@@ -356,7 +356,8 @@ PERMISSIONS = {
                                 'boundaries',
                                 'geometry'),
 
-    'orgs.org': ('country',
+    'orgs.org': ('api',
+                 'country',
                  'clear_cache',
                  'create_login',
                  'download',
@@ -543,6 +544,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_api',
         'orgs.org_country',
         'orgs.org_download',
         'orgs.org_edit',
@@ -661,6 +663,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_api',
         'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',

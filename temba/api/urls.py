@@ -9,7 +9,7 @@ from .channels import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHa
 from .channels import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .channels import SMSCentralHandler, MageHandler
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
-from .views import api, ApiExplorerView, AuthenticateEndpoint
+from .views import api, ApiExplorerView, AuthenticateEndpoint, OrgEndpoint
 from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint, FlowEndpoint
 from .views import FlowResultsEndpoint, FlowRunEndpoint, CallEndpoint, ContactEndpoint, ContactBulkActionEndpoint
 from .views import GroupEndpoint, FieldEndpoint, FlowDefinitionEndpoint
@@ -65,6 +65,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/campaigns$', CampaignEndpoint.as_view(), name='api.campaigns'),
                        url(r'^/events$', CampaignEventEndpoint.as_view(), name='api.campaignevents'),
                        url(r'^/boundaries$', BoundaryEndpoint.as_view(), name='api.boundaries'),
+                       url(r'^/org$', OrgEndpoint.as_view(), name='api.org'),
                        url(r'^/assets$', AssetEndpoint.as_view(), name='api.assets'))
 
 # Format suffixes
