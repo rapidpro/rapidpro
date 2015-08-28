@@ -517,7 +517,7 @@ class EventFire(Model):
 
         # if we aren't archived
         if not campaign.is_archived:
-            # the scheduled all our events
+            # then scheduled all our events
             for event in campaign.get_events():
                 # calculate our scheduled date
                 scheduled = event.calculate_scheduled_fire(contact)
