@@ -603,6 +603,8 @@ class Flow(TembaModel, SmartModel):
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False):
+        if started_flows is None:
+            started_flows = []
 
         def add_to_path(path, uuid):
             if uuid in path:
@@ -658,6 +660,8 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
+        if started_flows is None:
+            started_flows = []
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:
