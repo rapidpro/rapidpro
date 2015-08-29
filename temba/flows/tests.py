@@ -2341,19 +2341,21 @@ class FlowsTest(FlowFileTest):
         # valid entry with extra spaces
         assert_response("36   M  Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
 
-        # now let's switch to pluses and make sure they do the right thing
-        for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
-            config = ruleset.config_json()
-            config['field_delimiter'] = '+'
-            ruleset.set_config(config)
-            ruleset.save()
+        for delimiter in ['+', '.']:
+            # now let's switch to pluses and make sure they do the right thing
+            for ruleset in flow.rule_sets.filter(ruleset_type='form_field'):
+                config = ruleset.config_json()
+                config['field_delimiter'] = delimiter
+                ruleset.set_config(config)
+                ruleset.save()
 
-        assert_response("101+M+Seattle", "Sorry, 101 doesn't look like a valid age, please try again.")
-        assert_response("36+elephant+Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
-        assert_response("36+M+Saturn", "I don't know the location Saturn. Please try again.")
-        assert_response("36+M+Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
-        assert_response("15+M+pequeño", "I don't know the location pequeño. Please try again.")
+            ctx = dict(delim=delimiter)
 
+            assert_response("101%(delim)sM%(delim)sSeattle" % ctx, "Sorry, 101 doesn't look like a valid age, please try again.")
+            assert_response("36%(delim)selephant%(delim)sSeattle" % ctx, "Sorry, elephant doesn't look like a valid gender. Try again.")
+            assert_response("36%(delim)sM%(delim)sSaturn" % ctx, "I don't know the location Saturn. Please try again.")
+            assert_response("36%(delim)sM%(delim)sSeattle" % ctx, "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
+            assert_response("15%(delim)sM%(delim)spequeño" % ctx, "I don't know the location pequeño. Please try again.")
 
     def test_write_protection(self):
         flow = self.get_flow('favorites')
