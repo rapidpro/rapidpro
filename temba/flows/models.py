@@ -2938,7 +2938,7 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, (str, unicode)):
-            return fields[:255], count+1
+            return fields[:640], count+1
 
         elif isinstance(fields, numbers.Number):
             return fields, count+1
@@ -4620,7 +4620,7 @@ class SaveToContactAction(Action):
             contact.set_first_name(new_value)
             contact.save(update_fields=['name'])
         else:
-            new_value = value[:255]
+            new_value = value[:640]
             contact.set_field(self.field, new_value)
 
         self.logger(run, new_value)
