@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW
+from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -207,9 +207,18 @@ class TembaTest(SmartminTest):
 
     def update_destination_no_check(self, flow, node, destination, rule=None):
         """ Update the destination without doing a cycle check """
+        # look up our destination, we need this in order to set the correct destination_type
+        destination_type = ACTION_SET
+        action_destination = Flow.get_node(flow, destination, destination_type)
+        if not action_destination:
+            destination_type = RULE_SET
+            ruleset_destination = Flow.get_node(flow, destination, destination_type)
+            self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
+
         actionset = ActionSet.get(flow, node)
         if actionset:
             actionset.destination = destination
+            actionset.destination_type = destination_type
             actionset.save()
 
         ruleset = RuleSet.get(flow, node)
@@ -218,8 +227,11 @@ class TembaTest(SmartminTest):
             for r in rules:
                 if r.uuid == rule:
                     r.destination = destination
+                    r.destination_type = destination_type
             ruleset.set_rules(rules)
             ruleset.save()
+        else:
+            self.fail("Couldn't find node with uuid: %s" % node)
 
 
 class FlowFileTest(TembaTest):

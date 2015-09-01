@@ -404,7 +404,7 @@ class Flow(TembaModel, SmartModel):
         return copy
 
     @classmethod
-    def get_node(cls, flow, uuid, destination_type=None):
+    def get_node(cls, flow, uuid, destination_type):
 
         if not uuid or not destination_type:
             return None

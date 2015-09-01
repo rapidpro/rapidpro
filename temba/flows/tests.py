@@ -2809,15 +2809,37 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
+        # add our contact to Group A
+        group_a = ContactGroup.user_groups.create(org=self.org, name="Group A",
+                                                  created_by=self.admin, modified_by=self.admin)
+        group_a.contacts.add(self.contact)
+
         # rule turning back on ourselves
         self.update_destination_no_check(flow, group_ruleset.uuid, group_ruleset.uuid, rule=group_one_rule.uuid)
-        self.send_message(flow, "1", assert_reply=False)
+        with self.assertRaises(FlowException):
+            self.send_message(flow, "1", assert_reply=False)
+
         flow.delete()
 
         # non-blocking rule to non-blocking rule and back
         flow = self.get_flow('loop_detection')
-        self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rowan_rule.uuid)
-        self.send_message(flow, "2", assert_reply=False)
+
+        # need to get these again as we just reimported and UUIDs have changed
+        group_ruleset = RuleSet.objects.get(flow=flow, label='Group Split A')
+        name_ruleset = RuleSet.objects.get(flow=flow, label='Name Split')
+        rowan_rule = name_ruleset.get_rules()[0]
+
+        # update our name to rowan so we match the name rule
+        self.contact.name = "Rowan"
+        self.contact.save()
+
+        # but remove ourselves from the group so we enter the loop
+        group_a.contacts.remove(self.contact)
+
+        self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rule=rowan_rule.uuid)
+        with self.assertRaises(FlowException):
+            self.send_message(flow, "2", assert_reply=False)
+
         flow.delete()
 
     def test_decimal_substitution(self):
