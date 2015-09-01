@@ -339,6 +339,7 @@ class Contact(TembaModel, SmartModel):
 
         # cache
         setattr(self, '__field__%s' % key, existing)
+        self.save(update_fields=('modified_on',))
 
         # update any groups or campaigns for this contact
         self.handle_update(field=field)

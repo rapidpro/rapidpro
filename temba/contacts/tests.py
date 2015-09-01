@@ -1268,6 +1268,10 @@ class ContactTest(TembaTest):
         contact1.set_first_name("Ludacris")
         self.assertEquals(contact1.name, "Ludacris")
 
+        first_modified_on = contact1.modified_on
+        contact1.set_field('occupation', 'Musician')
+        self.assertTrue(Contact.objects.get(pk=contact1.pk).modified_on > first_modified_on)
+
         contact2 = self.create_contact(name="Boy", number="12345")
         self.assertEquals(contact2.get_display(), "Boy")
 
