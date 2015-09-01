@@ -234,7 +234,8 @@ class FlowFileTest(TembaTest):
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
 
-    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False, assert_reply=True):
+    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
+                     assert_reply=True, assert_handle=True):
         """
         Starts the flow, sends the message, returns the reply
         """
@@ -252,7 +253,12 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                self.assertTrue(flow.find_and_handle(incoming), "'%s' did not handle message as expected" % flow.name)
+                handled = flow.find_and_handle(incoming)
+
+                if assert_handle:
+                    self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
+                else:
+                    self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
 
             # our message should have gotten a reply
             if assert_reply:
@@ -265,6 +271,11 @@ class FlowFileTest(TembaTest):
 
                 # if it's more than one, send back a list of replies
                 return [reply.text for reply in replies]
+
+            else:
+                # assert we got no reply
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                self.assertFalse(replies)
 
             return None
 
