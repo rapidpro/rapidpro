@@ -1538,6 +1538,9 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **fields** - any contact fields on this contact (JSON, optional)
+    * **after** - only contacts which have changed after this date (string) ex: 2012-01-28T18:00:00.000
+    * **before** - only contacts which have been changed before this date (string) ex: 2012-01-28T18:00:00.000
+
 
     Example:
 
@@ -1613,6 +1616,22 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)
+
+        before = self.request.QUERY_PARAMS.get('before', None)
+        if before:
+            try:
+                before = json_date_to_datetime(before)
+                queryset = queryset.filter(modified_on__lte=before)
+            except:
+                queryset = queryset.filter(pk=-1)
+
+        after = self.request.QUERY_PARAMS.get('after', None)
+        if after:
+            try:
+                after = json_date_to_datetime(after)
+                queryset = queryset.filter(modified_on__gte=after)
+            except:
+                queryset = queryset.filter(pk=-1)
 
         phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
         if phones:
