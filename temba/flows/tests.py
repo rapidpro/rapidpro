@@ -1218,6 +1218,17 @@ class RuleTest(TembaTest):
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Cole", contact.name)
 
+        # test saving something really long to another field
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Last Message", value='', field='last_message'))
+        test.value = "This is a long message, longer than 160 characters, longer than 250 characters, all the way up "\
+                      "to 500 some characters long because sometimes people save entire messages to their contact " \
+                      "fields and we want to enable that for them so that they can do what they want with the platform."
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals(test.value, contact.get_field('last_message').string_value)
+
+    test_save_to_contact_action.active = True
+
     def test_language_action(self):
 
         test = SetLanguageAction('kli', 'Kingon')
@@ -1979,9 +1990,9 @@ class FlowRunTest(TembaTest):
         self.assertEquals(fields, normalized)
 
         # field text too long
-        fields['field2'] = "*" * 350
+        fields['field2'] = "*" * 650
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEquals(255, len(normalized['field2']))
+        self.assertEquals(640, len(normalized['field2']))
 
         # field name too long
         fields['field' + ("*" * 350)] = "short value"
