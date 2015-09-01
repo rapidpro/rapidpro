@@ -306,9 +306,9 @@ class IVRTests(FlowFileTest):
         # should still have no active runs
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
 
-        # and we haven't left our final step
+        # and we've exited the flow
         step = FlowStep.objects.all().order_by('-pk').first()
-        self.assertIsNone(step.left_on)
+        self.assertTrue(step.left_on)
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):
