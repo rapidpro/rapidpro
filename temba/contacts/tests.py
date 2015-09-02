@@ -1757,13 +1757,16 @@ class ContactTest(TembaTest):
         def create_dynamic_group(name, query):
             return ContactGroup.create(self.org, self.user, name, query=query)
 
-        self.bob = self.create_contact("Bob", "1234")
+        self.bob = self.create_contact("Bob", "111222")
         self.bob.name = 'Bob Marley'
         self.bob.save()
         old_modified_on = self.bob.modified_on
         self.bob.handle_update()
         self.assertTrue(self.bob.modified_on > old_modified_on)
 
+        old_modified_on = self.bob.modified_on
+        self.bob.update_urns([('tel', "111333")])
+        self.assertTrue(self.bob.modified_on > old_modified_on)
 
         # run all tests as 2/Jan/2014 03:04 AFT
         tz = pytz.timezone('Asia/Kabul')

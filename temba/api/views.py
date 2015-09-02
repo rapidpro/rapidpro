@@ -1538,8 +1538,8 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **fields** - any contact fields on this contact (JSON, optional)
-    * **after** - only contacts which have changed after this date (string) ex: 2012-01-28T18:00:00.000
-    * **before** - only contacts which have been changed before this date (string) ex: 2012-01-28T18:00:00.000
+    * **after** - only contacts which have changed on this date or after (string) ex: 2012-01-28T18:00:00.000
+    * **before** - only contacts which have been changed on this date or before (string) ex: 2012-01-28T18:00:00.000
 
 
     Example:
@@ -1687,9 +1687,9 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='after', required=False,
-                                help="only contacts which have changed after this date.  ex: 2012-01-28T18:00:00.000"),
+                                help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='before', required=False,
-                                help="only contacts which have changed before this date. ex: 2012-01-28T18:00:00.000")]
+                                help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
