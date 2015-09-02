@@ -2306,7 +2306,7 @@ class RuleSet(models.Model):
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_WAIT = [ TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS ]
+    TYPE_WAIT = [TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS]
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
@@ -2327,9 +2327,10 @@ class RuleSet(models.Model):
                                help_text=_("The value that rules will be run against, if None defaults to @step.value"))
 
     webhook_url = models.URLField(null=True, blank=True, max_length=255,
-                                  help_text=_("The URL that will be called with the user's response before we run our rules"))
+                            help_text=_("The URL that will be called with the user's response before we run our rules"))
 
-    webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST', help_text=_('How the webhook should be executed'))
+    webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
+                                      help_text=_('How the webhook should be executed'))
 
     rules = models.TextField(help_text=_("The JSON encoded actions for this action set"))
 
