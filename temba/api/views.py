@@ -1685,7 +1685,11 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
+                          dict(name='after', required=False,
+                                help="only contacts which have changed after this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='before', required=False,
+                                help="only contacts which have changed before this date. ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
