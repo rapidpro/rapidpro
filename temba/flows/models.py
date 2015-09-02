@@ -608,6 +608,7 @@ class Flow(TembaModel, SmartModel):
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
 
+                # if we used this input, then mark our user input as used
                 if should_pause:
                     user_input = False
 
@@ -616,7 +617,6 @@ class Flow(TembaModel, SmartModel):
 
             elif destination.get_step_type() == ACTION_SET:
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
-                user_input = False
                 add_to_path(path, destination.uuid)
 
             # pull out our current state from the result

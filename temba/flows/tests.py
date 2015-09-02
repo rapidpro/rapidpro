@@ -2785,8 +2785,33 @@ class FlowsTest(FlowFileTest):
         flow = self.update_destination(flow, you_picked.uuid, passive_ruleset.uuid)
         self.send_message(flow, "9", assert_reply=False, assert_handle=False)
 
-    def test_server_runtime_cycle(self):
+    def test_rule_changes_under_us(self):
+        flow = self.get_flow('favorites')
+        self.send_message(flow, "RED", restart_participants=True)
 
+        # at this point we are waiting for the response to the second question about beer
+
+        # let's change that ruleset to instead be based on the contact name
+        group_ruleset = RuleSet.objects.get(flow=flow, label='Beer')
+
+        group_ruleset.operand = "@contact.beer"
+        group_ruleset.ruleset_type = RuleSet.TYPE_CONTACT_FIELD
+        group_ruleset.save()
+
+        self.contact.set_field("beer", "Mutzig")
+
+        # and send our last message with our name, we should:
+        # 1) get fast forwarded to the next waiting ruleset about our name and have our message applied to that
+        # 2) get an outgoing message about our beer choice
+        # 3) get an outgoing message about our name
+        responses = self.send_message(flow, "Eric")
+        self.assertEquals(2, len(responses))
+        self.assertEquals("Mmmmm... delicious Mutzig. If only they made red Mutzig! Lastly, what is your name?",
+                          responses[0])
+        self.assertEquals("Thanks Eric, we are all done!",
+                          responses[1])
+
+    def test_server_runtime_cycle(self):
         flow = self.get_flow('loop_detection')
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
         group_ruleset = RuleSet.objects.get(flow=flow, label='Group Split A')
