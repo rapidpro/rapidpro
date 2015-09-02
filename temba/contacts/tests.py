@@ -1820,9 +1820,7 @@ class ContactTest(TembaTest):
             self.assertEquals(2, joe_fires.count())
 
             # change Mary's URNs
-            old_modified_on = self.mary.modified_on
             self.mary.update_urns([('tel', "54321"), ('twitter', 'mary_mary')])
-            self.assertTrue(self.mary.modified_on > old_modified_on)
             self.assertEquals([self.frank, self.joe], list(_123_group.contacts.order_by('name')))
 
     def test_simulator_contact_views(self):
