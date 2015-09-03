@@ -253,8 +253,6 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
     scope.updateTranslationStatus = (ruleset, baseLanguage, currentLanguage) ->
 
-      console.log(ruleset, baseLanguage, currentLanguage)
-
       iso_code = baseLanguage
       if currentLanguage
         iso_code = currentLanguage.iso_code
@@ -262,7 +260,6 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       for category in ruleset._categories
 
         category._missingTranslation = false
-        console.log(iso_code, category.name)
         if category.name
           if baseLanguage
             category._translation = category.name[iso_code]

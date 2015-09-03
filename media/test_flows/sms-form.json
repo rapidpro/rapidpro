@@ -1,0 +1,299 @@
+{
+  "version": 5,
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng",
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 119,
+            "destination": "d0e01dde-dcd2-43e9-8f8e-ae1699a80395",
+            "uuid": "2e6aaa75-ffb7-4c48-baee-57e4149e452c",
+            "actions": [
+              {
+                "msg": {
+                  "eng": "What is your age, sex, location? Separate your responses with a space. For example \"15 f seattle\"."
+                },
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 265,
+            "x": 904,
+            "destination": "d0e01dde-dcd2-43e9-8f8e-ae1699a80395",
+            "uuid": "9f1c79ae-581a-45ff-a9ea-4096f8231aad",
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Sorry, @flow.age doesn't look like a valid age, please try again."
+                },
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 414,
+            "x": 831,
+            "destination": "d0e01dde-dcd2-43e9-8f8e-ae1699a80395",
+            "uuid": "1cc063a7-afea-460d-b8a0-c8c2a2e37e35",
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Sorry, @flow.gender doesn't look like a valid gender. Try again."
+                },
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 571,
+            "x": 735,
+            "destination": "d0e01dde-dcd2-43e9-8f8e-ae1699a80395",
+            "uuid": "6be94ef5-bffc-4864-bd71-8e7cd87d7178",
+            "actions": [
+              {
+                "msg": {
+                  "eng": "I don't know the location @flow.location. Please try again."
+                },
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 234,
+            "x": 116,
+            "destination": null,
+            "uuid": "0b18b474-00ab-40a0-af25-5d7c91aa64d7",
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Thanks for your submission. We have that as:\n\n@flow.age / @flow.gender / @flow.location"
+                },
+                "type": "reply"
+              }
+            ]
+          }
+        ],
+        "last_saved": "2015-08-05T19:02:29.296446Z",
+        "entry": "2e6aaa75-ffb7-4c48-baee-57e4149e452c",
+        "rule_sets": [
+          {
+            "uuid": "d0e01dde-dcd2-43e9-8f8e-ae1699a80395",
+            "webhook_action": null,
+            "rules": [
+              {
+                "category": {
+                  "base": "All Responses",
+                  "eng": "All Responses"
+                },
+                "uuid": "bb0c523f-d216-4bf3-8794-664a9d9b3ccb",
+                "destination": "b7563d6f-279a-4b19-bff6-0ee3ccfa5d5f",
+                "destination_type": "R",
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "config": {
+                  "type": "true",
+                  "verbose_name": "contains anything",
+                  "name": "Other",
+                  "operands": 0
+                }
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "wait_message",
+            "label": "Message Form",
+            "operand": "@step.value",
+            "finished_key": null,
+            "response_type": "",
+            "y": 117,
+            "x": 459,
+            "config": {}
+          },
+          {
+            "uuid": "b7563d6f-279a-4b19-bff6-0ee3ccfa5d5f",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "max": "100",
+                  "type": "between",
+                  "min": "0"
+                },
+                "category": {
+                  "base": "0 - 100",
+                  "eng": "0 - 100"
+                },
+                "destination": "eb669471-fadf-489b-9ce6-c10bb4add673",
+                "uuid": "a9c7276e-2f5d-4e6d-9efd-2b8d39c3ec50",
+                "destination_type": "R"
+              },
+              {
+                "category": {
+                  "base": "Other",
+                  "eng": "Other"
+                },
+                "uuid": "83ce1500-c6e6-4eb1-8feb-76cd439c6e36",
+                "destination": "9f1c79ae-581a-45ff-a9ea-4096f8231aad",
+                "destination_type": "A",
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "config": {
+                  "type": "true",
+                  "verbose_name": "contains anything",
+                  "name": "Other",
+                  "operands": 0
+                }
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "form_field",
+            "label": "Age",
+            "operand": "@flow.message_form",
+            "finished_key": null,
+            "response_type": "",
+            "y": 226,
+            "x": 460,
+            "config": {
+              "field_delimiter": " ",
+              "field_index": 0
+            }
+          },
+          {
+            "uuid": "eb669471-fadf-489b-9ce6-c10bb4add673",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": {
+                    "eng": "Male m"
+                  },
+                  "base": "Male m",
+                  "type": "contains_any"
+                },
+                "category": {
+                  "base": "Male",
+                  "eng": "Male"
+                },
+                "destination": "3d8c9a32-fe04-4b95-9b2c-c66dd4ff2b24",
+                "uuid": "bda1d6b0-2b8d-4ddb-a888-3e41b3243a0f",
+                "destination_type": "R"
+              },
+              {
+                "test": {
+                  "test": {
+                    "eng": "Female f"
+                  },
+                  "base": "Female f",
+                  "type": "contains_any"
+                },
+                "category": {
+                  "base": "Female",
+                  "eng": "Female"
+                },
+                "destination": "3d8c9a32-fe04-4b95-9b2c-c66dd4ff2b24",
+                "uuid": "4b8421ab-209f-4638-a267-82c4f83c73b2",
+                "destination_type": "R"
+              },
+              {
+                "category": {
+                  "base": "Other",
+                  "eng": "Other"
+                },
+                "uuid": "b61d7b97-21ab-4df5-a475-d16122aba572",
+                "destination": "1cc063a7-afea-460d-b8a0-c8c2a2e37e35",
+                "destination_type": "A",
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "config": {
+                  "type": "true",
+                  "verbose_name": "contains anything",
+                  "name": "Other",
+                  "operands": 0
+                }
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "form_field",
+            "label": "Gender",
+            "operand": "@flow.message_form",
+            "finished_key": null,
+            "response_type": "",
+            "y": 344,
+            "x": 385,
+            "config": {
+              "field_delimiter": " ",
+              "field_index": 1
+            }
+          },
+          {
+            "uuid": "3d8c9a32-fe04-4b95-9b2c-c66dd4ff2b24",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": {
+                    "eng": "seattle chicago miami"
+                  },
+                  "base": "seattle chicago miami",
+                  "type": "contains_any"
+                },
+                "category": {
+                  "base": "Valid",
+                  "eng": "Valid"
+                },
+                "destination": "0b18b474-00ab-40a0-af25-5d7c91aa64d7",
+                "uuid": "1b36cb64-b0ce-43cc-9b50-8f45f29c9643",
+                "destination_type": "A"
+              },
+              {
+                "category": {
+                  "base": "Other",
+                  "eng": "Other"
+                },
+                "uuid": "b9419b3c-0cd0-4956-93ac-b6fd0da2964a",
+                "destination": "6be94ef5-bffc-4864-bd71-8e7cd87d7178",
+                "destination_type": "A",
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "config": {
+                  "type": "true",
+                  "verbose_name": "contains anything",
+                  "name": "Other",
+                  "operands": 0
+                }
+              }
+            ],
+            "webhook": null,
+            "ruleset_type": "form_field",
+            "label": "Location",
+            "operand": "@flow.message_form",
+            "finished_key": null,
+            "response_type": "",
+            "y": 486,
+            "x": 366,
+            "config": {
+              "field_delimiter": " ",
+              "field_index": 2
+            }
+          }
+        ],
+        "metadata": {}
+      },
+      "expires": 10080,
+      "id": 34393,
+      "flow_type": "F",
+      "name": "SMS Form"
+    }
+  ],
+  "triggers": []
+}

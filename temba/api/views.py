@@ -2040,7 +2040,8 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
-    * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
+    * **created_on** - the datetime when this run was started (datetime)
+    * **modified_on** - the datetime when this run was last modified (datetime) (filterable: ```before``` and ```after```)
     * **completed** - boolean indicating whether this run has completed the flow (boolean)
     * **expires_on** - the datetime when this run will expire (datetime)
     * **expired_on** - the datetime when this run expired or null if it has not yet expired (datetime or null)
@@ -2129,6 +2130,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-08-19T19:11:20.838Z"
+                "modified_on": "2013-08-19T19:11:21.088Z"
                 "values": [],
                 "steps": [
                     {
@@ -2168,25 +2170,57 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
+        org = self.request.user.get_org()
+        queryset = self.model.objects.all()
+
+        contact_uuids = splitting_getlist(self.request, 'contact')
+        contact_phones = splitting_getlist(self.request, 'phone')  # deprecated
+
+        # subquery on contacts to avoid join - if we're querying for specific contacts
+        if contact_uuids or contact_phones:
+            include_contacts = Contact.objects.filter(org=org, is_test=False, is_active=True)
+
+            if contact_uuids:
+                include_contacts = include_contacts.filter(uuid__in=contact_uuids)
+
+            if contact_phones:
+                include_contacts = include_contacts.filter(urns__path__in=contact_phones)
+
+            queryset = queryset.filter(contact__in=include_contacts)
+        else:
+            test_contacts = Contact.objects.filter(org=org, is_test=True)
+            queryset = queryset.exclude(contact__in=test_contacts)
+
+        # subquery on flows to avoid join
+        include_flows = Flow.objects.filter(org=org, is_active=True)
+
+        flow_ids = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
+        if flow_ids:
+            include_flows = include_flows.filter(pk__in=flow_ids)
+
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        if flow_uuids:
+            include_flows = include_flows.filter(uuid__in=flow_uuids)
+
+        # if we are filtering by flows, do so
+        if flow_ids or flow_uuids:
+            queryset = queryset.filter(flow__in=include_flows)
+
+        # otherwise, filter by org
+        else:
+            queryset = queryset.filter(org=org)
+
+        # other queries on the runs themselves...
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)
 
-        flows = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
-        if flows:
-            queryset = queryset.filter(flow__pk__in=flows)
-
-        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
-        if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids)
-
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(modified_on__lte=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2194,13 +2228,11 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(modified_on__gte=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phones = splitting_getlist(self.request, 'phone')  # deprecated
-        if phones:
-            queryset = queryset.filter(contact__urns__path__in=phones)
+        # it's faster to filter by contact group using a join than a subquery - especially for larger groups
 
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
@@ -2212,17 +2244,16 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
                                        contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        contacts = splitting_getlist(self.request, 'contact')
-        if contacts:
-            queryset = queryset.filter(contact__uuid__in=contacts)
-
         steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
 
         rulesets_prefetch = Prefetch('flow__rule_sets',
                                      queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
                                      to_attr='ruleset_prefetch')
 
-        return queryset.select_related('contact', 'flow').prefetch_related(steps_prefetch, rulesets_prefetch).order_by('-created_on')
+        # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
+        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+
+        return queryset.order_by('-modified_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2240,9 +2271,9 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by.(repeatable)  ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='before', required=False,
-                               help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                               help="Only return runs which were modified before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
-                               help="Only return runs which were created after this date.  ex: 2012-01-28T18:00:00.000")]
+                               help="Only return runs which were modified after this date.  ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -2252,10 +2283,10 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     title="Add one or more contacts to a Flow",
                     url=reverse('api.runs'),
                     slug='run-post',
-                    request='{ "flow": 15015, "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
+                    request='{ "flow_uuid":"f5901b62-ba76-4003-9c62-72fdacc1b7b7" , "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
 
-        spec['fields'] = [ dict(name='flow', required=True,
-                                help="The id of the flow to start the contact(s) on, the flow cannot be archived"),
+        spec['fields'] = [ dict(name='flow_uuid', required=True,
+                                help="The uuid of the flow to start the contact(s) on, the flow cannot be archived"),
                            dict(name='phone', required=True,
                                 help="A JSON array of one or more strings, each a phone number in E164 format"),
                            dict(name='contact', required=False,

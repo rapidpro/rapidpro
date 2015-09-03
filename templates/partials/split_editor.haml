@@ -37,6 +37,16 @@
         -trans "If the flow field "
         %select{ name:'flowField', required:"true", ng-model:"formData.flowField", ng-options:"field as field.text for field in flowFields"}
 
+    .form-field{ng-if:'formData.rulesetConfig.type == "form_field"'}><
+      #split-on
+        -trans "If the"
+        %select.field-index{ name:'fieldIndex', ng-model:'formData.fieldIndex', required:'true', ng-options: 'index as index.text for index in fieldIndexOptions'}
+        -trans "field in"
+        %select{ name:'flowField', required:'true', ng-model:'formData.flowField', ng-options:"field as field.text for field in flowFields"}
+        -trans "delimited by a"
+        %select.field-delimiter{ name:'fieldDelimiter', ng-model:'formData.fieldDelimiter', required:'true', ng-options: 'delim as delim.text for delim in fieldDelimiterOptions'}
+
+
     .contact-field{ng-if:'formData.rulesetConfig.type == "contact_field"'}><
       #split-on
         -trans "If the contact field "

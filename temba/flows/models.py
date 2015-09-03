@@ -146,6 +146,7 @@ class Flow(TembaModel, SmartModel):
     RULE_SETS = 'rule_sets'
     ACTION_SETS = 'action_sets'
     RULES = 'rules'
+    CONFIG = 'config'
     ACTIONS = 'actions'
     DESTINATION = 'destination'
     LABEL = 'label'
@@ -233,6 +234,10 @@ class Flow(TembaModel, SmartModel):
         flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
         flow.update_single_message_flow(message)
         return flow
+
+    @classmethod
+    def label_to_slug(cls, label):
+        return regex.sub(r'[^a-z0-9]+', '_', label.lower(), regex.V0)
 
     @classmethod
     def create_join_group(cls, org, user, group, response=None, start_flow=None):
@@ -560,13 +565,15 @@ class Flow(TembaModel, SmartModel):
             flow.ensure_current_version()
             action_set = ActionSet.get(flow, step.step_uuid)
 
-            destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
-            if destination:
-                flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
+            # our action set may have disappeared, in that case we just move on, ignoring this flow
+            if action_set:
+                destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
+                if destination:
+                    flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
 
-                # if we pushed them forward, we want to consider any step type
-                # they just arrived at instead of just rulesets
-                step_type_filter = None
+                    # if we pushed them forward, we want to consider any step type
+                    # they just arrived at instead of just rulesets
+                    step_type_filter = None
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
@@ -1217,7 +1224,7 @@ class Flow(TembaModel, SmartModel):
 
         if results and results[0]:
             for value in results[0]['values']:
-                field = regex.sub(r'[^a-z0-9]+', '_', value['label'].lower(), regex.V0)
+                field = Flow.label_to_slug(value['label'])
                 flow_context[field] = value_wrapper(value)
                 values.append("%s: %s" % (value['label'], value['rule_value']))
 
@@ -1568,7 +1575,8 @@ class Flow(TembaModel, SmartModel):
 
         # update our expiration date on our runs, we do this by calculating it on one run then updating all others
         run.update_expiration(timezone.now())
-        FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on)
+        FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
+                                                                                     modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1680,7 +1688,8 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, step,
+                 msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -2113,6 +2122,10 @@ class Flow(TembaModel, SmartModel):
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 ruleset_type = ruleset.get(Flow.RULESET_TYPE)
+                config = ruleset.get(Flow.CONFIG)
+
+                if not config:
+                    config = dict()
 
                 # cap our lengths
                 label = label[:64]
@@ -2159,6 +2172,7 @@ class Flow(TembaModel, SmartModel):
                     existing.label = label
                     existing.finished_key = finished_key
                     existing.ruleset_type = ruleset_type
+                    existing.set_config(config)
                     (existing.x, existing.y) = (x, y)
                     existing.save()
                 else:
@@ -2172,6 +2186,7 @@ class Flow(TembaModel, SmartModel):
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
+                                                      config=json.dumps(config),
                                                       x=x, y=y)
 
                 existing_rulesets[uuid] = existing
@@ -2322,6 +2337,7 @@ class RuleSet(models.Model):
     TYPE_WAIT_DIGITS = 'wait_digits'
     TYPE_WEBHOOK = 'webhook'
     TYPE_FLOW_FIELD = 'flow_field'
+    TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
@@ -2358,10 +2374,13 @@ class RuleSet(models.Model):
     value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
                                   help_text="The type of value this ruleset saves")
 
-    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
+    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES, null=True,
                                     help_text="The type of ruleset")
 
     response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
+
+    config = models.TextField(null=True, verbose_name=_("Ruleset Configuration"),
+                              help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -2387,6 +2406,15 @@ class RuleSet(models.Model):
             return True
 
         return False
+
+    def config_json(self):
+        if not self.config:
+            return dict()
+        else:
+            return json.loads(self.config)
+
+    def set_config(self, config):
+        self.config = json.dumps(config)
 
     def build_uuid_to_category_map(self):
         flow_language = self.flow.base_language
@@ -2486,12 +2514,20 @@ class RuleSet(models.Model):
             return rule, result.body
 
         else:
+
+            # if it's a form field, construct an expression accordingly
+            if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+                config = self.config_json()
+                delim = config.get('field_delimiter', ' ')
+                self.operand = '=field(%s, %d, "%s")' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
+
             # if we have a custom operand, figure that out
             text = None
             if self.operand:
                 (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
             elif msg:
                 text = msg.text
+
 
             try:
                 rules = self.get_rules()
@@ -2533,6 +2569,10 @@ class RuleSet(models.Model):
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
 
+        # output the new value if in the simulator
+        if run.contact.is_test:
+            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(self.label)))
+
     def get_step_type(self):
         return RULE_SET
 
@@ -2558,7 +2598,7 @@ class RuleSet(models.Model):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand)
+                    operand=self.operand, config=self.config_json())
 
     def __unicode__(self):
         if self.label:
@@ -2846,6 +2886,8 @@ class FlowVersion(SmartModel):
                     version_number=self.version_number)
 
 class FlowRun(models.Model):
+    org = models.ForeignKey(Org, related_name='runs', db_index=False)
+
     flow = models.ForeignKey(Flow, related_name='runs')
 
     contact = models.ForeignKey(Contact, related_name='runs')
@@ -2862,20 +2904,21 @@ class FlowRun(models.Model):
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
 
-    expires_on = models.DateTimeField(blank=True,
-                                      null=True,
+    expires_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run will expire"))
 
-    expired_on = models.DateTimeField(blank=True,
-                                      null=True,
+    expired_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run expired"))
+
+    modified_on = models.DateTimeField(auto_now=True,
+                                       help_text=_("When this flow run was last updated"))
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
     @classmethod
     def create(cls, flow, contact, start=None, call=None, fields=None, created_on=None, db_insert=True):
-        args = dict(flow=flow, contact=contact, start=start, call=call, fields=fields)
+        args = dict(org=flow.org, flow=flow, contact=contact, start=start, call=call, fields=fields)
 
         if created_on:
             args['created_on'] = created_on
@@ -3006,6 +3049,10 @@ class FlowRun(models.Model):
             if not point_in_time:
                 point_in_time = now
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
+            self.modified_on = now
+
+            # save our updated fields
+            self.save(update_fields=['expires_on', 'modified_on'])
 
             # if it's in the past, just expire us now
             if self.expires_on < now:
@@ -4784,7 +4831,8 @@ class Test(object):
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
-                HasStateTest.TYPE: HasStateTest
+                HasStateTest.TYPE: HasStateTest,
+                NotEmptyTest.TYPE: NotEmptyTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -4920,6 +4968,28 @@ class TranslatableTest(Test):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.test, dict):
             self.test = {language_iso: self.test}
+
+class NotEmptyTest(Test):
+    """
+    { op: "not_empty" }
+    """
+
+    TYPE = 'not_empty'
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return NotEmptyTest()
+
+    def as_json(self):
+        return dict(type=NotEmptyTest.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        if text and len(text.strip()):
+            return 1, text
+        return 0, None
 
 class ContainsTest(TranslatableTest):
     """

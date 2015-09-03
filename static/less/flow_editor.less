@@ -1268,7 +1268,6 @@
     input {
       width:206px;
       margin-left:5px;
-
     }
   }
 
@@ -1648,10 +1647,23 @@
 }
 
 .split-editor {
-  .flow-field{
-    select {
+
+  .flow-field {
+    select{
       width:234px;
       margin-left:4px;
+    }
+  }
+
+  .form-field {
+    select {
+      &.field-index {
+        width: 85px;
+      }
+
+      &.field-delimiter {
+        width: 80px;
+      }
     }
   }
 

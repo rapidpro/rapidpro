@@ -161,6 +161,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             contact = contacts[c % len(contacts)]
             runs.append(FlowRun.create(flow, contact, db_insert=False))
         FlowRun.objects.bulk_create(runs)
+
+        # add a step to each run
+        steps = []
+        for run in FlowRun.objects.all():
+            steps.append(FlowStep(run=run, contact=run.contact, step_type='R', step_uuid=flow.entry_uuid, arrived_on=timezone.now()))
+        FlowStep.objects.bulk_create(steps)
+
         return runs
 
     def _fetch_json(self, url):

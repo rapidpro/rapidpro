@@ -31,7 +31,7 @@ from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVE
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
 from temba.utils import dict_to_struct, datetime_to_json_date
-from temba.values.models import Value
+from temba.values.models import Value, DATETIME
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
@@ -193,7 +193,12 @@ class APITest(TembaTest):
 
         # login as administrator
         self.login(self.admin)
-        token = self.admin.api_token()  # generates token for the user
+        token = self.admin.api_token  # generates token for the user
+        self.assertIsInstance(token, basestring)
+        self.assertEqual(len(token), 40)
+
+        with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
+            self.assertEqual(self.admin.api_token, token)
 
         # browse as HTML
         response = self.fetchHTML(url)
@@ -298,13 +303,13 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         # test that this user has a token
-        self.assertTrue(self.admin.api_token())
+        self.assertTrue(self.admin.api_token)
 
         # blow it away
         Token.objects.all().delete()
 
         # should create one lazily
-        self.assertTrue(self.admin.api_token())
+        self.assertTrue(self.admin.api_token)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
@@ -597,10 +602,17 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
 
-        # now fetch them instead...
+        # now test fetching them instead.....
+
+        # no filtering
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 9)  # all the runs
+
+        flow.start([], [Contact.get_test_contact(self.user)])  # create a run for a test contact
+
+        response = self.fetchJSON(url)
+        self.assertResultCount(response, 9)  # test contact's run not included
 
         # filter by run id
         response = self.fetchJSON(url, "run=%d" % run.pk)
@@ -1041,6 +1053,8 @@ class APITest(TembaTest):
 
         drdre = Contact.objects.get()
         jay_z = self.create_contact("Jay-Z", number="123555")
+        ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
+        jay_z.set_field('registration_date', "2014-12-31 03:04:00")
 
         # fetch all with blank query
         self.clear_cache()
@@ -1052,6 +1066,7 @@ class APITest(TembaTest):
         self.assertContains(response, 'Andre')
         self.assertContains(response, "Jay-Z")
         self.assertContains(response, '123555')
+        self.assertContains(response, "2014-12-31T01:04:00.000000Z")
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")
@@ -2604,13 +2619,23 @@ class KannelTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
+                # assert verify was set to true
+                self.assertTrue(mock.call_args[1]['verify'])
+
                 self.clear_cache()
+
+            self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
+                                                  send_url='http://foo/', verify_ssl=False))
+            self.channel.save()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # assert verify was set to False
+                self.assertFalse(mock.call_args[1]['verify'])
 
                 # message should be marked as an error
                 msg = bcast.get_messages()[0]
@@ -2619,6 +2644,7 @@ class KannelTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
 
 class NexmoTest(TembaTest):
 

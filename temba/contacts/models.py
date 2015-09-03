@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
@@ -19,7 +20,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
@@ -31,7 +32,7 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 # phone number for every org's test contact
-OLD_TEST_CONTACT_TEL = '+12065551212'
+OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
@@ -269,6 +270,23 @@ class Contact(TembaModel, SmartModel):
         else:
             return value.string_value
 
+    @classmethod
+    def serialize_field_value(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == DATETIME:
+            return datetime_to_str(value.datetime_value)
+        elif field.value_type == DECIMAL:
+            return format_decimal(value.decimal_value)
+        elif value.category:
+            return value.category
+        else:
+            return value.string_value
+
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
 
@@ -310,7 +328,7 @@ class Contact(TembaModel, SmartModel):
                     existing.category = None
 
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category'])
+                                             'location_value', 'category', 'modified_on'])
 
             # otherwise, create a new value for it
             else:
@@ -1252,7 +1270,7 @@ class ContactURN(models.Model):
         number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
-        if len(number) > 11 and number[0] != '+':
+        if len(number) >= 11 and number[0] != '+':
             number = '+' + number
 
         normalized = None

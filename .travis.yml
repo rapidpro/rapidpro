@@ -33,12 +33,5 @@ after_success:
   --omit="*/migrations/*,*/tests" -i
 - coveralls
 notifications:
-  hipchat:
-    rooms:
-      secure: fm1TYA6NDjo6T59kG1Vj17LDCSNrvR6vWvq/tZj6bjDhAhzhb9THBX4bhQDGg3jEJwD+vfTSred9B9muJrAFkNeZaRvXf3l8e4yx5Qv/zvyZoTVLLv4v7YHEiVxBEj76aGxqUoAVB13ghZAsZ3zYMBav+42zZM4jkivgS7feerU=
-    template:
-    - '%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message}
-      - <a href="%{build_url}">Log</a> | <a href="%{compare_url}">Changes</a>'
-    format: html
   slack:
-    secure: L4CTQdnVu4fSh4xFj4+n3ATBMyiNsCHFAVtV/2MnQvXO/nkVUJujEfe4+XMf2HOEInZ7K9ZeCbQiOtlrwux7B8/6MhYSWR4An40c0bjggv6CBCObDZ8xT2tUFuK63TL/O+OSglJsfH/tMM0cHVV7KDzoxEIp+0u7vjcDt0LRhNE=
+    secure: b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68=

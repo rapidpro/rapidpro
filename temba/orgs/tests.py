@@ -895,7 +895,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(user.check_password("HelloWorld1"))
 
         # user should be able to get a token
-        self.assertTrue(user.api_token())
+        self.assertTrue(user.api_token)
 
         # should have an org
         org = Org.objects.get(name="Relieves World")
