@@ -10,9 +10,10 @@ from .channels import KannelHandler, ClickatellHandler, PlivoHandler, HighConnec
 from .channels import SMSCentralHandler, MageHandler
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
 from .views import api, ApiExplorerView, AuthenticateEndpoint, OrgEndpoint
-from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint, FlowEndpoint
-from .views import FlowResultsEndpoint, FlowRunEndpoint, CallEndpoint, ContactEndpoint, ContactBulkActionEndpoint
-from .views import GroupEndpoint, FieldEndpoint, FlowDefinitionEndpoint
+from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint
+from .views import CallEndpoint, ContactEndpoint, ContactBulkActionEndpoint
+from .views import FlowEndpoint, FlowResultsEndpoint, FlowRunEndpoint, FlowDefinitionEndpoint, FlowStepEndpoint
+from .views import GroupEndpoint, FieldEndpoint
 from .views import ChannelEndpoint, CampaignEndpoint, CampaignEventEndpoint, BoundaryEndpoint, AssetEndpoint
 
 urlpatterns = patterns('api.views',
@@ -56,6 +57,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/flowdefinition$', FlowDefinitionEndpoint.as_view(), name='api.flowdefintion'),
                        url(r'^/results$', FlowResultsEndpoint.as_view(), name='api.results'),
                        url(r'^/runs$', FlowRunEndpoint.as_view(), name='api.runs'),
+                       url(r'^/steps$', FlowStepEndpoint.as_view(), name='api.steps'),
                        url(r'^/calls$', CallEndpoint.as_view(), name='api.calls'),
                        url(r'^/contacts$', ContactEndpoint.as_view(), name='api.contacts'),
                        url(r'^/contact_actions$', ContactBulkActionEndpoint.as_view(), name='api.contact_actions'),

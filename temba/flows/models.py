@@ -35,7 +35,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel
@@ -3511,6 +3511,7 @@ class ActionLog(models.Model):
     def simulator_json(self):
         return self.as_json()
 
+
 class FlowStep(models.Model):
     run = models.ForeignKey(FlowRun, related_name='steps')
 
@@ -3547,6 +3548,44 @@ class FlowStep(models.Model):
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
     @classmethod
+    def from_json(cls, json_obj, flow, contact, run):
+        step_uuid = json_obj['node']
+        node = ActionSet.objects.filter(uuid=step_uuid).first()
+        if not node:
+            node = RuleSet.objects.filter(uuid=step_uuid).first()
+
+        if not node:
+            raise ValueError("No such node with UUID %s in flow '%s'" % (step_uuid, flow.name))
+
+        # link the previous step to this one
+        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
+        if prev_step:
+            prev_step.next_uuid = step_uuid
+            prev_step.save(update_fields=('next_uuid',))
+
+        step_type = ACTION_SET if isinstance(node, ActionSet) else RULE_SET
+        arrived_on = json_date_to_datetime(json_obj['arrived_on'])
+        left_on = json_date_to_datetime(json_obj['left_on']) if 'left_on' in json_obj else None
+
+        kwargs = dict(run=run, contact=contact, step_uuid=step_uuid, step_type=step_type,
+                      arrived_on=arrived_on, left_on=left_on)
+
+        if 'rule' in json_obj:
+            kwargs['rule_uuid'] = json_obj['rule']['uuid']
+            kwargs['rule_category'] = json_obj['rule']['category']
+            kwargs['rule_value'] = json_obj['rule']['value']
+            try:
+                kwargs['rule_decimal_value'] = Decimal(json['rule']['value'])
+            except Exception:
+                pass
+
+        # TODO create incoming messages for rule text - but what is the URN ?
+
+        # TODO play actions
+
+        return FlowStep.objects.create(**kwargs)
+
+    @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
 
         steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
@@ -3563,7 +3602,6 @@ class FlowStep(models.Model):
 
         # optimize lookups
         return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
-
 
     @classmethod
     def get_step_messages(cls, steps):

@@ -11,7 +11,7 @@ from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
@@ -1254,6 +1254,58 @@ class FlowRunStartSerializer(WriteSerializer):
             return flow.start(groups, contacts, restart_participants=restart_participants, extra=extra)
         else:
             return []
+
+
+class FlowRunWriteSerializer(WriteSerializer):
+    flow = serializers.CharField(required=True, max_length=36)
+    contact = serializers.CharField(required=True, max_length=36)
+    steps = serializers.WritableField()
+
+    def validate_flow(self, attrs, source):
+        flow_uuid = attrs.get(source, None)
+        if flow_uuid:
+            flow = Flow.objects.get(uuid=flow_uuid)
+            if flow.is_archived:
+                raise ValidationError("You cannot start an archived flow.")
+
+            # do they have permission to use this flow?
+            if self.org != flow.org:
+                raise ValidationError("Invalid UUID '%s' - flow does not exist." % flow.uuid)
+
+            attrs['flow'] = flow
+        return attrs
+
+    def validate_contact(self, attrs, source):
+        contact_uuid = attrs.get(source, None)
+        if contact_uuid:
+            contact = Contact.objects.filter(uuid=contact_uuid, org=self.org, is_active=True).first()
+            if not contact:
+                raise ValidationError(_("Unable to find contact with uuid: %s") % contact_uuid)
+
+            attrs['contact'] = contact
+        return attrs
+
+    def save(self):
+        pass
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        flow = attrs['flow']
+        contact = attrs.get('contact')
+        steps = attrs.get('steps', [])
+
+        # look for previous run with this contact and flow
+        run = FlowRun.objects.filter(org=self.org, contact=contact, flow=flow).order_by('-modified_on').first()
+
+        if not run or run.is_completed():
+            run = FlowRun.create(flow, contact)
+
+        for step in steps:
+            FlowStep.from_json(step, flow, contact, run)
+
+        return run
 
 
 class BoundarySerializer(serializers.ModelSerializer):
