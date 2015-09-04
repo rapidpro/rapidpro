@@ -77,10 +77,6 @@ def mage_handle_new_message(org, msg):
     """
     Messages created Mage are only saved to the database. Here we take care of the other stuff
     """
-    # update cached message count
-    from temba.orgs.models import OrgEvent
-    org.update_caches(OrgEvent.msg_new_incoming, msg)
-
     # Mage no longer assigns topups
     if not msg.topup_id:
         msg.topup_id = org.decrement_credit()
@@ -91,14 +87,5 @@ def mage_handle_new_contact(org, contact):
     """
     Contacts created Mage are only saved to the database. Here we take care of the other stuff
     """
-    # update cached contact count
-    from temba.orgs.models import OrgEvent
-    from temba.contacts.models import ALL_CONTACTS_GROUP
-
-    org.update_caches(OrgEvent.contact_new, contact)
-
-    # add the contact to our all contacts group
-    org.all_groups.get(group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
-
     # possible to have dynamic groups based on name
     contact.handle_update(attrs=('name',))

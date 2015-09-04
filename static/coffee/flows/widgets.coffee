@@ -3,7 +3,7 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
-app.directive "sms", [ "$log", ($log) ->
+app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
   link = (scope, element, attrs) ->
 
     scope.showCounter = true
@@ -26,8 +26,8 @@ app.directive "sms", [ "$log", ($log) ->
     # determine the initial message based on the current language
     scope.message = scope.sms
 
-    if scope.$root.language and scope.sms
-      localized = scope.sms[scope.$root.language.iso_code]
+    if Flow.flow.base_language and scope.sms
+      localized = scope.sms[Flow.flow.base_language]
       if localized?
         scope.message = localized
 
@@ -43,7 +43,7 @@ app.directive "sms", [ "$log", ($log) ->
 ]
 
 # Ajax backed select2 widget
-app.directive "autoComplete", ["$timeout", "$http", "$log", ($timeout, $http, $log) ->
+app.directive "autoComplete", ["$timeout", "$http", "$log", "Flow", ($timeout, $http, $log, Flow) ->
 
   filters = [
     { name:'title_case', display:'changes to title case'},
@@ -101,7 +101,7 @@ app.directive "autoComplete", ["$timeout", "$http", "$log", ($timeout, $http, $l
 
     element.atwho
       at: "@",
-      data: scope.$root.completions
+      data: Flow.completions
       insert_space: false
       limit: 15
       space_after: false
@@ -289,11 +289,11 @@ app.directive "select2", ["$timeout", ($timeout) ->
 ]
 
 
-app.directive "selectLabel", ["$timeout", ($timeout) ->
+app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
   link = (scope, element, attrs, form) ->
 
     element.select2
-      tags: scope.$parent.labels
+      tags: Flow.labels
       mutiple: true
 
     field = form[attrs['name']]
@@ -448,7 +448,7 @@ app.directive "selectStatic", ['$timeout', ($timeout) ->
 #============================================================================
 # Directive for an omnibox
 #============================================================================
-app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
+app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 
   omniRemap = (element, callback) ->
     callback()
@@ -605,7 +605,7 @@ app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
 
     # pull our completions out of the scope if we're told to use them
     if options.completions
-      options.completions = scope.$root.completions
+      options.completions = Flow.completions
 
     data = []
     if scope.groups

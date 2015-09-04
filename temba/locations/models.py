@@ -51,7 +51,7 @@ class AdminBoundary(models.Model):
 
     def get_geojson_feature(self):
         return geojson.Feature(properties=dict(name=self.name, osm_id=self.osm_id, id=self.pk, level=self.level),
-                               geometry=geojson.loads(self.simplified_geometry.geojson))
+                               geometry=None if not self.simplified_geometry else geojson.loads(self.simplified_geometry.geojson))
 
     def get_geojson(self):
         return AdminBoundary.get_geojson_dump([self.get_geojson_feature()])

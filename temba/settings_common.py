@@ -125,6 +125,8 @@ TEMPLATE_LOADERS = (
     'django.template.loaders.eggs.Loader',
 )
 
+EMAIL_CONTEXT_PROCESSORS = ('temba.temba_email.link_components',)
+
 TEMPLATE_CONTEXT_PROCESSORS = (
     'django.contrib.auth.context_processors.auth',
     'django.core.context_processors.debug',
@@ -135,11 +137,10 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.request',
     'temba.context_processors.branding',
     'temba.orgs.context_processors.user_group_perms_processor',
+    'temba.orgs.context_processors.unread_count_processor',
     'temba.channels.views.channel_status_processor',
-    'temba.msgs.views.unread_msg_count_processor',
     'temba.msgs.views.send_message_auto_complete_processor',
     'temba.api.views.webhook_status_processor',
-    'temba.flows.views.flow_unread_response_count_processor',
     'temba.orgs.context_processors.settings_includer',
 )
 
@@ -280,16 +281,17 @@ BRANDING = {
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
-        'link': 'https://rapidpro.io',
+        'link': 'https://app.rapidpro.io',
         'api_link': 'https://api.rapidpro.io',
-        'domain': 'rapidpro.io',
+        'docs_link': 'http://knowledge.rapidpro.io',
+        'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        'credits': _("Copyright &copy; 2012-2014 UNICEF, Nyaruka. All Rights Reserved.")
+        'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
 DEFAULT_BRAND = 'rapidpro.io'
@@ -447,12 +449,14 @@ PERMISSIONS = {
                  'flow',
                  'inbox',
                  'label',
+                 'outbox',
+                 'sent',
                  'test',
+                 'update',
                  ),
 
     'msgs.broadcast': ('api',
                        'detail',
-                       'outbox',
                        'schedule',
                        'schedule_list',
                        'schedule_read',
@@ -608,7 +612,6 @@ GROUP_PERMISSIONS = {
         'msgs.msg_api',
         'msgs.msg_archive',
         'msgs.msg_archived',
-        'msgs.msg_create',
         'msgs.msg_delete',
         'msgs.msg_export',
         'msgs.msg_failed',
@@ -616,8 +619,8 @@ GROUP_PERMISSIONS = {
         'msgs.msg_flow',
         'msgs.msg_inbox',
         'msgs.msg_label',
-        'msgs.msg_list',
-        'msgs.msg_read',
+        'msgs.msg_outbox',
+        'msgs.msg_sent',
         'msgs.msg_update',
 
         'triggers.trigger.*',
@@ -714,7 +717,6 @@ GROUP_PERMISSIONS = {
         'msgs.msg_api',
         'msgs.msg_archive',
         'msgs.msg_archived',
-        'msgs.msg_create',
         'msgs.msg_delete',
         'msgs.msg_export',
         'msgs.msg_failed',
@@ -722,8 +724,8 @@ GROUP_PERMISSIONS = {
         'msgs.msg_flow',
         'msgs.msg_inbox',
         'msgs.msg_label',
-        'msgs.msg_list',
-        'msgs.msg_read',
+        'msgs.msg_outbox',
+        'msgs.msg_sent',
         'msgs.msg_update',
 
         'triggers.trigger.*',
@@ -775,8 +777,6 @@ GROUP_PERMISSIONS = {
         'flows.ruleset_map',
         'flows.ruleset_choropleth',
 
-        'msgs.broadcast_outbox',
-        'msgs.broadcast_read',
         'msgs.broadcast_schedule_list',
         'msgs.broadcast_schedule_read',
         'msgs.call_list',
@@ -786,8 +786,8 @@ GROUP_PERMISSIONS = {
         'msgs.msg_filter',
         'msgs.msg_flow',
         'msgs.msg_inbox',
-        'msgs.msg_list',
-        'msgs.msg_survey',
+        'msgs.msg_outbox',
+        'msgs.msg_sent',
 
         'triggers.trigger_archived',
         'triggers.trigger_list',
@@ -907,6 +907,10 @@ REDIS_PORT = 6379
 REDIS_DB = 10 if TESTING else 15
 
 BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
+
+# by default, celery doesn't have any timeout on our redis connections, this fixes that
+BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
+
 CELERY_RESULT_BACKEND = BROKER_URL
 
 IS_PROD = False

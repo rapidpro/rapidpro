@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import logging
 import pytz
+import regex
 import time
 import traceback
 
@@ -13,14 +14,14 @@ from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
-from django.db.models import Q, Count, Prefetch
+from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, TopUp, Language
+from temba.orgs.models import Org, OrgEvent, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics
@@ -207,9 +208,6 @@ class Broadcast(models.Model):
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
-
-        org.update_caches(OrgEvent.broadcast_new, broadcast)
-
         return broadcast
 
     def update_recipients(self, recipients):
@@ -468,7 +466,7 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class Msg(models.Model, OrgModelMixin):
+class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
@@ -476,7 +474,7 @@ class Msg(models.Model, OrgModelMixin):
     Messages are either inbound or outbound and can have varying states depending on their
     direction. Generally an outbound message will go through the following states:
 
-      QUEUED > WIRED > SENT > DELIVERED
+      INITIALIZING > QUEUED > WIRED > SENT > DELIVERED
 
     If things go wrong, they can be put into an ERRORED state where they can be retried. Once
     we've given up then they can be put in the FAILED state.
@@ -638,6 +636,10 @@ class Msg(models.Model, OrgModelMixin):
 
         cls.mark_handled(msg)
 
+        # if this is an inbox message, increment our unread inbox count
+        if msg.msg_type == INBOX:
+            msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+
         # record our handling latency for this object
         if msg.queued_on:
             analytics.track("System", "temba.handling_latency", properties=dict(value=(msg.delivered_on - msg.queued_on).total_seconds()))
@@ -714,8 +716,6 @@ class Msg(models.Model, OrgModelMixin):
 
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
-
-        msg.org.update_caches(OrgEvent.msg_handled, msg)
 
     @classmethod
     def mark_error(cls, r, channel, msg, fatal=False):
@@ -923,7 +923,6 @@ class Msg(models.Model, OrgModelMixin):
         # mark ourselves as resent
         self.status = RESENT
         self.topup = None
-        self.visibility = ARCHIVED
         self.save()
 
         # update our broadcast
@@ -1014,7 +1013,6 @@ class Msg(models.Model, OrgModelMixin):
             msg_args['topup_id'] = topup_id
 
         msg = Msg.objects.create(**msg_args)
-        msg.org.update_caches(OrgEvent.msg_new_incoming, msg)
 
         if channel:
             analytics.track('System', 'temba.msg_incoming_%s' % channel.channel_type.lower())
@@ -1081,14 +1079,10 @@ class Msg(models.Model, OrgModelMixin):
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
-        # normally we care about message sending urns
-        scheme = SEND
+        # for IVR messages we need a channel that can call
+        role = CALL if msg_type == IVR else SEND
 
-        # if its an IVR message, we want the call urn instead
-        if msg_type == IVR:
-            scheme = CALL
-
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, scheme=scheme)
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
         if not contact_urn:
             raise UnreachableException("No suitable URN found for contact")
@@ -1117,12 +1111,12 @@ class Msg(models.Model, OrgModelMixin):
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
-                                                contact__is_test=False,
-                                                channel=channel,
-                                                recording_url=recording_url,
-                                                text=text,
-                                                direction=OUTGOING,
-                                                created_on__gte=created_on - timedelta(minutes=10))
+                                           contact__is_test=False,
+                                           channel=channel,
+                                           recording_url=recording_url,
+                                           text=text,
+                                           direction=OUTGOING,
+                                           created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1172,13 +1166,10 @@ class Msg(models.Model, OrgModelMixin):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        msg = Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
-
-        org.update_caches(OrgEvent.msg_new_outgoing, msg)
-        return msg
+        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel, scheme=SEND):
+    def resolve_recipient(org, user, recipient, channel, role=SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
@@ -1186,7 +1177,7 @@ class Msg(models.Model, OrgModelMixin):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(scheme)
+        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1212,7 +1203,9 @@ class Msg(models.Model, OrgModelMixin):
         """
         Fails this message, provided it is currently not failed
         """
-        self._update_state(None, dict(status=FAILED), OrgEvent.msg_failed)
+        self.status = FAILED
+        self.save(update_fields=('status',))
+
         Channel.track_status(self.channel, "Failed")
 
     def status_sent(self):
@@ -1237,29 +1230,34 @@ class Msg(models.Model, OrgModelMixin):
 
     def archive(self):
         """
-        Archives this message, provided it is currently visible
+        Archives this message
         """
-        if self.direction != INCOMING:
-            raise ValueError("Can only archive incoming messages")
+        if self.direction != INCOMING or self.contact.is_test:
+            raise ValueError("Can only archive incoming non-test messages")
 
-        self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
+        self.visibility = ARCHIVED
+        self.save(update_fields=('visibility',))
 
     def restore(self):
         """
-        Restores (i.e. un-archives) this message, provided it is currently archived
+        Restores (i.e. un-archives) this message
         """
-        self._update_state(dict(visibility=ARCHIVED), dict(visibility=VISIBLE), OrgEvent.msg_restored)
+        if self.direction != INCOMING or self.contact.is_test:
+            raise ValueError("Can only restore incoming non-test messages")
+
+        self.visibility = VISIBLE
+        self.save(update_fields=('visibility',))
 
     def release(self):
         """
-        Releases (i.e. deletes) this message, provided it is not currently deleted
+        Releases (i.e. deletes) this message
         """
-        # handle VISIBLE > ARCHIVED state change first if necessary
-        self._update_state(dict(visibility=VISIBLE), dict(visibility=ARCHIVED), OrgEvent.msg_archived)
+        self.visibility = DELETED
+        self.text = ""
+        self.save(update_fields=('visibility', 'text'))
 
-        if self._update_state(dict(visibility=ARCHIVED), dict(visibility=DELETED, text=""), OrgEvent.msg_deleted):
-            # remove labels
-            self.labels.clear()
+        # remove labels
+        self.labels.clear()
 
     @classmethod
     def apply_action_label(cls, msgs, label, add):
@@ -1331,7 +1329,7 @@ class Call(SmartModel):
     channel = models.ForeignKey(Channel,
                                 null=True, verbose_name=_("Channel"),
                                 help_text=_("The channel where this call took place"))
-    contact = models.ForeignKey(Contact, verbose_name=_("Contact"),
+    contact = models.ForeignKey(Contact, verbose_name=_("Contact"), related_name='calls',
                                 help_text=_("The phone number for this call"))
     time = models.DateTimeField(verbose_name=_("Time"), help_text=_("When this call took place"))
     duration = models.IntegerField(default=0, verbose_name=_("Duration"),
@@ -1366,25 +1364,116 @@ class Call(SmartModel):
         if call_type == CALL_IN_MISSED:
             Trigger.catch_triggers(call, MISSED_CALL_TRIGGER)
 
-        call.org.update_caches(OrgEvent.call_new, call)
         return call
 
     @classmethod
     def get_calls(cls, org):
         return Call.objects.filter(org=org)
 
+    def release(self):
+        self.is_active = False
+        self.save(update_fields=('is_active',))
+
 
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
+class SystemLabel(models.Model):
+    """
+    Counts of messages/broadcasts/calls maintained by database level triggers
+    """
+    TYPE_INBOX = 'I'
+    TYPE_FLOWS = 'W'
+    TYPE_ARCHIVED = 'A'
+    TYPE_OUTBOX = 'O'
+    TYPE_SENT = 'S'
+    TYPE_FAILED = 'X'
+    TYPE_SCHEDULED = 'E'
+    TYPE_CALLS = 'C'
+
+    TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
+                    (TYPE_FLOWS, "Flows"),
+                    (TYPE_ARCHIVED, "Archived"),
+                    (TYPE_OUTBOX, "Outbox"),
+                    (TYPE_SENT, "Sent"),
+                    (TYPE_FAILED, "Failed"),
+                    (TYPE_SCHEDULED, "Scheduled"),
+                    (TYPE_CALLS, "Calls"))
+
+    org = models.ForeignKey(Org, related_name='system_labels')
+
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+
+    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+
+    @classmethod
+    def create_all(cls, org):
+        """
+        Creates all system labels for the given org
+        """
+        labels = []
+        for label_type, _name in cls.TYPE_CHOICES:
+            labels.append(cls.objects.create(org=org, label_type=label_type))
+        return labels
+
+    @classmethod
+    def get_queryset(cls, org, label_type):
+        """
+        Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
+        trigger used to maintain the label counts.
+        """
+        if label_type == cls.TYPE_INBOX:
+            qs = Msg.objects.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+        elif label_type == cls.TYPE_FLOWS:
+            qs = Msg.objects.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+        elif label_type == cls.TYPE_ARCHIVED:
+            qs = Msg.objects.filter(direction=INCOMING, visibility=ARCHIVED)
+        elif label_type == cls.TYPE_OUTBOX:
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+        elif label_type == cls.TYPE_SENT:
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+        elif label_type == cls.TYPE_FAILED:
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
+        elif label_type == cls.TYPE_SCHEDULED:
+            qs = Broadcast.objects.exclude(schedule=None)
+        elif label_type == cls.TYPE_CALLS:
+            qs = Call.objects.filter(is_active=True)
+        else:
+            raise ValueError("Invalid label type: %s" % label_type)
+
+        qs = qs.filter(org=org)
+
+        if label_type == cls.TYPE_SCHEDULED:
+            qs = qs.exclude(contacts__is_test=True)
+        else:
+            qs = qs.exclude(contact__is_test=True)
+
+        return qs
+
+    @classmethod
+    def get_counts(cls, org, label_types=None):
+        """
+        Gets all system label counts by type for the given org
+        """
+        labels = cls.objects.filter(org=org)
+        if label_types:
+            labels = labels.filter(label_type__in=label_types)
+        label_counts = labels.values('label_type').order_by('label_type').annotate(count_sum=Sum('count'))
+
+        return {l['label_type']: l['count_sum'] for l in label_counts}
+
+    class Meta:
+        index_together = ('org', 'label_type')
+
+
 class UserFolderManager(models.Manager):
     def get_queryset(self):
-        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.USER_FOLDER)
+        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.TYPE_FOLDER)
 
 
 class UserLabelManager(models.Manager):
     def get_queryset(self):
-        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.USER_LABEL)
+        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
 class Label(TembaModel, SmartModel):
@@ -1392,27 +1481,29 @@ class Label(TembaModel, SmartModel):
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
-    USER_FOLDER = 'F'
-    USER_LABEL = 'L'
+    MAX_NAME_LEN = 64
 
-    TYPE_CHOICES = ((USER_FOLDER, "User Defined Folder"),
-                    (USER_LABEL, "User Defined Label"))
+    TYPE_FOLDER = 'F'
+    TYPE_LABEL = 'L'
+
+    TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"),
+                    (TYPE_LABEL, "Regular label"))
 
     org = models.ForeignKey(Org)
 
-    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this label"))
+    name = models.CharField(max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("The name of this label"))
 
     folder = models.ForeignKey('Label', verbose_name=_("Folder"), null=True, related_name="children")
 
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL, help_text=_("Label type"))
 
     visible_count = models.PositiveIntegerField(default=0,
                                                 help_text=_("Number of non-archived messages with this label"))
 
     # define some custom managers to do the filtering of label types for us
-    user_all = models.Manager()
-    user_folders = UserFolderManager()
-    user_labels = UserLabelManager()
+    all_objects = models.Manager()
+    folder_objects = UserFolderManager()
+    label_objects = UserLabelManager()
 
     @classmethod
     def get_or_create(cls, org, user, name, folder=None):
@@ -1421,14 +1512,14 @@ class Label(TembaModel, SmartModel):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
-        if folder and folder.label_type != cls.USER_FOLDER:
+        if folder and not folder.is_folder():
             raise ValueError("%s is not a label folder" % unicode(folder))
 
-        label = cls.user_labels.filter(org=org, name__iexact=name).first()
+        label = cls.label_objects.filter(org=org, name__iexact=name).first()
         if label:
             return label
 
-        return cls.user_labels.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
+        return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
     def get_or_create_folder(cls, org, user, name):
@@ -1437,11 +1528,11 @@ class Label(TembaModel, SmartModel):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid folder name: %s" % name)
 
-        folder = cls.user_folders.filter(org=org, name__iexact=name).first()
+        folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:
             return folder
 
-        return cls.user_folders.create(org=org, name=name, label_type=Label.USER_FOLDER,
+        return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                        created_by=user, modified_by=user)
 
     @classmethod
@@ -1449,16 +1540,24 @@ class Label(TembaModel, SmartModel):
         """
         Gets top-level user labels and folders, with children pre-fetched and ordered by name
         """
-        qs = Label.user_all.filter(org=org).order_by('name')
-        qs = qs.filter(Q(label_type=cls.USER_LABEL, folder=None) | Q(label_type=cls.USER_FOLDER))
+        qs = Label.all_objects.filter(org=org).order_by('name')
+        qs = qs.filter(Q(label_type=cls.TYPE_LABEL, folder=None) | Q(label_type=cls.TYPE_FOLDER))
 
-        children_prefetch = Prefetch('children', queryset=Label.user_all.order_by('name'))
+        children_prefetch = Prefetch('children', queryset=Label.all_objects.order_by('name'))
 
         return qs.select_related('folder').prefetch_related(children_prefetch)
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and name[0] not in ('+', '-', '@')
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        # first character must be a word char
+        return regex.match('\w', name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():
@@ -1482,7 +1581,7 @@ class Label(TembaModel, SmartModel):
         """
         Adds or removes this label from the given messages
         """
-        if self.label_type != self.USER_LABEL:
+        if self.is_folder():
             raise ValueError("Can only assign messages to user labels")
 
         changed = set()
@@ -1490,6 +1589,9 @@ class Label(TembaModel, SmartModel):
         for msg in msgs:
             if msg.direction != INCOMING:
                 raise ValueError("Can only apply labels to incoming messages")
+
+            if msg.contact.is_test:
+                raise ValueError("Cannot apply labels to test messages")
 
             # if we are adding the label and this message doesnt have it, add it
             if add:
@@ -1506,7 +1608,7 @@ class Label(TembaModel, SmartModel):
         return changed
 
     def is_folder(self):
-        return self.label_type == Label.USER_FOLDER
+        return self.label_type == Label.TYPE_FOLDER
 
     def __unicode__(self):
         if self.folder:
@@ -1534,6 +1636,22 @@ class ExportMessagesTask(SmartModel):
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     task_id = models.CharField(null=True, max_length=64)
+    is_finished = models.BooleanField(default=False,
+                                      help_text=_("Whether this export is finished running"))
+
+    def start_export(self):
+        """
+        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
+        """
+        try:
+            start = time.time()
+            self.do_export()
+        finally:
+            elapsed = time.time() - start
+            analytics.track(self.created_by.username, 'temba.msg_export_latency', properties=dict(value=elapsed))
+
+            self.is_finished = True
+            self.save(update_fields=['is_finished'])
 
     def do_export(self):
         from xlwt import Workbook, XFStyle
@@ -1545,7 +1663,7 @@ class ExportMessagesTask(SmartModel):
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
-        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.user_labels.order_by('name')))
+        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.label_objects.order_by('name')))
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())

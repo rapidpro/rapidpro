@@ -4,6 +4,12 @@ from django.template import loader, Context
 from django.conf import settings
 
 
+def link_components(request=None, user=None):
+    protocol = 'https' if request.is_secure() else 'http'
+    hostname = request.branding['domain']
+    return {'protocol': protocol, 'hostname': hostname}
+
+
 def send_temba_email(to_email, subject, template, context, branding):
     """
     Utility method that sends a pretty email, attaching our logo

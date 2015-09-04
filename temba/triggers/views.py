@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 import json
-import re
+import regex
 
 from datetime import timedelta
 from django import forms
@@ -41,7 +41,7 @@ class BaseTriggerForm(forms.ModelForm):
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
 
-        if keyword and not re.match('^\w+$', keyword, flags=re.UNICODE):
+        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
 
         # make sure it is unique on this org
@@ -122,7 +122,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
-        if keyword and not re.match('^\w+$', keyword, flags=re.UNICODE):
+        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
         return keyword.lower()
 
@@ -266,7 +266,7 @@ class TriggerActionMixin(SmartListView):
 
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
-    actions = ('list', 'create', 'update', 'delete', 'archived',
+    actions = ('list', 'create', 'update', 'archived',
                'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow')
 
     class OrgMixin(OrgPermsMixin):

@@ -4,23 +4,25 @@ import datetime
 import json
 import os
 import phonenumbers
-import re
+import regex
+import time
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
-from temba.orgs.models import Org, OrgModelMixin, OrgEvent, OrgLock
+from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str
 from temba.utils.models import TembaModel
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT
+from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
@@ -30,13 +32,13 @@ RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
 # phone number for every org's test contact
-OLD_TEST_CONTACT_TEL = '+12065551212'
+OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
 
 
-class ContactField(models.Model, OrgModelMixin):
+class ContactField(models.Model):
     """
     Represents a type of field that can be put on Contacts.
     """
@@ -54,8 +56,8 @@ class ContactField(models.Model, OrgModelMixin):
 
     @classmethod
     def make_key(cls, label):
-        key = re.sub(r'([^a-z0-9]+)', ' ', label.lower())
-        return re.sub(r'([^a-z0-9]+)', '_', key.strip())
+        key = regex.sub(r'([^a-z0-9]+)', ' ', label.lower(), regex.V0)
+        return regex.sub(r'([^a-z0-9]+)', '_', key.strip(), regex.V0)
 
     @classmethod
     def api_make_key(cls, label):
@@ -68,7 +70,7 @@ class ContactField(models.Model, OrgModelMixin):
 
     @classmethod
     def is_valid_label(cls, label):
-        return re.match(r'^[A-Za-z0-9\- ]+$', label)
+        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
 
     @classmethod
     def hide_field(cls, org, key):
@@ -125,7 +127,7 @@ class ContactField(models.Model, OrgModelMixin):
             else:
                 # we need to create a new contact field, use our key with invalid chars removed
                 if not label:
-                    label = re.sub(r'([A-Za-z0-9\- ]+)', ' ', key).title()
+                    label = regex.sub(r'([A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
 
                 if not value_type:
                     value_type = TEXT
@@ -142,13 +144,17 @@ class ContactField(models.Model, OrgModelMixin):
     def get_by_label(cls, org, label):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
+    @classmethod
+    def get_state_field(cls, org):
+        return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
+
     def __unicode__(self):
         return "%s" % self.label
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel, OrgModelMixin):
+class Contact(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -185,7 +191,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return self.all_groups.filter(group_type=USER_DEFINED_GROUP)
+        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     def as_json(self):
         obj = dict(id=self.pk, name=unicode(self))
@@ -264,6 +270,23 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         else:
             return value.string_value
 
+    @classmethod
+    def serialize_field_value(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == DATETIME:
+            return datetime_to_str(value.datetime_value)
+        elif field.value_type == DECIMAL:
+            return format_decimal(value.decimal_value)
+        elif value.category:
+            return value.category
+        else:
+            return value.string_value
+
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
 
@@ -278,7 +301,16 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             str_value = unicode(value)
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
-            loc_value = self.org.parse_location(value, 2 if field.value_type == DISTRICT else 1)
+            loc_value = None
+
+            if field.value_type == DISTRICT:
+                state_field = ContactField.get_state_field(self.org)
+                if state_field:
+                    state_value = self.get_field(state_field.key)
+                    if state_value:
+                        loc_value = self.org.parse_location(value, 2, state_value.location_value)
+            else:
+                loc_value = self.org.parse_location(value, 1)
 
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
@@ -296,7 +328,7 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                     existing.category = None
 
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category'])
+                                             'location_value', 'category', 'modified_on'])
 
             # otherwise, create a new value for it
             else:
@@ -445,12 +477,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 updated_attrs = dict(name=name, org=org, created_by=user, modified_by=user, is_test=is_test)
                 contact = Contact.objects.create(**updated_attrs)
 
-                # add it to our All Contacts group
-                if not contact.is_test:
-                    ContactGroup.system_groups.get(org=org, group_type=ALL_CONTACTS_GROUP).contacts.add(contact)
-
-                org.update_caches(OrgEvent.contact_new, contact)
-
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
 
@@ -559,8 +585,17 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
                 urn_scheme = TEL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
+                # at this point the number might be a decimal, something that looks like '18094911278.0' due to
+                # excel formatting that field as numeric.. try to parse it into an int instead
+                try:
+                    value = str(int(float(value)))
+                except ValueError:
+                    # oh well, neither of those, stick to the plan, maybe we can make sense of it below
+                    pass
+
                 # only allow valid numbers
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)
+
                 if not is_valid:
                     return None
                 # in the past, test contacts have ended up in exports. Don't re-import them
@@ -605,7 +640,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
 
         return contact
                 
-
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or not 'org_id' in import_params or not 'extra_fields' in import_params:
@@ -799,13 +833,14 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         Blocks this contact removing it from all groups
         """
+        if self.is_test:
+            raise ValueError("Can't block a test contact")
+
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
-        for group in self.all_groups.all():
+        for group in self.user_groups.all():
             group.update_contacts([self], False)
-
-        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.add(self)
 
     def unblock(self):
         """
@@ -814,21 +849,15 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-        ContactGroup.system_groups.get(org=self.org, group_type=BLOCKED_CONTACTS_GROUP).contacts.remove(self)
-        ContactGroup.system_groups.get(org=self.org, group_type=ALL_CONTACTS_GROUP).contacts.add(self)
-
-        # if contact is failed then it should go back into the failed group
-        if self.is_failed:
-            ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
-
     def fail(self):
         """
         Fails this contact, provided it is currently normal
         """
+        if self.is_test:
+            raise ValueError("Can't fail a test contact")
+
         self.is_failed = True
         self.save(update_fields=['is_failed'])
-
-        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.add(self)
 
     def unfail(self):
         """
@@ -836,8 +865,6 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
         """
         self.is_failed = False
         self.save(update_fields=['is_failed'])
-
-        ContactGroup.system_groups.get(org=self.org, group_type=FAILED_CONTACTS_GROUP).contacts.remove(self)
 
     def release(self):
         """
@@ -852,12 +879,16 @@ class Contact(TembaModel, SmartModel, OrgModelMixin):
             self.urns.update(contact=None)
 
             # remove contact from all groups
-            for group in self.all_groups.all():
+            for group in self.user_groups.all():
                 group.update_contacts((self,), False)
 
-            # delete all messages with this contact
+            # release all messages with this contact
             for msg in self.msgs.all():
                 msg.release()
+
+            # release all calls with this contact
+            for call in self.calls.all():
+                call.release()
 
             # remove all flow runs and steps
             for run in self.runs.all():
@@ -1209,7 +1240,7 @@ class ContactURN(models.Model):
 
             return True  # if we don't have a channel with country, we can't for now validate tel numbers
         elif scheme == TWITTER_SCHEME:
-            return re.match(r'^[a-zA-Z0-9_]{1,15}$', path)
+            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
         else:
             return False  # only tel and twitter currently supported
 
@@ -1243,10 +1274,10 @@ class ContactURN(models.Model):
             number = number[0:-4].replace('.', '')
 
         # remove other characters
-        number = re.sub('[^0-9a-z\+]', '', number.lower())
+        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
-        if len(number) > 11 and number[0] != '+':
+        if len(number) >= 11 and number[0] != '+':
             number = '+' + number
 
         normalized = None
@@ -1263,7 +1294,7 @@ class ContactURN(models.Model):
             pass
 
         # this must be a local number of some kind, just lowercase and save
-        return re.sub('[^0-9a-z]', '', number.lower()), False
+        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
 
     def ensure_number_normalization(self, channel):
         """
@@ -1312,31 +1343,34 @@ class ContactURN(models.Model):
         unique_together = ('urn', 'org')
         ordering = ('-priority', 'id')
 
-USER_DEFINED_GROUP = 'U'
-BLOCKED_CONTACTS_GROUP = 'B'
-FAILED_CONTACTS_GROUP = 'F'
-ALL_CONTACTS_GROUP = 'A'
-
-GROUP_TYPE_CHOICES = ((ALL_CONTACTS_GROUP, "All Contacts"),
-                      (BLOCKED_CONTACTS_GROUP, "Blocked Contacts"),
-                      (FAILED_CONTACTS_GROUP, "Failed Contacts"),
-                      (USER_DEFINED_GROUP, "User Defined Groups"))
-
 
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=USER_DEFINED_GROUP)
+        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(UserContactGroupManager, self).get_queryset().filter(group_type=USER_DEFINED_GROUP)
+        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class ContactGroup(TembaModel, SmartModel):
-    name = models.CharField(verbose_name=_("Name"), max_length=64, help_text=_("The name for this contact group"))
+    MAX_NAME_LEN = 64
 
-    group_type = models.CharField(max_length=1, choices=GROUP_TYPE_CHOICES, default=USER_DEFINED_GROUP,
+    TYPE_ALL = 'A'
+    TYPE_BLOCKED = 'B'
+    TYPE_FAILED = 'F'
+    TYPE_USER_DEFINED = 'U'
+
+    TYPE_CHOICES = ((TYPE_ALL, "All Contacts"),
+                    (TYPE_BLOCKED, "Blocked Contacts"),
+                    (TYPE_FAILED, "Failed Contacts"),
+                    (TYPE_USER_DEFINED, "User Defined Groups"))
+
+    name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
+                            help_text=_("The name of this contact group"))
+
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED,
                                   help_text=_("What type of group it is, either user defined or one of our system groups"))
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
@@ -1368,7 +1402,7 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()[:64]
+        full_group_name = name.strip()[:cls.MAX_NAME_LEN]
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
@@ -1391,12 +1425,23 @@ class ContactGroup(TembaModel, SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and not (name.startswith('+') or name.startswith('-'))
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        # first character must be a word char
+        return regex.match('\w', name[0], flags=regex.UNICODE)
 
     def update_contacts(self, contacts, add):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
+        if self.group_type != self.TYPE_USER_DEFINED:
+            raise ValueError("Can't add or remove test contacts from system groups")
+
         changed = set()
         group_contacts = self.contacts.all()
 
@@ -1433,7 +1478,7 @@ class ContactGroup(TembaModel, SmartModel):
 
         self.query_fields.clear()
 
-        for match in re.finditer(r'\w+', self.query):
+        for match in regex.finditer(r'\w+', self.query, regex.V0):
             field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
             if field:
                 self.query_fields.add(field)
@@ -1464,6 +1509,24 @@ class ContactGroup(TembaModel, SmartModel):
 
         return group_change
 
+    @classmethod
+    def get_system_group_queryset(cls, org, group_type):
+        if group_type == cls.TYPE_USER_DEFINED:
+            raise ValueError("Can only get system group querysets")
+
+        return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
+
+    @classmethod
+    def get_system_group_counts(cls, org, group_types=None):
+        """
+        Gets all system label counts by type for the given org
+        """
+        groups = cls.system_groups.filter(org=org)
+        if group_types:
+            groups = groups.filter(group_type__in=group_types)
+
+        return {g.group_type: g.count for g in groups}
+
     def get_member_count(self):
         """
         Returns the number of active and non-test contacts in the group
@@ -1477,6 +1540,10 @@ class ContactGroup(TembaModel, SmartModel):
         self.is_active = False
         self.save()
         self.contacts.clear()
+
+        # delete any event fires related to our group
+        from temba.campaigns.models import EventFire
+        EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
 
         Value.invalidate_cache(group=self)
 
@@ -1498,6 +1565,23 @@ class ExportContactsTask(SmartModel):
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     task_id = models.CharField(null=True, max_length=64)
+    is_finished = models.BooleanField(default=False,
+                                      help_text=_("Whether this export has completed"))
+
+    def start_export(self):
+        """
+        Starts our export, this just wraps our do-export in a try/finally so we can track
+        when the export is complete.
+        """
+        try:
+            start = time.time()
+            self.do_export()
+        finally:
+            elapsed = time.time() - start
+            analytics.track(self.created_by.username, 'temba.contact_export_latency', properties=dict(value=elapsed))
+
+            self.is_finished = True
+            self.save(update_fields=['is_finished'])
 
     def do_export(self):
         from xlwt import Workbook

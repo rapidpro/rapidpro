@@ -7,9 +7,9 @@
       %a.icon-nav-messages{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|sms/filter|sms/flow|sms/archived|failed' %}"}
         .title
           -trans "messages"
-      -if unread_msg_count
+      -if msgs_unread_count
         .notification
-          {{unread_msg_count}}
+          {{ msgs_unread_count }}
 
   -if org_perms.contacts.contact_list and not request.user.is_superuser
     %li.nav-contacts

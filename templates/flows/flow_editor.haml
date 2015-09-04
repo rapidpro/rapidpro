@@ -183,7 +183,7 @@
   #versions{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
     %h4
       Revision History
-    .version{ng-repeat:'version in versions', ng-class:'{selected:version.selected}'}
+    .version{ng-repeat:'version in versions()', ng-class:'{selected:version.selected}'}
 
 
       <a ng-click='showVersion(version)' href='#'>[[version.created_on|date:'medium']]</a>
@@ -194,7 +194,7 @@
           [[version.user.email]]
 
 
-  #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:''}
+  #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:'', ng-init:"init()"}
     -include "flows/simulator.html"
 
     #toolbar
@@ -213,12 +213,12 @@
 
       .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == $root.language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
 
         .translated
-          %span.pct{ng-show:'flow.base_language != $root.language.iso_code'}
+          %span.pct{ng-show:'flow.base_language != language.iso_code'}
             [[flow._pctTranslated]]% translated
 
     #status.hide
@@ -436,22 +436,38 @@
           .flow-start{ng-show:'ruleset.uuid == flow.entry'}
             -trans "Flow Start"
 
-          .webhook-header{ng-show:'ruleset.webhook != null', ng-click:'clickWebhook(ruleset)'}
-            .title
-              -trans "Webhook"
-
-            .remove-warning
-              -trans "Remove Webhook?"
-
-            .remove.icon-close{ ng-click: 'confirmRemoveWebhook($event, ruleset); $event.stopPropagation()' }
-
-            .url
-              [[ruleset.webhook]]
-
 
           .rule-header{ng-click:'clickRuleset(ruleset)'}
-            .title
+            .title.wait-message{ng-show:'ruleset.ruleset_type=="wait_message"'}
+              -trans "Wait for "
               [[ruleset.label]]
+
+            .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_recording"'}
+                -trans "Wait for Recording"
+
+            .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digit"'}
+                -trans "Wait for Menu"
+
+            .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digits"'}
+                -trans "Wait for Digits"
+
+            .title.passive.contact-field{ng-class:"{missing:getContactFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="contact_field"'}
+                -trans "Split on "
+                [[getContactFieldName(ruleset).text]]
+
+            .title.passive.flow-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="flow_field"'}
+                -trans "Split on "
+                [[getFlowFieldName(ruleset).text]]
+
+            .title.passive.form-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="form_field"'}
+                -trans "Split on field in "
+                [[getFlowFieldName(ruleset).text]]
+
+            .title.passive.webhook-header{ng-show:'ruleset.ruleset_type=="webhook"'}
+                -trans "Call Webhook"
+
+            .title.passive.expression{ng-show:'ruleset.ruleset_type=="expression"'}
+                -trans "Split by Expression"
 
             .remove-warning
               Remove Rules?

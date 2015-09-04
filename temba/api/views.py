@@ -19,10 +19,11 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
 from temba.api.models import WebHookEvent, WebHookResult
-from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, CallSerializer, CampaignSerializer
+from temba.api.serializers import BoundarySerializer, BroadcastCreateSerializer, BroadcastReadSerializer
+from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
+from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
 from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
@@ -31,7 +32,7 @@ from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, USER_DEFINED_GROUP
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
@@ -264,6 +265,8 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(ContactEndpoint.get_write_explorer())
         endpoints.append(ContactEndpoint.get_delete_explorer())
 
+        endpoints.append(ContactBulkActionEndpoint.get_write_explorer())
+
         endpoints.append(GroupEndpoint.get_read_explorer())
 
         endpoints.append(FieldEndpoint.get_read_explorer())
@@ -312,19 +315,21 @@ def api(request, format=None):
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 
+     * [/api/v1/boundaries](/api/v1/boundaries) - To retrieve the geometries of the administrative boundaries on your account.
+     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
+     * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
+     * [/api/v1/campaigns](/api/v1/campaigns) - To list or modify campaigns on your account.
      * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
+     * [/api/v1/contact_actions](/api/v1/contact_actions) - To list or modify contacts.
+     * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
      * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
+     * [/api/v1/flows](/api/v1/flows) - To list active flows
+     * [/api/v1/groups](/api/v1/groups) - To list or modify campaign events on your account.
+     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
      * [/api/v1/messages](/api/v1/messages) - To list messages.
      * [/api/v1/message_actions](/api/v1/message_actions) - To perform bulk message actions.
-     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
-     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
-     * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
-     * [/api/v1/flows](/api/v1/flows) - To list active flows
      * [/api/v1/runs](/api/v1/runs) - To list or start flow runs for contacts
-     * [/api/v1/campaigns](/api/v1/campaigns) - To list or modify campaigns on your account.
-     * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
-     * [/api/v1/boundaries](/api/v1/boundaries) - To retrieve the geometries of the administrative boundaries on your account.
 
     You may wish to use the [API Explorer](/api/v1/explorer) to interactively experiment with API.
 
@@ -394,6 +399,7 @@ def api(request, format=None):
         'calls': reverse('api.calls', request=request),
         'campaigns': reverse('api.campaigns', request=request),
         'contacts': reverse('api.contacts', request=request),
+        'contact_actions': reverse('api.contact_actions', request=request),
         'events': reverse('api.campaignevents', request=request),
         'fields': reverse('api.contactfields', request=request),
         'flows': reverse('api.flows', request=request),
@@ -458,7 +464,11 @@ class ListAPIMixin(mixins.ListModelMixin):
             query_params = self.request.QUERY_PARAMS.copy()
             if 'page' in query_params:
                 del query_params['page']
-            query_key = urllib.urlencode(sorted(query_params.lists()), doseq=True)
+
+            # param values should be in UTF8
+            encoded_params = [(p[0], [v.encode('utf-8') for v in p[1]]) for p in query_params.lists()]
+
+            query_key = urllib.urlencode(sorted(encoded_params), doseq=True)
             count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
 
             # only try to use cached count for pages other than the first
@@ -811,12 +821,12 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         types = splitting_getlist(self.request, 'type')
         if types:
@@ -1062,7 +1072,7 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
-        queryset = self.model.user_labels.filter(org=self.request.user.get_org()).order_by('-pk')
+        queryset = self.model.label_objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1615,12 +1625,12 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(all_groups__name__in=groups,
-                                       all_groups__group_type=USER_DEFINED_GROUP)
+                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
         if group_uuids:
             queryset = queryset.filter(all_groups__uuid__in=group_uuids,
-                                       all_groups__group_type=USER_DEFINED_GROUP)
+                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
@@ -1823,6 +1833,68 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         return spec
 
 
+class ContactBulkActionEndpoint(BaseAPIView):
+    """
+    ## Bulk Contact Updating
+
+    A **POST** can be used to perform an action on a set of contacts in bulk.
+
+    * **contacts** - either a single contact UUID or a JSON array of up to 100 contact UUIDs (string or array of strings)
+    * **action** - the action to perform, a string one of:
+
+            add - Add the contacts to the given group
+            remove - Remove the contacts from the given group
+            block - Block the contacts
+            unblock - Un-block the contacts
+            expire - force expiration of contacts' active flow runs
+            delete - Permanently delete the contacts
+
+    * **group** - the name of a contact group (string, optional)
+    * **group_uuid** - the UUID of a contact group (string, optional)
+
+    Example:
+
+        POST /api/v1/contact_actions.json
+        {
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "a5901b62-ba76-4003-9c62-72fdacc1b7b8"],
+            "action": "add",
+            "group": "Testers"
+        }
+
+    You will receive an empty response if successful.
+    """
+    permission = 'contacts.contact_api'
+    serializer_class = ContactBulkActionSerializer
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.serializer_class(user=user, data=request.DATA)
+
+        if serializer.is_valid():
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Update one or more contacts",
+                    url=reverse('api.contact_actions'),
+                    slug='contact-actions',
+                    request='{ "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3"], "action": "add", '
+                            '"group_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
+
+        spec['fields'] = [dict(name='contacts', required=True,
+                               help="A JSON array of one or more strings, each a contact UUID."),
+                          dict(name='action', required=True,
+                               help="One of the following strings: add, remove, block, unblock, expire, delete"),
+                          dict(name='group', required=False,
+                               help="The name of a contact group if the action is add or remove"),
+                          dict(name='label_uuid', required=False,
+                               help="The UUID of a contact group if the action is add or remove")]
+        return spec
+
+
 class FlowResultsEndpoint(BaseAPIView):
     """
     This endpoint allows you to get aggregate results for a flow ruleset, optionally segmenting the results by another
@@ -1934,7 +2006,8 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
-    * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
+    * **created_on** - the datetime when this run was started (datetime)
+    * **modified_on** - the datetime when this run was last modified (datetime) (filterable: ```before``` and ```after```)
     * **completed** - boolean indicating whether this run has completed the flow (boolean)
     * **expires_on** - the datetime when this run will expire (datetime)
     * **expired_on** - the datetime when this run expired or null if it has not yet expired (datetime or null)
@@ -2023,6 +2096,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-08-19T19:11:20.838Z"
+                "modified_on": "2013-08-19T19:11:21.088Z"
                 "values": [],
                 "steps": [
                     {
@@ -2062,25 +2136,57 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False)
+        org = self.request.user.get_org()
+        queryset = self.model.objects.all()
+
+        contact_uuids = splitting_getlist(self.request, 'contact')
+        contact_phones = splitting_getlist(self.request, 'phone')  # deprecated
+
+        # subquery on contacts to avoid join - if we're querying for specific contacts
+        if contact_uuids or contact_phones:
+            include_contacts = Contact.objects.filter(org=org, is_test=False, is_active=True)
+
+            if contact_uuids:
+                include_contacts = include_contacts.filter(uuid__in=contact_uuids)
+
+            if contact_phones:
+                include_contacts = include_contacts.filter(urns__path__in=contact_phones)
+
+            queryset = queryset.filter(contact__in=include_contacts)
+        else:
+            test_contacts = Contact.objects.filter(org=org, is_test=True)
+            queryset = queryset.exclude(contact__in=test_contacts)
+
+        # subquery on flows to avoid join
+        include_flows = Flow.objects.filter(org=org, is_active=True)
+
+        flow_ids = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
+        if flow_ids:
+            include_flows = include_flows.filter(pk__in=flow_ids)
+
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        if flow_uuids:
+            include_flows = include_flows.filter(uuid__in=flow_uuids)
+
+        # if we are filtering by flows, do so
+        if flow_ids or flow_uuids:
+            queryset = queryset.filter(flow__in=include_flows)
+
+        # otherwise, filter by org
+        else:
+            queryset = queryset.filter(org=org)
+
+        # other queries on the runs themselves...
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)
 
-        flows = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
-        if flows:
-            queryset = queryset.filter(flow__pk__in=flows)
-
-        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
-        if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids)
-
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(modified_on__lte=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2088,27 +2194,21 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(modified_on__gte=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phones = splitting_getlist(self.request, 'phone')  # deprecated
-        if phones:
-            queryset = queryset.filter(contact__urns__path__in=phones)
+        # it's faster to filter by contact group using a join than a subquery - especially for larger groups
 
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
-
-        contacts = splitting_getlist(self.request, 'contact')
-        if contacts:
-            queryset = queryset.filter(contact__uuid__in=contacts)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
 
@@ -2116,7 +2216,10 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                                      queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
                                      to_attr='ruleset_prefetch')
 
-        return queryset.select_related('contact', 'flow').prefetch_related(steps_prefetch, rulesets_prefetch).order_by('-created_on')
+        # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
+        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+
+        return queryset.order_by('-modified_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2134,9 +2237,9 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by.(repeatable)  ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='before', required=False,
-                               help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                               help="Only return runs which were modified before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
-                               help="Only return runs which were created after this date.  ex: 2012-01-28T18:00:00.000")]
+                               help="Only return runs which were modified after this date.  ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -2146,10 +2249,10 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     title="Add one or more contacts to a Flow",
                     url=reverse('api.runs'),
                     slug='run-post',
-                    request='{ "flow": 15015, "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
+                    request='{ "flow_uuid":"f5901b62-ba76-4003-9c62-72fdacc1b7b7" , "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
 
-        spec['fields'] = [ dict(name='flow', required=True,
-                                help="The id of the flow to start the contact(s) on, the flow cannot be archived"),
+        spec['fields'] = [ dict(name='flow_uuid', required=True,
+                                help="The uuid of the flow to start the contact(s) on, the flow cannot be archived"),
                            dict(name='phone', required=True,
                                 help="A JSON array of one or more strings, each a phone number in E164 format"),
                            dict(name='contact', required=False,
@@ -2584,7 +2687,7 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
       * **participants** - the number of contacts who have participated in this flow (integer)
       * **runs** - the total number of runs for this flow (integer)
       * **completed_runs** - the number of completed runs for this flow (integer)
-      * **rulesets** - the rulesets on this flow, including their node UUID, response type, and label
+      * **rulesets** - the rulesets on this flow, including their node UUID, ruleset type, and label
 
     Example:
 
@@ -2610,13 +2713,13 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                    {
                     "id": 17122,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "response_type": "N",
+                    "ruleset_type": "wait_message",
                     "label": "Age"
                    },
                    {
                     "id": 17128,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
-                    "response_type": "C",
+                    "ruleset_type": "wait_message",
                     "label": "Gender"
                    }
                 ]

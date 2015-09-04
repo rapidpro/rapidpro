@@ -108,7 +108,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # flow goes: passive -> recording -> msg
-        flow = self.get_flow('non_blocking_rule_ivr', flow_type=Flow.VOICE)
+        flow = self.get_flow('non_blocking_rule_ivr')
 
         # start marshall in the flow
         eminem = self.create_contact('Eminem', '+12345')
@@ -197,22 +197,27 @@ class IVRTests(FlowFileTest):
         user_settings.tel = '+18005551212'
         user_settings.save()
 
-        # start our flow
-        eric = self.create_contact('Eric Newcomer', number='+13603621737')
-        eric.is_test = True
-        eric.save()
+        # start our flow as a test contact
+        test_contact = Contact.get_test_contact(self.admin)
         Contact.set_simulation(True)
-        flow.start([], [eric])
+        flow.start([], [test_contact])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
 
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
-        # now pretend we are a normal caller
+        # explicitly hanging up on a test call should remove it
+        call.update_status('in-progress', 0)
+        call.save()
+        IVRCall.hangup_test_call(flow)
+        self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
+
         ActionLog.objects.all().delete()
-        eric.is_test = False
-        eric.save()
-        Contact.set_simulation(False)
         IVRCall.objects.all().delete()
+
+        # now pretend we are a normal caller
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        Contact.set_simulation(False)
         flow.start([], [eric], restart_participants=True)
 
         # we should have an outbound ivr call now
@@ -291,18 +296,8 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'failed', FAILED)
         test_status_update(call, 'no-answer', NO_ANSWER)
 
-        # explicitly hanging up on a test call should remove it
-        call.update_status('in-progress', 0)
-        eric.is_test = True
-        eric.save()
-        call.save()
-        IVRCall.hangup_test_call(flow)
-        self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
-
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
-        eric.is_test = False
-        eric.save()
 
         # try sending callme trigger
         from temba.msgs.models import INCOMING
@@ -339,19 +334,16 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('rule-first-ivr')
-        flow = Flow.objects.filter(name='Rule First IVR').first()
+        flow = self.get_flow('rule-first-ivr')
 
         user_settings = self.admin.get_settings()
         user_settings.tel = '+18005551212'
         user_settings.save()
 
         # start our flow
-        eric = self.create_contact('Eric Newcomer', number='+13603621737')
-        eric.is_test = True
-        eric.save()
+        test_contact = Contact.get_test_contact(self.admin)
         Contact.set_simulation(True)
-        flow.start([], [eric])
+        flow.start([], [test_contact])
 
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
@@ -370,7 +362,7 @@ class IVRTests(FlowFileTest):
 
         # make sure a message from the person on the call goes to the
         # inbox since our flow doesn't handle text messages
-        msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
+        msg = self.create_msg(direction='I', contact=test_contact, text="message during phone call")
         self.assertFalse(Flow.find_and_handle(msg))
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -383,8 +375,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('call-me-maybe')
-        flow = Flow.objects.filter(name='Call me maybe').first()
+        flow = self.get_flow('call-me-maybe')
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
@@ -394,5 +385,3 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
-
-

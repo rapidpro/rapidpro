@@ -1,17 +1,17 @@
 from __future__ import unicode_literals
-from collections import OrderedDict
 
 import copy
 import json
 import numbers
 import phonenumbers
 import pytz
-import re
+import regex
 import requests
 import time
 import xlwt
 import urllib2
 
+from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -22,7 +22,7 @@ from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -33,9 +33,10 @@ from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
-from temba.orgs.models import Org, Language
+from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
+from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel
 from temba.utils.queues import push_task
@@ -43,20 +44,6 @@ from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Val
 from twilio import twiml
 from unidecode import unidecode
 from uuid import uuid4
-
-OPEN = 'O'
-MULTIPLE_CHOICE = 'C'
-NUMERIC = 'N'
-MENU = 'M'
-KEYPAD = 'K'
-RECORDING = 'R'
-
-RESPONSE_TYPE_CHOICES = ((OPEN, "Open Ended"),
-                         (MULTIPLE_CHOICE, "Multiple Choice"),
-                         (NUMERIC, "Numeric"),
-                         (MENU, "Menu"),
-                         (KEYPAD, "Keypad"),
-                         (RECORDING, "Recording"))
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
@@ -83,6 +70,7 @@ FLOW_PROP_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 FLOW_STAT_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 
+UNREAD_FLOW_RESPONSES = 'unread_flow_responses'
 
 # the most frequently we will check if our cache needs rebuilding
 FLOW_STAT_CACHE_FREQUENCY = 24 * 60 * 60  # 1 day
@@ -94,6 +82,7 @@ class FlowLock(Enum):
     """
     participation = 1
     activity = 2
+    definition = 3
 
 
 class FlowPropsCache(Enum):
@@ -157,13 +146,14 @@ class Flow(TembaModel, SmartModel):
     RULE_SETS = 'rule_sets'
     ACTION_SETS = 'action_sets'
     RULES = 'rules'
+    CONFIG = 'config'
     ACTIONS = 'actions'
     DESTINATION = 'destination'
     LABEL = 'label'
     WEBHOOK_URL = 'webhook'
     WEBHOOK_ACTION = 'webhook_action'
     FINISHED_KEY = 'finished_key'
-    RESPONSE_TYPE = 'response_type'
+    RULESET_TYPE = 'ruleset_type'
     OPERAND = 'operand'
     METADATA = 'metadata'
     LAST_SAVED = 'last_saved'
@@ -224,6 +214,8 @@ class Flow(TembaModel, SmartModel):
     base_language = models.CharField(max_length=3, null=True, blank=True,
                                      help_text=_('The primary language for editing this flow'))
 
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
         flow = Flow.objects.create(org=org, name=name, flow_type=flow_type,
@@ -242,6 +234,10 @@ class Flow(TembaModel, SmartModel):
         flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
         flow.update_single_message_flow(message)
         return flow
+
+    @classmethod
+    def label_to_slug(cls, label):
+        return regex.sub(r'[^a-z0-9]+', '_', label.lower(), regex.V0)
 
     @classmethod
     def create_join_group(cls, org, user, group, response=None, start_flow=None):
@@ -275,6 +271,10 @@ class Flow(TembaModel, SmartModel):
         exported_flows = []
 
         for flow in flows:
+
+            # only export current versions
+            flow.ensure_current_version()
+
             # get our json with group names
             flow_definition = flow.as_json(expand_contacts=True)
             if fail_on_dependencies:
@@ -294,12 +294,10 @@ class Flow(TembaModel, SmartModel):
                                        id=flow.pk, definition=flow_definition))
 
         # get all non-schedule based triggers that are active for these flows
-        from temba.triggers.models import Trigger
         triggers = set()
         for flow in flows:
             triggers.update(flow.get_dependencies()['triggers'])
 
-        #triggers = Trigger.objects.filter(flow__in=flows, is_archived=False).exclude(trigger_type='S')
         for trigger in triggers:
             exported_triggers.append(trigger.as_json())
 
@@ -311,8 +309,9 @@ class Flow(TembaModel, SmartModel):
         """
         Import flows from our flow export file
         """
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:
+        export_version = exported_json.get('version', 0)
+        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
+        if export_version < EARLIEST_IMPORT_VERSION:
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         created_flows = []
@@ -365,7 +364,13 @@ class Flow(TembaModel, SmartModel):
                             if existing_flow:
                                 action['id'] = existing_flow.pk
 
-            flow_spec['flow'].import_definition(flow_spec['definition'])
+            definition = flow_spec.get('definition')
+
+            # migrate our flow definition forward if necessary
+            if export_version < CURRENT_EXPORT_VERSION:
+                definition = FlowVersion.migrate_definition(definition, export_version)
+
+            flow_spec['flow'].import_definition(definition)
 
         # remap our flow ids according to how they were resolved
         if 'campaigns' in exported_json:
@@ -471,6 +476,10 @@ class Flow(TembaModel, SmartModel):
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
+        # if we handled it, increment our unread count
+        if handled and not call.contact.is_test:
+            run.flow.increment_unread_responses()
+
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
@@ -492,7 +501,7 @@ class Flow(TembaModel, SmartModel):
             gather = destination.get_voice_input(response, action=callback)
 
             # recordings have to be tacked on last
-            if destination.response_type == RECORDING:
+            if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
             elif gather:
                 # nest all of our previous verbs in our gather
@@ -522,7 +531,6 @@ class Flow(TembaModel, SmartModel):
         print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
         return default_storage.save('recordings/%d/%d/runs/%d/%s.wav' %
                                     (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
-
 
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
@@ -554,19 +562,23 @@ class Flow(TembaModel, SmartModel):
         action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
         for step in action_sets:
             flow = step.run.flow
+            flow.ensure_current_version()
             action_set = ActionSet.get(flow, step.step_uuid)
 
-            destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
-            if destination:
-                flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
+            # our action set may have disappeared, in that case we just move on, ignoring this flow
+            if action_set:
+                destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
+                if destination:
+                    flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
 
-                # if we pushed them forward, we want to consider any step type
-                # they just arrived at instead of just rulesets
-                step_type_filter = None
+                    # if we pushed them forward, we want to consider any step type
+                    # they just arrived at instead of just rulesets
+                    step_type_filter = None
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
         for step in steps:
             flow = step.run.flow
+            flow.ensure_current_version()
             arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
@@ -580,14 +592,17 @@ class Flow(TembaModel, SmartModel):
             handled = Flow.handle_destination(destination, step, step.run, msg, started_flows, user_input=True)
 
             if handled:
+                # increment our unread count if this isn't the simulator
+                if not msg.contact.is_test:
+                    flow.increment_unread_responses()
+
                 return True
 
         return False
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False,
-                           force_execute_webhook=False):
+                           started_flows=None, is_test_contact=False, user_input=False):
 
         def add_to_path(path, uuid):
             if uuid in path:
@@ -608,7 +623,7 @@ class Flow(TembaModel, SmartModel):
                 should_pause = False
 
                 # if we are a ruleset against @step or we have a webhook we wait
-                if destination.is_pause(force_execute_webhook):
+                if destination.is_pause():
                     should_pause = True
 
                 if user_input or not should_pause:
@@ -640,7 +655,6 @@ class Flow(TembaModel, SmartModel):
             analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
 
         return handled
-
 
     @classmethod
     def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
@@ -1130,8 +1144,29 @@ class Flow(TembaModel, SmartModel):
             completed_percentage = 0
         return completed_percentage
 
-    def get_responses_since(self, since):
-        return self.steps().filter(step_type=RULE_SET, left_on__gte=since, run__contact__is_test=False).count()
+    def get_and_clear_unread_responses(self):
+        """
+        Gets the number of new responses since the last clearing for this flow.
+        """
+        r = get_redis_connection()
+
+        # get the number of new responses
+        new_responses = r.hget(UNREAD_FLOW_RESPONSES, self.id)
+
+        # then clear them
+        r.hdel(UNREAD_FLOW_RESPONSES, self.id)
+
+        return 0 if new_responses is None else int(new_responses)
+
+    def increment_unread_responses(self):
+        """
+        Increments the number of new responses for this flow.
+        """
+        r = get_redis_connection()
+        r.hincrby(UNREAD_FLOW_RESPONSES, self.id, 1)
+
+        # increment our global count as well
+        self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
     def get_terminal_nodes(self):
         cache_key = self.get_props_cache_key(FlowPropsCache.terminal_nodes)
@@ -1143,24 +1178,9 @@ class Flow(TembaModel, SmartModel):
         return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL, lambda: [rs.uuid for rs in self.rule_sets.all()])
 
     def get_columns(self):
-        runs = self.steps().filter(step_type=RULE_SET).exclude(rule_uuid=None).order_by('run').values('run').annotate(count=Count('run')).order_by('-count').first()
         node_order = []
-        existing = set()
-
-        if runs:
-            busiest_run = runs['run']
-            steps = self.steps().filter(run=busiest_run, step_type=RULE_SET).exclude(rule_uuid=None).order_by('arrived_on', 'pk')
-
-            for step in steps:
-                if step.step_uuid not in existing:
-                    existing.add(step.step_uuid)
-                    ruleset = RuleSet.get(step.run.flow, step.step_uuid)
-                    if ruleset:
-                        node_order.append(ruleset)
-
-        # add any nodes that weren't visited by this contact at the end
         for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk'):
-            if ruleset.uuid not in existing:
+            if ruleset.uuid:
                 node_order.append(ruleset)
 
         return node_order
@@ -1204,7 +1224,7 @@ class Flow(TembaModel, SmartModel):
 
         if results and results[0]:
             for value in results[0]['values']:
-                field = re.sub(r'[^a-z0-9]+', '_', value['label'].lower())
+                field = Flow.label_to_slug(value['label'])
                 flow_context[field] = value_wrapper(value)
                 values.append("%s: %s" % (value['label'], value['rule_value']))
 
@@ -1366,6 +1386,8 @@ class Flow(TembaModel, SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        self.ensure_current_version()
+
         if started_flows is None:
             started_flows = []
 
@@ -1404,6 +1426,10 @@ class Flow(TembaModel, SmartModel):
         if not all_contacts:
             if flow_start: flow_start.update_status()
             return
+
+        # single contact starting from a trigger? increment our unread count
+        if start_msg and len(contacts) == 1 and not all_contacts[0].is_test:
+            self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contacts, start_msg=start_msg,
@@ -1549,7 +1575,8 @@ class Flow(TembaModel, SmartModel):
 
         # update our expiration date on our runs, we do this by calculating it on one run then updating all others
         run.update_expiration(timezone.now())
-        FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on)
+        FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
+                                                                                     modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1632,12 +1659,11 @@ class Flow(TembaModel, SmartModel):
                 if start_msg:
                     self.find_and_handle(start_msg, started_flows_by_contact)
 
-                # otherwise, if this ruleset doesn't operate on a step, then evaluate it immediately
-                elif not entry_rules.requires_step():
+                # if we didn't get an incoming message, see if we need to evaluate it passively
+                elif not entry_rules.is_pause():
                     # create an empty placeholder message
                     msg = Msg(contact=contact, text='', id=0)
-                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact,
-                                            force_execute_webhook=True)
+                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
                 step.add_message(start_msg)
@@ -1662,7 +1688,8 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step, msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
+    def add_step(self, run, step,
+                 msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1966,14 +1993,7 @@ class Flow(TembaModel, SmartModel):
             destinations = []
             if rules:
 
-                # rules on @step.value require user input
-                operand = node.get('operand', '@step.value')
-
-                if not operand or RuleSet.contains_step(operand):
-                    return []
-
-                # webhooks require user input for now
-                if node.get('webhook', None):
+                if node.get('ruleset_type', None) in RuleSet.TYPE_WAIT:
                     return []
 
                 for rule in rules:
@@ -2007,6 +2027,17 @@ class Flow(TembaModel, SmartModel):
                     # no more children; pop back up a level
                     path.popitem()
         return None
+
+    def ensure_current_version(self):
+        """
+        Makes sure the flow is at the current version. If it isn't it will
+        migrate the defintion forward updating the flow accordingly.
+        """
+        if self.version_number < CURRENT_EXPORT_VERSION:
+            with self.lock_on(FlowLock.definition):
+                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number)
+                self.update(json_flow)
+                # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
 
     def update(self, json_dict, user=None, force=False):
         """
@@ -2075,10 +2106,6 @@ class Flow(TembaModel, SmartModel):
                 if actions:
                     current_actionsets[uuid] = actions
 
-            entry = json_dict.get('entry', None)
-            if entry:
-                destinations.add(entry)
-
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
                 uuid = ruleset.get(Flow.UUID)
                 current_rulesets[uuid] = ruleset
@@ -2094,7 +2121,11 @@ class Flow(TembaModel, SmartModel):
                 webhook_action = ruleset.get(Flow.WEBHOOK_ACTION, None)
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
-                response_type = ruleset.get(Flow.RESPONSE_TYPE)
+                ruleset_type = ruleset.get(Flow.RULESET_TYPE)
+                config = ruleset.get(Flow.CONFIG)
+
+                if not config:
+                    config = dict()
 
                 # cap our lengths
                 label = label[:64]
@@ -2140,7 +2171,8 @@ class Flow(TembaModel, SmartModel):
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
-                    existing.response_type = response_type
+                    existing.ruleset_type = ruleset_type
+                    existing.set_config(config)
                     (existing.x, existing.y) = (x, y)
                     existing.save()
                 else:
@@ -2152,8 +2184,9 @@ class Flow(TembaModel, SmartModel):
                                                       webhook_url=webhook_url,
                                                       webhook_action=webhook_action,
                                                       finished_key=finished_key,
-                                                      response_type=response_type,
+                                                      ruleset_type=ruleset_type,
                                                       operand=operand,
+                                                      config=json.dumps(config),
                                                       x=x, y=y)
 
                 existing_rulesets[uuid] = existing
@@ -2228,20 +2261,26 @@ class Flow(TembaModel, SmartModel):
                 if not destination in existing_rulesets and not destination in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
+
+            entry = json_dict.get('entry', None)
+
+            # check if we are pointing to a destination that is no longer valid
+            if entry not in existing_rulesets and entry not in existing_actionsets:
+                entry = None
+
             if not entry and top_uuid:
                 entry = top_uuid
 
             # set our entry
-            if entry:
-                if entry in existing_actionsets:
-                    self.entry_uuid = entry
-                    self.entry_type = Flow.ACTIONS_ENTRY
-                elif entry in existing_rulesets:
-                    self.entry_uuid = entry
-                    self.entry_type = Flow.RULES_ENTRY
-                else:
-                    self.entry_uuid = None
-                    self.entry_type = None
+            if entry in existing_actionsets:
+                self.entry_uuid = entry
+                self.entry_type = Flow.ACTIONS_ENTRY
+            elif entry in existing_rulesets:
+                self.entry_uuid = entry
+                self.entry_type = Flow.RULES_ENTRY
+            else:
+                self.entry_uuid = None
+                self.entry_type = None
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
@@ -2254,6 +2293,7 @@ class Flow(TembaModel, SmartModel):
             if user:
                 self.saved_by = user
             self.saved_on = timezone.now()
+            self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
             # clear property cache
@@ -2267,7 +2307,10 @@ class Flow(TembaModel, SmartModel):
             self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
 
             # create a new version
-            self.versions.create(definition=json.dumps(json_dict), created_by=user, modified_by=user)
+            self.versions.create(definition=json.dumps(json_dict),
+                                 created_by=user,
+                                 modified_by=user,
+                                 version_number=CURRENT_EXPORT_VERSION)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
 
@@ -2287,6 +2330,28 @@ class Flow(TembaModel, SmartModel):
 
 
 class RuleSet(models.Model):
+
+    TYPE_WAIT_MESSAGE = 'wait_message'
+    TYPE_WAIT_RECORDING = 'wait_recording'
+    TYPE_WAIT_DIGIT = 'wait_digit'
+    TYPE_WAIT_DIGITS = 'wait_digits'
+    TYPE_WEBHOOK = 'webhook'
+    TYPE_FLOW_FIELD = 'flow_field'
+    TYPE_FORM_FIELD = 'form_field'
+    TYPE_CONTACT_FIELD = 'contact_field'
+    TYPE_EXPRESSION = 'expression'
+
+    TYPE_WAIT = [ TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS ]
+
+    TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
+                    (TYPE_WAIT_RECORDING, "Wait for recording"),
+                    (TYPE_WAIT_DIGIT, "Wait for digit"),
+                    (TYPE_WAIT_DIGITS, "Wait for digits"),
+                    (TYPE_WEBHOOK, "Webhook"),
+                    (TYPE_FLOW_FIELD, "Split on flow field"),
+                    (TYPE_CONTACT_FIELD, "Split on contact field"),
+                    (TYPE_EXPRESSION, "Split by expression"))
+
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='rule_sets')
 
@@ -2309,8 +2374,13 @@ class RuleSet(models.Model):
     value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
                                   help_text="The type of value this ruleset saves")
 
-    response_type = models.CharField(max_length=1, choices=RESPONSE_TYPE_CHOICES, default=OPEN,
-                                     help_text="The type of response that is being saved")
+    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES, null=True,
+                                    help_text="The type of ruleset")
+
+    response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
+
+    config = models.TextField(null=True, verbose_name=_("Ruleset Configuration"),
+                              help_text=_("RuleSet type specific configuration"))
 
     x = models.IntegerField()
     y = models.IntegerField()
@@ -2336,6 +2406,15 @@ class RuleSet(models.Model):
             return True
 
         return False
+
+    def config_json(self):
+        if not self.config:
+            return dict()
+        else:
+            return json.loads(self.config)
+
+    def set_config(self, config):
+        self.config = json.dumps(config)
 
     def build_uuid_to_category_map(self):
         flow_language = self.flow.base_language
@@ -2399,37 +2478,16 @@ class RuleSet(models.Model):
     def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
-        if self.response_type == RECORDING:
+        if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
             return voice_response
-        elif self.response_type == KEYPAD:
+        elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
         else:
             # otherwise we assume it's single digit entry
             return voice_response.gather(numDigits=1, timeout=60, action=action)
 
-    def is_pause(self, force_execute_webhook=False):
-        if self.webhook_url and not force_execute_webhook:
-            return True
-
-        if self.response_type in (RECORDING, MENU):
-            return True
-
-        if self.requires_step():
-            return True
-
-        return False
-
-    def requires_step(self):
-        """
-        Returns whether this RuleSet requires a step for the contact, this is either a message or user
-        interaction of somekind. We derive this by looking to see if we have a webhook that uses step
-        or whether any of our rules use @step in them.
-        """
-
-        if not self.operand:
-            return True
-
-        return RuleSet.contains_step(self.operand)
+    def is_pause(self):
+        return self.ruleset_type in RuleSet.TYPE_WAIT
 
     def find_matching_rule(self, step, run, msg):
 
@@ -2439,36 +2497,51 @@ class RuleSet(models.Model):
 
         context = run.flow.build_message_context(run.contact, msg)
 
-        if self.webhook_url:
+        if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
             from temba.api.models import WebHookEvent
             (value, missing) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                         org=run.flow.org, url_encode=True)
-            WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                            run.contact, msg, self.webhook_action)
+            result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
+                                                     run.contact, msg, self.webhook_action)
 
             # rebuild our context again, the webhook may have populated something
             context = run.flow.build_message_context(run.contact, msg)
 
-        # if we have a custom operand, figure that out
-        text = None
-        if self.operand:
-            (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
-        elif msg:
-            text = msg.text
+            rule = self.get_rules()[0]
+            rule.category = run.flow.get_base_text(rule.category)
 
-        try:
-            rules = self.get_rules()
-            for rule in rules:
-                (result, value) = rule.matches(run, msg, context, text)
-                if result > 0:
-                    # treat category as the base category
-                    rule.category = run.flow.get_base_text(rule.category)
-                    return rule, value
-        finally:
-            if msg:
-                msg.text = orig_text
+            # return the webhook result body as the value
+            return rule, result.body
 
-        return None, None
+        else:
+
+            # if it's a form field, construct an expression accordingly
+            if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+                config = self.config_json()
+                delim = config.get('field_delimiter', ' ')
+                self.operand = '=field(%s, %d, "%s")' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
+
+            # if we have a custom operand, figure that out
+            text = None
+            if self.operand:
+                (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
+            elif msg:
+                text = msg.text
+
+
+            try:
+                rules = self.get_rules()
+                for rule in rules:
+                    (result, value) = rule.matches(run, msg, context, text)
+                    if result > 0:
+                        # treat category as the base category
+                        rule.category = run.flow.get_base_text(rule.category)
+                        return rule, value
+            finally:
+                if msg:
+                    msg.text = orig_text
+
+            return None, None
 
     def save_run_value(self, run, rule, value, recording=False):
         value = unicode(value)[:640]
@@ -2496,6 +2569,10 @@ class RuleSet(models.Model):
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
 
+        # output the new value if in the simulator
+        if run.contact.is_test:
+            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(self.label)))
+
     def get_step_type(self):
         return RULE_SET
 
@@ -2520,8 +2597,8 @@ class RuleSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
-                    finished_key=self.finished_key, response_type=self.response_type,
-                    operand=self.operand)
+                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
+                    operand=self.operand, config=self.config_json())
 
     def __unicode__(self):
         if self.label:
@@ -2625,12 +2702,192 @@ class FlowVersion(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='versions')
     definition = models.TextField(help_text=_("The JSON flow definition"))
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
-    def as_json(self):
-        return dict(user=dict(email=self.created_by.username, name=self.created_by.get_full_name()), created_on=datetime_to_str(self.created_on), definition=json.loads(self.definition))
+    @classmethod
+    def migrate_definition(cls, json_flow, version):
 
+        def remove_extra_rules(ruleset):
+            """ Remove all rules but the all responses rule """
+            rules = []
+            old_rules = ruleset.get('rules')
+            for rule in old_rules:
+                if rule['test']['type'] == 'true':
+                    if 'base_language' in json_flow:
+                        rule['category'][json_flow['base_language']] = 'All Responses'
+                    else:
+                        rule['category'] = 'All Responses'
+                    rules.append(rule)
+
+            ruleset['rules'] = rules
+
+        def insert_node(flow, node, _next):
+            """ Inserts a node right before _next """
+
+            def update_destination(node_to_update, uuid):
+                if node_to_update.get('actions', []):
+                    node_to_update['destination'] = uuid
+                else:
+                    for rule in node_to_update.get('rules',[]):
+                        rule['destination'] = uuid
+
+            # make sure we have a fresh uuid
+            node['uuid'] = _next['uuid']
+            _next['uuid'] = unicode(uuid4())
+            update_destination(node, _next['uuid'])
+
+            # bump everybody down
+            for actionset in flow.get('action_sets'):
+                if actionset.get('y') >= node.get('y'):
+                    actionset['y'] += 100
+
+            for ruleset in flow.get('rule_sets'):
+                if ruleset.get('y') >= node.get('y'):
+                    ruleset['y'] += 100
+
+            # we are an actionset
+            if node.get('actions', []):
+                node.destination = _next.uuid
+                flow['action_sets'].append(node)
+
+            # otherwise point all rules to the same place
+            else:
+                for rule in node.get('rules', []):
+                    rule['destination'] = _next['uuid']
+                flow['rule_sets'].append(node)
+
+        while (version != CURRENT_EXPORT_VERSION):
+
+            # Move from version 4 to version 5
+            if version == 4:
+
+                def requires_step(operand):
+
+                    if not operand:
+                        operand = '@step.value'
+
+                    # remove any padding
+                    operand = operand.strip()
+
+                    # if we start with =( then we are an expression
+                    is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
+                    if '@step' in operand or (is_expression and 'step' in operand):
+                        return True
+                    return False
+
+                for ruleset in json_flow.get('rule_sets'):
+
+                    response_type = ruleset.pop('response_type', None)
+                    ruleset_type = ruleset.get('ruleset_type', None)
+                    label = ruleset.get('label')
+
+                    # remove config from any rules, these are turds
+                    for rule in ruleset.get('rules'):
+                        if 'config' in rule:
+                            del rule['config']
+
+                    if response_type and not ruleset_type:
+
+                        # webhooks now live in their own ruleset, insert one
+                        webhook_url = ruleset.pop('webhook', None)
+                        webhook_action = ruleset.pop('webhook_action', None)
+
+                        has_old_webhook = webhook_url and ruleset_type != RuleSet.TYPE_WEBHOOK
+
+                        # determine our type from our operand
+                        operand = ruleset.get('operand')
+                        if not operand:
+                            operand = '@step.value'
+
+                        operand = operand.strip()
+
+                        # all previous ruleset that require step should be wait_message
+                        if requires_step(operand):
+                            # if we have an empty operand, go ahead and update it
+                            if not operand:
+                                ruleset['operand'] = '@step.value'
+
+                            if response_type == 'K':
+                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGITS
+                            elif response_type == 'M':
+                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGIT
+                            elif response_type == 'R':
+                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_RECORDING
+                            else:
+
+                                if operand == '@step.value':
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                else:
+
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+
+                                    # if it's not a plain split, make us wait and create
+                                    # an expression split node to handle our response
+                                    pausing_ruleset = copy.deepcopy(ruleset)
+                                    pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                    pausing_ruleset['operand'] = '@step.value'
+                                    pausing_ruleset['label'] = label + ' Response'
+                                    remove_extra_rules(pausing_ruleset)
+                                    insert_node(json_flow, pausing_ruleset, ruleset)
+
+                        else:
+                            # if there's no reference to step, figure out our type
+                            ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+                            # special case contact and flow fields
+                            if ' ' not in operand and '|' not in operand:
+                                if operand == '@contact.groups':
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
+                                elif operand.find('@contact.') == 0:
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_CONTACT_FIELD
+                                elif operand.find('@flow.') == 0:
+                                    ruleset['ruleset_type'] = RuleSet.TYPE_FLOW_FIELD
+
+                            # we used to stop at webhooks, now we need a new node
+                            # to make sure processing stops at this step now
+                            if has_old_webhook:
+                                pausing_ruleset = copy.deepcopy(ruleset)
+                                pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                                pausing_ruleset['operand'] = '@step.value'
+                                pausing_ruleset['label'] = label + ' Response'
+                                remove_extra_rules(pausing_ruleset)
+                                insert_node(json_flow, pausing_ruleset, ruleset)
+
+                        # finally insert our webhook node if necessary
+                        if has_old_webhook:
+                            webhook_ruleset = copy.deepcopy(ruleset)
+                            webhook_ruleset['webhook'] = webhook_url
+                            webhook_ruleset['webhook_action'] = webhook_action
+                            webhook_ruleset['operand'] = '@step.value'
+                            webhook_ruleset['ruleset_type'] = RuleSet.TYPE_WEBHOOK
+                            webhook_ruleset['label'] = label + ' Webhook'
+                            remove_extra_rules(webhook_ruleset)
+                            insert_node(json_flow, webhook_ruleset, ruleset)
+
+            # look for our next version
+            version +=1
+
+        return json_flow
+
+    def get_definition_json(self):
+
+        definition = json.loads(self.definition)
+
+        # migrate our definition if necessary
+        if self.version_number < CURRENT_EXPORT_VERSION:
+            definition = FlowVersion.migrate_definition(definition, self.version_number)
+
+        return definition
+
+    def as_json(self, include_definition=False):
+        return dict(user=dict(email=self.created_by.username,
+                    name=self.created_by.get_full_name()),
+                    created_on=datetime_to_str(self.created_on),
+                    id=self.pk,
+                    version_number=self.version_number)
 
 class FlowRun(models.Model):
+    org = models.ForeignKey(Org, related_name='runs', db_index=False)
+
     flow = models.ForeignKey(Flow, related_name='runs')
 
     contact = models.ForeignKey(Contact, related_name='runs')
@@ -2647,20 +2904,21 @@ class FlowRun(models.Model):
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
 
-    expires_on = models.DateTimeField(blank=True,
-                                      null=True,
+    expires_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run will expire"))
 
-    expired_on = models.DateTimeField(blank=True,
-                                      null=True,
+    expired_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run expired"))
+
+    modified_on = models.DateTimeField(auto_now=True,
+                                       help_text=_("When this flow run was last updated"))
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
     @classmethod
     def create(cls, flow, contact, start=None, call=None, fields=None, created_on=None, db_insert=True):
-        args = dict(flow=flow, contact=contact, start=start, call=call, fields=fields)
+        args = dict(org=flow.org, flow=flow, contact=contact, start=start, call=call, fields=fields)
 
         if created_on:
             args['created_on'] = created_on
@@ -2676,10 +2934,10 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, (str, unicode)):
-            return (fields[:255], count+1)
+            return fields[:255], count+1
 
         elif isinstance(fields, numbers.Number):
-            return (fields, count+1)
+            return fields, count+1
 
         elif isinstance(fields, dict):
             count += 1
@@ -2690,7 +2948,7 @@ class FlowRun(models.Model):
                 if count >= 128:
                     break
 
-            return (field_dict, count)
+            return field_dict, count
 
         elif isinstance(fields, list):
             count += 1
@@ -2701,19 +2959,18 @@ class FlowRun(models.Model):
                 if count >= 128:
                     break
 
-            return (list_dict, count)
+            return list_dict, count
 
         else:
-            return (unicode(fields), count+1)
+            return unicode(fields), count+1
 
     @classmethod
-    def do_expire_runs(cls, runs):
+    def do_expire_runs(cls, runs, batch_size=1000):
         """
         Expires a set of runs
         """
-
-        # let's optimize by only selecting what we need
-        runs = runs.order_by('flow').values('pk', 'flow')
+        # let's optimize by only selecting what we need and loading the actual ids
+        runs = list(runs.order_by('flow').values('id', 'flow'))
 
         # remove activity for each run, batched by flow
         last_flow = None
@@ -2722,21 +2979,24 @@ class FlowRun(models.Model):
         for run in runs:
             if run['flow'] != last_flow:
                 if expired_runs:
-                    flow = Flow.objects.filter(pk=last_flow).first()
+                    flow = Flow.objects.filter(id=last_flow).first()
                     if flow:
                         flow.remove_active_for_run_ids(expired_runs)
                 expired_runs = []
-            expired_runs.append(run['pk'])
+            expired_runs.append(run['id'])
             last_flow = run['flow']
 
         # same thing for our last batch if we have one
         if expired_runs:
-            flow = Flow.objects.filter(pk=last_flow).first()
+            flow = Flow.objects.filter(id=last_flow).first()
             if flow:
                 flow.remove_active_for_run_ids(expired_runs)
 
-        # finally, update the columns in the database with new expiration
-        runs.filter(is_active=True).update(is_active=False, expired_on=timezone.now())
+        # finally, update our db with the new expirations
+        # batch this for 1,000 runs at a time so we don't grab locks for too long
+        batches = [runs[i:i + batch_size] for i in range(0, len(runs), batch_size)]
+        for batch in batches:
+            FlowRun.objects.filter(id__in=[f['id'] for f in batch]).update(is_active=False, expired_on=timezone.now())
 
     def release(self):
 
@@ -2789,6 +3049,10 @@ class FlowRun(models.Model):
             if not point_in_time:
                 point_in_time = now
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
+            self.modified_on = now
+
+            # save our updated fields
+            self.save(update_fields=['expires_on', 'modified_on'])
 
             # if it's in the past, just expire us now
             if self.expires_on < now:
@@ -2796,6 +3060,11 @@ class FlowRun(models.Model):
 
     def expire(self):
         self.do_expire_runs(FlowRun.objects.filter(pk=self.pk))
+
+    @classmethod
+    def expire_all_for_contacts(cls, contacts):
+        runs = cls.objects.filter(is_active=True, contact__in=contacts)
+        cls.do_expire_runs(runs)
 
     def update_fields(self, field_map):
         # validate our field
@@ -2849,22 +3118,32 @@ class FlowRun(models.Model):
         return msg
 
 
-class MemorySavingQuerysetIterator(object):
+class FlowStepIterator(object):
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
     """
-    def __init__(self, queryset, max_obj_num=1000):
-        self._base_queryset = queryset
+    def __init__(self, ids, order_by=None, select_related=None, prefetch_related=None, max_obj_num=1000):
+        self._ids = ids
+        self._order_by = order_by
+        self._select_related = select_related
+        self._prefetch_related = prefetch_related
         self._generator = self._setup()
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in xrange(0, self._base_queryset.count(), self.max_obj_num):
-            # By making a copy of of the queryset and using that to actually access
-            # the objects we ensure that there are only `max_obj_num` objects in
-            # memory at any given time
-            smaller_queryset = copy.deepcopy(self._base_queryset)[i:i+self.max_obj_num]
-            for obj in smaller_queryset.iterator():
+        for i in xrange(0, len(self._ids), self.max_obj_num):
+            chunk_queryset = FlowStep.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
+
+            if self._order_by:
+                chunk_queryset = chunk_queryset.order_by(*self._order_by)
+
+            if self._select_related:
+                chunk_queryset = chunk_queryset.select_related(*self._select_related)
+
+            if self._prefetch_related:
+                chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
+
+            for obj in chunk_queryset:
                 yield obj
 
     def __iter__(self):
@@ -2882,6 +3161,22 @@ class ExportFlowResultsTask(SmartModel):
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     task_id = models.CharField(null=True, max_length=64)
+    is_finished = models.BooleanField(default=False,
+                                      help_text=_("Whether this export is complete"))
+
+    def start_export(self):
+        """
+        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
+        """
+        try:
+            start = time.time()
+            self.do_export()
+        finally:
+            elapsed = time.time() - start
+            analytics.track(self.created_by.username, 'temba.flowresult_export_latency', properties=dict(value=elapsed))
+
+            self.is_finished = True
+            self.save(update_fields=['is_finished'])
 
     def do_export(self):
         from xlwt import Workbook
@@ -2896,14 +3191,16 @@ class ExportFlowResultsTask(SmartModel):
         # merge the columns for all of our flows
         columns = []
         flows = self.flows.all()
-        for flow in flows:
-            columns += flow.get_columns()
+        with SegmentProfiler("get columns"):
+            for flow in flows:
+                columns += flow.get_columns()
 
         org = None
         if flows:
             org = flows[0].org
 
         org_tz = pytz.timezone(flows[0].org.timezone)
+
         def as_org_tz(dt):
             if dt:
                 return dt.astimezone(org_tz).replace(tzinfo=None)
@@ -2918,51 +3215,53 @@ class ExportFlowResultsTask(SmartModel):
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
         category_map = dict()
-        for ruleset in RuleSet.objects.filter(flow__in=flows).select_related('flow'):
-            for rule in ruleset.get_rules():
-                category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)
-        all_steps = all_steps.order_by('contact', 'run', 'arrived_on', 'pk').select_related('run', 'contact').prefetch_related('messages')
+        with SegmentProfiler("rule uuid to category to name"):
+            for ruleset in RuleSet.objects.filter(flow__in=flows).select_related('flow'):
+                for rule in ruleset.get_rules():
+                    category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
+
+        with SegmentProfiler("calculate all steps"):
+            all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)\
+                                        .order_by('contact', 'run', 'arrived_on', 'pk')
 
         # count of unique flow runs
-        all_runs_count = all_steps.values('run').distinct().count()
+        with SegmentProfiler("# of runs"):
+            all_runs_count = all_steps.values('run').distinct().count()
 
         # count of unique contacts
-        contacts_count = all_steps.values('contact').distinct().count()
+        with SegmentProfiler("# of contacts"):
+            contacts_count = all_steps.values('contact').distinct().count()
 
-        # first add the needed sheets in order
-        # predicted by the counts we have
-        runs_sheets = []
-        total_all_runs_sheet_count = 0
+        # grab the ids for all our steps so we don't have to ever calculate them again
+        with SegmentProfiler("calculate step ids"):
+            all_steps = FlowStep.objects.filter(run__flow__in=flows)\
+                                        .order_by('contact', 'run', 'arrived_on', 'pk')\
+                                        .values('id')
+            step_ids = [s['id'] for s in all_steps]
+
+        # build our sheets
+        run_sheets = []
+        total_run_sheet_count = 0
 
         # the full sheets we need for runs
-        for i in range(all_runs_count / max_rows):
-            total_all_runs_sheet_count += 1
-            sheet = book.add_sheet("Runs (%d)" % total_all_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
+        for i in range(all_runs_count / max_rows + 1):
+            total_run_sheet_count += 1
+            name = "Runs" if (i+1) <= 1 else "Runs (%d)" % (i+1)
+            sheet = book.add_sheet(name, cell_overwrite_ok=True)
+            run_sheets.append(sheet)
 
-        # some extra runs add an extra sheet for those
-        if all_runs_count % max_rows != 0 or all_runs_count == 0:
-            total_all_runs_sheet_count += 1
-            sheet = book.add_sheet("Runs (%d)" % total_all_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
-
-        total_merged_runs_sheet_count = 0
+        total_merged_run_sheet_count = 0
 
         # the full sheets we need for contacts
-        for i in range(contacts_count / max_rows):
-            total_merged_runs_sheet_count += 1
-            sheet = book.add_sheet("Contacts (%d)" % total_merged_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
+        for i in range(contacts_count / max_rows + 1):
+            total_merged_run_sheet_count += 1
+            name = "Contacts" if (i+1) <= 1 else "Contacts (%d)" % (i+1)
+            sheet = book.add_sheet(name, cell_overwrite_ok=True)
+            run_sheets.append(sheet)
 
-        # extra sheet if more contacts
-        if contacts_count % max_rows != 0 or contacts_count == 0:
-            total_merged_runs_sheet_count += 1
-            sheet = book.add_sheet("Contacts (%d)" % total_merged_runs_sheet_count, cell_overwrite_ok=True)
-            runs_sheets.append(sheet)
-
-        for sheet in runs_sheets:
+        # then populate their header columns
+        for sheet in run_sheets:
             # build up our header row
             sheet.write(0, 0, "Phone")
             sheet.write(0, 1, "Name")
@@ -2985,157 +3284,171 @@ class ExportFlowResultsTask(SmartModel):
                 sheet.col(5+col*3+1).width = 15 * 256
                 sheet.col(5+col*3+2).width = 15 * 256
 
-        row = 0
+        run_row = 0
         merged_row = 0
+        msg_row = 0
+
         latest = None
         earliest = None
 
         last_run = 0
         last_contact = None
 
-        # initial sheet to write to
-        # one for all runs and the
-        all_runs_sheet_index = 0
-        merged_runs_sheet_index = total_all_runs_sheet_count
+        # index of sheets that we are currently writing to
+        run_sheet_index = 0
+        merged_run_sheet_index = total_run_sheet_count
+        msg_sheet_index = 0
 
-        all_runs = book.get_sheet(all_runs_sheet_index)
-        merged_runs = book.get_sheet(merged_runs_sheet_index)
+        # get our initial runs and merged runs to write to
+        runs = book.get_sheet(run_sheet_index)
+        merged_runs = book.get_sheet(merged_run_sheet_index)
+        msgs = None
 
-        for run_step in MemorySavingQuerysetIterator(all_steps):
+        processed_steps = 0
+        total_steps = len(step_ids)
+        start = time.time()
+        flow_names = ", ".join([f['name'] for f in self.flows.values('name')])
+
+        for run_step in FlowStepIterator(step_ids,
+                                         order_by=['contact', 'run', 'arrived_on', 'pk'],
+                                         select_related=['run', 'contact'],
+                                         prefetch_related=['messages', 'messages__channel', 'contact__all_groups']):
+
+            processed_steps += 1
+            if processed_steps % 10000 == 0:
+                print "Export of %s - %d%% complete in %0.2fs" % \
+                      (flow_names, processed_steps * 100 / total_steps, time.time() - start)
+
             # skip over test contacts
             if run_step.contact.is_test:
                 continue
 
-            if last_contact != run_step.contact.pk:
-                if merged_row % 1000 == 0:
-                    merged_runs.flush_row_data()
-                merged_row += 1
+            # if this is a rule step, write out the value collected
+            if run_step.step_type == RULE_SET:
 
-                if merged_row > max_rows:
-                    # get the next sheet to use for Contacts
-                    merged_row = 1
-                    merged_runs_sheet_index += 1
-                    merged_runs = book.get_sheet(merged_runs_sheet_index)
+                if last_contact != run_step.contact.pk:
+                    if merged_row % 1000 == 0:
+                        merged_runs.flush_row_data()
 
-            # a new run
-            if last_run != run_step.run.pk:
-                earliest = None
-                latest = None
+                    merged_row += 1
 
-                if row % 1000 == 0:
-                    all_runs.flush_row_data()
+                    if merged_row > max_rows:
+                        # get the next sheet to use for Contacts
+                        merged_row = 1
+                        merged_run_sheet_index += 1
+                        merged_runs = book.get_sheet(merged_run_sheet_index)
 
-                row += 1
+                # a new run
+                if last_run != run_step.run.pk:
+                    earliest = None
+                    latest = None
 
-                if row > max_rows:
-                    # get the next sheet to use for Runs
-                    row = 1
-                    all_runs_sheet_index += 1
-                    all_runs = book.get_sheet(all_runs_sheet_index)
+                    if run_row % 1000 == 0:
+                        runs.flush_row_data()
 
-                all_runs.write(row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
-                all_runs.write(row, 1, run_step.contact.name)
-                all_runs.write(row, 2, run_step.contact.groups_as_text())
+                    run_row += 1
 
-                merged_runs.write(merged_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
-                merged_runs.write(merged_row, 1, run_step.contact.name)
-                merged_runs.write(merged_row, 2, run_step.contact.groups_as_text())
+                    if run_row > max_rows:
+                        # get the next sheet to use for Runs
+                        run_row = 1
+                        run_sheet_index += 1
+                        runs = book.get_sheet(run_sheet_index)
 
-            if not latest or latest < run_step.arrived_on:
-                latest = run_step.arrived_on
+                    # build up our group names
+                    group_names = []
+                    for group in run_step.contact.all_groups.all():
+                        if group.group_type == ContactGroup.TYPE_USER_DEFINED:
+                            group_names.append(group.name)
 
-            if not earliest or earliest > run_step.arrived_on:
-                earliest = run_step.arrived_on
+                    group_names.sort()
+                    groups = ", ".join(group_names)
 
-            if earliest:
-                all_runs.write(row, 3, as_org_tz(earliest), date_format)
-                merged_runs.write(merged_row, 3, as_org_tz(earliest), date_format)
+                    runs.write(run_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                    runs.write(run_row, 1, run_step.contact.name)
+                    runs.write(run_row, 2, groups)
 
-            if latest:
-                all_runs.write(row, 4, as_org_tz(latest), date_format)
-                merged_runs.write(merged_row, 4, as_org_tz(latest), date_format)
+                    merged_runs.write(merged_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                    merged_runs.write(merged_row, 1, run_step.contact.name)
+                    merged_runs.write(merged_row, 2, groups)
 
-            # write the step data
-            col = column_map.get(run_step.step_uuid, 0)
-            if col:
-                category = category_map.get(run_step.rule_uuid, None)
-                if category:
-                    all_runs.write(row, col, category)
-                    merged_runs.write(merged_row, col, category)
-                elif run_step.rule_category:
-                    all_runs.write(row, col, run_step.rule_category)
-                    merged_runs.write(merged_row, col, run_step.rule_category)
+                if not latest or latest < run_step.arrived_on:
+                    latest = run_step.arrived_on
 
-                value = run_step.rule_value
-                if value:
-                    all_runs.write(row, col+1, value)
-                    merged_runs.write(merged_row, col+1, value)
+                if not earliest or earliest > run_step.arrived_on:
+                    earliest = run_step.arrived_on
 
-                text = run_step.get_text()
-                if text:
-                    all_runs.write(row, col+2, text)
-                    merged_runs.write(merged_row, col+2, text)
+                if earliest:
+                    runs.write(run_row, 3, as_org_tz(earliest), date_format)
+                    merged_runs.write(merged_row, 3, as_org_tz(earliest), date_format)
 
+                if latest:
+                    runs.write(run_row, 4, as_org_tz(latest), date_format)
+                    merged_runs.write(merged_row, 4, as_org_tz(latest), date_format)
 
-            last_run = run_step.run.pk
-            last_contact = run_step.contact.pk
+                # write the step data
+                col = column_map.get(run_step.step_uuid, 0)
+                if col:
+                    category = category_map.get(run_step.rule_uuid, None)
+                    if category:
+                        runs.write(run_row, col, category)
+                        merged_runs.write(merged_row, col, category)
+                    elif run_step.rule_category:
+                        runs.write(run_row, col, run_step.rule_category)
+                        merged_runs.write(merged_row, col, run_step.rule_category)
 
-        row = 1
-        sheet_count = 0
+                    value = run_step.rule_value
+                    if value:
+                        runs.write(run_row, col+1, value)
+                        merged_runs.write(merged_row, col+1, value)
 
-        all_steps = FlowStep.objects.filter(run__flow__in=flows).order_by('run', 'arrived_on', 'pk')
-        all_steps = all_steps.select_related('run', 'contact').prefetch_related('messages')
+                    text = run_step.get_text()
+                    if text:
+                        runs.write(run_row, col+2, text)
+                        merged_runs.write(merged_row, col+2, text)
 
-        # now print out all the raw messages
-        all_messages = None
-        for step in MemorySavingQuerysetIterator(all_steps):
-            if step.contact.is_test:
-                continue
+                last_run = run_step.run.pk
+                last_contact = run_step.contact.pk
 
-            # if the step has no message to display and no ivr action
-            if not step.get_text():
-                continue
+            # write out any message associated with this step
+            if run_step.get_text():
+                msg_row += 1
 
-            if row > max_rows or not all_messages:
-                row = 1
-                sheet_count += 1
+                if msg_row % 1000 == 0:
+                    msgs.flush_row_data()
 
-                name = "SMS"
-                if sheet_count > 1:
-                    name = "SMS (%d)" % sheet_count
+                if msg_row > max_rows or not msgs:
+                    msg_row = 1
+                    msg_sheet_index += 1
 
-                all_messages = book.add_sheet(name)
+                    name = "Messages" if (msg_sheet_index+1) <= 1 else "Messages (%d)" % (msg_sheet_index+1)
+                    msgs = book.add_sheet(name)
 
-                all_messages.write(0, 0, "Phone")
-                all_messages.write(0, 1, "Name")
-                all_messages.write(0, 2, "Date")
-                all_messages.write(0, 3, "Direction")
-                all_messages.write(0, 4, "Message")
-                all_messages.write(0, 5, "Channel")
+                    msgs.write(0, 0, "Phone")
+                    msgs.write(0, 1, "Name")
+                    msgs.write(0, 2, "Date")
+                    msgs.write(0, 3, "Direction")
+                    msgs.write(0, 4, "Message")
+                    msgs.write(0, 5, "Channel")
 
-                all_messages.col(0).width = small_width
-                all_messages.col(1).width = medium_width
-                all_messages.col(2).width = medium_width
-                all_messages.col(3).width = small_width
-                all_messages.col(4).width = large_width
-                all_messages.col(5).width = small_width
+                    msgs.col(0).width = small_width
+                    msgs.col(1).width = medium_width
+                    msgs.col(2).width = medium_width
+                    msgs.col(3).width = small_width
+                    msgs.col(4).width = large_width
+                    msgs.col(5).width = small_width
 
-            all_messages.write(row, 0, step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
-            all_messages.write(row, 1, step.contact.name)
-            arrived_on = as_org_tz(step.arrived_on)
+                msgs.write(msg_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                msgs.write(msg_row, 1, run_step.contact.name)
+                arrived_on = as_org_tz(run_step.arrived_on)
 
-            all_messages.write(row, 2, arrived_on, date_format)
-            if step.step_type == RULE_SET:
-                all_messages.write(row, 3, "IN")
-            else:
-                all_messages.write(row, 3, "OUT")
+                msgs.write(msg_row, 2, arrived_on, date_format)
+                if run_step.step_type == RULE_SET:
+                    msgs.write(msg_row, 3, "IN")
+                else:
+                    msgs.write(msg_row, 3, "OUT")
 
-            all_messages.write(row, 4, step.get_text())
-            all_messages.write(row, 5, step.get_channel_name())
-            row += 1
-
-            if row % 1000 == 0:
-                all_messages.flush_row_data()
+                msgs.write(msg_row, 4, run_step.get_text())
+                msgs.write(msg_row, 5, run_step.get_channel_name())
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
@@ -3191,7 +3504,6 @@ class ActionLog(models.Model):
         except Exception:
             # it's possible our test call can be deleted out from under us
             pass
-
 
     def as_json(self):
         return dict(direction="O", text=self.text, id=self.id, created_on=self.created_on.strftime('%x %X'), model="log")
@@ -3606,7 +3918,7 @@ class EmailAction(Action):
             print "!! Skipping email send, SEND_EMAILS set to False"
         else:
             # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-            subject = re.sub('\s+', ' ', subject)
+            subject = regex.sub('\s+', ' ', subject, regex.V0)
             send_mail(subject, message, from_email, emails)
 
     def get_description(self):
@@ -3790,8 +4102,8 @@ class AddLabelAction(Action):
                 except (TypeError, ValueError):
                     label_id = 0
 
-                if label_id and Label.user_labels.filter(org=org, id=label_id).first():
-                    label = Label.user_labels.filter(org=org, id=label_id).first()
+                if label_id and Label.label_objects.filter(org=org, id=label_id).first():
+                    label = Label.label_objects.filter(org=org, id=label_id).first()
                     if label:
                         labels.append(label)
                 else:
@@ -4311,7 +4623,6 @@ class SaveToContactAction(Action):
 
         return []
 
-
     def logger(self, run, new_value):
         # only log for test contact
         if not run.contact.is_test:
@@ -4520,7 +4831,8 @@ class Test(object):
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
-                HasStateTest.TYPE: HasStateTest
+                HasStateTest.TYPE: HasStateTest,
+                NotEmptyTest.TYPE: NotEmptyTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -4610,16 +4922,16 @@ class AndTest(Test):
         return dict(type=AndTest.TYPE, tests=[_.as_json() for _ in self.tests])
 
     def evaluate(self, run, sms, context, text):
-        sum = 0
+        matches = []
         for test in self.tests:
             (result, value) = test.evaluate(run, sms, context, text)
-            sum += result
+            if result:
+                matches.append(value)
+            else:
+                return 0, None
 
         # all came out true, we are true
-        if sum == len(self.tests):
-            return 1, value
-        else:
-            return 0, None
+        return 1, " ".join(matches)
 
 
 class OrTest(Test):
@@ -4656,6 +4968,28 @@ class TranslatableTest(Test):
         # if we are a single language reply, then convert to multi-language
         if not isinstance(self.test, dict):
             self.test = {language_iso: self.test}
+
+class NotEmptyTest(Test):
+    """
+    { op: "not_empty" }
+    """
+
+    TYPE = 'not_empty'
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return NotEmptyTest()
+
+    def as_json(self):
+        return dict(type=NotEmptyTest.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        if text and len(text.strip()):
+            return 1, text
+        return 0, None
 
 class ContainsTest(TranslatableTest):
     """
@@ -4694,11 +5028,11 @@ class ContainsTest(TranslatableTest):
         test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = re.split(r"\W+", test.lower(), flags=re.UNICODE)
+        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
 
         # tokenize our sms
-        words = re.split(r"\W+", text.lower(), flags=re.UNICODE)
-        raw_words = re.split(r"\W+", text, flags=re.UNICODE)
+        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
+        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
         # run through each of our tests
         matches = []
@@ -4730,11 +5064,11 @@ class ContainsAnyTest(ContainsTest):
         test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = re.split(r"\W+", test.lower(), flags=re.UNICODE)
+        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
 
         # tokenize our sms
-        words = re.split(r"\W+", text.lower(), flags=re.UNICODE)
-        raw_words = re.split(r"\W+", text, flags=re.UNICODE)
+        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
+        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
         # run through each of our tests
         matches = []
@@ -4777,9 +5111,10 @@ class StartsWithTest(TranslatableTest):
 
         # see whether we start with our test
         if text.lower().find(test.lower()) == 0:
-            return 1, self.test
+            return 1, text[:len(self.test)]
         else:
             return 0, None
+
 
 class HasStateTest(Test):
     TYPE = 'state'
@@ -4954,7 +5289,7 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = re.match(r"^(\d+).*$", word, re.UNICODE)
+                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
                 if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
@@ -4965,7 +5300,7 @@ class NumericTest(Test):
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
         text = text.replace(',', '')
-        for word in re.split(r"\s+", text, flags=re.UNICODE):
+        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
             try:
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(run, context, decimal):
@@ -4983,9 +5318,9 @@ class BetweenTest(NumericTest):
     MAX = 'max'
     TYPE = 'between'
 
-    def __init__(self, min, max):
-        self.min = min
-        self.max = max
+    def __init__(self, min_val, max_val):
+        self.min = min_val
+        self.max = max_val
 
     @classmethod
     def from_json(cls, org, json):
@@ -4995,13 +5330,16 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
-        min, has_missing = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
-        max, has_missing = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
+        min_val, min_has_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
+        max_val, max_has_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
 
-        if Decimal(min) <= decimal_value <= Decimal(max):
-            return True
-        else:
-            return False
+        if not min_has_errors and not max_has_errors:
+            try:
+                return Decimal(min_val) <= decimal_value <= Decimal(max_val)
+            except Exception:
+                pass
+
+        return False
 
 
 class NumberTest(NumericTest):
@@ -5049,7 +5387,7 @@ class SimpleNumericTest(Test):
         test, has_missing = Msg.substitute_variables(str(self.test), run.contact, context, org=run.flow.org)
 
         text = text.replace(',', '')
-        for word in re.split(r"\s+", text, flags=re.UNICODE):
+        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
             try:
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(decimal, Decimal(test)):
@@ -5159,8 +5497,8 @@ class RegexTest(TranslatableTest):
             test = run.flow.get_localized_text(self.test, run.contact)
 
             # check whether we match
-            regex = re.compile(test, re.UNICODE | re.IGNORECASE | re.MULTILINE)
-            match = regex.search(text)
+            rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE | regex.V0)
+            match = rexp.search(text)
 
             # if so, $0 will be what we return
             if match:
@@ -5168,7 +5506,7 @@ class RegexTest(TranslatableTest):
 
                 # build up a dictionary that contains indexed values
                 group_dict = match.groupdict()
-                for idx in range(regex.groups + 1):
+                for idx in range(rexp.groups + 1):
                     group_dict[str(idx)] = match.group(idx)
 
                 # set it on run@extra
