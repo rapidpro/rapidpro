@@ -505,7 +505,7 @@ class Msg(models.Model):
                                 related_name='msgs', verbose_name=_("Contact"),
                                 help_text=_("The contact this message is communicating with"))
 
-    contact_urn = models.ForeignKey(ContactURN,
+    contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this message is communicating with"))
 
@@ -964,7 +964,7 @@ class Msg(models.Model):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -980,8 +980,11 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
-        contact_urn = contact.urn_objects[urn]
+        if not contact:
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact_urn = contact.urn_objects[urn]
+        else:
+            contact_urn = None
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:

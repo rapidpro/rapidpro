@@ -32,7 +32,7 @@ from smartmin.models import SmartModel
 from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -3579,11 +3579,26 @@ class FlowStep(models.Model):
             except Exception:
                 pass
 
-        # TODO create incoming messages for rule text - but what is the URN ?
+            # TODO same msg for different rules if they didn't require waiting
 
-        # TODO play actions
+            msg = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
+                                      msg_type=FLOW, status=HANDLED,
+                                      channel=None, urn=None)
+        else:
+            msg = None
 
-        return FlowStep.objects.create(**kwargs)
+        if 'actions' in json_obj:
+            actions = Action.from_json_array(flow.org, json_obj['actions'])
+
+            for action in actions:
+                action.execute(run, node, sms=msg, was_offline=True)
+
+        step = FlowStep.objects.create(**kwargs)
+
+        if msg:
+            step.add_message(msg)
+
+        return step
 
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
@@ -3925,7 +3940,7 @@ class EmailAction(Action):
     def as_json(self):
         return dict(type=EmailAction.TYPE, emails=self.emails, subject=self.subject, msg=self.message)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         from .tasks import send_email_action_task
 
         # build our message from our flow variables
@@ -3981,7 +3996,7 @@ class APIAction(Action):
     def as_json(self):
         return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         from temba.api.models import WebHookEvent
         message_context = run.flow.build_message_context(run.contact, sms)
         (value, missing) = Msg.substitute_variables(self.webhook, run.contact, message_context,
@@ -4067,7 +4082,7 @@ class AddToGroupAction(Action):
     def get_type(self):
         return AddToGroupAction.TYPE
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
         if contact:
@@ -4171,7 +4186,7 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, actionset, msg):
+    def execute(self, run, actionset, msg, was_offline=False):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
@@ -4222,7 +4237,7 @@ class SayAction(Action):
         return dict(type=SayAction.TYPE, msg=self.msg,
                     uuid=self.uuid, recording=self.recording)
 
-    def execute(self, run, actionset, event):
+    def execute(self, run, actionset, event, was_offline=False):
 
         recording_url = None
         if self.recording:
@@ -4284,7 +4299,7 @@ class PlayAction(Action):
     def as_json(self):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
-    def execute(self, run, actionset, event):
+    def execute(self, run, actionset, event, was_offline=False):
 
         (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
@@ -4320,13 +4335,16 @@ class ReplyAction(Action):
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         if self.msg:
-            if sms:
-                text = run.flow.get_localized_text(self.msg, run.contact)
+            text = run.flow.get_localized_text(self.msg, run.contact)
+
+            if was_offline:
+                # TODO create outgoing message.. without URN
+                return []
+            elif sms:
                 return list(sms.reply(text, get_flow_user(), trigger_send=False, message_context=run.flow.build_message_context(run.contact, sms)).get_messages())
             else:
-                text = run.flow.get_localized_text(self.msg, run.contact)
                 return list(run.contact.send(text, get_flow_user(), trigger_send=False, message_context=run.flow.build_message_context(run.contact, sms)).get_messages())
         return []
 
@@ -4472,7 +4490,7 @@ class TriggerFlowAction(VariableContactAction):
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         if self.flow:
             message_context = run.flow.build_message_context(run.contact, sms)
             (groups, contacts) = self.build_groups_and_contacts(run, actionset, sms)
@@ -4530,7 +4548,7 @@ class SetLanguageAction(Action):
     def as_json(self):
         return dict(type=SetLanguageAction.TYPE, lang=self.lang, name=self.name)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         run.contact.language = self.lang
         run.contact.save(update_fields=['language'])
         self.logger(run)
@@ -4574,7 +4592,7 @@ class StartFlowAction(Action):
     def as_json(self):
         return dict(type=StartFlowAction.TYPE, id=self.flow.pk, name=self.flow.name)
 
-    def execute(self, run, actionset, sms, started_flows):
+    def execute(self, run, actionset, sms, started_flows, was_offline=False):
         self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True)
         self.logger(run)
         return []
@@ -4636,7 +4654,7 @@ class SaveToContactAction(Action):
     def as_json(self):
         return dict(type=SaveToContactAction.TYPE, label=self.label, field=self.field, value=self.value)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         # evaluate our value
         contact = run.contact
         message_context = run.flow.build_message_context(contact, sms)
@@ -4710,7 +4728,7 @@ class SendAction(VariableContactAction):
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, sms, was_offline=False):
         if self.msg:
             flow = run.flow
             message_context = flow.build_message_context(run.contact, sms)

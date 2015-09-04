@@ -493,9 +493,9 @@ class APITest(TembaTest):
                  arrived_on='2015-08-25T11:11:30.088Z',
                  left_on='2015-08-25T11:12:30.088Z',
                  rule=dict(uuid='00000000-00000000-00000000-00000012',
-                           value='orange',
-                           category='Orange',
-                           text='I like orange')),
+                           value="orange",
+                           category="Orange",
+                           text="I like orange")),
             dict(node='00000000-00000000-00000000-00000002',
                  arrived_on='2015-08-25T11:13:30.088Z',
                  left_on='2015-08-25T11:14:30.088Z',
@@ -519,6 +519,12 @@ class APITest(TembaTest):
         self.assertEqual(steps[1].next_uuid, '00000000-00000000-00000000-00000002')
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 12, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[1].messages.count(), 1)
+
+        step1_msgs = list(steps[1].messages.order_by('pk'))
+        self.assertEqual(step1_msgs[0].contact, self.joe)
+        self.assertEqual(step1_msgs[0].contact_urn, None)
+        self.assertEqual(step1_msgs[0].text, "I like orange")
 
         self.assertEqual(steps[2].step_uuid, '00000000-00000000-00000000-00000002')
         self.assertEqual(steps[2].step_type, 'A')
