@@ -1085,19 +1085,24 @@ class Msg(models.Model):
         # for IVR messages we need a channel that can call
         role = CALL if msg_type == IVR else SEND
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+        if status != SENT:
+            # if message will be sent, resolve the recipient to a contact and URN
+            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
-        if not contact_urn:
-            raise UnreachableException("No suitable URN found for contact")
+            if not contact_urn:
+                raise UnreachableException("No suitable URN found for contact")
 
-        if not channel:
-            if msg_type == IVR:
-                channel = org.get_call_channel()
-            else:
-                channel = org.get_send_channel(contact_urn=contact_urn)
+            if not channel:
+                if msg_type == IVR:
+                    channel = org.get_call_channel()
+                else:
+                    channel = org.get_send_channel(contact_urn=contact_urn)
 
-            if not channel and not contact.is_test:
-                raise ValueError("No suitable channel available for this org")
+                if not channel and not contact.is_test:
+                    raise ValueError("No suitable channel available for this org")
+        else:
+            # if message has already been sent, recipient must be a tuple of contact and URN
+            contact, contact_urn = recipient
 
         # no creation date?  set it to now
         if not created_on:

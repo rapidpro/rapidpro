@@ -475,9 +475,9 @@ class APITest(TembaTest):
         run = FlowRun.objects.get()
         self.assertEqual(run.flow, flow)
         self.assertEqual(run.contact, self.joe)
-        self.assertEqual(run.steps.count(), 1)
 
         steps = list(run.steps.order_by('pk'))
+        self.assertEqual(len(steps), 1)
         self.assertEqual(steps[0].step_uuid, '00000000-00000000-00000000-00000001')
         self.assertEqual(steps[0].step_type, 'A')
         self.assertEqual(steps[0].rule_uuid, None)
@@ -487,6 +487,14 @@ class APITest(TembaTest):
         self.assertEqual(steps[0].next_uuid, None)
         self.assertEqual(steps[0].arrived_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
         self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 10, 30, 88000, pytz.UTC))
+
+        # outgoing message for reply
+        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
+        self.assertEqual(len(out_msgs), 1)
+        self.assertEqual(out_msgs[0].contact, self.joe)
+        self.assertEqual(out_msgs[0].contact_urn, None)
+        self.assertEqual(out_msgs[0].text, "What is your favorite color?")
+        self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
         data = dict(flow=flow.uuid, contact=self.joe.uuid, steps=[
             dict(node='00000000-00000000-00000000-00000005',
@@ -535,6 +543,14 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].next_uuid, None)
         self.assertEqual(steps[2].arrived_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 14, 30, 88000, pytz.UTC))
+
+        # new outgoing message for reply
+        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
+        self.assertEqual(len(out_msgs), 2)
+        self.assertEqual(out_msgs[1].contact, self.joe)
+        self.assertEqual(out_msgs[1].contact_urn, None)
+        self.assertEqual(out_msgs[1].text, "I love orange too!")
+        self.assertEqual(out_msgs[1].created_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
 
     def test_api_results(self):
         url = reverse('api.results')
