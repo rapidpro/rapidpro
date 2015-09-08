@@ -368,6 +368,9 @@ class Contact(TembaModel, SmartModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
+        self.save(update_fields=('modified_on',))
+
+
     @classmethod
     def from_urn(cls, org, scheme, path, country=None):
         if not scheme or not path:
