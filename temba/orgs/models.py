@@ -438,9 +438,13 @@ class Org(SmartModel):
             # otherwise, send any pending messages on our channels
             r = get_redis_connection()
 
-            with r.lock('trigger_send_%d' % self.pk, timeout=60):
-                pending = Channel.get_pending_messages(self)
-                Msg.send_messages(pending)
+            key = 'trigger_send_%d' % self.pk
+
+            # only try to send all pending messages if nobody is doing so already
+            if not r.get(key):
+                with r.lock(key, timeout=900):
+                    pending = Channel.get_pending_messages(self)
+                    Msg.send_messages(pending)
 
     def connect_nexmo(self, api_key, api_secret):
         nexmo_uuid = str(uuid4())

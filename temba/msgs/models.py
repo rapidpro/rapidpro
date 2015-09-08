@@ -13,7 +13,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
@@ -24,7 +24,7 @@ from temba.channels.models import Channel, ANDROID, SEND, CALL
 from temba.orgs.models import Org, OrgEvent, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, datetime_to_str, analytics
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -580,30 +580,35 @@ class Msg(models.Model):
         :return:
         """
         # build our id list
-        msg_ids = set([m.id for m in msgs])
+        all_ids = set([m.id for m in msgs])
 
-        queued_on = timezone.now()
+        # we send in chunks of 1,000 to help with contention
+        for msg_ids in chunk_list(all_ids, 1000):
+            with transaction.atomic():
+                queued_on = timezone.now()
 
-        # update them to queued
-        send_messages = Msg.objects.filter(id__in=msg_ids)
-        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(msg_type=IVR).exclude(topup=None).exclude(contact__is_test=True)
-        send_messages.update(status=QUEUED, queued_on=queued_on)
+                # update them to queued
+                send_messages = Msg.objects.filter(id__in=msg_ids)\
+                                           .exclude(channel=None)\
+                                           .exclude(channel__channel_type=ANDROID)\
+                                           .exclude(msg_type=IVR)\
+                                           .exclude(topup=None)\
+                                           .exclude(contact__is_test=True)
+                send_messages.update(status=QUEUED, queued_on=queued_on)
 
-        # now push each onto our queue
-        for msg in msgs:
-            # skip over non-android channels, messages with no top up and test contacts
-            if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
-                # serialize the model to a dictionary
-                msg.queued_on = queued_on
-                task = msg.as_task_json()
+                # now push each onto our queue
+                for msg in msgs:
+                    # serialize the model to a dictionary
+                    msg.queued_on = queued_on
+                    task = msg.as_task_json()
 
-                task_priority = DEFAULT_PRIORITY
-                if msg.priority == SMS_BULK_PRIORITY:
-                    task_priority = LOW_PRIORITY
-                elif msg.priority == SMS_HIGH_PRIORITY:
-                    task_priority = HIGH_PRIORITY
+                    task_priority = DEFAULT_PRIORITY
+                    if msg.priority == SMS_BULK_PRIORITY:
+                        task_priority = LOW_PRIORITY
+                    elif msg.priority == SMS_HIGH_PRIORITY:
+                        task_priority = HIGH_PRIORITY
 
-                push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                    push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
 
     @classmethod
     def process_message(cls, msg):
