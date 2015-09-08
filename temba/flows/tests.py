@@ -323,8 +323,9 @@ class RuleTest(TembaTest):
         self.assertEquals(self.flow, step.run.flow)
         self.assertTrue(step.arrived_on)
 
-        # we are still in the flow, just at the last step
-        self.assertFalse(step.left_on)
+        # we have left the flow
+        self.assertTrue(step.left_on)
+        self.assertTrue(step.run.is_completed)
         self.assertFalse(step.next_uuid)
 
         # check our completion percentages
@@ -2591,11 +2592,11 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(2, active[beer.uuid])
 
-        # now move our first contact forward to the end, back to two nodes with active
+        # now move our first contact forward to the end, both out of the flow now
         self.send_message(flow, 'Turbo King')
         self.send_message(flow, 'Ben Haggerty')
         (active, visited) = flow.get_activity()
-        self.assertEquals(2, len(active))
+        self.assertEquals(1, len(active))
 
         # half of our flows are now complete
         self.assertEquals(1, flow.get_completed_runs())
@@ -2604,16 +2605,16 @@ class FlowsTest(FlowFileTest):
         # rebuild our flow stats and make sure they are the same
         flow.do_calculate_flow_stats()
         (active, visited) = flow.get_activity()
-        self.assertEquals(2, len(active))
+        self.assertEquals(1, len(active))
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(50, flow.get_completed_percentage())
 
         # we are going to expire, but we want runs across two different flows
         # to make sure that our optimization for expiration is working properly
-        number_flow = self.get_flow('pick_a_number')
-        self.assertEquals("You picked 3!", self.send_message(number_flow, "3"))
-        self.assertEquals(1, len(number_flow.get_activity()[0]))
+        cga_flow = self.get_flow('color_gender_age')
+        self.assertEquals("What is your gender?", self.send_message(cga_flow, "Red"))
+        self.assertEquals(1, len(cga_flow.get_activity()[0]))
 
         # expire the first contact's runs
         FlowRun.do_expire_runs(FlowRun.objects.filter(contact=self.contact))
@@ -2622,7 +2623,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
 
         # both of our flows should have reduced active contacts
-        self.assertEquals(0, len(number_flow.get_activity()[0]))
+        self.assertEquals(0, len(cga_flow.get_activity()[0]))
 
         # now we should only have one node with active runs, but the paths stay
         # the same since those are historical
@@ -2659,6 +2660,8 @@ class FlowsTest(FlowFileTest):
         # advance ryan to the end to make sure our percentage accounts for one less contact
         self.send_message(flow, 'Turbo King', contact=ryan)
         self.send_message(flow, 'Ryan Lewis', contact=ryan)
+        (active, visited) = flow.get_activity()
+        self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
@@ -2674,7 +2677,7 @@ class FlowsTest(FlowFileTest):
 
         # our flow stats should be unchanged
         (active, visited) = flow.get_activity()
-        self.assertEquals(1, len(active))
+        self.assertEquals(0, len(active))
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_total_runs())
@@ -2684,7 +2687,7 @@ class FlowsTest(FlowFileTest):
 
         # but hammer should have created some simulation activity
         (active, visited) = flow.get_activity(simulation=True)
-        self.assertEquals(1, len(active))
+        self.assertEquals(0, len(active))
         self.assertEquals(2, visited[msg_to_color_step])
         self.assertEquals(2, visited[other_rule_to_msg])
 
@@ -2765,7 +2768,7 @@ class FlowsTest(FlowFileTest):
 
         # now wire up our finished action to the start of our flow
         flow = self.update_destination(flow, you_picked.uuid, pick_a_number.uuid)
-        self.assertEquals("Pick a number between 1-10.", self.send_message(flow, "next message please"))
+        self.send_message(flow, "next message please", assert_reply=False, assert_handle=False)
 
     def test_orphaned_action_to_input_rule(self):
         """
@@ -2779,7 +2782,7 @@ class FlowsTest(FlowFileTest):
         number = RuleSet.objects.get(flow=flow, label='number')
 
         flow = self.update_destination(flow, you_picked.uuid, number.uuid)
-        self.assertEquals("You picked 9!", self.send_message(flow, "9"))
+        self.send_message(flow, "9", assert_reply=False, assert_handle=False)
 
     def test_orphaned_action_to_passive_rule(self):
         """
@@ -2793,10 +2796,35 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("You picked 6!", self.send_message(flow, "6"))
 
         flow = self.update_destination(flow, you_picked.uuid, passive_ruleset.uuid)
-        self.assertEquals("You picked 9!", self.send_message(flow, "9"))
+        self.send_message(flow, "9", assert_reply=False, assert_handle=False)
+
+    def test_rule_changes_under_us(self):
+        flow = self.get_flow('favorites')
+        self.send_message(flow, "RED", restart_participants=True)
+
+        # at this point we are waiting for the response to the second question about beer
+
+        # let's change that ruleset to instead be based on the contact name
+        group_ruleset = RuleSet.objects.get(flow=flow, label='Beer')
+
+        group_ruleset.operand = "@contact.beer"
+        group_ruleset.ruleset_type = RuleSet.TYPE_CONTACT_FIELD
+        group_ruleset.save()
+
+        self.contact.set_field("beer", "Mutzig")
+
+        # and send our last message with our name, we should:
+        # 1) get fast forwarded to the next waiting ruleset about our name and have our message applied to that
+        # 2) get an outgoing message about our beer choice
+        # 3) get an outgoing message about our name
+        responses = self.send_message(flow, "Eric")
+        self.assertEquals(2, len(responses))
+        self.assertEquals("Mmmmm... delicious Mutzig. If only they made red Mutzig! Lastly, what is your name?",
+                          responses[0])
+        self.assertEquals("Thanks Eric, we are all done!",
+                          responses[1])
 
     def test_server_runtime_cycle(self):
-
         flow = self.get_flow('loop_detection')
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
         group_ruleset = RuleSet.objects.get(flow=flow, label='Group Split A')
@@ -2819,15 +2847,37 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
+        # add our contact to Group A
+        group_a = ContactGroup.user_groups.create(org=self.org, name="Group A",
+                                                  created_by=self.admin, modified_by=self.admin)
+        group_a.contacts.add(self.contact)
+
         # rule turning back on ourselves
         self.update_destination_no_check(flow, group_ruleset.uuid, group_ruleset.uuid, rule=group_one_rule.uuid)
-        self.send_message(flow, "1", assert_reply=False)
+        with self.assertRaises(FlowException):
+            self.send_message(flow, "1", assert_reply=False)
+
         flow.delete()
 
         # non-blocking rule to non-blocking rule and back
         flow = self.get_flow('loop_detection')
-        self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rowan_rule.uuid)
-        self.send_message(flow, "2", assert_reply=False)
+
+        # need to get these again as we just reimported and UUIDs have changed
+        group_ruleset = RuleSet.objects.get(flow=flow, label='Group Split A')
+        name_ruleset = RuleSet.objects.get(flow=flow, label='Name Split')
+        rowan_rule = name_ruleset.get_rules()[0]
+
+        # update our name to rowan so we match the name rule
+        self.contact.name = "Rowan"
+        self.contact.save()
+
+        # but remove ourselves from the group so we enter the loop
+        group_a.contacts.remove(self.contact)
+
+        self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rule=rowan_rule.uuid)
+        with self.assertRaises(FlowException):
+            self.send_message(flow, "2", assert_reply=False)
+
         flow.delete()
 
     def test_decimal_substitution(self):
@@ -3208,7 +3258,8 @@ class FlowsTest(FlowFileTest):
         self.assertFalse(run.is_active)
 
         # we will be starting a new run now, since the other expired
-        self.assertEquals("I don't know that color. Try again.", self.send_message(flow, "Michael Jordan"))
+        self.assertEquals("I don't know that color. Try again.",
+                          self.send_message(flow, "Michael Jordan", restart_participants=True))
         self.assertEquals(2, flow.runs.count())
 
     def test_parsing(self):

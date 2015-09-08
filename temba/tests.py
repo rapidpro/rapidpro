@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW
+from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -207,9 +207,18 @@ class TembaTest(SmartminTest):
 
     def update_destination_no_check(self, flow, node, destination, rule=None):
         """ Update the destination without doing a cycle check """
+        # look up our destination, we need this in order to set the correct destination_type
+        destination_type = ACTION_SET
+        action_destination = Flow.get_node(flow, destination, destination_type)
+        if not action_destination:
+            destination_type = RULE_SET
+            ruleset_destination = Flow.get_node(flow, destination, destination_type)
+            self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
+
         actionset = ActionSet.get(flow, node)
         if actionset:
             actionset.destination = destination
+            actionset.destination_type = destination_type
             actionset.save()
 
         ruleset = RuleSet.get(flow, node)
@@ -218,8 +227,11 @@ class TembaTest(SmartminTest):
             for r in rules:
                 if r.uuid == rule:
                     r.destination = destination
+                    r.destination_type = destination_type
             ruleset.set_rules(rules)
             ruleset.save()
+        else:
+            self.fail("Couldn't find node with uuid: %s" % node)
 
 
 class FlowFileTest(TembaTest):
@@ -234,7 +246,8 @@ class FlowFileTest(TembaTest):
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
 
-    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False, assert_reply=True):
+    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
+                     assert_reply=True, assert_handle=True):
         """
         Starts the flow, sends the message, returns the reply
         """
@@ -252,7 +265,12 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                self.assertTrue(flow.find_and_handle(incoming), "'%s' did not handle message as expected" % flow.name)
+                handled = flow.find_and_handle(incoming)
+
+                if assert_handle:
+                    self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
+                else:
+                    self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
 
             # our message should have gotten a reply
             if assert_reply:
@@ -265,6 +283,11 @@ class FlowFileTest(TembaTest):
 
                 # if it's more than one, send back a list of replies
                 return [reply.text for reply in replies]
+
+            else:
+                # assert we got no reply
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                self.assertFalse(replies)
 
             return None
 

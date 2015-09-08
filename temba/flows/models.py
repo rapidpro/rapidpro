@@ -404,7 +404,7 @@ class Flow(TembaModel, SmartModel):
         return copy
 
     @classmethod
-    def get_node(cls, flow, uuid, destination_type=None):
+    def get_node(cls, flow, uuid, destination_type):
 
         if not uuid or not destination_type:
             return None
@@ -483,7 +483,7 @@ class Flow(TembaModel, SmartModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(final_step=step)
 
             # if we hangup then the run is no longer active
             run.expire()
@@ -555,38 +555,15 @@ class Flow(TembaModel, SmartModel):
         if started_flows is None:
             started_flows = []
 
-        # normally we just look at steps sitting at rulesets
-        step_type_filter = RULE_SET
-
-        # if we were orphaned at an actionset, advance us to the next node
-        action_sets = FlowStep.get_active_steps_for_contact(msg.contact, step_type=ACTION_SET)
-        for step in action_sets:
-            flow = step.run.flow
-            flow.ensure_current_version()
-            action_set = ActionSet.get(flow, step.step_uuid)
-
-            # our action set may have disappeared, in that case we just move on, ignoring this flow
-            if action_set:
-                destination = Flow.get_node(flow, action_set.destination, action_set.destination_type)
-                if destination:
-                    flow.add_step(step.run, destination, previous_step=step, arrived_on=timezone.now())
-
-                    # if we pushed them forward, we want to consider any step type
-                    # they just arrived at instead of just rulesets
-                    step_type_filter = None
-
-        steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=step_type_filter)
+        steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=RULE_SET)
         for step in steps:
             flow = step.run.flow
             flow.ensure_current_version()
-            arrived_on = timezone.now()
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:
-                step.left_on = arrived_on
-                step.save(update_fields=['left_on'])
-                flow.remove_active_for_step(step)
+                step.run.set_completed(final_step=step)
                 continue
 
             handled = Flow.handle_destination(destination, step, step.run, msg, started_flows, user_input=True)
@@ -621,7 +598,6 @@ class Flow(TembaModel, SmartModel):
             result = {handled: False}
 
             if destination.get_step_type() == RULE_SET:
-
                 should_pause = False
 
                 # if we are a ruleset against @step or we have a webhook we wait
@@ -632,6 +608,7 @@ class Flow(TembaModel, SmartModel):
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
 
+                # if we used this input, then mark our user input as used
                 if should_pause:
                     user_input = False
 
@@ -640,7 +617,6 @@ class Flow(TembaModel, SmartModel):
 
             elif destination.get_step_type() == ACTION_SET:
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
-                user_input = False
                 add_to_path(path, destination.uuid)
 
             # pull out our current state from the result
@@ -665,9 +641,7 @@ class Flow(TembaModel, SmartModel):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:
-            run.set_completed()
-            if is_test_contact:
-                ActionLog.create(step.run, _('%s has exited this flow') % step.run.contact.get_display(run.flow.org, short=True))
+            run.set_completed(final_step=step)
             return dict(handled=True, destination=None, destination_type=None)
 
         # actually execute all the actions in our actionset
@@ -687,9 +661,7 @@ class Flow(TembaModel, SmartModel):
 
             step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
         else:
-            run.set_completed()
-            if run.contact.is_test:
-                ActionLog.create(step.run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
+            run.set_completed(final_step=step)
             step = None
 
         # sync our channels to trigger any messages
@@ -698,16 +670,9 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg):
-
         # find a matching rule
         rule, value = ruleset.find_matching_rule(step, run, msg)
-
-        # no rule matched? then this message isn't part of this flow, escape out
-        if not rule:
-            return False
-
         flow = ruleset.flow
-        is_test_contact = run.contact.is_test
 
         # add the message to our step
         if msg.id > 0:
@@ -719,10 +684,7 @@ class Flow(TembaModel, SmartModel):
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
             # log it for our test contacts
-            run.set_completed()
-
-            if is_test_contact:
-                ActionLog.create(run, _('%s has exited this flow') % run.contact.get_display(run.flow.org, short=True))
+            run.set_completed(final_step=step)
             return dict(handled=True, destination=None, destination_type=None)
 
         # Create the step for our destination
@@ -1413,8 +1375,8 @@ class Flow(TembaModel, SmartModel):
         all_contacts = all_contacts.order_by('pk').distinct('pk')
 
         if not restart_participants:
-            # exclude anybody who is already currently in the flow
-            all_contacts = all_contacts.exclude(pk__in=[_.contact_id for _ in self.runs.filter(is_active=True)])
+            # exclude anybody who has already participated in the flow
+            all_contacts = all_contacts.exclude(pk__in=[_.contact_id for _ in self.runs.all()])
         else:
             # mark any current runs as no longer active
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
@@ -1649,12 +1611,11 @@ class Flow(TembaModel, SmartModel):
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
 
                     msg = Msg(contact=contact, text='', id=0)
-                    Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact, is_test_contact=contact.is_test)
+                    Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
+                                            is_test_contact=contact.is_test)
 
                 else:
-                    run.set_completed()
-                    if contact.is_test:
-                        ActionLog.create(run, '%s has exited this flow' % run.contact.get_display(self.org, short=True))
+                    run.set_completed(final_step=step)
 
             elif entry_rules:
                 step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
@@ -2345,7 +2306,7 @@ class RuleSet(models.Model):
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_WAIT = [ TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS ]
+    TYPE_WAIT = [TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS]
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
@@ -2366,9 +2327,10 @@ class RuleSet(models.Model):
                                help_text=_("The value that rules will be run against, if None defaults to @step.value"))
 
     webhook_url = models.URLField(null=True, blank=True, max_length=255,
-                                  help_text=_("The URL that will be called with the user's response before we run our rules"))
+                            help_text=_("The URL that will be called with the user's response before we run our rules"))
 
-    webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST', help_text=_('How the webhook should be executed'))
+    webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
+                                      help_text=_('How the webhook should be executed'))
 
     rules = models.TextField(help_text=_("The JSON encoded actions for this action set"))
 
@@ -2692,7 +2654,7 @@ class ActionSet(models.Model):
         """
         description = ""
         for action in self.get_actions():
-            description += action.get_description() + "\n"
+            description += str(action.get_description()) + "\n"
 
         return description
 
@@ -3030,11 +2992,28 @@ class FlowRun(models.Model):
         # lastly delete ourselves
         self.delete()
 
-    def set_completed(self, complete=True):
+    def set_completed(self, complete=True, final_step=None):
         """
         Mark a run as complete. Runs can become incomplete at a later
         data if they re-engage with an updated flow.
         """
+        if complete:
+            if self.contact.is_test:
+                ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
+
+            now = timezone.now()
+
+            # mark that we left this step
+            if final_step:
+                final_step.left_on = now
+                final_step.save(update_fields=['left_on'])
+                self.flow.remove_active_for_step(final_step)
+
+            # mark this flow as inactive
+            self.is_active = False
+            self.modified_on = now
+            self.save(update_fields=['modified_on', 'is_active'])
+
         r = get_redis_connection()
         if not self.contact.is_test:
             with self.flow.lock_on(FlowLock.participation):
