@@ -1212,6 +1212,20 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s&uuid=%s' % (drdre.uuid, jay_z.uuid))
         self.assertResultCount(response, 2)
 
+        after_dre = drdre.modified_on + timedelta(microseconds=2000)
+        response = self.fetchJSON(url, 'after=' + datetime_to_json_date(after_dre))
+        self.assertResultCount(response, 1)
+        self.assertContains(response, "Jay-Z")
+
+        before_jayz = jay_z.modified_on - timedelta(microseconds=2000)
+        response = self.fetchJSON(url, 'before=' + datetime_to_json_date(before_jayz))
+        self.assertResultCount(response, 1)
+        self.assertContains(response, "Dr Dre")
+
+        response = self.fetchJSON(url, 'after=%s&before=%s' % (datetime_to_json_date(after_dre),
+                                                               datetime_to_json_date(before_jayz)))
+        self.assertResultCount(response, 0)
+
         # check anon org case
         with AnonymousOrg(self.org):
             # check no phone numbers in response

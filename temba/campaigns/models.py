@@ -349,6 +349,7 @@ class CampaignEvent(SmartModel):
     def __unicode__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
+
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -388,6 +389,11 @@ class EventFire(Model):
         Updates all the scheduled events for each user for the passed in campaign.
         Should be called anytime a campaign changes.
         """
+        from temba.campaigns.tasks import update_event_fires_for_campaign
+        update_event_fires_for_campaign.delay(campaign.pk)
+
+    @classmethod
+    def do_update_campaign_events(cls, campaign):
         for contact in campaign.group.contacts.exclude(is_test=True):
             cls.update_campaign_events_for_contact(campaign, contact)
 
@@ -401,8 +407,8 @@ class EventFire(Model):
         # unschedule any fires
         EventFire.objects.filter(event=event, fired=None).delete()
 
-        # add new ones
-        if event.is_active:
+        # add new ones if this event exists and the campaign is active
+        if event.is_active and not event.campaign.is_archived:
 
             contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
             values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=event.relative_to.key)
@@ -509,14 +515,16 @@ class EventFire(Model):
         # remove any unfired events, they will get recreated below
         EventFire.objects.filter(event__campaign=campaign, contact=contact, fired=None).delete()
 
-        # for each event
-        for event in campaign.get_events():
-            # calculate our scheduled date
-            scheduled = event.calculate_scheduled_fire(contact)
+        # if we aren't archived
+        if not campaign.is_archived:
+            # then scheduled all our events
+            for event in campaign.get_events():
+                # calculate our scheduled date
+                scheduled = event.calculate_scheduled_fire(contact)
 
-            # and if we have a date, then schedule it
-            if scheduled and not contact.is_test:
-                EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
+                # and if we have a date, then schedule it
+                if scheduled and not contact.is_test:
+                    EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
     def __unicode__(self):
         return "%s - %s" % (self.event, self.contact)

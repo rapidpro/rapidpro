@@ -368,6 +368,9 @@ class Contact(TembaModel, SmartModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
+        self.save(update_fields=('modified_on',))
+
+
     @classmethod
     def from_urn(cls, org, scheme, path, country=None):
         if not scheme or not path:
@@ -1533,6 +1536,10 @@ class ContactGroup(TembaModel, SmartModel):
         self.is_active = False
         self.save()
         self.contacts.clear()
+
+        # delete any event fires related to our group
+        from temba.campaigns.models import EventFire
+        EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
 
         Value.invalidate_cache(group=self)
 

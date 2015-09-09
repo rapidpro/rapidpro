@@ -1569,6 +1569,9 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **fields** - any contact fields on this contact (JSON, optional)
+    * **after** - only contacts which have changed on this date or after (string) ex: 2012-01-28T18:00:00.000
+    * **before** - only contacts which have been changed on this date or before (string) ex: 2012-01-28T18:00:00.000
+
 
     Example:
 
@@ -1645,6 +1648,22 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)
 
+        before = self.request.QUERY_PARAMS.get('before', None)
+        if before:
+            try:
+                before = json_date_to_datetime(before)
+                queryset = queryset.filter(modified_on__lte=before)
+            except:
+                queryset = queryset.filter(pk=-1)
+
+        after = self.request.QUERY_PARAMS.get('after', None)
+        if after:
+            try:
+                after = json_date_to_datetime(after)
+                queryset = queryset.filter(modified_on__gte=after)
+            except:
+                queryset = queryset.filter(pk=-1)
+
         phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
         if phones:
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
@@ -1697,7 +1716,11 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
+                          dict(name='after', required=False,
+                                help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='before', required=False,
+                                help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
