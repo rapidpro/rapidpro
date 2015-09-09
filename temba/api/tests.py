@@ -28,6 +28,7 @@ from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQOD
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
 from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVED, DELETED
+from temba.orgs.models import Language
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER
 from temba.utils import dict_to_struct, datetime_to_json_date
@@ -284,7 +285,25 @@ class APITest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.json, dict(name="Temba",
                                              country="RW",
+                                             languages=[],
                                              primary_language=None,
+                                             timezone="Africa/Kigali",
+                                             date_style="day_first",
+                                             anon=False))
+
+        eng = Language.objects.create(org=self.org, iso_code='eng', name='English',
+                                      created_by=self.admin, modified_by=self.admin)
+        fre = Language.objects.create(org=self.org, iso_code='fre', name='French',
+                                      created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = eng
+        self.org.save()
+
+        response = self.fetchJSON(url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.json, dict(name="Temba",
+                                             country="RW",
+                                             languages=["eng", "fre"],
+                                             primary_language="eng",
                                              timezone="Africa/Kigali",
                                              date_style="day_first",
                                              anon=False))
