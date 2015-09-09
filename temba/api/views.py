@@ -22,7 +22,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView, SmartReadView, SmartListView
 from temba.api.models import WebHookEvent, WebHookResult, APIToken
-from temba.api.serializers import BoundarySerializer, BroadcastCreateSerializer, BroadcastReadSerializer
+from temba.api.serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
@@ -2700,9 +2700,9 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
     """
     permission = 'locations.adminboundary_api'
     model = AdminBoundary
-    serializer_class = BoundarySerializer
 
     def get_queryset(self):
+
         org = self.request.user.get_org()
         if not org.country:
             return []
@@ -2711,6 +2711,12 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
                                              Q(parent=org.country) |
                                              Q(parent__parent=org.country)).order_by('level', 'name')
         return queryset.select_related('parent')
+
+    def get_serializer_class(self):
+        if self.request.GET.get('aliases'):
+            return AliasSerializer
+        else:
+            return BoundarySerializer
 
     @classmethod
     def get_read_explorer(cls):

@@ -1327,6 +1327,17 @@ class BoundarySerializer(serializers.ModelSerializer):
         fields = ('boundary', 'name', 'level', 'parent', 'geometry')
 
 
+class AliasSerializer(BoundarySerializer):
+
+    aliases = serializers.SerializerMethodField('get_aliases')
+
+    def get_aliases(self, obj):
+        return [alias.name for alias in obj.aliases.all()]
+
+    class Meta:
+        model = AdminBoundary
+        fields = ('boundary', 'name', 'level', 'parent', 'aliases')
+
 class FlowRunReadSerializer(serializers.ModelSerializer):
     run = serializers.Field(source='id')
     flow_uuid = serializers.SerializerMethodField('get_flow_uuid')
