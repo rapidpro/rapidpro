@@ -139,6 +139,11 @@ describe 'Services:', ->
 
       flowService.deriveCategories(ruleset, 'eng')
 
+      console.log(ruleset._categories[0])
+      console.log(ruleset._categories[1])
+      console.log(ruleset._categories[2])
+      console.log(ruleset._categories[3])
+
       # we create a UI version of our rules
       expect(ruleset._categories).not.toBe(undefined)
 
