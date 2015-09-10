@@ -1496,11 +1496,10 @@ class Channel(SmartModel):
             error_code = getattr(e, 'error_code', 400)
             fatal = False
 
-            # this handle doesn't exist anymore or we can't send to them, fail them
-            if error_code == 404 or \
-              (error_code == 403 and str(e).find('users who are not following you') >= 0):
+            # this handle doesn't exist anymore or we can't send to them, fail them permanently
+            if error_code == 404 or (error_code == 403 and str(e).find('users who are not following you') >= 0):
                 fatal = True
-                Contact.objects.get(id=msg.contact).fail()
+                Contact.objects.get(id=msg.contact).fail(permanently=True)
 
             raise SendException(str(e),
                                 'https://api.twitter.com/1.1/direct_messages/new.json',
