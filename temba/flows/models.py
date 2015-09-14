@@ -1653,7 +1653,7 @@ class Flow(TembaModel, SmartModel):
 
         return runs
 
-    def add_step(self, run, step,
+    def add_step(self, run, node,
                  msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
@@ -1669,12 +1669,12 @@ class Flow(TembaModel, SmartModel):
             run.update_expiration(timezone.now())
 
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=step.uuid,
+            self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
                                                               rule_uuid=rule, rule_category=category)
 
         # then add our new step and associate it with our message
-        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=step.get_step_type(),
-                                       step_uuid=step.uuid, arrived_on=arrived_on)
+        step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
+                                       step_uuid=node.uuid, arrived_on=arrived_on)
 
         # for each message, associate it with this step and set the label on it
         for msg in msgs:
@@ -3532,54 +3532,53 @@ class FlowStep(models.Model):
 
     @classmethod
     def from_json(cls, json_obj, flow, contact, run):
-        step_uuid = json_obj['node']
-        node = ActionSet.objects.filter(uuid=step_uuid).first()
-        if not node:
-            node = RuleSet.objects.filter(uuid=step_uuid).first()
+        node_uuid = json_obj['node']
+        arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
+        # find this node
+        node = ActionSet.objects.filter(uuid=node_uuid).first()
         if not node:
-            raise ValueError("No such node with UUID %s in flow '%s'" % (step_uuid, flow.name))
+            node = RuleSet.objects.filter(uuid=node_uuid).first()
+        if not node:
+            raise ValueError("No such node with UUID %s in flow '%s'" % (node_uuid, flow.name))
 
-        # link the previous step to this one
+        # find and update the previous step
         prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
         if prev_step:
-            prev_step.next_uuid = step_uuid
-            prev_step.save(update_fields=('next_uuid',))
+            prev_step.left_on = arrived_on
+            prev_step.next_uuid = node_uuid
+            prev_step.save(update_fields=('left_on', 'next_uuid'))
 
-        step_type = ACTION_SET if isinstance(node, ActionSet) else RULE_SET
-        arrived_on = json_date_to_datetime(json_obj['arrived_on'])
-        left_on = json_date_to_datetime(json_obj['left_on']) if 'left_on' in json_obj else None
-
-        kwargs = dict(run=run, contact=contact, step_uuid=step_uuid, step_type=step_type,
-                      arrived_on=arrived_on, left_on=left_on)
-
+        # generate the messages for this step
+        msgs = []
         if 'rule' in json_obj:
-            kwargs['rule_uuid'] = json_obj['rule']['uuid']
-            kwargs['rule_category'] = json_obj['rule']['category']
-            kwargs['rule_value'] = json_obj['rule']['value']
-            try:
-                kwargs['rule_decimal_value'] = Decimal(json['rule']['value'])
-            except Exception:
-                pass
-
             # TODO same msg for different rules if they didn't require waiting
 
-            msg = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                      msg_type=FLOW, status=HANDLED,
-                                      channel=None, urn=None)
-        else:
-            msg = None
-
+            msgs.append(Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
+                                            msg_type=FLOW, status=HANDLED,
+                                            channel=None, urn=None))
         if 'actions' in json_obj:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
+            # TODO msg passed to actions should be last incoming (?)
+
             for action in actions:
-                action.execute(run, node, msg=msg, offline_on=arrived_on)
+                msgs += action.execute(run, node, msg=None, offline_on=arrived_on)
 
-        step = FlowStep.objects.create(**kwargs)
+        step = flow.add_step(run, node, msgs=msgs,
+                             is_start=False,  # TODO
+                             previous_step=prev_step, arrived_on=arrived_on)
 
-        if msg:
-            step.add_message(msg)
+        if 'rule' in json_obj:
+            step.rule_uuid = json_obj['rule']['uuid']
+            step.rule_category = json_obj['rule']['category']
+            step.rule_value = json_obj['rule']['value']
+            try:
+                step.rule_decimal_value = Decimal(json_obj['rule']['value'])
+            except Exception:
+                pass
+
+            step.save(update_fields=('rule_uuid', 'rule_category', 'rule_value', 'rule_decimal_value'))
 
         return step
 

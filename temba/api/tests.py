@@ -484,7 +484,6 @@ class APITest(TembaTest):
         data = dict(flow=flow.uuid, contact=self.joe.uuid, steps=[
             dict(node='00000000-00000000-00000000-00000001',
                  arrived_on='2015-08-25T11:09:30.088Z',
-                 left_on='2015-08-25T11:10:30.088Z',
                  actions=[
                      dict(type="reply", msg="What is your favorite color?")
                  ])
@@ -503,9 +502,9 @@ class APITest(TembaTest):
         self.assertEqual(steps[0].rule_category, None)
         self.assertEqual(steps[0].rule_value, None)
         self.assertEqual(steps[0].rule_decimal_value, None)
-        self.assertEqual(steps[0].next_uuid, None)
         self.assertEqual(steps[0].arrived_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 10, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[0].left_on, None)
+        self.assertEqual(steps[0].next_uuid, None)
 
         # outgoing message for reply
         out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
@@ -518,14 +517,12 @@ class APITest(TembaTest):
         data = dict(flow=flow.uuid, contact=self.joe.uuid, steps=[
             dict(node='00000000-00000000-00000000-00000005',
                  arrived_on='2015-08-25T11:11:30.088Z',
-                 left_on='2015-08-25T11:12:30.088Z',
                  rule=dict(uuid='00000000-00000000-00000000-00000012',
                            value="orange",
                            category="Orange",
                            text="I like orange")),
             dict(node='00000000-00000000-00000000-00000002',
                  arrived_on='2015-08-25T11:13:30.088Z',
-                 left_on='2015-08-25T11:14:30.088Z',
                  actions=[
                      dict(type="reply", msg="I love orange too!")
                  ])
@@ -535,6 +532,7 @@ class APITest(TembaTest):
         self.assertEqual(run.steps.count(), 3)
 
         steps = list(run.steps.order_by('pk'))
+        self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[0].next_uuid, '00000000-00000000-00000000-00000005')
 
         self.assertEqual(steps[1].step_uuid, '00000000-00000000-00000000-00000005')
@@ -545,7 +543,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[1].rule_decimal_value, None)
         self.assertEqual(steps[1].next_uuid, '00000000-00000000-00000000-00000002')
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 12, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
 
         step1_msgs = list(steps[1].messages.order_by('pk'))
@@ -559,9 +557,9 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].rule_category, None)
         self.assertEqual(steps[2].rule_value, None)
         self.assertEqual(steps[2].rule_decimal_value, None)
-        self.assertEqual(steps[2].next_uuid, None)
         self.assertEqual(steps[2].arrived_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 14, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[2].left_on, None)
+        self.assertEqual(steps[2].next_uuid, None)
 
         # new outgoing message for reply
         out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
