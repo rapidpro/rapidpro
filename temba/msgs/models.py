@@ -580,7 +580,10 @@ class Msg(models.Model):
         :return:
         """
         # we send in chunks of 1,000 to help with contention
-        for msgs in chunk_list(all_msgs, 1000):
+        for msg_chunk in chunk_list(all_msgs, 1000):
+            # create a temporary list of our chunk so we can iterate more than once
+            msgs = [msg for msg in msg_chunk]
+
             # build our id list
             msg_ids = set([m.id for m in msgs])
 
