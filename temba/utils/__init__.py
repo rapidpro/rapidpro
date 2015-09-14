@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django.http import HttpResponse
+from itertools import islice, chain
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 
@@ -432,4 +433,14 @@ def splitting_getlist(request, name, default=None):
         return vals[0].split(',')
     else:
         return vals
+
+def chunk_list(iterable, size):
+    """
+    Splits a very large list into evenly sized chunks.
+    Returns an iterator of lists that are no more than the size passed in.
+    """
+    source_iter = iter(iterable)
+    while True:
+        chunk_iter = islice(source_iter, size)
+        yield chain([chunk_iter.next()], chunk_iter)
 
