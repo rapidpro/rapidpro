@@ -573,23 +573,22 @@ class Msg(models.Model):
                                     help_text=_("The url for any recording associated with this message"))
 
     @classmethod
-    def send_messages(cls, msgs):
+    def send_messages(cls, all_msgs):
         """
         Adds the passed in messages to our sending queue, this will also update the status of the message to
         queued.
         :return:
         """
-        # build our id list
-        all_ids = set([m.id for m in msgs])
-
         # we send in chunks of 1,000 to help with contention
-        for msg_ids in chunk_list(all_ids, 1000):
+        for msgs in chunk_list(all_msgs, 1000):
+            # build our id list
+            msg_ids = set([m.id for m in msgs])
+
             with transaction.atomic():
                 queued_on = timezone.now()
 
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
-                                           .exclude(channel=None)\
                                            .exclude(channel__channel_type=ANDROID)\
                                            .exclude(msg_type=IVR)\
                                            .exclude(topup=None)\
@@ -598,17 +597,19 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    # serialize the model to a dictionary
-                    msg.queued_on = queued_on
-                    task = msg.as_task_json()
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
+                            msg.topup and not msg.contact.is_test:
+                        # serialize the model to a dictionary
+                        msg.queued_on = queued_on
+                        task = msg.as_task_json()
 
-                    task_priority = DEFAULT_PRIORITY
-                    if msg.priority == SMS_BULK_PRIORITY:
-                        task_priority = LOW_PRIORITY
-                    elif msg.priority == SMS_HIGH_PRIORITY:
-                        task_priority = HIGH_PRIORITY
+                        task_priority = DEFAULT_PRIORITY
+                        if msg.priority == SMS_BULK_PRIORITY:
+                            task_priority = LOW_PRIORITY
+                        elif msg.priority == SMS_HIGH_PRIORITY:
+                            task_priority = HIGH_PRIORITY
 
-                    push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                        push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
 
     @classmethod
     def process_message(cls, msg):

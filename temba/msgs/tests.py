@@ -9,7 +9,7 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.channels.models import Channel
+from temba.channels.models import Channel, KANNEL
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
@@ -486,7 +486,6 @@ class MsgTest(TembaTest):
 
     def test_failed(self):
         from temba.msgs.tasks import check_messages_task
-
         failed_url = reverse('msgs.msg_failed')
 
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
