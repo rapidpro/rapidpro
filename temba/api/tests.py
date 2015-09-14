@@ -1033,13 +1033,19 @@ class APITest(TembaTest):
         self.clear_cache()
         response = self.fetchJSON(url, "")
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 2)
-        self.assertContains(response, "Dr Dre")
-        self.assertContains(response, 'tel:+250788123456')
-        self.assertContains(response, 'Andre')
-        self.assertContains(response, "Jay-Z")
-        self.assertContains(response, '123555')
-        self.assertContains(response, "2014-12-31T01:04:00.000000Z")
+        self.assertEqual(len(response.json['results']), 2)
+
+        self.assertEqual(response.json['results'][0]['name'], "Dr Dre")
+        self.assertEqual(response.json['results'][0]['urns'], ['twitter:drdre', 'tel:+250788123456'])
+        self.assertEqual(response.json['results'][0]['fields'], {'real_name': "Andre", 'registration_date': None})
+        self.assertEqual(response.json['results'][0]['group_uuids'], [artists.uuid])
+        self.assertEqual(response.json['results'][0]['groups'], ["Music Artists"])
+        self.assertEqual(response.json['results'][0]['blocked'], False)
+        self.assertEqual(response.json['results'][0]['failed'], False)
+
+        self.assertEqual(response.json['results'][1]['name'], "Jay-Z")
+        self.assertEqual(response.json['results'][1]['fields'], {'real_name': None,
+                                                                 'registration_date': "2014-12-31T01:04:00.000000Z"})
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")
