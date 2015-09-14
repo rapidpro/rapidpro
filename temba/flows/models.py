@@ -32,7 +32,7 @@ from smartmin.models import SmartModel
 from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -52,6 +52,7 @@ RULE_SET = 'R'
 ACTION_SET = 'A'
 STEP_TYPE_CHOICES = ((RULE_SET, "RuleSet"),
                      (ACTION_SET, "ActionSet"))
+
 
 class FlowException(Exception):
     def __init__(self, *args, **kwargs):
@@ -3531,14 +3532,17 @@ class FlowStep(models.Model):
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
     @classmethod
-    def from_json(cls, json_obj, flow, contact, run):
+    def from_json(cls, json_obj, flow, run):
         node_uuid = json_obj['node']
+        is_ruleset = 'rule' in json_obj
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
         # find this node
-        node = ActionSet.objects.filter(uuid=node_uuid).first()
-        if not node:
+        if is_ruleset:
             node = RuleSet.objects.filter(uuid=node_uuid).first()
+        else:
+            node = ActionSet.objects.filter(uuid=node_uuid).first()
+
         if not node:
             raise ValueError("No such node with UUID %s in flow '%s'" % (node_uuid, flow.name))
 
@@ -3551,25 +3555,26 @@ class FlowStep(models.Model):
 
         # generate the messages for this step
         msgs = []
-        if 'rule' in json_obj:
-            # TODO same msg for different rules if they didn't require waiting
+        if is_ruleset:
+            if node.is_pause():
+                incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
+                                               msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                               channel=None, urn=None)
+            else:
+                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
-            msgs.append(Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                            msg_type=FLOW, status=HANDLED,
-                                            channel=None, urn=None))
-        if 'actions' in json_obj:
+            msgs.append(incoming)
+        else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            # TODO msg passed to actions should be last incoming (?)
+            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
-                msgs += action.execute(run, node, msg=None, offline_on=arrived_on)
+                msgs += action.execute(run, node, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs,
-                             is_start=False,  # TODO
-                             previous_step=prev_step, arrived_on=arrived_on)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on)
 
-        if 'rule' in json_obj:
+        if is_ruleset:
             step.rule_uuid = json_obj['rule']['uuid']
             step.rule_category = json_obj['rule']['category']
             step.rule_value = json_obj['rule']['value']
@@ -4317,13 +4322,14 @@ class ReplyAction(Action):
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
 
-    def execute(self, run, actionset, msg, offline_on=False):
+    def execute(self, run, actionset, msg, offline_on=None):
         if self.msg:
             user = get_flow_user()
             text = run.flow.get_localized_text(self.msg, run.contact)
 
             if offline_on:
-                return [Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT, created_on=offline_on)]
+                return [Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
+                                            created_on=offline_on, response_to=msg)]
 
             context = run.flow.build_message_context(run.contact, msg)
             if msg:

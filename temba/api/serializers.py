@@ -1297,13 +1297,14 @@ class FlowRunWriteSerializer(WriteSerializer):
         steps = attrs.get('steps', [])
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(org=self.org, contact=contact, flow=flow).order_by('-modified_on').first()
+        run = FlowRun.objects.filter(org=self.org, contact=contact,
+                                     flow=flow, is_active=True).order_by('-modified_on').first()
 
         if not run or run.is_completed():
             run = FlowRun.create(flow, contact)
 
         for step in steps:
-            FlowStep.from_json(step, flow, contact, run)
+            FlowStep.from_json(step, flow, run)
 
         return run
 

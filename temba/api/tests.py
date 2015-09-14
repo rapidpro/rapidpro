@@ -568,6 +568,7 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[1].contact_urn, None)
         self.assertEqual(out_msgs[1].text, "I love orange too!")
         self.assertEqual(out_msgs[1].created_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
+        self.assertEqual(out_msgs[1].response_to, step1_msgs[0])
 
     def test_api_results(self):
         url = reverse('api.results')
