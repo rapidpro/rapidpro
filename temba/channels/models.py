@@ -1156,7 +1156,7 @@ class Channel(SmartModel):
 
             # if this is fatal due to the user opting out, fail this contact permanently
             if response.text and response.text.find('has opted out'):
-                Contact.objects.get(id=msg.contact).fail()
+                Contact.objects.get(id=msg.contact).fail(permanently=True)
 
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='PUT',

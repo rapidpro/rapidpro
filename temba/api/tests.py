@@ -2827,6 +2827,7 @@ class VumiTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
+        reporters = self.create_group("Reporters", [joe])
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing sms
@@ -2905,9 +2906,10 @@ class VumiTest(TembaTest):
                 self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
 
-                # could should now be failed as well
+                # could should now be failed as well and in no groups
                 joe = Contact.objects.get(id=joe.id)
                 self.assertTrue(joe.is_failed)
+                self.assertFalse(ContactGroup.user_groups.filter(contacts=joe))
 
         finally:
             settings.SEND_MESSAGES = False
