@@ -40,7 +40,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 5
+CURRENT_EXPORT_VERSION = 6
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -1343,8 +1343,8 @@ class Language(SmartModel):
             return default_text
 
         # If we are handed raw text without translations, just return that
-        if not isinstance(text_translations, dict):
-            return text_translations
+        #if not isinstance(text_translations, dict):
+        #    return text_translations
 
         # first priority is our contact's language
         if contact and contact.language:

@@ -188,7 +188,11 @@ class TembaTest(SmartminTest):
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
         flow.update(definition)
-        return flow
+        flow.version_number = 4
+        flow.ensure_current_version()
+        flow.save()
+
+        return Flow.objects.get(pk=flow.pk)
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()

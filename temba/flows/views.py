@@ -430,8 +430,13 @@ class FlowCRUDL(SmartCRUDL):
             if not obj.flow_type:
                 obj.flow_type = Flow.FLOW
 
+            # if we don't have a language, use base
+            if not obj.base_language:
+                obj.base_language = 'base'
+
             self.object = Flow.create(org, self.request.user, obj.name,
-                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes, base_language=obj.base_language)
+                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes,
+                                      base_language=obj.base_language)
 
         def post_save(self, obj):
             user = self.request.user

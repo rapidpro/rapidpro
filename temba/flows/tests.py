@@ -19,7 +19,7 @@ from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
-from temba.orgs.models import Org, Language
+from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger, FOLLOW_TRIGGER, CATCH_ALL_TRIGGER, MISSED_CALL_TRIGGER, INBOUND_CALL_TRIGGER
 from temba.triggers.models import SCHEDULE_TRIGGER, KEYWORD_TRIGGER
@@ -27,7 +27,7 @@ from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
 from xlrd import xldate_as_tuple
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowException, ExportFlowResultsTask, COMPLETE
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowVersion, FlowException, ExportFlowResultsTask, COMPLETE
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
@@ -50,13 +50,13 @@ class RuleTest(TembaTest):
         self.other_group = self.create_group("Other", [])
 
         self.definition = dict(action_sets=[dict(uuid=uuid(1), x=1, y=1, destination=uuid(5),
-                                            actions=[dict(type='reply', msg='What is your favorite color?')]),
+                                            actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
                                        dict(uuid=uuid(2), x=2, y=2, destination=None,
-                                            actions=[dict(type='reply', msg='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow')]),
+                                            actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                        dict(uuid=uuid(3), x=3, y=3, destination=None,
-                                            actions=[dict(type='reply', msg='Blue is sad. :(')]),
+                                            actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
                                        dict(uuid=uuid(4), x=4, y=4, destination=None,
-                                            actions=[dict(type='reply', msg='That is a funny color.')])
+                                            actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])
                                        ],
                           rule_sets=[dict(uuid=uuid(5), x=5, y=5,
                                           label='color',
@@ -68,12 +68,12 @@ class RuleTest(TembaTest):
                                           ruleset_type='wait_message',
                                           config={},
                                           rules=[
-                                              dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test='orange'), category="Orange"),
-                                              dict(uuid=uuid(13), destination=uuid(3), test=dict(type='contains', test='blue'), category="Blue"),
-                                              dict(uuid=uuid(14), destination=uuid(4), test=dict(type='true'), category="Other"),
-                                              dict(uuid=uuid(15), test=dict(type='true'), category="Nothing")]) # test case with no destination
+                                              dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test=dict(base='orange')), category=dict(base="Orange")),
+                                              dict(uuid=uuid(13), destination=uuid(3), test=dict(type='contains', test=dict(base='blue')), category=dict(base="Blue")),
+                                              dict(uuid=uuid(14), destination=uuid(4), test=dict(type='true'), category=dict(base="Other")),
+                                              dict(uuid=uuid(15), test=dict(type='true'), category=dict(base="Nothing"))]) # test case with no destination
                                     ],
-                          entry=uuid(1), metadata=dict(author="Ryan Lewis"))
+                          entry=uuid(1), base_language='base', metadata=dict(author="Ryan Lewis"))
 
         settings.SEND_EMAILS = True
         settings.SEND_WEBHOOKS = True
@@ -511,13 +511,13 @@ class RuleTest(TembaTest):
         entry = ActionSet.objects.get(uuid=uuid(1))
         actions = entry.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction('What is your favorite color?').as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='What is your favorite color?')).as_json(), actions[0].as_json())
         self.assertEquals(entry.uuid, flow.entry_uuid)
 
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction('I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow').as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
@@ -534,13 +534,13 @@ class RuleTest(TembaTest):
         self.assertEquals(uuid(14), rules[2].uuid)
 
         # check routing
-        self.assertEquals(ContainsTest(test="orange").as_json(), rules[0].test.as_json())
-        self.assertEquals(ContainsTest(test="blue").as_json(), rules[1].test.as_json())
+        self.assertEquals(ContainsTest(test=dict(base="orange")).as_json(), rules[0].test.as_json())
+        self.assertEquals(ContainsTest(test=dict(base="blue")).as_json(), rules[1].test.as_json())
         self.assertEquals(TrueTest().as_json(), rules[2].test.as_json())
 
         # and categories
-        self.assertEquals("Orange", rules[0].category)
-        self.assertEquals("Blue", rules[1].category)
+        self.assertEquals("Orange", rules[0].category['base'])
+        self.assertEquals("Blue", rules[1].category['base'])
 
         # back out as json
         json_dict = self.flow.as_json()
@@ -562,13 +562,13 @@ class RuleTest(TembaTest):
         entry = ActionSet.objects.get(uuid=uuid(1))
         actions = entry.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction('What is your favorite color?').as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='What is your favorite color?')).as_json(), actions[0].as_json())
         self.assertEquals(entry.uuid, flow.entry_uuid)
 
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction('I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow').as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
@@ -581,8 +581,8 @@ class RuleTest(TembaTest):
         self.assertEquals(uuid(3), rules[1].destination)
 
         # check routing
-        self.assertEquals(ContainsTest(test="orange").as_json(), rules[0].test.as_json())
-        self.assertEquals(ContainsTest(test="blue").as_json(), rules[1].test.as_json())
+        self.assertEquals(ContainsTest(test=dict(base="orange")).as_json(), rules[0].test.as_json())
+        self.assertEquals(ContainsTest(test=dict(base="blue")).as_json(), rules[1].test.as_json())
 
         # updating with a label name that is too long should truncate it
         self.definition['rule_sets'][0]['label'] = ''.join('W' for x in range(75))
@@ -1147,8 +1147,8 @@ class RuleTest(TembaTest):
         rules = RuleSet.objects.get(uuid=uuid(5))
 
         # update our rule to include decimal parsing
-        rules.set_rules_dict([Rule(uuid(12), "< 10", uuid(2), 'A', LtTest(10)).as_json(),
-                              Rule(uuid(13), "> 10", uuid(3),'A', GteTest(10)).as_json()])
+        rules.set_rules_dict([Rule(uuid(12), {flow.base_language: "< 10"}, uuid(2), 'A', LtTest(10)).as_json(),
+                              Rule(uuid(13), {flow.base_language: "> 10"}, uuid(3), 'A', GteTest(10)).as_json()])
 
         rules.save()
 
@@ -1164,7 +1164,6 @@ class RuleTest(TembaTest):
         self.assertEquals(Decimal("15"), step.rule_decimal_value)
 
     def test_save_to_contact_action(self):
-        flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Superhero Name", value='@step'))
         run = FlowRun.create(self.flow, self.contact)
@@ -3065,7 +3064,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(5, definition.get('version', 0))
+        self.assertEquals(6, definition.get('version', 0))
         self.assertEquals(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow
@@ -3163,32 +3162,6 @@ class FlowsTest(FlowFileTest):
         self.contact.save()
         self.assertEquals('Hello friend! What is your favorite color?',
                           self.send_message(flow, 'start flow', restart_participants=True, initiate_flow=True))
-
-    def test_reimport_over_localized_flow(self):
-
-        # a non-localized flow
-        flow = self.get_flow('favorites')
-        self.assertIsNone(flow.base_language)
-
-        # that gets localized
-        flow.base_language = 'spa'
-        flow.save()
-        flow.update_base_language()
-        self.assertEqual('spa', Flow.objects.get(pk=flow.pk).base_language)
-
-        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
-        action = actionset.get_actions()[0]
-        self.assertTrue(isinstance(action.msg, dict))
-
-        # now update with the old definition
-        self.get_flow('favorites')
-
-        # should no longer be localized
-        self.assertIsNone(Flow.objects.get(pk=flow.pk).base_language)
-
-        actionset = ActionSet.objects.filter(flow=flow).order_by('-pk').first()
-        action = actionset.get_actions()[0]
-        self.assertFalse(isinstance(action.msg, dict))
 
     def test_different_expiration(self):
         flow = self.get_flow('favorites')
@@ -3366,18 +3339,13 @@ class FlowsTest(FlowFileTest):
         reply = json_dict['action_sets'][0]['actions'][0]
 
         # we should be a normal unicode response
-        self.assertTrue(isinstance(reply['msg'], unicode))
-
-        # now update our flow to use it
-        favorites.base_language = language.iso_code
-        favorites.save()
-        favorites.update_base_language()
+        self.assertTrue(isinstance(reply['msg'], dict))
+        self.assertTrue(isinstance(reply['msg']['base'], unicode))
 
         # now our replies are language dicts
         json_dict = favorites.as_json()
         reply = json_dict['action_sets'][1]['actions'][0]
-        self.assertTrue(isinstance(reply['msg'], dict))
-        self.assertEquals('Good choice, I like @flow.color.category too! What is your favorite beer?', reply['msg']['eng'])
+        self.assertEquals('Good choice, I like @flow.color.category too! What is your favorite beer?', reply['msg']['base'])
 
         # now interact with the flow and make sure we get an appropriate resonse
         FlowRun.objects.all().delete()
@@ -3473,6 +3441,14 @@ class FlowsTest(FlowFileTest):
 
 class FlowMigrationTest(FlowFileTest):
 
+    def migrate_flow(self, flow, to_version=None):
+        if not to_version:
+            to_version = CURRENT_EXPORT_VERSION
+
+        json_flow = FlowVersion.migrate_definition(flow.as_json(), flow.version_number, to_version=to_version)
+        flow.update(json_flow)
+        return Flow.objects.get(pk=flow.pk)
+
     def test_migrate_from_4_to_5_language(self):
 
         flow = self.get_flow('multi-language-flow')
@@ -3488,21 +3464,18 @@ class FlowMigrationTest(FlowFileTest):
         ruleset.save()
 
         # now migrate us forward
-        flow.ensure_current_version()
+        flow = self.migrate_flow(flow, to_version=5)
 
         wait_ruleset = RuleSet.objects.get(flow=flow, ruleset_type='wait_message')
         self.assertEquals(1, len(wait_ruleset.get_rules()))
         self.assertEquals('All Responses', wait_ruleset.get_rules()[0].category['eng'])
         self.assertEquals('Otro', wait_ruleset.get_rules()[0].category['spa'])
 
-
     def test_migrate_from_4_to_5(self):
-
 
         settings.SEND_WEBHOOKS = True
 
         flow = self.get_flow('favorites')
-
 
         # start the flow for our contact
         flow.start(groups=[], contacts=[self.contact])
@@ -3530,8 +3503,7 @@ class FlowMigrationTest(FlowFileTest):
         beer_ruleset.save()
 
         # now migrate our flow
-        flow.ensure_current_version()
-        self.assertEquals(5, Flow.objects.get(pk=flow.pk).version_number)
+        flow = self.migrate_flow(flow, to_version=5)
 
         # we should be sitting at a wait node
         ruleset = RuleSet.objects.get(uuid=step.step_uuid)
@@ -3559,7 +3531,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('wait_message', wait_beer.ruleset_type)
         self.assertEquals('@step.value', wait_beer.operand)
         self.assertEquals(1, len(wait_beer.get_rules()))
-        self.assertEquals('All Responses', wait_beer.get_rules()[0].category)
+        self.assertEquals('All Responses', wait_beer.get_rules()[0].category[flow.base_language])
 
         # and then split on the expression for various beer choices
         beer_expression = RuleSet.objects.get(flow=flow, uuid=wait_beer.get_rules()[0].destination)
@@ -3578,7 +3550,7 @@ class FlowMigrationTest(FlowFileTest):
 
             first_response = ActionSet.objects.get(flow=flow, x=131)
             actions = first_response.get_actions_dict()
-            actions[0]['msg'] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
+            actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
             first_response.set_actions_dict(actions)
             first_response.save()
 

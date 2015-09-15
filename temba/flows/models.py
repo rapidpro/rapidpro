@@ -211,7 +211,7 @@ class Flow(TembaModel, SmartModel):
     saved_by = models.ForeignKey(User, related_name="flow_saves",
                                  help_text=_("The user which last saved this flow"))
 
-    base_language = models.CharField(max_length=3, null=True, blank=True,
+    base_language = models.CharField(max_length=4, null=True, blank=True,
                                      help_text=_('The primary language for editing this flow'))
 
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
@@ -244,15 +244,18 @@ class Flow(TembaModel, SmartModel):
         """
         Creates a special 'join group' flow
         """
+
+        base_language = org.primary_lanuage.iso_code if org.primary_language else 'base'
+
         name = Flow.get_unique_name('Join %s' % group.name, org)
-        flow = Flow.create(org, user, name)
+        flow = Flow.create(org, user, name, base_language=base_language)
 
         uuid = unicode(uuid4())
         actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@step.value|remove_first_word|title_case')]
 
         if response:
-            actions += [dict(type='reply', msg=response)]
+            actions += [dict(type='reply', msg={base_language:response})]
 
         if start_flow:
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
@@ -980,25 +983,6 @@ class Flow(TembaModel, SmartModel):
 
         return Language.get_localized_text(default_text, text_translations, preferred_languages, contact=contact)
 
-    def update_base_language(self):
-        """
-        Update our flow definition according to the base_language
-        """
-        if self.base_language:
-            for actionset in ActionSet.objects.filter(flow=self):
-                actions = actionset.get_actions()
-                for action in actions:
-                    action.update_base_language(self.base_language)
-                actionset.set_actions(actions)
-                actionset.save()
-
-            for ruleset in RuleSet.objects.filter(flow=self):
-                rules = ruleset.get_rules()
-                for rule in rules:
-                    rule.update_base_language(self.base_language, self.org)
-                ruleset.set_rules(rules)
-                ruleset.save()
-
     def update_run_expirations(self):
         """
         Update all of our current run expirations according to our new expiration period
@@ -1091,8 +1075,8 @@ class Flow(TembaModel, SmartModel):
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=message)])]
-        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets))
+        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
+        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -2671,7 +2655,13 @@ class FlowVersion(SmartModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
     @classmethod
-    def migrate_definition(cls, json_flow, version):
+    def migrate_definition(cls, json_flow, version, to_version=None):
+
+        print "Migrating from %s" % version
+        print json.dumps(json_flow, indent=2)
+
+        if not to_version:
+            to_version = CURRENT_EXPORT_VERSION
 
         def remove_extra_rules(ruleset):
             """ Remove all rules but the all responses rule """
@@ -2722,7 +2712,43 @@ class FlowVersion(SmartModel):
                     rule['destination'] = _next['uuid']
                 flow['rule_sets'].append(node)
 
-        while (version != CURRENT_EXPORT_VERSION):
+        while (version < to_version):
+
+            # Move to Version 6, remove non-localized flows
+            if version == 5:
+
+                # the name of the base language if its not set yet
+                base_language = 'base'
+
+                def convert_to_dict(d, key):
+                    if not isinstance(d[key], dict):
+                        d[key] = { base_language: d[key]}
+
+                if 'base_language' not in json_flow:
+                    json_flow['base_language'] = base_language
+
+                    for ruleset in json_flow.get('rule_sets'):
+                        for rule in ruleset.get('rules'):
+
+                            # betweens haven't always required a category name, create one
+                            rule_test = rule['test']
+                            if rule_test['type'] == 'between' and 'category' not in rule:
+                                rule['category'] = '%s-%s' % (rule_test['min'], rule_test['max'])
+
+                            # convert the category name
+                            convert_to_dict(rule, 'category')
+
+                            # convert our localized types
+                            if (rule['test']['type'] in [ContainsTest.TYPE, ContainsAnyTest.TYPE,
+                                                   StartsWithTest.TYPE, RegexTest.TYPE]):
+                                convert_to_dict(rule['test'], 'test')
+
+                    for actionset in json_flow.get('action_sets'):
+                        for action in actionset.get('actions'):
+                            if action['type'] in [SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE]:
+                                convert_to_dict(action, 'msg')
+                            if action['type'] == SayAction.TYPE:
+                                convert_to_dict(action, 'recording')
 
             # Move to Version 5, passive rulesets
             if version == 4:
@@ -3836,9 +3862,6 @@ class Action(object):
                 actions.append(action)
         return actions
 
-    def update_base_language(self, language_iso):
-        pass
-
     def get_description(self):
         return str(self.__class__)
 
@@ -4197,14 +4220,6 @@ class SayAction(Action):
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
 
-
-    def update_base_language(self, language_iso):
-        # if we are a single language message, then convert to multi-language
-        if not isinstance(self.msg, dict):
-            self.msg = {language_iso: self.msg}
-        if not isinstance(self.recording, dict):
-            self.recording = {language_iso: self.recording}
-
     def get_description(self):
         return "Said %s" % self.msg
 
@@ -4274,11 +4289,6 @@ class ReplyAction(Action):
                 text = run.flow.get_localized_text(self.msg, run.contact)
                 return list(run.contact.send(text, get_flow_user(), trigger_send=False, message_context=run.flow.build_message_context(run.contact, sms)).get_messages())
         return []
-
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.msg, dict):
-            self.msg = {language_iso: self.msg}
 
     def get_description(self):
         return "Replied with %s" % self.msg
@@ -4707,11 +4717,6 @@ class SendAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.msg, dict):
-            self.msg = {language_iso: self.msg}
-
     def get_description(self):
         return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
 
@@ -4726,9 +4731,9 @@ class Rule(object):
         self.test = test
 
     def get_category_name(self, flow_lang):
-        if not self.category:
-            if isinstance(self.test, BetweenTest):
-                return "%s-%s" % (self.test.min, self.test.max)
+        #if not self.category:
+        #    if isinstance(self.test, BetweenTest):
+        #        return "%s-%s" % (self.test.min, self.test.max)
 
         # return the category name for the flow language version
         if isinstance(self.category, dict):
@@ -4777,13 +4782,6 @@ class Rule(object):
                               Test.from_json(org, rule['test'])))
 
         return rules
-
-    def update_base_language(self, language_iso, org):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.category, dict):
-            self.category = {language_iso: self.category}
-
-        self.test.update_base_language(language_iso)
 
 class Test(object):
     TYPE = 'type'
@@ -4842,9 +4840,6 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
-
-    def update_base_language(self, language_iso): # pragma: no cover
-        pass
 
 
 class TrueTest(Test):
@@ -4943,15 +4938,6 @@ class OrTest(Test):
         return 0, None
 
 
-class TranslatableTest(Test):
-    """
-    A test that can be evaluated against a localized string
-    """
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.test, dict):
-            self.test = {language_iso: self.test}
-
 class NotEmptyTest(Test):
     """
     { op: "not_empty" }
@@ -4974,7 +4960,7 @@ class NotEmptyTest(Test):
             return 1, text
         return 0, None
 
-class ContainsTest(TranslatableTest):
+class ContainsTest(Test):
     """
     { op: "contains", "test": "red" }
     """
@@ -5067,7 +5053,7 @@ class ContainsAnyTest(ContainsTest):
             return 0, None
 
 
-class StartsWithTest(TranslatableTest):
+class StartsWithTest(Test):
     """
     { op: "starts", "test": "red" }
     """
@@ -5458,7 +5444,7 @@ class PhoneTest(Test):
 
         return number, number
 
-class RegexTest(TranslatableTest):
+class RegexTest(Test):
     """
     Test for whether a response matches a regular expression
     """
