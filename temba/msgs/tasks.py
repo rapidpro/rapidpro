@@ -131,7 +131,7 @@ def collect_message_metrics_task():
             cache.set('last_cron', timezone.now())
 
 
-@task(track_started=True, name='check_messages_task', time_limit=30, soft_time_limit=30)
+@task(track_started=True, name='check_messages_task', time_limit=900, soft_time_limit=900)
 def check_messages_task():
     """
     Checks to see if any of our aggregators have errored messages that need to be retried.
