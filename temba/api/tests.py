@@ -481,18 +481,28 @@ class APITest(TembaTest):
 
         flow = self.create_flow(uuid_start=0)
 
-        data = dict(flow=flow.uuid, contact=self.joe.uuid, steps=[
-            dict(node='00000000-00000000-00000000-00000001',
-                 arrived_on='2015-08-25T11:09:30.088Z',
-                 actions=[
-                     dict(type="reply", msg="What is your favorite color?")
-                 ])
-        ])
-        response = self.postJSON(url, data)
+        data = dict(flow=flow.uuid,
+                    contact=self.joe.uuid,
+                    started='2015-08-25T11:09:29.088Z',
+                    steps=[
+                        dict(node='00000000-00000000-00000000-00000001',
+                             arrived_on='2015-08-25T11:09:30.088Z',
+                             actions=[
+                                 dict(type="reply", msg="What is your favorite color?")
+                             ])
+                    ],
+                    completed=False)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.postJSON(url, data)
 
         run = FlowRun.objects.get()
         self.assertEqual(run.flow, flow)
         self.assertEqual(run.contact, self.joe)
+        self.assertEqual(run.created_on, datetime(2015, 8, 25, 11, 9, 29, 88000, pytz.UTC))
+        self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
+        self.assertEqual(run.is_active, True)
+        self.assertEqual(run.is_completed(), False)
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(len(steps), 1)
@@ -514,21 +524,32 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[0].text, "What is your favorite color?")
         self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
-        data = dict(flow=flow.uuid, contact=self.joe.uuid, steps=[
-            dict(node='00000000-00000000-00000000-00000005',
-                 arrived_on='2015-08-25T11:11:30.088Z',
-                 rule=dict(uuid='00000000-00000000-00000000-00000012',
-                           value="orange",
-                           category="Orange",
-                           text="I like orange")),
-            dict(node='00000000-00000000-00000000-00000002',
-                 arrived_on='2015-08-25T11:13:30.088Z',
-                 actions=[
-                     dict(type="reply", msg="I love orange too!")
-                 ])
-        ])
-        response = self.postJSON(url, data)
+        data = dict(flow=flow.uuid,
+                    contact=self.joe.uuid,
+                    started='2015-08-25T11:09:29.088Z',
+                    steps=[
+                        dict(node='00000000-00000000-00000000-00000005',
+                             arrived_on='2015-08-25T11:11:30.088Z',
+                             rule=dict(uuid='00000000-00000000-00000000-00000012',
+                                       value="orange",
+                                       category="Orange",
+                                       text="I like orange")),
+                        dict(node='00000000-00000000-00000000-00000002',
+                             arrived_on='2015-08-25T11:13:30.088Z',
+                             actions=[
+                                 dict(type="reply", msg="I love orange too!")
+                             ])
+                    ],
+                    completed=True)
 
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
+            self.postJSON(url, data)
+
+        # run should be complete now
+        run = FlowRun.objects.get()
+        self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
+        self.assertEqual(run.is_active, False)
+        self.assertEqual(run.is_completed(), True)
         self.assertEqual(run.steps.count(), 3)
 
         steps = list(run.steps.order_by('pk'))
@@ -558,7 +579,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].rule_value, None)
         self.assertEqual(steps[2].rule_decimal_value, None)
         self.assertEqual(steps[2].arrived_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].left_on, None)
+        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[2].next_uuid, None)
 
         # new outgoing message for reply

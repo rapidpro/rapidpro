@@ -2993,7 +2993,7 @@ class FlowRun(models.Model):
         # lastly delete ourselves
         self.delete()
 
-    def set_completed(self, complete=True, final_step=None):
+    def set_completed(self, complete=True, final_step=None, completed_on=None):
         """
         Mark a run as complete. Runs can become incomplete at a later
         data if they re-engage with an updated flow.
@@ -3006,7 +3006,7 @@ class FlowRun(models.Model):
 
             # mark that we left this step
             if final_step:
-                final_step.left_on = now
+                final_step.left_on = completed_on if completed_on else now
                 final_step.save(update_fields=['left_on'])
                 self.flow.remove_active_for_step(final_step)
 

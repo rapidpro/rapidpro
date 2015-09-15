@@ -6,6 +6,7 @@ import phonenumbers
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
@@ -1259,6 +1260,8 @@ class FlowRunStartSerializer(WriteSerializer):
 class FlowRunWriteSerializer(WriteSerializer):
     flow = serializers.CharField(required=True, max_length=36)
     contact = serializers.CharField(required=True, max_length=36)
+    started = serializers.DateTimeField(required=True)
+    completed = serializers.BooleanField(required=False)
     steps = serializers.WritableField()
 
     def validate_flow(self, attrs, source):
@@ -1294,17 +1297,29 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         flow = attrs['flow']
         contact = attrs.get('contact')
+        started = attrs['started']
         steps = attrs.get('steps', [])
+        completed = attrs.get('completed', False)
 
         # look for previous run with this contact and flow
         run = FlowRun.objects.filter(org=self.org, contact=contact,
-                                     flow=flow, is_active=True).order_by('-modified_on').first()
+                                     flow=flow, created_on=started).order_by('-modified_on').first()
 
-        if not run or run.is_completed():
-            run = FlowRun.create(flow, contact)
+        if not run:
+            run = FlowRun.create(flow, contact, created_on=started)
 
+        step_objs = []
         for step in steps:
-            FlowStep.from_json(step, flow, run)
+            step_objs.append(FlowStep.from_json(step, flow, run))
+
+        if completed:
+            final_step = step_objs[len(step_objs) - 1] if step_objs else None
+            completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
+
+            run.set_completed(True, final_step, completed_on=completed_on)
+        else:
+            run.modified_on = timezone.now()
+            run.save(update_fields=('modified_on',))
 
         return run
 
@@ -1338,6 +1353,7 @@ class AliasSerializer(BoundarySerializer):
     class Meta:
         model = AdminBoundary
         fields = ('boundary', 'name', 'level', 'parent', 'aliases')
+
 
 class FlowRunReadSerializer(serializers.ModelSerializer):
     run = serializers.Field(source='id')
