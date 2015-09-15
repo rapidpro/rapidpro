@@ -596,6 +596,7 @@ class OrgTest(TembaTest):
         yesterday = timezone.now() - relativedelta(days=1)
         mega_topup.expires_on = yesterday
         mega_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
 
         # new incoming messages should not be assigned a topup
         msg = self.create_msg(contact=contact, direction='I', text="Test")

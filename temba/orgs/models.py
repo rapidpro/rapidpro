@@ -95,6 +95,8 @@ ORG_LOCK_KEY = 'org:%d:lock:%s'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
 ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
+ORG_ACTIVE_TOPUP_KEY = 'org:%d:cache:active_topup'
+ORG_ACTIVE_TOPUP_REMAINING = 'org:%d:cache:credits_remaining:%d'
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
@@ -240,6 +242,10 @@ class Org(SmartModel):
         if event in [OrgEvent.topup_new, OrgEvent.topup_updated]:
             r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
             r.delete(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
+            r.delete(ORG_ACTIVE_TOPUP_KEY % self.pk)
+
+            for topup in self.topups.all():
+                r.delete(ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk))
 
     def clear_caches(self, caches):
         """
@@ -247,9 +253,13 @@ class Org(SmartModel):
         """
         if OrgCache.credits in caches:
             r = get_redis_connection()
+
+            active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
             return r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
                             ORG_CREDITS_USED_CACHE_KEY % self.pk,
-                            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
+                            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
+                            ORG_ACTIVE_TOPUP_KEY % self.pk,
+                            **active_topup_keys)
         else:
             return 0
 
@@ -895,8 +905,30 @@ class Org(SmartModel):
         total_used_key = ORG_CREDITS_USED_CACHE_KEY % self.pk
         incrby_existing(total_used_key, 1)
 
-        active_topup = self._calculate_active_topup()
-        return active_topup.pk if active_topup else None
+        r = get_redis_connection()
+        active_topup_key = ORG_ACTIVE_TOPUP_KEY % self.pk
+        active_topup_pk = r.get(active_topup_key)
+        if active_topup_pk:
+            remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, int(active_topup_pk))
+
+            # decrement our active # of credits
+            remaining = r.decr(remaining_key)
+
+            # near the edge? calculate our active topup from scratch
+            if not remaining or int(remaining) < 100:
+                active_topup_pk = None
+
+        # calculate our active topup if we need to
+        if active_topup_pk is None:
+            active_topup = self._calculate_active_topup()
+            if active_topup:
+                active_topup_pk = active_topup.pk
+                r.set(active_topup_key, active_topup_pk, ORG_CREDITS_CACHE_TTL)
+
+                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
+                r.set(remaining_key, active_topup.get_remaining() - 1, ORG_CREDITS_CACHE_TTL)
+
+        return active_topup_pk
 
     def _calculate_active_topup(self):
         """
@@ -1511,6 +1543,12 @@ class TopUp(SmartModel):
         """
         used = TopUpCredits.objects.filter(topup=self).aggregate(used=Sum('used'))
         return 0 if not used['used'] else used['used']
+
+    def get_remaining(self):
+        """
+        Returns how many credits remain on this topup
+        """
+        return self.credits - self.get_used()
 
     def __unicode__(self):
         return "%s Credits" % self.credits
