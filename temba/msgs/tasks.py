@@ -85,7 +85,7 @@ def send_spam(user_id, contact_id):
 def fail_old_messages():
     Msg.fail_old_messages()
 
-@task(track_started=True, name='collect_message_metrics_task', time_limit=30, soft_time_limit=30)
+@task(track_started=True, name='collect_message_metrics_task', time_limit=900, soft_time_limit=900)
 def collect_message_metrics_task():
     """
     Collects message metrics and sends them to our analytics.
