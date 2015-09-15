@@ -2896,6 +2896,26 @@ class VumiTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.put') as mock:
+                mock.return_value = MockResponse(503, "<html><body><h1>503 Service Unavailable</h1>")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as errored, we'll retry in a bit
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt > timezone.now())
+                self.assertEquals(1, mock.call_count)
+
+                # Joe shouldn't be failed and should still be in a group
+                joe = Contact.objects.get(id=joe.id)
+                self.assertFalse(joe.is_failed)
+                self.assertTrue(ContactGroup.user_groups.filter(contacts=joe))
+
+                self.clear_cache()
+
+            with patch('requests.put') as mock:
                 # set our next attempt as if we are trying anew
                 msg.next_attempt = timezone.now()
                 msg.save()
