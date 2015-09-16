@@ -846,15 +846,19 @@ class Contact(TembaModel, SmartModel):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-    def fail(self):
+    def fail(self, permanently=False):
         """
-        Fails this contact, provided it is currently normal
+        Fails this contact. If permanently then contact is removed from all groups.
         """
         if self.is_test:
             raise ValueError("Can't fail a test contact")
 
         self.is_failed = True
         self.save(update_fields=['is_failed'])
+
+        if permanently:
+            for group in self.user_groups.all():
+                group.update_contacts([self], False)
 
     def unfail(self):
         """

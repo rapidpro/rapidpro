@@ -331,6 +331,8 @@ class ContactReadSerializer(serializers.ModelSerializer):
     fields = serializers.SerializerMethodField('get_contact_fields')
     phone = serializers.SerializerMethodField('get_tel')  # deprecated, use urns
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
+    blocked = serializers.Field(source='is_blocked')
+    failed = serializers.Field(source='is_failed')
 
     def get_groups(self, obj):
         groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
@@ -359,7 +361,8 @@ class ContactReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'modified_on', 'phone', 'groups')
+        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'blocked', 'failed', 'modified_on',
+                  'phone', 'groups')
 
 
 class ContactWriteSerializer(WriteSerializer):
