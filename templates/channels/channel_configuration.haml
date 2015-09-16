@@ -249,6 +249,23 @@
     %code
       https://{{ domain }}{% url 'api.smscentral_handler' 'receive' object.uuid %}
 
+  -elif object.channel_type == 'M3T'
+    %h4
+      -blocktrans
+        To finish configuring your M3 Tech connection you'll need to notify M3 Tech of the following URL.
+
+    %hr
+
+    %h4
+      -trans "Inbound URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by M3 Tech when new messages are received to your number.
+
+    %code
+      https://{{ domain }}{% url 'api.m3tech_handler' 'receive' object.uuid %}
+
   -elif object.channel_type == 'H9'
     %h4
       -blocktrans
