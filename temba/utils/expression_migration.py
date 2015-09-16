@@ -31,6 +31,10 @@ def migrate_flow_definition(json_flow):
         for rule in rule_set['rules']:
             process_object(rule['test'])
 
+        rule_set['operand'] = migrate_substitutable_text(rule_set['operand'])
+        if 'webhook' in rule_set and rule_set['webhook']:
+            rule_set['webhook'] = migrate_substitutable_text(rule_set['webhook'])
+
     for action_set in json_flow['action_sets']:
         for action in action_set['actions']:
             process_object(action)
