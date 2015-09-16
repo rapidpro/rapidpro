@@ -4435,7 +4435,7 @@ class WebHookTest(TembaTest):
 
             values = json.loads(data['values'][0])
 
-            self.assertEquals('Other', values[0]['category'])
+            self.assertEquals('Other', values[0]['category']['base'])
             self.assertEquals('color', values[0]['label'])
             self.assertEquals('Mauve', values[0]['text'])
             self.assertTrue(values[0]['time'])

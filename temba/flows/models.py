@@ -212,7 +212,8 @@ class Flow(TembaModel, SmartModel):
                                  help_text=_("The user which last saved this flow"))
 
     base_language = models.CharField(max_length=4, null=True, blank=True,
-                                     help_text=_('The primary language for editing this flow'))
+                                     help_text=_('The primary language for editing this flow'),
+                                     default='base')
 
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
@@ -4731,9 +4732,9 @@ class Rule(object):
         self.test = test
 
     def get_category_name(self, flow_lang):
-        #if not self.category:
-        #    if isinstance(self.test, BetweenTest):
-        #        return "%s-%s" % (self.test.min, self.test.max)
+        if not self.category:
+            if isinstance(self.test, BetweenTest):
+                return "%s-%s" % (self.test.min, self.test.max)
 
         # return the category name for the flow language version
         if isinstance(self.category, dict):
@@ -5080,7 +5081,7 @@ class StartsWithTest(Test):
 
         # see whether we start with our test
         if text.lower().find(test.lower()) == 0:
-            return 1, text[:len(self.test)]
+            return 1, text[:len(test)]
         else:
             return 0, None
 

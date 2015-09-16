@@ -518,12 +518,6 @@ class FlowCRUDL(SmartCRUDL):
             kwargs['user'] = self.request.user
             return kwargs
 
-        def pre_save(self, obj):
-            # if they are setting a base_language for the first time, update our flow accordingly
-            if obj.base_language:
-                obj.update_base_language()
-            return obj
-
         def post_save(self, obj):
             keywords = set()
             user = self.request.user

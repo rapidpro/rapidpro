@@ -1647,9 +1647,6 @@ class BroadcastLanguageTest(TembaTest):
         # null case
         self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
 
-        # simple text case
-        self.assertEquals("Hello", Language.get_localized_text("Hi", "Hello", ['esp']))
-
         # simple dictionary case
         self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
 

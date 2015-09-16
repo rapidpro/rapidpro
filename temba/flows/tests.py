@@ -45,7 +45,7 @@ class RuleTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
-        self.flow = Flow.create(self.org, self.admin, "Color Flow")
+        self.flow = Flow.create(self.org, self.admin, "Color Flow", base_language='base')
 
         self.other_group = self.create_group("Other", [])
 
@@ -418,7 +418,7 @@ class RuleTest(TembaTest):
 
         color = result['values'][0]
         self.assertEquals('color', color['label'])
-        self.assertEquals('Orange', color['category'])
+        self.assertEquals('Orange', color['category']['base'])
         self.assertEquals('orange', color['value'])
         self.assertEquals(uuid(5), color['node'])
         self.assertEquals(incoming.text, color['text'])
@@ -486,7 +486,7 @@ class RuleTest(TembaTest):
 
     def test_optimization_reply_action(self):
 
-        self.flow.update({"entry": "02a2f789-1545-466b-978a-4cebcc9ab89a", "rule_sets": [], "action_sets": [{"y": 0, "x": 100, "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a", "actions": [{"type": "api", "webhook": "https://rapidpro.io/demo/coupon/"}, {"msg": "text to get @extra.coupon", "type": "reply"}]}], "metadata": {"notes": []}})
+        self.flow.update({"base_language":"base", "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a", "rule_sets": [], "action_sets": [{"y": 0, "x": 100, "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a", "actions": [{"type": "api", "webhook": "https://rapidpro.io/demo/coupon/"}, {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}], "metadata": {"notes": []}})
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
@@ -675,7 +675,7 @@ class RuleTest(TembaTest):
         test = FalseTest()
         self.assertTest(False, None, test)
 
-        test = ContainsTest(test="Green")
+        test = ContainsTest(test=dict(base="Green"))
         self.assertTest(True, "GReen", test)
 
         sms.text = "Blue is my favorite"
@@ -689,15 +689,15 @@ class RuleTest(TembaTest):
         self.assertTest(True, "Greenn", test)
 
         # variable substitution
-        test = ContainsTest(test="@extra.color")
+        test = ContainsTest(test=dict(base="@extra.color"))
         sms.text = "my favorite color is GREEN today"
         self.assertTest(True, "GREEN", test, extra=dict(color="green"))
 
-        test.test = "this THAT"
+        test.test = dict(base="this THAT")
         sms.text = "this is good but won't match"
         self.assertTest(False, None, test)
 
-        test.test = "this THAT"
+        test.test = dict(base="this THAT")
         sms.text = "that and this is good and will match"
         self.assertTest(True, "this that", test)
 
@@ -713,7 +713,7 @@ class RuleTest(TembaTest):
         test = OrTest([FalseTest(), FalseTest()])
         self.assertTest(False, None, test)
 
-        test = ContainsAnyTest(test="klab Kacyiru good")
+        test = ContainsAnyTest(test=dict(base="klab Kacyiru good"))
         sms.text = "kLab is awesome"
         self.assertTest(True, "kLab", test)
 
@@ -730,7 +730,7 @@ class RuleTest(TembaTest):
         self.assertTest(False, None, test)
 
         # have the same behaviour when we have commas even a trailing one
-        test = ContainsAnyTest(test="klab, kacyiru, good, ")
+        test = ContainsAnyTest(test=dict(base="klab, kacyiru, good, "))
         sms.text = "kLab is awesome"
         self.assertTest(True, "kLab", test)
 
@@ -817,7 +817,7 @@ class RuleTest(TembaTest):
         rule = Rule(uuid(4), None, None, None, test)
         self.assertEquals("1000-5000", rule.get_category_name(None))
 
-        test = StartsWithTest(test="Green")
+        test = StartsWithTest(test=dict(base="Green"))
         sms.text = "  green beans"
         self.assertTest(True, "green", test)
 
@@ -848,21 +848,21 @@ class RuleTest(TembaTest):
         sms.text = "My phone is 0124515"
         self.assertTest(False, None, test)
 
-        test = ContainsTest(test="مورنۍ")
+        test = ContainsTest(test=dict(base="مورنۍ"))
         sms.text = "شاملیدل مورنۍ"
         self.assertTest(True, "مورنۍ", test)
 
         # test = "word to start" and notice "to start" is one word in arabic ataleast according to Google translate
-        test = ContainsAnyTest(test="كلمة لبدء")
+        test = ContainsAnyTest(test=dict(base="كلمة لبدء"))
         # set text to "give a sample word in sentence"
         sms.text = "تعطي كلمة عينة في الجملة"
         self.assertTest(True, "كلمة", test) # we get "word"
 
         # we should not match "this start is not allowed" we wanted "to start"
-        test = ContainsAnyTest(test="لا يسمح هذه البداية")
+        test = ContainsAnyTest(test=dict(base="لا يسمح هذه البداية"))
         self.assertTest(False, None, test)
 
-        test = RegexTest("(?P<first_name>\w+) (\w+)")
+        test = RegexTest(dict(base="(?P<first_name>\w+) (\w+)"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
         extra = run.field_dict()
@@ -881,7 +881,7 @@ class RuleTest(TembaTest):
         self.assertEquals("مرحبا", extra['first_name'])
 
         # no matching groups, should return whole string as match
-        test = RegexTest("\w+ \w+")
+        test = RegexTest(dict(base="\w+ \w+"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
         extra = run.field_dict()
@@ -894,14 +894,14 @@ class RuleTest(TembaTest):
         self.assertFalse(extra)
 
         # no case sensitivity
-        test = RegexTest("kazoo")
+        test = RegexTest(dict(base="kazoo"))
         sms.text = "This is my Kazoo"
         run = self.assertTest(True, "Kazoo", test)
         extra = run.field_dict()
         self.assertEquals("Kazoo", extra['0'])
 
         # change to have anchors
-        test = RegexTest("^kazoo$")
+        test = RegexTest(dict(base="^kazoo$"))
 
         # no match, as at the end
         sms.text = "This is my Kazoo"
@@ -1062,7 +1062,7 @@ class RuleTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
-        test = ReplyAction("We love green too!")
+        test = ReplyAction(dict(base="We love green too!"))
         test.execute(run, None, msg)
         msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", msg.text)
@@ -1071,7 +1071,7 @@ class RuleTest(TembaTest):
 
         action_json = test.as_json()
         test = ReplyAction.from_json(self.org, action_json)
-        self.assertEquals("We love green too!", test.msg)
+        self.assertEquals(dict(base="We love green too!"), test.msg)
 
         test.execute(run, None, msg)
 
@@ -1079,12 +1079,12 @@ class RuleTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
-        test = SendAction("What is your favorite color?", [], [self.contact], [])
+        test = SendAction(dict(base="What is your favorite color?"), [], [self.contact], [])
         test.execute(run, None, None)
 
         action_json = test.as_json()
         test = SendAction.from_json(self.org, action_json)
-        self.assertEquals(test.msg, "What is your favorite color?")
+        self.assertEquals(test.msg['base'], "What is your favorite color?")
 
         self.assertEquals(2, Broadcast.objects.all().count())
 
@@ -1411,7 +1411,7 @@ class RuleTest(TembaTest):
         self.create_secondary_org()
 
         # create a flow for another org
-        flow2 = Flow.create(self.org2, self.admin2, "Flow2")
+        flow2 = Flow.create(self.org2, self.admin2, "Flow2", base_language='base')
 
         # no login, no list
         response = self.client.get(reverse('flows.flow_list'))
@@ -1547,7 +1547,7 @@ class RuleTest(TembaTest):
 
         # test setting the json
         json_dict['action_sets'] = [dict(uuid=uuid(1), x=1, y=1, destination=None,
-                                         actions=[dict(type='reply', msg='This flow is more like a broadcast')])]
+                                         actions=[dict(type='reply', msg=dict(base='This flow is more like a broadcast'))])]
         json_dict['rule_sets'] = []
         json_dict['entry'] = uuid(1)
 
@@ -1936,7 +1936,7 @@ class RuleTest(TembaTest):
 
         color = results[0]['values'][0]
         self.assertEquals('color', color['label'])
-        self.assertEquals('Blue', color['category'])
+        self.assertEquals('Blue', color['category']['base'])
         self.assertEquals('blue', color['value'])
         self.assertEquals(incoming.text, color['text'])
 
@@ -2156,17 +2156,17 @@ class WebhookTest(TembaTest):
         webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
         webhook.webhook_url = "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164"
         webhook.webhook_action = "GET"
-        webhook.set_rules_dict([Rule(uuid(15), "All Responses", uuid(200), 'R', TrueTest()).as_json()])
+        webhook.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
         webhook.save()
 
         # and a ruleset to split off the results
         rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(200), x=0, y=200, ruleset_type=RuleSet.TYPE_EXPRESSION)
-        rules.set_rules_dict([Rule(uuid(12), "Valid", uuid(2), 'A', ContainsTest("valid")).as_json(),
-                              Rule(uuid(13), "Invalid", uuid(3), 'A', ContainsTest("invalid")).as_json()])
+        rules.set_rules_dict([Rule(uuid(12), dict(base="Valid"), uuid(2), 'A', ContainsTest(dict(base="valid"))).as_json(),
+                              Rule(uuid(13), dict(base="Invalid"), uuid(3), 'A', ContainsTest(dict(base="invalid"))).as_json()])
         rules.save()
 
         webhook_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
-                                       step_uuid=webhook.uuid, arrived_on=timezone.now())
+                                               step_uuid=webhook.uuid, arrived_on=timezone.now())
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="1001")
 
         (match, value) = rules.find_matching_rule(webhook_step, run, incoming)
