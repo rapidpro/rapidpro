@@ -1046,7 +1046,7 @@ class Msg(models.Model):
         # shortcut for cases where there is no way we would substitute anything as there are no variables
         # TODO remove check for '@' when we deprecate that style of expression
         if not text or (text.find('@') < 0 and text.find('=') < 0):
-            return text, False
+            return text, []
 
         if contact:
             message_context['contact'] = contact.build_message_context()
@@ -1075,10 +1075,8 @@ class Msg(models.Model):
 
         context = EvaluationContext(message_context, dict(tz=tz, dayfirst=dayfirst))
 
-        evaluated, errors = evaluate_template(text, context, url_encode)
-
-        # currently we throw away the actual error messages from the parser
-        return evaluated, (len(errors) > 0)
+        # returns tuple of output and errors
+        return evaluate_template(text, context, url_encode)
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
@@ -1113,7 +1111,7 @@ class Msg(models.Model):
         if not message_context:
             message_context = dict()
 
-        (text, has_template_error) = Msg.substitute_variables(text, contact, message_context, org=org)
+        (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
@@ -1170,7 +1168,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         recording_url=recording_url,
-                        has_template_error=has_template_error)
+                        has_template_error=len(errors) > 0)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id

@@ -2465,8 +2465,8 @@ class RuleSet(models.Model):
 
         if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
             from temba.api.models import WebHookEvent
-            (value, missing) = Msg.substitute_variables(self.webhook_url, run.contact, context,
-                                                        org=run.flow.org, url_encode=True)
+            (value, errors) = Msg.substitute_variables(self.webhook_url, run.contact, context,
+                                                       org=run.flow.org, url_encode=True)
             result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
                                                      run.contact, msg, self.webhook_action)
 
@@ -2490,10 +2490,9 @@ class RuleSet(models.Model):
             # if we have a custom operand, figure that out
             text = None
             if self.operand:
-                (text, missing) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
+                (text, errors) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
             elif msg:
                 text = msg.text
-
 
             try:
                 rules = self.get_rules()
@@ -3469,30 +3468,57 @@ class ExportFlowResultsTask(SmartModel):
 
 
 class ActionLog(models.Model):
+    """
+    Log of an event that occurred whilst executing a flow in the simulator
+    """
+    LEVEL_INFO = 'I'
+    LEVEL_WARN = 'W'
+    LEVEL_ERROR = 'E'
+    LEVEL_CHOICES = ((LEVEL_INFO, _("Info")), (LEVEL_WARN, _("Warning")), (LEVEL_ERROR, _("Error")))
+
     run = models.ForeignKey(FlowRun, related_name='logs')
-    text = models.TextField(help_text=_("The log text"))
-    created_on = models.DateTimeField(auto_now_add=True,
-                                      help_text=_("When this action log was created"))
+
+    text = models.TextField(help_text=_("Log event text"))
+
+    level = models.CharField(max_length=1, choices=LEVEL_CHOICES, default=LEVEL_INFO, help_text=_("Log event level"))
+
+    created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this log event occurred"))
 
     @classmethod
-    def create(cls, run, text, safe=False):
-
+    def create(cls, run, text, level=LEVEL_INFO, safe=False):
         if not safe:
             text = escape(text)
 
         text = text.replace('\n', "<br/>")
 
         try:
-            return ActionLog.objects.create(run=run, text=text)
+            return ActionLog.objects.create(run=run, text=text, level=level)
         except Exception:
-            # it's possible our test call can be deleted out from under us
-            pass
+            return None  # it's possible our test run can be deleted out from under us
+
+    @classmethod
+    def info(cls, run, text, safe=False):
+        return cls.create(run, text, cls.LEVEL_INFO, safe)
+
+    @classmethod
+    def warn(cls, run, text, safe=False):
+        return cls.create(run, text, cls.LEVEL_WARN, safe)
+
+    @classmethod
+    def error(cls, run, text, safe=False):
+        return cls.create(run, text, cls.LEVEL_ERROR, safe)
 
     def as_json(self):
-        return dict(direction="O", text=self.text, id=self.id, created_on=self.created_on.strftime('%x %X'), model="log")
+        return dict(id=self.id,
+                    direction="O",
+                    level=self.level,
+                    text=self.text,
+                    created_on=self.created_on.strftime('%x %X'),
+                    model="log")
 
     def simulator_json(self):
         return self.as_json()
+
 
 class FlowStep(models.Model):
     run = models.ForeignKey(FlowRun, related_name='steps')
@@ -3875,13 +3901,13 @@ class EmailAction(Action):
 
         # build our message from our flow variables
         message_context = run.flow.build_message_context(run.contact, sms)
-        (message, missing) = Msg.substitute_variables(self.message, run.contact, message_context, org=run.flow.org)
-        (subject, missing) = Msg.substitute_variables(self.subject, run.contact, message_context, org=run.flow.org)
+        (message, errors) = Msg.substitute_variables(self.message, run.contact, message_context, org=run.flow.org)
+        (subject, errors) = Msg.substitute_variables(self.subject, run.contact, message_context, org=run.flow.org)
 
         emails = []
         for email in self.emails:
             if email[0] == '@':
-                (email, values) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
+                (email, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
             # TODO: validate email format
             emails.append(email)
 
@@ -3929,7 +3955,7 @@ class APIAction(Action):
     def execute(self, run, actionset, sms):
         from temba.api.models import WebHookEvent
         message_context = run.flow.build_message_context(run.contact, sms)
-        (value, missing) = Msg.substitute_variables(self.webhook, run.contact, message_context,
+        (value, errors) = Msg.substitute_variables(self.webhook, run.contact, message_context,
                                                     org=run.flow.org, url_encode=True)
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset, run.contact, sms, self.action)
         return []
@@ -4015,27 +4041,36 @@ class AddToGroupAction(Action):
     def execute(self, run, actionset, sms):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
+
         if contact:
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
                     contact = run.contact
                     message_context = run.flow.build_message_context(contact, sms)
-                    (value, missing) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
-                    try:
-                        group = ContactGroup.user_groups.get(org=contact.org, name=value, is_active=True)
-                    except:
-                        user = get_flow_user()
-                        group = ContactGroup.create(contact.org, user, name=value)
-                        if run.contact.is_test:
-                            ActionLog.create(run, _("Group '%s' created") % value)
+                    (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
+                    group = None
+
+                    if not errors:
+                        try:
+                            group = ContactGroup.user_groups.get(org=contact.org, name=value, is_active=True)
+                        except ContactGroup.DoesNotExist:
+                            user = get_flow_user()
+                            try:
+                                group = ContactGroup.create(contact.org, user, name=value)
+                                if run.contact.is_test:
+                                    ActionLog.info(run, _("Group '%s' created") % value)
+                            except ValueError:
+                                    ActionLog.error(run, _("Unable to create group with name '%s'") % value)
+                    else:
+                        ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
                 if group:
                     group.update_contacts([contact], add)
                     if run.contact.is_test:
                         if add:
-                            ActionLog.create(run, _("Added %s to %s") % (run.contact.name, group.name))
+                            ActionLog.info(run, _("Added %s to %s") % (run.contact.name, group.name))
                         else:
-                            ActionLog.create(run, _("Removed %s from %s") % (run.contact.name, group.name))
+                            ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
     def get_description(self):
@@ -4121,20 +4156,23 @@ class AddLabelAction(Action):
             if not isinstance(label, Label):
                 contact = run.contact
                 message_context = run.flow.build_message_context(contact, msg)
-                (value, missing) = Msg.substitute_variables(label, contact, message_context, org=run.flow.org)
+                (value, errors) = Msg.substitute_variables(label, contact, message_context, org=run.flow.org)
 
-                if not missing:
-                    label = Label.get_or_create(contact.org, contact.org.get_user(), value)
-                    if run.contact.is_test:
-                        ActionLog.create(run, _("Label '%s' created") % label.name)
+                if not errors:
+                    try:
+                        label = Label.get_or_create(contact.org, contact.org.get_user(), value)
+                        if run.contact.is_test:
+                            ActionLog.info(run, _("Label '%s' created") % label.name)
+                    except ValueError:
+                        ActionLog.error(run, _("Unable to create label with name '%s'") % label.name)
                 else:
-                    # TODO should be recorded in the action log as an error
                     label = None
+                    ActionLog.error(run, _("Label name could not be evaluated: %s") % ', '.join(errors))
 
             if label and msg and msg.pk:
                 if run.contact.is_test:
                     # don't really add labels to simulator messages
-                    ActionLog.create(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
+                    ActionLog.info(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
                 else:
                     label.toggle_label([msg], True)
         return []
@@ -4181,7 +4219,7 @@ class SayAction(Action):
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
-        (message, missing) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
+        (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
 
         msg = run.create_outgoing_ivr(message, recording_url)
 
@@ -4231,7 +4269,7 @@ class PlayAction(Action):
 
     def execute(self, run, actionset, event):
 
-        (recording_url, missing) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
+        (recording_url, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
 
         if msg:
@@ -4368,8 +4406,8 @@ class VariableContactAction(Action):
 
             # other type of variable, perform our substitution
             else:
-                (variable, missing) = Msg.substitute_variables(variable, contact=run.contact,
-                                                               message_context=message_context, org=run.flow.org)
+                (variable, errors) = Msg.substitute_variables(variable, contact=run.contact,
+                                                              message_context=message_context, org=run.flow.org)
 
                 variable_group = ContactGroup.user_groups.filter(org=run.flow.org, is_active=True, name=variable).first()
                 if variable_group:
@@ -4585,7 +4623,10 @@ class SaveToContactAction(Action):
         # evaluate our value
         contact = run.contact
         message_context = run.flow.build_message_context(contact, sms)
-        (value, missing) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
+        (value, errors) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
+
+        if contact.is_test and errors:
+            ActionLog.warn(run, _("Expression contained errors: %s") % ', '.join(errors))
 
         value = value.strip()
 
@@ -4693,11 +4734,11 @@ class SendAction(VariableContactAction):
                         unique_contacts.add(contact.pk)
 
                 text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, missing) = Msg.substitute_variables(text, None, flow.build_message_context(run.contact, sms), org=run.flow.org)
+                (message, errors) = Msg.substitute_variables(text, None, flow.build_message_context(run.contact, sms), org=run.flow.org)
                 self.logger(run, message, len(unique_contacts))
 
             return []
-        else: # pragma: no cover
+        else:  # pragma: no cover
             return []
 
     def logger(self, run, text, contact_count):
@@ -5008,7 +5049,7 @@ class ContainsTest(TranslatableTest):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
         tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
@@ -5030,6 +5071,7 @@ class ContainsTest(TranslatableTest):
         else:
             return 0, None
 
+
 class ContainsAnyTest(ContainsTest):
     """
     { op: "contains_any", "test": "red" }
@@ -5041,10 +5083,9 @@ class ContainsAnyTest(ContainsTest):
         return dict(type=ContainsAnyTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):
-
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
         tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
@@ -5087,7 +5128,7 @@ class StartsWithTest(TranslatableTest):
     def evaluate(self, run, sms, context, text):
         # substitute any variables in our test
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, has_missing = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # strip leading and trailing whitespace
         text = text.strip()
@@ -5148,7 +5189,7 @@ class HasDistrictTest(Test):
             return 0, None
 
         # evaluate our district in case it has a replacement variable
-        state, has_missing = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
+        state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
 
         parent = org.parse_location(state, 1)
         if parent:
@@ -5214,10 +5255,10 @@ class DateTest(Test):
         org = run.flow.org
         dayfirst = org.get_dayfirst()
         tz = org.get_tzinfo()
-        test, missing = Msg.substitute_variables(self.test, run.contact, context, org=org)
+        test, errors = Msg.substitute_variables(self.test, run.contact, context, org=org)
 
         text = text.replace(' ', "-")
-        if not missing:
+        if not errors:
             date_message = str_to_datetime(text, tz=tz, dayfirst=dayfirst)
             date_test = str_to_datetime(test, tz=tz, dayfirst=dayfirst)
 
@@ -5313,10 +5354,10 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
-        min_val, min_has_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
-        max_val, max_has_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
+        min_val, min_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
+        max_val, max_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
 
-        if not min_has_errors and not max_has_errors:
+        if not min_errors and not max_errors:
             try:
                 return Decimal(min_val) <= decimal_value <= Decimal(max_val)
             except Exception:
@@ -5367,7 +5408,7 @@ class SimpleNumericTest(Test):
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
-        test, has_missing = Msg.substitute_variables(str(self.test), run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(str(self.test), run.contact, context, org=run.flow.org)
 
         text = text.replace(',', '')
         for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
