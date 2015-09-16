@@ -2,15 +2,30 @@ import sys, os
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
-# Sets TESTING to True if this configuration is read during a unit test
-#-----------------------------------------------------------------------------------
-TESTING = sys.argv[1:2] == ['test']
-
-#-----------------------------------------------------------------------------------
 # Default to debugging
 #-----------------------------------------------------------------------------------
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
+
+#-----------------------------------------------------------------------------------
+# Sets TESTING to True if this configuration is read during a unit test
+#-----------------------------------------------------------------------------------
+TESTING = sys.argv[1:2] == ['test']
+
+if TESTING:
+    PASSWORD_HASHERS = ('django.contrib.auth.hashers.MD5PasswordHasher',)
+    DEBUG = False
+    TEMPLATE_DEBUG = False
+
+    # if nose's failfast is used, also skip migrations
+    if '--failfast' in sys.argv:
+        class DisableMigrations(object):
+            def __contains__(self, item):
+                return True
+
+            def __getitem__(self, item):
+                return "notmigrations"
+        MIGRATION_MODULES = DisableMigrations()
 
 ADMINS = (
     ('RapidPro', 'code@yourdomain.io'),
@@ -234,6 +249,9 @@ INSTALLED_APPS = (
     'temba.locations',
     'temba.values',
 )
+
+# the last installed app that uses smartmin permissions
+PERMISSIONS_APP = 'temba.values'
 
 LOGGING = {
     'version': 1,
