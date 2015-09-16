@@ -1155,8 +1155,9 @@ class Channel(SmartModel):
             fatal = response.status_code == 400
 
             # if this is fatal due to the user opting out, fail this contact permanently
-            if response.text and response.text.find('has opted out'):
-                Contact.objects.get(id=msg.contact).fail()
+            if response.text and response.text.find('has opted out') >= 0:
+                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                fatal = True
 
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='PUT',
@@ -1496,11 +1497,10 @@ class Channel(SmartModel):
             error_code = getattr(e, 'error_code', 400)
             fatal = False
 
-            # this handle doesn't exist anymore or we can't send to them, fail them
-            if error_code == 404 or \
-              (error_code == 403 and str(e).find('users who are not following you') >= 0):
+            # this handle doesn't exist anymore or we can't send to them, fail them permanently
+            if error_code == 404 or (error_code == 403 and str(e).find('users who are not following you') >= 0):
                 fatal = True
-                Contact.objects.get(id=msg.contact).fail()
+                Contact.objects.get(id=msg.contact).fail(permanently=True)
 
             raise SendException(str(e),
                                 'https://api.twitter.com/1.1/direct_messages/new.json',
