@@ -1904,8 +1904,8 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.m3tech_handler', args=['received', channel.uuid]))
-        self.assertContains(response, reverse('api.m3tech_handler', args=['delivered', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['status', channel.uuid]))
 
     def test_infobip(self):
         Channel.objects.all().delete()

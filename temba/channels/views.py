@@ -1125,7 +1125,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect SMSCentral")
         channel_type = SMSCENTRAL
 
-    class ClaimM3Tech(ClaimAuthenticatedExternal):
+    class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
 

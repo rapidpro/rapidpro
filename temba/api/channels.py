@@ -746,8 +746,6 @@ class M3TechHandler(View):
             msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
             return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
 
-
-
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 

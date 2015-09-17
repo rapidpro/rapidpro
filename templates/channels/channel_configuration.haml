@@ -257,7 +257,18 @@
     %hr
 
     %h4
-      -trans "Inbound URL"
+      -trans "Status URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by M3 Tech to report status of sent messages by your number.
+
+
+    %code
+      https://{{ domain }}{% url 'api.m3tech_handler' 'status' object.uuid %}
+
+    %h4
+      -trans "Received URL"
 
     %p
       -blocktrans
