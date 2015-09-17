@@ -344,6 +344,26 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
 
+    -if user_org.timezone == 'Asia/Karachi'
+      .claim-row.m3tech-channel{class:"{% if recommended_channel == 'm3tech' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using an M3 Tech phone number for SMS in your country, select this option to configure your number.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_m3tech' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "M3 Tech Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with <a href="http://m3techservice.com">M3 Tech</a> using their APIs.
+
     -if False
       .claim-row.verboice-channel
         .recommendation.hide

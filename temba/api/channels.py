@@ -716,6 +716,15 @@ class SMSCentralHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
+class M3TechHandler(ExternalHandler):
+    """
+    Exposes our API for handling and receiving messages, same as external handlers.
+    """
+    def get_channel_type(self):
+        from temba.channels.models import M3TECH
+        return M3TECH
+
+
 class NexmoHandler(View):
 
     @disable_middleware
