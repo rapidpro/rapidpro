@@ -87,7 +87,7 @@ class OrgTimezoneMiddleware(object):
 
             # otherwise, show them what orgs are available
             else:
-                user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
+                user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
                 user_orgs = user_orgs.distinct('pk')
 
                 if user_orgs.count() == 1:

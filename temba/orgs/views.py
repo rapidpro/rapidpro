@@ -348,7 +348,7 @@ class UserCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if org:
-                org_users = org.administrators.all() | org.editors.all() | org.viewers.all()
+                org_users = org.administrators.all() | org.editors.all() | org.viewers.all() | org.surveyors.all()
 
                 if not user.is_authenticated():
                     return False
@@ -788,6 +788,7 @@ class OrgCRUDL(SmartCRUDL):
         class OrgUpdateForm(forms.ModelForm):
             viewers = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
 
             class Meta:
@@ -800,7 +801,10 @@ class OrgCRUDL(SmartCRUDL):
 
         class InviteForm(forms.ModelForm):
             emails = forms.CharField(label=_("Invite people to your organization"), required=False)
-            user_group = forms.ChoiceField(choices=(('A', _("Administrators")), ('E', _("Editors")), ('V', _("Viewers"))),
+            user_group = forms.ChoiceField(choices=(('A', _("Administrators")),
+                                                    ('E', _("Editors")),
+                                                    ('V', _("Viewers")),
+                                                    ('S', _("Surveyors"))),
                                            required=True, initial='V', label=_("User group"))
 
             def clean_emails(self):
@@ -821,7 +825,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = InviteForm
         success_url = "@orgs.org_home"
         success_message = ""
-        GROUP_LEVELS = ('administrators', 'editors', 'viewers')
+        GROUP_LEVELS = ('administrators', 'editors', 'viewers', 'surveyors')
 
         def derive_title(self):
             return _("Manage %(name)s Accounts") % {'name':self.get_object().name}
@@ -853,6 +857,8 @@ class OrgCRUDL(SmartCRUDL):
                     assigned_users = self.get_object().get_org_editors()
                 if grp_level == 'viewers':
                     assigned_users = self.get_object().get_org_viewers()
+                if grp_level == 'surveyors':
+                    assigned_users = self.get_object().get_org_surveyors()
 
                 for obj in assigned_users:
                     key = "%s_%d" % (grp_level, obj.id)
@@ -907,12 +913,15 @@ class OrgCRUDL(SmartCRUDL):
                     invitation.send_invitation()
 
             # remove all the org users
-            for user in self.get_object().get_org_admins():
-                self.get_object().administrators.remove(user)
-            for user in self.get_object().get_org_editors():
-                self.get_object().editors.remove(user)
-            for user in self.get_object().get_org_viewers():
-                self.get_object().viewers.remove(user)
+            org = self.get_object()
+            for user in org.get_org_admins():
+                org.administrators.remove(user)
+            for user in org.get_org_editors():
+                org.editors.remove(user)
+            for user in org.get_org_viewers():
+                org.viewers.remove(user)
+            for user in org.get_org_surveyors():
+                org.surveyors.remove(user)
 
             # now update the org accounts
             for field in self.form.fields:
@@ -928,6 +937,8 @@ class OrgCRUDL(SmartCRUDL):
                             self.get_object().editors.add(user)
                         if user_type == 'viewers':
                             self.get_object().viewers.add(user)
+                        if user_type == 'surveyors':
+                            self.get_object().surveyors.add(user)
 
             # update our org users after we've removed them
             self.org_users = self.get_object().get_org_users()
@@ -1060,6 +1071,8 @@ class OrgCRUDL(SmartCRUDL):
                 obj.administrators.add(user)
             elif invitation.user_group == 'E':
                 obj.editors.add(user)
+            elif invitation.user_group == 'S':
+                obj.surveyors.add(user)
             else:
                 obj.viewers.add(user)
 
@@ -1136,6 +1149,8 @@ class OrgCRUDL(SmartCRUDL):
                     org.administrators.add(self.request.user)
                 elif invitation.user_group == 'E':
                     org.editors.add(self.request.user)
+                elif invitation.user_group == 'S':
+                    org.surveyors.add(self.request.user)
                 else:
                     org.viewers.add(self.request.user)
 

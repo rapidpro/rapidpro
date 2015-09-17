@@ -244,15 +244,16 @@ class OrgTest(TembaTest):
         response = self.client.get(manage_accounts_url)
         self.assertEquals(200, response.status_code)
 
-        # we have 12 fields in the form including 9 checkboxes for the three users, an email field, a user group field
+        # we have 15 fields in the form including 12 checkboxes for the three users, an email field, a user group field
         # and 'loc' field.
-        self.assertEquals(12, len(response.context['form'].fields))
+        self.assertEquals(15, len(response.context['form'].fields))
         self.assertTrue('emails' in response.context['form'].fields)
         self.assertTrue('user_group' in response.context['form'].fields)
         for user in [self.user, self.editor, self.admin]:
             self.assertTrue("administrators_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("editors_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("viewers_%d" % user.pk in response.context['form'].fields)
+            self.assertTrue("surveyors_%d" % user.pk in response.context['form'].fields)
 
         self.assertFalse(response.context['form'].fields['emails'].initial)
         self.assertEquals('V', response.context['form'].fields['user_group'].initial)
@@ -318,6 +319,23 @@ class OrgTest(TembaTest):
         # now 2 new invitations are created and sent
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
+
+        # Update our users, making the 'user' user a surveyor
+        post_data = {
+            'administrators_%d' % self.admin.pk: 'on',
+            'editors_%d' % self.editor.pk: 'on',
+            'surveyors_%d' % self.user.pk: 'on',
+            'user_group': 'E'
+        }
+
+        # successful post redirects
+        response = self.client.post(manage_accounts_url, post_data)
+        self.assertEquals(302, response.status_code)
+
+        org = Org.objects.get(pk=self.org.pk)
+        self.assertEqual(set(org.administrators.all()), {self.admin})
+        self.assertEqual(set(org.editors.all()), {self.editor})
+        self.assertEqual(set(org.surveyors.all()), {self.user})
 
         # upgrade one of our users to an admin
         self.org.editors.remove(self.user)
