@@ -249,33 +249,70 @@
     %code
       https://{{ domain }}{% url 'api.smscentral_handler' 'receive' object.uuid %}
 
-  -elif object.channel_type == 'M3T'
+  -elif object.channel_type == 'M3'
     %h4
       -blocktrans
-        To finish configuring your M3 Tech connection you'll need to notify M3 Tech of the following URL.
-
-    %hr
-
-    %h4
-      -trans "Status URL"
-
-    %p
-      -blocktrans
-        This endpoint should be called by M3 Tech to report status of sent messages by your number.
-
-
-    %code
-      https://{{ domain }}{% url 'api.m3tech_handler' 'status' object.uuid %}
+        To finish configuring your connection you'll need to notify M3Tech of the following callback URLs:
 
     %h4
       -trans "Received URL"
+    %code
+      https://{{ domain }}{% url 'api.m3tech_handler' 'received' object.uuid %}
 
     %p
       -blocktrans
-        This endpoint should be called by M3 Tech when new messages are received to your number.
+        When a new message is received by M3Tech, it should notify us with a POST to the following URL, passing
+        the following parameters: 'from' and 'text'
+    %pre.prettyprint.example<
+      :plain
+        POST https://{{ domain }}{% url 'api.m3tech_handler' 'received' object.uuid %}
+        from=%2B250788123123&text=Love+is+patient.+Love+is+kind.
+    %hr
 
+    %h4
+      -trans "Sent URL"
     %code
-      https://{{ domain }}{% url 'api.m3tech_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'api.m3tech_handler' 'sent' object.uuid %}
+
+    %p
+      -blocktrans
+        When M3Tech successfully sends a message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting sent messages is optional)
+    %pre.prettyprint.example<
+      :plain
+        POST https://{{ domain }}{% url 'api.m3tech_handler' 'sent' object.uuid %}
+        id=2599235
+    %hr
+
+    %h4
+      -trans "Delivered URL"
+    %code
+      https://{{ domain }}{% url 'api.m3tech_handler' 'delivered' object.uuid %}
+
+    %p
+      -blocktrans
+        When M3Tech successfully delivers a message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting deliveries is optional)
+    %pre.prettyprint.example<
+      :plain
+        POST https://{{ domain }}{% url 'api.m3tech_handler' 'delivered' object.uuid %}
+        id=2599235
+    %hr
+
+    %h4
+      -trans "Failed URL"
+    %code
+      https://{{ domain }}{% url 'api.m3tech_handler' 'failed' object.uuid %}
+
+    %p
+      -blocktrans
+        If M3Tech fails to send an outgoing message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting failed sends is optional)
+    %pre.prettyprint.example<
+      :plain
+        POST https://{{ domain }}{% url 'api.m3tech_handler' 'failed' object.uuid %}
+        id=2599235
+    %hr
 
   -elif object.channel_type == 'H9'
     %h4

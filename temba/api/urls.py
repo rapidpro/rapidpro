@@ -34,7 +34,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', HighConnectionHandler.as_view(), name='api.hcnx_handler'),
                        url(r'^/blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', BlackmynaHandler.as_view(), name='api.blackmyna_handler'),
                        url(r'^/smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', SMSCentralHandler.as_view(), name='api.smscentral_handler'),
-                       url(r'^/m3tech/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', M3TechHandler.as_view(), name='api.m3tech_handler'),
+                       url(r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', M3TechHandler.as_view(), name='api.m3tech_handler'),
 
                        url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='api.mage_handler'),
 

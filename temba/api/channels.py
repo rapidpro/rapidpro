@@ -716,37 +716,13 @@ class SMSCentralHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
-class M3TechHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(M3TechHandler, self).dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return self.get(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
+class M3TechHandler(ExternalHandler):
+    """
+    Exposes our API for handling and receiving messages, same as external handlers.
+    """
+    def get_channel_type(self):
         from temba.channels.models import M3TECH
-
-        channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=M3TECH).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
-
-        action = kwargs['action'].lower()
-
-        if action == 'status':
-            return HttpResponse(json.dumps(dict(msg="Status Updated")))
-
-        elif action == 'receive':
-            from_number = ''
-            message = ''
-
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
-            return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
-
-        return HttpResponse("Unrecognized action: %s" % action, status=400)
+        return M3TECH
 
 
 class NexmoHandler(View):

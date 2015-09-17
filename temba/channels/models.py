@@ -43,7 +43,7 @@ HIGH_CONNECTION = 'HX'
 HUB9 = 'H9'
 INFOBIP = 'IB'
 KANNEL = 'KN'
-M3TECH = 'M3T'
+M3TECH = 'M3'
 NEXMO = 'NX'
 PLIVO = 'PL'
 SHAQODOON = 'SQ'
@@ -1627,10 +1627,10 @@ class Channel(SmartModel):
         from temba.msgs.models import Msg, WIRED
 
         url = "https://secure.m3techservice.com/GenericService/webservice_4_0.asmx?wsdl"
-        payload = {'userId': channel.config[USERNAME],
+        payload = {'UserId': channel.config[USERNAME],
                    'Password': channel.config[PASSWORD],
                    'MobileNo': msg.urn_path.lstrip('+'),
-                   'MsgId': msg.pk,
+                   'MsgId': msg.id,
                    'SMS': text,
                    'MsgHeader': channel.address.lstrip('+')}
 
@@ -1651,6 +1651,16 @@ class Channel(SmartModel):
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # our response is XML and should contain a 0 as a status code:
+        # <Response>0</Response>
+        if response.text.find(">0<") <= 0:
+            raise SendException("Received non-zero status from API",
                                 method='GET',
                                 url=url,
                                 request=log_payload,
