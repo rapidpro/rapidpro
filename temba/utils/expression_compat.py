@@ -2,6 +2,9 @@ from __future__ import absolute_import, unicode_literals
 
 import regex
 
+from expressions.evaluator import Evaluator
+
+CONTEXT_VARS = ('step', 'contact', 'flow', 'extra', 'channel', 'date')
 
 FILTER_REPLACEMENTS = {'lower_case': 'LOWER({0})',
                        'upper_case': 'UPPER({0})',
@@ -10,11 +13,28 @@ FILTER_REPLACEMENTS = {'lower_case': 'LOWER({0})',
                        'first_word': 'FIRST_WORD({0})',
                        'remove_first_word': 'REMOVE_FIRST_WORD({0})',
                        'read_digits': 'READ_DIGITS({0})',
-                       'time_delta': '({0} + {1})'}
+                       'time_delta': '{0} + {1}'}
+
+
+evaluator = Evaluator(allowed_top_levels=("channel", "contact", "date", "extra", "flow", "step"))
+
+
+def evaluate_template_compat(template, context, url_encode=False):
+    template = migrate_substitutable_text(template)
+
+    return evaluator.evaluate_template(template, context, url_encode)
+
+
+def evaluate_expression_compat(expression, context):
+    expression = migrate_substitutable_text(expression)
+
+    return evaluator.evaluate_expression(expression, context)
 
 
 def migrate_flow_definition(json_flow):
-
+    """
+    Migrates a JSON flow definition by migrating the parts that might contain expressions
+    """
     def process_object(item):
         for key, val in item.iteritems():
             if isinstance(val, basestring):
@@ -44,7 +64,6 @@ def migrate_substitutable_text(text):
     """
     Migrates text which may contain filter style expressions or equals style expressions
     """
-    print 'Processing substitutable text: %s' % text
     migrated = text
 
     if '@' in migrated and '|' in migrated:
@@ -53,7 +72,7 @@ def migrate_substitutable_text(text):
         migrated = replace_equals_style(migrated)
 
     if migrated != text:
-        print ' > Migrated to: %s' % migrated
+        print 'Migrated expressions: "%s" -> "%s"' % (text, migrated)
 
     return migrated
 
@@ -67,7 +86,7 @@ def replace_filter_style(text):
         expression = match.group(1)
         return '@' + convert_filter_style(expression)
 
-    context_keys_joined_pattern = r'[\|\w]*|'.join(['step', 'contact', 'flow', 'extra', 'channel', 'date'])
+    context_keys_joined_pattern = r'[\|\w]*|'.join(CONTEXT_VARS)
     pattern = r'\B@([\w]+[\.][\w\.\|]*[\w](:([\"\']).*?\3)?|' + context_keys_joined_pattern + r'[\|\w]*)'
 
     rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
@@ -98,10 +117,7 @@ def convert_filter_style(expression):
         if replacement:
             new_style = replacement.replace('{0}', new_style).replace('{1}', param)
 
-    new_style = '(%s)' % new_style  # add enclosing parentheses
-
-    print " > Converted filter style expression: %s -> %s" % (expression, new_style)
-    return new_style
+    return '(%s)' % new_style  # add enclosing parentheses
 
 
 def replace_equals_style(text):
@@ -120,6 +136,10 @@ def replace_equals_style(text):
     current_expression_chars = []
     current_expression_terminated = False
     parentheses_level = 0
+
+    def replace_expression(expression):
+        expression_body = expression[1:]
+        return '@' + convert_equals_style(expression_body)
 
     # determines whether the given character is a word character, i.e. \w in a regex
     is_word_char = lambda c: c and (c.isalnum() or c == '_')
@@ -185,7 +205,7 @@ def replace_equals_style(text):
                 current_expression_terminated = True
 
         if current_expression_terminated:
-            output_chars.append(convert_equals_style(''.join(current_expression_chars)))
+            output_chars.append(replace_expression(''.join(current_expression_chars)))
             current_expression_chars = []
             current_expression_terminated = False
             state = STATE_BODY
@@ -195,12 +215,14 @@ def replace_equals_style(text):
 
 def convert_equals_style(expression):
     """
-    Converts a equals style expression, e.g. =UPPER(contact), to new style, e.g. @(UPPER(contact))
+    Converts a equals style expression, e.g. UPPER(contact), to new style, e.g. (UPPER(contact))
     """
-    expression_body = expression[1:]
-    if not expression_body.startswith('('):
-        expression_body = '(%s)' % expression_body
-    return '@' + expression_body
+    if '(' not in expression:  # e.g. contact or contact.name
+        return expression
+
+    if not expression.startswith('('):
+        expression = '(%s)' % expression
+    return expression
 
 
 #

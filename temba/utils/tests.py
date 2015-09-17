@@ -5,17 +5,19 @@ from __future__ import unicode_literals
 import json
 import pytz
 
-from datetime import date, datetime, time
+from datetime import datetime, time
+from decimal import Decimal
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.utils import timezone
+from expressions.evaluator import EvaluationContext, DateStyle
 from mock import patch
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
+from .expression_compat import migrate_substitutable_text, evaluate_template_compat as evaluate_template, evaluate_expression_compat as evaluate_expression
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
-from .parser import EvaluationError, EvaluationContext, evaluate_template, evaluate_expression, set_evaluation_context, get_function_listing
-from .parser_functions import *
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
@@ -146,6 +148,13 @@ class InitTest(TembaTest):
 
         # any invalid timezones should return ""
         self.assertEqual('', timezone_to_country_code('Nyamirambo'))
+
+    def test_percentage(self):
+        self.assertEquals(0, percentage(0, 100))
+        self.assertEquals(0, percentage(0, 0))
+        self.assertEquals(0, percentage(100, 0))
+        self.assertEquals(75, percentage(75, 100))
+        self.assertEquals(76, percentage(759, 1000))
 
 
 class CacheTest(TembaTest):
@@ -338,13 +347,12 @@ class ParserTest(TembaTest):
                                  average=2.5,             # numeric as float
                                  joined=datetime(2014, 12, 1, 9, 0, 0, 0, timezone.utc),  # date as datetime
                                  started="1/12/14 9:00")  # date as string
-        variables['a'] = '!'  # single char var
 
-        context = EvaluationContext(variables, dict(tz=timezone.utc, dayfirst=True))
+        context = EvaluationContext(variables, timezone.utc, DateStyle.DAY_FIRST)
 
         self.assertEquals(("Hello World", []), evaluate_template('Hello World', context))  # no expressions
-        self.assertEquals(("Hello = Well 5 !", []),
-                          evaluate_template("Hello = =(flow.water_source) =flow.users =a", context))
+        self.assertEquals(("Hello = Well 5", []),
+                          evaluate_template("Hello = =(flow.water_source) =flow.users", context))
         self.assertEquals(("xxJoexx", []),
                           evaluate_template("xx=(contact.first_name)xx", context))  # no whitespace
         self.assertEquals(('Hello "World"', []),
@@ -422,7 +430,7 @@ class ParserTest(TembaTest):
         self.assertEquals(('2', []),
                           evaluate_template('=WORD_COUNT("abc-def", FALSE)',
                                             context))  # built-in variable
-        self.assertEquals(('True', []),
+        self.assertEquals(('TRUE', []),
                           evaluate_template('=OR(AND(True, flow.count = flow.users, 1), 0)',
                                             context))  # booleans / varargs
         self.assertEquals(('yes', []),
@@ -467,34 +475,33 @@ class ParserTest(TembaTest):
 
 
         # evaluation errors
-        self.assertEquals(("Error: =()", ["Syntax error at ')'"]),
+        self.assertEquals(("Error: @()", ["Expression is invalid"]),
                           evaluate_template("Error: =()",
                                             context))  # syntax error due to empty expression
-        self.assertEquals(("Error: =('2')", ["Illegal character '''"]),
+        self.assertEquals(("Error: @('2')", ["Illegal character '''"]),
                           evaluate_template("Error: =('2')",
                                             context))  # don't support single quote string literals
-        self.assertEquals(("Error: =(2 / 0)", ["Division by zero"]),
+        self.assertEquals(("Error: @(2 / 0)", ["Division by zero"]),
                           evaluate_template("Error: =(2 / 0)",
                                             context))  # division by zero
-        self.assertEquals(("Error: =(1 + flow.blank)", ["Can't convert '' to a decimal"]),
+        self.assertEquals(("Error: @(1 + flow.blank)", ["Can't convert '' to a decimal"]),
                           evaluate_template("Error: =(1 + flow.blank)",
                                             context))  # string that isn't numeric
-        self.assertEquals(("Well =flow.boil", ["Undefined variable 'flow.boil'"]),
+        self.assertEquals(("Well @flow.boil", ["Undefined variable 'flow.boil'"]),
                           evaluate_template("=flow.water_source =flow.boil",
                                             context))  # undefined variables
-        self.assertEquals(("Hello =XXX(1, 2)", ["Undefined function 'XXX'"]),
+        self.assertEquals(("Hello @(XXX(1, 2))", ["Undefined function 'XXX'"]),
                           evaluate_template("Hello =XXX(1, 2)",
                                             context))  # undefined function
-        self.assertEquals(('Hello =ABS(1, "x", TRUE)', ['Error calling function ABS with arguments 1, "x", True']),
+        self.assertEquals(('Hello @(ABS(1, "x", TRUE))', ['Error calling function ABS with arguments 1, "x", True']),
                           evaluate_template('Hello =ABS(1, "x", TRUE)',
                                             context))  # wrong number of args
-        self.assertEquals(('Hello =REPT(flow.blank, -2)', ['Error calling function REPT with arguments "", -2']),
+        self.assertEquals(('Hello @(REPT(flow.blank, -2))', ['Error calling function REPT with arguments "", -2']),
                           evaluate_template('Hello =REPT(flow.blank, -2)',
                                             context))  # internal function error
 
     def test_expressions(self):
-        variables = dict()
-        context = EvaluationContext(variables, dict(tz=timezone.utc, dayfirst=True))
+        context = EvaluationContext({}, timezone.utc, DateStyle.DAY_FIRST)
 
         # arithmetic
         self.assertEquals(Decimal(5), evaluate_expression('2 + 3', context))
@@ -510,7 +517,7 @@ class ParserTest(TembaTest):
 
         # logical comparisons
         self.assertEquals(True, evaluate_expression('123.0 = 123', context))
-        self.assertEquals(True, evaluate_expression('"123.0" = "123"', context))
+        self.assertEquals(False, evaluate_expression('"123.0" = "123"', context))
         self.assertEquals(True, evaluate_expression('"abc" = "abc"', context))
         self.assertEquals(True, evaluate_expression('"abc" = "ABC"', context))
         self.assertEquals(False, evaluate_expression('"abc" = "xyz"', context))
@@ -546,241 +553,6 @@ class ParserTest(TembaTest):
 
         self.assertEquals(True, evaluate_expression('4 - 2 > 1', context))  # check precedence
         self.assertEquals(True, evaluate_expression('(2 >= 1) = TRUE', context))
-
-    def test_value_conversion(self):
-        set_evaluation_context(EvaluationContext(dict(), dict(tz=timezone.utc, dayfirst=True)))
-
-        # val_to_date should always return date, discarding any time information
-        self.assertEqual(date(2013, 2, 1), val_to_date(date(2013, 2, 1)))
-        self.assertEqual(date(2013, 1, 2), val_to_date(datetime(2013, 1, 2, 3, 4, 0, 0, timezone.utc)))
-        self.assertEqual(date(2013, 1, 2), val_to_date("2/1/13"))
-        self.assertEqual(date(2013, 1, 2), val_to_date("2-1-13 03:04"))
-        self.assertRaises(EvaluationError, val_to_date, ["2/1"])
-
-        # val_to_date should always return datetime, creating time information if necessary
-        self.assertEqual(datetime(2013, 1, 2, 0, 0, 0, 0, timezone.utc), val_to_datetime("02-01-2013"))
-        self.assertEqual(datetime(2013, 1, 2, 3, 4, 0, 0, timezone.utc), val_to_datetime("2/1/13 03:04"))
-        self.assertRaises(EvaluationError, val_to_datetime, ["2/1"])
-
-        # val_to_date_or_datetime should return date or datetime depending on information given
-        self.assertEqual(date(2013, 2, 1), val_to_date_or_datetime(date(2013, 2, 1)))
-        self.assertEqual(date(2013, 2, 1), val_to_date_or_datetime("1-2-13"))
-        self.assertEqual(date(2013, 1, 31), val_to_date_or_datetime("1-31-13"))  # overrides dayfirst setting
-        self.assertEqual(datetime(2013, 1, 2, 3, 4, 0, 0, timezone.utc), val_to_date_or_datetime(datetime(2013, 1, 2, 3, 4, 0, 0, timezone.utc)))
-        self.assertEqual(datetime(2013, 1, 2, 3, 4, 0, 0, timezone.utc), val_to_date_or_datetime("2/1/13 03:04"))
-        self.assertRaises(EvaluationError, val_to_date_or_datetime, ["2/1"])
-
-        # val_to_boolean has slightly different rules to usual Python truthiness
-        self.assertTrue(True)
-        self.assertFalse(False)
-        self.assertTrue(val_to_boolean(1))
-        self.assertFalse(val_to_boolean(0))
-        self.assertTrue(val_to_boolean(-1))
-        self.assertTrue(val_to_boolean('TRUE'))
-        self.assertTrue(val_to_boolean('true'))
-        self.assertFalse(val_to_boolean('FALSE'))
-        self.assertFalse(val_to_boolean('false'))
-        self.assertFalse(val_to_boolean('false'))
-        self.assertTrue(val_to_boolean('1'))
-        self.assertFalse(val_to_boolean('0.0'))
-        self.assertTrue(val_to_boolean('-1'))
-        self.assertRaises(EvaluationError, val_to_boolean, 'x')
-
-    def test_parser_functions(self):
-        tz = pytz.UTC
-        set_evaluation_context(EvaluationContext(dict(), dict(tz=tz, dayfirst=True)))
-
-        # text functions
-        self.assertEqual('\t', f_char(9))
-        self.assertEqual('\n', f_char(10))
-        self.assertEqual('\r', f_char(13))
-        self.assertEqual(' ', f_char(32))
-        self.assertEqual('A', f_char(65))
-
-        self.assertEqual('Hello world', f_clean('Hello \nwo\trl\rd'))
-
-        self.assertEqual(9, f_code('\t'))
-        self.assertEqual(10, f_code('\n'))
-
-        self.assertEqual('Hello4\n', f_concatenate('Hello', 4, '\n'))
-        self.assertEqual('واحد إثنان ثلاثة', f_concatenate('واحد', ' ', 'إثنان', ' ', 'ثلاثة'))
-
-        self.assertEqual('1,234.57', f_fixed(Decimal('1234.5678')))  # default is 2 decimal places with commas
-        self.assertEqual('1,234.6', f_fixed('1234.5678', 1))
-        self.assertEqual('1234.568', f_fixed('1234.5678', 3, True))
-        self.assertEqual('1,200', f_fixed('1234.5678', -2))
-        self.assertEqual('1200', f_fixed('1234.5678', -2, True))
-
-        self.assertEqual('ab', f_left('abcdef', 2))
-        self.assertEqual('وا', f_left('واحد', 2))
-        self.assertRaises(ValueError, f_left, 'abcd', -1)  # exception for negative char count
-
-        self.assertEqual(0, f_len(''))
-        self.assertEqual(3, f_len('abc'))
-        self.assertEqual(4, f_len('واحد'))
-
-        self.assertEqual('abcd', f_lower('aBcD'))
-        self.assertEqual('a واحد', f_lower('A واحد'))
-
-        self.assertEqual('First-Second Third', f_proper('first-second third'))
-        self.assertEqual('واحد Abc ثلاثة', f_proper('واحد abc ثلاثة'))
-
-        self.assertEqual('abcabcabc', f_rept('abc', 3))
-        self.assertEqual('واحدواحدواحد', f_rept('واحد', 3))
-
-        self.assertEqual('ef', f_right('abcdef', 2))
-        self.assertEqual('حد', f_right('واحد', 2))
-        self.assertRaises(ValueError, f_right, 'abcd', -1)  # exception for negative char count
-
-        self.assertEqual('bonjour Hello world', f_substitute('hello Hello world', 'hello', 'bonjour'))  # case-sensitive
-        self.assertEqual('bonjour bonjour world', f_substitute('hello hello world', 'hello', 'bonjour'))  # all instances
-        self.assertEqual('hello bonjour world', f_substitute('hello hello world', 'hello', 'bonjour', 2))  # specific instance
-        self.assertEqual('إثنان إثنان ثلاثة', f_substitute('واحد إثنان ثلاثة', 'واحد', 'إثنان'))
-
-        self.assertEqual('A', f_unichar(65))
-        self.assertEqual('ا', f_unichar(1575))
-
-        self.assertEqual(9, f_unicode('\t'))
-        self.assertRaises(ValueError, f_unicode, '')  # exception for empty string
-        self.assertEqual(1234, f_unicode('\u04d2'))
-        self.assertEqual(1575, f_unicode('ا'))
-
-        self.assertEqual('ABCD', f_upper('aBcD'))
-        self.assertEqual('A واحد', f_upper('a واحد'))
-
-        # date and time functions, all performed as if it were 2014-01-02 03:04:05.6 UTC
-        with patch.object(timezone, 'now', return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
-            self.assertEqual(date(2012, 3, 2), f_date(2012, "3", 2.0))
-            self.assertEqual(date(2013, 3, 2), f_datevalue("2-3-13"))
-            self.assertEqual(2, f_day(timezone.now()))
-            self.assertEqual(tz.localize(datetime(2014, 2, 2, 3, 4, 5, 6)), f_edate(timezone.now(), 1))
-            self.assertEqual(date(2013, 12, 1), f_edate('01-02-2014', -2))
-            self.assertEqual(3, f_hour(timezone.now()))
-            self.assertEqual(4, f_minute(timezone.now()))
-            self.assertEqual(1, f_month(timezone.now()))
-            self.assertEqual(timezone.now(), f_now())
-            self.assertEqual(5, f_second(timezone.now()))
-            self.assertEqual(time(1, 30, 15), f_time(1, 30, 15))
-            self.assertEqual(time(1, 30, 15), f_timevalue('1:30:15'))
-            self.assertEqual(timezone.now().date(), f_today())
-            self.assertEqual(5, f_weekday(timezone.now()))  # Thu = 5
-            self.assertEqual(7, f_weekday(date(2015, 8, 15)))  # Sat = 7
-            self.assertEqual(1, f_weekday("16th Aug 2015"))  # Sun = 1
-            self.assertEqual(2014, f_year(timezone.now()))
-
-        # run some more in Kabul time for good measure
-        tz = pytz.timezone('Asia/Kabul')
-        set_evaluation_context(EvaluationContext(dict(), dict(tz=tz, dayfirst=True)))
-        with patch.object(timezone, 'now', return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
-            self.assertEqual(tz.localize(datetime(2014, 2, 2, 3, 4, 5, 6)), f_edate(timezone.now(), 1))
-            self.assertEqual(tz.localize(datetime(2014, 2, 2, 3, 4, 0, 0)), f_edate('02-01-2014 03:04', 1))
-            self.assertEqual(timezone.now(), f_now())
-
-        # math functions
-        self.assertEqual(1, f_abs(1))
-        self.assertEqual(1, f_abs(-1))
-
-        self.assertEqual(1, f_max(1))
-        self.assertEqual(3, f_max(1, 3, 2, -5))
-        self.assertEqual(-2, f_max(-2, -5))
-
-        self.assertEqual(1, f_min(1))
-        self.assertEqual(-3, f_min(-1, -3, -2, 5))
-        self.assertEqual(-5, f_min(-2, -5))
-
-        self.assertEqual(Decimal('16'), f_power('4', '2'))
-        self.assertEqual(Decimal('2'), f_power('4', '0.5'))
-
-        self.assertEqual(1, f_sum(1))
-        self.assertEqual(6, f_sum(1, 2, 3))
-
-        # logical functions
-        self.assertEqual(False, f_and(False))
-        self.assertEqual(True, f_and(True))
-        self.assertEqual(True, f_and(1, True, "true"))
-        self.assertEqual(False, f_and(1, True, "true", 0))
-
-        self.assertEqual(False, f_false())
-
-        self.assertEqual(0, f_if(True))
-        self.assertEqual('x', f_if(True, 'x', 'y'))
-        self.assertEqual('x', f_if('true', 'x', 'y'))
-        self.assertEqual(False, f_if(False))
-        self.assertEqual('y', f_if(False, 'x', 'y'))
-        self.assertEqual('y', f_if(0, 'x', 'y'))
-
-        self.assertEqual(False, f_or(False))
-        self.assertEqual(True, f_or(True))
-        self.assertEqual(True, f_or(1, False, "false"))
-        self.assertEqual(True, f_or(0, True, "false"))
-
-        self.assertEqual(True, f_true())
-
-        # custom functions
-        self.assertEqual('', f_first_word('  '))
-        self.assertEqual('abc', f_first_word(' abc '))
-        self.assertEqual('abc', f_first_word(' abc '))
-        self.assertEqual('abc', f_first_word(' abc def ghi'))
-        self.assertEqual('واحد', f_first_word(' واحد '))
-        self.assertEqual('واحد', f_first_word(' واحد إثنان ثلاثة '))
-
-        self.assertEqual('25%', f_percent('0.25321'))
-        self.assertEqual('33%', f_percent(Decimal('0.33')))
-
-        self.assertEqual('1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6', f_read_digits('1234567890123456'))  # credit card
-        self.assertEqual('1 2 3 , 4 5 6 , 7 8 9 , 0 1 2', f_read_digits('+123456789012'))  # phone number
-        self.assertEqual('1 2 3 , 4 5 6', f_read_digits('123456'))  # triplets
-        self.assertEqual('1 2 3 , 4 5 , 6 7 8 9', f_read_digits('123456789'))  # soc security
-        self.assertEqual('1,2,3,4,5', f_read_digits('12345'))  # regular number, street address, etc
-        self.assertEqual('1,2,3', f_read_digits('123'))  # regular number, street address, etc
-        self.assertEqual('', f_read_digits(''))  # empty
-
-        self.assertEqual('', f_remove_first_word('abc'))
-        self.assertEqual('', f_remove_first_word(' abc '))
-        self.assertEqual('def-ghi ', f_remove_first_word(' abc def-ghi '))  # should preserve remainder of text
-        self.assertEqual('', f_remove_first_word(' واحد '))
-        self.assertEqual('إثنان ثلاثة ', f_remove_first_word(' واحد إثنان ثلاثة '))
-
-        self.assertEqual('abc', f_word(' abc def ghi', 1))
-        self.assertEqual('ghi', f_word('abc-def  ghi  jkl', 3))
-        self.assertEqual('jkl', f_word('abc-def  ghi  jkl', 3, True))
-        self.assertEqual('jkl', f_word('abc-def  ghi  jkl', '3', 'TRUE'))  # string args only
-        self.assertEqual('jkl', f_word('abc-def  ghi  jkl', -1))  # negative index
-        self.assertEqual('', f_word(' abc def   ghi', 6))  # out of range
-        self.assertEqual('', f_word('', 1))
-        self.assertEqual('واحد', f_word(' واحد إثنان ثلاثة ', 1))
-        self.assertEqual('ثلاثة', f_word(' واحد إثنان ثلاثة ', -1))
-        self.assertRaises(ValueError, f_word, '', 0)  # number cannot be zero
-
-        self.assertEqual(0, f_word_count(''))
-        self.assertEqual(4, f_word_count(' abc-def  ghi  jkl'))
-        self.assertEqual(4, f_word_count(' abc-def  ghi  jkl', False))
-        self.assertEqual(3, f_word_count(' abc-def  ghi  jkl', True))
-        self.assertEqual(3, f_word_count(' واحد إثنان-ثلاثة ', False))
-        self.assertEqual(2, f_word_count(' واحد إثنان-ثلاثة ', True))
-
-        self.assertEqual('abc def', f_word_slice(' abc  def ghi-jkl ', 1, 3))
-        self.assertEqual('ghi jkl', f_word_slice(' abc  def ghi-jkl ', 3, 0))
-        self.assertEqual('ghi-jkl', f_word_slice(' abc  def ghi-jkl ', 3, 0, True))
-        self.assertEqual('ghi jkl', f_word_slice(' abc  def ghi-jkl ', '3', '0', 'false'))  # string args only
-        self.assertEqual('ghi jkl', f_word_slice(' abc  def ghi-jkl ', 3))
-        self.assertEqual('def ghi', f_word_slice(' abc  def ghi-jkl ', 2, -1))
-        self.assertEqual('jkl', f_word_slice(' abc  def ghi-jkl ', -1))
-        self.assertEqual('def', f_word_slice(' abc  def ghi-jkl ', 2, -1, True))
-        self.assertEqual('واحد إثنان', f_word_slice(' واحد إثنان ثلاثة ', 1, 3))
-        self.assertRaises(ValueError, f_word_slice, ' abc  def ghi-jkl ', 0)  # start can't be zero
-
-        self.assertEqual('15', f_field('15+M+Seattle', 1, '+'))
-        self.assertEqual('15', f_field('15 M Seattle', 1))
-        self.assertEqual('M', f_field('15+M+Seattle', 2, '+'))
-        self.assertEqual('Seattle', f_field('15+M+Seattle', 3, '+'))
-        self.assertEqual('', f_field('15+M+Seattle', 4, '+'))
-        self.assertEqual('M', f_field('15    M  Seattle', 2))
-        self.assertEqual('واحد', f_field(' واحد إثنان-ثلاثة ', 1))
-        self.assertRaises(ValueError, f_field, '15+M+Seattle', 0)
-
-        # check function listing
-        self.assertGreater(len(get_function_listing()), 0)
 
 
 class PageableQueryTest(TembaTest):
@@ -822,11 +594,17 @@ class PageableQueryTest(TembaTest):
         assertPage(["Mary Jo"], False, paginator.page(2))
 
 
-class PercentageTest(TembaTest):
+class ExpressionMigrationTest(TembaTest):
 
-    def test_percentage(self):
-        self.assertEquals(0, percentage(0, 100))
-        self.assertEquals(0, percentage(0, 0))
-        self.assertEquals(0, percentage(100, 0))
-        self.assertEquals(75, percentage(75, 100))
-        self.assertEquals(76, percentage(759, 1000))
+    def test_migrate_substitutable_text(self):
+        self.assertEqual(migrate_substitutable_text("Hi @contact.name from @flow.chw"),
+                         "Hi @contact.name from @flow.chw")
+        self.assertEqual(migrate_substitutable_text("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),
+                         "Hi @(PROPER(UPPER(contact.name))) from @(LOWER(flow.chw))")
+        self.assertEqual(migrate_substitutable_text('Hi @date.now|time_delta:"1"'), "Hi @(date.now + 1)")
+        self.assertEqual(migrate_substitutable_text('Hi @date.now|time_delta:"-3"'), "Hi @(date.now + -3)")
+
+        self.assertEqual(migrate_substitutable_text("Hi =contact.name"), "Hi @contact.name")
+        self.assertEqual(migrate_substitutable_text("Hi =(contact.name)"), "Hi @(contact.name)")
+        self.assertEqual(migrate_substitutable_text("Hi =NOW() =(TODAY())"), "Hi @(NOW()) @(TODAY())")
+        self.assertEqual(migrate_substitutable_text('Hi =LEN("@=")'), 'Hi @(LEN("@="))')
