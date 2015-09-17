@@ -1090,7 +1090,7 @@ class Flow(TembaModel, SmartModel):
     def get_completed_percentage(self):
         total_runs = self.get_total_runs()
         if total_runs > 0:
-            completed_percentage =  int((self.get_completed_runs() * 100) / total_runs)
+            completed_percentage = int((self.get_completed_runs() * 100) / total_runs)
         else:
             completed_percentage = 0
         return completed_percentage
@@ -1130,7 +1130,7 @@ class Flow(TembaModel, SmartModel):
 
     def get_columns(self):
         node_order = []
-        for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk'):
+        for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('y', 'pk'):
             if ruleset.uuid:
                 node_order.append(ruleset)
 

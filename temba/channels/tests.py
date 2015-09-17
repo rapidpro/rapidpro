@@ -1874,6 +1874,43 @@ class ChannelAlertTest(TembaTest):
 
         self.assertEquals(mail.outbox[1].body, text)
 
+    def test_m3tech(self):
+        from temba.channels.models import M3TECH
+
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_m3tech'))
+        post_data = response.context['form'].initial
+
+        post_data['country'] = 'PK'
+        post_data['number'] = '250788123123'
+        post_data['username'] = 'user1'
+        post_data['password'] = 'pass1'
+
+        response = self.client.post(reverse('channels.channel_claim_m3tech'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('PK', channel.country)
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals('+250788123123', channel.address)
+        self.assertEquals(M3TECH, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('api.m3tech_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['sent', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['failed', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['delivered', channel.uuid]))
+
     def test_infobip(self):
         Channel.objects.all().delete()
 
