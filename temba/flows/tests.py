@@ -1094,7 +1094,6 @@ class RuleTest(TembaTest):
         self.assertEquals(self.contact, msg.contact)
         self.assertEquals("What is your favorite color?", msg.text)
 
-
     def test_email_action(self):
         flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -1941,7 +1940,6 @@ class RuleTest(TembaTest):
         self.assertEquals('blue', color['value'])
         self.assertEquals(incoming.text, color['text'])
 
-
     def test_ignore_keyword_triggers(self):
         # set our flow
         self.flow.update(self.definition)
@@ -2120,8 +2118,6 @@ class FlowLabelTest(SmartminTest):
         response = self.client.post("%s?format=modal" % create_url, post_data, follow=True)
         self.assertEquals(FlowLabel.objects.all().count(), 3)
 
-
-
     def test_delete(self):
         label_one = FlowLabel.create_unique("label1", self.org)
 
@@ -2136,6 +2132,7 @@ class FlowLabelTest(SmartminTest):
         self.login(self.user)
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 200)
+
 
 class WebhookTest(TembaTest):
 
@@ -2282,6 +2279,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
+
 class SimulationTest(FlowFileTest):
 
     def test_simulation(self):
@@ -2381,6 +2379,14 @@ class FlowsTest(FlowFileTest):
         response = flow.update(flow_json, self.admin)
         self.assertEquals(response.get('status'), 'unsaved')
 
+    def test_get_columns_order(self):
+        flow = self.get_flow('columns-order')
+
+        export_columns = flow.get_columns()
+        self.assertEquals(export_columns[0], RuleSet.objects.filter(flow=flow, label='Beer').first())
+        self.assertEquals(export_columns[1], RuleSet.objects.filter(flow=flow, label='Name').first())
+        self.assertEquals(export_columns[2], RuleSet.objects.filter(flow=flow, label='Color').first())
+
     def test_recent_messages(self):
         flow = self.get_flow('favorites')
 
@@ -2474,7 +2480,6 @@ class FlowsTest(FlowFileTest):
 
         response = self.client.get(recent_messages_url + get_params_mixed)
         self.assertEquals([], json.loads(response.content))
-
 
     def test_completion(self):
 
@@ -3495,14 +3500,11 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('All Responses', wait_ruleset.get_rules()[0].category['eng'])
         self.assertEquals('Otro', wait_ruleset.get_rules()[0].category['spa'])
 
-
     def test_migrate_from_4_to_5(self):
-
 
         settings.SEND_WEBHOOKS = True
 
         flow = self.get_flow('favorites')
-
 
         # start the flow for our contact
         flow.start(groups=[], contacts=[self.contact])
