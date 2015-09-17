@@ -1875,6 +1875,8 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals(mail.outbox[1].body, text)
 
     def test_m3tech(self):
+        from temba.channels.models import M3TECH
+
         Channel.objects.all().delete()
 
         self.login(self.admin)
@@ -1896,7 +1898,7 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals(post_data['username'], channel.config_json()['username'])
         self.assertEquals(post_data['password'], channel.config_json()['password'])
         self.assertEquals('+250788123123', channel.address)
-        self.assertEquals('M3T', channel.channel_type)
+        self.assertEquals(M3TECH, channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
