@@ -508,6 +508,8 @@ GROUP_PERMISSIONS = {
     ),
     "Beta": (
     ),
+    "Surveyors": (
+    ),
     "Granters": (
         'orgs.org_grant',
     ),
