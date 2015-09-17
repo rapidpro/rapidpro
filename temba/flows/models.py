@@ -34,7 +34,6 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, STOP_WORDS, QUEUED, INITIALIZING, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.flows import flow_migrations
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics
 from temba.utils.profiler import SegmentProfiler
@@ -2661,7 +2660,7 @@ class FlowVersion(SmartModel):
 
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
-
+        from temba.flows import flow_migrations
         while (version <= to_version):
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % version, None)
             if migrate_fn:

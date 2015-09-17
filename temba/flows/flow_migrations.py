@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import copy
 from uuid import uuid4
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
