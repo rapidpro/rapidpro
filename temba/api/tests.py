@@ -2569,15 +2569,7 @@ class M3TechTest(TembaTest):
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200,
-                                                 """
-                                                 <ArrayOfResp
-                                                 xmlns:i="http://www.w3.org/2001/XMLSchema-instance"
-                                                 xmlns="http://schemas.datacontract.org/2004/07/UnicefRestAPI.Models">
-                                                 <Resp>
-                                                 <Response>0</Response>
-                                                 </Resp>
-                                                 </ArrayOfResp>
-                                                 """)
+                                                 """[{"Response":"0"}]""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -2605,15 +2597,7 @@ class M3TechTest(TembaTest):
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200,
-                                                 """
-                                                 <ArrayOfResp
-                                                 xmlns:i="http://www.w3.org/2001/XMLSchema-instance"
-                                                 xmlns="http://schemas.datacontract.org/2004/07/UnicefRestAPI.Models">
-                                                 <Resp>
-                                                 <Response>-1</Response>
-                                                 </Resp>
-                                                 </ArrayOfResp>
-                                                 """)
+                                                 """[{"Response":"1"}]""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))

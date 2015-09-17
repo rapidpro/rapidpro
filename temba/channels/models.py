@@ -1626,13 +1626,18 @@ class Channel(SmartModel):
     def send_m3tech_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        url = "https://secure.m3techservice.com/GenericService/webservice_4_0.asmx?wsdl"
-        payload = {'UserId': channel.config[USERNAME],
+        url = 'https://secure.m3techservice.com/GenericServiceRestAPI/api/SendSMS'
+        payload = {'AuthKey': 'm3-Tech',
+                   'UserId': channel.config[USERNAME],
                    'Password': channel.config[PASSWORD],
                    'MobileNo': msg.urn_path.lstrip('+'),
                    'MsgId': msg.id,
                    'SMS': text,
-                   'MsgHeader': channel.address.lstrip('+')}
+                   'MsgHeader': channel.address.lstrip('+'),
+                   'SMSType': '0',
+                   'HandsetPort': '0',
+                   'SMSChannel': '0',
+                   'Telco': '0'}
 
         start = time.time()
 
@@ -1657,10 +1662,17 @@ class Channel(SmartModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        # our response is XML and should contain a 0 as a status code:
+        # our response is JSON and should contain a 0 as a status code:
+        # [{"Response":"0"}]
+        response_code = ""
+        try:
+            response_code = json.loads(response.text)[0]["Response"]
+        except Exception as e:
+            response_code = str(e)
+
         # <Response>0</Response>
-        if response.text.find(">0<") <= 0:
-            raise SendException("Received non-zero status from API",
+        if response_code != "0":
+            raise SendException("Received non-zero status from API: %s" % str(response_code),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
