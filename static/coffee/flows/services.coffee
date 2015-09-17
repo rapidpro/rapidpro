@@ -746,7 +746,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     deriveCategories: (ruleset, base_language) ->
 
       categories = []
-
       for rule in ruleset.rules
 
         if not rule.uuid

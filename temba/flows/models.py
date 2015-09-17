@@ -2724,7 +2724,7 @@ class FlowVersion(SmartModel):
 
         while (version != CURRENT_EXPORT_VERSION):
 
-            # Move from version 4 to version 5
+            # Move to Version 5, passive rulesets
             if version == 4:
 
                 def requires_step(operand):
