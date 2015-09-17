@@ -1145,7 +1145,7 @@ class Flow(TembaModel, SmartModel):
 
     def get_columns(self):
         node_order = []
-        for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk'):
+        for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('y', 'pk'):
             if ruleset.uuid:
                 node_order.append(ruleset)
 
