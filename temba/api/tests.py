@@ -1033,13 +1033,19 @@ class APITest(TembaTest):
         self.clear_cache()
         response = self.fetchJSON(url, "")
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 2)
-        self.assertContains(response, "Dr Dre")
-        self.assertContains(response, 'tel:+250788123456')
-        self.assertContains(response, 'Andre')
-        self.assertContains(response, "Jay-Z")
-        self.assertContains(response, '123555')
-        self.assertContains(response, "2014-12-31T01:04:00.000000Z")
+        self.assertEqual(len(response.json['results']), 2)
+
+        self.assertEqual(response.json['results'][0]['name'], "Dr Dre")
+        self.assertEqual(response.json['results'][0]['urns'], ['twitter:drdre', 'tel:+250788123456'])
+        self.assertEqual(response.json['results'][0]['fields'], {'real_name': "Andre", 'registration_date': None})
+        self.assertEqual(response.json['results'][0]['group_uuids'], [artists.uuid])
+        self.assertEqual(response.json['results'][0]['groups'], ["Music Artists"])
+        self.assertEqual(response.json['results'][0]['blocked'], False)
+        self.assertEqual(response.json['results'][0]['failed'], False)
+
+        self.assertEqual(response.json['results'][1]['name'], "Jay-Z")
+        self.assertEqual(response.json['results'][1]['fields'], {'real_name': None,
+                                                                 'registration_date': "2014-12-31T01:04:00.000000Z"})
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")
@@ -2827,6 +2833,7 @@ class VumiTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
+        reporters = self.create_group("Reporters", [joe])
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing sms
@@ -2889,6 +2896,26 @@ class VumiTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.put') as mock:
+                mock.return_value = MockResponse(503, "<html><body><h1>503 Service Unavailable</h1>")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as errored, we'll retry in a bit
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt > timezone.now())
+                self.assertEquals(1, mock.call_count)
+
+                # Joe shouldn't be failed and should still be in a group
+                joe = Contact.objects.get(id=joe.id)
+                self.assertFalse(joe.is_failed)
+                self.assertTrue(ContactGroup.user_groups.filter(contacts=joe))
+
+                self.clear_cache()
+
+            with patch('requests.put') as mock:
                 # set our next attempt as if we are trying anew
                 msg.next_attempt = timezone.now()
                 msg.save()
@@ -2905,9 +2932,10 @@ class VumiTest(TembaTest):
                 self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
 
-                # could should now be failed as well
+                # could should now be failed as well and in no groups
                 joe = Contact.objects.get(id=joe.id)
                 self.assertTrue(joe.is_failed)
+                self.assertFalse(ContactGroup.user_groups.filter(contacts=joe))
 
         finally:
             settings.SEND_MESSAGES = False
@@ -4006,6 +4034,8 @@ class TwitterTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
+        testers = self.create_group("Testers", [joe])
+
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
@@ -4059,6 +4089,11 @@ class TwitterTest(TembaTest):
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+                # should not fail the contact
+                contact = Contact.objects.get(pk=joe.pk)
+                self.assertFalse(contact.is_failed)
+                self.assertEqual(contact.user_groups.count(), 1)
+
                 # should record the right error
                 self.assertTrue(ChannelLog.objects.get(msg=msg).description.find("Different 403 error") >= 0)
 
@@ -4069,19 +4104,43 @@ class TwitterTest(TembaTest):
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                # fail the message
+                # should fail the message
                 msg = bcast.get_messages()[0]
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
 
-                # contact should be failed
+                # should fail the contact permanently (i.e. removed from groups)
                 contact = Contact.objects.get(pk=joe.pk)
                 self.assertTrue(contact.is_failed)
+                self.assertEqual(contact.user_groups.count(), 0)
+
+                self.clear_cache()
+
+            joe.is_failed = False
+            joe.save()
+            testers.update_contacts([joe], add=True)
+
+            with patch('twython.Twython.send_direct_message') as mock:
+                mock.side_effect = TwythonError("Sorry, that page does not exist.", error_code=404)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # should fail the message
+                msg = bcast.get_messages()[0]
+                self.assertEqual(msg.status, FAILED)
+                self.assertEqual(msg.error_count, 2)
+
+                # should fail the contact permanently (i.e. removed from groups)
+                contact = Contact.objects.get(pk=joe.pk)
+                self.assertTrue(contact.is_failed)
+                self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
         finally:
             settings.SEND_MESSAGES = False
+
 
 class MageHandlerTest(TembaTest):
 
