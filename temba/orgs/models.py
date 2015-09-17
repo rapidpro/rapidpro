@@ -1387,8 +1387,8 @@ class Language(SmartModel):
             return default_text
 
         # If we are handed raw text without translations, just return that
-        #if not isinstance(text_translations, dict):
-        #    return text_translations
+        if not isinstance(text_translations, dict):
+            return text_translations
 
         # first priority is our contact's language
         if contact and contact.language:

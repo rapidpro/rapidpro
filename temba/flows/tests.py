@@ -35,7 +35,7 @@ from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
-
+from .flow_migrations import migrate_to_version_6
 
 class RuleTest(TembaTest):
 
@@ -3444,12 +3444,31 @@ class FlowMigrationTest(FlowFileTest):
     def migrate_flow(self, flow, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
-
-        json_flow = FlowVersion.migrate_definition(flow.as_json(), flow.version_number, to_version=to_version)
-        flow.update(json_flow)
+        flow.update(FlowVersion.migrate_definition(flow.as_json(), flow.version_number, to_version=to_version))
         return Flow.objects.get(pk=flow.pk)
 
-    def test_migrate_from_4_to_5_language(self):
+    def test_migrate_to_6(self):
+
+        # file format is old non-localized format
+        voice_json = self.get_flow_json('call-me-maybe')
+
+        # no language set
+        self.assertIsNone(voice_json.get('base_language', None))
+        self.assertEquals('Yes', voice_json['rule_sets'][0]['rules'][0]['category'])
+        self.assertEquals('Press one, two, or three. Thanks.', voice_json['action_sets'][0]['actions'][0]['msg'])
+
+        # add a recording to make sure that gets migrated properly too
+        voice_json['action_sets'][0]['actions'][0]['recording'] = '/recording.mp3'
+
+        migrate_to_version_6(voice_json)
+
+        # now we should have a language
+        self.assertEquals('base', voice_json.get('base_language', None))
+        self.assertEquals('Yes', voice_json['rule_sets'][0]['rules'][0]['category']['base'])
+        self.assertEquals('Press one, two, or three. Thanks.', voice_json['action_sets'][0]['actions'][0]['msg']['base'])
+        self.assertEquals('/recording.mp3', voice_json['action_sets'][0]['actions'][0]['recording']['base'])
+
+    def test_migrate_to_5_language(self):
 
         flow = self.get_flow('multi-language-flow')
 
@@ -3471,7 +3490,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('All Responses', wait_ruleset.get_rules()[0].category['eng'])
         self.assertEquals('Otro', wait_ruleset.get_rules()[0].category['spa'])
 
-    def test_migrate_from_4_to_5(self):
+    def test_migrate_to_5(self):
 
         settings.SEND_WEBHOOKS = True
 
