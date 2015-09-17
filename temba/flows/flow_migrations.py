@@ -9,7 +9,7 @@ from temba.flows.models import SayAction, SendAction, RuleSet
 def migrate_to_version_6(json_flow):
     """
     This migration removes the non-localized flow format. This means all potentially localizable
-    text will be a dict from the outset. If no language is set, we will use 'base' as thew
+    text will be a dict from the outset. If no language is set, we will use 'base' as the
     default language.
     """
 
@@ -49,8 +49,8 @@ def migrate_to_version_6(json_flow):
 
 def migrate_to_version_5(json_flow):
     """
-    Adds passive rulesets. This necessitates injecting nodes to account for places where
-    we previously waiting implicitly with explicit waits.
+    Adds passive rulesets. This necessitates injecting nodes in places where
+    we were previously waiting implicitly with explicit waits.
     """
 
     def requires_step(operand):
