@@ -753,19 +753,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         if rule.test.type == "between"
           if not rule.category
-            if base_language
-              rule.category = {}
-              rule.category[base_language] = rule.test.min + " - " + rule.test.max
-            else
-              rule.category = rule.test.min + " - " + rule.test.max
+            rule.category =
+              base_language: rule.test.min + "-" + rule.test.max
 
         if rule.category
-          if base_language
-            rule_cat = rule.category[base_language].toLocaleLowerCase()
-            existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
-          else
-            rule_cat = rule.category.toLocaleLowerCase()
-            existing = (category.name.toLocaleLowerCase() for category in categories)
+          rule_cat =  rule.category[base_language].toLocaleLowerCase()
+          existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
 
           # don't munge the Other category
           if rule.test.type == 'true' or rule_cat not in existing
@@ -777,7 +770,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               # unlocalized flows just have a string name
               name = cat.name
 
-              if base_language and base_language of cat.name
+              if base_language of cat.name
                 name = cat.name[base_language]
 
               # if we are localized, use the base name
@@ -890,7 +883,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             languages.push(lang)
 
         # if they don't have our base language in the org, force ourselves as the default
-        if Flow.language and flow.base_language
+        if not Flow.language and flow.base_language
           Flow.language =
             iso_code: flow.base_language
 
@@ -903,7 +896,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         Flow.languages = languages
         Flow.flow = flow
-
 
         # fire our completion trigger if it was given to us
         if onComplete

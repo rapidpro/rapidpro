@@ -112,8 +112,7 @@ describe 'Controllers:', ->
         $scope.dialog.opened.then ->
           modalScope = $modalStack.getTop().value.modalScope
 
-          # we don't have a language
-          expect(flowService.language).toBe(undefined)
+          expect(flowService.language.iso_code).toBe('eng')
 
           # but we do have base language
           expect(modalScope.base_language, 'eng')
@@ -133,8 +132,7 @@ describe 'Controllers:', ->
       $scope.dialog.opened.then ->
         modalScope = $modalStack.getTop().value.modalScope
 
-        # we don't have a language
-        expect(flowService.language).toBe(undefined)
+        expect(flowService.language.iso_code).toBe('eng')
 
         # but we do have base language
         expect(modalScope.base_language).toBe('eng')
