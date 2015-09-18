@@ -473,27 +473,26 @@ class ParserTest(TembaTest):
         self.assertEquals(("@nicpottier is on twitter", []),
                           evaluate_template("@nicpottier is on twitter", context))
 
-
         # evaluation errors
-        self.assertEquals(("Error: @()", ["Expression is invalid"]),
+        self.assertEquals(("Error: @()", ["Expression error at: )"]),
                           evaluate_template("Error: =()",
                                             context))  # syntax error due to empty expression
-        self.assertEquals(("Error: @('2')", ["Illegal character '''"]),
+        self.assertEquals(("Error: @('2')", ["Expression error at: '"]),
                           evaluate_template("Error: =('2')",
                                             context))  # don't support single quote string literals
         self.assertEquals(("Error: @(2 / 0)", ["Division by zero"]),
                           evaluate_template("Error: =(2 / 0)",
                                             context))  # division by zero
-        self.assertEquals(("Error: @(1 + flow.blank)", ["Can't convert '' to a decimal"]),
+        self.assertEquals(("Error: @(1 + flow.blank)", ["Expression could not be evaluated as decimal or date arithmetic"]),
                           evaluate_template("Error: =(1 + flow.blank)",
                                             context))  # string that isn't numeric
-        self.assertEquals(("Well @flow.boil", ["Undefined variable 'flow.boil'"]),
+        self.assertEquals(("Well @flow.boil", ["Undefined variable: flow.boil"]),
                           evaluate_template("=flow.water_source =flow.boil",
                                             context))  # undefined variables
-        self.assertEquals(("Hello @(XXX(1, 2))", ["Undefined function 'XXX'"]),
+        self.assertEquals(("Hello @(XXX(1, 2))", ["Undefined function: XXX"]),
                           evaluate_template("Hello =XXX(1, 2)",
                                             context))  # undefined function
-        self.assertEquals(('Hello @(ABS(1, "x", TRUE))', ['Error calling function ABS with arguments 1, "x", True']),
+        self.assertEquals(('Hello @(ABS(1, "x", TRUE))', ["Too many arguments provided for function ABS"]),
                           evaluate_template('Hello =ABS(1, "x", TRUE)',
                                             context))  # wrong number of args
         self.assertEquals(('Hello @(REPT(flow.blank, -2))', ['Error calling function REPT with arguments "", -2']),
