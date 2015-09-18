@@ -1208,7 +1208,7 @@ class BulkExportTest(TembaTest):
 
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        actions[0]['msg'] = 'Thanks for nothing'
+        actions[0]['msg']['base'] = 'Thanks for nothing'
         action_set.set_actions_dict(actions)
         action_set.save()
 
@@ -1219,7 +1219,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg'])
+        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
         action_set.set_actions_dict(actions)
         action_set.save()
@@ -1231,7 +1231,7 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg'])
+        self.assertEquals("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword='patient').first()
@@ -1244,7 +1244,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg'])
+        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
         assert_object_counts()
@@ -1269,7 +1269,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
-        self.assertEquals(5, exported.get('version', 0))
+        self.assertEquals(6, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))

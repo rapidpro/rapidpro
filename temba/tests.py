@@ -120,6 +120,12 @@ class TembaTest(SmartminTest):
 
         return Flow.objects.all().first()
 
+    def get_flow_json(self, file):
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+        data = handle.read()
+        handle.close()
+        return json.loads(data)['flows'][0]['definition']
+
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
         self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", created_by=self.admin2, modified_by=self.admin2)
@@ -188,7 +194,11 @@ class TembaTest(SmartminTest):
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
         flow.update(definition)
-        return flow
+        flow.version_number = 4
+        flow.ensure_current_version()
+        flow.save()
+
+        return Flow.objects.get(pk=flow.pk)
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()

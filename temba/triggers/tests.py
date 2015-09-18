@@ -521,7 +521,7 @@ class TriggerTest(TembaTest):
         # make our first message echo back the original message
         action_set = ActionSet.objects.get(uuid=flow.entry_uuid)
         actions = action_set.as_json()['actions']
-        actions[0]['msg'] = 'Echo: @step.value'
+        actions[0]['msg']['base'] = 'Echo: @step.value'
         action_set.set_actions_dict(actions)
         action_set.save()
 

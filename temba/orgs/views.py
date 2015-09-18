@@ -1549,7 +1549,6 @@ class OrgCRUDL(SmartCRUDL):
                         # store up to the first semicolon as the name
                         name = lang.name.split(';')[0]
 
-                        print "creating %s" % iso_code
                         language = org.languages.create(created_by=user, modified_by=user, iso_code=iso_code, name=name)
 
                     # store our primary language

@@ -75,7 +75,7 @@ class ScheduleTest(TembaTest):
         self.assertEquals(Flow.MESSAGE, flow.flow_type)
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
-        self.assertEquals("This is my message", entry.get_actions()[0].msg)
+        self.assertEquals("This is my message", entry.get_actions()[0].msg['base'])
         self.assertFalse(RuleSet.objects.filter(flow=flow))
 
         self.assertEquals(-1, event.offset)

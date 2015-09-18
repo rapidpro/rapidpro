@@ -211,8 +211,9 @@ class Flow(TembaModel, SmartModel):
     saved_by = models.ForeignKey(User, related_name="flow_saves",
                                  help_text=_("The user which last saved this flow"))
 
-    base_language = models.CharField(max_length=3, null=True, blank=True,
-                                     help_text=_('The primary language for editing this flow'))
+    base_language = models.CharField(max_length=4, null=True, blank=True,
+                                     help_text=_('The primary language for editing this flow'),
+                                     default='base')
 
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
@@ -244,15 +245,18 @@ class Flow(TembaModel, SmartModel):
         """
         Creates a special 'join group' flow
         """
+
+        base_language = org.primary_lanuage.iso_code if org.primary_language else 'base'
+
         name = Flow.get_unique_name('Join %s' % group.name, org)
-        flow = Flow.create(org, user, name)
+        flow = Flow.create(org, user, name, base_language=base_language)
 
         uuid = unicode(uuid4())
         actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@step.value|remove_first_word|title_case')]
 
         if response:
-            actions += [dict(type='reply', msg=response)]
+            actions += [dict(type='reply', msg={base_language:response})]
 
         if start_flow:
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
@@ -980,25 +984,6 @@ class Flow(TembaModel, SmartModel):
 
         return Language.get_localized_text(default_text, text_translations, preferred_languages, contact=contact)
 
-    def update_base_language(self):
-        """
-        Update our flow definition according to the base_language
-        """
-        if self.base_language:
-            for actionset in ActionSet.objects.filter(flow=self):
-                actions = actionset.get_actions()
-                for action in actions:
-                    action.update_base_language(self.base_language)
-                actionset.set_actions(actions)
-                actionset.save()
-
-            for ruleset in RuleSet.objects.filter(flow=self):
-                rules = ruleset.get_rules()
-                for rule in rules:
-                    rule.update_base_language(self.base_language, self.org)
-                ruleset.set_rules(rules)
-                ruleset.save()
-
     def update_run_expirations(self):
         """
         Update all of our current run expirations according to our new expiration period
@@ -1091,8 +1076,8 @@ class Flow(TembaModel, SmartModel):
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=message)])]
-        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets))
+        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
+        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -2671,165 +2656,15 @@ class FlowVersion(SmartModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
     @classmethod
-    def migrate_definition(cls, json_flow, version):
+    def migrate_definition(cls, json_flow, version, to_version=None):
 
-        def remove_extra_rules(ruleset):
-            """ Remove all rules but the all responses rule """
-            rules = []
-            old_rules = ruleset.get('rules')
-            for rule in old_rules:
-                if rule['test']['type'] == 'true':
-                    if 'base_language' in json_flow:
-                        rule['category'][json_flow['base_language']] = 'All Responses'
-                    else:
-                        rule['category'] = 'All Responses'
-                    rules.append(rule)
-
-            ruleset['rules'] = rules
-
-        def insert_node(flow, node, _next):
-            """ Inserts a node right before _next """
-
-            def update_destination(node_to_update, uuid):
-                if node_to_update.get('actions', []):
-                    node_to_update['destination'] = uuid
-                else:
-                    for rule in node_to_update.get('rules',[]):
-                        rule['destination'] = uuid
-
-            # make sure we have a fresh uuid
-            node['uuid'] = _next['uuid']
-            _next['uuid'] = unicode(uuid4())
-            update_destination(node, _next['uuid'])
-
-            # bump everybody down
-            for actionset in flow.get('action_sets'):
-                if actionset.get('y') >= node.get('y'):
-                    actionset['y'] += 100
-
-            for ruleset in flow.get('rule_sets'):
-                if ruleset.get('y') >= node.get('y'):
-                    ruleset['y'] += 100
-
-            # we are an actionset
-            if node.get('actions', []):
-                node.destination = _next.uuid
-                flow['action_sets'].append(node)
-
-            # otherwise point all rules to the same place
-            else:
-                for rule in node.get('rules', []):
-                    rule['destination'] = _next['uuid']
-                flow['rule_sets'].append(node)
-
-        while (version != CURRENT_EXPORT_VERSION):
-
-            # Move to Version 5, passive rulesets
-            if version == 4:
-
-                def requires_step(operand):
-
-                    if not operand:
-                        operand = '@step.value'
-
-                    # remove any padding
-                    operand = operand.strip()
-
-                    # if we start with =( then we are an expression
-                    is_expression = operand and len(operand) > 2 and operand[0:2] == '=('
-                    if '@step' in operand or (is_expression and 'step' in operand):
-                        return True
-                    return False
-
-                for ruleset in json_flow.get('rule_sets'):
-
-                    response_type = ruleset.pop('response_type', None)
-                    ruleset_type = ruleset.get('ruleset_type', None)
-                    label = ruleset.get('label')
-
-                    # remove config from any rules, these are turds
-                    for rule in ruleset.get('rules'):
-                        if 'config' in rule:
-                            del rule['config']
-
-                    if response_type and not ruleset_type:
-
-                        # webhooks now live in their own ruleset, insert one
-                        webhook_url = ruleset.pop('webhook', None)
-                        webhook_action = ruleset.pop('webhook_action', None)
-
-                        has_old_webhook = webhook_url and ruleset_type != RuleSet.TYPE_WEBHOOK
-
-                        # determine our type from our operand
-                        operand = ruleset.get('operand')
-                        if not operand:
-                            operand = '@step.value'
-
-                        operand = operand.strip()
-
-                        # all previous ruleset that require step should be wait_message
-                        if requires_step(operand):
-                            # if we have an empty operand, go ahead and update it
-                            if not operand:
-                                ruleset['operand'] = '@step.value'
-
-                            if response_type == 'K':
-                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGITS
-                            elif response_type == 'M':
-                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGIT
-                            elif response_type == 'R':
-                                ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_RECORDING
-                            else:
-
-                                if operand == '@step.value':
-                                    ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
-                                else:
-
-                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
-
-                                    # if it's not a plain split, make us wait and create
-                                    # an expression split node to handle our response
-                                    pausing_ruleset = copy.deepcopy(ruleset)
-                                    pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
-                                    pausing_ruleset['operand'] = '@step.value'
-                                    pausing_ruleset['label'] = label + ' Response'
-                                    remove_extra_rules(pausing_ruleset)
-                                    insert_node(json_flow, pausing_ruleset, ruleset)
-
-                        else:
-                            # if there's no reference to step, figure out our type
-                            ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
-                            # special case contact and flow fields
-                            if ' ' not in operand and '|' not in operand:
-                                if operand == '@contact.groups':
-                                    ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
-                                elif operand.find('@contact.') == 0:
-                                    ruleset['ruleset_type'] = RuleSet.TYPE_CONTACT_FIELD
-                                elif operand.find('@flow.') == 0:
-                                    ruleset['ruleset_type'] = RuleSet.TYPE_FLOW_FIELD
-
-                            # we used to stop at webhooks, now we need a new node
-                            # to make sure processing stops at this step now
-                            if has_old_webhook:
-                                pausing_ruleset = copy.deepcopy(ruleset)
-                                pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
-                                pausing_ruleset['operand'] = '@step.value'
-                                pausing_ruleset['label'] = label + ' Response'
-                                remove_extra_rules(pausing_ruleset)
-                                insert_node(json_flow, pausing_ruleset, ruleset)
-
-                        # finally insert our webhook node if necessary
-                        if has_old_webhook:
-                            webhook_ruleset = copy.deepcopy(ruleset)
-                            webhook_ruleset['webhook'] = webhook_url
-                            webhook_ruleset['webhook_action'] = webhook_action
-                            webhook_ruleset['operand'] = '@step.value'
-                            webhook_ruleset['ruleset_type'] = RuleSet.TYPE_WEBHOOK
-                            webhook_ruleset['label'] = label + ' Webhook'
-                            remove_extra_rules(webhook_ruleset)
-                            insert_node(json_flow, webhook_ruleset, ruleset)
-
-            # look for our next version
+        if not to_version:
+            to_version = CURRENT_EXPORT_VERSION
+        from temba.flows import flow_migrations
+        while (version <= to_version):
+            migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % version, None)
+            if migrate_fn:
+                migrate_fn(json_flow)
             version +=1
 
         return json_flow
@@ -3836,9 +3671,6 @@ class Action(object):
                 actions.append(action)
         return actions
 
-    def update_base_language(self, language_iso):
-        pass
-
     def get_description(self):
         return str(self.__class__)
 
@@ -4197,14 +4029,6 @@ class SayAction(Action):
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
 
-
-    def update_base_language(self, language_iso):
-        # if we are a single language message, then convert to multi-language
-        if not isinstance(self.msg, dict):
-            self.msg = {language_iso: self.msg}
-        if not isinstance(self.recording, dict):
-            self.recording = {language_iso: self.recording}
-
     def get_description(self):
         return "Said %s" % self.msg
 
@@ -4274,11 +4098,6 @@ class ReplyAction(Action):
                 text = run.flow.get_localized_text(self.msg, run.contact)
                 return list(run.contact.send(text, get_flow_user(), trigger_send=False, message_context=run.flow.build_message_context(run.contact, sms)).get_messages())
         return []
-
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.msg, dict):
-            self.msg = {language_iso: self.msg}
 
     def get_description(self):
         return "Replied with %s" % self.msg
@@ -4707,11 +4526,6 @@ class SendAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.msg, dict):
-            self.msg = {language_iso: self.msg}
-
     def get_description(self):
         return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
 
@@ -4778,13 +4592,6 @@ class Rule(object):
 
         return rules
 
-    def update_base_language(self, language_iso, org):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.category, dict):
-            self.category = {language_iso: self.category}
-
-        self.test.update_base_language(language_iso)
-
 class Test(object):
     TYPE = 'type'
     __test_mapping = None
@@ -4842,9 +4649,6 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
-
-    def update_base_language(self, language_iso): # pragma: no cover
-        pass
 
 
 class TrueTest(Test):
@@ -4943,15 +4747,6 @@ class OrTest(Test):
         return 0, None
 
 
-class TranslatableTest(Test):
-    """
-    A test that can be evaluated against a localized string
-    """
-    def update_base_language(self, language_iso):
-        # if we are a single language reply, then convert to multi-language
-        if not isinstance(self.test, dict):
-            self.test = {language_iso: self.test}
-
 class NotEmptyTest(Test):
     """
     { op: "not_empty" }
@@ -4974,7 +4769,7 @@ class NotEmptyTest(Test):
             return 1, text
         return 0, None
 
-class ContainsTest(TranslatableTest):
+class ContainsTest(Test):
     """
     { op: "contains", "test": "red" }
     """
@@ -5067,7 +4862,7 @@ class ContainsAnyTest(ContainsTest):
             return 0, None
 
 
-class StartsWithTest(TranslatableTest):
+class StartsWithTest(Test):
     """
     { op: "starts", "test": "red" }
     """
@@ -5094,7 +4889,7 @@ class StartsWithTest(TranslatableTest):
 
         # see whether we start with our test
         if text.lower().find(test.lower()) == 0:
-            return 1, text[:len(self.test)]
+            return 1, text[:len(test)]
         else:
             return 0, None
 
@@ -5458,7 +5253,7 @@ class PhoneTest(Test):
 
         return number, number
 
-class RegexTest(TranslatableTest):
+class RegexTest(Test):
     """
     Test for whether a response matches a regular expression
     """
