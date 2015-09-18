@@ -4290,7 +4290,10 @@ class TwitterTest(TembaTest):
         joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
         testers = self.create_group("Testers", [joe])
 
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        bcast = joe.send("This is a long message, longer than just 160 characters, it spans what was before "
+                         "more than one message but which is now but one, solitary message, going off into the "
+                         "Twitterverse to tweet away.",
+                         self.admin, trigger_send=False)
 
         # our outgoing message
         msg = bcast.get_messages()[0]
@@ -4303,6 +4306,9 @@ class TwitterTest(TembaTest):
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # assert we were only called once
+                self.assertEquals(1, mock.call_count)
 
                 # check the status of the message is now sent
                 msg = bcast.get_messages()[0]

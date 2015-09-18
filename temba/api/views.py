@@ -2741,12 +2741,13 @@ class FlowDefinitionEndpoint(BaseAPIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        org = user.get_org()
 
         uuid = request.GET.get('uuid')
         flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
 
         if flow:
+            # make sure we have the latest format
+            flow.ensure_current_version()
             return Response(dict(results=flow.as_json()), status=status.HTTP_200_OK)
         else:
             return Response(dict(error="Invalid flow uuid", status=status.HTTP_400_BAD_REQUEST))
