@@ -108,7 +108,7 @@ def convert_filter_style(expression):
     for _filter in filters:
         if ':' in _filter:
             name, param = _filter.split(':')
-            if param[0] == '"':
+            if param[0] == '"' or param[0] == "'":
                 param = param[1:-1]  # strip quotes
         else:
             name, param = _filter, ''
@@ -116,6 +116,8 @@ def convert_filter_style(expression):
         replacement = FILTER_REPLACEMENTS.get(name.lower(), None)
         if replacement:
             new_style = replacement.replace('{0}', new_style).replace('{1}', param)
+
+    new_style = new_style.replace('+ -', '-')  # collapse +- to -
 
     return '(%s)' % new_style  # add enclosing parentheses
 
