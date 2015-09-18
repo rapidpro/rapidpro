@@ -510,6 +510,10 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
+        'orgs.org_api',
+        'contacts.contact_api',
+        'locations.adminboundary_api',
+        'flows.flow_api'
     ),
     "Granters": (
         'orgs.org_grant',
