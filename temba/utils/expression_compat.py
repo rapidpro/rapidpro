@@ -4,7 +4,7 @@ import regex
 
 from expressions.evaluator import Evaluator
 
-CONTEXT_VARS = ('step', 'contact', 'flow', 'extra', 'channel', 'date')
+ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step')
 
 FILTER_REPLACEMENTS = {'lower_case': 'LOWER({0})',
                        'upper_case': 'UPPER({0})',
@@ -66,13 +66,13 @@ def migrate_substitutable_text(text):
     """
     migrated = text
 
-    if '@' in migrated and '|' in migrated:
-        migrated = replace_filter_style(migrated)
     if '=' in migrated:
         migrated = replace_equals_style(migrated)
+    if '@' in migrated and '|' in migrated:
+        migrated = replace_filter_style(migrated)
 
-    if migrated != text:
-        print 'Migrated expressions: "%s" -> "%s"' % (text, migrated)
+    #if migrated != text:
+    #    print 'Migrated expressions: "%s" -> "%s"' % (text, migrated)
 
     return migrated
 
@@ -84,9 +84,12 @@ def replace_filter_style(text):
     """
     def replace_expression(match):
         expression = match.group(1)
-        return '@' + convert_filter_style(expression)
+        new_style = convert_filter_style(expression)
+        if '|' in expression:
+            new_style = '(%s)' % new_style  # add enclosing parentheses
+        return '@' + new_style
 
-    context_keys_joined_pattern = r'[\|\w]*|'.join(CONTEXT_VARS)
+    context_keys_joined_pattern = r'[\|\w]*|'.join(ALLOWED_TOP_LEVELS)
     pattern = r'\B@([\w]+[\.][\w\.\|]*[\w](:([\"\']).*?\3)?|' + context_keys_joined_pattern + r'[\|\w]*)'
 
     rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
@@ -95,7 +98,7 @@ def replace_filter_style(text):
 
 def convert_filter_style(expression):
     """
-    Converts a filter style expression, e.g. contact.name|upper_case, to new style, e.g. (UPPER(contact))
+    Converts a filter style expression, e.g. contact.name|upper_case, to new style, e.g. UPPER(contact)
     """
     if '|' not in expression:
         return expression
@@ -117,9 +120,9 @@ def convert_filter_style(expression):
         if replacement:
             new_style = replacement.replace('{0}', new_style).replace('{1}', param)
 
-    new_style = new_style.replace('+ -', '-')  # collapse +- to -
+    new_style = new_style.replace('+ -', '- ')  # collapse "+ -N" to "- N"
 
-    return '(%s)' % new_style  # add enclosing parentheses
+    return new_style
 
 
 def replace_equals_style(text):
@@ -141,6 +144,13 @@ def replace_equals_style(text):
 
     def replace_expression(expression):
         expression_body = expression[1:]
+
+        # if expression doesn't end with ) then check it's an allowed top level context reference
+        if not expression_body.endswith(')'):
+            top_level = expression_body.split('.')[0].lower()
+            if top_level not in ALLOWED_TOP_LEVELS:
+                return expression
+
         return '@' + convert_equals_style(expression_body)
 
     # determines whether the given character is a word character, i.e. \w in a regex
@@ -222,8 +232,20 @@ def convert_equals_style(expression):
     if '(' not in expression:  # e.g. contact or contact.name
         return expression
 
+    # some users have been putting @ expressions inside = expressions which works due to the old two pass nature of
+    # expression evaluation
+    def replace_embedded_filter_style(match):
+        filter_style = match.group(2)
+        return convert_filter_style(filter_style)
+
+    pattern = r'(")?@((%s)[\.\w\|]*)(\1)?' % '|'.join(ALLOWED_TOP_LEVELS)
+
+    rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+    expression = rexp.sub(replace_embedded_filter_style, expression)
+
     if not expression.startswith('('):
         expression = '(%s)' % expression
+
     return expression
 
 
@@ -231,17 +253,28 @@ def convert_equals_style(expression):
 # TESTING...
 #
 def test():
+    from django.db.models import Q
     from temba.msgs.models import Broadcast
     from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
 
-    print "Flow definitions..."
+    #print "Flow definitions..."
 
-    for flow_version in FlowVersion.objects.filter(version_number=CURRENT_EXPORT_VERSION):
-        json_flow = flow_version.get_definition_json()
-        migrate_flow_definition(json_flow)
+    #for flow_version in FlowVersion.objects.filter(version_number=CURRENT_EXPORT_VERSION):
+    #    json_flow = flow_version.get_definition_json()
+    #    migrate_flow_definition(json_flow)
 
-    print "Scheduled broadcasts..."
+    print "Broadcasts..."
 
-    for broadcast in Broadcast.objects.exclude(schedule=None):
-        if '@' in broadcast.text or '=' in broadcast.text:
-            migrate_substitutable_text(broadcast.text)
+    migrations = []
+    for broadcast in Broadcast.objects.filter(Q(text__contains='|') | Q(text__contains='=')):
+        migrated = migrate_substitutable_text(broadcast.text)
+        if migrated != broadcast.text:
+            migrations.append((broadcast.text, migrated))
+
+    import unicodecsv
+    with open('expression_migrations.csv', 'wb') as csvfile:
+        writer = unicodecsv.writer(csvfile)
+        for m in migrations:
+            writer.writerow(m)
+
+    print 'Migrated %d broadcasts' % len(migrations)

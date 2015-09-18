@@ -593,17 +593,24 @@ class PageableQueryTest(TembaTest):
         assertPage(["Mary Jo"], False, paginator.page(2))
 
 
-class ExpressionMigrationTest(TembaTest):
+class ExpressionCompatTest(TembaTest):
 
     def test_migrate_substitutable_text(self):
-        self.assertEqual(migrate_substitutable_text("Hi @contact.name from @flow.chw"),
-                         "Hi @contact.name from @flow.chw")
         self.assertEqual(migrate_substitutable_text("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),
                          "Hi @(PROPER(UPPER(contact.name))) from @(LOWER(flow.chw))")
         self.assertEqual(migrate_substitutable_text('Hi @date.now|time_delta:"1"'), "Hi @(date.now + 1)")
-        self.assertEqual(migrate_substitutable_text('Hi @date.now|time_delta:"-3"'), "Hi @(date.now + -3)")
+        self.assertEqual(migrate_substitutable_text('Hi @date.now|time_delta:"-3"'), "Hi @(date.now - 3)")
 
         self.assertEqual(migrate_substitutable_text("Hi =contact.name"), "Hi @contact.name")
         self.assertEqual(migrate_substitutable_text("Hi =(contact.name)"), "Hi @(contact.name)")
         self.assertEqual(migrate_substitutable_text("Hi =NOW() =(TODAY())"), "Hi @(NOW()) @(TODAY())")
         self.assertEqual(migrate_substitutable_text('Hi =LEN("@=")'), 'Hi @(LEN("@="))')
+
+        # handle @ expressions embedded inside = expressions, with optional surrounding quotes
+        self.assertEqual(migrate_substitutable_text('=AND("Malkapur"= "@flow.stuff.category", 13 = @extra.Depar_city|upper_case)'), '@(AND("Malkapur"= flow.stuff.category, 13 = UPPER(extra.Depar_city)))')
+
+        # don't convert unnecessarily
+        self.assertEqual(migrate_substitutable_text("Hi @contact.name from @flow.chw"), "Hi @contact.name from @flow.chw")
+
+        # don't convert things that aren't expressions
+        self.assertEqual(migrate_substitutable_text("Reply 1=Yes, 2=No"), "Reply 1=Yes, 2=No")
