@@ -160,6 +160,7 @@ class Flow(TembaModel, SmartModel):
     LAST_SAVED = 'last_saved'
     BASE_LANGUAGE = 'base_language'
     SAVED_BY = 'saved_by'
+    TYPE = 'type'
 
     X = 'x'
     Y = 'y'
@@ -167,13 +168,15 @@ class Flow(TembaModel, SmartModel):
     FLOW = 'F'
     MESSAGE = 'M'
     VOICE = 'V'
+    SURVEY = 'S'
 
     RULES_ENTRY = 'R'
     ACTIONS_ENTRY = 'A'
 
     FLOW_TYPES = ((FLOW, _("Message flow")),
                   (MESSAGE, _("Single Message Flow")),
-                  (VOICE, _("Phone call flow")))
+                  (VOICE, _("Phone call flow")),
+                  (SURVEY, _("Android Survey")))
 
     ENTRY_TYPES = ((RULES_ENTRY, "Rules"),
                    (ACTIONS_ENTRY, "Actions"))
@@ -1906,6 +1909,8 @@ class Flow(TembaModel, SmartModel):
 
         if self.base_language:
             flow[Flow.BASE_LANGUAGE] = self.base_language
+
+        flow[Flow.TYPE] = self.flow_type
 
         return flow
 

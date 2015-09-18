@@ -380,6 +380,7 @@ class FlowCRUDL(SmartCRUDL):
         class FlowCreateForm(BaseFlowForm):
             keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
+
             flow_type = forms.ChoiceField(label=_('Run flow over'),
                                           help_text=_('Place a phone call or use text messaging'),
                                           choices=((Flow.FLOW, 'Text Messaging'),
@@ -388,6 +389,12 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
                 self.user = user
+
+                # if they are a beta user, add option for android phone survey
+                if self.user.is_beta():
+                    self.fields['flow_type'].choices = ((Flow.FLOW, 'Text Messaging'),
+                                                        (Flow.VOICE, 'Phone Call'),
+                                                        (Flow.SURVEY, 'Android Phone'))
 
                 self.fields['base_language'] = forms.ChoiceField(label=_('Language'), initial=self.user.get_org().primary_language,
                     choices=((lang.iso_code, lang.name) for lang in self.user.get_org().languages.all().order_by('orgs', 'name')))

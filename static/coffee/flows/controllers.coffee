@@ -509,7 +509,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.clickActionSource = (actionset) ->
     if actionset._terminal
-      $modal.open
+      $scope.dialog = $modal.open
         templateUrl: "/partials/modal"
         controller: TerminalWarningController
         resolve:
@@ -545,7 +545,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     if window.dragging or not window.mutable
       return
 
-    $modal.open
+    $scope.dialog = $modal.open
       templateUrl: "/partials/node_editor"
       controller: NodeEditorController
       resolve:
@@ -1017,6 +1017,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     return true
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
+    valid = flow.type in rulesetConfig.filter
 
     if (rulesetConfig.type == 'flow_field' or rulesetConfig.type == 'form_field') and $scope.flowFields.length == 0
       return false
@@ -1024,12 +1025,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
       return false
 
-
-    if window.ivr
-      return rulesetConfig.ivr
-    else
-      return rulesetConfig.text
-
+    return valid
 
   $scope.getDefaultCategory = (rule) ->
 
@@ -1324,17 +1320,18 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   # a simple function to filter out invalid actions
   $scope.validActionFilter = (action) ->
 
-    if startsFlow and action.type == 'flow'
-      return false
+    valid = false
+    if action.filter
+      valid = flow.type in action.filter
 
-    if not window.ivr and (action.type == 'say' or action.type == 'play')
+    if startsFlow and action.type == 'flow'
       return false
 
     # TODO: if the org doesn't have lanugaes filter out lang
     # if not Flow.flow.base_language and action.type == 'lang'
     #  return false
 
-    return true
+    return valid
 
   $scope.savePlay = ->
     $scope.action.type = 'play'
