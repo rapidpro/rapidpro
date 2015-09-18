@@ -111,7 +111,8 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals("Rwanda", str(org.country))
+        self.assertEqual("Rwanda", unicode(org.country))
+        self.assertEqual("RW", org.get_country_code())
 
         # clear it out
         response = self.client.post(country_url, dict(country=''))

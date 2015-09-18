@@ -29,8 +29,8 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def uuid(id):
-    return '00000000-00000000-00000000-%08d' % id
+def uuid(val):
+    return '00000000-00000000-00000000-%08d' % val
 
 
 class TembaTest(SmartminTest):
@@ -169,28 +169,29 @@ class TembaTest(SmartminTest):
 
         return Msg.objects.create(**kwargs)
 
-    def create_flow(self):
-        start = int(time.time() * 1000) % 1000000
+    def create_flow(self, uuid_start=None):
+        if uuid_start is None:
+            uuid_start = int(time.time() * 1000) % 1000000
 
-        definition = dict(action_sets=[dict(uuid=uuid(start + 1), x=1, y=1, destination=uuid(start + 5),
-                                            actions=[dict(type='reply', msg='What is your favorite color?')]),
-                                       dict(uuid=uuid(start + 2), x=2, y=2, destination=None,
-                                            actions=[dict(type='reply', msg='I love orange too!')]),
-                                       dict(uuid=uuid(start + 3), x=3, y=3, destination=None,
-                                            actions=[dict(type='reply', msg='Blue is sad. :(')]),
-                                       dict(uuid=uuid(start + 4), x=4, y=4, destination=None,
-                                            actions=[dict(type='reply', msg='That is a funny color.')])
+        definition = dict(action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
+                                            actions=[dict(type='reply', msg="What is your favorite color?")]),
+                                       dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
+                                            actions=[dict(type='reply', msg="I love orange too!")]),
+                                       dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
+                                            actions=[dict(type='reply', msg="Blue is sad. :(")]),
+                                       dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
+                                            actions=[dict(type='reply', msg="That is a funny color.")])
                                        ],
-                          rule_sets=[dict(uuid=uuid(start + 5), x=5, y=5,
+                          rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                           label='color',
                                           ruleset_type='wait_message',
                                           rules=[
-                                              dict(uuid=uuid(start + 12), destination=uuid(start + 2), test=dict(type='contains', test='orange'), category="Orange"),
-                                              dict(uuid=uuid(start + 13), destination=uuid(start + 3), test=dict(type='contains', test='blue'), category="Blue"),
-                                              dict(uuid=uuid(start + 14), destination=uuid(start + 4), test=dict(type='true'), category="Other"),
-                                              dict(uuid=uuid(start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
+                                              dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test='orange'), category="Orange"),
+                                              dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test='blue'), category="Blue"),
+                                              dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category="Other"),
+                                              dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
                                      ],
-                          entry=uuid(start + 1))
+                          entry=uuid(uuid_start + 1))
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
         flow.update(definition)

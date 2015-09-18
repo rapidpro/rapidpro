@@ -399,14 +399,11 @@ class Contact(TembaModel, SmartModel):
         if urns is None:
             urns = ()
 
-        # no channel? try to get one from our org
-        country = None
+        # get country from channel or org
         if incoming_channel:
-            country = incoming_channel.country
+            country = incoming_channel.country.code
         else:
-            receiver = org.get_receive_channel(TEL_SCHEME)
-            if receiver:
-                country = receiver.country
+            country = org.get_country_code()
 
         contact = None
 
@@ -564,10 +561,7 @@ class Contact(TembaModel, SmartModel):
         org = field_dict['org']
         del field_dict['org']
 
-        # try to find a channel for this org
-        channel = org.get_receive_channel(TEL_SCHEME)
-        country = channel.country.code if channel else None
-
+        country = org.get_country_code()
         urns = []
 
         possible_urn_headers = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
@@ -1027,8 +1021,7 @@ class Contact(TembaModel, SmartModel):
         """
         Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included
         """
-        channel = self.org.get_receive_channel(TEL_SCHEME)
-        country = channel.country if channel else None
+        country = self.org.get_country_code()
 
         urns_created = []  # new URNs created
         urns_attached = []  # existing orphan URNs attached

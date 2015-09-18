@@ -505,7 +505,7 @@ class Msg(models.Model):
                                 related_name='msgs', verbose_name=_("Contact"),
                                 help_text=_("The contact this message is communicating with"))
 
-    contact_urn = models.ForeignKey(ContactURN,
+    contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this message is communicating with"))
 
@@ -973,7 +973,7 @@ class Msg(models.Model):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -989,8 +989,11 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
-        contact_urn = contact.urn_objects[urn]
+        if not contact:
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact_urn = contact.urn_objects[urn]
+        else:
+            contact_urn = None
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
@@ -1091,19 +1094,24 @@ class Msg(models.Model):
         # for IVR messages we need a channel that can call
         role = CALL if msg_type == IVR else SEND
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+        if status != SENT:
+            # if message will be sent, resolve the recipient to a contact and URN
+            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
-        if not contact_urn:
-            raise UnreachableException("No suitable URN found for contact")
+            if not contact_urn:
+                raise UnreachableException("No suitable URN found for contact")
 
-        if not channel:
-            if msg_type == IVR:
-                channel = org.get_call_channel()
-            else:
-                channel = org.get_send_channel(contact_urn=contact_urn)
+            if not channel:
+                if msg_type == IVR:
+                    channel = org.get_call_channel()
+                else:
+                    channel = org.get_send_channel(contact_urn=contact_urn)
 
-            if not channel and not contact.is_test:
-                raise ValueError("No suitable channel available for this org")
+                if not channel and not contact.is_test:
+                    raise ValueError("No suitable channel available for this org")
+        else:
+            # if message has already been sent, recipient must be a tuple of contact and URN
+            contact, contact_urn = recipient
 
         # no creation date?  set it to now
         if not created_on:

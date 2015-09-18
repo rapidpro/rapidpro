@@ -4,6 +4,7 @@ import calendar
 import json
 import logging
 import os
+import pycountry
 import pytz
 import random
 import regex
@@ -609,6 +610,24 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         for channel in self.channels.exclude(channel_type='A'):
             Channel.clear_cached_channel(channel.pk)
+
+    def get_country_code(self):
+        """
+        Gets the 2-digit country code, e.g. RW, US
+        """
+        # first try the actual country field
+        if self.country:
+            country = pycountry.countries.get(name=self.country.name)
+            if country:
+                return country.alpha2
+
+        # if that isn't set, there may be a TEL channel we can get it from
+        from temba.contacts.models import TEL_SCHEME
+        channel = self.get_receive_channel(TEL_SCHEME)
+        if channel:
+            return channel.country.code
+
+        return None
 
     def get_dayfirst(self):
         return self.date_format == DAYFIRST
