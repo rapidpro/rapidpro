@@ -154,9 +154,15 @@ class Org(SmartModel):
 
     editors = models.ManyToManyField(User, verbose_name=_("Editors"), related_name="org_editors",
                                      help_text=_("The editors in your organization"))
+
+    surveyors = models.ManyToManyField(User, verbose_name=_("Surveyors"), related_name="org_surveyors",
+                                       help_text=_("The users can login via Android for your organization"))
+
     language = models.CharField(verbose_name=_("Language"), max_length=64, null=True, blank=True,
                                 choices=settings.LANGUAGES, help_text=_("The main language used by this organization"))
+
     timezone = models.CharField(verbose_name=_("Timezone"), max_length=64)
+
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
@@ -699,8 +705,11 @@ class Org(SmartModel):
     def get_org_viewers(self):
         return self.viewers.all()
 
+    def get_org_surveyors(self):
+        return self.surveyors.all()
+
     def get_org_users(self):
-        org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers()
+        org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers() | self.get_org_surveyors()
         return org_users.distinct()
 
     def latest_admin(self):
@@ -735,6 +744,8 @@ class Org(SmartModel):
             user._org_group = Group.objects.get(name="Editors")
         elif user in self.get_org_viewers():
             user._org_group = Group.objects.get(name="Viewers")
+        elif user in self.get_org_surveyors():
+            user._org_group = Group.objects.get(name="Surveyors")
         elif user.is_staff:
             user._org_group = Group.objects.get(name="Administrators")
         else:
@@ -1275,7 +1286,7 @@ class Org(SmartModel):
 def get_user_orgs(user):
     if user.is_superuser:
         return Org.objects.all()
-    user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
+    user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
     return user_orgs.distinct().order_by('name')
 
 

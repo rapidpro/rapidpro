@@ -18,6 +18,8 @@
         %th.permission
           -trans "Viewers"
         %th.permission
+          -trans "Surveyors"
+        %th.permission
           -trans "Remove"
     %tbody
       %tr#admin-error.hide
@@ -49,6 +51,8 @@
             .glyph.level-checkbox{class:'{% if invite.user_group == "A"%}checked{%endif%}'}
           %td.permission
             .glyph.level-checkbox{class:'{% if invite.user_group == "E"%}checked{%endif%}'}
+          %td.permission
+            .glyph.level-checkbox{class:'{% if invite.user_group == "S"%}checked{%endif%}'}
           %td.check.permission
             .hidden-input.hide
               %input{type: 'checkbox'}
@@ -69,6 +73,7 @@
 - block summary
   %span.attn= object.name
   -trans "has"
+
   -if org.administrators.all|length == 1
     %span.attn= org.administrators.all|length
       -trans "Administrator"
@@ -81,28 +86,42 @@
     %span.attn= org.administrators.all|length
       -trans "Administrators"
     -trans ","
+
   -if org.editors.all|length == 1
     %span.attn= org.editors.all|length
       -trans "Editor"
-    -trans "and"
+    -trans ","
   -elif org.editors.all|length == 0
     %span.attn
       -trans "No Editors"
-    -trans "and"
+    -trans ","
   -else
     %span.attn= org.editors.all|length
       -trans "Editors"
-    -trans "and"
+    -trans ","
+
   -if org.viewers.all|length == 1
     %span.attn= org.viewers.all|length
-      -trans "Viewer."
+      -trans "Viewer"
+    -trans "and"
   -elif org.viewers.all|length == 0
     %span.attn
-      -trans "No Viewers."
+      -trans "No Viewers"
+    -trans "and"
   -else
     %span.attn= org.viewers.all|length
-      -trans "Viewers."
+      -trans "Viewers"
+    -trans "and"
 
+  -if org.surveyors.all|length == 1
+    %span.attn= org.surveyors.all|length
+      -trans "Surveyor."
+  -elif org.surveyors.all|length == 0
+    %span.attn
+      -trans "No Surveyors."
+  -else
+    %span.attn= org.surveyors.all|length
+      -trans "Surveyors."
 
 - block extra-script
   {{block.super}}
