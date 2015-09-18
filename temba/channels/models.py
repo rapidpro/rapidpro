@@ -105,7 +105,7 @@ RELAYER_TYPE_CONFIG = {
     VUMI: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
     HUB9: dict(scheme='tel', max_length=1600),
-    TWITTER: dict(scheme='twitter', max_length=140),
+    TWITTER: dict(scheme='twitter', max_length=10000),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     CLICKATELL: dict(scheme='tel', max_length=420),
     PLIVO: dict(scheme='tel', max_length=1600),
