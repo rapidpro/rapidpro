@@ -328,13 +328,14 @@ class AuthenticateEndpoint(SmartFormView):
             login(self.request, user)
 
             orgs = []
-            for org in Org.objects.filter(administrators__in=[user]):
+            for org in Org.objects.filter(Q(administrators__in=[user]) | Q(surveyors__in=[user])):
                 tokens = APIToken.objects.filter(user=user, org=org)
                 if tokens:
                     orgs.append(dict(id=org.pk, name=org.name, token=tokens[0].key))
             return JsonResponse(orgs, safe=False)
         else:
             return HttpResponse(status=403)
+
 
 @api_view(['GET'])
 @permission_classes((SSLPermission, IsAuthenticated))
