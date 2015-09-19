@@ -1312,8 +1312,11 @@ class FlowRunWriteSerializer(WriteSerializer):
             run = FlowRun.create(flow, contact, created_on=started)
 
         step_objs = []
+        previous_rule = None
         for step in steps:
-            step_objs.append(FlowStep.from_json(step, flow, run))
+            step_obj = FlowStep.from_json(step, flow, run, previous_rule)
+            previous_rule = step_obj.rule_uuid
+            step_objs.append(step_obj)
 
         if completed:
             final_step = step_objs[len(step_objs) - 1] if step_objs else None

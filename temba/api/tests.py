@@ -476,8 +476,7 @@ class APITest(TembaTest):
         self.assert403(url)
 
         # login as surveyor
-        # TODO create surveyor user type
-        self.login(self.editor)
+        self.login(self.surveyor)
 
         flow = self.create_flow(uuid_start=0)
 
@@ -590,6 +589,10 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[1].text, "I love orange too!")
         self.assertEqual(out_msgs[1].created_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(out_msgs[1].response_to, step1_msgs[0])
+
+        # check our visitation
+        visited = run.flow.get_activity(check_cache=False)[1]
+        self.assertEquals(1, visited['00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002'])
 
     def test_api_results(self):
         url = reverse('api.results')
