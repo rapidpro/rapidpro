@@ -73,7 +73,7 @@ class RuleTest(TembaTest):
                                               dict(uuid=uuid(14), destination=uuid(4), test=dict(type='true'), category=dict(base="Other")),
                                               dict(uuid=uuid(15), test=dict(type='true'), category=dict(base="Nothing"))]) # test case with no destination
                                     ],
-                          entry=uuid(1), base_language='base', metadata=dict(author="Ryan Lewis"))
+                          entry=uuid(1), base_language='base', type='F', metadata=dict(author="Ryan Lewis"))
 
         settings.SEND_EMAILS = True
         settings.SEND_WEBHOOKS = True
