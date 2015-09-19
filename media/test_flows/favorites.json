@@ -1,8 +1,9 @@
 {
-  "version": 6, 
+  "version": 6,
   "flows": [
     {
       "definition": {
+        "type": "F",
         "base_language": "base", 
         "action_sets": [
           {

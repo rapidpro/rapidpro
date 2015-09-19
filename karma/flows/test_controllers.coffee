@@ -151,3 +151,85 @@ describe 'Controllers:', ->
         expect(modalScope.languages.to).toBe('ara')
 
       $timeout.flush()
+
+    it 'should filter split options based on flow type', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      getRuleConfig = (type) ->
+        for ruleset in flowService.rulesets
+          if ruleset.type == type
+            return ruleset
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(true)
+
+        # these are for ivr
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(false)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(false)
+
+        # now pretend we are a voice flow
+        flowService.flow.type = 'V'
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(true)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(true)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(true)
+
+        # and now a survey flow
+        flowService.flow.type = 'S'
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(false)
+
+      $timeout.flush()
+
+    it 'should filter action options based on flow type', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+
+      getAction = (type) ->
+        for action in flowService.actions
+          if action.type == type
+            return action
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+      $scope.clickAction(actionset, action)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+
+        # ivr only
+        expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
+
+        # pretend we are a voice flow
+        flowService.flow.type = 'V'
+        expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('say'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('play'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
+
+        # now try a survey
+        flowService.flow.type = 'S'
+        expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
+
+      $timeout.flush()
