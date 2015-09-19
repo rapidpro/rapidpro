@@ -1153,27 +1153,27 @@ class OrgCRUDL(SmartCRUDL):
 
         def save(self, org):
             org = self.get_object()
-            invitation = self.get_invitation()
+            self.invitation = self.get_invitation()
             if org:
-                if invitation.user_group == 'A':
+                if self.invitation.user_group == 'A':
                     org.administrators.add(self.request.user)
-                elif invitation.user_group == 'E':
+                elif self.invitation.user_group == 'E':
                     org.editors.add(self.request.user)
-                elif invitation.user_group == 'S':
+                elif self.invitation.user_group == 'S':
                     org.surveyors.add(self.request.user)
                 else:
                     org.viewers.add(self.request.user)
 
                 # make the invitation inactive
-                invitation.is_active = False
-                invitation.save()
+                self.invitation.is_active = False
+                self.invitation.save()
 
                 # set the active org on this user
                 self.request.user.set_org(org)
                 self.request.session['org_id'] = org.pk
 
         def get_success_url(self):
-            if self.get_invitation().user_group == 'S':
+            if self.invitation.user_group == 'S':
                 return reverse('orgs.org_surveyor')
 
             return super(OrgCRUDL.Join, self).get_success_url()
