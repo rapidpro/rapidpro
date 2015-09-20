@@ -45,6 +45,7 @@ class TembaTest(SmartminTest):
         self.user = self.create_user("User")
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
@@ -68,6 +69,9 @@ class TembaTest(SmartminTest):
 
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
+
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
 
         self.superuser.set_org(self.org)
 
@@ -194,10 +198,9 @@ class TembaTest(SmartminTest):
                           entry=uuid(uuid_start + 1))
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
+        from temba.flows.flow_migrations import migrate_to_version_6
+        migrate_to_version_6(definition)
         flow.update(definition)
-        flow.version_number = 4
-        flow.ensure_current_version()
-        flow.save()
 
         return Flow.objects.get(pk=flow.pk)
 

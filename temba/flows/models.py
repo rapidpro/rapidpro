@@ -893,7 +893,7 @@ class Flow(TembaModel, SmartModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
-    def get_activity(self, simulation=False):
+    def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
@@ -906,7 +906,8 @@ class Flow(TembaModel, SmartModel):
                 active[key] = len(value)
             return (active, visits)
 
-        self._check_for_cache_update()
+        if check_cache:
+            self._check_for_cache_update()
 
         r = get_redis_connection()
 
@@ -3372,7 +3373,7 @@ class FlowStep(models.Model):
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
     @classmethod
-    def from_json(cls, json_obj, flow, run):
+    def from_json(cls, json_obj, flow, run, previous_rule=None):
         node_uuid = json_obj['node']
         is_ruleset = 'rule' in json_obj
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
@@ -3412,7 +3413,7 @@ class FlowStep(models.Model):
             for action in actions:
                 msgs += action.execute(run, node, msg=last_incoming, offline_on=arrived_on)
 
-        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on)
+        step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
         if is_ruleset:
             step.rule_uuid = json_obj['rule']['uuid']

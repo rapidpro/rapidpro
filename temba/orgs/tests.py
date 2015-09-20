@@ -244,9 +244,9 @@ class OrgTest(TembaTest):
         response = self.client.get(manage_accounts_url)
         self.assertEquals(200, response.status_code)
 
-        # we have 15 fields in the form including 12 checkboxes for the three users, an email field, a user group field
+        # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
-        self.assertEquals(15, len(response.context['form'].fields))
+        self.assertEquals(19, len(response.context['form'].fields))
         self.assertTrue('emails' in response.context['form'].fields)
         self.assertTrue('user_group' in response.context['form'].fields)
         for user in [self.user, self.editor, self.admin]:
