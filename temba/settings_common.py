@@ -394,6 +394,7 @@ PERMISSIONS = {
                  'profile',
                  'service',
                  'signup',
+                 'surveyor',
                  'trial',
                  'twilio_account',
                  'twilio_connect',
@@ -510,6 +511,7 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
+        'orgs.org_surveyor',
         'orgs.org_api',
         'contacts.contact_api',
         'locations.adminboundary_api',

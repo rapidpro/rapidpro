@@ -436,6 +436,34 @@ class OrgTest(TembaTest):
         self.assertTrue(new_invited_user in self.org.administrators.all())
         self.assertFalse(Invitation.objects.get(pk=admin_invitation.pk).is_active)
 
+    def test_surveyor_invite(self):
+        surveyor_invite = Invitation.objects.create(org=self.org,
+                                                    user_group="S",
+                                                    email="surveyor@gmail.com",
+                                                    created_by=self.admin,
+                                                    modified_by=self.admin)
+
+        admin_create_login_url = reverse('orgs.org_create_login', args=[surveyor_invite.secret])
+        self.client.logout()
+
+        post_data = dict(first_name='Surveyor', last_name='User', email='surveyor@gmail.com', password='password')
+        response = self.client.post(admin_create_login_url, post_data, follow=True)
+        self.assertEquals(200, response.status_code)
+
+        # as a surveyor we should have been rerourted
+        self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
+        self.assertFalse(Invitation.objects.get(pk=surveyor_invite.pk).is_active)
+
+        # make sure we are a surveyor
+        new_invited_user = User.objects.get(email="surveyor@gmail.com")
+        self.assertTrue(new_invited_user in self.org.surveyors.all())
+
+        # if we login, we should be rerouted too
+        self.client.logout()
+        response = self.client.post('/users/login/', {'username': 'surveyor@gmail.com', 'password': 'password'}, follow=True)
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
+
     def test_choose(self):
         self.client.logout()
 
