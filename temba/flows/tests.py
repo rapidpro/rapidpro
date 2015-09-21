@@ -1413,7 +1413,7 @@ class RuleTest(TembaTest):
         self.create_secondary_org()
 
         # create a flow for another org
-        flow2 = Flow.create(self.org2, self.admin2, "Flow2", base_language='base')
+        other_flow = Flow.create(self.org2, self.admin2, "Flow2", base_language='base')
 
         # no login, no list
         response = self.client.get(reverse('flows.flow_list'))
@@ -1434,7 +1434,7 @@ class RuleTest(TembaTest):
         self.assertEquals(0, len(response.context['object_list']))
 
         # also shouldn't be able to view other flow
-        response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[other_flow.pk]))
         self.assertEquals(302, response.status_code)
 
         # get our create page
@@ -1461,21 +1461,21 @@ class RuleTest(TembaTest):
 
         # create a new regular flow
         response = self.client.post(reverse('flows.flow_create'), dict(name="Flow", expires_after_minutes=5), follow=True)
-        flow = Flow.objects.get(org=self.org, name="Flow")
+        flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
-        Trigger.objects.create(org=self.org, keyword='unique', flow=flow,
+        Trigger.objects.create(org=self.org, keyword='unique', flow=flow1,
                                created_by=self.admin, modified_by=self.admin)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(flow.flow_type, 'F')
-        self.assertEqual(flow.expires_after_minutes, 5)
+        self.assertEqual(flow1.flow_type, 'F')
+        self.assertEqual(flow1.expires_after_minutes, 5)
 
         user.groups.add(Group.objects.get(name="Beta"))
 
         # create a new surveyor flow
         response = self.client.post(reverse('flows.flow_create'), dict(name="Surveyor Flow", expires_after_minutes=5, flow_type='S'), follow=True)
-        flow = Flow.objects.get(org=self.org, name="Surveyor Flow")
-        self.assertEqual(flow.flow_type, 'S')
-        self.assertEqual(flow.expires_after_minutes, 5)
+        flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
+        self.assertEqual(flow2.flow_type, 'S')
+        self.assertEqual(flow2.expires_after_minutes, 5)
 
         user.groups.remove(Group.objects.get(name="Beta"))
 
@@ -1503,71 +1503,71 @@ class RuleTest(TembaTest):
         post_data['keyword_triggers'] = "this,is,it"
         post_data['expires_after_minutes'] = 30
         response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
-        flow_with_keywords = Flow.objects.get(name=post_data['name'])
+        flow3 = Flow.objects.get(name=post_data['name'])
 
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow_with_keywords.pk]))
-        self.assertEquals(response.context['object'].triggers.count(), 3)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.pk]))
+        self.assertEqual(response.context['object'].triggers.count(), 3)
 
         # update flow triggers
         post_data = dict()
         post_data['name'] = "Flow With Keyword Triggers"
         post_data['keyword_triggers'] = "it,changes,everything"
         post_data['expires_after_minutes'] = 60*12
-        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data, follow=True)
-        flow_with_keywords = Flow.objects.get(name=post_data['name'])
+        response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data, follow=True)
+        flow3 = Flow.objects.get(name=post_data['name'])
         self.assertEquals(200, response.status_code)
         self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_list'))
-        self.assertTrue(flow_with_keywords in response.context['object_list'].all())
-        self.assertEquals(flow_with_keywords.triggers.count(), 5)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
+        self.assertTrue(flow3 in response.context['object_list'].all())
+        self.assertEquals(flow3.triggers.count(), 5)
+        self.assertEquals(flow3.triggers.filter(is_archived=True).count(), 2)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
         # update flow with unformated keyword
         post_data['keyword_triggers'] = "it,changes,every thing"
-        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data)
+        response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
 
         # update flow with unformated keyword
         post_data['keyword_triggers'] = "it,changes,everything,unique"
-        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data)
+        response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
-        response = self.client.get(reverse('flows.flow_update', args=[flow_with_keywords.pk]))
+        response = self.client.get(reverse('flows.flow_update', args=[flow3.pk]))
         self.assertEquals(response.context['form'].fields['keyword_triggers'].initial, "it,everything,changes")
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
-        trigger = Trigger.objects.get(keyword="everything", flow=flow_with_keywords)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
+        trigger = Trigger.objects.get(keyword="everything", flow=flow3)
         group = self.create_group("first", [self.contact])
         trigger.groups.add(group)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
-        response = self.client.get(reverse('flows.flow_update', args=[flow_with_keywords.pk]))
+        self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
+        response = self.client.get(reverse('flows.flow_update', args=[flow3.pk]))
         self.assertEquals(response.context['form'].fields['keyword_triggers'].initial, "it,changes")
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
+        self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
+        self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
 
-        # create some rules on it
+        # add some rules to first flow
         ActionSet.objects.all().delete()
-        flow.update(self.definition)
+        flow1.update(self.definition)
         self.assertEquals(4, ActionSet.objects.all().count())
 
         # can see ours
-        response = self.client.get(reverse('flows.flow_results', args=[flow.pk]))
+        response = self.client.get(reverse('flows.flow_results', args=[flow1.pk]))
         self.assertEquals(200, response.status_code)
 
-        # list should have our one item now
+        # check flow listing
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEquals(3, len(response.context['object_list']))
-        self.assertEquals(flow, response.context['object_list'][0])
+        self.assertEqual(list(response.context['object_list']), [flow1, flow3, flow2, self.flow])  # by last modified
 
         # start a contact on that flow
+        flow = flow1
         flow.start([], [self.contact])
 
         # remove one of the contacts
-        run = flow.runs.get(contact=self.contact)
+        run = flow1.runs.get(contact=self.contact)
         response = self.client.post(reverse('flows.flow_results', args=[flow.pk]), data=dict(run=run.pk))
         self.assertEquals(200, response.status_code)
         self.assertFalse(FlowStep.objects.filter(run__contact=self.contact))
@@ -1605,8 +1605,8 @@ class RuleTest(TembaTest):
         self.assertEquals(200, response.status_code)
         json_dict = json.loads(response.content)
 
-        # can't save against the other flow
-        response = self.client.post(reverse('flows.flow_json', args=[flow2.pk]), json.dumps(json_dict), content_type="application/json")
+        # can't save against the other org's flow
+        response = self.client.post(reverse('flows.flow_json', args=[other_flow.pk]), json.dumps(json_dict), content_type="application/json")
         self.assertEquals(302, response.status_code)
 
         # can't save with invalid json
