@@ -573,6 +573,19 @@ class APITest(TembaTest):
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
+        
+        # check value
+        value = Value.objects.get(org=self.org)
+        self.assertEqual(value.contact, self.joe)
+        self.assertEqual(value.run, run)
+        self.assertEqual(value.ruleset, RuleSet.objects.get(uuid='00000000-00000000-00000000-00000005'))
+        self.assertEqual(value.rule_uuid, '00000000-00000000-00000000-00000012')
+        self.assertEqual(value.string_value, 'orange')
+        self.assertEqual(value.decimal_value, None)
+        self.assertEqual(value.datetime_value, None)
+        self.assertEqual(value.location_value, None)
+        self.assertEqual(value.recording_value, None)
+        self.assertEqual(value.category, 'Orange')
 
         step1_msgs = list(steps[1].messages.order_by('pk'))
         self.assertEqual(step1_msgs[0].contact, self.joe)
