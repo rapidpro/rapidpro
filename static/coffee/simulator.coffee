@@ -1,6 +1,5 @@
 window.simulation = false
 moving_sim = false
-
 level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
 
 window.updateSimulator = (data) ->
