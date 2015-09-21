@@ -10,12 +10,14 @@ import time
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
+from temba.channels.models import Channel, TWILIO, CALL
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
@@ -36,6 +38,7 @@ from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, No
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
 from .flow_migrations import migrate_to_version_6
+
 
 class RuleTest(TembaTest):
 
@@ -1437,6 +1440,24 @@ class RuleTest(TembaTest):
         # get our create page
         response = self.client.get(reverse('flows.flow_create'))
         self.assertTrue(response.context['has_flows'])
+        self.assertNotIn('flow_type', response.context['form'].fields)  # don't show flow type
+
+        user.groups.add(Group.objects.get(name="Beta"))
+
+        response = self.client.get(reverse('flows.flow_create'))
+        self.assertTrue(response.context['has_flows'])
+        self.assertIn('flow_type', response.context['form'].fields)  # shown because we're beta
+
+        # remove from beta and add call channel
+        user.groups.remove(Group.objects.get(name="Beta"))
+        twilio = Channel.objects.create(name="Twilio", channel_type='T', address="0785553434", role="C", org=self.org,
+                                        created_by=self.user, modified_by=self.user, secret="56789", gcm_id="456")
+
+        response = self.client.get(reverse('flows.flow_create'))
+        self.assertTrue(response.context['has_flows'])
+        self.assertIn('flow_type', response.context['form'].fields)  # shown because of call channel
+
+        twilio.delete()
 
         # create a new flow
         response = self.client.post(reverse('flows.flow_create'), dict(name="Flow", expires_after_minutes=5), follow=True)
