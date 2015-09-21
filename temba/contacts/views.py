@@ -210,8 +210,7 @@ class ContactForm(forms.ModelForm):
         self.fields = OrderedDict(self.fields.items() + extra_fields)
 
     def clean(self):
-        channel = self.org.get_receive_channel(TEL_SCHEME)
-        country = channel.country if channel else None
+        country = self.org.get_country_code()
 
         # validate URN fields
         for field_key, value in self.cleaned_data.iteritems():

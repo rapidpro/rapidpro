@@ -111,7 +111,8 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals("Rwanda", str(org.country))
+        self.assertEqual("Rwanda", unicode(org.country))
+        self.assertEqual("RW", org.get_country_code())
 
         # clear it out
         response = self.client.post(country_url, dict(country=''))
@@ -243,15 +244,16 @@ class OrgTest(TembaTest):
         response = self.client.get(manage_accounts_url)
         self.assertEquals(200, response.status_code)
 
-        # we have 12 fields in the form including 9 checkboxes for the three users, an email field, a user group field
+        # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
-        self.assertEquals(12, len(response.context['form'].fields))
+        self.assertEquals(19, len(response.context['form'].fields))
         self.assertTrue('emails' in response.context['form'].fields)
         self.assertTrue('user_group' in response.context['form'].fields)
         for user in [self.user, self.editor, self.admin]:
             self.assertTrue("administrators_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("editors_%d" % user.pk in response.context['form'].fields)
             self.assertTrue("viewers_%d" % user.pk in response.context['form'].fields)
+            self.assertTrue("surveyors_%d" % user.pk in response.context['form'].fields)
 
         self.assertFalse(response.context['form'].fields['emails'].initial)
         self.assertEquals('V', response.context['form'].fields['user_group'].initial)
@@ -317,6 +319,23 @@ class OrgTest(TembaTest):
         # now 2 new invitations are created and sent
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
+
+        # Update our users, making the 'user' user a surveyor
+        post_data = {
+            'administrators_%d' % self.admin.pk: 'on',
+            'editors_%d' % self.editor.pk: 'on',
+            'surveyors_%d' % self.user.pk: 'on',
+            'user_group': 'E'
+        }
+
+        # successful post redirects
+        response = self.client.post(manage_accounts_url, post_data)
+        self.assertEquals(302, response.status_code)
+
+        org = Org.objects.get(pk=self.org.pk)
+        self.assertEqual(set(org.administrators.all()), {self.admin})
+        self.assertEqual(set(org.editors.all()), {self.editor})
+        self.assertEqual(set(org.surveyors.all()), {self.user})
 
         # upgrade one of our users to an admin
         self.org.editors.remove(self.user)
@@ -416,6 +435,34 @@ class OrgTest(TembaTest):
         new_invited_user = User.objects.get(email="norkans7@gmail.com")
         self.assertTrue(new_invited_user in self.org.administrators.all())
         self.assertFalse(Invitation.objects.get(pk=admin_invitation.pk).is_active)
+
+    def test_surveyor_invite(self):
+        surveyor_invite = Invitation.objects.create(org=self.org,
+                                                    user_group="S",
+                                                    email="surveyor@gmail.com",
+                                                    created_by=self.admin,
+                                                    modified_by=self.admin)
+
+        admin_create_login_url = reverse('orgs.org_create_login', args=[surveyor_invite.secret])
+        self.client.logout()
+
+        post_data = dict(first_name='Surveyor', last_name='User', email='surveyor@gmail.com', password='password')
+        response = self.client.post(admin_create_login_url, post_data, follow=True)
+        self.assertEquals(200, response.status_code)
+
+        # as a surveyor we should have been rerourted
+        self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
+        self.assertFalse(Invitation.objects.get(pk=surveyor_invite.pk).is_active)
+
+        # make sure we are a surveyor
+        new_invited_user = User.objects.get(email="surveyor@gmail.com")
+        self.assertTrue(new_invited_user in self.org.surveyors.all())
+
+        # if we login, we should be rerouted too
+        self.client.logout()
+        response = self.client.post('/users/login/', {'username': 'surveyor@gmail.com', 'password': 'password'}, follow=True)
+        self.assertEquals(200, response.status_code)
+        self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
 
     def test_choose(self):
         self.client.logout()
@@ -1190,7 +1237,7 @@ class BulkExportTest(TembaTest):
 
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        actions[0]['msg'] = 'Thanks for nothing'
+        actions[0]['msg']['base'] = 'Thanks for nothing'
         action_set.set_actions_dict(actions)
         action_set.save()
 
@@ -1201,7 +1248,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg'])
+        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
         actions[0]['msg'] = 'No reminders for you!'
         action_set.set_actions_dict(actions)
         action_set.save()
@@ -1213,7 +1260,7 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
         action_set = confirm_appointment.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg'])
+        self.assertEquals("Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", actions[0]['msg']['base'])
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword='patient').first()
@@ -1226,7 +1273,7 @@ class BulkExportTest(TembaTest):
         message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
-        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg'])
+        self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
 
         # and we should have the same number of items as after the first import
         assert_object_counts()
@@ -1251,7 +1298,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
-        self.assertEquals(5, exported.get('version', 0))
+        self.assertEquals(6, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))

@@ -2,15 +2,30 @@ import sys, os
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
-# Sets TESTING to True if this configuration is read during a unit test
-#-----------------------------------------------------------------------------------
-TESTING = sys.argv[1:2] == ['test']
-
-#-----------------------------------------------------------------------------------
 # Default to debugging
 #-----------------------------------------------------------------------------------
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
+
+#-----------------------------------------------------------------------------------
+# Sets TESTING to True if this configuration is read during a unit test
+#-----------------------------------------------------------------------------------
+TESTING = sys.argv[1:2] == ['test']
+
+if TESTING:
+    PASSWORD_HASHERS = ('django.contrib.auth.hashers.MD5PasswordHasher',)
+    DEBUG = False
+    TEMPLATE_DEBUG = False
+
+    # if nose's failfast is used, also skip migrations
+    if '--failfast' in sys.argv:
+        class DisableMigrations(object):
+            def __contains__(self, item):
+                return True
+
+            def __getitem__(self, item):
+                return "notmigrations"
+        MIGRATION_MODULES = DisableMigrations()
 
 ADMINS = (
     ('RapidPro', 'code@yourdomain.io'),
@@ -235,6 +250,9 @@ INSTALLED_APPS = (
     'temba.values',
 )
 
+# the last installed app that uses smartmin permissions
+PERMISSIONS_APP = 'temba.values'
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
@@ -356,7 +374,8 @@ PERMISSIONS = {
                                 'boundaries',
                                 'geometry'),
 
-    'orgs.org': ('country',
+    'orgs.org': ('api',
+                 'country',
                  'clear_cache',
                  'create_login',
                  'download',
@@ -375,6 +394,7 @@ PERMISSIONS = {
                  'profile',
                  'service',
                  'signup',
+                 'surveyor',
                  'trial',
                  'twilio_account',
                  'twilio_connect',
@@ -396,6 +416,7 @@ PERMISSIONS = {
                          'claim_hub9',
                          'claim_infobip',
                          'claim_kannel',
+                         'claim_m3tech',
                          'claim_nexmo',
                          'claim_plivo',
                          'claim_shaqodoon',
@@ -489,6 +510,13 @@ GROUP_PERMISSIONS = {
     ),
     "Beta": (
     ),
+    "Surveyors": (
+        'orgs.org_surveyor',
+        'orgs.org_api',
+        'contacts.contact_api',
+        'locations.adminboundary_api',
+        'flows.flow_api'
+    ),
     "Granters": (
         'orgs.org_grant',
     ),
@@ -543,6 +571,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_api',
         'orgs.org_country',
         'orgs.org_download',
         'orgs.org_edit',
@@ -576,6 +605,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_kannel',
+        'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
@@ -661,6 +691,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_api',
         'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
@@ -684,6 +715,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_kannel',
+        'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',

@@ -348,7 +348,7 @@ class UserCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if org:
-                org_users = org.administrators.all() | org.editors.all() | org.viewers.all()
+                org_users = org.administrators.all() | org.editors.all() | org.viewers.all() | org.surveyors.all()
 
                 if not user.is_authenticated():
                     return False
@@ -415,7 +415,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
-               'plivo_connect', 'service')
+               'plivo_connect', 'service', 'surveyor')
 
     model = Org
 
@@ -788,6 +788,7 @@ class OrgCRUDL(SmartCRUDL):
         class OrgUpdateForm(forms.ModelForm):
             viewers = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
 
             class Meta:
@@ -800,7 +801,10 @@ class OrgCRUDL(SmartCRUDL):
 
         class InviteForm(forms.ModelForm):
             emails = forms.CharField(label=_("Invite people to your organization"), required=False)
-            user_group = forms.ChoiceField(choices=(('A', _("Administrators")), ('E', _("Editors")), ('V', _("Viewers"))),
+            user_group = forms.ChoiceField(choices=(('A', _("Administrators")),
+                                                    ('E', _("Editors")),
+                                                    ('V', _("Viewers")),
+                                                    ('S', _("Surveyors"))),
                                            required=True, initial='V', label=_("User group"))
 
             def clean_emails(self):
@@ -821,7 +825,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = InviteForm
         success_url = "@orgs.org_home"
         success_message = ""
-        GROUP_LEVELS = ('administrators', 'editors', 'viewers')
+        GROUP_LEVELS = ('administrators', 'editors', 'viewers', 'surveyors')
 
         def derive_title(self):
             return _("Manage %(name)s Accounts") % {'name':self.get_object().name}
@@ -853,6 +857,8 @@ class OrgCRUDL(SmartCRUDL):
                     assigned_users = self.get_object().get_org_editors()
                 if grp_level == 'viewers':
                     assigned_users = self.get_object().get_org_viewers()
+                if grp_level == 'surveyors':
+                    assigned_users = self.get_object().get_org_surveyors()
 
                 for obj in assigned_users:
                     key = "%s_%d" % (grp_level, obj.id)
@@ -907,12 +913,15 @@ class OrgCRUDL(SmartCRUDL):
                     invitation.send_invitation()
 
             # remove all the org users
-            for user in self.get_object().get_org_admins():
-                self.get_object().administrators.remove(user)
-            for user in self.get_object().get_org_editors():
-                self.get_object().editors.remove(user)
-            for user in self.get_object().get_org_viewers():
-                self.get_object().viewers.remove(user)
+            org = self.get_object()
+            for user in org.get_org_admins():
+                org.administrators.remove(user)
+            for user in org.get_org_editors():
+                org.editors.remove(user)
+            for user in org.get_org_viewers():
+                org.viewers.remove(user)
+            for user in org.get_org_surveyors():
+                org.surveyors.remove(user)
 
             # now update the org accounts
             for field in self.form.fields:
@@ -928,6 +937,8 @@ class OrgCRUDL(SmartCRUDL):
                             self.get_object().editors.add(user)
                         if user_type == 'viewers':
                             self.get_object().viewers.add(user)
+                        if user_type == 'surveyors':
+                            self.get_object().surveyors.add(user)
 
             # update our org users after we've removed them
             self.org_users = self.get_object().get_org_users()
@@ -953,7 +964,6 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 return reverse('orgs.org_home')
 
-
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
@@ -972,7 +982,6 @@ class OrgCRUDL(SmartCRUDL):
         def form_invalid(self, form):
             self.request.session['org_id'] = None
             return HttpResponseRedirect(reverse('orgs.org_manage'))
-
 
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
@@ -993,6 +1002,9 @@ class OrgCRUDL(SmartCRUDL):
                 elif user_orgs.count() == 1:
                     org = user_orgs[0]
                     self.request.session['org_id'] = org.pk
+                    if org.get_org_surveyors().filter(username=self.request.user.username):
+                        return HttpResponseRedirect(reverse('orgs.org_surveyor'))
+
                     return HttpResponseRedirect(self.get_success_url())
 
             return None
@@ -1019,6 +1031,10 @@ class OrgCRUDL(SmartCRUDL):
                 self.request.session['org_id'] = org.pk
             else:
                 return HttpResponseRedirect(reverse('orgs.org_choose'))
+
+            if org.get_org_surveyors().filter(username=self.request.user.username):
+                print reverse('orgs.org_surveyor')
+                return HttpResponseRedirect(reverse('orgs.org_surveyor'))
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1051,23 +1067,30 @@ class OrgCRUDL(SmartCRUDL):
             user.last_name = self.form.cleaned_data['last_name']
             user.save()
 
-            invitation = self.get_invitation()
+            self.invitation = self.get_invitation()
 
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data['password'])
             login(self.request, user)
-            if invitation.user_group == 'A':
+            if self.invitation.user_group == 'A':
                 obj.administrators.add(user)
-            elif invitation.user_group == 'E':
+            elif self.invitation.user_group == 'E':
                 obj.editors.add(user)
+            elif self.invitation.user_group == 'S':
+                obj.surveyors.add(user)
             else:
                 obj.viewers.add(user)
 
             # make the invitation inactive
-            invitation.is_active = False
-            invitation.save()
+            self.invitation.is_active = False
+            self.invitation.save()
 
             return obj
+
+        def get_success_url(self):
+            if self.invitation.user_group == 'S':
+                return reverse('orgs.org_surveyor')
+            return super(OrgCRUDL.CreateLogin, self).get_success_url()
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1130,22 +1153,30 @@ class OrgCRUDL(SmartCRUDL):
 
         def save(self, org):
             org = self.get_object()
-            invitation = self.get_invitation()
+            self.invitation = self.get_invitation()
             if org:
-                if invitation.user_group == 'A':
+                if self.invitation.user_group == 'A':
                     org.administrators.add(self.request.user)
-                elif invitation.user_group == 'E':
+                elif self.invitation.user_group == 'E':
                     org.editors.add(self.request.user)
+                elif self.invitation.user_group == 'S':
+                    org.surveyors.add(self.request.user)
                 else:
                     org.viewers.add(self.request.user)
 
                 # make the invitation inactive
-                invitation.is_active = False
-                invitation.save()
+                self.invitation.is_active = False
+                self.invitation.save()
 
                 # set the active org on this user
                 self.request.user.set_org(org)
                 self.request.session['org_id'] = org.pk
+
+        def get_success_url(self):
+            if self.invitation.user_group == 'S':
+                return reverse('orgs.org_surveyor')
+
+            return super(OrgCRUDL.Join, self).get_success_url()
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1170,6 +1201,11 @@ class OrgCRUDL(SmartCRUDL):
 
             context['org'] = self.get_object()
             return context
+
+    class Surveyor(InferOrgMixin, OrgPermsMixin, SmartReadView):
+        def derive_title(self):
+            return _('Welcome!')
+
 
     class Grant(SmartCreateView):
         title = _("Create Organization Account")
@@ -1534,7 +1570,6 @@ class OrgCRUDL(SmartCRUDL):
                         # store up to the first semicolon as the name
                         name = lang.name.split(';')[0]
 
-                        print "creating %s" % iso_code
                         language = org.languages.create(created_by=user, modified_by=user, iso_code=iso_code, name=name)
 
                     # store our primary language

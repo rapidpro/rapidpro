@@ -32,7 +32,7 @@ describe 'Directives:', ->
       expect(scope.action._missingTranslation).toBeUndefined()
 
       # create an element for our directive and compile it
-      ele = angular.element("<div action='action'>[[action.msg]]</div>")
+      ele = angular.element("<div action='action'>[[action._translation]]</div>")
       $compile(ele)(scope)
       scope.$digest()
 

@@ -380,6 +380,7 @@ class FlowCRUDL(SmartCRUDL):
         class FlowCreateForm(BaseFlowForm):
             keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
+
             flow_type = forms.ChoiceField(label=_('Run flow over'),
                                           help_text=_('Place a phone call or use text messaging'),
                                           choices=((Flow.FLOW, 'Text Messaging'),
@@ -388,6 +389,12 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
                 self.user = user
+
+                # if they are a beta user, add option for android phone survey
+                if self.user.is_beta():
+                    self.fields['flow_type'].choices = ((Flow.FLOW, 'Text Messaging'),
+                                                        (Flow.VOICE, 'Phone Call'),
+                                                        (Flow.SURVEY, 'Android Phone'))
 
                 self.fields['base_language'] = forms.ChoiceField(label=_('Language'), initial=self.user.get_org().primary_language,
                     choices=((lang.iso_code, lang.name) for lang in self.user.get_org().languages.all().order_by('orgs', 'name')))
@@ -430,8 +437,13 @@ class FlowCRUDL(SmartCRUDL):
             if not obj.flow_type:
                 obj.flow_type = Flow.FLOW
 
+            # if we don't have a language, use base
+            if not obj.base_language:
+                obj.base_language = 'base'
+
             self.object = Flow.create(org, self.request.user, obj.name,
-                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes, base_language=obj.base_language)
+                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes,
+                                      base_language=obj.base_language)
 
         def post_save(self, obj):
             user = self.request.user
@@ -512,12 +524,6 @@ class FlowCRUDL(SmartCRUDL):
             kwargs = super(FlowCRUDL.Update, self).get_form_kwargs()
             kwargs['user'] = self.request.user
             return kwargs
-
-        def pre_save(self, obj):
-            # if they are setting a base_language for the first time, update our flow accordingly
-            if obj.base_language:
-                obj.update_base_language()
-            return obj
 
         def post_save(self, obj):
             keywords = set()
