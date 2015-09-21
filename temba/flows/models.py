@@ -3416,9 +3416,24 @@ class FlowStep(models.Model):
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
         if is_ruleset:
-            step.rule_uuid = json_obj['rule']['uuid']
-            step.rule_category = json_obj['rule']['category']
-            step.rule_value = json_obj['rule']['value']
+            rule_uuid = json_obj['rule']['uuid']
+            rule_value = json_obj['rule']['value']
+            rule_category = json_obj['rule']['category']
+            rule = None
+            for r in node.get_rules():
+                if r.uuid == rule_uuid:
+                    rule = r
+                    break
+
+            if not rule:
+                raise ValueError("No such rule with UUID %s" % rule_uuid)
+
+            rule.category = rule_category
+            node.save_run_value(run, rule, rule_value)
+
+            step.rule_uuid = rule_uuid
+            step.rule_category = rule_category
+            step.rule_value = rule_value
             try:
                 step.rule_decimal_value = Decimal(json_obj['rule']['value'])
             except Exception:
