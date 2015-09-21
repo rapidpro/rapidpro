@@ -415,7 +415,7 @@ class FlowCRUDL(SmartCRUDL):
             if org.primary_language:
                 fields += ('base_language',)
 
-            if org.supports_ivr():
+            if org.supports_ivr() or self.request.user.is_beta():
                 fields += ('flow_type',)
 
             return fields
