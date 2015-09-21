@@ -331,7 +331,7 @@ class AuthenticateEndpoint(SmartFormView):
             for org in Org.objects.filter(Q(administrators__in=[user]) | Q(surveyors__in=[user])):
                 user.set_org(org)
                 token = get_or_create_api_token(user)
-                
+
                 if token:
                     orgs.append(dict(id=org.pk, name=org.name, token=token))
 
