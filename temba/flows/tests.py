@@ -1459,14 +1459,25 @@ class RuleTest(TembaTest):
 
         twilio.delete()
 
-        # create a new flow
+        # create a new regular flow
         response = self.client.post(reverse('flows.flow_create'), dict(name="Flow", expires_after_minutes=5), follow=True)
         flow = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(org=self.org, keyword='unique', flow=flow,
                                created_by=self.admin, modified_by=self.admin)
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(5, flow.expires_after_minutes)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(flow.flow_type, 'F')
+        self.assertEqual(flow.expires_after_minutes, 5)
+
+        user.groups.add(Group.objects.get(name="Beta"))
+
+        # create a new surveyor flow
+        response = self.client.post(reverse('flows.flow_create'), dict(name="Surveyor Flow", expires_after_minutes=5, flow_type='S'), follow=True)
+        flow = Flow.objects.get(org=self.org, name="Surveyor Flow")
+        self.assertEqual(flow.flow_type, 'S')
+        self.assertEqual(flow.expires_after_minutes, 5)
+
+        user.groups.remove(Group.objects.get(name="Beta"))
 
         # test flows with triggers
 

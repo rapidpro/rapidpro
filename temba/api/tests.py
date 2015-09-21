@@ -523,6 +523,14 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[0].text, "What is your favorite color?")
         self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
+        # check flow stats
+        self.assertEqual(flow.get_total_runs(), 1)
+        self.assertEqual(flow.get_total_contacts(), 1)
+        self.assertEqual(flow.get_completed_runs(), 0)
+
+        # check flow activity
+        self.assertEqual(flow.get_activity(), ({u'00000000-00000000-00000000-00000001': 1}, {}))
+
         data = dict(flow=flow.uuid,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
@@ -590,9 +598,15 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[1].created_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(out_msgs[1].response_to, step1_msgs[0])
 
-        # check our visitation
-        visited = run.flow.get_activity(check_cache=False)[1]
-        self.assertEquals(1, visited['00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002'])
+        # check flow stats
+        self.assertEqual(flow.get_total_runs(), 1)
+        self.assertEqual(flow.get_total_contacts(), 1)
+        self.assertEqual(flow.get_completed_runs(), 1)
+
+        # check flow activity
+        self.assertEqual(flow.get_activity(), ({},
+                                               {'00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002': 1,
+                                                '00000000-00000000-00000000-00000001:00000000-00000000-00000000-00000005': 1}))
 
     def test_api_results(self):
         url = reverse('api.results')

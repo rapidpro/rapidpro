@@ -2914,6 +2914,7 @@ class OrgEndpoint(BaseAPIView):
         {
             "name": "Nyaruka",
             "country": "RW",
+            "languages": ["eng", "fre"],
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
