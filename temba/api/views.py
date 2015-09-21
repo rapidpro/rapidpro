@@ -21,7 +21,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView, SmartReadView, SmartListView
-from temba.api.models import WebHookEvent, WebHookResult, APIToken
+from temba.api.models import WebHookEvent, WebHookResult, APIToken, get_or_create_api_token
 from temba.api.serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
@@ -329,9 +329,12 @@ class AuthenticateEndpoint(SmartFormView):
 
             orgs = []
             for org in Org.objects.filter(Q(administrators__in=[user]) | Q(surveyors__in=[user])):
-                tokens = APIToken.objects.filter(user=user, org=org)
-                if tokens:
-                    orgs.append(dict(id=org.pk, name=org.name, token=tokens[0].key))
+                user.set_org(org)
+                token = get_or_create_api_token(user)
+                
+                if token:
+                    orgs.append(dict(id=org.pk, name=org.name, token=token))
+
             return JsonResponse(orgs, safe=False)
         else:
             return HttpResponse(status=403)
