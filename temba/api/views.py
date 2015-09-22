@@ -5,26 +5,29 @@ import requests
 import urllib
 
 from datetime import timedelta
+from django import forms
 from django.conf import settings
+from django.contrib.auth import authenticate, login
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
-from temba.api.models import WebHookEvent, WebHookResult
-from temba.api.serializers import BoundarySerializer, BroadcastCreateSerializer, BroadcastReadSerializer
+from smartmin.views import SmartTemplateView, SmartFormView, SmartReadView, SmartListView
+from temba.api.models import WebHookEvent, WebHookResult, APIToken, get_or_create_api_token
+from temba.api.serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowDefinitionReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer
@@ -36,8 +39,9 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEM
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
+from temba.orgs.models import Org
 from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
-from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
+from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
 from urlparse import parse_qs
 
@@ -304,6 +308,37 @@ class ApiExplorerView(SmartTemplateView):
         context['endpoints'] = endpoints
 
         return context
+
+class AuthenticateEndpoint(SmartFormView):
+
+    class LoginForm(forms.Form):
+        email = forms.CharField()
+        password = forms.CharField()
+
+    form_class = LoginForm
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super(AuthenticateEndpoint, self).dispatch(*args, **kwargs)
+
+    def form_valid(self, form, *args, **kwargs):
+        username = form.cleaned_data.get('email')
+        password = form.cleaned_data.get('password')
+        user = authenticate(username=username, password=password)
+        if user and user.is_active:
+            login(self.request, user)
+
+            orgs = []
+            for org in Org.objects.filter(Q(administrators__in=[user]) | Q(surveyors__in=[user])):
+                user.set_org(org)
+                token = get_or_create_api_token(user)
+
+                if token:
+                    orgs.append(dict(id=org.pk, name=org.name, token=token))
+
+            return JsonResponse(orgs, safe=False)
+        else:
+            return HttpResponse(status=403)
+
 
 @api_view(['GET'])
 @permission_classes((SSLPermission, IsAuthenticated))
@@ -2669,9 +2704,9 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
     """
     permission = 'locations.adminboundary_api'
     model = AdminBoundary
-    serializer_class = BoundarySerializer
 
     def get_queryset(self):
+
         org = self.request.user.get_org()
         if not org.country:
             return []
@@ -2680,6 +2715,12 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
                                              Q(parent=org.country) |
                                              Q(parent__parent=org.country)).order_by('level', 'name')
         return queryset.select_related('parent')
+
+    def get_serializer_class(self):
+        if self.request.GET.get('aliases'):
+            return AliasSerializer
+        else:
+            return BoundarySerializer
 
     @classmethod
     def get_read_explorer(cls):
@@ -2691,6 +2732,29 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         spec['fields'] = []
 
         return spec
+
+
+class FlowDefinitionEndpoint(BaseAPIView):
+    """
+    This endpoint returns a flow defintion given a flow uuid.
+    """
+    permission = 'flows.flow_api'
+    model = Flow
+    serializer_class = FlowDefinitionReadSerializer
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+
+        uuid = request.GET.get('uuid')
+        flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
+
+        if flow:
+            # make sure we have the latest format
+            flow.ensure_current_version()
+            return Response(dict(results=flow.as_json()), status=status.HTTP_200_OK)
+        else:
+            return Response(dict(error="Invalid flow uuid", status=status.HTTP_400_BAD_REQUEST))
+
 
 
 class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
@@ -2791,6 +2855,10 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if archived is not None:
             queryset = queryset.filter(is_archived=str_to_bool(archived))
 
+        flow_type = self.request.QUERY_PARAMS.getlist('type', None)
+        if flow_type:
+            queryset = queryset.filter(flow_type__in=flow_type)
+
         return queryset.prefetch_related('labels')
 
     @classmethod
@@ -2829,3 +2897,101 @@ class AssetEndpoint(BaseAPIView):
             return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
 
         return handle_asset_request(request.user, AssetType[type_name], identifier)
+
+
+class OrgEndpoint(BaseAPIView):
+    """
+    ## Viewing Current Organization
+
+    A **GET** returns the details of your organization. There are no parameters.
+
+    Example:
+
+        GET /api/v1/org.json
+
+    Response containing your organization:
+
+        {
+            "name": "Nyaruka",
+            "country": "RW",
+            "languages": ["eng", "fre"],
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "anon": false
+        }
+    """
+    permission = 'orgs.org_api'
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+
+        data = dict(name=org.name,
+                    country=org.get_country_code(),
+                    languages=[l.iso_code for l in org.languages.order_by('iso_code')],
+                    primary_language=org.primary_language.iso_code if org.primary_language else None,
+                    timezone=org.timezone,
+                    date_style=('day_first' if org.get_dayfirst() else 'month_first'),
+                    anon=org.is_anon)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(method="GET", title="View Current Org", url=reverse('api.org'), slug='org-read', request="")
+
+
+class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to create flow runs and steps.
+
+    ## Creating flow steps
+
+    By making a ```POST``` request to the endpoint you can add a new steps to a flow run.
+
+    * **flow** - the UUID of the flow (string)
+    * **contact** - the UUID of the contact (string)
+    * **steps** - the new step objects (array of objects)
+
+    Example:
+
+        POST /api/v1/steps.json
+        {
+            "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+            "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
+            "steps": [
+                {
+                    "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
+                    "arrived_on": "2015-08-25T11:59:30.088Z",
+                    "actions": [{"msg":"Hi Joe","type":"reply"}],
+                    "errors": []
+                }
+            ]
+        }
+
+    Response is the updated or created flow run.
+    """
+    permission = 'flows.flow_api'
+    model = FlowRun
+    serializer_class = FlowRunReadSerializer
+    write_serializer_class = FlowRunWriteSerializer
+
+    def render_write_response(self, write_output, context):
+        response_serializer = FlowRunReadSerializer(instance=write_output, context=context)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Create or update a flow run with new steps",
+                    url=reverse('api.steps'),
+                    slug='step-post',
+                    request='{ "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd", "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "steps": [{"node": "32cf414b-35e3-4c75-8a78-d5f4de925e13", "arrived_on": "2015-08-25T11:59:30.088Z", "actions": [{"msg":"Hi Joe","type":"reply"}], "errors": []}] }')
+
+        spec['fields'] = [dict(name='contact', required=True,
+                               help="The UUID of the contact"),
+                          dict(name='flow', required=True,
+                               help="The UUID of the flow"),
+                          dict(name='steps', required=True,
+                               help="A JSON array of one or objects, each a flow step")]
+        return spec

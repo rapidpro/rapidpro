@@ -29,8 +29,8 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def uuid(id):
-    return '00000000-00000000-00000000-%08d' % id
+def uuid(val):
+    return '00000000-00000000-00000000-%08d' % val
 
 
 class TembaTest(SmartminTest):
@@ -45,6 +45,7 @@ class TembaTest(SmartminTest):
         self.user = self.create_user("User")
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
@@ -68,6 +69,9 @@ class TembaTest(SmartminTest):
 
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
+
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
 
         self.superuser.set_org(self.org)
 
@@ -120,6 +124,12 @@ class TembaTest(SmartminTest):
 
         return Flow.objects.all().first()
 
+    def get_flow_json(self, file):
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+        data = handle.read()
+        handle.close()
+        return json.loads(data)['flows'][0]['definition']
+
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
         self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", created_by=self.admin2, modified_by=self.admin2)
@@ -163,32 +173,36 @@ class TembaTest(SmartminTest):
 
         return Msg.objects.create(**kwargs)
 
-    def create_flow(self):
-        start = int(time.time() * 1000) % 1000000
+    def create_flow(self, uuid_start=None):
+        if uuid_start is None:
+            uuid_start = int(time.time() * 1000) % 1000000
 
-        definition = dict(action_sets=[dict(uuid=uuid(start + 1), x=1, y=1, destination=uuid(start + 5),
-                                            actions=[dict(type='reply', msg='What is your favorite color?')]),
-                                       dict(uuid=uuid(start + 2), x=2, y=2, destination=None,
-                                            actions=[dict(type='reply', msg='I love orange too!')]),
-                                       dict(uuid=uuid(start + 3), x=3, y=3, destination=None,
-                                            actions=[dict(type='reply', msg='Blue is sad. :(')]),
-                                       dict(uuid=uuid(start + 4), x=4, y=4, destination=None,
-                                            actions=[dict(type='reply', msg='That is a funny color.')])
+        definition = dict(action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
+                                            actions=[dict(type='reply', msg="What is your favorite color?")]),
+                                       dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
+                                            actions=[dict(type='reply', msg="I love orange too!")]),
+                                       dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
+                                            actions=[dict(type='reply', msg="Blue is sad. :(")]),
+                                       dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
+                                            actions=[dict(type='reply', msg="That is a funny color.")])
                                        ],
-                          rule_sets=[dict(uuid=uuid(start + 5), x=5, y=5,
+                          rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                           label='color',
                                           ruleset_type='wait_message',
                                           rules=[
-                                              dict(uuid=uuid(start + 12), destination=uuid(start + 2), test=dict(type='contains', test='orange'), category="Orange"),
-                                              dict(uuid=uuid(start + 13), destination=uuid(start + 3), test=dict(type='contains', test='blue'), category="Blue"),
-                                              dict(uuid=uuid(start + 14), destination=uuid(start + 4), test=dict(type='true'), category="Other"),
-                                              dict(uuid=uuid(start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
+                                              dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test='orange'), category="Orange"),
+                                              dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test='blue'), category="Blue"),
+                                              dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category="Other"),
+                                              dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
                                      ],
-                          entry=uuid(start + 1))
+                          entry=uuid(uuid_start + 1))
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
+        from temba.flows.flow_migrations import migrate_to_version_6
+        migrate_to_version_6(definition)
         flow.update(definition)
-        return flow
+
+        return Flow.objects.get(pk=flow.pk)
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()

@@ -142,7 +142,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     Flow.languages.splice(Flow.languages.indexOf(lang), 1)
     Flow.languages.unshift(lang)
 
-
     # set the base language
     Flow.flow.base_language = lang.iso_code
 
@@ -190,12 +189,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       $log.debug("percent: " + parseInt(100.0 * evt.loaded / evt.total))
       return
     .success (data, status, headers, config) ->
-      if Flow.flow.base_language
-        if not action.recording
-          action.recording = {}
-        action.recording[Flow.language.iso_code] = data['path']
-      else
-        action.recording = data['path']
+      if not action.recording
+        action.recording = {}
+      action.recording[Flow.language.iso_code] = data['path']
 
       # make sure our translation state is updated
       action.uploading = false
@@ -302,9 +298,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       if not ghost.hasClass('collision')
         if ghost.hasClass('actions')
 
-          msg = ''
-          if Flow.flow.base_language
-            msg[Flow.flow.base_language] = ''
+          msg = {}
+          msg[Flow.flow.base_language] = ''
 
           actionset =
             x: ghost[0].offsetLeft
@@ -321,10 +316,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
         else
 
-          category = "All Responses"
-          if Flow.flow.base_language
-            category = {}
-            category[Flow.flow.base_language] = "All Responses"
+          category = {}
+          category[Flow.flow.base_language] = "All Responses"
 
           ruleset =
             x: ghost[0].offsetLeft
@@ -377,10 +370,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.createFirstAction = ->
 
-    msg = ''
-    if Flow.flowbase_language
-      msg = {}
-      msg[Flow.flow.base_language] = ''
+    msg = {}
+    msg[Flow.flow.base_language] = ''
 
     actionset =
       x: 100
@@ -425,7 +416,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     DragHelper.hide()
 
-    if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language != Flow.language.iso_code
       $scope.dialog = $modal.open
         templateUrl: "/partials/translate_rules"
         controller: TranslateRulesController
@@ -518,7 +509,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.clickActionSource = (actionset) ->
     if actionset._terminal
-      $modal.open
+      $scope.dialog = $modal.open
         templateUrl: "/partials/modal"
         controller: TerminalWarningController
         resolve:
@@ -554,7 +545,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     if window.dragging or not window.mutable
       return
 
-    $modal.open
+    $scope.dialog = $modal.open
       templateUrl: "/partials/node_editor"
       controller: NodeEditorController
       resolve:
@@ -611,7 +602,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     DragHelper.hide()
 
     # if its the base language, don't show the from text
-    if Flow.language and Flow.flow.base_language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language != Flow.language.iso_code
 
       if action.type in ["send", "reply", "say"]
 
@@ -854,9 +845,8 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       ]
 
     # localized category name
-    if Flow.flow.base_language
-      ruleset.rules[0].category = { _base:'All Responses' }
-      ruleset.rules[0].category[Flow.flow.base_language] = 'All Responses'
+    ruleset.rules[0].category = { _base:'All Responses' }
+    ruleset.rules[0].category[Flow.flow.base_language] = 'All Responses'
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -865,7 +855,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # emails are not localized, if our msg is localized, grab the base text
     if config.type == 'email'
       if typeof $scope.action.msg == 'object'
-        if Flow.flow.base_language and Flow.flow.base_language of $scope.action.msg
+        if Flow.flow.base_language of $scope.action.msg
           $scope.action.msg = $scope.action.msg[Flow.flow.base_language]
         else
           $scope.action.msg = ''
@@ -955,18 +945,14 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     # set the operands
     else if rule.test.type != "between"
 
-      if flow.base_language and rule.test.test and rule._config.localized
+      if rule.test.test and rule._config.localized
         rule.test._base = rule.test.test[flow.base_language]
       else
         rule.test =
           _base: rule.test.test
 
     # and finally the category name
-    if flow.base_language
-      rule.category._base = rule.category[flow.base_language]
-    else
-      rule.category =
-        _base: rule.category
+    rule.category._base = rule.category[flow.base_language]
 
   if window.ivr
     # prep our menu
@@ -1031,6 +1017,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     return true
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
+    valid = flow.type in rulesetConfig.filter
 
     if (rulesetConfig.type == 'flow_field' or rulesetConfig.type == 'form_field') and $scope.flowFields.length == 0
       return false
@@ -1038,12 +1025,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
       return false
 
-
-    if window.ivr
-      return rulesetConfig.ivr
-    else
-      return rulesetConfig.text
-
+    return valid
 
   $scope.getDefaultCategory = (rule) ->
 
@@ -1147,24 +1129,14 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     if ruleset.ruleset_type == 'wait_digit'
       for option in $scope.numbers
         if option.category and option.category._base
-          if flow.base_language
-            rule =
-              uuid: option.uuid
-              destination: option.destination
-              category: option.category
-              test:
-                type: 'eq'
-                test: option.number
-
-            rule.category[flow.base_language] = option.category._base
-          else
-            rule =
-              uuid: option.uuid
-              destination: option.destination
-              category: option.category._base
-              test:
-                type: 'eq'
-                test: option.number
+          rule =
+            uuid: option.uuid
+            destination: option.destination
+            category: option.category
+            test:
+              type: 'eq'
+              test: option.number
+          rule.category[flow.base_language] = option.category._base
 
           rules.push(rule)
 
@@ -1191,17 +1163,14 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
         if rule._config.type in ["date_before", "date_after", "date_equal"]
           rule.test.test = "@date.today|time_delta:'" + rule.test._base + "'"
         else
-          if flow.base_language and rule._config.localized
+          if rule._config.localized
             if not rule.test.test
               rule.test.test = {}
             rule.test.test[flow.base_language] = rule.test._base
           else
             rule.test.test = rule.test._base
 
-        if flow.base_language
-          rule.category[flow.base_language] = rule.category._base
-        else
-          rule.category = rule.category._base
+        rule.category[flow.base_language] = rule.category._base
         if rule.category
           rules.push(rule)
 
@@ -1220,17 +1189,12 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
         ruleId = rule.uuid
         break
 
-    # if we have a language, add it to our language dict
-    if flow.base_language
+    # if for some reason we don't have an other rule
+    # create an empty category (this really shouldn't happen)
+    if not category
+      category = {}
 
-      # if for some reason we don't have an other rule
-      # create an empty category (this really shouldn't happen)
-      if not category
-        category = {}
-
-      category[flow.base_language] = allCategory
-    else
-      category = allCategory
+    category[flow.base_language] = allCategory
 
     # finally add it to the end of our rule list
     rules.push
@@ -1342,10 +1306,9 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       break
 
   # set up language options
-  if Flow.flow.base_language
-    $scope.base_language = Flow.flow.base_language
-    if not $scope.action.lang
-      $scope.action.lang = Flow.base_language
+  $scope.base_language = Flow.flow.base_language
+  if not $scope.action.lang
+    $scope.action.lang = Flow.base_language
 
   # scope prep for webhook form
   $scope.methods = ['GET', 'POST']
@@ -1357,14 +1320,18 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   # a simple function to filter out invalid actions
   $scope.validActionFilter = (action) ->
 
+    valid = false
+    if action.filter
+      valid = flow.type in action.filter
+
     if startsFlow and action.type == 'flow'
       return false
 
-    if not window.ivr and (action.type == 'say' or action.type == 'play')
-      return false
-    if not Flow.flow.base_language and action.type == 'lang'
-      return false
-    return true
+    # TODO: if the org doesn't have lanugaes filter out lang
+    # if not Flow.flow.base_language and action.type == 'lang'
+    #  return false
+
+    return valid
 
   $scope.savePlay = ->
     $scope.action.type = 'play'
@@ -1374,12 +1341,9 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   # Saving a reply SMS in the flow
   $scope.saveMessage = (message, type='reply') ->
 
-    if $scope.base_language
-      if typeof($scope.action.msg) != "object"
-        $scope.action.msg = {}
-      $scope.action.msg[$scope.base_language] = message
-    else
-      $scope.action.msg = message
+    if typeof($scope.action.msg) != "object"
+      $scope.action.msg = {}
+    $scope.action.msg[$scope.base_language] = message
 
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)
@@ -1392,12 +1356,10 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     $scope.action.variables = omnibox.variables
     $scope.action.type = 'send'
 
-    if $scope.base_language
-      if typeof($scope.action.msg) != "object"
-        $scope.action.msg = {}
-      $scope.action.msg[$scope.base_language] = message
-    else
-      $scope.action.msg = message
+    if typeof($scope.action.msg) != "object"
+      $scope.action.msg = {}
+    $scope.action.msg[$scope.base_language] = message
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 

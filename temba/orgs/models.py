@@ -4,6 +4,7 @@ import calendar
 import json
 import logging
 import os
+import pycountry
 import pytz
 import random
 import regex
@@ -40,7 +41,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 5
+CURRENT_EXPORT_VERSION = 6
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -154,9 +155,15 @@ class Org(SmartModel):
 
     editors = models.ManyToManyField(User, verbose_name=_("Editors"), related_name="org_editors",
                                      help_text=_("The editors in your organization"))
+
+    surveyors = models.ManyToManyField(User, verbose_name=_("Surveyors"), related_name="org_surveyors",
+                                       help_text=_("The users can login via Android for your organization"))
+
     language = models.CharField(verbose_name=_("Language"), max_length=64, null=True, blank=True,
                                 choices=settings.LANGUAGES, help_text=_("The main language used by this organization"))
+
     timezone = models.CharField(verbose_name=_("Timezone"), max_length=64)
+
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
@@ -604,6 +611,24 @@ class Org(SmartModel):
         for channel in self.channels.exclude(channel_type='A'):
             Channel.clear_cached_channel(channel.pk)
 
+    def get_country_code(self):
+        """
+        Gets the 2-digit country code, e.g. RW, US
+        """
+        # first try the actual country field
+        if self.country:
+            country = pycountry.countries.get(name=self.country.name)
+            if country:
+                return country.alpha2
+
+        # if that isn't set, there may be a TEL channel we can get it from
+        from temba.contacts.models import TEL_SCHEME
+        channel = self.get_receive_channel(TEL_SCHEME)
+        if channel:
+            return channel.country.code
+
+        return None
+
     def get_dayfirst(self):
         return self.date_format == DAYFIRST
 
@@ -699,8 +724,11 @@ class Org(SmartModel):
     def get_org_viewers(self):
         return self.viewers.all()
 
+    def get_org_surveyors(self):
+        return self.surveyors.all()
+
     def get_org_users(self):
-        org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers()
+        org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers() | self.get_org_surveyors()
         return org_users.distinct()
 
     def latest_admin(self):
@@ -735,6 +763,8 @@ class Org(SmartModel):
             user._org_group = Group.objects.get(name="Editors")
         elif user in self.get_org_viewers():
             user._org_group = Group.objects.get(name="Viewers")
+        elif user in self.get_org_surveyors():
+            user._org_group = Group.objects.get(name="Surveyors")
         elif user.is_staff:
             user._org_group = Group.objects.get(name="Administrators")
         else:
@@ -1275,7 +1305,7 @@ class Org(SmartModel):
 def get_user_orgs(user):
     if user.is_superuser:
         return Org.objects.all()
-    user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
+    user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
     return user_orgs.distinct().order_by('name')
 
 

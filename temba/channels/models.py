@@ -43,6 +43,7 @@ HIGH_CONNECTION = 'HX'
 HUB9 = 'H9'
 INFOBIP = 'IB'
 KANNEL = 'KN'
+M3TECH = 'M3'
 NEXMO = 'NX'
 PLIVO = 'PL'
 SHAQODOON = 'SQ'
@@ -83,7 +84,8 @@ RELAYER_TYPE_CHOICES = ((ANDROID, "Android"),
                         (SHAQODOON, "Shaqodoon"),
                         (HIGH_CONNECTION, "High Connection"),
                         (BLACKMYNA, "Blackmyna"),
-                        (SMSCENTRAL, "SMSCentral"))
+                        (SMSCENTRAL, "SMSCentral"),
+                        (M3TECH, "M3 Tech"))
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -103,13 +105,14 @@ RELAYER_TYPE_CONFIG = {
     VUMI: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
     HUB9: dict(scheme='tel', max_length=1600),
-    TWITTER: dict(scheme='twitter', max_length=140),
+    TWITTER: dict(scheme='twitter', max_length=10000),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     CLICKATELL: dict(scheme='tel', max_length=420),
     PLIVO: dict(scheme='tel', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     BLACKMYNA: dict(scheme='tel', max_length=1600),
-    SMSCENTRAL: dict(scheme='tel', max_length=1600)
+    SMSCENTRAL: dict(scheme='tel', max_length=1600),
+    M3TECH: dict(scheme='tel', max_length=160)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -120,6 +123,7 @@ OUTGOING_PROXIES = settings.OUTGOING_PROXIES
 PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
+
 
 class Channel(SmartModel):
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
@@ -1619,6 +1623,73 @@ class Channel(SmartModel):
                                response_status=plivo_response_status)
 
     @classmethod
+    def send_m3tech_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        url = 'https://secure.m3techservice.com/GenericServiceRestAPI/api/SendSMS'
+        payload = {'AuthKey': 'm3-Tech',
+                   'UserId': channel.config[USERNAME],
+                   'Password': channel.config[PASSWORD],
+                   'MobileNo': msg.urn_path.lstrip('+'),
+                   'MsgId': msg.id,
+                   'SMS': text,
+                   'MsgHeader': channel.address.lstrip('+'),
+                   'SMSType': '0',
+                   'HandsetPort': '0',
+                   'SMSChannel': '0',
+                   'Telco': '0'}
+
+        start = time.time()
+
+        log_payload = urlencode(payload)
+
+        try:
+            response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
+
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # our response is JSON and should contain a 0 as a status code:
+        # [{"Response":"0"}]
+        response_code = ""
+        try:
+            response_code = json.loads(response.text)[0]["Response"]
+        except Exception as e:
+            response_code = str(e)
+
+        # <Response>0</Response>
+        if response_code != "0":
+            raise SendException("Received non-zero status from API: %s" % str(response_code),
+                                method='GET',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='GET',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1687,7 +1758,8 @@ class Channel(SmartModel):
                       PLIVO: Channel.send_plivo_message,
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       BLACKMYNA: Channel.send_blackmyna_message,
-                      SMSCENTRAL: Channel.send_smscentral_message}
+                      SMSCENTRAL: Channel.send_smscentral_message,
+                      M3TECH: Channel.send_m3tech_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages

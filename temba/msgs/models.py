@@ -506,7 +506,7 @@ class Msg(models.Model):
                                 related_name='msgs', verbose_name=_("Contact"),
                                 help_text=_("The contact this message is communicating with"))
 
-    contact_urn = models.ForeignKey(ContactURN,
+    contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this message is communicating with"))
 
@@ -974,7 +974,7 @@ class Msg(models.Model):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -990,8 +990,11 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
-        contact_urn = contact.urn_objects[urn]
+        if not contact:
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact_urn = contact.urn_objects[urn]
+        else:
+            contact_urn = None
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
@@ -1047,7 +1050,7 @@ class Msg(models.Model):
         # shortcut for cases where there is no way we would substitute anything as there are no variables
         # TODO remove check for '=' when we fully convert all such expressions
         if not text or (text.find('@') < 0 and text.find('=') < 0):
-            return text, False
+            return text, []
 
         if contact:
             message_context['contact'] = contact.build_message_context()
@@ -1077,10 +1080,8 @@ class Msg(models.Model):
         date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
         context = EvaluationContext(message_context, tz, date_style)
 
-        evaluated, errors = evaluate_template_compat(text, context, url_encode)
-
-        # currently we throw away the actual error messages from the parser
-        return evaluated, (len(errors) > 0)
+        # returns tuple of output and errors
+        return evaluate_template_compat(text, context, url_encode)
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
@@ -1093,19 +1094,24 @@ class Msg(models.Model):
         # for IVR messages we need a channel that can call
         role = CALL if msg_type == IVR else SEND
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+        if status != SENT:
+            # if message will be sent, resolve the recipient to a contact and URN
+            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
-        if not contact_urn:
-            raise UnreachableException("No suitable URN found for contact")
+            if not contact_urn:
+                raise UnreachableException("No suitable URN found for contact")
 
-        if not channel:
-            if msg_type == IVR:
-                channel = org.get_call_channel()
-            else:
-                channel = org.get_send_channel(contact_urn=contact_urn)
+            if not channel:
+                if msg_type == IVR:
+                    channel = org.get_call_channel()
+                else:
+                    channel = org.get_send_channel(contact_urn=contact_urn)
 
-            if not channel and not contact.is_test:
-                raise ValueError("No suitable channel available for this org")
+                if not channel and not contact.is_test:
+                    raise ValueError("No suitable channel available for this org")
+        else:
+            # if message has already been sent, recipient must be a tuple of contact and URN
+            contact, contact_urn = recipient
 
         # no creation date?  set it to now
         if not created_on:
@@ -1115,7 +1121,7 @@ class Msg(models.Model):
         if not message_context:
             message_context = dict()
 
-        (text, has_template_error) = Msg.substitute_variables(text, contact, message_context, org=org)
+        (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
@@ -1172,7 +1178,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         recording_url=recording_url,
-                        has_template_error=has_template_error)
+                        has_template_error=len(errors) > 0)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
