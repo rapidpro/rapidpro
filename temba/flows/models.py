@@ -2218,7 +2218,6 @@ class Flow(TembaModel, SmartModel):
                 if not destination in existing_rulesets and not destination in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
-
             entry = json_dict.get('entry', None)
 
             # check if we are pointing to a destination that is no longer valid
@@ -2241,6 +2240,11 @@ class Flow(TembaModel, SmartModel):
 
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
+
+            # if we were given a flow type, set it
+            flow_type = json_dict.get('type', None)
+            if flow_type:
+                self.flow_type = flow_type
 
             # set our metadata
             self.metadata = None
