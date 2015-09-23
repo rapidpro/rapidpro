@@ -1,10 +1,11 @@
 from __future__ import unicode_literals
 
 import copy
-from uuid import uuid4
+
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
-from temba.utils.expression_compat import migrate_substitutable_text
+from temba.utils.expressions import migrate_template
+from uuid import uuid4
 
 
 def migrate_to_version_7(json_flow):
@@ -13,7 +14,7 @@ def migrate_to_version_7(json_flow):
     """
     def migrate_node(node):
         if isinstance(node, basestring):
-            return migrate_substitutable_text(node)
+            return migrate_template(node)
         if isinstance(node, list):
             for n in range(len(node)):
                 node[n] = migrate_node(node[n])

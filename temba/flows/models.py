@@ -2356,13 +2356,8 @@ class RuleSet(models.Model):
         if text:
             text = text.strip()
 
-        # if we start with =( then we are an expression
-        is_expression = text and len(text) > 2 and text[0:2] == '=('
-
-        if '@step' in text or (is_expression and 'step' in text):
-            return True
-
-        return False
+        # match @step.value or @(step.value)
+        return text and text[0] == '@' and 'step' in text
 
     def config_json(self):
         if not self.config:

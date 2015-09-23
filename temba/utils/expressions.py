@@ -2,9 +2,38 @@ from __future__ import absolute_import, unicode_literals
 
 import regex
 
-from expressions.evaluator import Evaluator
+from temba_expressions.evaluator import Evaluator, DEFAULT_FUNCTION_MANAGER
 
 ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step')
+
+evaluator = Evaluator(allowed_top_levels=ALLOWED_TOP_LEVELS)
+
+listing = None  # lazily initialized
+
+
+def evaluate_template(template, context, url_encode=False):
+    return evaluator.evaluate_template(template, context, url_encode)
+
+
+def evaluate_template_compat(template, context, url_encode=False):
+    """
+    Evaluates the given template which may contain old style expressions
+    """
+    template = migrate_template(template)
+    return evaluator.evaluate_template(template, context, url_encode)
+
+
+def get_function_listing():
+    global listing
+
+    if listing is None:
+        listing = [{'name': f['name'], 'display': f['description']} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
+    return listing
+
+
+# ======================================================================================================================
+# Old style expression migration
+# ======================================================================================================================
 
 FILTER_REPLACEMENTS = {'lower_case': 'LOWER({0})',
                        'upper_case': 'UPPER({0})',
@@ -16,22 +45,7 @@ FILTER_REPLACEMENTS = {'lower_case': 'LOWER({0})',
                        'time_delta': '{0} + {1}'}
 
 
-evaluator = Evaluator(allowed_top_levels=("channel", "contact", "date", "extra", "flow", "step"))
-
-
-def evaluate_template_compat(template, context, url_encode=False):
-    template = migrate_substitutable_text(template)
-
-    return evaluator.evaluate_template(template, context, url_encode)
-
-
-def evaluate_expression_compat(expression, context):
-    expression = migrate_substitutable_text(expression)
-
-    return evaluator.evaluate_expression(expression, context)
-
-
-def migrate_substitutable_text(text):
+def migrate_template(text):
     """
     Migrates text which may contain filter style expressions or equals style expressions
     """
@@ -235,7 +249,7 @@ def test():
 
     migrations = []
     for broadcast in Broadcast.objects.filter(Q(text__contains='|') | Q(text__contains='=')):
-        migrated = migrate_substitutable_text(broadcast.text)
+        migrated = migrate_template(broadcast.text)
         if migrated != broadcast.text:
             migrations.append((broadcast.text, migrated))
 
