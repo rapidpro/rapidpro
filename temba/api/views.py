@@ -2808,76 +2808,75 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
           }
         }
 
-        ## Saving a flow definition
+    ## Saving a flow definition
 
-        By making a ```POST``` request to the endpoint you can create or update an existing flow
+    By making a ```POST``` request to the endpoint you can create or update an existing flow
 
-        * **uuid** - the UUID of the flow (string, optional)
-        * **name** - the name of the flow
-        * **definition** - the flow definition to save (string)
+    * **uuid** - the UUID of the flow (string, optional)
+    * **name** - the name of the flow
+    * **definition** - the flow definition to save (string)
 
-        Example:
+    Example:
 
         POST /api/v1/flowdefinition.json
-
-            {
-              "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
-              "name": "Registration Flow",
-              "definition":
+        {
+          "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+          "name": "Registration Flow",
+          "definition":
+          {
+            "base_language": "eng",
+            "last_saved": "2015-09-23T00:25:50.709164Z",
+            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+            "type": "S",
+            "metadata": {},
+            "action_sets": [
               {
-                "base_language": "eng",
-                "last_saved": "2015-09-23T00:25:50.709164Z",
-                "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-                "type": "S",
-                "metadata": {},
-                "action_sets": [
+                "y": 0,
+                "x": 100,
+                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+                "actions": [
                   {
-                    "y": 0,
-                    "x": 100,
-                    "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                    "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-                    "actions": [
-                      {
-                        "msg": {
-                          "eng": "What is your name?"
-                        },
-                        "type": "reply"
-                      }
-                    ]
-                  },
-                  ...
-                ],
-                "rule_sets": [
-                  {
-                    "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                    "webhook_action": null,
-                    "rules": [
-                      {
-                        "test": {
-                          "test": "true",
-                          "type": "true"
-                        },
-                        "category": {
-                          "eng": "All Responses"
-                        },
-                        "destination": null,
-                        "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                        "destination_type": null
-                      }
-                    ],
-                    "webhook": null,
-                    "ruleset_type": "wait_message",
-                    "label": "Name",
-                    "operand": "@step.value",
-                    "finished_key": null,
-                    "y": 162,
-                    "x": 62,
-                    "config": {}
-                  },
-                  ...
+                    "msg": {
+                      "eng": "What is your name?"
+                    },
+                    "type": "reply"
+                  }
                 ]
-              }
-            }
+              },
+              ...
+            ],
+            "rule_sets": [
+              {
+                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "webhook_action": null,
+                "rules": [
+                  {
+                    "test": {
+                      "test": "true",
+                      "type": "true"
+                    },
+                    "category": {
+                      "eng": "All Responses"
+                    },
+                    "destination": null,
+                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                    "destination_type": null
+                  }
+                ],
+                "webhook": null,
+                "ruleset_type": "wait_message",
+                "label": "Name",
+                "operand": "@step.value",
+                "finished_key": null,
+                "y": 162,
+                "x": 62,
+                "config": {}
+              },
+              ...
+            ]
+          }
+        }
 
     """
     permission = 'flows.flow_api'
