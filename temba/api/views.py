@@ -27,7 +27,7 @@ from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowDefinitionReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowWriteSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowDefinitionReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowDefinitionWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer
@@ -2734,13 +2734,156 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         return spec
 
 
-class FlowDefinitionEndpoint(BaseAPIView):
+class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     """
-    This endpoint returns a flow defintion given a flow uuid.
+    This endpoint returns a flow definition given a flow uuid. Posting to it allows creation
+    or updating of existing flows. This endpoint has only alpha-level support and is subject
+    to modification or removal.
+
+    ## Getting a flow defintion
+
+    Returns the flow definition for the given flow.
+
+      * **uuid** - the UUID of the flow (string)
+
+    Example:
+
+        GET /api/v1/flowdefinition.json
+
+    Response is a flow definition
+
+        {
+          "results": {
+            "base_language": "eng",
+            "last_saved": "2015-09-23T00:25:50.709164Z",
+            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+            "type": "S",
+            "metadata": {},
+            "action_sets": [
+              {
+                "y": 0,
+                "x": 100,
+                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+                "actions": [
+                  {
+                    "msg": {
+                      "eng": "What is your name?"
+                    },
+                    "type": "reply"
+                  }
+                ]
+              },
+              ...
+            ],
+            "rule_sets": [
+              {
+                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "webhook_action": null,
+                "rules": [
+                  {
+                    "test": {
+                      "test": "true",
+                      "type": "true"
+                    },
+                    "category": {
+                      "eng": "All Responses"
+                    },
+                    "destination": null,
+                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                    "destination_type": null
+                  }
+                ],
+                "webhook": null,
+                "ruleset_type": "wait_message",
+                "label": "Name",
+                "operand": "@step.value",
+                "finished_key": null,
+                "y": 162,
+                "x": 62,
+                "config": {}
+              },
+              ...
+            ]
+          }
+        }
+
+        ## Saving a flow definition
+
+        By making a ```POST``` request to the endpoint you can create or update an existing flow
+
+        * **uuid** - the UUID of the flow (string, optional)
+        * **name** - the name of the flow
+        * **definition** - the flow definition to save (string)
+
+        Example:
+
+        POST /api/v1/flowdefinition.json
+
+            {
+              "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+              "name": "Registration Flow",
+              "definition":
+              {
+                "base_language": "eng",
+                "last_saved": "2015-09-23T00:25:50.709164Z",
+                "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+                "type": "S",
+                "metadata": {},
+                "action_sets": [
+                  {
+                    "y": 0,
+                    "x": 100,
+                    "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                    "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+                    "actions": [
+                      {
+                        "msg": {
+                          "eng": "What is your name?"
+                        },
+                        "type": "reply"
+                      }
+                    ]
+                  },
+                  ...
+                ],
+                "rule_sets": [
+                  {
+                    "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                    "webhook_action": null,
+                    "rules": [
+                      {
+                        "test": {
+                          "test": "true",
+                          "type": "true"
+                        },
+                        "category": {
+                          "eng": "All Responses"
+                        },
+                        "destination": null,
+                        "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                        "destination_type": null
+                      }
+                    ],
+                    "webhook": null,
+                    "ruleset_type": "wait_message",
+                    "label": "Name",
+                    "operand": "@step.value",
+                    "finished_key": null,
+                    "y": 162,
+                    "x": 62,
+                    "config": {}
+                  },
+                  ...
+                ]
+              }
+            }
+
     """
     permission = 'flows.flow_api'
     model = Flow
     serializer_class = FlowDefinitionReadSerializer
+    write_serializer_class = FlowDefinitionWriteSerializer
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -2756,8 +2899,7 @@ class FlowDefinitionEndpoint(BaseAPIView):
             return Response(dict(error="Invalid flow uuid", status=status.HTTP_400_BAD_REQUEST))
 
 
-
-class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
+class FlowEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list all the active flows on your account using the ```GET``` method.
 
@@ -2818,7 +2960,6 @@ class FlowEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     permission = 'flows.flow_api'
     model = Flow
     serializer_class = FlowReadSerializer
-    write_serializer_class = FlowWriteSerializer
 
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -2952,6 +3093,8 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
     * **flow** - the UUID of the flow (string)
     * **contact** - the UUID of the contact (string)
     * **steps** - the new step objects (array of objects)
+    * **started** - the datetime when the run was started
+    * **completed** - whether the run is complete
 
     Example:
 
@@ -2959,6 +3102,8 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
         {
             "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
             "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
+            "completed": true,
+            "started": "2015-09-23T17:59:47.572Z"
             "steps": [
                 {
                     "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
@@ -2992,6 +3137,10 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
                                help="The UUID of the contact"),
                           dict(name='flow', required=True,
                                help="The UUID of the flow"),
+                          dict(name='started', required=True,
+                               help='Datetime when the flow started'),
+                          dict(name='completed', required=True,
+                               help='Boolean whether the run is complete or not'),
                           dict(name='steps', required=True,
                                help="A JSON array of one or objects, each a flow step")]
         return spec

@@ -410,38 +410,30 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
-    def test_api_flow_update(self):
-        url = reverse('api.flows')
+    def test_api_flowdefinition_update(self):
+        url = reverse('api.flowdefinition')
         self.login(self.admin)
-
-        # post something that isn't an object
-        response = self.postJSON(url, ['test'])
-        self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
-
-        # can't create a flow without a name
-        response = self.postJSON(url, dict(name="", flow_type='F'))
-        self.assertEqual(response.status_code, 400)
-
-        # or without a type
-        response = self.postJSON(url, dict(name="Hello World", flow_type=''))
-        self.assertEqual(response.status_code, 400)
-
-        # or invalid type
-        response = self.postJSON(url, dict(name="Hello World", flow_type='X'))
-        self.assertEqual(response.status_code, 400)
-
-        # but we can create an empty flow
-        response = self.postJSON(url, dict(name="Empty", flow_type='F'))
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Empty")
 
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
         definition = flow.as_json()
         flow.delete()
 
+        # post something that isn't an object
+        response = self.postJSON(url, ['test'])
+        self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
+
+        # can't create a flow without a name
+        response = self.postJSON(url, dict(name=""))
+        self.assertEqual(response.status_code, 400)
+
+        # but we can create an empty flow
+        response = self.postJSON(url, dict(name="Empty"))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json['name'], "Empty")
+
         # and create flow with a definition
-        response = self.postJSON(url, dict(name="Pick a Number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(name="Pick a Number", definition=definition))
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json['name'], "Pick a Number")
 
@@ -464,6 +456,12 @@ class APITest(TembaTest):
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
         self.assertEqual(flow.flow_type, 'F')
+
+        # No invalid type
+        flow.delete()
+        definition['type'] = 'X'
+        response = self.postJSON(url, dict(name="Hello World", definition=definition))
+        self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):
         url = reverse('api.steps')
