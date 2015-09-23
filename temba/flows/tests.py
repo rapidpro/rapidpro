@@ -16,7 +16,7 @@ from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
@@ -36,6 +36,7 @@ from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, No
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
 from .flow_migrations import migrate_to_version_6
+
 
 class RuleTest(TembaTest):
 
@@ -1228,6 +1229,12 @@ class RuleTest(TembaTest):
 
         # test saving a contact's phone number
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
+
+        # make sure they have a twitter urn first
+        contact.urns.add(ContactURN.get_or_create(self.org, TWITTER_SCHEME, 'enewcomer'))
+        self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
+        self.assertEquals(2, contact.urns.all().count())
+
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="+12065551212")
         test.execute(run, None, sms)
 
@@ -1236,8 +1243,11 @@ class RuleTest(TembaTest):
 
         # instead it should update the tel urn for our contact
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals(1, contact.urns.all().count())
+        self.assertEquals(2, contact.urns.all().count())
         self.assertIsNotNone(contact.urns.filter(path='+12065551212').first())
+
+        # we should still have our twitter scheme
+        self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
 
     test_save_to_contact_action.active = True
 
