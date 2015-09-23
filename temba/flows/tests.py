@@ -17,7 +17,7 @@ from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
-from temba.channels.models import Channel, TWILIO, CALL
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
@@ -37,7 +37,7 @@ from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
-from .flow_migrations import migrate_to_version_6
+from .flow_migrations import migrate_to_version_6, migrate_to_version_7
 
 
 class RuleTest(TembaTest):
@@ -3483,6 +3483,21 @@ class FlowMigrationTest(FlowFileTest):
             to_version = CURRENT_EXPORT_VERSION
         flow.update(FlowVersion.migrate_definition(flow.as_json(), flow.version_number, to_version=to_version))
         return Flow.objects.get(pk=flow.pk)
+
+    def test_migrate_to_7(self):
+
+        # file uses old style expressions
+        flow = self.get_flow_json('old-expressions')
+
+        migrate_to_version_7(flow)
+
+        self.assertEqual(flow['action_sets'][0]['actions'][0]['msg']['eng'], "Hi @(UPPER(contact.name)). Today is @(date.now)")
+        self.assertEqual(flow['action_sets'][1]['actions'][0]['groups'][0], "@flow.response_1.category")
+        self.assertEqual(flow['action_sets'][1]['actions'][1]['msg']['eng'], "Was @(PROPER(LOWER(contact.name))).")
+        self.assertEqual(flow['action_sets'][1]['actions'][1]['variables'][0]['id'], "@flow.response_1.category")
+        self.assertEqual(flow['rule_sets'][0]['webhook'], "http://example.com/query.php?contact=@(UPPER(contact.name))")
+        self.assertEqual(flow['rule_sets'][0]['operand'], "@(step.value)")
+        self.assertEqual(flow['rule_sets'][1]['operand'], "@(step.value + 3)")
 
     def test_migrate_to_6(self):
 

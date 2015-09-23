@@ -4,6 +4,35 @@ import copy
 from uuid import uuid4
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
+from temba.utils.expression_compat import migrate_substitutable_text
+
+
+def migrate_to_version_7(json_flow):
+    """
+    Migrates any expressions found in the flow definition to use the new @(...) syntax
+    """
+    def migrate_node(node):
+        if isinstance(node, basestring):
+            return migrate_substitutable_text(node)
+        if isinstance(node, list):
+            for n in range(len(node)):
+                node[n] = migrate_node(node[n])
+        if isinstance(node, dict):
+            for key, val in node.iteritems():
+                node[key] = migrate_node(val)
+        return node
+
+    for rule_set in json_flow['rule_sets']:
+        for rule in rule_set['rules']:
+            migrate_node(rule['test'])
+
+        rule_set['operand'] = migrate_node(rule_set['operand'])
+        if 'webhook' in rule_set and rule_set['webhook']:
+            rule_set['webhook'] = migrate_node(rule_set['webhook'])
+
+    for action_set in json_flow['action_sets']:
+        for action in action_set['actions']:
+            migrate_node(action)
 
 
 def migrate_to_version_6(json_flow):

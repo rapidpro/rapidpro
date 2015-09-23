@@ -31,35 +31,6 @@ def evaluate_expression_compat(expression, context):
     return evaluator.evaluate_expression(expression, context)
 
 
-def migrate_flow_definition(json_flow):
-    """
-    Migrates a JSON flow definition by migrating the parts that might contain expressions
-    """
-    def process_object(item):
-        for key, val in item.iteritems():
-            if isinstance(val, basestring):
-                if '@' in val or '=' in val:
-                    item[key] = migrate_substitutable_text(val)
-            if isinstance(val, list):
-                for n in range(len(val)):
-                    if '@' in val[n] or '=' in val[n]:
-                        val[n] = migrate_substitutable_text(val[n])
-            if isinstance(val, dict):
-                process_object(val)
-
-    for rule_set in json_flow['rule_sets']:
-        for rule in rule_set['rules']:
-            process_object(rule['test'])
-
-        rule_set['operand'] = migrate_substitutable_text(rule_set['operand'])
-        if 'webhook' in rule_set and rule_set['webhook']:
-            rule_set['webhook'] = migrate_substitutable_text(rule_set['webhook'])
-
-    for action_set in json_flow['action_sets']:
-        for action in action_set['actions']:
-            process_object(action)
-
-
 def migrate_substitutable_text(text):
     """
     Migrates text which may contain filter style expressions or equals style expressions
@@ -70,9 +41,6 @@ def migrate_substitutable_text(text):
         migrated = replace_equals_style(migrated)
     if '@' in migrated and '|' in migrated:
         migrated = replace_filter_style(migrated)
-
-    #if migrated != text:
-    #    print 'Migrated expressions: "%s" -> "%s"' % (text, migrated)
 
     return migrated
 

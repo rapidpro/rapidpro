@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import copy
 import json
 import numbers
 import phonenumbers
@@ -2658,8 +2657,11 @@ class FlowVersion(SmartModel):
     JSON definitions for previous flow versions
     """
     flow = models.ForeignKey(Flow, related_name='versions')
+
     definition = models.TextField(help_text=_("The JSON flow definition"))
-    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
+                                         help_text=_("The flow version this definition is in"))
 
     @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):
@@ -2667,11 +2669,11 @@ class FlowVersion(SmartModel):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
         from temba.flows import flow_migrations
-        while (version <= to_version):
+        while version <= to_version:
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % version, None)
             if migrate_fn:
                 migrate_fn(json_flow)
-            version +=1
+            version += 1
 
         return json_flow
 
@@ -2691,6 +2693,7 @@ class FlowVersion(SmartModel):
                     created_on=datetime_to_str(self.created_on),
                     id=self.pk,
                     version_number=self.version_number)
+
 
 class FlowRun(models.Model):
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
