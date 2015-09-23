@@ -588,6 +588,7 @@ class Flow(TembaModel, SmartModel):
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False):
+
         if started_flows is None:
             started_flows = []
 
@@ -3431,8 +3432,7 @@ class FlowStep(models.Model):
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
 
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
-                                        run__flow__flow_type=Flow.FLOW, left_on=None)
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact, left_on=None)
 
         # real contacts don't deal with archived flows
         if not contact.is_test:
@@ -4383,6 +4383,9 @@ class SetLanguageAction(Action):
     def get_description(self):
         print "Set language to %s" % self.name
 
+class SetPhoneAction(Action):
+    pass
+
 
 class StartFlowAction(Action):
     """
@@ -4456,9 +4459,11 @@ class SaveToContactAction(Action):
 
         # make sure this field exists
         if field == 'name':
-            label = "Contact Name"
+            label = 'Contact Name'
         elif field == 'first_name':
-            label = "First Name"
+            label = 'First Name'
+        elif field == 'tel_e164':
+            label = 'Phone Number'
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -4488,6 +4493,11 @@ class SaveToContactAction(Action):
             new_value = value[:128]
             contact.set_first_name(new_value)
             contact.save(update_fields=['name'])
+
+        elif self.field == 'tel_e164':
+            new_value = value[:128]
+            contact.update_urns([('tel', new_value)])
+
         else:
             new_value = value[:640]
             contact.set_field(self.field, new_value)

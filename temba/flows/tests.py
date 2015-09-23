@@ -1226,6 +1226,20 @@ class RuleTest(TembaTest):
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals(test.value, contact.get_field('last_message').string_value)
 
+        # test saving a contact's phone number
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
+        print contact.urns.all()
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="+12065551212")
+        test.execute(run, None, sms)
+
+        # updating Phone Number should not create a contact field
+        self.assertIsNone(ContactField.objects.filter(org=self.org, key='tel_e164').first())
+
+        # instead it should update the tel urn for our contact
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals(1, contact.urns.all().count())
+        self.assertIsNotNone(contact.urns.filter(path='+12065551212').first())
+
     test_save_to_contact_action.active = True
 
     def test_language_action(self):

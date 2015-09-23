@@ -540,7 +540,6 @@ class Contact(TembaModel, SmartModel):
 
             test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
                                                  is_test=True)
-
         return test_contact
 
     @classmethod
