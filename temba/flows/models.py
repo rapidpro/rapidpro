@@ -3435,7 +3435,7 @@ class FlowStep(models.Model):
         steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact, left_on=None)
 
         # don't consider voice steps, those are interactive
-        steps = steps.exclude(run__flow__is_active=Flow.VOICE)
+        steps = steps.exclude(run__flow__flow_type=Flow.VOICE)
 
         # real contacts don't deal with archived flows
         if not contact.is_test:
