@@ -4383,9 +4383,6 @@ class SetLanguageAction(Action):
     def get_description(self):
         print "Set language to %s" % self.name
 
-class SetPhoneAction(Action):
-    pass
-
 
 class StartFlowAction(Action):
     """

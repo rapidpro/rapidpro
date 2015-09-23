@@ -1228,7 +1228,6 @@ class RuleTest(TembaTest):
 
         # test saving a contact's phone number
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
-        print contact.urns.all()
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="+12065551212")
         test.execute(run, None, sms)
 
