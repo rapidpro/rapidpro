@@ -1235,9 +1235,15 @@ class RuleTest(TembaTest):
         # make sure they have a twitter urn first
         contact.urns.add(ContactURN.get_or_create(self.org, TWITTER_SCHEME, 'enewcomer'))
         self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
-        self.assertEquals(2, contact.urns.all().count())
 
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="+12065551212")
+        # add another phone number to make sure it doesn't get removed too
+        contact.urns.add(ContactURN.get_or_create(self.org, TEL_SCHEME, '+18005551212'))
+        self.assertEquals(3, contact.urns.all().count())
+
+        # create an inbound message on our original phone number
+        sms = self.create_msg(direction=INCOMING, contact=self.contact,
+                              text="+12065551212", contact_urn=contact.urns.filter(path='+250788382382').first())
+
         test.execute(run, None, sms)
 
         # updating Phone Number should not create a contact field
@@ -1245,11 +1251,14 @@ class RuleTest(TembaTest):
 
         # instead it should update the tel urn for our contact
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals(2, contact.urns.all().count())
+        self.assertEquals(3, contact.urns.all().count())
         self.assertIsNotNone(contact.urns.filter(path='+12065551212').first())
 
         # we should still have our twitter scheme
         self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
+
+        # and our other phone number
+        self.assertIsNotNone(contact.urns.filter(path='+18005551212').first())
 
     test_save_to_contact_action.active = True
 
