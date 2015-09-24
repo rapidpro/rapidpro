@@ -1501,11 +1501,12 @@ class Channel(SmartModel):
             error_code = getattr(e, 'error_code', 400)
             fatal = False
 
-            if error_code == 404:                                # handle doesn't exist
+            if error_code == 404:                                 # handle doesn't exist
                 fatal = True
             elif error_code == 403:
-                for err in ["messages to this user right now",   # handle is suspended
-                            "users who are not following you"]:  # handle no longer follows us
+                fatal_403s = ("messages to this user right now",  # handle is suspended
+                              "users who are not following you")  # handle no longer follows us
+                for err in fatal_403s:
                     if unicode(e).find(err) >= 0:
                         fatal = True
                         break
