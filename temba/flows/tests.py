@@ -954,9 +954,9 @@ class RuleTest(TembaTest):
                 sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
                 self.assertDateTest(True, now, test)
 
-                # date before/equal/after tests using old deprecated time_delta filter
+                # date before/equal/after tests using date arithmetic
 
-                test = DateBeforeTest('@date.today|time_delta:"-1"')
+                test = DateBeforeTest('@(date.today - 1)')
                 self.assertDateTest(False, None, test)
 
                 sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
@@ -965,36 +965,13 @@ class RuleTest(TembaTest):
                 sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
                 self.assertDateTest(False, None, test)
 
-                test = DateEqualTest('@date.today|time_delta:"-3"')
+                test = DateEqualTest('@(date.today - 3)')
                 self.assertDateTest(False, None, test)
 
                 sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
                 self.assertDateTest(True, three_days_ago, test)
 
-                test = DateAfterTest("@date.today|time_delta:'3'")
-                self.assertDateTest(False, None, test)
-
-                sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
-                self.assertDateTest(True, five_days_next, test)
-
-                # date before/equal/after tests using new date arithmetic
-
-                test = DateBeforeTest('=(date.today - 1)')
-                self.assertDateTest(False, None, test)
-
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
-                self.assertDateTest(True, three_days_ago, test)
-
-                sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
-                self.assertDateTest(False, None, test)
-
-                test = DateEqualTest('=(date.today - 3)')
-                self.assertDateTest(False, None, test)
-
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
-                self.assertDateTest(True, three_days_ago, test)
-
-                test = DateAfterTest('=(date.today + 3)')
+                test = DateAfterTest('@(date.today + 3)')
                 self.assertDateTest(False, None, test)
 
                 sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
@@ -3101,7 +3078,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(6, definition.get('version', 0))
+        self.assertEquals(7, definition.get('version', 0))
         self.assertEquals(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow

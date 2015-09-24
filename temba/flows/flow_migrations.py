@@ -27,7 +27,8 @@ def migrate_to_version_7(json_flow):
         for rule in rule_set['rules']:
             migrate_node(rule['test'])
 
-        rule_set['operand'] = migrate_node(rule_set['operand'])
+        if 'operand' in rule_set and rule_set['operand']:
+            rule_set['operand'] = migrate_node(rule_set['operand'])
         if 'webhook' in rule_set and rule_set['webhook']:
             rule_set['webhook'] = migrate_node(rule_set['webhook'])
 
