@@ -1,41 +1,17 @@
 KEY_LEFT = 37
 KEY_RIGHT = 39
 
+window.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
+
 window.matcher = (flag, subtext) ->
-  regexp = new RegExp("(?:^|\\s)(?:@@)*@([()A-Za-z_\.\+]*(?:[ ]*[+][ ]*[()A-Za-z_,\.\+]*|,[ ]*[()A-Za-z_,\.\+]*|$)*)$", "gi")
-  match = regexp.exec(subtext)
-  if match
-    match[2] || match[1]
-  else
-    null
+  excellentParser.expressionContext(subtext);
 
 window.findContextQuery = (query) ->
-  numPar = 0
 
   if not query
     return query
 
-  # while a space or open parathesis at the end, ignore it
-  while query.match(/[( ]$/) isnt null
-    query = query.slice(0, -1)
-
-  # while comma or closed pararenthesis, count balanced parathesis
-  while query.match(/[,)]$/g) isnt null
-    query = query.slice(0, -1)
-    numPar += 1
-
-  lastOpenPar = query.length
-  while numPar > 0
-    lastOpenPar = query.lastIndexOf("(")
-    query = query.slice(0, lastOpenPar)
-    numPar -= 1
-
-  queryRegex = new RegExp("([A-Za-z_\d\.]*)(?:[), ]*)?$", "gi");
-  match = queryRegex.exec(query);
-  if match
-    match[1] || match[0];
-  else
-    null
+  excellentParser.autoCompleteContext(query) or ''
 
 window.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
 

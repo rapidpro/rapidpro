@@ -27,6 +27,7 @@ module.exports = (config) ->
       'static/angular/sortable.js',
       'static/js/jasmine-jquery.js',
       'static/js/uuid.js',
+      'static/js/excellent.js',
       'karma/flows/helpers.coffee',
 
       # the code we are testing
