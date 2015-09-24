@@ -124,6 +124,9 @@ PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
 
+TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
+                      "users who are not following you")  # handle no longer follows us
+
 
 class Channel(SmartModel):
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
@@ -1501,15 +1504,22 @@ class Channel(SmartModel):
             error_code = getattr(e, 'error_code', 400)
             fatal = False
 
-            # this handle doesn't exist anymore or we can't send to them, fail them permanently
-            if error_code == 404 or (error_code == 403 and str(e).find('users who are not following you') >= 0):
+            if error_code == 404:  # handle doesn't exist
                 fatal = True
+            elif error_code == 403:
+                for err in TWITTER_FATAL_403S:
+                    if unicode(e).find(err) >= 0:
+                        fatal = True
+                        break
+
+            # if message can never be sent, fail contact permanently
+            if fatal:
                 Contact.objects.get(id=msg.contact).fail(permanently=True)
 
             raise SendException(str(e),
                                 'https://api.twitter.com/1.1/direct_messages/new.json',
                                 'POST',
-                                urlencode(dict(screen_name=msg.urn_path, text=text)), # not complete, but useful in the log
+                                urlencode(dict(screen_name=msg.urn_path, text=text)),  # not complete, but useful in the log
                                 str(e),
                                 error_code,
                                 fatal=fatal)
