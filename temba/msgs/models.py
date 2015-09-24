@@ -18,15 +18,16 @@ from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
+from temba_expressions.evaluator import EvaluationContext, DateStyle
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgEvent, TopUp, Language, UNREAD_INBOX_MSGS
+from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
-from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from .handler import MessageHandler
 
@@ -1047,15 +1048,14 @@ class Msg(models.Model):
         Returns a tuple of the substituted text and whether there were are substitution failures.
         """
         # shortcut for cases where there is no way we would substitute anything as there are no variables
-        # TODO remove check for '@' when we deprecate that style of expression
-        if not text or (text.find('@') < 0 and text.find('=') < 0):
+        if not text or text.find('@') < 0:
             return text, []
 
         if contact:
             message_context['contact'] = contact.build_message_context()
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
-        if 'step' not in message_context or not 'contact' in message_context['step']:
+        if 'step' not in message_context or 'contact' not in message_context['step']:
             message_context['step'] = dict(contact=message_context['contact'])
 
         if not org:
@@ -1076,7 +1076,8 @@ class Msg(models.Model):
 
         message_context['date'] = date_context
 
-        context = EvaluationContext(message_context, dict(tz=tz, dayfirst=dayfirst))
+        date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
+        context = EvaluationContext(message_context, tz, date_style)
 
         # returns tuple of output and errors
         return evaluate_template(text, context, url_encode)

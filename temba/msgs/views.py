@@ -21,7 +21,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
-from temba.utils.parser import get_function_listing
+from temba.utils.expressions import get_function_listing
 from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
 
 
