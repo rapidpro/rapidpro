@@ -13,7 +13,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
@@ -24,7 +24,7 @@ from temba.channels.models import Channel, ANDROID, SEND, CALL
 from temba.orgs.models import Org, OrgEvent, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, datetime_to_str, analytics
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -505,7 +505,7 @@ class Msg(models.Model):
                                 related_name='msgs', verbose_name=_("Contact"),
                                 help_text=_("The contact this message is communicating with"))
 
-    contact_urn = models.ForeignKey(ContactURN,
+    contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this message is communicating with"))
 
@@ -573,37 +573,46 @@ class Msg(models.Model):
                                     help_text=_("The url for any recording associated with this message"))
 
     @classmethod
-    def send_messages(cls, msgs):
+    def send_messages(cls, all_msgs):
         """
         Adds the passed in messages to our sending queue, this will also update the status of the message to
         queued.
         :return:
         """
-        # build our id list
-        msg_ids = set([m.id for m in msgs])
+        # we send in chunks of 1,000 to help with contention
+        for msg_chunk in chunk_list(all_msgs, 1000):
+            # create a temporary list of our chunk so we can iterate more than once
+            msgs = [msg for msg in msg_chunk]
 
-        queued_on = timezone.now()
+            # build our id list
+            msg_ids = set([m.id for m in msgs])
 
-        # update them to queued
-        send_messages = Msg.objects.filter(id__in=msg_ids)
-        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(msg_type=IVR).exclude(topup=None).exclude(contact__is_test=True)
-        send_messages.update(status=QUEUED, queued_on=queued_on)
+            with transaction.atomic():
+                queued_on = timezone.now()
 
-        # now push each onto our queue
-        for msg in msgs:
-            # skip over non-android channels, messages with no top up and test contacts
-            if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
-                # serialize the model to a dictionary
-                msg.queued_on = queued_on
-                task = msg.as_task_json()
+                # update them to queued
+                send_messages = Msg.objects.filter(id__in=msg_ids)\
+                                           .exclude(channel__channel_type=ANDROID)\
+                                           .exclude(msg_type=IVR)\
+                                           .exclude(topup=None)\
+                                           .exclude(contact__is_test=True)
+                send_messages.update(status=QUEUED, queued_on=queued_on)
 
-                task_priority = DEFAULT_PRIORITY
-                if msg.priority == SMS_BULK_PRIORITY:
-                    task_priority = LOW_PRIORITY
-                elif msg.priority == SMS_HIGH_PRIORITY:
-                    task_priority = HIGH_PRIORITY
+                # now push each onto our queue
+                for msg in msgs:
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
+                            msg.topup and not msg.contact.is_test:
+                        # serialize the model to a dictionary
+                        msg.queued_on = queued_on
+                        task = msg.as_task_json()
 
-                push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                        task_priority = DEFAULT_PRIORITY
+                        if msg.priority == SMS_BULK_PRIORITY:
+                            task_priority = LOW_PRIORITY
+                        elif msg.priority == SMS_HIGH_PRIORITY:
+                            task_priority = HIGH_PRIORITY
+
+                        push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
 
     @classmethod
     def process_message(cls, msg):
@@ -964,7 +973,7 @@ class Msg(models.Model):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -980,8 +989,11 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
-        contact_urn = contact.urn_objects[urn]
+        if not contact:
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact_urn = contact.urn_objects[urn]
+        else:
+            contact_urn = None
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
@@ -1037,7 +1049,7 @@ class Msg(models.Model):
         # shortcut for cases where there is no way we would substitute anything as there are no variables
         # TODO remove check for '@' when we deprecate that style of expression
         if not text or (text.find('@') < 0 and text.find('=') < 0):
-            return text, False
+            return text, []
 
         if contact:
             message_context['contact'] = contact.build_message_context()
@@ -1066,10 +1078,8 @@ class Msg(models.Model):
 
         context = EvaluationContext(message_context, dict(tz=tz, dayfirst=dayfirst))
 
-        evaluated, errors = evaluate_template(text, context, url_encode)
-
-        # currently we throw away the actual error messages from the parser
-        return evaluated, (len(errors) > 0)
+        # returns tuple of output and errors
+        return evaluate_template(text, context, url_encode)
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
@@ -1082,19 +1092,24 @@ class Msg(models.Model):
         # for IVR messages we need a channel that can call
         role = CALL if msg_type == IVR else SEND
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+        if status != SENT:
+            # if message will be sent, resolve the recipient to a contact and URN
+            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
-        if not contact_urn:
-            raise UnreachableException("No suitable URN found for contact")
+            if not contact_urn:
+                raise UnreachableException("No suitable URN found for contact")
 
-        if not channel:
-            if msg_type == IVR:
-                channel = org.get_call_channel()
-            else:
-                channel = org.get_send_channel(contact_urn=contact_urn)
+            if not channel:
+                if msg_type == IVR:
+                    channel = org.get_call_channel()
+                else:
+                    channel = org.get_send_channel(contact_urn=contact_urn)
 
-            if not channel and not contact.is_test:
-                raise ValueError("No suitable channel available for this org")
+                if not channel and not contact.is_test:
+                    raise ValueError("No suitable channel available for this org")
+        else:
+            # if message has already been sent, recipient must be a tuple of contact and URN
+            contact, contact_urn = recipient
 
         # no creation date?  set it to now
         if not created_on:
@@ -1104,7 +1119,7 @@ class Msg(models.Model):
         if not message_context:
             message_context = dict()
 
-        (text, has_template_error) = Msg.substitute_variables(text, contact, message_context, org=org)
+        (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
@@ -1161,7 +1176,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         recording_url=recording_url,
-                        has_template_error=has_template_error)
+                        has_template_error=len(errors) > 0)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id

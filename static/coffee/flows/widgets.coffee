@@ -26,7 +26,7 @@ app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
     # determine the initial message based on the current language
     scope.message = scope.sms
 
-    if Flow.flow.base_language and scope.sms
+    if scope.sms
       localized = scope.sms[Flow.flow.base_language]
       if localized?
         scope.message = localized

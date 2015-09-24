@@ -1,10 +1,11 @@
 from __future__ import unicode_literals
 
+from django.db import transaction
 from datetime import datetime
 from django.utils import timezone
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
-from temba.campaigns.models import CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from django.conf import settings
 import redis
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
@@ -35,6 +36,46 @@ def check_campaigns_task(sched_id=None):
 
 @task(track_started=True, name='update_event_fires_task') # pragma: no cover
 def update_event_fires(event_id):
-    event = CampaignEvent.objects.filter(pk=event_id).first()
-    if event:
-        EventFire.do_update_eventfires_for_event(event)
+
+    # get a lock
+    r = get_redis_connection()
+    key = 'event_fires_event_%d' % event_id
+
+    with r.lock(key, timeout=300):
+        try:
+
+            with transaction.atomic():
+                event = CampaignEvent.objects.filter(pk=event_id).first()
+                if event:
+                    EventFire.do_update_eventfires_for_event(event)
+
+        except Exception as e:
+
+            # requeue our task to try again in five minutes
+            update_event_fires(event_id).delay(countdown=60*5)
+
+            # bubble up the exception so sentry sees it
+            raise e
+
+@task(track_started=True, name='update_event_fires_for_campaign_task') # pragma: no cover
+def update_event_fires_for_campaign(campaign_id):
+
+    # get a lock
+    r = get_redis_connection()
+    key = 'event_fires_campaign_%d' % campaign_id
+
+    with r.lock(key, timeout=300):
+
+        try:
+            with transaction.atomic():
+                campaign = Campaign.objects.filter(pk=campaign_id).first()
+                if campaign:
+                    EventFire.do_update_campaign_events(campaign)
+
+        except Exception as e:
+
+            # requeue our task to try again in five minutes
+            update_event_fires_for_campaign(campaign_id).delay(countdown=60*5)
+
+            # bubble up the exception so sentry sees it
+            raise e

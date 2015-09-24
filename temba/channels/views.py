@@ -34,8 +34,8 @@ from temba.utils import analytics, non_atomic_when_eager
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount
-from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL
+from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 
@@ -489,7 +489,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral')
+               'claim_blackmyna', 'claim_smscentral', 'claim_m3tech')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -955,6 +955,8 @@ class ChannelCRUDL(SmartCRUDL):
                                        help_text=_("The username to use to authenticate to Kannel, if left blank we will generate one for you"))
             password = forms.CharField(max_length=64, required=False,
                                        help_text=_("The password to use to authenticate to Kannel, if left blank we will generate one for you"))
+            verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
+                                            help_text=_("Whether to verify the SSL connection (recommended)"))
 
         title = _("Connect Kannel Service")
         success_url = "id@channels.channel_configuration"
@@ -969,7 +971,8 @@ class ChannelCRUDL(SmartCRUDL):
             number = data['number']
             role = SEND + RECEIVE
 
-            config = {SEND_URL: url, USERNAME: data.get('username', None), PASSWORD: data.get('password', None)}
+            config = {SEND_URL: url, VERIFY_SSL: data.get('verify_ssl'),
+                      USERNAME: data.get('username', None), PASSWORD: data.get('password', None)}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, KANNEL,
                                                               config, role=role, parent=None)
 
@@ -1121,6 +1124,10 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimSmscentral(ClaimAuthenticatedExternal):
         title = _("Connect SMSCentral")
         channel_type = SMSCENTRAL
+
+    class ClaimM3tech(ClaimAuthenticatedExternal):
+        title = _("Connect M3 Tech")
+        channel_type = M3TECH
 
     class ClaimVerboice(ClaimAuthenticatedExternal):
         class VerboiceClaimForm(forms.Form):

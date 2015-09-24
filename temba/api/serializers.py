@@ -6,12 +6,13 @@ import phonenumbers
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
@@ -330,6 +331,8 @@ class ContactReadSerializer(serializers.ModelSerializer):
     fields = serializers.SerializerMethodField('get_contact_fields')
     phone = serializers.SerializerMethodField('get_tel')  # deprecated, use urns
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
+    blocked = serializers.Field(source='is_blocked')
+    failed = serializers.Field(source='is_failed')
 
     def get_groups(self, obj):
         groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
@@ -348,7 +351,9 @@ class ContactReadSerializer(serializers.ModelSerializer):
     def get_contact_fields(self, obj):
         fields = dict()
         for contact_field in self.context['contact_fields']:
-            fields[contact_field.key] = obj.get_field_display(contact_field.key)
+
+            value = obj.get_field(contact_field.key)
+            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
         return fields
 
     def get_tel(self, obj):
@@ -356,7 +361,8 @@ class ContactReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'modified_on', 'phone', 'groups')
+        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'blocked', 'failed', 'modified_on',
+                  'phone', 'groups')
 
 
 class ContactWriteSerializer(WriteSerializer):
@@ -1003,6 +1009,69 @@ class CampaignWriteSerializer(WriteSerializer):
         return campaign
 
 
+class FlowDefinitionReadSerializer(serializers.ModelSerializer):
+
+    uuid = serializers.Field(source='uuid')
+    definition = serializers.SerializerMethodField('get_definition')
+    archived = serializers.Field(source='is_archived')
+    expires = serializers.Field(source='expires_after_minutes')
+
+    def get_definition(self, obj):
+        return obj.as_json()
+
+    class Meta:
+        model = Flow
+        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition')
+
+
+class FlowDefinitionWriteSerializer(WriteSerializer):
+    uuid = serializers.CharField(required=False, max_length=36)
+    name = serializers.CharField(required=True)
+    definition = serializers.WritableField(required=False)
+
+    def validate_uuid(self, attrs, source):
+        uuid = attrs.get(source, None)
+
+        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+            raise ValidationError("No such flow with UUID: %s" % uuid)
+        return attrs
+
+    def validate_definition(self, attrs, source):
+        definition = attrs.get('definition', None)
+
+        if definition:
+            flow_type = definition.get('type', None)
+            if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
+                raise ValidationError("Invalid flow type: %s" % flow_type)
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        """
+        Update our flow
+        """
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        uuid = attrs.get('uuid', None)
+        name = attrs['name']
+        definition = attrs.get('definition', None)
+
+        flow_type = Flow.FLOW
+        if definition:
+            flow_type = definition.get('type', Flow.FLOW)
+
+        if uuid:
+            flow = Flow.objects.get(org=self.org, uuid=uuid)
+            flow.name = name
+            flow.save()
+        else:
+            flow = Flow.create(self.org, self.user, name, flow_type)
+
+        if definition:
+            flow.update(definition, self.user, force=True)
+
+        return flow
+
 class FlowReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
     archived = serializers.Field(source='is_archived')
@@ -1058,52 +1127,6 @@ class FlowReadSerializer(serializers.ModelSerializer):
         model = Flow
         fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
                   'created_on', 'flow')
-
-
-class FlowWriteSerializer(WriteSerializer):
-    uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=True)
-    flow_type = serializers.CharField(required=True)
-    definition = serializers.WritableField(required=False)
-
-    def validate_uuid(self, attrs, source):
-        uuid = attrs.get(source, None)
-
-        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
-            raise ValidationError("No such flow with UUID: %s" % uuid)
-        return attrs
-
-    def validate_flow_type(self, attrs, source):
-        flow_type = attrs.get(source, None)
-
-        if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
-            raise ValidationError("Invalid flow type: %s" % flow_type)
-        return attrs
-
-    def restore_object(self, attrs, instance=None):
-        """
-        Update our flow
-        """
-        if instance:  # pragma: no cover
-            raise ValidationError("Invalid operation")
-
-        uuid = attrs.get('uuid', None)
-        name = attrs['name']
-        flow_type = attrs['flow_type']
-        definition = attrs.get('definition', None)
-
-        if uuid:
-            flow = Flow.objects.get(org=self.org, uuid=uuid)
-            flow.name = name
-            flow.flow_type = flow_type
-            flow.save()
-        else:
-            flow = Flow.create(self.org, self.user, name, flow_type)
-
-        if definition:
-            flow.update(definition, self.user, force=True)
-
-        return flow
 
 
 class FlowRunStartSerializer(WriteSerializer):
@@ -1241,6 +1264,77 @@ class FlowRunStartSerializer(WriteSerializer):
             return []
 
 
+class FlowRunWriteSerializer(WriteSerializer):
+    flow = serializers.CharField(required=True, max_length=36)
+    contact = serializers.CharField(required=True, max_length=36)
+    started = serializers.DateTimeField(required=True)
+    completed = serializers.BooleanField(required=False)
+    steps = serializers.WritableField()
+
+    def validate_flow(self, attrs, source):
+        flow_uuid = attrs.get(source, None)
+        if flow_uuid:
+            flow = Flow.objects.get(uuid=flow_uuid)
+            if flow.is_archived:
+                raise ValidationError("You cannot start an archived flow.")
+
+            # do they have permission to use this flow?
+            if self.org != flow.org:
+                raise ValidationError("Invalid UUID '%s' - flow does not exist." % flow.uuid)
+
+            attrs['flow'] = flow
+        return attrs
+
+    def validate_contact(self, attrs, source):
+        contact_uuid = attrs.get(source, None)
+        if contact_uuid:
+            contact = Contact.objects.filter(uuid=contact_uuid, org=self.org, is_active=True).first()
+            if not contact:
+                raise ValidationError(_("Unable to find contact with uuid: %s") % contact_uuid)
+
+            attrs['contact'] = contact
+        return attrs
+
+    def save(self):
+        pass
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        flow = attrs['flow']
+        contact = attrs.get('contact')
+        started = attrs['started']
+        steps = attrs.get('steps', [])
+        completed = attrs.get('completed', False)
+
+        # look for previous run with this contact and flow
+        run = FlowRun.objects.filter(org=self.org, contact=contact,
+                                     flow=flow, created_on=started).order_by('-modified_on').first()
+
+        if not run:
+            run = FlowRun.create(flow, contact, created_on=started)
+            flow.update_start_counts([contact])
+
+        step_objs = []
+        previous_rule = None
+        for step in steps:
+            step_obj = FlowStep.from_json(step, flow, run, previous_rule)
+            previous_rule = step_obj.rule_uuid
+            step_objs.append(step_obj)
+
+        if completed:
+            final_step = step_objs[len(step_objs) - 1] if step_objs else None
+            completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
+
+            run.set_completed(True, final_step, completed_on=completed_on)
+        else:
+            run.modified_on = timezone.now()
+            run.save(update_fields=('modified_on',))
+
+        return run
+
+
 class BoundarySerializer(serializers.ModelSerializer):
     boundary = serializers.SerializerMethodField('get_boundary')
     parent = serializers.SerializerMethodField('get_parent')
@@ -1258,6 +1352,18 @@ class BoundarySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminBoundary
         fields = ('boundary', 'name', 'level', 'parent', 'geometry')
+
+
+class AliasSerializer(BoundarySerializer):
+
+    aliases = serializers.SerializerMethodField('get_aliases')
+
+    def get_aliases(self, obj):
+        return [alias.name for alias in obj.aliases.all()]
+
+    class Meta:
+        model = AdminBoundary
+        fields = ('boundary', 'name', 'level', 'parent', 'aliases')
 
 
 class FlowRunReadSerializer(serializers.ModelSerializer):
@@ -1305,7 +1411,7 @@ class FlowRunReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlowRun
         fields = ('flow_uuid', 'flow', 'run', 'contact', 'completed', 'values',
-                  'steps', 'created_on', 'expires_on', 'expired_on')
+                  'steps', 'created_on', 'modified_on', 'expires_on', 'expired_on')
 
 
 class BroadcastReadSerializer(serializers.ModelSerializer):

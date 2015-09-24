@@ -10,7 +10,8 @@ def rebuild_flow_stats(apps, schema_editor):
     # kinda breaking migration rules here to not duplicate code, should be asking
     # for raw model from apps.get_model('flows', 'Flow'). This means this migration
     # can only run as long as the methods we are calling here exist.
-    from temba.flows.models import FlowRun
+    FlowRun = apps.get_model('flows', 'FlowRun')
+
     from django.utils import timezone
     from datetime import timedelta
 

@@ -6,9 +6,8 @@ from mock import patch
 import mock
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
 from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
-
 from temba.msgs.models import Msg
-from temba.channels.models import TWILIO, CALL, ANSWER
+from temba.channels.models import TWILIO, CALL, ANSWER, SEND
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
 import os
 from django.conf import settings
@@ -23,7 +22,7 @@ class IVRTests(FlowFileTest):
 
         # configure our account to be IVR enabled
         self.channel.channel_type = TWILIO
-        self.channel.role = CALL + ANSWER
+        self.channel.role = CALL + ANSWER + SEND
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
@@ -98,6 +97,34 @@ class IVRTests(FlowFileTest):
         # each message should have exactly one step
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_ivr_child_flow(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        msg_flow = self.get_flow('ivr_child_flow')
+        ivr_flow = Flow.objects.get(name="Voice Flow")
+
+        # start macklemore in the flow
+        ben = self.create_contact('Ben', '+12345')
+        ivr_flow.start(groups=[], contacts=[ben])
+        call = IVRCall.objects.get(direction=OUTGOING)
+
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        self.assertEquals(2, FlowStep.objects.all().count())
+
+        # press 1
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
+        self.assertContains(response, '<Say>I just sent you a text.')
+
+        # should have also started a new flow and received our text
+        self.assertTrue(FlowRun.objects.filter(contact=ben, flow=msg_flow).first())
+        self.assertTrue(Msg.objects.filter(direction=OUTGOING, contact=ben, text="You said foo!").first())
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -279,9 +306,9 @@ class IVRTests(FlowFileTest):
         # should still have no active runs
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
 
-        # and we haven't left our final step
+        # and we've exited the flow
         step = FlowStep.objects.all().order_by('-pk').first()
-        self.assertIsNone(step.left_on)
+        self.assertTrue(step.left_on)
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):

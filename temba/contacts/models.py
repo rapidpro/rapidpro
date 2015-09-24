@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
@@ -19,7 +20,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str
 from temba.utils.models import TembaModel
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
@@ -269,6 +270,23 @@ class Contact(TembaModel, SmartModel):
         else:
             return value.string_value
 
+    @classmethod
+    def serialize_field_value(cls, field, value):
+        """
+        Utility method to give the serialized value for the passed in field, value pair.
+        """
+        if value is None:
+            return None
+
+        if field.value_type == DATETIME:
+            return datetime_to_str(value.datetime_value)
+        elif field.value_type == DECIMAL:
+            return format_decimal(value.decimal_value)
+        elif value.category:
+            return value.category
+        else:
+            return value.string_value
+
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
 
@@ -310,7 +328,7 @@ class Contact(TembaModel, SmartModel):
                     existing.category = None
 
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category'])
+                                             'location_value', 'category', 'modified_on'])
 
             # otherwise, create a new value for it
             else:
@@ -350,6 +368,9 @@ class Contact(TembaModel, SmartModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
+        self.save(update_fields=('modified_on',))
+
+
     @classmethod
     def from_urn(cls, org, scheme, path, country=None):
         if not scheme or not path:
@@ -378,14 +399,11 @@ class Contact(TembaModel, SmartModel):
         if urns is None:
             urns = ()
 
-        # no channel? try to get one from our org
-        country = None
+        # get country from channel or org
         if incoming_channel:
-            country = incoming_channel.country
+            country = incoming_channel.country.code
         else:
-            receiver = org.get_receive_channel(TEL_SCHEME)
-            if receiver:
-                country = receiver.country
+            country = org.get_country_code()
 
         contact = None
 
@@ -543,10 +561,7 @@ class Contact(TembaModel, SmartModel):
         org = field_dict['org']
         del field_dict['org']
 
-        # try to find a channel for this org
-        channel = org.get_receive_channel(TEL_SCHEME)
-        country = channel.country.code if channel else None
-
+        country = org.get_country_code()
         urns = []
 
         possible_urn_headers = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
@@ -831,15 +846,19 @@ class Contact(TembaModel, SmartModel):
         self.is_blocked = False
         self.save(update_fields=['is_blocked'])
 
-    def fail(self):
+    def fail(self, permanently=False):
         """
-        Fails this contact, provided it is currently normal
+        Fails this contact. If permanently then contact is removed from all groups.
         """
         if self.is_test:
             raise ValueError("Can't fail a test contact")
 
         self.is_failed = True
         self.save(update_fields=['is_failed'])
+
+        if permanently:
+            for group in self.user_groups.all():
+                group.update_contacts([self], False)
 
     def unfail(self):
         """
@@ -1002,8 +1021,7 @@ class Contact(TembaModel, SmartModel):
         """
         Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included
         """
-        channel = self.org.get_receive_channel(TEL_SCHEME)
-        country = channel.country if channel else None
+        country = self.org.get_country_code()
 
         urns_created = []  # new URNs created
         urns_attached = []  # existing orphan URNs attached
@@ -1522,6 +1540,10 @@ class ContactGroup(TembaModel, SmartModel):
         self.is_active = False
         self.save()
         self.contacts.clear()
+
+        # delete any event fires related to our group
+        from temba.campaigns.models import EventFire
+        EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
 
         Value.invalidate_cache(group=self)
 
