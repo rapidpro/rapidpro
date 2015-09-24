@@ -124,6 +124,9 @@ PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
 
+TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
+                      "users who are not following you")  # handle no longer follows us
+
 
 class Channel(SmartModel):
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
@@ -1501,12 +1504,10 @@ class Channel(SmartModel):
             error_code = getattr(e, 'error_code', 400)
             fatal = False
 
-            if error_code == 404:                                 # handle doesn't exist
+            if error_code == 404:  # handle doesn't exist
                 fatal = True
             elif error_code == 403:
-                fatal_403s = ("messages to this user right now",  # handle is suspended
-                              "users who are not following you")  # handle no longer follows us
-                for err in fatal_403s:
+                for err in TWITTER_FATAL_403S:
                     if unicode(e).find(err) >= 0:
                         fatal = True
                         break
