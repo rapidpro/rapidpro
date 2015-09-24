@@ -6,7 +6,7 @@ from django.db import migrations
 SYS_GROUP_TYPES = ('A', 'B', 'F')
 
 
-def remove_test_contacts_from_sys_groups(apps, schema_editor):
+def remove_sim_contacts_from_sys_groups(apps, schema_editor):
     Contact = apps.get_model('contacts', 'Contact')
     wonky = list(Contact.objects.filter(is_test=True, all_groups__group_type__in=SYS_GROUP_TYPES))
     for contact in wonky:
@@ -22,5 +22,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(remove_test_contacts_from_sys_groups)
+        migrations.RunPython(remove_sim_contacts_from_sys_groups)
     ]
