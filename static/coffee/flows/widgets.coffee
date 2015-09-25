@@ -45,23 +45,20 @@ app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
 # Ajax backed select2 widget
 app.directive "autoComplete", ["$timeout", "$http", "$log", "Flow", ($timeout, $http, $log, Flow) ->
 
-  filters = [
-    { name:'title_case', display:'changes to title case'},
-    { name:'capitalize', display:'capitalizes the first letter'},
-    { name:'first_word', display:'takes only the first word'}
-    { name:'remove_first_word', display:'takes everything after the first word'}
-    { name:'upper_case', display:'upper cases all letters'}
-    { name:'lower_case', display:'lower cases all letters'}
-    { name:'read_digits', display:'reads back a number in a friendly way'}
-  ]
+  findContextQuery = (query) ->
 
-  findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
+    if not query
+      return query
 
-    matched = {}
-    results = []
+    excellentParser.autoCompleteContext(query) or ''
+
+  findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
+
+    matched = {};
+    results = [];
 
     for option in data
-      if option.name.indexOf(query) == 0
+      if option.name.toLowerCase().indexOf(query.toLowerCase()) == 0
         nextDot = option.name.indexOf('.', lastIdx + 1)
         if nextDot == -1
 
@@ -78,14 +75,23 @@ app.directive "autoComplete", ["$timeout", "$http", "$log", "Flow", ($timeout, $
             name = start + "."
           name += suffix
 
-          if name.indexOf(query) != 0
+          if name.toLowerCase().indexOf(query.toLowerCase()) != 0
             continue
 
           display = null
 
         if name not of matched
           matched[name] = name
-          results.push({ name: name, display: display })
+
+          matchingOption =
+            name: name
+            display: display
+
+          for key in Object.keys(option)
+            if key isnt 'name' and key isnt 'display'
+              matchingOption[key] = option[key]
+
+          results.push(matchingOption)
 
     return results
 
@@ -99,104 +105,137 @@ app.directive "autoComplete", ["$timeout", "$http", "$log", "Flow", ($timeout, $
     if attrs.flow
       qs += "&flow=" + attrs.flow
 
-    element.atwho
-      at: "@",
+    at_config =
+      at: "@"
+      insertBackPos: 1
       data: Flow.completions
-      insert_space: false
-      limit: 15
-      space_after: false
-      start_with_space: false
-      max_len: 100
+      searchKey: "name"
+      insertTpl: '@${name}'
+      startWithSpace: true
+      displayTpl: "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
+      limit: 100
+      maxLen: 100
+      suffix: ""
       callbacks:
+        beforeInsert: (value, item) ->
 
-        before_save: (data) ->
-          all_results = data
-          return data
+          completionChars = new RegExp("([A-Za-z_\d\.]*)$", 'gi')
+          valueForName = ""
+          match = completionChars.exec(value)
+          if match
+            valueForName = match[2] || match[1]
 
-        before_insert: (value, item, selectionEvent) ->
+          data_variables = Flow.completions
 
-          # see if there's more data to filter on
-          data = all_results #this.settings['@']['data']
           hasMore = false
-          test = value.substring(1)
+          for option in data_variables
+            hasMore = valueForName  and option.name.indexOf(valueForName) is 0 and option.name isnt valueForName
+            break if hasMore
 
-          for option in data
-            if option.name.indexOf(test) == 0 and option.name != test
-              hasMore = true
-              break
+          value += '.' if hasMore
 
-          # TODO: See if at.js still supports key code here (hasMore and #selectionEvent.keyCode == TAB)
-          if hasMore
-            value += '.'
-          else
-            value += ' '
+          data_functions = Flow.function_completions
+          isFunction = false
+          for option in data_functions
+            isFunction = valueForName and option.name.indexOf(valueForName) is 0 and option.name is valueForName
+            break if isFunction
 
-          return value
+          value += '()' if isFunction
 
-        filter: (query, data, search_key) ->
-          # make sure we are enabled to return results
+          if valueForName is "" and value is '@('
+            value += ')'
+          else if valueForName and not hasMore and not isFunction
+            value += " "
 
-          if scope.autoComplete is not undefined and not scope.autoComplete
-            return []
+          value
 
-          q = query.toLowerCase()
-          lastIdx = q.lastIndexOf('.')
-          start = q.substring(0, lastIdx)
 
-          results = findMatches(q, data, start, lastIdx)
+        matcher: (flag, subtext) ->
+          excellentParser.expressionContext(subtext);
 
-          if results.length > 0
-            return results
+        filter: (query, data, searchKey) ->
 
-          flag = "@"
-          flag = "(?:^|\\s)" + flag.replace(/[\-\[\]\/\{\}\(\)\*\+\?\\\^\$\|]/g, "\\$&")
+          if query and query[0] is '('
+            data = Flow.variables_and_functions
+
+          contextQuery = findContextQuery(query)
+          lastIdx = contextQuery.lastIndexOf('.')
+          start = contextQuery.substring(0, lastIdx)
+          results = findMatches(contextQuery, data, start, lastIdx)
+
+          return results if results.length > 0
+
           regexp = new RegExp("([A-Za-z0-9_+-.]*\\|)([A-Za-z0-9_+-.]*)", "gi")
-          match = regexp.exec(q)
+          match = regexp.exec(contextQuery)
 
           if match
-
-            # check that we should even be matching
-            name = q.substring(0, q.indexOf('|'))
-            found = false
-            for d in data
-              if d.name == name
+            name = contextQuery.substring(0, q.indexOf('|'))
+            found = false;
+            for item in data
+              if item.name is name
                 found = true
                 break
 
-            if not found
-              return results
+            return results unless found
 
-            filterQuery = match[2]
-            lastIdx = q.lastIndexOf('|') + 1
-            start = q.substring(0, lastIdx - 1)
-            filterQuery = q.substring(lastIdx)
-            results = findMatches(filterQuery, filters, start , q.lastIndexOf('|'), '|')
-
-          return results
+            lastIdx = contextQuery.lastIndexOf('|') + 1;
+            start = contextQuery.substring 0, lastIdx - 1
+            filterQuery = contextQuery.substring lastIdx
+            results = findMatches(filterQuery, filters, start, contextQuery.lastIndexOf('|'), '|')
 
 
-        tpl_eval: (tpl, map) ->
+        sorter: (query, items, searchKey) ->
 
-          if not map.display
-            tpl = "<li data-value='@${name}'>${name}</li>"
-          try
-            return tpl.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
-          catch error
-            return ""
+          lastOptFunctions =
+            'name': '('
+            'display': "Functions"
+
+          unless query
+            items.push(lastOptFunctions)
+            return items
+
+          contextQuery = findContextQuery(query);
+
+          _results = []
+          for item in items
+            item.atwho_order = new String(item[searchKey]).toLowerCase().indexOf contextQuery.toLowerCase()
+            _results.push item if item.atwho_order > -1
+
+          if query.match(/[(.]/g) is null
+            _results.push(lastOptFunctions)
+
+          _results.sort (a,b) -> a.atwho_order - b.atwho_order
+
 
         highlighter: (li, query) ->
-          return li
+          li
 
-        matcher: (flag, subtext) ->
-          flag = "(?:^|\\s)" + flag.replace(/[\-\[\]\/\{\}\(\)\*\+\?\\\^\$\|]/g, "\\$&")
-          regexp = new RegExp(flag + "([A-Za-z0-9_+-.\\|]*)$|" + flag + "([^\\x00-\\xff]*)$", "gi")
-          match = regexp.exec(subtext)
-          if match
-            match[2] or match[1]
-          else
-            null
 
-      tpl: "<li data-value='@${name}'>${name} (<span>${display}</span>)</li>"
+        tplEval: (tpl, map, action) ->
+
+          template = tpl;
+
+          query = this.query.text
+          contextQuery = findContextQuery query
+
+          if action is 'onInsert'
+            if query and query[0] is '(' and query.length is 1 and contextQuery is ""
+              template = '@(${name}'
+            else
+              regexp = new RegExp(contextQuery + "$")
+              template = ('@' + query).replace(regexp, '${name}')
+
+          try
+            template = tpl(map) unless typeof tpl is 'string'
+
+
+            if typeof map.example isnt "undefined" and action is "onDisplay"
+              template = "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
+
+            template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
+          catch error
+            ""
+    element.atwho(at_config)
 
   return {
     restrict: 'A'

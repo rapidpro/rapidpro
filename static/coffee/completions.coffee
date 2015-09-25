@@ -1,8 +1,6 @@
 KEY_LEFT = 37
 KEY_RIGHT = 39
 
-window.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
-
 window.matcher = (flag, subtext) ->
   excellentParser.expressionContext(subtext);
 

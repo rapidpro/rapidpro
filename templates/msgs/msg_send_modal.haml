@@ -57,8 +57,10 @@
 
   :javascript
     $(document).ready(function() {
+      window.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
       window.message_completions = {{completions|safe}};
       window.functions_completions = {{functions_completions|safe}};
+
       initAtMessageText($('#id_text'));
       $("textarea").keyup(messageTextareaLengthCheck);
     });

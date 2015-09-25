@@ -911,7 +911,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         # update our auto completion options
         $http.get('/flow/completion/?flow=' + flowId).success (data) ->
-          Flow.completions = data
+          Flow.completions = data.completions
+          Flow.function_completions = data.function_completions
+          Flow.variables_and_functions = data.completions.concat(data.functions_completions)
+
 
         $http.get('/contactfield/json/').success (fields) ->
           Flow.contactFields = fields
