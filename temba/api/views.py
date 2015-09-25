@@ -2653,7 +2653,8 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
 
     ## Listing Boundaries
 
-    Returns the boundaries for your organization.
+    Returns the boundaries for your organization. You can return just the names of the boundaries and their aliases,
+    without any coordinate information by passing "?aliases=true".
 
     **Note that this may be a very large dataset as it includes the simplified coordinates for each administrative boundary.
      It is recommended to cache the results on the client side.**
