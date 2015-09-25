@@ -630,11 +630,11 @@ class Contact(TembaModel, SmartModel):
         # create our contact
         contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
 
-        # remove any reserved fields, they aren't contact fields
-        for field in Contact.RESERVED_FIELDS:
-            del field_dict[field]
-
         for key in field_dict.keys():
+            # ignore any reserved fields
+            if key in Contact.RESERVED_FIELDS:
+                continue
+
             value = field_dict[key]
 
             # date values need converted to localized strings

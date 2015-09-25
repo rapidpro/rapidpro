@@ -56,7 +56,7 @@ class TableExporter(object):
 
         else:
             # time for a new sheet? do it
-            if self.sheet_row > TableExporter.MAX_XLS_COLS:
+            if self.sheet_row > TableExporter.MAX_XLS_ROWS:
                 self._add_sheet()
 
             for col, value in enumerate(values):
