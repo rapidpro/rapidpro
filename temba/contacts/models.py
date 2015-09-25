@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import defaultdict
 
 import datetime
 import json
@@ -20,8 +21,10 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list
 from temba.utils.models import TembaModel
+from temba.utils.exporter import TableExporter
+from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
 
@@ -1093,7 +1096,7 @@ class Contact(TembaModel, SmartModel):
 
         return truncate(res, 20) if short else res
 
-    def get_urn_display(self, org=None, scheme=None, full=False):
+    def get_urn_display(self, org=None, scheme=None, urn=None, full=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
         based on the contact.
@@ -1104,7 +1107,9 @@ class Contact(TembaModel, SmartModel):
         if org.is_anon:
             return self.anon_identifier
 
-        urn = self.get_urn(scheme)
+        if not urn or urn.scheme != scheme:
+            urn = self.get_urn(scheme)
+
         return urn.get_display(org=org, full=full) if urn else ''
 
     def raw_tel(self):
@@ -1558,7 +1563,6 @@ class ContactGroup(TembaModel, SmartModel):
     def __unicode__(self):
         return self.name
 
-
 class ExportContactsTask(SmartModel):
 
     org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
@@ -1584,107 +1588,109 @@ class ExportContactsTask(SmartModel):
             self.save(update_fields=['is_finished'])
 
     def do_export(self):
-        from xlwt import Workbook
+        fields = [dict(label='Phone', key='phone', id=0, field=None),
+                  dict(label='Name', key='name', id=0, field=None)]
 
-        book = Workbook()
+        with SegmentProfiler("building up contact fields"):
+            contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+            for contact_field in contact_fields_list:
+                fields.append(dict(field=contact_field,
+                                   label=contact_field.label,
+                                   key=contact_field.key,
+                                   id=contact_field.id))
 
-        fields = [dict(label='Phone', key='phone'), dict(label='Name', key='name')]
-        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True)
+        with SegmentProfiler("build up contact ids"):
+            all_contacts = Contact.get_contacts(self.org).order_by('name', 'id')
+            if self.group:
+                all_contacts = all_contacts.filter(all_groups=self.group)
 
-        for contact_field in contact_fields_list:
-            fields.append(dict(label=contact_field.label, key=contact_field.key))
+            contact_ids = [c['id'] for c in all_contacts.values('id')]
 
-        all_contacts = Contact.get_contacts(self.org).order_by('name', 'pk')
+        # create our exporter
+        exporter = TableExporter("Contact", [c['label'] for c in fields])
 
-        if self.group:
-            all_contacts = all_contacts.filter(all_groups=self.group)
+        current_contact = 0
+        start = time.time()
 
-        # if we have too many fields, Export using csv Otherwise use Excel
-        use_csv = len(fields) > 256
+        field_ids = []
+        for field in fields:
+            if field['id']:
+                field_ids.append(field['id'])
 
-        temp = NamedTemporaryFile(delete=True)
+        # in batches of 500 contacts
+        for batch_ids in chunk_list(contact_ids, 500):
+            with SegmentProfiler("output 500 contacts"):
+                # batch_ids is an iterator, but we are going to iterate more than once, so convert it to a list
+                batch_ids = list(batch_ids)
 
-        if use_csv:
-            import csv
+                # fetch all the contacts for our batch
+                batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
-            writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
+                # fetch all our contact field values for our batch
+                batch_values = Value.objects.filter(contact_id__in=batch_ids, contact_field_id__in=field_ids)
 
-            writer.writerow([s['label'].encode("utf-8") for s in fields])
+                # build a map of maps for fields
+                contact_values = defaultdict(dict)
+                for value in batch_values:
+                    contact_values[value.contact_id][value.contact_field_id] = value
 
-            for obj in all_contacts:
-                row_data = []
-                for col in range(len(fields)):
-                    field = fields[col]['key']
-                    field_value = obj.get_field_display(field)
+                # fetch all the telephone #s for this batch
+                batch_urns = ContactURN.objects.filter(contact_id__in=batch_ids, scheme=TEL_SCHEME)\
+                                       .order_by('-priority', 'pk')
 
-                    if field == 'name':
-                        field_value = obj.name
+                # build a map of maps for urns
+                contact_urns = defaultdict(dict)
+                for urn in batch_urns:
+                    # only keep the highest priority for each scheme
+                    if urn.scheme not in contact_urns[urn.contact_id]:
+                        contact_urns[urn.contact_id][urn.scheme] = urn
 
-                    value = ""
-                    if field_value:
-                        value = unicode(field_value)
-
-                    if field == 'phone':
-                        value = obj.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
-
-                    row_data.append(value)
-
-                writer.writerow([s.encode("utf-8") for s in row_data])
-        else:
-            contact_sheet_number = 1
-            all_contacts = list(all_contacts)
-
-            def add_sheet(book, sheet_number, fields):
-                # write our first sheet
-                sheet = book.add_sheet(unicode(_("Contacts %d" % sheet_number)))
-                for col in range(len(fields)):
-                    sheet.write(0, col, unicode(fields[col]['label']))
-
-                return sheet
-
-            current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
-
-            while all_contacts:
-                if len(all_contacts) >= 65535:
-                    contacts = all_contacts[:65535]
-                    all_contacts = all_contacts[65535:]
-                else:
-                    contacts = all_contacts
-                    all_contacts = None
-
-                # then our actual values
-                for row in range(len(contacts)):
-                    obj = contacts[row]
+                for contact in batch_contacts:
+                    values = []
                     for col in range(len(fields)):
-                        field = fields[col]['key']
-                        field_value = obj.get_field_display(field)
+                        field = fields[col]
 
-                        if field == 'name':
-                            field_value = obj.name
+                        field_value = None
+                        if field['key'] == 'name':
+                            field_value = contact.name
+                        elif field['key'] == 'phone':
+                            urn = contact_urns[contact.id].get(TEL_SCHEME)
+                            if urn:
+                                field_value = contact.get_urn_display(self.org, scheme=TEL_SCHEME,
+                                                                      urn=urn, full=True)
+                        else:
+                            value = contact_values[contact.id].get(field['id'], None)
+                            if value:
+                                field_value = Contact.get_field_display_for_value(field['field'], value)
 
-                        value = ""
                         if field_value:
-                            value = unicode(field_value)
+                            field_value = unicode(field_value)
 
-                        if field == 'phone':
-                            value = obj.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
+                        values.append(field_value)
 
-                        # skip the header
-                        current_contact_sheet.write(row + 1, col, value)
+                    # write this contact's values
+                    exporter.write_row(values)
+                    current_contact += 1
 
-                contact_sheet_number += 1
-                current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
+                    # output some status information every 10,000 contacts
+                    if current_contact % 10000 == 0:
+                        elapsed = time.time() - start
+                        predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
-            book.save(temp)
-
-        temp.flush()
+                        print "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" % \
+                            (self.org.name, current_contact * 100 / len(contact_ids),
+                             "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
+                             time.time() - start, predicted)
 
         # save as file asset associated with this task
         from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
 
+        # get our table file
+        table_file = exporter.save_file()
+
         store = AssetType.contact_export.store
-        store.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
+        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'
