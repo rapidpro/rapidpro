@@ -380,8 +380,8 @@ class ContactWriteSerializer(WriteSerializer):
         phone = attrs.get('phone', None)
         uuid = attrs.get('uuid', None)
 
-        if (not urns and not phone and not uuid) or (urns and phone):
-            raise ValidationError("Must provide either urns, phone or uuid but only one of each")
+        if urns and phone:
+            raise ValidationError("Cannot provide both urns and phone parameters together")
 
         if attrs.get('group_uuids', []) and attrs.get('groups', []):
             raise ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
