@@ -28,9 +28,6 @@ from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
 
-# don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name', 'language']
-
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
 
@@ -66,7 +63,7 @@ class ContactField(models.Model):
     def api_make_key(cls, label):
         key = cls.make_key(label)
 
-        if key in RESERVED_CONTACT_FIELDS:
+        if key in Contact.RESERVED_FIELDS:
             raise ValidationError(_("key for %s is a reserved name for contact fields") % label)
 
         return key
@@ -156,7 +153,6 @@ class ContactField(models.Model):
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
-
 class Contact(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
@@ -177,6 +173,15 @@ class Contact(TembaModel, SmartModel):
                                 help_text=_("The preferred language for this contact"))
 
     simulation = False
+
+    NAME = 'name'
+    FIRST_NAME = 'first_name'
+    LANGUAGE = 'language'
+    PHONE = 'phone'
+
+    # reserved contact fields
+    RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
+                       'created_by', 'modified_by', 'org', 'uuid', 'groups']
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -358,7 +363,7 @@ class Contact(TembaModel, SmartModel):
         """
         groups_changed = False
 
-        if 'name' in attrs or field or urns:
+        if Contact.NAME in attrs or field or urns:
             # ensure dynamic groups are up to date
             groups_changed = ContactGroup.update_groups_for_contact(self, field)
 
@@ -473,7 +478,7 @@ class Contact(TembaModel, SmartModel):
                 if name:
                     contact.name = name
                     contact.save()
-                    updated_attrs['name'] = name
+                    updated_attrs[Contact.NAME] = name
 
             # otherwise create new contact with all URNs
             else:
@@ -618,17 +623,17 @@ class Contact(TembaModel, SmartModel):
             return None
 
         # title case our name
-        name = field_dict.get('name', None)
+        name = field_dict.get(Contact.NAME, None)
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
         # create our contact
         contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
 
-        del field_dict['created_by']
-        del field_dict['name']
-        del field_dict['modified_by']
-        
+        # remove any reserved fields, they aren't contact fields
+        for field in Contact.RESERVED_FIELDS:
+            del field_dict[field]
+
         for key in field_dict.keys():
             value = field_dict[key]
 
@@ -654,7 +659,7 @@ class Contact(TembaModel, SmartModel):
         for field in import_params['extra_fields']:
             key = field['key']
             label = field['label']
-            if key not in RESERVED_CONTACT_FIELDS:
+            if key not in Contact.RESERVED_FIELDS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
                 value = field_dict[field['header']]
                 del field_dict[field['header']]
@@ -670,7 +675,7 @@ class Contact(TembaModel, SmartModel):
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
-            if key not in RESERVED_CONTACT_FIELDS and key not in extra_fields and key not in active_scheme:
+            if key not in Contact.RESERVED_FIELDS and key not in extra_fields and key not in active_scheme:
                 del field_dict[key]
 
         return field_dict
@@ -702,7 +707,7 @@ class Contact(TembaModel, SmartModel):
             os.remove(tmp_file)
 
         Contact.validate_import_header(headers)
-        built_in_fields = ['name', 'phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        built_in_fields = [Contact.NAME, Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
         optional_columns = []
         for header in headers:
             if header not in built_in_fields:
@@ -712,7 +717,7 @@ class Contact(TembaModel, SmartModel):
 
     @classmethod
     def validate_import_header(cls, header):
-        possible_urn_fields = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        possible_urn_fields = [Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
         header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
@@ -923,8 +928,8 @@ class Contact(TembaModel, SmartModel):
             setattr(contact, '__urns', list())  # initialize URN list cache (setattr avoids name mangling or __urns)
 
         # cache all field values
-        values = Value.objects.filter(contact__in=contact_map.keys(),
-                                      contact_field__in=fields).order_by('contact').select_related('contact_field')
+        values = Value.objects.filter(contact_id__in=contact_map.keys(),
+                                      contact_field_id__in=key_map.keys()).select_related('contact_field')
         for value in values:
             contact = contact_map[value.contact_id]
             field_key = key_map[value.contact_field_id]
@@ -950,12 +955,12 @@ class Contact(TembaModel, SmartModel):
         """
         org = self.org
         contact_dict = dict(__default__=self.get_display(org=org))
-        contact_dict['name'] = self.name if self.name else ''
-        contact_dict['first_name'] = self.first_name(org)
+        contact_dict[Contact.NAME] = self.name if self.name else ''
+        contact_dict[Contact.FIRST_NAME] = self.first_name(org)
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
-        contact_dict['language'] = self.language
+        contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
@@ -1096,7 +1101,7 @@ class Contact(TembaModel, SmartModel):
 
         return truncate(res, 20) if short else res
 
-    def get_urn_display(self, org=None, scheme=None, urn=None, full=False):
+    def get_urn_display(self, org=None, scheme=None, full=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
         based on the contact.
@@ -1107,9 +1112,7 @@ class Contact(TembaModel, SmartModel):
         if org.is_anon:
             return self.anon_identifier
 
-        if not urn or urn.scheme != scheme:
-            urn = self.get_urn(scheme)
-
+        urn = self.get_urn(scheme)
         return urn.get_display(org=org, full=full) if urn else ''
 
     def raw_tel(self):
@@ -1563,6 +1566,7 @@ class ContactGroup(TembaModel, SmartModel):
     def __unicode__(self):
         return self.name
 
+
 class ExportContactsTask(SmartModel):
 
     org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
@@ -1588,8 +1592,8 @@ class ExportContactsTask(SmartModel):
             self.save(update_fields=['is_finished'])
 
     def do_export(self):
-        fields = [dict(label='Phone', key='phone', id=0, field=None),
-                  dict(label='Name', key='name', id=0, field=None)]
+        fields = [dict(label='Phone', key=Contact.PHONE, id=0, field=None),
+                  dict(label='Name', key=Contact.NAME, id=0, field=None)]
 
         with SegmentProfiler("building up contact fields"):
             contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
@@ -1612,56 +1616,27 @@ class ExportContactsTask(SmartModel):
         current_contact = 0
         start = time.time()
 
-        field_ids = []
-        for field in fields:
-            if field['id']:
-                field_ids.append(field['id'])
-
         # in batches of 500 contacts
         for batch_ids in chunk_list(contact_ids, 500):
             with SegmentProfiler("output 500 contacts"):
-                # batch_ids is an iterator, but we are going to iterate more than once, so convert it to a list
-                batch_ids = list(batch_ids)
-
                 # fetch all the contacts for our batch
                 batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
-                # fetch all our contact field values for our batch
-                batch_values = Value.objects.filter(contact_id__in=batch_ids, contact_field_id__in=field_ids)
-
-                # build a map of maps for fields
-                contact_values = defaultdict(dict)
-                for value in batch_values:
-                    contact_values[value.contact_id][value.contact_field_id] = value
-
-                # fetch all the telephone #s for this batch
-                batch_urns = ContactURN.objects.filter(contact_id__in=batch_ids, scheme=TEL_SCHEME)\
-                                       .order_by('-priority', 'pk')
-
-                # build a map of maps for urns
-                contact_urns = defaultdict(dict)
-                for urn in batch_urns:
-                    # only keep the highest priority for each scheme
-                    if urn.scheme not in contact_urns[urn.contact_id]:
-                        contact_urns[urn.contact_id][urn.scheme] = urn
+                # bulk initialize them
+                Contact.bulk_cache_initialize(self.org, batch_contacts)
 
                 for contact in batch_contacts:
                     values = []
                     for col in range(len(fields)):
                         field = fields[col]
 
-                        field_value = None
-                        if field['key'] == 'name':
+                        if field['key'] == Contact.NAME:
                             field_value = contact.name
-                        elif field['key'] == 'phone':
-                            urn = contact_urns[contact.id].get(TEL_SCHEME)
-                            if urn:
-                                field_value = contact.get_urn_display(self.org, scheme=TEL_SCHEME,
-                                                                      urn=urn, full=True)
+                        elif field['key'] == Contact.PHONE:
+                            field_value = contact.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
                         else:
-                            value = contact_values[contact.id].get(field['id'], None)
-                            if value:
-                                field_value = Contact.get_field_display_for_value(field['field'], value)
+                            value = contact.get_field(field['key'])
+                            field_value = Contact.get_field_display_for_value(field['field'], value)
 
                         if field_value:
                             field_value = unicode(field_value)
