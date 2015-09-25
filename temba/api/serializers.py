@@ -523,23 +523,22 @@ class ContactWriteSerializer(WriteSerializer):
         if self.org.is_anon:
             raise ValidationError("Cannot update contacts on anonymous organizations")
 
-        uuid = attrs.get('uuid', None)
-        if uuid:
-            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
-
         urns = attrs.get('urns', None)
         phone = attrs.get('phone', None)
-
-        # user didn't specify either urns or phone, stick to what already exists
-        if urns is None and phone is None:
-            urns = [(u.scheme, u.path) for u in contact.urns.all()]
+        uuid = attrs.get('uuid', None)
 
         # user only specified phone, build our urns from it
         if phone:
-            urns = [(TEL_SCHEME, attrs['phone'])]
+            urns = [(TEL_SCHEME, phone)]
 
         if uuid:
+            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
+
+            # user didn't specify either urns or phone, stick to what already exists
+            if urns is None and phone is None:
+                urns = [(u.scheme, u.path) for u in contact.urns.all()]
             contact.update_urns(urns)
+
         else:
             contact = Contact.get_or_create(self.org, self.user, urns=urns, uuid=uuid)
 
