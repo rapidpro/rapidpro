@@ -1603,11 +1603,11 @@ class ExportContactsTask(SmartModel):
                                    id=contact_field.id))
 
         with SegmentProfiler("build up contact ids"):
-            all_contacts = Contact.get_contacts(self.org).order_by('name', 'id')
+            all_contacts = Contact.get_contacts(self.org)
             if self.group:
                 all_contacts = all_contacts.filter(all_groups=self.group)
 
-            contact_ids = [c['id'] for c in all_contacts.values('id')]
+            contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
 
         # create our exporter
         exporter = TableExporter("Contact", [c['label'] for c in fields])
@@ -1618,13 +1618,20 @@ class ExportContactsTask(SmartModel):
         # in batches of 500 contacts
         for batch_ids in chunk_list(contact_ids, 500):
             with SegmentProfiler("output 500 contacts"):
+                batch_ids = list(batch_ids)
+
                 # fetch all the contacts for our batch
                 batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
+
+                # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
+                contact_by_id = {c.id:c for c in batch_contacts}
 
                 # bulk initialize them
                 Contact.bulk_cache_initialize(self.org, batch_contacts)
 
-                for contact in batch_contacts:
+                for contact_id in batch_ids:
+                    contact = contact_by_id[contact_id]
+
                     values = []
                     for col in range(len(fields)):
                         field = fields[col]
