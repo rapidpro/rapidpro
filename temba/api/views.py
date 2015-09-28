@@ -902,11 +902,8 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         else:
             queryset = queryset.exclude(visibility=DELETED)
 
-        reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
-        order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
-
         queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
-        return queryset.order_by(order).distinct()
+        return queryset.order_by('-created_on').distinct()
 
     @classmethod
     def get_read_explorer(cls):
