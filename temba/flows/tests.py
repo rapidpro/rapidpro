@@ -2497,19 +2497,23 @@ class FlowsTest(FlowFileTest):
         response = self.client.get('%s?flow=%d' % (reverse('flows.flow_completion'), flow.pk))
         response = json.loads(response.content)
 
-        def assertInResponse(response, key):
+        def assertInResponse(response, data_key, key):
             found = False
-            for item in response:
+            for item in response[data_key]:
                 if key == item['name']:
                     found = True
             self.assertTrue(found, 'Key %s not found in %s' % (key, response))
 
-        assertInResponse(response, 'contact')
-        assertInResponse(response, 'contact.first_name')
-        assertInResponse(response, 'flow.color')
-        assertInResponse(response, 'flow.color.category')
-        assertInResponse(response, 'flow.color.text')
-        assertInResponse(response, 'flow.color.time')
+        assertInResponse(response, 'message_completions', 'contact')
+        assertInResponse(response, 'message_completions', 'contact.first_name')
+        assertInResponse(response, 'message_completions', 'flow.color')
+        assertInResponse(response, 'message_completions', 'flow.color.category')
+        assertInResponse(response, 'message_completions', 'flow.color.text')
+        assertInResponse(response, 'message_completions', 'flow.color.time')
+
+        assertInResponse(response, 'function_completions', 'SUM')
+        assertInResponse(response, 'function_completions', 'ABS')
+        assertInResponse(response, 'function_completions', 'YEAR')
 
     def test_expiration(self):
         flow = self.get_flow('favorites')
