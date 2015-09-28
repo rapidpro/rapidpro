@@ -1,5 +1,7 @@
 describe 'Matcher:', ->
 
+  matcher = autoCompleteUtils.matcher
+
   it 'should match "" after flag', ->
     matched = matcher "@", "some texts before @"
     expect(matched).toBe("")
@@ -78,6 +80,8 @@ describe 'Matcher:', ->
 
 describe 'find context query', ->
 
+  findContextQuery = autoCompleteUtils.findContextQuery
+
   it 'should return if not query', ->
     ctxtQuery = findContextQuery ''
     expect(ctxtQuery).toBe('')
@@ -145,6 +149,9 @@ describe 'find context query', ->
     expect(ctxtQuery).toBe('contact.age')
 
 describe 'Find matches:', ->
+
+  findMatches = autoCompleteUtils.findMatches
+
   data = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
           {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
           {"name":"contact.urn.path.tel.number", "display":"Contact URN tel number"},
@@ -186,6 +193,8 @@ describe 'Find matches:', ->
 
 
 describe 'Sorter:', ->
+
+  sorter = autoCompleteUtils.sorter
 
   it 'should include "Functions" for null query', ->
     items = []
@@ -229,40 +238,45 @@ describe 'Sorter:', ->
 
 
 describe 'Filter:', ->
+
+  filter = autoCompleteUtils.filter
+
   data = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
           {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
           {"name":"contact.urn.path.tel.number", "display":"Contact URN tel number"},
           {"name":"channel.address", "display":"Channel Address"}]
 
   it 'should filter using findMatches', ->
-    spyOn(window, "findMatches").and.callThrough()
+    spyOn(autoCompleteUtils, "findMatches").and.callThrough()
     results = filter "", data, 'name'
     expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}]
     expect(results).toEqual(expected)
-    expect(window.findMatches).toHaveBeenCalledWith("", data, "", -1)
+    expect(autoCompleteUtils.findMatches).toHaveBeenCalledWith("", data, "", -1)
 
     results = filter "con", data, 'name'
     expected = [{"name":"contact", "display":"Contact Name"}]
     expect(results).toEqual(expected)
-    expect(window.findMatches).toHaveBeenCalledWith("con", data, "", -1)
+    expect(autoCompleteUtils.findMatches).toHaveBeenCalledWith("con", data, "", -1)
 
     results = filter "contact.a", data, 'name'
     expected = [{"name":"contact.age", "display":"Contact Age"}]
     expect(results).toEqual(expected)
-    expect(window.findMatches).toHaveBeenCalledWith("contact.a", data, "contact", 7)
+    expect(autoCompleteUtils.findMatches).toHaveBeenCalledWith("contact.a", data, "contact", 7)
 
 
 describe 'beforeInsert:', ->
 
+  beforeInsert = autoCompleteUtils.beforeInsert
+
   beforeEach ->
-    window.variables = [
+    autoCompleteUtils.variables = [
       {"display": "New Contact", "name": "new_contact"}
       {"display": "Contact Name", "name": "contact"}
       {"display": "Contact Name", "name": "contact.name"}
       {"display": "Contact First Name", "name": "contact.first_name"}
     ]
 
-    window.functions =[
+    autoCompleteUtils.functions =[
       {"display": "Display Returns the sum of all arguments", "description": "Description: Returns the sum of all arguments", "name": "SUM", "hint": "Hint: Returns the sum of all arguments", "example": "SUM(args)", "arguments": [{"name": "args", "hint": "Hint for :-:args:-: arg"}]}
       {"display": "Display: Defines a time value", "description": "Description: Defines a time value", "name": "TIME", "hint": "Hint: Defines a time value", "example": "TIME(hours, minutes, seconds)","arguments": [{"name": "hours", "hint": "Hint for :-:hours:-: arg"}, {"name": "minutes","hint": "Hint for :-:minutes:-: arg"}]}
     ]
@@ -284,7 +298,10 @@ describe 'beforeInsert:', ->
     value = beforeInsert "@(SUM", []
     expect(value).toBe("@(SUM()")
 
-describe 'tplEval:', ->
+describe 'tplval:', ->
+
+  tplval = autoCompleteUtils.tplval
+
   beforeEach ->
     window.query =
       text: null

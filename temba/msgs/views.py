@@ -52,8 +52,8 @@ def send_message_auto_complete_processor(request):
         completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
         completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
-    functions_completions = get_function_listing()
-    return dict(completions=json.dumps(completions), functions_completions=json.dumps(functions_completions))
+    function_completions = get_function_listing()
+    return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
 
 
 class SendMessageForm(Form):

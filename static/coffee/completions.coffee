@@ -1,19 +1,21 @@
 KEY_LEFT = 37
 KEY_RIGHT = 39
 
-window.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
+window.autoCompleteUtils = {}
 
-window.matcher = (flag, subtext) ->
-  excellentParser.expressionContext(subtext);
+autoCompleteUtils.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
 
-window.findContextQuery = (query) ->
+autoCompleteUtils.matcher = (flag, subtext) ->
+  autoCompleteUtils.excellentParser.expressionContext(subtext)
+
+autoCompleteUtils.findContextQuery = (query) ->
 
   if not query
     return query
 
-  excellentParser.autoCompleteContext(query) or ''
+  autoCompleteUtils.excellentParser.autoCompleteContext(query) or ''
 
-window.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
+autoCompleteUtils.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
 
   matched = {};
   results = [];
@@ -56,15 +58,15 @@ window.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
 
   return results
 
-window.filter = (query, data, searchKey) ->
+autoCompleteUtils.filter = (query, data, searchKey) ->
 
   if query and query[0] is '('
-    data = variables_and_functions
+    data = autoCompleteUtils.variables_and_functions
 
-  contextQuery = findContextQuery query
+  contextQuery = autoCompleteUtils.findContextQuery query
   lastIdx = contextQuery.lastIndexOf '.'
   start = contextQuery.substring 0, lastIdx
-  results = findMatches contextQuery, data, start, lastIdx
+  results = autoCompleteUtils.findMatches contextQuery, data, start, lastIdx
 
   return results if results.length > 0
 
@@ -84,10 +86,10 @@ window.filter = (query, data, searchKey) ->
     lastIdx = contextQuery.lastIndexOf('|') + 1;
     start = contextQuery.substring 0, lastIdx - 1
     filterQuery = contextQuery.substring lastIdx
-    results = findMatches filterQuery, filters, start, contextQuery.lastIndexOf '|', '|'
+    results = autoCompleteUtils.findMatches filterQuery, filters, start, contextQuery.lastIndexOf '|', '|'
 
 
-window.sorter = (query, items, searchKey) ->
+autoCompleteUtils.sorter = (query, items, searchKey) ->
 
   lastOptFunctions =
     'name': '('
@@ -97,7 +99,7 @@ window.sorter = (query, items, searchKey) ->
     items.push(lastOptFunctions)
     return items
 
-  contextQuery = findContextQuery(query);
+  contextQuery = autoCompleteUtils.findContextQuery(query);
 
   _results = []
   for item in items
@@ -110,7 +112,7 @@ window.sorter = (query, items, searchKey) ->
   _results.sort (a,b) -> a.atwho_order - b.atwho_order
 
 
-window.beforeInsert = (value, item) ->
+autoCompleteUtils.beforeInsert = (value, item) ->
 
   completionChars = new RegExp("([A-Za-z_\d\.]*)$", 'gi')
   valueForName = ""
@@ -118,7 +120,7 @@ window.beforeInsert = (value, item) ->
   if match
     valueForName = match[2] || match[1]
 
-  data_variables = variables
+  data_variables = autoCompleteUtils.variables
   hasMore = false
   for option in data_variables
     hasMore = valueForName  and option.name.indexOf(valueForName) is 0 and option.name isnt valueForName
@@ -126,7 +128,7 @@ window.beforeInsert = (value, item) ->
 
   value += '.' if hasMore
 
-  data_functions = functions
+  data_functions = autoCompleteUtils.functions
   isFunction = false
   for option in data_functions
     isFunction = valueForName and option.name.indexOf(valueForName) is 0 and option.name is valueForName
@@ -141,15 +143,15 @@ window.beforeInsert = (value, item) ->
 
   value
 
-window.highlighter = (li, query) ->
+autoCompleteUtils.highlighter = (li, query) ->
   li
 
-window.tplval = (tpl, map, action) ->
+autoCompleteUtils.tplval = (tpl, map, action) ->
 
   template = tpl;
 
   query = this.query.text
-  contextQuery = findContextQuery query
+  contextQuery = autoCompleteUtils.findContextQuery query
 
   if action is 'onInsert'
     if query and query[0] is '(' and query.length is 1 and contextQuery is ""
@@ -171,9 +173,10 @@ window.tplval = (tpl, map, action) ->
 
 
 @initAtMessageText = (selector, completions=null) ->
-  window.variables = window.message_completions unless completions
-  window.functions = window.functions_completions
-  window.variables_and_functions = variables.concat(functions);
+  autoCompleteUtils.variables = window.message_completions unless completions
+  autoCompleteUtils.functions = window.functions_completions
+  autoCompleteUtils.variables_and_functions = autoCompleteUtils.variables.concat(autoCompleteUtils.functions)
+
 
   callbacks =
     beforeInsert: beforeInsert
