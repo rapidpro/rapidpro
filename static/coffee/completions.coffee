@@ -17,8 +17,8 @@ autoCompleteUtils.findContextQuery = (query) ->
 
 autoCompleteUtils.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
 
-  matched = {};
-  results = [];
+  matched = {}
+  results = []
 
   for option in data
     if option.name.toLowerCase().indexOf(query.toLowerCase()) == 0
@@ -174,22 +174,21 @@ autoCompleteUtils.tplval = (tpl, map, action) ->
 
 @initAtMessageText = (selector, completions=null) ->
   autoCompleteUtils.variables = window.message_completions unless completions
-  autoCompleteUtils.functions = window.functions_completions
+  autoCompleteUtils.functions = window.function_completions
   autoCompleteUtils.variables_and_functions = autoCompleteUtils.variables.concat(autoCompleteUtils.functions)
 
-
   callbacks =
-    beforeInsert: beforeInsert
-    matcher: matcher
-    filter: filter
-    sorter: sorter
-    highlighter: highlighter
-    tplEval: tplval
+    beforeInsert: autoCompleteUtils.beforeInsert
+    matcher: autoCompleteUtils.matcher
+    filter: autoCompleteUtils.filter
+    sorter: autoCompleteUtils.sorter
+    highlighter: autoCompleteUtils.highlighter
+    tplEval: autoCompleteUtils.tplval
 
   at_config =
     at: "@"
     insertBackPos: 1
-    data: variables
+    data: autoCompleteUtils.variables
     searchKey: "name"
     insertTpl: '@${name}'
     startWithSpace: true
