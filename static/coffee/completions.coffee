@@ -3,17 +3,17 @@ KEY_RIGHT = 39
 
 window.autoCompleteUtils = {}
 
-autoCompleteUtils.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
+autoCompleteUtils.expressionParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
 
 autoCompleteUtils.matcher = (flag, subtext) ->
-  autoCompleteUtils.excellentParser.expressionContext(subtext)
+  autoCompleteUtils.expressionParser.expressionContext(subtext)
 
 autoCompleteUtils.findContextQuery = (query) ->
 
   if not query
     return query
 
-  autoCompleteUtils.excellentParser.autoCompleteContext(query) or ''
+  autoCompleteUtils.expressionParser.autoCompleteContext(query) or ''
 
 autoCompleteUtils.findMatches = (query, data, start, lastIdx, prependChar = undefined ) ->
 
