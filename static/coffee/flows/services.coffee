@@ -917,7 +917,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           Flow.function_completions = data.function_completions
           Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
-
         $http.get('/contactfield/json/').success (fields) ->
           Flow.contactFields = fields
 

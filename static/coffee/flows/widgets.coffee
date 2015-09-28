@@ -175,7 +175,6 @@ app.directive "autoComplete", ["$rootScope", "$timeout", "$http", "$log", "Flow"
 
           _results.sort (a,b) -> a.atwho_order - b.atwho_order
 
-
         beforeInsert: (value, item) ->
 
           completionChars = new RegExp("([A-Za-z_\d\.]*)$", 'gi')
@@ -235,7 +234,6 @@ app.directive "autoComplete", ["$rootScope", "$timeout", "$http", "$log", "Flow"
             template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
           catch error
             ""
-
 
   return {
     restrict: 'A'
