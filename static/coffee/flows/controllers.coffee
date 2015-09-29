@@ -82,7 +82,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # inject into our gear menu
   $rootScope.gearLinks = []
   $rootScope.ivr = window.ivr
-  $rootScope.expressionParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
 
   $scope.getContactFieldName = (ruleset) ->
     return Flow.getContactField(ruleset)
