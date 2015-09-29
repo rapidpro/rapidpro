@@ -6,6 +6,7 @@ from redis_cache import get_redis_connection
 from .models import Schedule
 from django.core.exceptions import ObjectDoesNotExist
 
+
 @task(track_started=True, name='check_schedule_task')  # pragma: no cover
 def check_schedule_task(sched_id=None):
     """
