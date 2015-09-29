@@ -1,6 +1,6 @@
 describe 'Matcher:', ->
 
-  matcher = autoCompleteUtils.matcher
+  matcher = new AutoComplete().config.callbacks.matcher
 
   it 'should match "" after flag', ->
     matched = matcher "@", "some texts before @"
@@ -80,31 +80,21 @@ describe 'Matcher:', ->
 
 describe 'find context query', ->
 
-  findContextQuery = autoCompleteUtils.findContextQuery
+  ac = new AutoComplete()
 
   it 'should return if not query', ->
-    ctxtQuery = findContextQuery ''
-    expect(ctxtQuery).toBe('')
-
-    ctxtQuery = findContextQuery null
-    expect(ctxtQuery).toBe(null)
-
-    ctxtQuery = findContextQuery undefined
-    expect(ctxtQuery).toBe(undefined)
+    expect(ac.parseQuery('')).toBe('')
+    expect(ac.parseQuery(null)).toBe(null)
+    expect(ac.parseQuery(undefined)).toBe(undefined)
 
   it 'ignore first ( and return empty string', ->
-    ctxtQuery = findContextQuery '('
-    expect(ctxtQuery).toBe("")
+    expect(ac.parseQuery('(')).toBe("")
 
   it 'should be the same for variables', ->
-    ctxtQuery = findContextQuery "contact"
-    expect(ctxtQuery).toBe('contact')
+    expect(ac.parseQuery("contact")).toBe('contact')
+    expect(ac.parseQuery("contact.age")).toBe('contact.age')
+    expect(ac.parseQuery("contact.added_on")).toBe('contact.added_on')
 
-    ctxtQuery = findContextQuery "contact.age"
-    expect(ctxtQuery).toBe('contact.age')
-
-    ctxtQuery = findContextQuery "contact.added_on"
-    expect(ctxtQuery).toBe('contact.added_on')
   ###
   it 'no ( for function only', ->
     ctxtQuery = findContextQuery "(SUM"
@@ -121,9 +111,9 @@ describe 'find context query', ->
     ctxtQuery = findContextQuery "(SUM(  "
     expect(ctxtQuery).toBe('SUM')
   ###
+
   it 'should give the last variable', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added"
-    expect(ctxtQuery).toBe('contact.date_added')
+    expect(ac.parseQuery("(SUM(contact.date_added")).toBe('contact.date_added')
 
   ###
   it 'should return function after comma', ->
@@ -144,72 +134,73 @@ describe 'find context query', ->
     ctxtQuery = findContextQuery "(SUM(contact.date_added, ABS(step.value))"
     expect(ctxtQuery).toBe('SUM')
   ###
+
   it 'should not include previous (', ->
-    ctxtQuery = findContextQuery "(contact.age"
-    expect(ctxtQuery).toBe('contact.age')
+    expect(ac.parseQuery("(contact.age")).toBe('contact.age')
 
 describe 'Find matches:', ->
 
-  findMatches = autoCompleteUtils.findMatches
-
-  data = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
+  variables = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
           {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
           {"name":"contact.urn.path.tel.number", "display":"Contact URN tel number"},
           {"name":"channel.address", "display":"Channel Address"}]
 
+  ac = new AutoComplete(variables)
+
   it 'should give unique first parts for empty string query', ->
-    results = findMatches '', data, '', -1
+    results = ac.findCompletions('', variables, '', -1)
     expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}]
     expect(results).toEqual(expected)
 
   it 'should match first parts filtered', ->
-    results = findMatches 'c', data, '', -1
+    results = ac.findCompletions('c', variables, '', -1)
     expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}]
     expect(results).toEqual(expected)
 
-    results = findMatches 'con', data, '', -1
+    results = ac.findCompletions('con', variables, '', -1)
     expected = [{"name":"contact", "display":"Contact Name"}]
     expect(results).toEqual(expected)
 
-    results = findMatches 'CON', data, '', -1
+    results = ac.findCompletions('CON', variables, '', -1)
     expected = [{"name":"contact", "display":"Contact Name"}]
     expect(results).toEqual(expected)
 
-    results = findMatches 'CoN', data, '', -1
+    results = ac.findCompletions('CoN', variables, '', -1)
     expected = [{"name":"contact", "display":"Contact Name"}]
     expect(results).toEqual(expected)
 
   it 'should start showing second ; only show display if name is full', ->
-    results = findMatches 'contact.', data, 'contact', 7
+    results = ac.findCompletions('contact.', variables, 'contact', 7)
     expected = [
         {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
         {"name":"contact.urn", "display":null}]
     expect(results).toEqual(expected)
 
   it 'should start showing thirt parts...; only show display if name is full', ->
-    results = findMatches 'contact.urn.pa', data, 'contact.urn', 11
+    results = ac.findCompletions('contact.urn.pa', variables, 'contact.urn', 11)
     expected = [{"name":"contact.urn.path", "display":null}]
     expect(results).toEqual(expected)
 
 
 describe 'Sorter:', ->
 
-  sorter = autoCompleteUtils.sorter
+  ac = new AutoComplete()
+  sorter = ac.config.callbacks.sorter
 
   it 'should include "Functions" for null query', ->
     items = []
-    results = sorter null, items, 'name'
+    results = sorter(null, items, 'name')
     expect(results).toEqual([{'name': '(', 'display': 'Functions'}])
 
   it 'should include "Functions" for empty query', ->
     items = []
-    results = sorter "", items, 'name'
+    results = sorter("", items, 'name')
     expect(results).toEqual([{'name': '(', 'display':'Functions'}])
 
   it 'should include "Functions" for null query', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
              {'name':'econtact.added', 'display':'e-Contact Added'}]
-    results = sorter null, items, 'name'
+    results = sorter(null, items, 'name')
     expect(results).toEqual([{'name': 'contact.addition', 'display': 'Contact Addition'},
                              {'name': 'econtact.added', 'display': 'e-Contact Added'},
                              {'name': '(', 'display': 'Functions'}])
@@ -217,7 +208,7 @@ describe 'Sorter:', ->
   it 'should include "Functions" for empty query', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
              {'name':'econtact.added', 'display':'e-Contact Added'}]
-    results = sorter "", items, 'name'
+    results = sorter("", items, 'name')
     expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition'},
                              {'name':'econtact.added', 'display':'e-Contact Added'},
                              {'name': '(', 'display':'Functions'}])
@@ -225,21 +216,22 @@ describe 'Sorter:', ->
   it 'should include "Functions" for query that do not have a dot', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
              {'name':'econtact.added', 'display':'e-Contact Added'}]
-    results = sorter "contact", items, 'name'
+    results = sorter("contact", items, 'name')
     expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'atwho_order': 0},
                                {'name':'econtact.added', 'display':'e-Contact Added', 'atwho_order': 1},
                                {'name': '(', 'display':'Functions'}])
   it 'should not include "Functions" for query that have a dot', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
              {'name':'econtact.added', 'display':'e-Contact Added'}]
-    results = sorter "contact.add", items, 'name'
+    results = sorter("contact.add", items, 'name')
     expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'atwho_order':0},
                              {'name':'econtact.added', 'display':'e-Contact Added', 'atwho_order':1}])
 
 
 describe 'Filter:', ->
 
-  filter = autoCompleteUtils.filter
+  ac = new AutoComplete()
+  filter = ac.config.callbacks.filter
 
   data = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"},
           {"name":"contact.age", "display":"Contact Age"}, {"name":"contact.name", "display":"Contact Name"},
@@ -247,60 +239,57 @@ describe 'Filter:', ->
           {"name":"channel.address", "display":"Channel Address"}]
 
   it 'should filter using findMatches', ->
-    spyOn(autoCompleteUtils, "findMatches").and.callThrough()
+    spyOn(ac, "findCompletions").and.callThrough()
     results = filter "", data, 'name'
     expected = [{"name":"contact", "display":"Contact Name"}, {"name":"channel", "display":"Channel Name"}]
     expect(results).toEqual(expected)
-    expect(autoCompleteUtils.findMatches).toHaveBeenCalledWith("", data, "", -1)
+    expect(ac.findCompletions).toHaveBeenCalledWith("", data, "", -1)
 
     results = filter "con", data, 'name'
     expected = [{"name":"contact", "display":"Contact Name"}]
     expect(results).toEqual(expected)
-    expect(autoCompleteUtils.findMatches).toHaveBeenCalledWith("con", data, "", -1)
+    expect(ac.findCompletions).toHaveBeenCalledWith("con", data, "", -1)
 
     results = filter "contact.a", data, 'name'
     expected = [{"name":"contact.age", "display":"Contact Age"}]
     expect(results).toEqual(expected)
-    expect(autoCompleteUtils.findMatches).toHaveBeenCalledWith("contact.a", data, "contact", 7)
-
+    expect(ac.findCompletions).toHaveBeenCalledWith("contact.a", data, "contact", 7)
 
 describe 'beforeInsert:', ->
 
-  beforeInsert = autoCompleteUtils.beforeInsert
+  beforeInsert = null
 
   beforeEach ->
-    autoCompleteUtils.variables = [
+    variables = [
       {"display": "New Contact", "name": "new_contact"}
       {"display": "Contact Name", "name": "contact"}
       {"display": "Contact Name", "name": "contact.name"}
       {"display": "Contact First Name", "name": "contact.first_name"}
     ]
 
-    autoCompleteUtils.functions =[
+    functions =[
       {"display": "Display Returns the sum of all arguments", "description": "Description: Returns the sum of all arguments", "name": "SUM", "hint": "Hint: Returns the sum of all arguments", "example": "SUM(args)", "arguments": [{"name": "args", "hint": "Hint for :-:args:-: arg"}]}
       {"display": "Display: Defines a time value", "description": "Description: Defines a time value", "name": "TIME", "hint": "Hint: Defines a time value", "example": "TIME(hours, minutes, seconds)","arguments": [{"name": "hours", "hint": "Hint for :-:hours:-: arg"}, {"name": "minutes","hint": "Hint for :-:minutes:-: arg"}]}
     ]
 
+    ac = new AutoComplete(variables, functions)
+    beforeInsert = ac.config.callbacks.beforeInsert
 
   it 'should append a space for variables without more option', ->
-    value = beforeInsert "@new_contact"
-    expect(value).toBe("@new_contact ")
+    expect(beforeInsert("@new_contact")).toBe("@new_contact ")
 
   it 'should append a dot if value is from variables and we have more options', ->
-    value = beforeInsert '@contact', []
-    expect(value).toBe("@contact.")
+    expect(beforeInsert('@contact', [])).toBe("@contact.")
 
   it 'should balance parantheses', ->
-    value = beforeInsert "@(", []
-    expect(value).toBe("@()")
+    expect((beforeInsert "@(", [])).toBe("@()")
 
   it 'should append parantheses for function', ->
-    value = beforeInsert "@(SUM", []
-    expect(value).toBe("@(SUM()")
+    expect(beforeInsert("@(SUM", [])).toBe("@(SUM()")
 
-describe 'tplval:', ->
+describe 'tplEval:', ->
 
-  tplval = autoCompleteUtils.tplval
+  tplEval = new AutoComplete().config.callbacks.tplEval
 
   beforeEach ->
     window.query =
@@ -309,35 +298,29 @@ describe 'tplval:', ->
   describe 'onInsert', ->
     it 'should insert ( before name of map in the inserted text if query is just ( with length 1', ->
       window.query.text = "("
-      inserted = tplval('@{name}', {'name': "SUM"}, "onInsert")
+      inserted = tplEval('@{name}', {'name': "SUM"}, "onInsert")
       expect(inserted).toBe('@(SUM')
 
     it 'should not insert ( before name inserted if query has length more than 1', ->
       window.query.text ="(SUM(con"
-
-      inserted = tplval('@{name}', {'name': "contact.name"}, "onInsert")
-      expect(inserted).toBe('@(SUM(contact.name')
-
-      inserted = tplval('@{name}', {'name': "new_contact"}, "onInsert")
-      expect(inserted).toBe('@(SUM(new_contact')
+      expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
+      expect(tplEval('@{name}', {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
 
     it 'should use the default tpl', ->
       window.query.text = "cont"
 
-      inserted = tplval('@{name}', {'name': "contact.name"}, "onInsert")
-      expect(inserted).toBe('@contact.name')
-
+      expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@contact.name')
       window.query.text = '(SUM(contact.name, ste'
-      inserted = tplval('@{name}', {'name': "step.value"}, "onInsert")
+      inserted = tplEval('@{name}', {'name': "step.value"}, "onInsert")
       expect(inserted).toBe('@(SUM(contact.name, step.value')
 
   describe 'onDisplay', ->
     it 'should use the li', ->
       window.query.text = "cont"
-      displayed = tplval('<li>${name}<small>${display}</small></li>', {'name':'contact.name', 'display':'Contact Name'}, 'onDisplay')
+      displayed = tplEval('<li>${name}<small>${display}</small></li>', {'name':'contact.name', 'display':'Contact Name'}, 'onDisplay')
       expect(displayed).toBe('<li>contact.name<small>Contact Name</small></li>')
 
     it 'should switch template if we have example in map', ->
       window.query.text = "(SUM(contact,"
-      displayed = tplval('<li>{name}<small>{display}</small></li>', {'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'onDisplay')
+      displayed = tplEval('<li>{name}<small>{display}</small></li>', {'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'onDisplay')
       expect(displayed).toBe("<li><div class='custom-atwho-display'><div class='option-name'>SUM</div><div class='option-example'><div class='display-labels'>Example</div>SUM(A, B)</div><div class='option-display'><div class='display-labels'>Summary</div>SUM of numbers</div></div></li>")
