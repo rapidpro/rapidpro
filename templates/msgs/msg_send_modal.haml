@@ -57,12 +57,9 @@
 
   :javascript
     $(document).ready(function() {
-      window.excellentParser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
-      window.message_completions = {{completions|safe}};
-      window.function_completions = {{function_completions|safe}};
-
-      initAtMessageText($('#id_text'));
+      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_text'));
       $("textarea").keyup(messageTextareaLengthCheck);
+
     });
 
     function formatResult(item) {
