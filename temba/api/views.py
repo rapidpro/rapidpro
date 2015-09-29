@@ -902,11 +902,8 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         else:
             queryset = queryset.exclude(visibility=DELETED)
 
-        reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
-        order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
-
         queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
-        return queryset.order_by(order).distinct()
+        return queryset.order_by('-created_on').distinct()
 
     @classmethod
     def get_read_explorer(cls):
@@ -2653,7 +2650,8 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
 
     ## Listing Boundaries
 
-    Returns the boundaries for your organization.
+    Returns the boundaries for your organization. You can return just the names of the boundaries and their aliases,
+    without any coordinate information by passing "?aliases=true".
 
     **Note that this may be a very large dataset as it includes the simplified coordinates for each administrative boundary.
      It is recommended to cache the results on the client side.**

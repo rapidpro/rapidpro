@@ -1988,6 +1988,9 @@ class ContactFieldTest(TembaTest):
         contact.set_field('First', 'One')
         flow.start([], [contact])
 
+        # create another contact, this should sort before Ben
+        self.create_contact("Adam Sumner", '+12067799191')
+
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
         # create a dummy export task so that we won't be able to export
@@ -2015,10 +2018,17 @@ class ContactFieldTest(TembaTest):
         self.assertEqual('Second', sheet.cell(0, 3).value)
         self.assertEqual('Third', sheet.cell(0, 4).value)
 
-        self.assertEqual('+12067799294', sheet.cell(1, 0).value)
-        self.assertEqual("One", sheet.cell(1, 2).value)
+        # first row should be adam
+        self.assertEquals('+12067799191', sheet.cell(1, 0).value)
+        self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
+        self.assertFalse(sheet.cell(1,2).value)
 
-        self.assertEqual(sheet.nrows, 2)  # no other contacts
+        # second should be ben
+        self.assertEqual('+12067799294', sheet.cell(2, 0).value)
+        self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
+        self.assertEqual("One", sheet.cell(2, 2).value)
+
+        self.assertEqual(sheet.nrows, 3)  # no other contacts
 
     def test_managefields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')

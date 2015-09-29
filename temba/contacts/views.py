@@ -22,7 +22,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
-from temba.contacts.models import ExportContactsTask, RESERVED_CONTACT_FIELDS
+from temba.contacts.models import ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
@@ -324,7 +324,7 @@ class ContactCRUDL(SmartCRUDL):
                         if not ContactField.is_valid_label(field_label):
                             raise ValidationError(_("Field names can only contain letters, numbers, spaces and hypens"))
 
-                        if field_key in RESERVED_CONTACT_FIELDS:
+                        if field_key in Contact.RESERVED_FIELDS:
                             raise ValidationError(_("%s is a reserved name for contact fields") % value)
                 return self.cleaned_data
 
@@ -1010,7 +1010,7 @@ class ManageFieldsForm(forms.Form):
                     if label.lower() in used_labels:
                         raise ValidationError(_("Field names must be unique"))
 
-                    elif label in RESERVED_CONTACT_FIELDS:
+                    elif label in Contact.RESERVED_FIELDS:
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
 

@@ -1788,10 +1788,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "")
         self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg3.pk, msg2.pk, msg1.pk])
 
-        # test reversing ordering
-        response = self.fetchJSON(url, "reverse=1")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk, msg4.pk, msg5.pk])
-
         # check archived status
         msg2.visibility = ARCHIVED
         msg2.save()
@@ -4387,6 +4383,29 @@ class TwitterTest(TembaTest):
 
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("You cannot send messages to users who are not following you.",
+                                                error_code=403)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # should fail the message
+                msg = bcast.get_messages()[0]
+                self.assertEquals(FAILED, msg.status)
+                self.assertEquals(2, msg.error_count)
+
+                # should fail the contact permanently (i.e. removed from groups)
+                contact = Contact.objects.get(pk=joe.pk)
+                self.assertTrue(contact.is_failed)
+                self.assertEqual(contact.user_groups.count(), 0)
+
+                self.clear_cache()
+
+            joe.is_failed = False
+            joe.save()
+            testers.update_contacts([joe], add=True)
+
+            with patch('twython.Twython.send_direct_message') as mock:
+                mock.side_effect = TwythonError("There was an error sending your message: You can't send direct messages to this user right now.",
                                                 error_code=403)
 
                 # manually send it off
