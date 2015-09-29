@@ -1788,10 +1788,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "")
         self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg3.pk, msg2.pk, msg1.pk])
 
-        # test reversing ordering
-        response = self.fetchJSON(url, "reverse=1")
-        self.assertEqual([m['id'] for m in response.json['results']], [msg1.pk, msg2.pk, msg3.pk, msg4.pk, msg5.pk])
-
         # check archived status
         msg2.visibility = ARCHIVED
         msg2.save()
