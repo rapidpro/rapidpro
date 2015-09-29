@@ -1261,11 +1261,14 @@ class RuleTest(TembaTest):
         self.assertIsNotNone(contact.urns.filter(path='+18005551212').first())
 
         # try the same with a simulator contact
-        contact.is_test = True
-        contact.save()
-
-        run.contact = contact
+        test_contact = Contact.get_test_contact(self.admin)
+        test_contact_urn = test_contact.urns.all().first()
+        run = FlowRun.create(self.flow, test_contact)
         test.execute(run, None, sms)
+
+        # URN should be unchanged on the simulator contact
+        test_contact = Contact.objects.get(id=test_contact.id)
+        self.assertEquals(test_contact_urn, test_contact.urns.all().first())
 
     def test_language_action(self):
 

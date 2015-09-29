@@ -4564,13 +4564,14 @@ class SaveToContactAction(Action):
         elif self.field == 'tel_e164':
             new_value = value[:128]
 
-            # all previous urns minus the current phone urn if we are on one
-            urns = [(urn.scheme, urn.path) for urn in contact.urns.all().exclude(scheme=TEL_SCHEME, pk=msg.contact_urn.pk)]
+            # don't really update URNs on test contacts
+            if not contact.is_test:
+                # all previous urns minus the current phone urn if we are on one
+                urns = [(urn.scheme, urn.path) for urn in contact.urns.all().exclude(scheme=TEL_SCHEME, pk=msg.contact_urn.pk)]
 
-            # add in our new phone number
-            urns += [('tel', new_value)]
-            contact.update_urns(urns)
-
+                # add in our new phone number
+                urns += [('tel', new_value)]
+                contact.update_urns(urns)
         else:
             new_value = value[:640]
             contact.set_field(self.field, new_value)
