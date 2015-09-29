@@ -1260,7 +1260,12 @@ class RuleTest(TembaTest):
         # and our other phone number
         self.assertIsNotNone(contact.urns.filter(path='+18005551212').first())
 
-    test_save_to_contact_action.active = True
+        # try the same with a simulator contact
+        contact.is_test = True
+        contact.save()
+
+        run.contact = contact
+        test.execute(run, None, sms)
 
     def test_language_action(self):
 
