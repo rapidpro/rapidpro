@@ -21,6 +21,8 @@ from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
+from temba.utils.exporter import TableExporter
+from xlrd import open_workbook
 
 
 class InitTest(TembaTest):
@@ -562,3 +564,87 @@ class ExpressionsTest(TembaTest):
     def test_get_function_listing(self):
         listing = get_function_listing()
         self.assertEqual(listing[0], {'name': 'ABS', 'display': "Returns the absolute value of a number"})
+
+    def test_percentage(self):
+        self.assertEquals(0, percentage(0, 100))
+        self.assertEquals(0, percentage(0, 0))
+        self.assertEquals(0, percentage(100, 0))
+        self.assertEquals(75, percentage(75, 100))
+        self.assertEquals(76, percentage(759, 1000))
+
+
+class TableExporterTest(TembaTest):
+
+    def test_csv(self):
+        # tests writing a CSV, that is a file that has more than 255 columns
+        cols = []
+        for i in range(256):
+            cols.append("Column %d" % i)
+
+        # create a new exporter
+        exporter = TableExporter("test", cols)
+
+        # should be CSV because we have too many columns
+        self.assertTrue(exporter.is_csv)
+
+        # write some rows
+        values = []
+        for i in range(256):
+            values.append("Value %d" % i)
+
+        exporter.write_row(values)
+        exporter.write_row(values)
+
+        # ok, let's check the result now
+        file = exporter.save_file()
+
+        with open(file.name, 'rb') as csvfile:
+            import csv
+            reader = csv.reader(csvfile)
+
+            for idx, row in enumerate(reader):
+                if idx == 0:
+                    self.assertEquals(cols, row)
+                else:
+                    self.assertEquals(values, row)
+
+            # should only be three rows
+            self.assertEquals(2, idx)
+
+    def test_xls(self):
+        cols = []
+        for i in range(32):
+            cols.append("Column %d" % i)
+
+        exporter = TableExporter("test", cols)
+
+        # should be an XLS file
+        self.assertFalse(exporter.is_csv)
+
+        values = []
+        for i in range(32):
+            values.append("Value %d" % i)
+
+        # write out 67,000 rows, that'll make two sheets
+        for i in range(67000):
+            exporter.write_row(values)
+
+        file = exporter.save_file()
+        workbook = open_workbook(file.name, 'rb')
+
+        self.assertEquals(2, len(workbook.sheets()))
+
+        # check our sheet 1 values
+        sheet1 = workbook.sheets()[0]
+        self.assertEquals(cols, sheet1.row_values(0))
+        self.assertEquals(values, sheet1.row_values(1))
+
+        self.assertEquals(65536, sheet1.nrows)
+        self.assertEquals(32, sheet1.ncols)
+
+        sheet2 = workbook.sheets()[1]
+        self.assertEquals(cols, sheet2.row_values(0))
+        self.assertEquals(values, sheet2.row_values(1))
+
+        self.assertEquals(67000+2-65536, sheet2.nrows)
+        self.assertEquals(32, sheet2.ncols)

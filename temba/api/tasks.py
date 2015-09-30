@@ -9,29 +9,23 @@ from .models import WebHookEvent, WebHookResult, COMPLETE, FAILED, ERRORED, PEND
 
 @task(track_started=True, name='deliver_event_task')
 def deliver_event_task(event_id):  # pragma: no cover
-    try:
-        # get a lock
-        r = get_redis_connection()
+    # get a lock
+    r = get_redis_connection()
 
-        # try to acquire a lock, at most it will last 1 min
-        key = 'deliver_event_%d' % event_id
+    # try to acquire a lock, at most it will last 1 min
+    key = 'deliver_event_%d' % event_id
 
-        if not r.get(key):
-            with r.lock(key, timeout=60):
-                # load our event and try to deliver it
-                event = WebHookEvent.objects.get(pk=event_id)
+    if not r.get(key):
+        with r.lock(key, timeout=60):
+            # load our event and try to deliver it
+            event = WebHookEvent.objects.get(pk=event_id)
 
-                if event.status != COMPLETE and event.status != FAILED:
-                    result = event.deliver()
+            if event.status != COMPLETE and event.status != FAILED:
+                result = event.deliver()
 
-                    # record our result.  We do this here and not in deliver() because we want to allow
-                    # testing of web hooks in the UI without having to actually create any model objects
-                    WebHookResult.record_result(event, result)
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc(e)
-        raise e
+                # record our result.  We do this here and not in deliver() because we want to allow
+                # testing of web hooks in the UI without having to actually create any model objects
+                WebHookResult.record_result(event, result)
 
 
 @task(track_started=True, name='retry_events_task')

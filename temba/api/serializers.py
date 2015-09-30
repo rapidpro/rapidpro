@@ -1008,6 +1008,7 @@ class CampaignWriteSerializer(WriteSerializer):
 
         return campaign
 
+
 class FlowDefinitionReadSerializer(serializers.ModelSerializer):
 
     uuid = serializers.Field(source='uuid')
@@ -1021,6 +1022,55 @@ class FlowDefinitionReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Flow
         fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition')
+
+
+class FlowDefinitionWriteSerializer(WriteSerializer):
+    uuid = serializers.CharField(required=False, max_length=36)
+    name = serializers.CharField(required=True)
+    definition = serializers.WritableField(required=False)
+
+    def validate_uuid(self, attrs, source):
+        uuid = attrs.get(source, None)
+
+        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+            raise ValidationError("No such flow with UUID: %s" % uuid)
+        return attrs
+
+    def validate_definition(self, attrs, source):
+        definition = attrs.get('definition', None)
+
+        if definition:
+            flow_type = definition.get('type', None)
+            if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
+                raise ValidationError("Invalid flow type: %s" % flow_type)
+        return attrs
+
+    def restore_object(self, attrs, instance=None):
+        """
+        Update our flow
+        """
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        uuid = attrs.get('uuid', None)
+        name = attrs['name']
+        definition = attrs.get('definition', None)
+
+        flow_type = Flow.FLOW
+        if definition:
+            flow_type = definition.get('type', Flow.FLOW)
+
+        if uuid:
+            flow = Flow.objects.get(org=self.org, uuid=uuid)
+            flow.name = name
+            flow.save()
+        else:
+            flow = Flow.create(self.org, self.user, name, flow_type)
+
+        if definition:
+            flow.update(definition, self.user, force=True)
+
+        return flow
 
 class FlowReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
@@ -1077,52 +1127,6 @@ class FlowReadSerializer(serializers.ModelSerializer):
         model = Flow
         fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
                   'created_on', 'flow')
-
-
-class FlowWriteSerializer(WriteSerializer):
-    uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=True)
-    flow_type = serializers.CharField(required=True)
-    definition = serializers.WritableField(required=False)
-
-    def validate_uuid(self, attrs, source):
-        uuid = attrs.get(source, None)
-
-        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
-            raise ValidationError("No such flow with UUID: %s" % uuid)
-        return attrs
-
-    def validate_flow_type(self, attrs, source):
-        flow_type = attrs.get(source, None)
-
-        if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
-            raise ValidationError("Invalid flow type: %s" % flow_type)
-        return attrs
-
-    def restore_object(self, attrs, instance=None):
-        """
-        Update our flow
-        """
-        if instance:  # pragma: no cover
-            raise ValidationError("Invalid operation")
-
-        uuid = attrs.get('uuid', None)
-        name = attrs['name']
-        flow_type = attrs['flow_type']
-        definition = attrs.get('definition', None)
-
-        if uuid:
-            flow = Flow.objects.get(org=self.org, uuid=uuid)
-            flow.name = name
-            flow.flow_type = flow_type
-            flow.save()
-        else:
-            flow = Flow.create(self.org, self.user, name, flow_type)
-
-        if definition:
-            flow.update(definition, self.user, force=True)
-
-        return flow
 
 
 class FlowRunStartSerializer(WriteSerializer):

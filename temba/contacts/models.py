@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import defaultdict
 
 import datetime
 import json
@@ -20,13 +21,12 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list
 from temba.utils.models import TembaModel
+from temba.utils.exporter import TableExporter
+from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
-
-# don't allow custom contact fields with these keys
-RESERVED_CONTACT_FIELDS = ['name', 'phone', 'created_by', 'modified_by', 'org', 'uuid', 'groups', 'first_name', 'language']
 
 # cache keys and TTLs
 GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
@@ -63,7 +63,7 @@ class ContactField(models.Model):
     def api_make_key(cls, label):
         key = cls.make_key(label)
 
-        if key in RESERVED_CONTACT_FIELDS:
+        if key in Contact.RESERVED_FIELDS:
             raise ValidationError(_("key for %s is a reserved name for contact fields") % label)
 
         return key
@@ -153,7 +153,6 @@ class ContactField(models.Model):
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
-
 class Contact(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
@@ -174,6 +173,15 @@ class Contact(TembaModel, SmartModel):
                                 help_text=_("The preferred language for this contact"))
 
     simulation = False
+
+    NAME = 'name'
+    FIRST_NAME = 'first_name'
+    LANGUAGE = 'language'
+    PHONE = 'phone'
+
+    # reserved contact fields
+    RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
+                       'created_by', 'modified_by', 'org', 'uuid', 'groups']
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -355,7 +363,7 @@ class Contact(TembaModel, SmartModel):
         """
         groups_changed = False
 
-        if 'name' in attrs or field or urns:
+        if Contact.NAME in attrs or field or urns:
             # ensure dynamic groups are up to date
             groups_changed = ContactGroup.update_groups_for_contact(self, field)
 
@@ -470,7 +478,7 @@ class Contact(TembaModel, SmartModel):
                 if name:
                     contact.name = name
                     contact.save()
-                    updated_attrs['name'] = name
+                    updated_attrs[Contact.NAME] = name
 
             # otherwise create new contact with all URNs
             else:
@@ -540,7 +548,6 @@ class Contact(TembaModel, SmartModel):
 
             test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
                                                  is_test=True)
-
         return test_contact
 
     @classmethod
@@ -615,18 +622,18 @@ class Contact(TembaModel, SmartModel):
             return None
 
         # title case our name
-        name = field_dict.get('name', None)
+        name = field_dict.get(Contact.NAME, None)
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
         # create our contact
         contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
 
-        del field_dict['created_by']
-        del field_dict['name']
-        del field_dict['modified_by']
-        
         for key in field_dict.keys():
+            # ignore any reserved fields
+            if key in Contact.RESERVED_FIELDS:
+                continue
+
             value = field_dict[key]
 
             # date values need converted to localized strings
@@ -651,7 +658,7 @@ class Contact(TembaModel, SmartModel):
         for field in import_params['extra_fields']:
             key = field['key']
             label = field['label']
-            if key not in RESERVED_CONTACT_FIELDS:
+            if key not in Contact.RESERVED_FIELDS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
                 value = field_dict[field['header']]
                 del field_dict[field['header']]
@@ -667,7 +674,7 @@ class Contact(TembaModel, SmartModel):
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
-            if key not in RESERVED_CONTACT_FIELDS and key not in extra_fields and key not in active_scheme:
+            if key not in Contact.RESERVED_FIELDS and key not in extra_fields and key not in active_scheme:
                 del field_dict[key]
 
         return field_dict
@@ -699,7 +706,7 @@ class Contact(TembaModel, SmartModel):
             os.remove(tmp_file)
 
         Contact.validate_import_header(headers)
-        built_in_fields = ['name', 'phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        built_in_fields = [Contact.NAME, Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
         optional_columns = []
         for header in headers:
             if header not in built_in_fields:
@@ -709,7 +716,7 @@ class Contact(TembaModel, SmartModel):
 
     @classmethod
     def validate_import_header(cls, header):
-        possible_urn_fields = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        possible_urn_fields = [Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
         header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
@@ -920,8 +927,8 @@ class Contact(TembaModel, SmartModel):
             setattr(contact, '__urns', list())  # initialize URN list cache (setattr avoids name mangling or __urns)
 
         # cache all field values
-        values = Value.objects.filter(contact__in=contact_map.keys(),
-                                      contact_field__in=fields).order_by('contact').select_related('contact_field')
+        values = Value.objects.filter(contact_id__in=contact_map.keys(),
+                                      contact_field_id__in=key_map.keys()).select_related('contact_field')
         for value in values:
             contact = contact_map[value.contact_id]
             field_key = key_map[value.contact_field_id]
@@ -947,12 +954,12 @@ class Contact(TembaModel, SmartModel):
         """
         org = self.org
         contact_dict = dict(__default__=self.get_display(org=org))
-        contact_dict['name'] = self.name if self.name else ''
-        contact_dict['first_name'] = self.first_name(org)
+        contact_dict[Contact.NAME] = self.name if self.name else ''
+        contact_dict[Contact.FIRST_NAME] = self.first_name(org)
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
-        contact_dict['language'] = self.language
+        contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
@@ -1584,107 +1591,87 @@ class ExportContactsTask(SmartModel):
             self.save(update_fields=['is_finished'])
 
     def do_export(self):
-        from xlwt import Workbook
+        fields = [dict(label='Phone', key=Contact.PHONE, id=0, field=None),
+                  dict(label='Name', key=Contact.NAME, id=0, field=None)]
 
-        book = Workbook()
+        with SegmentProfiler("building up contact fields"):
+            contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+            for contact_field in contact_fields_list:
+                fields.append(dict(field=contact_field,
+                                   label=contact_field.label,
+                                   key=contact_field.key,
+                                   id=contact_field.id))
 
-        fields = [dict(label='Phone', key='phone'), dict(label='Name', key='name')]
-        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True)
+        with SegmentProfiler("build up contact ids"):
+            all_contacts = Contact.get_contacts(self.org)
+            if self.group:
+                all_contacts = all_contacts.filter(all_groups=self.group)
 
-        for contact_field in contact_fields_list:
-            fields.append(dict(label=contact_field.label, key=contact_field.key))
+            contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
 
-        all_contacts = Contact.get_contacts(self.org).order_by('name', 'pk')
+        # create our exporter
+        exporter = TableExporter("Contact", [c['label'] for c in fields])
 
-        if self.group:
-            all_contacts = all_contacts.filter(all_groups=self.group)
+        current_contact = 0
+        start = time.time()
 
-        # if we have too many fields, Export using csv Otherwise use Excel
-        use_csv = len(fields) > 256
+        # in batches of 500 contacts
+        for batch_ids in chunk_list(contact_ids, 500):
+            with SegmentProfiler("output 500 contacts"):
+                batch_ids = list(batch_ids)
 
-        temp = NamedTemporaryFile(delete=True)
+                # fetch all the contacts for our batch
+                batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
-        if use_csv:
-            import csv
+                # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
+                contact_by_id = {c.id:c for c in batch_contacts}
 
-            writer = csv.writer(temp, quoting=csv.QUOTE_ALL)
+                # bulk initialize them
+                Contact.bulk_cache_initialize(self.org, batch_contacts)
 
-            writer.writerow([s['label'].encode("utf-8") for s in fields])
+                for contact_id in batch_ids:
+                    contact = contact_by_id[contact_id]
 
-            for obj in all_contacts:
-                row_data = []
-                for col in range(len(fields)):
-                    field = fields[col]['key']
-                    field_value = obj.get_field_display(field)
-
-                    if field == 'name':
-                        field_value = obj.name
-
-                    value = ""
-                    if field_value:
-                        value = unicode(field_value)
-
-                    if field == 'phone':
-                        value = obj.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
-
-                    row_data.append(value)
-
-                writer.writerow([s.encode("utf-8") for s in row_data])
-        else:
-            contact_sheet_number = 1
-            all_contacts = list(all_contacts)
-
-            def add_sheet(book, sheet_number, fields):
-                # write our first sheet
-                sheet = book.add_sheet(unicode(_("Contacts %d" % sheet_number)))
-                for col in range(len(fields)):
-                    sheet.write(0, col, unicode(fields[col]['label']))
-
-                return sheet
-
-            current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
-
-            while all_contacts:
-                if len(all_contacts) >= 65535:
-                    contacts = all_contacts[:65535]
-                    all_contacts = all_contacts[65535:]
-                else:
-                    contacts = all_contacts
-                    all_contacts = None
-
-                # then our actual values
-                for row in range(len(contacts)):
-                    obj = contacts[row]
+                    values = []
                     for col in range(len(fields)):
-                        field = fields[col]['key']
-                        field_value = obj.get_field_display(field)
+                        field = fields[col]
 
-                        if field == 'name':
-                            field_value = obj.name
+                        if field['key'] == Contact.NAME:
+                            field_value = contact.name
+                        elif field['key'] == Contact.PHONE:
+                            field_value = contact.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
+                        else:
+                            value = contact.get_field(field['key'])
+                            field_value = Contact.get_field_display_for_value(field['field'], value)
 
-                        value = ""
                         if field_value:
-                            value = unicode(field_value)
+                            field_value = unicode(field_value)
 
-                        if field == 'phone':
-                            value = obj.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
+                        values.append(field_value)
 
-                        # skip the header
-                        current_contact_sheet.write(row + 1, col, value)
+                    # write this contact's values
+                    exporter.write_row(values)
+                    current_contact += 1
 
-                contact_sheet_number += 1
-                current_contact_sheet = add_sheet(book, contact_sheet_number, fields)
+                    # output some status information every 10,000 contacts
+                    if current_contact % 10000 == 0:
+                        elapsed = time.time() - start
+                        predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
-            book.save(temp)
-
-        temp.flush()
+                        print "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" % \
+                            (self.org.name, current_contact * 100 / len(contact_ids),
+                             "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
+                             time.time() - start, predicted)
 
         # save as file asset associated with this task
         from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
 
+        # get our table file
+        table_file = exporter.save_file()
+
         store = AssetType.contact_export.store
-        store.save(self.pk, File(temp), 'csv' if use_csv else 'xls')
+        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'

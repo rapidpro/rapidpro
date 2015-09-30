@@ -114,12 +114,26 @@ class OrgTest(TembaTest):
         self.assertEqual("Rwanda", unicode(org.country))
         self.assertEqual("RW", org.get_country_code())
 
+        # set our admin boundary name to something invalid
+        org.country.name = 'Fantasia'
+        org.country.save()
+
+        # getting our country code show now back down to our channel
+        self.assertEqual('RW', org.get_country_code())
+
         # clear it out
-        response = self.client.post(country_url, dict(country=''))
+        self.client.post(country_url, dict(country=''))
 
         # assert it has been
         org = Org.objects.get(pk=self.org.pk)
         self.assertFalse(org.country)
+        self.assertEquals('RW', org.get_country_code())
+
+        # remove all our channels so we no longer have a backdown
+        org.channels.all().delete()
+
+        # now really don't have a clue of our country code
+        self.assertIsNone(org.get_country_code())
 
     def test_plans(self):
         self.contact = self.create_contact("Joe", "+250788123123")

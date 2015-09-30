@@ -617,9 +617,13 @@ class Org(SmartModel):
         """
         # first try the actual country field
         if self.country:
-            country = pycountry.countries.get(name=self.country.name)
-            if country:
-                return country.alpha2
+            try:
+                country = pycountry.countries.get(name=self.country.name)
+                if country:
+                    return country.alpha2
+            except KeyError as ke:
+                # pycountry blows up if we pass it a country name it doesn't know
+                pass
 
         # if that isn't set, there may be a TEL channel we can get it from
         from temba.contacts.models import TEL_SCHEME
