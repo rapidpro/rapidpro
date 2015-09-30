@@ -1373,21 +1373,21 @@ class APITest(TembaTest):
         # page is implicit
         response = self.fetchJSON(url)
         self.assertResultCount(response, 300)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 300")
 
         Contact.objects.create(org=self.org, name="Minion 301", created_by=self.admin, modified_by=self.admin)
 
         # page 1 request always recalculates count
         response = self.fetchJSON(url, 'page=1')
         self.assertResultCount(response, 301)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 301")
 
         Contact.objects.create(org=self.org, name="Minion 302", created_by=self.admin, modified_by=self.admin)
 
         # other page numbers won't
         response = self.fetchJSON(url, 'page=2')
         self.assertResultCount(response, 301)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 251")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 52")
 
         # handle non-ascii chars in params
         response = self.fetchJSON(url, 'page=1&test=é')
