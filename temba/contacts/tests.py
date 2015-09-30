@@ -1312,9 +1312,10 @@ class ContactTest(TembaTest):
         self.assertIsNone(contact5.get_urn(schemes=['email']))
         self.assertIsNone(contact5.get_urn(schemes=['facebook']))
 
-        # check that we can't steal other contact's URNs
-        self.assertRaises(ValueError, contact5.update_urns, [(TEL_SCHEME, '0788333444')])
-        self.assertEquals(contact4, ContactURN.objects.get(urn='tel:+250788333444').contact)
+        # check that we can steal other contact's URNs
+        contact5.update_urns([(TEL_SCHEME, '0788333444')])
+        self.assertEquals(contact5, ContactURN.objects.get(urn='tel:+250788333444').contact)
+        self.assertFalse(contact4.urns.all())
 
     def test_from_urn(self):
         self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel', '123'))  # URN with contact

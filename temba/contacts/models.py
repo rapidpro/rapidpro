@@ -1050,7 +1050,9 @@ class Contact(TembaModel, SmartModel):
                     urn.save()
                     urns_attached.append(urn)
                 elif urn.contact != self:
-                    raise ValueError("%s belongs to another contact" % norm_urn)
+                    urn.contact = self
+                    urn.save()
+                    urns_attached.append(urn)
                 else:
                     urns_retained.append(urn)
 
