@@ -533,11 +533,9 @@ class ContactWriteSerializer(WriteSerializer):
 
         if uuid:
             contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
-
-            # user didn't specify either urns or phone, stick to what already exists
-            if urns is None and phone is None:
-                urns = [(u.scheme, u.path) for u in contact.urns.all()]
-            contact.update_urns(urns)
+            
+            if urns:
+                contact.update_urns(urns)
 
         else:
             contact = Contact.get_or_create(self.org, self.user, urns=urns, uuid=uuid)
