@@ -994,6 +994,12 @@ class Contact(TembaModel, SmartModel):
             names = [first_name] + names[1:]
             self.name = " ".join(names)
 
+    def get_urns_for_scheme(self, scheme):
+        """
+        Returns all the URNs for the passed in scheme
+        """
+        return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
+
     def get_urns(self):
         """
         Gets all URNs ordered by priority
