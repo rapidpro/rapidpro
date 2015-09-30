@@ -69,8 +69,13 @@ class window.AutoComplete
           subQuery = ac.parseQuery(query)
 
           if action is 'onInsert'
-            if query and query[0] is '(' and query.length is 1 and subQuery is ""
-              template = '@(${name}'
+            if query and query[0] is '('
+              if query.length is 1 and subQuery is ""
+                template = '@(${name}'
+              else
+                regexp = new RegExp("@*" + subQuery + "$")
+                template = ('@' + query).replace(regexp, '${name}')
+
             else
               regexp = new RegExp(subQuery + "$")
               template = ('@' + query).replace(regexp, '${name}')

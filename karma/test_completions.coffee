@@ -306,6 +306,11 @@ describe 'tplEval:', ->
       expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
       expect(tplEval('@{name}', {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
 
+    it 'should omit @ preceding variables inside function arguments', ->
+      window.query.text ="(SUM(@con"
+      expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
+      expect(tplEval('@{name}', {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
+
     it 'should use the default tpl', ->
       window.query.text = "cont"
 
