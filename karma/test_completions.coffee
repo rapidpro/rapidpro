@@ -190,12 +190,12 @@ describe 'Sorter:', ->
   it 'should include "Functions" for null query', ->
     items = []
     results = sorter(null, items, 'name')
-    expect(results).toEqual([{'name': '(', 'display': 'Functions'}])
+    expect(results).toEqual([{'name': '(', 'display': 'Functions', function:true}])
 
   it 'should include "Functions" for empty query', ->
     items = []
     results = sorter("", items, 'name')
-    expect(results).toEqual([{'name': '(', 'display':'Functions'}])
+    expect(results).toEqual([{'name': '(', 'display':'Functions', function:true}])
 
   it 'should include "Functions" for null query', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
@@ -203,7 +203,7 @@ describe 'Sorter:', ->
     results = sorter(null, items, 'name')
     expect(results).toEqual([{'name': 'contact.addition', 'display': 'Contact Addition'},
                              {'name': 'econtact.added', 'display': 'e-Contact Added'},
-                             {'name': '(', 'display': 'Functions'}])
+                             {'name': '(', 'display': 'Functions', function:true}])
 
   it 'should include "Functions" for empty query', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
@@ -211,22 +211,31 @@ describe 'Sorter:', ->
     results = sorter("", items, 'name')
     expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition'},
                              {'name':'econtact.added', 'display':'e-Contact Added'},
-                             {'name': '(', 'display':'Functions'}])
+                             {'name': '(', 'display':'Functions', function:true}])
 
   it 'should include "Functions" for query that do not have a dot', ->
     items = [{'name':'contact.addition', 'display':'Contact Addition'},
              {'name':'econtact.added', 'display':'e-Contact Added'}]
     results = sorter("contact", items, 'name')
-    expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'atwho_order': 0},
-                               {'name':'econtact.added', 'display':'e-Contact Added', 'atwho_order': 1},
-                               {'name': '(', 'display':'Functions'}])
-  it 'should not include "Functions" for query that have a dot', ->
-    items = [{'name':'contact.addition', 'display':'Contact Addition'},
-             {'name':'econtact.added', 'display':'e-Contact Added'}]
-    results = sorter("contact.add", items, 'name')
-    expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'atwho_order':0},
-                             {'name':'econtact.added', 'display':'e-Contact Added', 'atwho_order':1}])
+    expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'order': 0},
+                             {'name':'econtact.added', 'display':'e-Contact Added', 'order': 1},
+                             {'name': '(', 'display':'Functions', function:true}])
 
+  it 'should not include "Functions" for query that have a dot', ->
+    items = [{'name':'econtact.added', 'display':'e-Contact Added'},
+             {'name':'contact.addition', 'display':'Contact Addition'}]
+    results = sorter("contact.add", items, 'name')
+    expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'order':0},
+                             {'name':'econtact.added', 'display':'e-Contact Added', 'order':1}])
+
+  it 'should sort functions last', ->
+    items = [{'name':'ABS', 'display':'Absolute Value', function:true},
+             {'name':'econtact.added', 'display':'e-Contact Added'},
+             {'name':'contact.addition', 'display':'Contact Addition'}]
+    results = sorter("(", items, 'name')
+    expect(results).toEqual([{'name':'contact.addition', 'display':'Contact Addition', 'order':0},
+                             {'name':'econtact.added', 'display':'e-Contact Added', 'order':0},
+                             {'name':'ABS', 'display':'Absolute Value', function:true, 'order':0}])
 
 describe 'Filter:', ->
 
@@ -287,6 +296,13 @@ describe 'beforeInsert:', ->
   it 'should append parantheses for function', ->
     expect(beforeInsert("@(SUM", [])).toBe("@(SUM()")
 
+  it 'should allow internal @ in string literals', ->
+    expect(beforeInsert('@(IF(flow.show_twitter, "@nyaruka"')).toBe('@(IF(flow.show_twitter, "@nyaruka"')
+
+  # it 'should not allow internal @ inside expression', ->
+  #   expect(beforeInsert("@(MAX(@flow.response_1")).toBe("@(MAX(flow.response_1")
+
+
 describe 'tplEval:', ->
 
   tplEval = new AutoComplete().config.callbacks.tplEval
@@ -328,4 +344,4 @@ describe 'tplEval:', ->
     it 'should switch template if we have example in map', ->
       window.query.text = "(SUM(contact,"
       displayed = tplEval('<li>{name}<small>{display}</small></li>', {'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'onDisplay')
-      expect(displayed).toBe("<li><div class='custom-atwho-display'><div class='option-name'>SUM</div><div class='option-example'><div class='display-labels'>Example</div>SUM(A, B)</div><div class='option-display'><div class='display-labels'>Summary</div>SUM of numbers</div></div></li>")
+      expect(displayed).toBe("<li><div class='completion-dropdown'><div class='option-name'>SUM</div><div class='option-example'><div class='display-labels'>Example</div>SUM(A, B)</div><div class='option-display'><div class='display-labels'>Summary</div>SUM of numbers</div></div></li>")

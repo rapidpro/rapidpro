@@ -4,8 +4,15 @@ class window.AutoComplete
   KEY_RIGHT = 39
 
   constructor: (@variables=[], @functions=[]) ->
+
+
     @parser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
     @completions = @variables.concat(@functions)
+
+    # mark our functions as functions
+    for f in @functions
+      f['function'] = true
+
     ac = this
 
     @config =
@@ -15,7 +22,7 @@ class window.AutoComplete
       searchKey: "name"
       insertTpl: '@${name}'
       startWithSpace: true
-      displayTpl: "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
+      displayTpl: "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
       limit: 100
       maxLen: 100
       suffix: ""
@@ -40,27 +47,46 @@ class window.AutoComplete
 
         sorter: (query, items, searchKey) ->
 
+          # add an option to show our functions
           lastOptFunctions =
             'name': '('
-            'display': "Functions"
-
-          if not query
-            items.push(lastOptFunctions)
-            return items
+            'display': "Functions",
+            'function': true
 
           subQuery = ac.parseQuery(query);
 
-          _results = []
+          results = []
           for item in items
-            item.atwho_order = new String(item[searchKey]).toLowerCase().indexOf(subQuery.toLowerCase())
-            _results.push item if item.atwho_order > -1
+            if query
+              item.order = new String(item[searchKey]).toLowerCase().indexOf(subQuery.toLowerCase())
+              if item.order > -1
+                results.push(item)
+            else
+              results.push(item)
 
-          if query.match(/[(.]/g) is null
-            _results.push(lastOptFunctions)
+          if not query or query.match(/[(.]/g) is null
+            results.push(lastOptFunctions)
 
-          _results.sort (a,b) -> a.atwho_order - b.atwho_order
+          results.sort (a,b) ->
 
-          return _results
+            # prefer order if one is higher
+            if a.order != b.order
+              return a.order - b.order
+
+            # otherwise, sort non-functions first
+            if a.function and not b.function
+              return 1
+            else if b.function and not a.function
+              return -1
+
+            # lastly, just do alpha sort
+            if (a.function and b.function) or (not a.function and not b.function)
+              if a.name > b.name
+                return 1
+              else
+                return -1
+
+          return results
 
         tplEval: (tpl, map, action) ->
 
@@ -84,7 +110,7 @@ class window.AutoComplete
             template = tpl(map) unless typeof tpl is 'string'
 
             if typeof map.example isnt "undefined" and action is "onDisplay"
-              template = "<li><div class='custom-atwho-display'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
+              template = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
 
             template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
           catch error
