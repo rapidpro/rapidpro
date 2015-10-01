@@ -1051,11 +1051,8 @@ class Contact(TembaModel, SmartModel):
                 if not urn:
                     urn = ContactURN.create(self.org, self, norm_scheme, norm_path)
                     urns_created.append(urn)
-                elif not urn.contact:
-                    urn.contact = self
-                    urn.save()
-                    urns_attached.append(urn)
-                elif urn.contact != self:
+                # unassigned URN or assinged to someone else
+                elif not urn.contact or urn.contact != self:
                     urn.contact = self
                     urn.save()
                     urns_attached.append(urn)
