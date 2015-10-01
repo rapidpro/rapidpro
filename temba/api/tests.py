@@ -1234,16 +1234,16 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertEqual(len(response.json['results']), 2)
 
-        self.assertEqual(response.json['results'][0]['name'], "Dr Dre")
-        self.assertEqual(response.json['results'][0]['urns'], ['twitter:drdre', 'tel:+250788123456'])
-        self.assertEqual(response.json['results'][0]['fields'], {'real_name': "Andre", 'registration_date': None})
-        self.assertEqual(response.json['results'][0]['group_uuids'], [artists.uuid])
-        self.assertEqual(response.json['results'][0]['groups'], ["Music Artists"])
-        self.assertEqual(response.json['results'][0]['blocked'], False)
-        self.assertEqual(response.json['results'][0]['failed'], False)
+        self.assertEqual(response.json['results'][1]['name'], "Dr Dre")
+        self.assertEqual(response.json['results'][1]['urns'], ['twitter:drdre', 'tel:+250788123456'])
+        self.assertEqual(response.json['results'][1]['fields'], {'real_name': "Andre", 'registration_date': None})
+        self.assertEqual(response.json['results'][1]['group_uuids'], [artists.uuid])
+        self.assertEqual(response.json['results'][1]['groups'], ["Music Artists"])
+        self.assertEqual(response.json['results'][1]['blocked'], False)
+        self.assertEqual(response.json['results'][1]['failed'], False)
 
-        self.assertEqual(response.json['results'][1]['name'], "Jay-Z")
-        self.assertEqual(response.json['results'][1]['fields'], {'real_name': None,
+        self.assertEqual(response.json['results'][0]['name'], "Jay-Z")
+        self.assertEqual(response.json['results'][0]['fields'], {'real_name': None,
                                                                  'registration_date': "2014-12-31T01:04:00.000000Z"})
 
         # search using deprecated phone field
@@ -1356,6 +1356,11 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.get(pk=shinonda.pk).is_active)
         self.assertFalse(Contact.objects.get(pk=chad.pk).is_active)
 
+        # add a naked contact
+        response = self.postJSON(url, dict())
+        self.assertIsNotNone(json.loads(response.content)['uuid'])
+        self.assertEquals(201, response.status_code)
+
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.contacts')
 
@@ -1373,21 +1378,21 @@ class APITest(TembaTest):
         # page is implicit
         response = self.fetchJSON(url)
         self.assertResultCount(response, 300)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 300")
 
         Contact.objects.create(org=self.org, name="Minion 301", created_by=self.admin, modified_by=self.admin)
 
         # page 1 request always recalculates count
         response = self.fetchJSON(url, 'page=1')
         self.assertResultCount(response, 301)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 301")
 
         Contact.objects.create(org=self.org, name="Minion 302", created_by=self.admin, modified_by=self.admin)
 
         # other page numbers won't
         response = self.fetchJSON(url, 'page=2')
         self.assertResultCount(response, 301)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 251")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 52")
 
         # handle non-ascii chars in params
         response = self.fetchJSON(url, 'page=1&test=é')
@@ -2402,6 +2407,10 @@ class APITest(TembaTest):
         # fetch all
         response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
+
+        # reverse order by created_on
+        self.assertEqual(response.json['results'][0]['name'], "Just Joe")
+        self.assertEqual(response.json['results'][1]['name'], "Reporters")
 
         # fetch by partial name
         response = self.fetchJSON(url, "name=Report")

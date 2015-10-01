@@ -1222,6 +1222,9 @@ class RuleTest(TembaTest):
         sms = self.create_msg(direction=INCOMING, contact=self.contact,
                               text="+12065551212", contact_urn=contact.urns.filter(path='+250788382382').first())
 
+        # create another contact with that phone number, to test stealing
+        robbed = self.create_contact("Robzor", "+12065551212")
+
         test.execute(run, None, sms)
 
         # updating Phone Number should not create a contact field
@@ -1229,7 +1232,7 @@ class RuleTest(TembaTest):
 
         # instead it should update the tel urn for our contact
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals(3, contact.urns.all().count())
+        self.assertEquals(4, contact.urns.all().count())
         self.assertIsNotNone(contact.urns.filter(path='+12065551212').first())
 
         # we should still have our twitter scheme
@@ -1238,7 +1241,21 @@ class RuleTest(TembaTest):
         # and our other phone number
         self.assertIsNotNone(contact.urns.filter(path='+18005551212').first())
 
-    test_save_to_contact_action.active = True
+        # and our original number too
+        self.assertIsNotNone(contact.urns.filter(path='+250788382382').first())
+
+        # robzor shouldn't have a number anymore
+        self.assertFalse(robbed.urns.all())
+
+        # try the same with a simulator contact
+        test_contact = Contact.get_test_contact(self.admin)
+        test_contact_urn = test_contact.urns.all().first()
+        run = FlowRun.create(self.flow, test_contact)
+        test.execute(run, None, sms)
+
+        # URN should be unchanged on the simulator contact
+        test_contact = Contact.objects.get(id=test_contact.id)
+        self.assertEquals(test_contact_urn, test_contact.urns.all().first())
 
     def test_language_action(self):
 
