@@ -4504,16 +4504,7 @@ class SaveToContactAction(Action):
         self.value = value
 
     @classmethod
-    def from_json(cls, org, json):
-        # they are creating a new field
-        label = json.get(cls.LABEL)
-        field = json.get(cls.FIELD, None)
-        value = json.get(cls.VALUE)
-
-        # create our contact field if necessary
-        if not field:
-            field = ContactField.make_key(label)
-
+    def get_label(cls, org, field, label=None):
         # make sure this field exists
         if field == 'name':
             label = 'Contact Name'
@@ -4527,6 +4518,22 @@ class SaveToContactAction(Action):
                 label = contact_field.label
             else:
                 ContactField.get_or_create(org, field, label)
+
+        return label
+
+    @classmethod
+    def from_json(cls, org, json):
+        # they are creating a new field
+        label = json.get(cls.LABEL)
+        field = json.get(cls.FIELD, None)
+        value = json.get(cls.VALUE)
+
+        # create our contact field if necessary
+        if not field:
+            field = ContactField.make_key(label)
+
+        # look up our label
+        label = cls.get_label(org, field, label)
 
         return SaveToContactAction(label, field, value)
 
@@ -4557,13 +4564,14 @@ class SaveToContactAction(Action):
         elif self.field == 'tel_e164':
             new_value = value[:128]
 
-            # all previous urns minus the current phone urn if we are on one
-            urns = [(urn.scheme, urn.path) for urn in contact.urns.all().exclude(scheme=TEL_SCHEME, pk=msg.contact_urn.pk)]
+            # don't really update URNs on test contacts
+            if not contact.is_test:
+                # grab our current URNs
+                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
 
-            # add in our new phone number
-            urns += [('tel', new_value)]
-            contact.update_urns(urns)
-
+                # add in our new phone number
+                urns += [('tel', new_value)]
+                contact.update_urns(urns)
         else:
             new_value = value[:640]
             contact.set_field(self.field, new_value)
@@ -4577,15 +4585,7 @@ class SaveToContactAction(Action):
         if not run.contact.is_test:
             return False
 
-        label = None
-
-        if self.field == 'name':
-            label = "Name"
-        elif self.field == 'first_name':
-            label = "First Name"
-        else:
-            label = ContactField.objects.filter(org=run.contact.org, key=self.field).first().label
-
+        label = SaveToContactAction.get_label(run.flow.org, self.field, self.label)
         log_txt = _("Updated %s to '%s'") % (label, new_value)
 
         log = ActionLog.create(run, log_txt)

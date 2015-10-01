@@ -190,13 +190,19 @@ class ContactForm(forms.ModelForm):
         if not self.org.is_anon:
             for urn_options in URN_SCHEME_CHOICES:
                 scheme, label = urn_options
-
-                urn = self.instance.get_urn(scheme) if self.instance else None
-                initial = urn.path if urn else None
                 help_text = '%s for this contact (@contact.%s)' % (label, scheme)
 
-                ctrl = forms.CharField(required=False, label=label, initial=initial, help_text=help_text)
-                extra_fields.append(('__urn__' + scheme, ctrl))
+                # get all the urns for this scheme
+                urns = self.instance.get_urns_for_scheme(scheme)
+                if urns:
+                    for i, urn in enumerate(urns):
+                        ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
+                        extra_fields.append(('__urn__%s__%d' % (scheme, i), ctrl))
+                        help_text = '%s for this contact' % label
+
+                else:
+                    ctrl = forms.CharField(required=False, label=label, initial=None, help_text=help_text)
+                    extra_fields.append(('__urn__%s__%d' % (scheme, 0), ctrl))
 
         # add all contact fields
         if inc_contact_fields:
@@ -215,7 +221,7 @@ class ContactForm(forms.ModelForm):
         # validate URN fields
         for field_key, value in self.cleaned_data.iteritems():
             if field_key.startswith('__urn__') and value:
-                scheme = field_key[7:]
+                scheme = field_key[7:field_key.rfind('__')]
 
                 norm_scheme, norm_path = ContactURN.normalize_urn(scheme, value, country)
                 existing = Contact.from_urn(self.org, norm_scheme, norm_path)
@@ -527,7 +533,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_object(self, queryset=None):
             uuid = self.kwargs.get('uuid')
-            contact = None
             if self.request.user.is_superuser:
                 contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
             else:
@@ -746,7 +751,7 @@ class ContactCRUDL(SmartCRUDL):
             urns = []
             for field_key, value in self.form.cleaned_data.iteritems():
                 if field_key.startswith('__urn__') and value:
-                    scheme = field_key[7:]
+                    scheme = field_key[7:field_key.rfind('__')]
                     urns.append((scheme, value))
 
             Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
@@ -797,7 +802,7 @@ class ContactCRUDL(SmartCRUDL):
                 urns = []
                 for field_key, value in self.form.cleaned_data.iteritems():
                     if field_key.startswith('__urn__') and value:
-                        scheme = field_key[7:]
+                        scheme = field_key[7:field_key.rfind('__')]
                         urns.append((scheme, value))
 
                 obj.update_urns(urns)

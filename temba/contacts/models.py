@@ -994,6 +994,12 @@ class Contact(TembaModel, SmartModel):
             names = [first_name] + names[1:]
             self.name = " ".join(names)
 
+    def get_urns_for_scheme(self, scheme):
+        """
+        Returns all the URNs for the passed in scheme
+        """
+        return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
+
     def get_urns(self):
         """
         Gets all URNs ordered by priority
@@ -1045,12 +1051,11 @@ class Contact(TembaModel, SmartModel):
                 if not urn:
                     urn = ContactURN.create(self.org, self, norm_scheme, norm_path)
                     urns_created.append(urn)
-                elif not urn.contact:
+                # unassigned URN or assinged to someone else
+                elif not urn.contact or urn.contact != self:
                     urn.contact = self
                     urn.save()
                     urns_attached.append(urn)
-                elif urn.contact != self:
-                    raise ValueError("%s belongs to another contact" % norm_urn)
                 else:
                     urns_retained.append(urn)
 
