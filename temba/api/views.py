@@ -1485,7 +1485,7 @@ class GroupEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = ContactGroupReadSerializer
 
     def get_queryset(self):
-        queryset = self.model.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
+        queryset = self.model.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1690,7 +1690,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         # can't prefetch a custom manager directly, so here we prefetch user groups as new attribute
         user_groups_prefetch = Prefetch('all_groups', queryset=ContactGroup.user_groups.all(), to_attr='prefetched_user_groups')
 
-        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('modified_on')
+        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on')
 
     def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs
