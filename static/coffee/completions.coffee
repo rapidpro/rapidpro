@@ -5,7 +5,6 @@ class window.AutoComplete
 
   constructor: (@variables=[], @functions=[]) ->
 
-
     @parser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
     @completions = @variables.concat(@functions)
 
@@ -20,9 +19,9 @@ class window.AutoComplete
       insertBackPos: 1
       data: @variables
       searchKey: "name"
-      insertTpl: '@${name}'
+      insertTpl: @getInsertTemplate
       startWithSpace: true
-      displayTpl: "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
+      displayTpl: @getDisplayTemplate
       limit: 100
       maxLen: 100
       suffix: ""
@@ -94,23 +93,8 @@ class window.AutoComplete
           query = this.query.text
           subQuery = ac.parseQuery(query)
 
-          if action is 'onInsert'
-            if query and query[0] is '('
-              if query.length is 1 and subQuery is ""
-                template = '@(${name}'
-              else
-                regexp = new RegExp("@*" + subQuery + "$")
-                template = ('@' + query).replace(regexp, '${name}')
-
-            else
-              regexp = new RegExp(subQuery + "$")
-              template = ('@' + query).replace(regexp, '${name}')
-
           try
-            template = tpl(map) unless typeof tpl is 'string'
-
-            if typeof map.example isnt "undefined" and action is "onDisplay"
-              template = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
+            template = tpl(map, query, subQuery)
 
             template.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
           catch error
@@ -146,6 +130,27 @@ class window.AutoComplete
             value += " "
 
           return value
+
+  getDisplayTemplate: (map, query, subQuery) ->
+    template = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
+    if typeof map.example isnt "undefined"
+      template = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
+
+    template
+
+  getInsertTemplate: (map, query, subQuery) ->
+    if query and query[0] is '('
+      if query.length is 1 and subQuery is ""
+        template = '@(${name}'
+      else
+        regexp = new RegExp("@*" + subQuery + "$")
+        template = ('@' + query).replace(regexp, '${name}')
+
+    else
+      regexp = new RegExp(subQuery + "$")
+      template = ('@' + query).replace(regexp, '${name}')
+
+    template
 
   parseQuery: (query) ->
     if not query

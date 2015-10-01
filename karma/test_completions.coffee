@@ -305,7 +305,8 @@ describe 'beforeInsert:', ->
 
 describe 'tplEval:', ->
 
-  tplEval = new AutoComplete().config.callbacks.tplEval
+  ac = new AutoComplete()
+  tplEval = ac.config.callbacks.tplEval
 
   beforeEach ->
     window.query =
@@ -314,34 +315,47 @@ describe 'tplEval:', ->
   describe 'onInsert', ->
     it 'should insert ( before name of map in the inserted text if query is just ( with length 1', ->
       window.query.text = "("
-      inserted = tplEval('@{name}', {'name': "SUM"}, "onInsert")
+      inserted = tplEval(ac.getInsertTemplate, {'name': "SUM"}, "onInsert")
       expect(inserted).toBe('@(SUM')
 
     it 'should not insert ( before name inserted if query has length more than 1', ->
       window.query.text ="(SUM(con"
-      expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
-      expect(tplEval('@{name}', {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
+      expect(tplEval(ac.getInsertTemplate, {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
+      expect(tplEval(ac.getInsertTemplate, {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
 
     it 'should omit @ preceding variables inside function arguments', ->
       window.query.text ="(SUM(@con"
-      expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
-      expect(tplEval('@{name}', {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
+      expect(tplEval(ac.getInsertTemplate, {'name': "contact.name"}, "onInsert")).toBe('@(SUM(contact.name')
+      expect(tplEval(ac.getInsertTemplate, {'name': "new_contact"}, "onInsert")).toBe('@(SUM(new_contact')
 
     it 'should use the default tpl', ->
       window.query.text = "cont"
 
-      expect(tplEval('@{name}', {'name': "contact.name"}, "onInsert")).toBe('@contact.name')
+      expect(tplEval(ac.getInsertTemplate, {'name': "contact.name"}, "onInsert")).toBe('@contact.name')
       window.query.text = '(SUM(contact.name, ste'
-      inserted = tplEval('@{name}', {'name': "step.value"}, "onInsert")
+      inserted = tplEval(ac.getInsertTemplate, {'name': "step.value"}, "onInsert")
       expect(inserted).toBe('@(SUM(contact.name, step.value')
 
   describe 'onDisplay', ->
     it 'should use the li', ->
       window.query.text = "cont"
-      displayed = tplEval('<li>${name}<small>${display}</small></li>', {'name':'contact.name', 'display':'Contact Name'}, 'onDisplay')
-      expect(displayed).toBe('<li>contact.name<small>Contact Name</small></li>')
+      displayed = tplEval(ac.getDisplayTemplate, {'name':'contact.name', 'display':'Contact Name'}, 'onDisplay')
+      expect(displayed).toBe("<li><div class='completion-dropdown'><div class='option-name'>contact.name</div><small class='option-display'>Contact Name</small></div></li>")
 
     it 'should switch template if we have example in map', ->
       window.query.text = "(SUM(contact,"
-      displayed = tplEval('<li>{name}<small>{display}</small></li>', {'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'onDisplay')
+      displayed = tplEval(ac.getDisplayTemplate, {'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'onDisplay')
       expect(displayed).toBe("<li><div class='completion-dropdown'><div class='option-name'>SUM</div><div class='option-example'><div class='display-labels'>Example</div>SUM(A, B)</div><div class='option-display'><div class='display-labels'>Summary</div>SUM of numbers</div></div></li>")
+
+
+describe 'getDisplayTemplate:', ->
+
+  ac = new AutoComplete()
+  it 'should not include example div if not example data is in the map', ->
+    output = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><small class='option-display'>${display}</small></div></li>"
+    expect(ac.getDisplayTemplate({'name':'contact.name', 'display':'Contact Name'}, 'cont', '')).toBe(output)
+
+  it 'should include example div if example is defined in the map', ->
+    output = "<li><div class='completion-dropdown'><div class='option-name'>${name}</div><div class='option-example'><div class='display-labels'>Example</div>${example}</div><div class='option-display'><div class='display-labels'>Summary</div>${display}</div></div></li>"
+    expect(ac.getDisplayTemplate({'name':'SUM', 'example':'SUM(A, B)', 'hint':'hint for sum', 'display':'SUM of numbers'}, 'SUM', '')).toBe(output)
+
