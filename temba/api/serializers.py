@@ -380,8 +380,8 @@ class ContactWriteSerializer(WriteSerializer):
         phone = attrs.get('phone', None)
         uuid = attrs.get('uuid', None)
 
-        if (not urns and not phone and not uuid) or (urns and phone):
-            raise ValidationError("Must provide either urns, phone or uuid but only one of each")
+        if urns and phone:
+            raise ValidationError("Cannot provide both urns and phone parameters together")
 
         if attrs.get('group_uuids', []) and attrs.get('groups', []):
             raise ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
@@ -523,23 +523,20 @@ class ContactWriteSerializer(WriteSerializer):
         if self.org.is_anon:
             raise ValidationError("Cannot update contacts on anonymous organizations")
 
-        uuid = attrs.get('uuid', None)
-        if uuid:
-            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
-
         urns = attrs.get('urns', None)
         phone = attrs.get('phone', None)
-
-        # user didn't specify either urns or phone, stick to what already exists
-        if urns is None and phone is None:
-            urns = [(u.scheme, u.path) for u in contact.urns.all()]
+        uuid = attrs.get('uuid', None)
 
         # user only specified phone, build our urns from it
         if phone:
-            urns = [(TEL_SCHEME, attrs['phone'])]
+            urns = [(TEL_SCHEME, phone)]
 
         if uuid:
-            contact.update_urns(urns)
+            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
+            
+            if urns:
+                contact.update_urns(urns)
+
         else:
             contact = Contact.get_or_create(self.org, self.user, urns=urns, uuid=uuid)
 

@@ -1356,6 +1356,11 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.get(pk=shinonda.pk).is_active)
         self.assertFalse(Contact.objects.get(pk=chad.pk).is_active)
 
+        # add a naked contact
+        response = self.postJSON(url, dict())
+        self.assertIsNotNone(json.loads(response.content)['uuid'])
+        self.assertEquals(201, response.status_code)
+
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.contacts')
 
