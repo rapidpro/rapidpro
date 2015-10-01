@@ -559,7 +559,7 @@ class Flow(TembaModel, SmartModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None, voice_response=None):
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None, triggered_start=False):
         if started_flows is None:
             started_flows = []
 
@@ -574,7 +574,8 @@ class Flow(TembaModel, SmartModel):
                 step.run.set_completed(final_step=step)
                 continue
 
-            handled = Flow.handle_destination(destination, step, step.run, msg, started_flows, user_input=True)
+            handled = Flow.handle_destination(destination, step, step.run, msg, started_flows,
+                                              user_input=True, triggered_start=triggered_start)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -587,7 +588,7 @@ class Flow(TembaModel, SmartModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False):
+                           started_flows=None, is_test_contact=False, user_input=False, triggered_start=False):
 
         if started_flows is None:
             started_flows = []
@@ -627,6 +628,10 @@ class Flow(TembaModel, SmartModel):
             elif destination.get_step_type() == ACTION_SET:
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
                 add_to_path(path, destination.uuid)
+
+            # if this is a triggered start, we only consider user input on the first step, so clear it now
+            if triggered_start:
+                user_input = False
 
             # pull out our current state from the result
             step = result.get('step')
@@ -1613,7 +1618,7 @@ class Flow(TembaModel, SmartModel):
 
                 # if we have a start message, go and handle the rule
                 if start_msg:
-                    self.find_and_handle(start_msg, started_flows_by_contact)
+                    Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                 # if we didn't get an incoming message, see if we need to evaluate it passively
                 elif not entry_rules.is_pause():

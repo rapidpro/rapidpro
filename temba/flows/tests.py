@@ -230,7 +230,7 @@ class RuleTest(TembaTest):
 
         # create and send a reply
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange")
-        self.assertFalse(self.flow.find_and_handle(incoming))
+        self.assertFalse(Flow.find_and_handle(incoming))
 
         # no reply, our flow isn't active
         self.assertFalse(Msg.objects.filter(response_to=incoming))
@@ -243,7 +243,7 @@ class RuleTest(TembaTest):
         self.flow.save()
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.assertTrue(self.flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming))
 
         # our message should have gotten a reply
         reply = Msg.objects.get(response_to=incoming)
@@ -337,7 +337,7 @@ class RuleTest(TembaTest):
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
-        self.assertFalse(self.flow.find_and_handle(extra))
+        self.assertFalse(Flow.find_and_handle(extra))
 
         # try exporting this flow
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
@@ -2125,7 +2125,7 @@ class FlowRunTest(TembaTest):
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.flow.find_and_handle(incoming)
+        Flow.find_and_handle(incoming)
 
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
@@ -2847,7 +2847,7 @@ class FlowsTest(FlowFileTest):
 
         # send a message, no flow should handle us since we are done
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
-        handled = flow.find_and_handle(incoming)
+        handled = Flow.find_and_handle(incoming)
         self.assertFalse(handled)
 
         # now wire up our finished action to the start of our flow
@@ -3731,3 +3731,61 @@ class GhostActionNodeTest(FlowFileTest):
         # we should have gotten a response from our child flow
         self.assertEquals("I like butter too.",
                           Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+
+class TriggerStartTest(FlowFileTest):
+
+    def test_trigger_start(self):
+        """
+        Test case for a flow starting with a split on a contact field, sending an action, THEN waiting for a message.
+        Having this flow start from a trigger should NOT advance the contact past the first wait.
+        """
+        flow = self.get_flow('trigger_start')
+
+        # create our message that will start our flow
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="trigger")
+
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        # flow should have started
+        self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.contact))
+
+        # but we shouldn't have our name be trigger
+        contact = Contact.objects.get(pk=self.contact.pk)
+        self.assertNotEqual(contact.name, "trigger")
+
+        self.assertLastResponse("Thanks for participating, what is your name?")
+
+        # if we send another message, that should set our name
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Rudolph")
+        self.assertTrue(Flow.find_and_handle(incoming))
+
+        contact = Contact.objects.get(pk=self.contact.pk)
+        self.assertEqual(contact.name, "Rudolph")
+
+        self.assertLastResponse("Great to meet you Rudolph")
+
+    def test_trigger_capture(self):
+        """
+        Test case for a flow starting with a wait. Having this flow start with a trigger should advance the flow
+        past that wait and process the rest of the flow (until the next wait)
+        """
+        flow = self.get_flow('trigger_capture')
+
+        # create our incoming message that will start our flow
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="trigger2 Rudolph")
+
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        # flow should have started
+        self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.contact))
+
+        # and our name should be set to Nic
+        contact = Contact.objects.get(pk=self.contact.pk)
+        self.assertEqual(contact.name, "Rudolph")
+
+        self.assertLastResponse("Hi Rudolph, how old are you?")
+
+
+
+
