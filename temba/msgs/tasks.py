@@ -18,6 +18,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
+
 @task(track_started=True, name='process_message_task')  # pragma: no cover
 def process_message_task(msg_id, from_mage=False, new_contact=False):
     """
@@ -46,15 +47,14 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
             Msg.process_message(msg)
             print "M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
 
+
 @task(track_started=True, name='send_broadcast')
 def send_broadcast_task(broadcast_id):
-    try:
-        # get our broadcast
-        from .models import Broadcast
-        broadcast = Broadcast.objects.get(pk=broadcast_id)
-        broadcast.send()
-    except Exception as e:
-        logger.exception("Error sending broadcast: %s" % str(e))
+    # get our broadcast
+    from .models import Broadcast
+    broadcast = Broadcast.objects.get(pk=broadcast_id)
+    broadcast.send()
+
 
 @task(track_started=True, name='send_spam')
 def send_spam(user_id, contact_id):
@@ -81,9 +81,11 @@ def send_spam(user_id, contact_id):
         broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), [contact])
         broadcast.send(trigger_send=(idx == 149))
 
+
 @task(track_started=True, name='fail_old_messages')
 def fail_old_messages():
     Msg.fail_old_messages()
+
 
 @task(track_started=True, name='collect_message_metrics_task', time_limit=900, soft_time_limit=900)
 def collect_message_metrics_task():
@@ -187,9 +189,11 @@ def check_messages_task():
                 for msg in unhandled_messages[:100]:
                     msg.handle()
 
+
 @celeryd_init.connect
 def configure_workers(sender=None, conf=None, **kwargs):
     init_analytics()
+
 
 @task(track_started=True, name='export_sms_task')
 def export_sms_task(id):
@@ -199,6 +203,7 @@ def export_sms_task(id):
     export_task = ExportMessagesTask.objects.filter(pk=id).first()
     if export_task:
         export_task.start_export()
+
 
 @task(track_started=True, name="handle_event_task", time_limit=90, soft_time_limit=60)
 def handle_event_task():
