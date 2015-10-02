@@ -2746,16 +2746,18 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     Example:
 
-        GET /api/v1/flowdefinition.json
+        GET /api/v1/flow_definition.json
 
     Response is a flow definition
-
         {
-          "results": {
+          "name": "Water Point Survey",
+          "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+          "flow_type": "S",
+          "definition": {
             "base_language": "eng",
             "last_saved": "2015-09-23T00:25:50.709164Z",
             "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-            "type": "S",
+            "version": 4,
             "metadata": {},
             "action_sets": [
               {
@@ -2812,20 +2814,21 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     * **uuid** - the UUID of the flow (string, optional)
     * **name** - the name of the flow
+    * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
     * **definition** - the flow definition to save (string)
 
     Example:
 
-        POST /api/v1/flowdefinition.json
+        POST /api/v1/flow_definition.json
         {
           "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
           "name": "Registration Flow",
+          "flow_type": "S",
           "definition":
           {
             "base_language": "eng",
             "last_saved": "2015-09-23T00:25:50.709164Z",
             "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-            "type": "S",
             "metadata": {},
             "action_sets": [
               {
@@ -2883,7 +2886,6 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     write_serializer_class = FlowDefinitionWriteSerializer
 
     def get(self, request, *args, **kwargs):
-        user = request.user
 
         uuid = request.GET.get('uuid')
         flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
@@ -2891,9 +2893,9 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
         if flow:
             # make sure we have the latest format
             flow.ensure_current_version()
-            return Response(dict(results=flow.as_json()), status=status.HTTP_200_OK)
+            return Response(FlowDefinitionReadSerializer(flow).data, status=status.HTTP_200_OK)
         else:
-            return Response(dict(error="Invalid flow uuid", status=status.HTTP_400_BAD_REQUEST))
+            return Response(dict(error="Invalid flow uuid"), status=status.HTTP_400_BAD_REQUEST)
 
 
 class FlowEndpoint(ListAPIMixin, BaseAPIView):

@@ -76,7 +76,7 @@ class RuleTest(TembaTest):
                                               dict(uuid=uuid(14), destination=uuid(4), test=dict(type='true'), category=dict(base="Other")),
                                               dict(uuid=uuid(15), test=dict(type='true'), category=dict(base="Nothing"))]) # test case with no destination
                                     ],
-                          entry=uuid(1), base_language='base', type='F', metadata=dict(author="Ryan Lewis"))
+                          entry=uuid(1), base_language='base', version=1, metadata=dict(author="Ryan Lewis"))
 
         settings.SEND_EMAILS = True
         settings.SEND_WEBHOOKS = True
@@ -91,30 +91,23 @@ class RuleTest(TembaTest):
 
         # every save should result in a new flow version
         response = self.flow.update(self.definition)
-        self.assertEquals(1, self.flow.versions.all().count())
+
         self.assertEquals(self.flow.created_by, self.flow.versions.all()[0].created_by)
-        first_save_time = self.flow.versions.all().first().created_on
+
+        # one version
+        versions = self.flow.versions.all()
+        self.assertEquals(1, versions.count())
+        self.assertEquals(1, versions[0].version)
 
         # create a new update
         self.definition['last_saved'] = response['saved_on']
-        response = self.flow.update(self.definition, user=self.admin)
-        versions = self.flow.versions.all().order_by('-pk')
-
-        # since we saved in the same minute, we should still have one version,
-        self.assertEquals(1, versions.count())
-
-        # but it should be the new version, the old one having been removed
-        version = versions.first()
-        self.assertNotEquals(version.created_on, first_save_time)
-
-        # now simulate a save from 1.5m later
-        version.created_on = version.created_on - timedelta(seconds=190)
-        version.save()
-        self.definition['last_saved'] = response['saved_on']
         self.flow.update(self.definition, user=self.admin)
+        versions = self.flow.versions.all().order_by('created_on')
 
         # now we should have two revisions
-        self.assertEquals(2, self.flow.versions.all().count())
+        self.assertEquals(2, versions.count())
+        self.assertEquals(1, versions[0].version)
+        self.assertEquals(2, versions[1].version)
 
     def test_flow_lists(self):
 
@@ -1315,7 +1308,6 @@ class RuleTest(TembaTest):
         self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='What is your favorite color?'))
 
     def test_group_actions(self):
-        flow = self.flow
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
