@@ -127,7 +127,7 @@ class ContactField(models.Model):
             else:
                 # we need to create a new contact field, use our key with invalid chars removed
                 if not label:
-                    label = regex.sub(r'([A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
+                    label = regex.sub(r'([^A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
 
                 if not value_type:
                     value_type = TEXT
