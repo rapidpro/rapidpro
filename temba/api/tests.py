@@ -411,13 +411,25 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
-    def test_api_flowdefinition_update(self):
-        url = reverse('api.flowdefinition')
+    def test_api_flow_definition(self):
+
+        url = reverse('api.flow_definition')
         self.login(self.admin)
 
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
         definition = flow.as_json()
+        response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
+        self.assertEquals(1, response.json['definition']['version'])
+        self.assertEquals("Pick a Number", response.json['name'])
+        self.assertEquals("F", response.json['flow_type'])
+
+        # make sure the version that is returned increments properly
+        flow.update(flow.as_json())
+        response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
+        self.assertEquals(2, response.json['definition']['version'])
+
+        # now delete our flow, we'll create it from scratch below
         flow.delete()
 
         # post something that isn't an object
@@ -460,8 +472,7 @@ class APITest(TembaTest):
 
         # No invalid type
         flow.delete()
-        definition['type'] = 'X'
-        response = self.postJSON(url, dict(name="Hello World", definition=definition))
+        response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X'))
         self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):
@@ -477,9 +488,25 @@ class APITest(TembaTest):
         # login as surveyor
         self.login(self.surveyor)
 
-        flow = self.create_flow(uuid_start=0)
+        uuid_start = 0
+        flow = self.create_flow(uuid_start)
+
+        # add an update action
+        definition = flow.as_json()
+        from temba.tests import uuid
+        new_node_uuid = uuid(uuid_start + 20)
+
+        # add a new action set
+        definition['action_sets'].append(dict(uuid=new_node_uuid, x=100, y=4, destination=None,
+                                              actions=[dict(type='save', field='tel_e164', value='+12065551212')]))
+
+        # point one of our nodes to it
+        definition['action_sets'][1]['destination'] = new_node_uuid
+
+        flow.update(definition)
 
         data = dict(flow=flow.uuid,
+                    version=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
@@ -531,6 +558,7 @@ class APITest(TembaTest):
         self.assertEqual(flow.get_activity(), ({u'00000000-00000000-00000000-00000001': 1}, {}))
 
         data = dict(flow=flow.uuid,
+                    version=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
@@ -544,7 +572,12 @@ class APITest(TembaTest):
                              arrived_on='2015-08-25T11:13:30.088Z',
                              actions=[
                                  dict(type="reply", msg="I love orange too!")
-                             ])
+                             ]),
+                        dict(node=new_node_uuid,
+                             arrived_on='2015-08-25T11:15:30.088Z',
+                             actions=[
+                                 dict(type="save", field="tel_e164", value="+12065551212")
+                             ]),
                     ],
                     completed=True)
 
@@ -556,7 +589,10 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
-        self.assertEqual(run.steps.count(), 3)
+        self.assertEqual(run.steps.count(), 4)
+
+        # joe should have an urn now
+        self.assertIsNotNone(self.joe.urns.filter(path='+12065551212').first())
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
@@ -598,8 +634,8 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].rule_value, None)
         self.assertEqual(steps[2].rule_decimal_value, None)
         self.assertEqual(steps[2].arrived_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].next_uuid, None)
+        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 15, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[2].next_uuid, new_node_uuid)
 
         # new outgoing message for reply
         out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
@@ -617,8 +653,48 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {'00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002': 1,
+                                               {'00000000-00000000-00000000-00000002:00000000-00000000-00000000-00000020': 1,
+                                                '00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002': 1,
                                                 '00000000-00000000-00000000-00000001:00000000-00000000-00000000-00000005': 1}))
+
+        # now lets remove our last action set
+        definition['action_sets'].pop()
+        definition['action_sets'][1]['destination'] = None
+        flow.update(definition)
+
+        # update a value for our missing node
+        data = dict(flow=flow.uuid,
+                    version=2,
+                    contact=self.joe.uuid,
+                    started='2015-08-26T11:09:29.088Z',
+                    steps=[
+                        dict(node=new_node_uuid,
+                             arrived_on='2015-08-26T11:15:30.088Z',
+                             actions=[
+                                 dict(type="save", field="tel_e164", value="+13605551212")
+                             ]),
+                    ],
+                    completed=True)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
+
+            # this version doesn't have our node
+            data['version'] = 3
+            response = self.postJSON(url, data)
+            self.assertEquals(400, response.status_code)
+            self.assertEquals("No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'", response.json['steps'][0])
+
+            # this version doesn't exist
+            data['version'] = 12
+            response = self.postJSON(url, data)
+            self.assertEquals(400, response.status_code)
+            self.assertEquals('Invalid version: 12', response.json['steps'][0])
+
+            # this one exists and has our node
+            data['version'] = 2
+            response = self.postJSON(url, data)
+            self.assertEquals(201, response.status_code)
+            self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
     def test_api_results(self):
         url = reverse('api.results')

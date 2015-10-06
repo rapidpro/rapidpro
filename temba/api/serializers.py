@@ -1012,18 +1012,20 @@ class FlowDefinitionReadSerializer(serializers.ModelSerializer):
     definition = serializers.SerializerMethodField('get_definition')
     archived = serializers.Field(source='is_archived')
     expires = serializers.Field(source='expires_after_minutes')
+    flow_type = serializers.Field(source='flow_type')
 
     def get_definition(self, obj):
         return obj.as_json()
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition')
+        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition', 'flow_type')
 
 
 class FlowDefinitionWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=True)
+    flow_type = serializers.WritableField(required=False)
     definition = serializers.WritableField(required=False)
 
     def validate_uuid(self, attrs, source):
@@ -1033,13 +1035,12 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
             raise ValidationError("No such flow with UUID: %s" % uuid)
         return attrs
 
-    def validate_definition(self, attrs, source):
-        definition = attrs.get('definition', None)
+    def validate_flow_type(self, attrs, source):
+        flow_type = attrs.get(source, None)
 
-        if definition:
-            flow_type = definition.get('type', None)
-            if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
-                raise ValidationError("Invalid flow type: %s" % flow_type)
+        if flow_type and flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
+            raise ValidationError("Invalid flow type: %s" % flow_type)
+
         return attrs
 
     def restore_object(self, attrs, instance=None):
@@ -1053,15 +1054,17 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
         name = attrs['name']
         definition = attrs.get('definition', None)
 
-        flow_type = Flow.FLOW
-        if definition:
-            flow_type = definition.get('type', Flow.FLOW)
-
         if uuid:
             flow = Flow.objects.get(org=self.org, uuid=uuid)
             flow.name = name
+
+            flow_type = attrs.get('flow_type', None)
+            if flow_type:
+                flow.flow_type = flow_type
+
             flow.save()
         else:
+            flow_type = attrs.get('flow_type', Flow.FLOW)
             flow = Flow.create(self.org, self.user, name, flow_type)
 
         if definition:
@@ -1265,8 +1268,61 @@ class FlowRunWriteSerializer(WriteSerializer):
     flow = serializers.CharField(required=True, max_length=36)
     contact = serializers.CharField(required=True, max_length=36)
     started = serializers.DateTimeField(required=True)
+    version = serializers.IntegerField(required=True)
     completed = serializers.BooleanField(required=False)
     steps = serializers.WritableField()
+
+    def validate_steps(self, attrs, source):
+
+        class VersionNode:
+            def __init__(self, node, is_ruleset):
+                self.node = node
+                self.uuid = node['uuid']
+                self.ruleset = is_ruleset
+
+            def is_ruleset(self):
+                return self.ruleset
+
+            def is_pause(self):
+                from temba.flows.models import RuleSet
+                return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
+
+            def get_step_type(self):
+                from temba.flows.models import RULE_SET, ACTION_SET
+                if self.is_ruleset():
+                    return RULE_SET
+                else:
+                    return ACTION_SET
+
+        steps = attrs.get(source)
+        flow = attrs.get('flow')
+        version = attrs.get('version')
+
+        flow_version = flow.versions.filter(version=version).first()
+
+        if not flow_version:
+            raise ValidationError("Invalid version: %d" % version)
+
+        definition = json.loads(flow_version.definition)
+
+        # make sure we are operating off a current spec
+        from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
+        definition = FlowVersion.migrate_definition(definition, flow_version.spec_version, CURRENT_EXPORT_VERSION)
+
+        for step in steps:
+            node_obj = None
+            key = 'rule_sets' if 'rule' in step else 'action_sets'
+            for json_node in definition[key]:
+                if json_node['uuid'] == step['node']:
+                    node_obj = VersionNode(json_node, 'rule' in step)
+                    break
+
+            if not node_obj:
+                raise ValidationError("No such node with UUID %s in flow '%s'" % (step['node'], flow.name))
+            else:
+                step['node'] = node_obj
+
+        return attrs
 
     def validate_flow(self, attrs, source):
         flow_uuid = attrs.get(source, None)

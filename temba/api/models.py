@@ -80,7 +80,7 @@ class WebHookEvent(SmartModel):
         deliver_event_task.delay(self.id)
 
     @classmethod
-    def trigger_flow_event(cls, webhook_url, flow, run, node, contact, event, action='POST'):
+    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST'):
         org = flow.org
         api_user = get_api_user()
 
@@ -128,7 +128,7 @@ class WebHookEvent(SmartModel):
                     flow=flow.id,
                     run=run.id,
                     text=text,
-                    step=unicode(node.uuid),
+                    step=unicode(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
                     values=json.dumps(values),
                     steps=json.dumps(steps),

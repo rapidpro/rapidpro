@@ -15,6 +15,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -160,7 +161,7 @@ class Flow(TembaModel, SmartModel):
     LAST_SAVED = 'last_saved'
     BASE_LANGUAGE = 'base_language'
     SAVED_BY = 'saved_by'
-    TYPE = 'type'
+    VERSION = 'version'
 
     X = 'x'
     Y = 'y'
@@ -1917,7 +1918,9 @@ class Flow(TembaModel, SmartModel):
         if self.base_language:
             flow[Flow.BASE_LANGUAGE] = self.base_language
 
-        flow[Flow.TYPE] = self.flow_type
+        # store the revision of our definition
+        version = self.versions.all().order_by('-version').first()
+        flow[Flow.VERSION] = version.version if version else 1
 
         return flow
 
@@ -2247,11 +2250,6 @@ class Flow(TembaModel, SmartModel):
             # if we have a base language, set that
             self.base_language = json_dict.get('base_language', None)
 
-            # if we were given a flow type, set it
-            flow_type = json_dict.get('type', None)
-            if flow_type:
-                self.flow_type = flow_type
-
             # set our metadata
             self.metadata = None
             if Flow.METADATA in json_dict:
@@ -2270,14 +2268,18 @@ class Flow(TembaModel, SmartModel):
             if user is None:
                 user = self.created_by
 
-            # remove any versions that were created in the last minute
-            self.versions.filter(created_on__gt=timezone.now() - timedelta(seconds=60)).delete()
+            # last version
+            version = 1
+            last_version = self.versions.order_by('-version').first()
+            if last_version:
+                version = last_version.version + 1
 
             # create a new version
             self.versions.create(definition=json.dumps(json_dict),
                                  created_by=user,
                                  modified_by=user,
-                                 version_number=CURRENT_EXPORT_VERSION)
+                                 spec_version=CURRENT_EXPORT_VERSION,
+                                 version=version)
 
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
 
@@ -2617,13 +2619,13 @@ class ActionSet(models.Model):
                 if action.flow.pk in started_flows:
                     pass
                 else:
-                    msgs += action.execute(run, self, msg, started_flows)
+                    msgs += action.execute(run, self.uuid, msg, started_flows)
 
                     # reload our contact and reassign it to our run, it may have been changed deep down in our child flow
                     run.contact = Contact.objects.get(pk=run.contact.pk)
 
             else:
-                msgs += action.execute(run, self, msg)
+                msgs += action.execute(run, self.uuid, msg)
 
                 # actions modify the run.contact, update the msg contact in case they did so
                 if msg:
@@ -2669,7 +2671,8 @@ class FlowVersion(SmartModel):
     """
     flow = models.ForeignKey(Flow, related_name='versions')
     definition = models.TextField(help_text=_("The JSON flow definition"))
-    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+    spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+    version = models.IntegerField(null=True, help_text=_("Version counter for each definition"))
 
     @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):
@@ -3407,31 +3410,24 @@ class FlowStep(models.Model):
                                       related_name='steps',
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
 
+
+
     @classmethod
     def from_json(cls, json_obj, flow, run, previous_rule=None):
-        node_uuid = json_obj['node']
-        is_ruleset = 'rule' in json_obj
+
+        node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
-
-        # find this node
-        if is_ruleset:
-            node = RuleSet.objects.filter(uuid=node_uuid).first()
-        else:
-            node = ActionSet.objects.filter(uuid=node_uuid).first()
-
-        if not node:
-            raise ValueError("No such node with UUID %s in flow '%s'" % (node_uuid, flow.name))
 
         # find and update the previous step
         prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
         if prev_step:
             prev_step.left_on = arrived_on
-            prev_step.next_uuid = node_uuid
+            prev_step.next_uuid = node.uuid
             prev_step.save(update_fields=('left_on', 'next_uuid'))
 
         # generate the messages for this step
         msgs = []
-        if is_ruleset:
+        if node.is_ruleset():
             if node.is_pause():
                 incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
                                                msg_type=FLOW, status=HANDLED, date=arrived_on,
@@ -3446,29 +3442,35 @@ class FlowStep(models.Model):
             last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
-                msgs += action.execute(run, node, msg=last_incoming, offline_on=arrived_on)
+                msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
-        if is_ruleset:
+        if node.is_ruleset():
             rule_uuid = json_obj['rule']['uuid']
             rule_value = json_obj['rule']['value']
             rule_category = json_obj['rule']['category']
-            rule = None
-            for r in node.get_rules():
-                if r.uuid == rule_uuid:
-                    rule = r
-                    break
 
-            if not rule:
-                raise ValueError("No such rule with UUID %s" % rule_uuid)
+            # update the value if we have an existing ruleset
+            ruleset = RuleSet.objects.filter(flow=flow, uuid=node.uuid).first()
+            if ruleset:
+                rule = None
+                for r in ruleset.get_rules():
+                    if r.uuid == rule_uuid:
+                        rule = r
+                        break
 
-            rule.category = rule_category
-            node.save_run_value(run, rule, rule_value)
+                if not rule:
+                    raise ValueError("No such rule with UUID %s" % rule_uuid)
 
+                rule.category = rule_category
+                ruleset.save_run_value(run, rule, rule_value)
+
+            # update our step with our rule details
             step.rule_uuid = rule_uuid
             step.rule_category = rule_category
             step.rule_value = rule_value
+
             try:
                 step.rule_decimal_value = Decimal(json_obj['rule']['value'])
             except Exception:
@@ -3817,7 +3819,7 @@ class EmailAction(Action):
     def as_json(self):
         return dict(type=EmailAction.TYPE, emails=self.emails, subject=self.subject, msg=self.message)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         from .tasks import send_email_action_task
 
         # build our message from our flow variables
@@ -3873,13 +3875,13 @@ class APIAction(Action):
     def as_json(self):
         return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
 
         message_context = run.flow.build_message_context(run.contact, msg)
         (value, errors) = Msg.substitute_variables(self.webhook, run.contact, message_context,
                                          org=run.flow.org, url_encode=True)
-        WebHookEvent.trigger_flow_event(value, run.flow, run, actionset, run.contact, msg, self.action)
+        WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
         return []
 
     def get_description(self):
@@ -3960,7 +3962,7 @@ class AddToGroupAction(Action):
     def get_type(self):
         return AddToGroupAction.TYPE
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
 
@@ -4073,7 +4075,7 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
@@ -4127,7 +4129,7 @@ class SayAction(Action):
         return dict(type=SayAction.TYPE, msg=self.msg,
                     uuid=self.uuid, recording=self.recording)
 
-    def execute(self, run, actionset, event, offline_on=None):
+    def execute(self, run, actionset_uuid, event, offline_on=None):
 
         recording_url = None
         if self.recording:
@@ -4181,7 +4183,7 @@ class PlayAction(Action):
     def as_json(self):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
-    def execute(self, run, actionset, event, offline_on=None):
+    def execute(self, run, actionset_uuid, event, offline_on=None):
 
         (recording_url, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
         msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
@@ -4217,7 +4219,7 @@ class ReplyAction(Action):
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.msg:
             user = get_flow_user()
             text = run.flow.get_localized_text(self.msg, run.contact)
@@ -4304,7 +4306,7 @@ class VariableContactAction(Action):
             variables = list(_.get(VariableContactAction.ID) for _ in json.get(VariableContactAction.VARIABLES))
         return variables
 
-    def build_groups_and_contacts(self, run, actionset, msg):
+    def build_groups_and_contacts(self, run, msg):
         message_context = run.flow.build_message_context(run.contact, msg)
         contacts = list(self.contacts)
         groups = list(self.groups)
@@ -4372,10 +4374,10 @@ class TriggerFlowAction(VariableContactAction):
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.flow:
             message_context = run.flow.build_message_context(run.contact, msg)
-            (groups, contacts) = self.build_groups_and_contacts(run, actionset, msg)
+            (groups, contacts) = self.build_groups_and_contacts(run, msg)
 
             # start our contacts down the flow
             if not run.contact.is_test:
@@ -4430,7 +4432,7 @@ class SetLanguageAction(Action):
     def as_json(self):
         return dict(type=SetLanguageAction.TYPE, lang=self.lang, name=self.name)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         run.contact.language = self.lang
         run.contact.save(update_fields=['language'])
         self.logger(run)
@@ -4474,7 +4476,7 @@ class StartFlowAction(Action):
     def as_json(self):
         return dict(type=StartFlowAction.TYPE, id=self.flow.pk, name=self.flow.name)
 
-    def execute(self, run, actionset, msg, started_flows, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
         self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True)
         self.logger(run)
         return []
@@ -4545,7 +4547,7 @@ class SaveToContactAction(Action):
     def as_json(self):
         return dict(type=SaveToContactAction.TYPE, label=self.label, field=self.field, value=self.value)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         # evaluate our value
         contact = run.contact
         message_context = run.flow.build_message_context(contact, msg)
@@ -4571,7 +4573,6 @@ class SaveToContactAction(Action):
 
             # don't really update URNs on test contacts
             if not contact.is_test:
-                # grab our current URNs
                 urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
 
                 # add in our new phone number
@@ -4626,12 +4627,12 @@ class SendAction(VariableContactAction):
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 
-    def execute(self, run, actionset, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.msg:
             flow = run.flow
             message_context = flow.build_message_context(run.contact, msg)
 
-            (groups, contacts) = self.build_groups_and_contacts(run, actionset, msg)
+            (groups, contacts) = self.build_groups_and_contacts(run, msg)
 
             # create our broadcast and send it
             if not run.contact.is_test:
