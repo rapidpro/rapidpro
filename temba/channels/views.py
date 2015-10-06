@@ -38,6 +38,7 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       EXTERNAL: "icon-channel-external",
@@ -955,6 +956,8 @@ class ChannelCRUDL(SmartCRUDL):
                                        help_text=_("The username to use to authenticate to Kannel, if left blank we will generate one for you"))
             password = forms.CharField(max_length=64, required=False,
                                        help_text=_("The password to use to authenticate to Kannel, if left blank we will generate one for you"))
+            encoding = forms.ChoiceField(ENCODING_CHOICES, label=_("Encoding"),
+                                         help_text=_("What encoding to use for outgoing messages"))
             verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
                                             help_text=_("Whether to verify the SSL connection (recommended)"))
 
@@ -972,7 +975,8 @@ class ChannelCRUDL(SmartCRUDL):
             role = SEND + RECEIVE
 
             config = {SEND_URL: url, VERIFY_SSL: data.get('verify_ssl'),
-                      USERNAME: data.get('username', None), PASSWORD: data.get('password', None)}
+                      USERNAME: data.get('username', None), PASSWORD: data.get('password', None),
+                      ENCODING: data.get('encoding', DEFAULT_ENCODING)}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, KANNEL,
                                                               config, role=role, parent=None)
 

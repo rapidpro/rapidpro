@@ -10,6 +10,18 @@ VALID_GSM7 = u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !
 # Valid GSM7 chars as a set
 GSM7_CHARS = {c for c in VALID_GSM7}
 
+# Characters we replace in GSM7 with versions that can actually be encoded
+GSM7_REPLACEMENTS = {u'á': 'a',
+                     u'ê': 'e',
+                     u'ã': 'a',
+                     u'ç': 'c',
+                     u'È': 'E',
+                     u'À': 'A',
+                     u'Á': 'A',
+                     u'Â': 'A',
+                     u'Ê': 'E',
+                     u'Ù': 'U'}
+
 
 def is_gsm7(text):
     """
@@ -20,3 +32,11 @@ def is_gsm7(text):
             return False
 
     return True
+
+
+def replace_non_gsm7_accents(text):
+    """
+    Give a string, replaces any accents that aren't GSM7 with a plain version. This generally
+    takes the form of removing accents.
+    """
+    return ''.join([GSM7_REPLACEMENTS.get(c, c) for c in text])

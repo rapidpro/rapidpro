@@ -32,6 +32,7 @@ from twilio.rest import TwilioRestClient
 from twython import Twython
 from uuid import uuid4
 from urllib import quote_plus
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 
 
 AFRICAS_TALKING = 'AT'
@@ -61,6 +62,16 @@ PASSWORD = 'password'
 KEY = 'key'
 API_ID = 'api_id'
 VERIFY_SSL = 'verify_ssl'
+ENCODING = 'encoding'
+
+DEFAULT_ENCODING = 'D'  # we just pass the text down to the endpoint
+SMART_ENCODING = 'S'    # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
+UNICODE_ENCODING = 'U'  # we send everything as unicode
+
+ENCODING_CHOICES = \
+    ((DEFAULT_ENCODING, _("Default Encoding")),
+    (SMART_ENCODING, _("Smart Encoding")),
+    (UNICODE_ENCODING, _("Unicode Encoding")))
 
 SEND = 'S'
 RECEIVE = 'R'
@@ -826,6 +837,29 @@ class Channel(SmartModel):
         payload['to'] = msg.urn_path
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
+
+        # figure out if we should send encoding or do any of our own substitution
+        encoding = channel.config.get(ENCODING, DEFAULT_ENCODING)
+
+        # if this is smart encoding, figure out what encoding we will use
+        if encoding == SMART_ENCODING:
+            # if this isn't gsm7
+            if not is_gsm7(text):
+                # try to replace characters
+                replaced = replace_non_gsm7_accents(text)
+
+                # great, this is now GSM7, let's send that
+                if is_gsm7(replaced):
+                    text = replaced
+                    payload['text'] = text
+
+                # otherwise, send as unicode
+                else:
+                    payload['coding'] = '2'
+
+        # always send as unicode encoding
+        elif encoding == UNICODE_ENCODING:
+            payload['coding'] = '2'
 
         log_payload = payload.copy()
         log_payload['password'] = 'x' * len(log_payload['password'])

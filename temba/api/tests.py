@@ -22,7 +22,8 @@ from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
-from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO
+from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, \
+    SMART_ENCODING, UNICODE_ENCODING
 from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
@@ -2903,6 +2904,92 @@ class KannelTest(TembaTest):
 
                 # assert verify was set to true
                 self.assertTrue(mock.call_args[1]['verify'])
+
+                self.clear_cache()
+
+            self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
+                                                  encoding=SMART_ENCODING,
+                                                  send_url='http://foo/', verify_ssl=False))
+            self.channel.save()
+
+            sms.text = "No capital accented È!"
+            sms.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
+                self.assertFalse('coding' in mock.call_args[1]['params'])
+                self.clear_cache()
+
+            sms.text = "Unicode. ☺"
+            sms.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals("Unicode. ☺", mock.call_args[1]['params']['text'])
+                self.assertEquals('2', mock.call_args[1]['params']['coding'])
+
+                self.clear_cache()
+
+            sms.text = "Normal"
+            sms.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals("Normal", mock.call_args[1]['params']['text'])
+                self.assertFalse('coding' in mock.call_args[1]['params'])
+
+                self.clear_cache()
+
+            self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
+                                                  encoding=UNICODE_ENCODING,
+                                                  send_url='http://foo/', verify_ssl=False))
+            self.channel.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals("Normal", mock.call_args[1]['params']['text'])
+                self.assertEquals('2', mock.call_args[1]['params']['coding'])
 
                 self.clear_cache()
 
