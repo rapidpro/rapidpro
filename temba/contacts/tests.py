@@ -1970,6 +1970,22 @@ class ContactFieldTest(TembaTest):
         self.contactfield_2 = ContactField.get_or_create(self.org, "second", "Second")
         self.contactfield_3 = ContactField.get_or_create(self.org, "third", "Third")
 
+    def test_get_or_create(self):
+        join_date = ContactField.get_or_create(self.org, "join_date")
+        self.assertEqual(join_date.key, "join_date")
+        self.assertEqual(join_date.label, "Join Date")
+        self.assertEqual(join_date.value_type, TEXT)
+
+        another = ContactField.get_or_create(self.org, "another", "My Label", value_type=DECIMAL)
+        self.assertEqual(another.key, "another")
+        self.assertEqual(another.label, "My Label")
+        self.assertEqual(another.value_type, DECIMAL)
+
+        another = ContactField.get_or_create(self.org, "another", "Updated Label", value_type=DATETIME)
+        self.assertEqual(another.key, "another")
+        self.assertEqual(another.label, "Updated Label")
+        self.assertEqual(another.value_type, DATETIME)
+
     def test_contact_templatetag(self):
         self.joe.set_field('First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')
