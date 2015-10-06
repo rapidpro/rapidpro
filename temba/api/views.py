@@ -2738,7 +2738,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     or updating of existing flows. This endpoint has only alpha-level support and is subject
     to modification or removal.
 
-    ## Getting a flow defintion
+    ## Getting a flow definition
 
     Returns the flow definition for the given flow.
 
@@ -2746,7 +2746,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     Example:
 
-        GET /api/v1/flow_definition.json
+        GET /api/v1/flow_definition.json?uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c00
 
     Response is a flow definition
         {
