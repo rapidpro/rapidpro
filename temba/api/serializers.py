@@ -1013,13 +1013,24 @@ class FlowDefinitionReadSerializer(serializers.ModelSerializer):
     archived = serializers.Field(source='is_archived')
     expires = serializers.Field(source='expires_after_minutes')
     flow_type = serializers.Field(source='flow_type')
+    version = serializers.SerializerMethodField('get_version')
+    spec_version = serializers.SerializerMethodField('get_spec_version')
+
+    def get_version(self, obj):
+        # store the revision of our definition
+        version = obj.versions.all().order_by('-version').first()
+        return version.version if version else 1
+
+    def get_spec_version(self, obj):
+        from temba.flows.models import CURRENT_EXPORT_VERSION
+        return CURRENT_EXPORT_VERSION
 
     def get_definition(self, obj):
         return obj.as_json()
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition', 'flow_type')
+        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition', 'flow_type', 'version', 'spec_version')
 
 
 class FlowDefinitionWriteSerializer(WriteSerializer):
@@ -1301,7 +1312,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         flow_version = flow.versions.filter(version=version).first()
 
         if not flow_version:
-            raise ValidationError("Invalid version: %d" % version)
+            raise ValidationError("Invalid version: %s" % version)
 
         definition = json.loads(flow_version.definition)
 
