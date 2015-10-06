@@ -808,36 +808,26 @@ class Org(SmartModel):
         import json
 
         # get our sample dir
-        examples_dir = os.path.join(settings.STATICFILES_DIRS[0], 'examples', 'flows')
+        filename = os.path.join(settings.STATICFILES_DIRS[0], 'examples', 'sample_flows.json')
 
         # for each of our samples
-        for filename in sorted(os.listdir(examples_dir), reverse=True):
-            if filename.endswith(".json") and filename.startswith("0"):
-                with open(os.path.join(examples_dir, filename), 'r') as example_file:
-                    example = example_file.read()
+        with open(filename, 'r') as example_file:
+            example = example_file.read()
 
-                # transform our filename into our flow name
-                flow_name = " ".join(f.capitalize() for f in filename[2:-5].split('_'))
-                flow_name = "%s - %s" % (_("Sample Flow"), flow_name)
+        user = self.get_user()
+        if user:
+            # some some substitutions
+            org_example = example.replace("{{EMAIL}}", user.username)
+            org_example = org_example.replace("{{API_URL}}", api_url)
 
-                user = self.get_user()
-                if user:
-                    # some some substitutions
-                    org_example = example.replace("{{EMAIL}}", user.username)
-                    org_example = org_example.replace("{{API_URL}}", api_url)
-
-                    if not Flow.objects.filter(name=flow_name, org=self):
-                        try:
-                            flow = Flow.create(self, user, flow_name)
-                            flow.import_definition(json.loads(org_example))
-                            flow.save()
-
-                        except Exception as e:
-                            import traceback
-                            logger = logging.getLogger(__name__)
-                            msg = 'Failed creating sample flow: %s' % (flow_name)
-                            logger.error(msg, exc_info=True, extra=dict(definition=json.loads(org_example)))
-                            traceback.print_exc()
+            try:
+                self.import_app(json.loads(org_example), user)
+            except Exception as e:
+                import traceback
+                logger = logging.getLogger(__name__)
+                msg = 'Failed creating sample flows'
+                logger.error(msg, exc_info=True, extra=dict(definition=json.loads(org_example)))
+                traceback.print_exc()
 
     def is_notified_of_mt_sms(self):
         return self.webhook_events & MT_SMS_EVENTS > 0
