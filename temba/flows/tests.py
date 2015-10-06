@@ -3664,9 +3664,6 @@ class FlowMigrationTest(FlowFileTest):
         self.org.create_sample_flows('https://app.rapidpro.io')
         self.assertEquals(4, self.org.flows.filter(name__icontains='Sample Flow').count())
 
-        for flow in self.org.flows.all():
-            print flow.name
-
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
         self.assertTrue('base' in poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
