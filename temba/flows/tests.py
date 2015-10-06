@@ -109,6 +109,10 @@ class RuleTest(TembaTest):
         self.assertEquals(1, versions[0].version)
         self.assertEquals(2, versions[1].version)
 
+        self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].spec_version)
+        self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].as_json()['spec_version'])
+        self.assertEquals('base', versions[0].get_definition_json()['base_language'])
+
     def test_flow_lists(self):
 
         self.login(self.admin)
@@ -3655,6 +3659,24 @@ class FlowMigrationTest(FlowFileTest):
 
             reply = self.send_message(flow, 'Turbo King')
             self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
+
+    def test_migrate_sample_flows(self):
+        self.org.create_sample_flows('https://app.rapidpro.io')
+        self.assertEquals(4, self.org.flows.filter(name__icontains='Sample Flow').count())
+
+        # make sure it is localized
+        poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
+        self.assertTrue('base' in poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
+        self.assertEquals('base', poll.base_language)
+
+        # check replacement
+        order_checker = self.org.flows.filter(name='Sample Flow - Order Status Checker').first()
+        ruleset = order_checker.rule_sets.filter(y=298).first()
+        self.assertEquals('https://app.rapidpro.io/demo/status/', ruleset.webhook_url)
+
+        # our test user doesn't use an email address, check for Administrator for the email
+        actionset = order_checker.action_sets.filter(y=991).first()
+        self.assertEquals('Administrator', actionset.get_actions()[1].emails[0])
 
 
 class DuplicateValueTest(FlowFileTest):

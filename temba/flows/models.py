@@ -2693,8 +2693,8 @@ class FlowVersion(SmartModel):
         definition = json.loads(self.definition)
 
         # migrate our definition if necessary
-        if self.version_number < CURRENT_EXPORT_VERSION:
-            definition = FlowVersion.migrate_definition(definition, self.version_number)
+        if self.spec_version < CURRENT_EXPORT_VERSION:
+            definition = FlowVersion.migrate_definition(definition, self.spec_version)
 
         return definition
 
@@ -2703,7 +2703,8 @@ class FlowVersion(SmartModel):
                     name=self.created_by.get_full_name()),
                     created_on=datetime_to_str(self.created_on),
                     id=self.pk,
-                    version_number=self.version_number)
+                    spec_version=self.spec_version,
+                    version=self.version)
 
 class FlowRun(models.Model):
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
