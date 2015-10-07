@@ -260,7 +260,7 @@ class Value(models.Model):
                                                                 return_contacts=return_contacts)
 
             elif contact_field.value_type in [STATE, DISTRICT]:
-                values = values.values('location_value', 'contact')
+                values = values.values('location_value__osm_id', 'contact')
                 categories = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                 return_contacts=return_contacts)
 
