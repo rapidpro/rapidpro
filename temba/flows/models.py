@@ -1918,10 +1918,6 @@ class Flow(TembaModel, SmartModel):
         if self.base_language:
             flow[Flow.BASE_LANGUAGE] = self.base_language
 
-        # store the revision of our definition
-        version = self.versions.all().order_by('-version').first()
-        flow[Flow.VERSION] = version.version if version else 1
-
         return flow
 
     @classmethod

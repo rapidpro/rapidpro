@@ -420,14 +420,14 @@ class APITest(TembaTest):
         flow = self.get_flow('pick_a_number')
         definition = flow.as_json()
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(1, response.json['definition']['version'])
+        self.assertEquals(1, response.json['version'])
         self.assertEquals("Pick a Number", response.json['name'])
         self.assertEquals("F", response.json['flow_type'])
 
         # make sure the version that is returned increments properly
         flow.update(flow.as_json())
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(2, response.json['definition']['version'])
+        self.assertEquals(2, response.json['version'])
 
         # now delete our flow, we'll create it from scratch below
         flow.delete()
