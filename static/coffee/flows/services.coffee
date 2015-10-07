@@ -873,6 +873,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         flow = data.flow
 
+        flow.type = window.flow_type
+
         # add uuids for the individual actions, need this for the UI
         for actionset in flow.action_sets
           for action in actionset.actions
