@@ -601,23 +601,20 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate_key(self, attrs, source):
         key = attrs.get(source, None)
-        if key:
-            if not ContactField.is_valid_key(key):
-                raise ValidationError("Field key is invalid or is a reserved name")
+        if key and not ContactField.is_valid_key(key):
+            raise ValidationError("Field key is invalid or is a reserved name")
         return attrs
 
     def validate_label(self, attrs, source):
         label = attrs.get(source, None)
-        if label:
-            if not ContactField.is_valid_label(label):
-                raise ValidationError("Invalid field label")
+        if label and not ContactField.is_valid_label(label):
+            raise ValidationError("Invalid field label")
         return attrs
 
     def validate_value_type(self, attrs, source):
         value_type = attrs.get(source, '')
-        if value_type:
-            if value_type not in [t for t, label in VALUE_TYPE_CHOICES]:
-                raise ValidationError("Invalid field value type")
+        if value_type and value_type not in [t for t, label in VALUE_TYPE_CHOICES]:
+            raise ValidationError("Invalid field value type")
         return attrs
 
     def validate(self, attrs):
