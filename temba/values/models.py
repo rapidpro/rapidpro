@@ -220,8 +220,9 @@ class Value(models.Model):
             results = defaultdict(set)
             for uuid, contacts in value_contacts.items():
                 if uuid and (not filter_uuids or uuid in filter_uuids):
-                    category = uuid_to_category[uuid]
-                    results[category] |= contacts
+                    category = uuid_to_category.get(uuid, None)
+                    if category:
+                        results[category] |= contacts
 
             # now create an ordered array of our results
             set_contacts = set()
