@@ -158,10 +158,17 @@ class Flow(TembaModel, SmartModel):
     RULESET_TYPE = 'ruleset_type'
     OPERAND = 'operand'
     METADATA = 'metadata'
-    LAST_SAVED = 'last_saved'
+
     BASE_LANGUAGE = 'base_language'
     SAVED_BY = 'saved_by'
     VERSION = 'version'
+
+    SAVED_ON = 'saved_on'
+    NAME = 'name'
+    REVISION = 'revision'
+    SPEC_VERSION = 'spec_version'
+    FLOW_TYPE = 'flow_type'
+
 
     X = 'x'
     Y = 'y'
@@ -377,7 +384,7 @@ class Flow(TembaModel, SmartModel):
 
             # migrate our flow definition forward if necessary
             if export_version < CURRENT_EXPORT_VERSION:
-                definition = FlowVersion.migrate_definition(definition, export_version)
+                definition = FlowVersion.migrate_definition(definition, export_version, flow)
 
             flow_spec['flow'].import_definition(definition)
 
@@ -1902,21 +1909,27 @@ class Flow(TembaModel, SmartModel):
 
         flow[Flow.ACTION_SETS] = actionsets
 
+        # add in our rulesets
         rulesets = []
         for ruleset in RuleSet.objects.filter(flow=self).order_by('pk'):
             rulesets.append(ruleset.as_json())
         flow[Flow.RULE_SETS] = rulesets
 
-        # add our metadata if we have it
+        # required flow running details
+        flow[Flow.BASE_LANGUAGE] = self.base_language
+        flow[Flow.FLOW_TYPE] = self.flow_type
+        flow[Flow.SPEC_VERSION] = CURRENT_EXPORT_VERSION
+
+        # lastly our metadata
         if not self.metadata:
             flow[Flow.METADATA] = dict()
         else:
             flow[Flow.METADATA] = json.loads(self.metadata)
 
-        flow[Flow.LAST_SAVED] = datetime_to_str(self.saved_on)
-
-        if self.base_language:
-            flow[Flow.BASE_LANGUAGE] = self.base_language
+        version = self.versions.all().order_by('-version').first()
+        flow[Flow.METADATA][Flow.NAME] = self.name
+        flow[Flow.METADATA][Flow.SAVED_ON] = datetime_to_str(self.saved_on)
+        flow[Flow.METADATA][Flow.REVISION] = version.version if version else 1
 
         return flow
 
@@ -1997,7 +2010,7 @@ class Flow(TembaModel, SmartModel):
         """
         if self.version_number < CURRENT_EXPORT_VERSION:
             with self.lock_on(FlowLock.definition):
-                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number)
+                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number, self)
                 self.update(json_flow)
                 # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
 
@@ -2021,7 +2034,7 @@ class Flow(TembaModel, SmartModel):
         try:
             # check whether the flow has changed since this flow was last saved
             if user and not force:
-                saved_on = json_dict.get(Flow.LAST_SAVED, None)
+                saved_on = json_dict.get(Flow.METADATA).get(Flow.SAVED_ON, None)
                 org = user.get_org()
                 tz = org.get_tzinfo()
 
@@ -2277,7 +2290,7 @@ class Flow(TembaModel, SmartModel):
                                  spec_version=CURRENT_EXPORT_VERSION,
                                  version=version)
 
-            return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on))
+            return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on), revision=version)
 
         except Exception as e:
             import traceback
@@ -2671,7 +2684,7 @@ class FlowVersion(SmartModel):
     version = models.IntegerField(null=True, help_text=_("Version counter for each definition"))
 
     @classmethod
-    def migrate_definition(cls, json_flow, version, to_version=None):
+    def migrate_definition(cls, json_flow, version, flow, to_version=None):
 
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
@@ -2679,7 +2692,7 @@ class FlowVersion(SmartModel):
         while (version <= to_version):
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % version, None)
             if migrate_fn:
-                migrate_fn(json_flow)
+                migrate_fn(json_flow, flow=flow)
             version +=1
 
         return json_flow
@@ -2690,7 +2703,7 @@ class FlowVersion(SmartModel):
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
-            definition = FlowVersion.migrate_definition(definition, self.spec_version)
+            definition = FlowVersion.migrate_definition(definition, self.spec_version, self.flow)
 
         return definition
 

@@ -198,8 +198,9 @@ class TembaTest(SmartminTest):
                           entry=uuid(uuid_start + 1))
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
-        from temba.flows.flow_migrations import migrate_to_version_6
-        migrate_to_version_6(definition)
+        from temba.flows.flow_migrations import migrate_to_version_6, migrate_to_version_7
+        migrate_to_version_6(definition, flow)
+        migrate_to_version_7(definition, flow)
         flow.update(definition)
 
         return Flow.objects.get(pk=flow.pk)

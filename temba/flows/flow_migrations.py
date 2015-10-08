@@ -4,9 +4,25 @@ import copy
 from uuid import uuid4
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
+from temba.utils import datetime_to_str
 
+def migrate_to_version_7(json_flow, flow):
+    """
+    Adds flow details to metadata section
+    """
+    version = flow.versions.all().order_by('-version').first()
 
-def migrate_to_version_6(json_flow):
+    metadata = json_flow.get('metadata', None)
+    if not metadata:
+        metadata = dict()
+        json_flow['metadata'] = metadata
+
+    metadata['name'] = flow.name
+    metadata['flow_type'] = flow.flow_type
+    metadata['revision'] = version.version if version else 1
+    metadata['saved_on'] = datetime_to_str(flow.created_on)
+
+def migrate_to_version_6(json_flow, flow=None):
     """
     This migration removes the non-localized flow format. This means all potentially localizable
     text will be a dict from the outset. If no language is set, we will use 'base' as the
@@ -47,7 +63,7 @@ def migrate_to_version_6(json_flow):
                     convert_to_dict(action, 'recording')
 
 
-def migrate_to_version_5(json_flow):
+def migrate_to_version_5(json_flow, flow=None):
     """
     Adds passive rulesets. This necessitates injecting nodes in places where
     we were previously waiting implicitly with explicit waits.

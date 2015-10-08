@@ -100,7 +100,7 @@ class RuleTest(TembaTest):
         self.assertEquals(1, versions[0].version)
 
         # create a new update
-        self.definition['last_saved'] = response['saved_on']
+        self.definition['metadata']['saved_on'] = response['saved_on']
         self.flow.update(self.definition, user=self.admin)
         versions = self.flow.versions.all().order_by('created_on')
 
@@ -478,7 +478,11 @@ class RuleTest(TembaTest):
 
         # metadata should come out in the json
         copy_json = copy.as_json()
-        self.assertEquals(dict(author="Ryan Lewis"), copy_json['metadata'])
+        self.assertEquals(dict(author="Ryan Lewis",
+                               name='Copy of Color Flow is a long name to use for something like thi',
+                               revision=1,
+                               saved_on=datetime_to_str(copy.saved_on)),
+                          copy_json['metadata'])
 
         # should have the same number of actionsets and rulesets
         self.assertEquals(copy.action_sets.all().count(), self.flow.action_sets.all().count())
@@ -546,7 +550,14 @@ class RuleTest(TembaTest):
         json_dict = self.flow.as_json()
 
         self.maxDiff = None
-        self.definition['last_saved'] = datetime_to_str(self.flow.saved_on)
+        self.definition['spec_version'] = 7
+        self.definition['metadata']['name'] = self.flow.name
+        self.definition['metadata']['saved_on'] = datetime_to_str(self.flow.saved_on)
+        self.definition['metadata']['revision'] = 1
+        self.definition['flow_type'] = self.flow.flow_type
+
+        print json.dumps(json_dict, indent=2)
+        print json.dumps(self.definition, indent=2)
 
         self.assertEquals(json_dict, self.definition)
 
@@ -1634,7 +1645,7 @@ class RuleTest(TembaTest):
         self.assertEquals(actionset.flow, flow)
 
         # can't save with an invalid uuid
-        json_dict['last_saved'] = datetime_to_str(timezone.now())
+        json_dict['metadata']['saved_on'] = datetime_to_str(timezone.now())
         json_dict['action_sets'][0]['destination'] = 'notthere'
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
@@ -3145,7 +3156,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(6, definition.get('version', 0))
+        self.assertEquals(7, definition.get('version', 0))
         self.assertEquals(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow
@@ -3525,7 +3536,7 @@ class FlowMigrationTest(FlowFileTest):
     def migrate_flow(self, flow, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
-        flow.update(FlowVersion.migrate_definition(flow.as_json(), flow.version_number, to_version=to_version))
+        flow.update(FlowVersion.migrate_definition(flow.as_json(), flow.version_number, flow, to_version=to_version))
         return Flow.objects.get(pk=flow.pk)
 
     def test_migrate_to_6(self):

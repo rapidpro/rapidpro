@@ -1318,7 +1318,7 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         # make sure we are operating off a current spec
         from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
-        definition = FlowVersion.migrate_definition(definition, flow_version.spec_version, CURRENT_EXPORT_VERSION)
+        definition = FlowVersion.migrate_definition(definition, flow_version.spec_version, flow, CURRENT_EXPORT_VERSION)
 
         for step in steps:
             node_obj = None

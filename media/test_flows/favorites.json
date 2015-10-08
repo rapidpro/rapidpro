@@ -1,9 +1,10 @@
 {
-  "version": 6,
+  "version": 7,
   "flows": [
     {
       "definition": {
-        "type": "F",
+        "spec_version": 7,
+        "flow_type": "F",
         "base_language": "base", 
         "action_sets": [
           {
@@ -275,7 +276,11 @@
           }
         ], 
         "metadata": {
-          "notes": []
+          "notes": [],
+          "name": "Favorites",
+          "id": 35559,
+          "expires": 720,
+          "revision": 1
         }
       }, 
       "expires": 720, 
