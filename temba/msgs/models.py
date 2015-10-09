@@ -1721,14 +1721,19 @@ class ExportMessagesTask(SmartModel):
                 created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
                 msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
 
+                # only show URN path if org isn't anon and there is a URN
                 if self.org.is_anon:
-                    contact_urn = msg.contact.anon_identifier
+                    urn_path = msg.contact.anon_identifier
+                elif msg.contact_urn:
+                    urn_path = msg.contact_urn.get_display(org=self.org, full=True)
                 else:
-                    contact_urn = msg.contact_urn.get_display(org=self.org, full=True)
+                    urn_path = ''
+
+                urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
                 current_messages_sheet.write(row, 0, created_on, date_style)
-                current_messages_sheet.write(row, 1, contact_urn)
-                current_messages_sheet.write(row, 2, msg.contact_urn.scheme)
+                current_messages_sheet.write(row, 1, urn_path)
+                current_messages_sheet.write(row, 2, urn_scheme)
                 current_messages_sheet.write(row, 3, contact_name)
                 current_messages_sheet.write(row, 4, msg.get_direction_display())
                 current_messages_sheet.write(row, 5, msg.text)
