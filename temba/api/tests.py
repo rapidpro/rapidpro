@@ -1735,6 +1735,8 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0]['broadcast'], msg1.broadcast.pk)
         self.assertEqual(response.json['results'][0]['text'], msg1.text)
         self.assertEqual(response.json['results'][0]['direction'], 'O')
+        self.assertEqual(response.json['results'][0]['contact'], contact.uuid)
+        self.assertEqual(response.json['results'][0]['urn'], 'tel:+250788123123')
 
         response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
         self.assertEquals(200, response.status_code)

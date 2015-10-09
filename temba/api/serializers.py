@@ -168,7 +168,10 @@ class MsgReadSerializer(serializers.ModelSerializer):
     def get_urn(self, obj):
         if obj.org.is_anon:
             return None
-        return obj.contact_urn.urn
+        elif obj.contact_urn:
+            return obj.contact_urn.urn
+        else:
+            return None
 
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
