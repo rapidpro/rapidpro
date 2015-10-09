@@ -395,7 +395,14 @@ class ContactCRUDL(SmartCRUDL):
                 if cleaned_data[column['include_field']]:
                     label = cleaned_data[column['label_field']]
                     value_type = cleaned_data[column['type_field']]
+                    org = self.derive_org()
+
                     field_key = slugify_with(label)
+
+                    existing_field = ContactField.get_by_label(org, label)
+                    if existing_field:
+                        field_key = existing_field.key
+
                     extra_fields.append(dict(key=field_key, header=column['header'], label=label, type=value_type))
 
             # update the extra_fields in the task's params
