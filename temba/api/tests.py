@@ -420,14 +420,14 @@ class APITest(TembaTest):
         flow = self.get_flow('pick_a_number')
         definition = flow.as_json()
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(1, response.json['version'])
-        self.assertEquals("Pick a Number", response.json['name'])
+        self.assertEquals(1, response.json['metadata']['revision'])
+        self.assertEquals("Pick a Number", response.json['metadata']['name'])
         self.assertEquals("F", response.json['flow_type'])
 
         # make sure the version that is returned increments properly
         flow.update(flow.as_json())
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(2, response.json['version'])
+        self.assertEquals(2, response.json['metadata']['revision'])
 
         # now delete our flow, we'll create it from scratch below
         flow.delete()
@@ -437,18 +437,19 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
 
         # can't create a flow without a name
-        response = self.postJSON(url, dict(name=""))
+        response = self.postJSON(url, dict(metadata=dict()))
         self.assertEqual(response.status_code, 400)
 
         # but we can create an empty flow
-        response = self.postJSON(url, dict(name="Empty"))
+        response = self.postJSON(url, dict(metadata=dict(name="Empty")))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Empty")
+        self.assertEqual(response.json['metadata']['name'], "Empty")
 
         # and create flow with a definition
-        response = self.postJSON(url, dict(name="Pick a Number", definition=definition))
+        definition['metadata'] = dict(name="Pick a Number")
+        response = self.postJSON(url, definition)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a Number")
+        self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
@@ -462,9 +463,12 @@ class APITest(TembaTest):
         flow.save()
 
         # updating should overwrite local change
-        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='F', definition=definition))
+        definition['metadata'] = dict(uuid=flow.uuid, name="Pick a Number")
+        definition['flow_type'] = 'F'
+
+        response = self.postJSON(url, definition)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a Number")
+        self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
@@ -503,7 +507,11 @@ class APITest(TembaTest):
         # point one of our nodes to it
         definition['action_sets'][1]['destination'] = new_node_uuid
 
+        print json.dumps(definition, indent=5)
+        print flow.version_number
+
         flow.update(definition)
+
 
         data = dict(flow=flow.uuid,
                     version=2,

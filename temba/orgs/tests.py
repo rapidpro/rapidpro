@@ -1224,7 +1224,6 @@ class BulkExportTest(TembaTest):
         other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
         self.assertEquals(1, len(other_actionset.get_actions()))
 
-
     def test_export_import(self):
 
         def assert_object_counts():

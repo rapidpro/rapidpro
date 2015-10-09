@@ -166,8 +166,10 @@ class Flow(TembaModel, SmartModel):
     SAVED_ON = 'saved_on'
     NAME = 'name'
     REVISION = 'revision'
-    SPEC_VERSION = 'spec_version'
+    VERSION = 'version'
     FLOW_TYPE = 'flow_type'
+    ID = 'id'
+    EXPIRES = 'expires'
 
 
     X = 'x'
@@ -305,9 +307,7 @@ class Flow(TembaModel, SmartModel):
                 if len(other_flows):
                     raise FlowReferenceException(other_flows)
 
-            exported_flows.append(dict(name=flow.name.strip(), flow_type=flow.flow_type,
-                                       expires=flow.expires_after_minutes,
-                                       id=flow.pk, definition=flow_definition))
+            exported_flows.append(flow_definition)
 
         # get all non-schedule based triggers that are active for these flows
         triggers = set()
@@ -336,8 +336,12 @@ class Flow(TembaModel, SmartModel):
         # create all the flow containers first
         for flow_spec in exported_json['flows']:
 
+            # migrate our flow definition forward if necessary
+            if export_version < CURRENT_EXPORT_VERSION:
+                flow_spec = FlowVersion.migrate_definition(flow_spec, export_version)
+
             flow_type = flow_spec.get('flow_type', Flow.FLOW)
-            name = flow_spec['name'][:64].strip()
+            name = flow_spec['metadata']['name'][:64].strip()
 
             flow = None
 
@@ -346,9 +350,9 @@ class Flow(TembaModel, SmartModel):
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
                 if same_site:
-                    flow = Flow.objects.filter(org=org, id=flow_spec['id']).first()
+                    flow = Flow.objects.filter(org=org, id=flow_spec['metadata']['id']).first()
                     if flow:
-                        flow.expires_after_minutes = flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                        flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(name, org, ignore=flow)
                         flow.save(update_fields=['name', 'expires_after_minutes'])
 
@@ -359,14 +363,14 @@ class Flow(TembaModel, SmartModel):
                 # if there isn't one already, create a new flow
                 if not flow:
                     flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type,
-                                       expires_after_minutes=flow_spec.get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
+                                       expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
-                created_flows.append(dict(flow=flow, definition=flow_spec['definition']))
-                flow_id_map[flow_spec['id']] = flow.pk
+                created_flows.append(dict(flow=flow, flow_spec=flow_spec))
+                flow_id_map[flow_spec['metadata']['id']] = flow.pk
 
         # now let's update our flow definitions with any referenced flows
-        for flow_spec in created_flows:
-            for actionset in flow_spec['definition'][Flow.ACTION_SETS]:
+        for created in created_flows:
+            for actionset in created['flow_spec'][Flow.ACTION_SETS]:
                 for action in actionset['actions']:
                     if action['type'] in ['flow', 'trigger-flow']:
 
@@ -380,13 +384,7 @@ class Flow(TembaModel, SmartModel):
                             if existing_flow:
                                 action['id'] = existing_flow.pk
 
-            definition = flow_spec.get('definition')
-
-            # migrate our flow definition forward if necessary
-            if export_version < CURRENT_EXPORT_VERSION:
-                definition = FlowVersion.migrate_definition(definition, export_version, flow)
-
-            flow_spec['flow'].import_definition(definition)
+            created['flow'].import_definition(created['flow_spec'])
 
         # remap our flow ids according to how they were resolved
         if 'campaigns' in exported_json:
@@ -1918,7 +1916,7 @@ class Flow(TembaModel, SmartModel):
         # required flow running details
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
-        flow[Flow.SPEC_VERSION] = CURRENT_EXPORT_VERSION
+        flow[Flow.VERSION] = CURRENT_EXPORT_VERSION
 
         # lastly our metadata
         if not self.metadata:
@@ -1930,6 +1928,8 @@ class Flow(TembaModel, SmartModel):
         flow[Flow.METADATA][Flow.NAME] = self.name
         flow[Flow.METADATA][Flow.SAVED_ON] = datetime_to_str(self.saved_on)
         flow[Flow.METADATA][Flow.REVISION] = version.version if version else 1
+        flow[Flow.METADATA][Flow.ID] = self.pk
+        flow[Flow.METADATA][Flow.EXPIRES] = self.expires_after_minutes
 
         return flow
 
@@ -2684,15 +2684,15 @@ class FlowVersion(SmartModel):
     version = models.IntegerField(null=True, help_text=_("Version counter for each definition"))
 
     @classmethod
-    def migrate_definition(cls, json_flow, version, flow, to_version=None):
+    def migrate_definition(cls, json_flow, version, to_version=None):
 
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
         from temba.flows import flow_migrations
-        while (version <= to_version):
-            migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % version, None)
+        while (version < to_version):
+            migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
-                migrate_fn(json_flow, flow=flow)
+                json_flow = migrate_fn(json_flow)
             version +=1
 
         return json_flow
@@ -2700,6 +2700,13 @@ class FlowVersion(SmartModel):
     def get_definition_json(self):
 
         definition = json.loads(self.definition)
+
+        # if it's previous to version 6, wrap the definition to
+        # mirror our exports for those versions
+        if self.spec_version <= 6:
+            definition = dict(definition=definition, flow_type=self.flow.flow_type,
+                              expires=self.flow.expires_after_minutes, id=self.flow.pk,
+                              revision=self.version)
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
@@ -2712,8 +2719,8 @@ class FlowVersion(SmartModel):
                     name=self.created_by.get_full_name()),
                     created_on=datetime_to_str(self.created_on),
                     id=self.pk,
-                    spec_version=self.spec_version,
-                    version=self.version)
+                    version=self.spec_version,
+                    revision=self.version)
 
 class FlowRun(models.Model):
     org = models.ForeignKey(Org, related_name='runs', db_index=False)

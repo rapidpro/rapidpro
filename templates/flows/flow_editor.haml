@@ -184,7 +184,6 @@
 
     .choices
       .version{ng-repeat:'version in versions()', ng-class:'{selected:version.selected}'}
-
         .revert.btn.btn-tiny.btn-primary{ng-click:'apply()', ng-show:'version.selected'}
           Revert
 
@@ -194,6 +193,8 @@
             [[version.user.name]]
           .email
             [[version.user.email]]
+          .versoin
+            [[version.revision]]
 
 
 
