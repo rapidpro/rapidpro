@@ -603,27 +603,31 @@ class ContactFieldWriteSerializer(WriteSerializer):
     value_type = serializers.CharField(required=True)
 
     def validate_key(self, attrs, source):
-        key = attrs.get(source, '')
-        if key:
-            # if key is specified, then we're updating a field, so key must exist
-            if not ContactField.objects.filter(org=self.org, key=key).exists():
-                raise ValidationError("No such contact field key")
+        key = attrs.get(source, None)
+        if key and not ContactField.is_valid_key(key):
+            raise ValidationError("Field key is invalid or is a reserved name")
+        return attrs
+
+    def validate_label(self, attrs, source):
+        label = attrs.get(source, None)
+        if label and not ContactField.is_valid_label(label):
+            raise ValidationError("Invalid field label")
         return attrs
 
     def validate_value_type(self, attrs, source):
         value_type = attrs.get(source, '')
-        if value_type:
-            if not value_type in [t for t, label in VALUE_TYPE_CHOICES]:
-                raise ValidationError("Invalid field value type")
+        if value_type and value_type not in [t for t, label in VALUE_TYPE_CHOICES]:
+            raise ValidationError("Invalid field value type")
         return attrs
 
     def validate(self, attrs):
-
         key = attrs.get('key', None)
         label = attrs.get('label')
 
         if not key:
-            key = ContactField.api_make_key(label)
+            key = ContactField.make_key(label)
+            if not ContactField.is_valid_key(key):
+                raise ValidationError(_("Generated key for '%s' is invalid or a reserved name") % label)
 
         attrs['key'] = key
         return attrs
@@ -873,7 +877,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
         # ensure contact field exists
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
-            key = ContactField.api_make_key(relative_to_label)
+            key = ContactField.make_key(relative_to_label)
+            if not ContactField.is_valid_key(key):
+                raise ValidationError(_("Cannot create contact field with key '%s'") % key)
             relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
 
         if event:
