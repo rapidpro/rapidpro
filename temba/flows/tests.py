@@ -3550,6 +3550,28 @@ class FlowMigrationTest(FlowFileTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
+    def test_migrate_to_7(self):
+
+        flow_json = self.get_flow_json('call-me-maybe')
+
+        # migrate to the version right before us first
+        flow_json = migrate_to_version_5(flow_json)
+        flow_json = migrate_to_version_6(flow_json)
+
+        self.assertIsNotNone(flow_json.get('definition'))
+        self.assertEquals('Call me maybe', flow_json.get('name'))
+        self.assertEquals(100, flow_json.get('id'))
+        self.assertEquals('V', flow_json.get('flow_type'))
+
+        flow_json = migrate_to_version_7(flow_json)
+        self.assertIsNone(flow_json.get('definition', None))
+        self.assertIsNotNone(flow_json.get('metadata', None))
+
+        metadata = flow_json.get('metadata')
+        self.assertEquals('Call me maybe', metadata['name'])
+        self.assertEquals(100, metadata['id'])
+        self.assertEquals('V', flow_json.get('flow_type'))
+
     def test_migrate_to_6(self):
 
         # file format is old non-localized format
@@ -3564,6 +3586,7 @@ class FlowMigrationTest(FlowFileTest):
         # add a recording to make sure that gets migrated properly too
         definition['action_sets'][0]['actions'][0]['recording'] = '/recording.mp3'
 
+        voice_json = migrate_to_version_5(voice_json)
         voice_json = migrate_to_version_6(voice_json)
         definition = voice_json.get('definition')
 
