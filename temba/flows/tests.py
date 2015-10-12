@@ -1633,13 +1633,15 @@ class RuleTest(TembaTest):
         actionset = ActionSet.objects.get()
         self.assertEquals(actionset.flow, flow)
 
-        # can't save with an invalid uuid
+        # can now save with an invalid uuid, but should get removed
         json_dict['last_saved'] = datetime_to_str(timezone.now())
         json_dict['action_sets'][0]['destination'] = 'notthere'
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
-        self.assertEquals(400, response.status_code)
-        self.assertEquals('failure', json.loads(response.content)['status'])
+        self.assertEquals(200, response.status_code)
+        flow = Flow.objects.get(pk=flow.pk)
+        flow_json = flow.as_json()
+        self.assertIsNone(flow_json['action_sets'][0]['destination'])
 
         # flow should still be there though
         flow = Flow.objects.get(pk=flow.pk)

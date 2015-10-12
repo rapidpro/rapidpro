@@ -2183,7 +2183,7 @@ class Flow(TembaModel, SmartModel):
 
                 if destination_uuid:
                     if not destination_type:
-                        actionset['destination'] = None
+                        destination_uuid = None
 
                 # only create actionsets if there are actions
                 if actions:
