@@ -2759,6 +2759,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
             "expires":7880,
             "id":12712,
           },
+          "version": 7,
           "flow_type": "S",
           "base_language": "eng",
           "entry": "87929095-7d13-4003-8ee7-4c668b736419",
@@ -2816,6 +2817,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     By making a ```POST``` request to the endpoint you can create or update an existing flow
 
     * **metadata** - contains the name and uuid (optional) for the flow
+    * **version** - the flow spec version for the definition being submitted
     * **base_language** - the default language code to us for the flow
     * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
     * **action_sets** - the actions in the flow
@@ -2830,6 +2832,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
             "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "name": "Registration Flow"
           },
+          "version": 7,
           "flow_type": "S",
           "base_language": "eng",
           "entry": "87929095-7d13-4003-8ee7-4c668b736419",

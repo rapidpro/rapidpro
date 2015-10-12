@@ -418,7 +418,7 @@ class APITest(TembaTest):
 
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
-        definition = flow.as_json()
+        definition = self.get_flow_json('pick_a_number')['definition']
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
         self.assertEquals(1, response.json['metadata']['revision'])
         self.assertEquals("Pick a Number", response.json['metadata']['name'])
@@ -437,17 +437,20 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
 
         # can't create a flow without a name
-        response = self.postJSON(url, dict(metadata=dict()))
+        response = self.postJSON(url, dict(name="", version=6))
         self.assertEqual(response.status_code, 400)
 
         # but we can create an empty flow
-        response = self.postJSON(url, dict(metadata=dict(name="Empty")))
+        response = self.postJSON(url, dict(name="Empty", version=6))
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json['metadata']['name'], "Empty")
 
+        # can't create a flow without a version
+        response = self.postJSON(url, dict(name='No Version'))
+        self.assertEqual(response.status_code, 400)
+
         # and create flow with a definition
-        definition['metadata'] = dict(name="Pick a Number")
-        response = self.postJSON(url, definition)
+        response = self.postJSON(url, dict(name="Pick a Number", definition=definition, version=6))
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
@@ -462,21 +465,26 @@ class APITest(TembaTest):
         flow.flow_type = 'V'
         flow.save()
 
-        # updating should overwrite local change
-        definition['metadata'] = dict(uuid=flow.uuid, name="Pick a Number")
-        definition['flow_type'] = 'F'
+        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='S',
+                                           definition=definition, version=6))
 
-        response = self.postJSON(url, definition)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
-        self.assertEqual(flow.flow_type, 'F')
+        self.assertEqual(flow.flow_type, 'S')
+
+        # post a version 7 flow
+        definition['metadata'] = dict(name='Version 7 flow', flow_type='S', uuid=flow.uuid)
+        definition['version'] = 7
+        response = self.postJSON(url, definition)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Flow.objects.get(uuid=flow.uuid).name, 'Version 7 flow')
 
         # No invalid type
         flow.delete()
-        response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X'))
+        response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X', version=6))
         self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):

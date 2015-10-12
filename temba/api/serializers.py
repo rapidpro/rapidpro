@@ -1016,22 +1016,50 @@ class CampaignWriteSerializer(WriteSerializer):
 
 
 class FlowDefinitionWriteSerializer(WriteSerializer):
-    metadata = serializers.WritableField(required=True)
+    version = serializers.WritableField(required=True)
+    metadata = serializers.WritableField(required=False)
     base_language = serializers.WritableField(required=False)
     flow_type = serializers.WritableField(required=False)
     action_sets = serializers.WritableField(required=False)
     rule_sets = serializers.WritableField(required=False)
     entry = serializers.WritableField(required=False)
 
-    def validate_metadata(self, attrs, source):
-        metadata = attrs.get(source)
-        if metadata:
-            if 'name' not in metadata:
-                raise ValidationError("Name is missing from metadata")
+    # old versions had different top level elements
+    uuid = serializers.WritableField(required=False)
+    definition = serializers.WritableField(required=False)
+    name = serializers.WritableField(required=False)
+    id = serializers.WritableField(required=False)
 
-            uuid = metadata.get('uuid', None)
-            if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
-                raise ValidationError("No such flow with UUID: %s" % uuid)
+    def validate_version(self, attrs, source):
+        version = attrs.get(source)
+        from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
+        if version > CURRENT_EXPORT_VERSION or version < EARLIEST_IMPORT_VERSION:
+            raise ValidationError("Flow version %s not supported" % version)
+        return attrs
+
+    def validate_name(self, attrs, source):
+        version = attrs.get('version')
+        if version < 7:
+            name = attrs.get(source)
+            if not name:
+                raise ValidationError("This field is required for version %s" % version)
+        return attrs
+
+    def validate_metadata(self, attrs, source):
+
+        # only required starting at version 7
+        version = attrs.get('version')
+        if version >= 7:
+            metadata = attrs.get(source)
+            if metadata:
+                if 'name' not in metadata:
+                    raise ValidationError("Name is missing from metadata")
+
+                uuid = metadata.get('uuid', None)
+                if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+                    raise ValidationError("No such flow with UUID: %s" % uuid)
+            else:
+                raise ValidationError("This field is required for version %s" % version)
 
         return attrs
 
@@ -1050,7 +1078,15 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        uuid = flow_json.get('metadata').get('uuid', None)
+        # first, migrate our definition forward if necessary
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        from temba.flows.models import FlowVersion
+        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
+        if version < CURRENT_EXPORT_VERSION:
+            flow_json = FlowVersion.migrate_definition(flow_json, version, CURRENT_EXPORT_VERSION)
+
+        # previous to version 7, uuid could be supplied on the outer element
+        uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
         name = flow_json.get('metadata').get('name')
 
         if uuid:
