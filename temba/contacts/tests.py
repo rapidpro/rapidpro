@@ -1,3 +1,4 @@
+# coding=utf-8
 from __future__ import unicode_literals
 
 import json
@@ -2003,17 +2004,21 @@ class ContactFieldTest(TembaTest):
         self.assertEquals("second_name", ContactField.make_key("Second   Name  "))
         self.assertEquals("323_ffsn_slfs_ksflskfs_fk_anfaddgas", ContactField.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "))
 
-        with self.assertRaises(ValidationError):
-            ContactField.api_make_key("Name")
+    def test_is_valid_key(self):
+        self.assertTrue(ContactField.is_valid_key("age"))
+        self.assertTrue(ContactField.is_valid_key("age_now_2"))
+        self.assertFalse(ContactField.is_valid_key("Age"))   # must be lowercase
+        self.assertFalse(ContactField.is_valid_key("age!"))  # can't have punctuation
+        self.assertFalse(ContactField.is_valid_key("âge"))   # a-z only
+        self.assertFalse(ContactField.is_valid_key("2up"))   # can't start with a number
+        self.assertFalse(ContactField.is_valid_key("name"))  # can't be a reserved name
+        self.assertFalse(ContactField.is_valid_key("uuid"))
 
-        with self.assertRaises(ValidationError):
-            ContactField.api_make_key("uuid")
-
-        with self.assertRaises(ValidationError):
-            ContactField.api_make_key("Groups")
-
-        with self.assertRaises(ValidationError):
-            ContactField.api_make_key("first_name")
+    def test_is_valid_label(self):
+        self.assertTrue(ContactField.is_valid_label("Age"))
+        self.assertTrue(ContactField.is_valid_label("Age Now 2"))
+        self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
+        self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
 
     def test_export(self):
         from xlrd import open_workbook
@@ -2074,7 +2079,7 @@ class ContactFieldTest(TembaTest):
 
         self.assertEqual(sheet.nrows, 3)  # no other contacts
 
-    def test_managefields(self):
+    def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 
         self.login(self.manager1)

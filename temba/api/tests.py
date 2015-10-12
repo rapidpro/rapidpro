@@ -1522,11 +1522,6 @@ class APITest(TembaTest):
         self.assertEquals('real_age', field.key)
         self.assertEquals(self.org, field.org)
 
-        # update no-existent key
-        response = self.postJSON(url, dict(key='real_age_2', label='Actual Age 2', value_type='N'))
-        self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'key', "No such contact field key")
-
         # update with invalid value type
         response = self.postJSON(url, dict(key='real_age', value_type='X'))
         self.assertEquals(400, response.status_code)
@@ -1542,9 +1537,27 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
         self.assertResponseError(response, 'value_type', "This field is required.")
 
+        # create with invalid label
+        response = self.postJSON(url, dict(label='!@#', value_type='T'))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'label', "Invalid field label")
+
+        # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'non_field_errors', "key for Name is a reserved name for contact fields")
+        self.assertResponseError(response, 'non_field_errors', "Generated key for 'Name' is invalid or a reserved name")
+
+        # create with key specified
+        response = self.postJSON(url, dict(key='real_age_2', label="Actual Age 2", value_type='N'))
+        self.assertEquals(201, response.status_code)
+        field = ContactField.objects.get(key='real_age_2')
+        self.assertEqual(field.label, "Actual Age 2")
+        self.assertEqual(field.value_type, 'N')
+
+        # create with invalid key specified
+        response = self.postJSON(url, dict(key='name', label='Real Name', value_type='T'))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'key', "Field key is invalid or is a reserved name")
 
     def test_api_contact_actions(self):
         url = reverse('api.contact_actions')
@@ -1735,6 +1748,8 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0]['broadcast'], msg1.broadcast.pk)
         self.assertEqual(response.json['results'][0]['text'], msg1.text)
         self.assertEqual(response.json['results'][0]['direction'], 'O')
+        self.assertEqual(response.json['results'][0]['contact'], contact.uuid)
+        self.assertEqual(response.json['results'][0]['urn'], 'tel:+250788123123')
 
         response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
         self.assertEquals(200, response.status_code)
