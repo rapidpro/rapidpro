@@ -2183,7 +2183,7 @@ class Flow(TembaModel, SmartModel):
 
                 if destination_uuid:
                     if not destination_type:
-                        raise FlowException("Destination '%s' for actionset does not exist" % destination_uuid)
+                        actionset['destination'] = None
 
                 # only create actionsets if there are actions
                 if actions:
