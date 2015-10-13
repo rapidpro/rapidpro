@@ -2025,6 +2025,8 @@ class ContactFieldTest(TembaTest):
         self.assertTrue(ContactField.is_valid_label("Age Now 2"))
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
+        self.assertFalse(ContactField.is_valid_label("Age "))  # no trailling spaces
+        self.assertFalse(ContactField.is_valid_label(" Age"))  # no trailling spaces
 
     def test_export(self):
         from xlrd import open_workbook

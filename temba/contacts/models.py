@@ -59,7 +59,7 @@ class ContactField(models.Model):
 
     @classmethod
     def is_valid_label(cls, label):
-        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
+        return regex.match(r'^[A-Za-z0-9\-][A-Za-z0-9\- ]+[A-Za-z0-9\-]$', label, regex.V0)
 
     @classmethod
     def hide_field(cls, org, key):
