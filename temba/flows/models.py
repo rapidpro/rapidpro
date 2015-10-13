@@ -2196,7 +2196,7 @@ class Flow(TembaModel, SmartModel):
 
                 if destination_uuid:
                     if not destination_type:
-                        raise FlowException("Destination '%s' for actionset does not exist" % destination_uuid)
+                        destination_uuid = None
 
                 # only create actionsets if there are actions
                 if actions:
@@ -4699,7 +4699,7 @@ class SendAction(VariableContactAction):
         return log
 
     def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
+        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
 
 
 class Rule(object):
