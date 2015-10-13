@@ -388,10 +388,6 @@ class Value(models.Model):
         r = get_redis_connection()
         cached = r.get(key)
 
-        # never cache on dev
-        if settings.DEBUG:
-            cached = None
-
         if cached is not None:
             try:
                 return json_to_dict(cached)
