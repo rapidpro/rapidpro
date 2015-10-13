@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -386,7 +387,10 @@ class Value(models.Model):
         # does our value exist?
         r = get_redis_connection()
         cached = r.get(key)
-        cached = None
+
+        # never cache on dev
+        if settings.DEBUG:
+            cached = None
 
         if cached is not None:
             try:
