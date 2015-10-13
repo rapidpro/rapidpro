@@ -36,7 +36,7 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, ActionLog
 from .flow_migrations import migrate_to_version_6, migrate_to_version_5, migrate_to_version_7
 
 
@@ -1070,7 +1070,7 @@ class RuleTest(TembaTest):
         self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg="hello world")).__class__)
         self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg="hello world", contacts=[], groups=[], variables=[])).__class__)
 
-    def test_actions(self):
+    def test_send_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
@@ -1097,7 +1097,6 @@ class RuleTest(TembaTest):
         action_json = test.as_json()
         test = SendAction.from_json(self.org, action_json)
         self.assertEquals(test.msg['base'], "What is your favorite color?")
-
         self.assertEquals(2, Broadcast.objects.all().count())
 
         broadcast = Broadcast.objects.all().order_by('pk')[1]
@@ -1105,6 +1104,29 @@ class RuleTest(TembaTest):
         msg = broadcast.get_messages().first()
         self.assertEquals(self.contact, msg.contact)
         self.assertEquals("What is your favorite color?", msg.text)
+
+        # empty message should be a no-op
+        test = SendAction(dict(base=""), [], [self.contact], [])
+        test.execute(run, None, None)
+        self.assertEquals(2, Broadcast.objects.all().count())
+
+        # try with a test contact
+        self.contact.is_test = True
+        self.contact.save()
+        self.other_group.update_contacts([self.contact2], True)
+
+        test = SendAction(dict(base="What is your favorite color?"), [self.other_group], [self.contact], [])
+        test.execute(run, None, None)
+
+        # check the description, this is shown on the contact history debug view
+        self.assertEquals("Sent '{'base': u'What is your favorite color?'}' to Eric, Other", test.get_description())
+
+        # since we are test contact now, no new broadcasts
+        self.assertEquals(2, Broadcast.objects.all().count())
+
+        # but we should have logged instead
+        self.assertEquals("Sending &#39;What is your favorite color?&#39; to 2 contacts",
+                          ActionLog.objects.all().first().text)
 
     def test_email_action(self):
         flow = self.flow

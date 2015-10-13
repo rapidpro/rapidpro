@@ -4699,7 +4699,7 @@ class SendAction(VariableContactAction):
         return log
 
     def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
+        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
 
 
 class Rule(object):
