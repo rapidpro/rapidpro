@@ -418,16 +418,16 @@ class APITest(TembaTest):
 
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
-        definition = flow.as_json()
+        definition = self.get_flow_json('pick_a_number')['definition']
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(1, response.json['version'])
-        self.assertEquals("Pick a Number", response.json['name'])
+        self.assertEquals(1, response.json['metadata']['revision'])
+        self.assertEquals("Pick a Number", response.json['metadata']['name'])
         self.assertEquals("F", response.json['flow_type'])
 
         # make sure the version that is returned increments properly
         flow.update(flow.as_json())
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
-        self.assertEquals(2, response.json['version'])
+        self.assertEquals(2, response.json['metadata']['revision'])
 
         # now delete our flow, we'll create it from scratch below
         flow.delete()
@@ -437,18 +437,22 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
 
         # can't create a flow without a name
-        response = self.postJSON(url, dict(name=""))
+        response = self.postJSON(url, dict(name="", version=6))
         self.assertEqual(response.status_code, 400)
 
         # but we can create an empty flow
-        response = self.postJSON(url, dict(name="Empty"))
+        response = self.postJSON(url, dict(name="Empty", version=6))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Empty")
+        self.assertEqual(response.json['metadata']['name'], "Empty")
+
+        # can't create a flow without a version
+        response = self.postJSON(url, dict(name='No Version'))
+        self.assertEqual(response.status_code, 400)
 
         # and create flow with a definition
-        response = self.postJSON(url, dict(name="Pick a Number", definition=definition))
+        response = self.postJSON(url, dict(name="Pick a Number", definition=definition, version=6))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a Number")
+        self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
@@ -461,18 +465,26 @@ class APITest(TembaTest):
         flow.flow_type = 'V'
         flow.save()
 
-        # updating should overwrite local change
-        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='S',
+                                           definition=definition, version=6))
+
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a Number")
+        self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
-        self.assertEqual(flow.flow_type, 'F')
+        self.assertEqual(flow.flow_type, 'S')
+
+        # post a version 7 flow
+        definition['metadata'] = dict(name='Version 7 flow', flow_type='S', uuid=flow.uuid)
+        definition['version'] = 7
+        response = self.postJSON(url, definition)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Flow.objects.get(uuid=flow.uuid).name, 'Version 7 flow')
 
         # No invalid type
         flow.delete()
-        response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X'))
+        response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X', version=6))
         self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):
@@ -503,7 +515,11 @@ class APITest(TembaTest):
         # point one of our nodes to it
         definition['action_sets'][1]['destination'] = new_node_uuid
 
+        print json.dumps(definition, indent=5)
+        print flow.version_number
+
         flow.update(definition)
+
 
         data = dict(flow=flow.uuid,
                     version=2,
