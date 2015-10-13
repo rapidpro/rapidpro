@@ -1374,7 +1374,7 @@ class Flow(TembaModel, SmartModel):
             start_msg.save(update_fields=['msg_type'])
 
         all_contacts = Contact.all().filter(Q(all_groups__in=[_.pk for _ in groups]) | Q(pk__in=[_.pk for _ in contacts]))
-        all_contacts = all_contacts.order_by('pk').distinct('pk')
+        all_contacts = all_contacts.only('is_test').order_by('pk').distinct('pk')
 
         if not restart_participants:
             # exclude anybody who has already participated in the flow
@@ -3623,7 +3623,7 @@ class FlowStart(SmartModel):
 
         try:
             groups = [g for g in self.groups.all()]
-            contacts = [c for c in self.contacts.all()]
+            contacts = [c for c in self.contacts.all().only('is_test')]
 
             self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
 
