@@ -1205,7 +1205,7 @@ class BulkExportTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals('Triggered Flow', actions[0]['name'])
 
-    def test_missing_flows_on_import_from_ruleset(self):
+    def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow
         self.import_file('start-missing-flow')
 
