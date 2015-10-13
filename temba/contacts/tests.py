@@ -2159,7 +2159,8 @@ class ContactFieldTest(TembaTest):
         # check that a field name which contains disallowed characters, gives an error
         post_data['label_2'] = '@name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, spaces and hypens")
+        self.assertFormError(response, 'form', None,
+                             "Field names can only contain letters, numbers, hypens and not trailling spaces")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')
