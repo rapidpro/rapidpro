@@ -1015,44 +1015,52 @@ class CampaignWriteSerializer(WriteSerializer):
         return campaign
 
 
-class FlowDefinitionReadSerializer(serializers.ModelSerializer):
-
-    uuid = serializers.Field(source='uuid')
-    definition = serializers.SerializerMethodField('get_definition')
-    archived = serializers.Field(source='is_archived')
-    expires = serializers.Field(source='expires_after_minutes')
-    flow_type = serializers.Field(source='flow_type')
-    version = serializers.SerializerMethodField('get_version')
-    spec_version = serializers.SerializerMethodField('get_spec_version')
-
-    def get_version(self, obj):
-        # store the revision of our definition
-        version = obj.versions.all().order_by('-version').first()
-        return version.version if version else 1
-
-    def get_spec_version(self, obj):
-        from temba.flows.models import CURRENT_EXPORT_VERSION
-        return CURRENT_EXPORT_VERSION
-
-    def get_definition(self, obj):
-        return obj.as_json()
-
-    class Meta:
-        model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition', 'flow_type', 'version', 'spec_version')
-
-
 class FlowDefinitionWriteSerializer(WriteSerializer):
-    uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=True)
+    version = serializers.WritableField(required=True)
+    metadata = serializers.WritableField(required=False)
+    base_language = serializers.WritableField(required=False)
     flow_type = serializers.WritableField(required=False)
+    action_sets = serializers.WritableField(required=False)
+    rule_sets = serializers.WritableField(required=False)
+    entry = serializers.WritableField(required=False)
+
+    # old versions had different top level elements
+    uuid = serializers.WritableField(required=False)
     definition = serializers.WritableField(required=False)
+    name = serializers.WritableField(required=False)
+    id = serializers.WritableField(required=False)
 
-    def validate_uuid(self, attrs, source):
-        uuid = attrs.get(source, None)
+    def validate_version(self, attrs, source):
+        version = attrs.get(source)
+        from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
+        if version > CURRENT_EXPORT_VERSION or version < EARLIEST_IMPORT_VERSION:
+            raise ValidationError("Flow version %s not supported" % version)
+        return attrs
 
-        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
-            raise ValidationError("No such flow with UUID: %s" % uuid)
+    def validate_name(self, attrs, source):
+        version = attrs.get('version')
+        if version < 7:
+            name = attrs.get(source)
+            if not name:
+                raise ValidationError("This field is required for version %s" % version)
+        return attrs
+
+    def validate_metadata(self, attrs, source):
+
+        # only required starting at version 7
+        version = attrs.get('version')
+        if version >= 7:
+            metadata = attrs.get(source)
+            if metadata:
+                if 'name' not in metadata:
+                    raise ValidationError("Name is missing from metadata")
+
+                uuid = metadata.get('uuid', None)
+                if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+                    raise ValidationError("No such flow with UUID: %s" % uuid)
+            else:
+                raise ValidationError("This field is required for version %s" % version)
+
         return attrs
 
     def validate_flow_type(self, attrs, source):
@@ -1063,33 +1071,38 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
 
         return attrs
 
-    def restore_object(self, attrs, instance=None):
+    def restore_object(self, flow_json, instance=None):
         """
         Update our flow
         """
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        uuid = attrs.get('uuid', None)
-        name = attrs['name']
-        definition = attrs.get('definition', None)
+        # first, migrate our definition forward if necessary
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        from temba.flows.models import FlowVersion
+        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
+        if version < CURRENT_EXPORT_VERSION:
+            flow_json = FlowVersion.migrate_definition(flow_json, version, CURRENT_EXPORT_VERSION)
+
+        # previous to version 7, uuid could be supplied on the outer element
+        uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
+        name = flow_json.get('metadata').get('name')
 
         if uuid:
             flow = Flow.objects.get(org=self.org, uuid=uuid)
             flow.name = name
 
-            flow_type = attrs.get('flow_type', None)
+            flow_type = flow_json.get('flow_type', None)
             if flow_type:
                 flow.flow_type = flow_type
 
             flow.save()
         else:
-            flow_type = attrs.get('flow_type', Flow.FLOW)
+            flow_type = flow_json.get('flow_type', Flow.FLOW)
             flow = Flow.create(self.org, self.user, name, flow_type)
 
-        if definition:
-            flow.update(definition, self.user, force=True)
-
+        flow.update(flow_json, self.user, force=True)
         return flow
 
 class FlowReadSerializer(serializers.ModelSerializer):
@@ -1327,7 +1340,7 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         # make sure we are operating off a current spec
         from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
-        definition = FlowVersion.migrate_definition(definition, flow_version.spec_version, CURRENT_EXPORT_VERSION)
+        definition = FlowVersion.migrate_definition(definition, flow.version_number, CURRENT_EXPORT_VERSION)
 
         for step in steps:
             node_obj = None

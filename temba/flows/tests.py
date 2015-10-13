@@ -37,7 +37,7 @@ from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
-from .flow_migrations import migrate_to_version_6
+from .flow_migrations import migrate_to_version_6, migrate_to_version_5, migrate_to_version_7
 
 
 class RuleTest(TembaTest):
@@ -100,7 +100,7 @@ class RuleTest(TembaTest):
         self.assertEquals(1, versions[0].version)
 
         # create a new update
-        self.definition['last_saved'] = response['saved_on']
+        self.definition['metadata']['saved_on'] = response['saved_on']
         self.flow.update(self.definition, user=self.admin)
         versions = self.flow.versions.all().order_by('created_on')
 
@@ -110,7 +110,7 @@ class RuleTest(TembaTest):
         self.assertEquals(2, versions[1].version)
 
         self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].spec_version)
-        self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].as_json()['spec_version'])
+        self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].as_json()['version'])
         self.assertEquals('base', versions[0].get_definition_json()['base_language'])
 
     def test_flow_lists(self):
@@ -478,7 +478,13 @@ class RuleTest(TembaTest):
 
         # metadata should come out in the json
         copy_json = copy.as_json()
-        self.assertEquals(dict(author="Ryan Lewis"), copy_json['metadata'])
+        self.assertEquals(dict(author="Ryan Lewis",
+                               name='Copy of Color Flow is a long name to use for something like thi',
+                               revision=1,
+                               expires=60,
+                               id=copy.pk,
+                               saved_on=datetime_to_str(copy.saved_on)),
+                          copy_json['metadata'])
 
         # should have the same number of actionsets and rulesets
         self.assertEquals(copy.action_sets.all().count(), self.flow.action_sets.all().count())
@@ -546,8 +552,14 @@ class RuleTest(TembaTest):
         json_dict = self.flow.as_json()
 
         self.maxDiff = None
-        self.definition['last_saved'] = datetime_to_str(self.flow.saved_on)
+        self.definition['version'] = 7
+        self.definition['metadata']['name'] = self.flow.name
+        self.definition['metadata']['saved_on'] = datetime_to_str(self.flow.saved_on)
+        self.definition['metadata']['revision'] = 1
+        self.definition['metadata']['expires'] = self.flow.expires_after_minutes
+        self.definition['metadata']['id'] = self.flow.pk
 
+        self.definition['flow_type'] = self.flow.flow_type
         self.assertEquals(json_dict, self.definition)
 
         # remove one of our actions and rules
@@ -1634,7 +1646,7 @@ class RuleTest(TembaTest):
         self.assertEquals(actionset.flow, flow)
 
         # can't save with an invalid uuid
-        json_dict['last_saved'] = datetime_to_str(timezone.now())
+        json_dict['metadata']['saved_on'] = datetime_to_str(timezone.now())
         json_dict['action_sets'][0]['destination'] = 'notthere'
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
@@ -2912,9 +2924,6 @@ class FlowsTest(FlowFileTest):
         name_ruleset = RuleSet.objects.get(flow=flow, label='Name Split')
         rowan_rule = name_ruleset.get_rules()[0]
 
-        print group_ruleset
-        print name_ruleset
-
         # rule turning back on ourselves
         with self.assertRaises(FlowException):
             self.update_destination(flow, group_one_rule.uuid, group_ruleset.uuid)
@@ -3145,7 +3154,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(6, definition.get('version', 0))
+        self.assertEquals(7, definition.get('version', 0))
         self.assertEquals(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow
@@ -3523,53 +3532,93 @@ class FlowsTest(FlowFileTest):
 class FlowMigrationTest(FlowFileTest):
 
     def migrate_flow(self, flow, to_version=None):
+
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
-        flow.update(FlowVersion.migrate_definition(flow.as_json(), flow.version_number, to_version=to_version))
+
+        flow_json = flow.as_json()
+        if flow.version_number <= 6:
+            version = flow.versions.all().order_by('-version').first()
+            flow_json = dict(definition=flow_json, flow_type=flow.flow_type,
+                             expires=flow.expires_after_minutes, id=flow.pk,
+                             revision=version.version if version else 1)
+
+        flow_json = FlowVersion.migrate_definition(flow_json, flow.version_number, to_version=to_version)
+        if 'definition' in flow_json:
+            flow_json = flow_json['definition']
+
+        flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
+
+    def test_migrate_to_7(self):
+
+        flow_json = self.get_flow_json('call-me-maybe')
+
+        # migrate to the version right before us first
+        flow_json = migrate_to_version_5(flow_json)
+        flow_json = migrate_to_version_6(flow_json)
+
+        self.assertIsNotNone(flow_json.get('definition'))
+        self.assertEquals('Call me maybe', flow_json.get('name'))
+        self.assertEquals(100, flow_json.get('id'))
+        self.assertEquals('V', flow_json.get('flow_type'))
+
+        flow_json = migrate_to_version_7(flow_json)
+        self.assertIsNone(flow_json.get('definition', None))
+        self.assertIsNotNone(flow_json.get('metadata', None))
+
+        metadata = flow_json.get('metadata')
+        self.assertEquals('Call me maybe', metadata['name'])
+        self.assertEquals(100, metadata['id'])
+        self.assertEquals('V', flow_json.get('flow_type'))
 
     def test_migrate_to_6(self):
 
         # file format is old non-localized format
         voice_json = self.get_flow_json('call-me-maybe')
+        definition = voice_json.get('definition')
 
         # no language set
-        self.assertIsNone(voice_json.get('base_language', None))
-        self.assertEquals('Yes', voice_json['rule_sets'][0]['rules'][0]['category'])
-        self.assertEquals('Press one, two, or three. Thanks.', voice_json['action_sets'][0]['actions'][0]['msg'])
+        self.assertIsNone(definition.get('base_language', None))
+        self.assertEquals('Yes', definition['rule_sets'][0]['rules'][0]['category'])
+        self.assertEquals('Press one, two, or three. Thanks.', definition['action_sets'][0]['actions'][0]['msg'])
 
         # add a recording to make sure that gets migrated properly too
-        voice_json['action_sets'][0]['actions'][0]['recording'] = '/recording.mp3'
+        definition['action_sets'][0]['actions'][0]['recording'] = '/recording.mp3'
 
-        migrate_to_version_6(voice_json)
+        voice_json = migrate_to_version_5(voice_json)
+        voice_json = migrate_to_version_6(voice_json)
+        definition = voice_json.get('definition')
 
         # now we should have a language
-        self.assertEquals('base', voice_json.get('base_language', None))
-        self.assertEquals('Yes', voice_json['rule_sets'][0]['rules'][0]['category']['base'])
-        self.assertEquals('Press one, two, or three. Thanks.', voice_json['action_sets'][0]['actions'][0]['msg']['base'])
-        self.assertEquals('/recording.mp3', voice_json['action_sets'][0]['actions'][0]['recording']['base'])
+        self.assertEquals('base', definition.get('base_language', None))
+        self.assertEquals('Yes', definition['rule_sets'][0]['rules'][0]['category']['base'])
+        self.assertEquals('Press one, two, or three. Thanks.', definition['action_sets'][0]['actions'][0]['msg']['base'])
+        self.assertEquals('/recording.mp3', definition['action_sets'][0]['actions'][0]['recording']['base'])
 
     def test_migrate_to_5_language(self):
 
-        flow = self.get_flow('multi-language-flow')
-
-        # fake a version 4 flow
-        RuleSet.objects.filter(flow=flow).update(response_type='C', ruleset_type=None)
-        flow.version_number = 4
-        flow.save()
-
-        # force a node insertion
-        ruleset = RuleSet.objects.get(flow=flow)
-        ruleset.operand = '@step.value|lower_case'
-        ruleset.save()
+        flow_json = self.get_flow_json('multi-language-flow')
+        ruleset = flow_json['definition']['rule_sets'][0]
+        ruleset['operand'] = '@step.value|lower_case'
 
         # now migrate us forward
-        flow = self.migrate_flow(flow, to_version=5)
+        flow_json = migrate_to_version_5(flow_json)
 
-        wait_ruleset = RuleSet.objects.get(flow=flow, ruleset_type='wait_message')
-        self.assertEquals(1, len(wait_ruleset.get_rules()))
-        self.assertEquals('All Responses', wait_ruleset.get_rules()[0].category['eng'])
-        self.assertEquals('Otro', wait_ruleset.get_rules()[0].category['spa'])
+        wait_ruleset = None
+        rules = None
+        for ruleset in flow_json.get('definition').get('rule_sets'):
+            if ruleset['ruleset_type'] == 'wait_message':
+                rules = ruleset['rules']
+                wait_ruleset = ruleset
+                break
+
+        self.assertIsNotNone(wait_ruleset)
+        self.assertIsNotNone(rules)
+
+        self.assertEquals(1, len(rules))
+        self.assertEquals('All Responses', rules[0]['category']['eng'])
+        self.assertEquals('Otro', rules[0]['category']['spa'])
 
     def test_migrate_to_5(self):
 

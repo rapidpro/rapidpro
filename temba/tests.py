@@ -122,13 +122,13 @@ class TembaTest(SmartminTest):
         if last_flow:
             return Flow.objects.filter(pk__gt=last_flow.pk).first()
 
-        return Flow.objects.all().first()
+        return Flow.objects.all().order_by('-created_on').first()
 
     def get_flow_json(self, file):
         handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
         data = handle.read()
         handle.close()
-        return json.loads(data)['flows'][0]['definition']
+        return json.loads(data)['flows'][0]
 
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
@@ -198,8 +198,14 @@ class TembaTest(SmartminTest):
                           entry=uuid(uuid_start + 1))
 
         flow = Flow.create(self.org, self.admin, "Color Flow")
-        from temba.flows.flow_migrations import migrate_to_version_6
-        migrate_to_version_6(definition)
+        from temba.flows.flow_migrations import migrate_to_version_6, migrate_to_version_7
+        from temba.utils import datetime_to_str
+        definition = dict(definition=definition, expires=flow.expires_after_minutes,
+                          name=flow.name, saved_on=datetime_to_str(flow.saved_on),
+                          flow_type=flow.flow_type, id=flow.pk)
+        definition = migrate_to_version_6(definition)
+        definition = migrate_to_version_7(definition)
+
         flow.update(definition)
 
         return Flow.objects.get(pk=flow.pk)
