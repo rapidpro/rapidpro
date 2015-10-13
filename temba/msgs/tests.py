@@ -550,11 +550,12 @@ class MsgTest(TembaTest):
         self.clear_storage()
         self.login(self.admin)
 
-        # create 3 messages - add label to second, and archive the third
+        # create some messages...
         joe_urn = (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path)
         msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
         msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
         msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
+        msg4 = Msg.create_incoming(None, None, "hello 4", org=self.org, contact=self.joe)  # like a surveyor message
 
         # label first message
         label = Label.get_or_create(self.org, self.user, "label1")
@@ -582,13 +583,19 @@ class MsgTest(TembaTest):
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
-        self.assertEquals(sheet.nrows, 3)  # msg3 not included as it's archived
-        self.assertEquals(sheet.cell(1, 1).value, '123')
-        self.assertEquals(sheet.cell(1, 2).value, 'tel')
+        self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
+        self.assertEquals(sheet.cell(1, 1).value, "")
+        self.assertEquals(sheet.cell(1, 2).value, "")
         self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
         self.assertEquals(sheet.cell(1, 4).value, "Incoming")
-        self.assertEquals(sheet.cell(1, 5).value, "hello 2")
+        self.assertEquals(sheet.cell(1, 5).value, "hello 4")
         self.assertEquals(sheet.cell(1, 6).value, "")
+        self.assertEquals(sheet.cell(2, 1).value, '123')
+        self.assertEquals(sheet.cell(2, 2).value, 'tel')
+        self.assertEquals(sheet.cell(2, 3).value, "Joe Blow")
+        self.assertEquals(sheet.cell(2, 4).value, "Incoming")
+        self.assertEquals(sheet.cell(2, 5).value, "hello 2")
+        self.assertEquals(sheet.cell(2, 6).value, "")
 
         email_args = mock_send_multipart_email.call_args[0]  # all positional args
 
@@ -630,10 +637,13 @@ class MsgTest(TembaTest):
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 
-            self.assertEquals(sheet.nrows, 3)
-            self.assertEquals(sheet.cell(1, 1).value, '%010d' % self.joe.pk)
-            self.assertEquals(sheet.cell(1, 2).value, 'tel')
+            self.assertEquals(sheet.nrows, 4)
+            self.assertEquals(sheet.cell(1, 1).value, "%010d" % self.joe.pk)
+            self.assertEquals(sheet.cell(1, 2).value, "")
             self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
+            self.assertEquals(sheet.cell(2, 1).value, "%010d" % self.joe.pk)
+            self.assertEquals(sheet.cell(2, 2).value, "tel")
+            self.assertEquals(sheet.cell(2, 3).value, "Joe Blow")
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)

@@ -1,69 +1,69 @@
 {
-  "version": 5, 
+  "version": 7,
   "flows": [
     {
-      "definition": {
-        "base_language": "eng", 
-        "action_sets": [
-          {
-            "y": 140, 
-            "x": 190, 
-            "destination": null, 
-            "uuid": "c81d60ec-9a74-48d6-a55f-e70a5d7195d3", 
-            "actions": [
-              {
-                "msg": {
-                  "eng": "Testing this out"
-                }, 
-                "type": "reply"
+      "version": 7,
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 140,
+          "x": 190,
+          "destination": null,
+          "uuid": "c81d60ec-9a74-48d6-a55f-e70a5d7195d3",
+          "actions": [
+            {
+              "msg": {
+                "eng": "Testing this out"
+              },
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "last_saved": "2015-07-29T20:57:32.146036Z",
+      "entry": "9b3b6b7d-13ec-46ea-8918-a83a4099be33",
+      "rule_sets": [
+        {
+          "uuid": "9b3b6b7d-13ec-46ea-8918-a83a4099be33",
+          "webhook_action": "GET",
+          "rules": [
+            {
+              "category": {
+                "base": "All Responses",
+                "eng": "All Responses"
+              },
+              "uuid": "0734d69a-99c1-45f6-a3df-7246408c4565",
+              "destination": "c81d60ec-9a74-48d6-a55f-e70a5d7195d3",
+              "destination_type": "A",
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "config": {
+                "type": "true",
+                "verbose_name": "contains anything",
+                "name": "Other",
+                "operands": 0
               }
-            ]
-          }
-        ], 
-        "last_saved": "2015-07-29T20:57:32.146036Z", 
-        "entry": "9b3b6b7d-13ec-46ea-8918-a83a4099be33", 
-        "rule_sets": [
-          {
-            "uuid": "9b3b6b7d-13ec-46ea-8918-a83a4099be33", 
-            "webhook_action": "GET", 
-            "rules": [
-              {
-                "category": {
-                  "base": "All Responses", 
-                  "eng": "All Responses"
-                }, 
-                "uuid": "0734d69a-99c1-45f6-a3df-7246408c4565", 
-                "destination": "c81d60ec-9a74-48d6-a55f-e70a5d7195d3", 
-                "destination_type": "A", 
-                "test": {
-                  "test": "true", 
-                  "type": "true"
-                }, 
-                "config": {
-                  "type": "true", 
-                  "verbose_name": "contains anything", 
-                  "name": "Other", 
-                  "operands": 0
-                }
-              }
-            ], 
-            "webhook": "http://google.com", 
-            "ruleset_type": "webhook", 
-            "label": "Response 1", 
-            "operand": "@step.value", 
-            "finished_key": null, 
-            "response_type": "", 
-            "y": 0, 
-            "x": 100
-          }
-        ], 
-        "metadata": {}
-      }, 
-      "expires": 10080, 
-      "id": 33868, 
-      "flow_type": "F", 
-      "name": "Test Webhook First"
+            }
+          ],
+          "webhook": "http://google.com",
+          "ruleset_type": "webhook",
+          "label": "Response 1",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 100
+        }
+      ],
+      "flow_type": "F",
+      "metadata": {
+        "expires": 10080,
+        "id": 33868,
+        "name": "Test Webhook First"
+      }
     }
-  ], 
+  ],
   "triggers": []
 }

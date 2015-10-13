@@ -1224,7 +1224,6 @@ class BulkExportTest(TembaTest):
         other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
         self.assertEquals(1, len(other_actionset.get_actions()))
 
-
     def test_export_import(self):
 
         def assert_object_counts():
@@ -1313,7 +1312,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
-        self.assertEquals(6, exported.get('version', 0))
+        self.assertEquals(7, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))
