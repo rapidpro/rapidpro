@@ -2010,7 +2010,7 @@ class Flow(TembaModel, SmartModel):
         """
         if self.version_number < CURRENT_EXPORT_VERSION:
             with self.lock_on(FlowLock.definition):
-                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number, self)
+                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number, CURRENT_EXPORT_VERSION)
                 self.update(json_flow)
                 # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
 
@@ -2685,6 +2685,7 @@ class FlowVersion(SmartModel):
 
     @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):
+
 
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
