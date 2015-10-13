@@ -1111,11 +1111,11 @@ class RuleTest(TembaTest):
         self.assertEquals(2, Broadcast.objects.all().count())
 
         # try with a test contact
-        self.contact.is_test = True
-        self.contact.save()
+        self.test_contact = self.create_contact('Test Contact', '+12065551212', is_test=True)
         self.other_group.update_contacts([self.contact2], True)
 
         test = SendAction(dict(base="What is your favorite color?"), [self.other_group], [self.contact], [])
+        run = FlowRun.create(self.flow, self.test_contact)
         test.execute(run, None, None)
 
         # check the description, this is shown on the contact history debug view
