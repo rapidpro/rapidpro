@@ -4,7 +4,7 @@ import mimetypes
 import urllib2
 
 from django.core.urlresolvers import reverse
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from smartmin.views import SmartTemplateView
@@ -25,12 +25,13 @@ def handle_asset_request(user, asset_type, identifier):
         asset_type = mimetypes.guess_type(filename)[0]
 
         if location.startswith('http'):
-            asset_file = urllib2.urlopen(location)
+            # return an HTTP Redirect to the source
+            response = HttpResponseRedirect(location)
         else:
             asset_file = open('.' + location, 'rb')
+            response = HttpResponse(asset_file, content_type=asset_type)
+            response['Content-Disposition'] = 'attachment; filename=%s' % filename
 
-        response = HttpResponse(asset_file, content_type=asset_type)
-        response['Content-Disposition'] = 'attachment; filename=%s' % filename
         return response
     except AssetEntityNotFound:
         return HttpResponseNotFound("No such object in database")
