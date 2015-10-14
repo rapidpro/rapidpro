@@ -30,7 +30,8 @@ def migrate_to_version_7(json_flow):
 
         # single message flows incorrectly created an empty rulesets
         # element which should be rule_sets instead
-        definition.pop('rulesets')
+        if 'rulesets' in definition:
+            definition.pop('rulesets')
 
         return definition
 
