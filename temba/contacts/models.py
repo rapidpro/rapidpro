@@ -1672,11 +1672,11 @@ class ExportContactsTask(SmartModel):
         self.save(update_fields=['uuid'])
 
         store = AssetType.contact_export.store
-        store.save(self.uuid, File(table_file), 'csv' if exporter.is_csv else 'xls')
+        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.contact_export, self.uuid))
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.contact_export, self.pk))
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)

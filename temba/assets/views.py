@@ -11,17 +11,17 @@ from smartmin.views import SmartTemplateView
 from .models import AssetType, AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound
 
 
-def get_asset_url(asset_type, identifier, direct=False):
+def get_asset_url(asset_type, pk, direct=False):
     view_name = 'assets.stream' if direct else 'assets.download'
-    return reverse(view_name, kwargs=dict(type=asset_type.name, identifier=identifier))
+    return reverse(view_name, kwargs=dict(type=asset_type.name, pk=pk))
 
 
-def handle_asset_request(user, asset_type, identifier):
+def handle_asset_request(user, asset_type, pk):
     """
     Request handler shared by the asset view and the asset API endpoint
     """
     try:
-        asset_org, location, filename = asset_type.store.resolve(user, identifier)
+        asset_org, location, filename = asset_type.store.resolve(user, pk)
         asset_type = mimetypes.guess_type(filename)[0]
 
         if location.startswith('http'):
@@ -54,10 +54,10 @@ class AssetDownloadView(SmartTemplateView):
         context = super(AssetDownloadView, self).get_context_data(**kwargs)
 
         asset_type = AssetType[kwargs.pop('type')]
-        identifier = kwargs.pop('identifier')
+        pk = kwargs.pop('pk')
 
         try:
-            asset_org, location, filename = asset_type.store.resolve(self.request.user, identifier)
+            asset_org, location, filename = asset_type.store.resolve(self.request.user, pk)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:
@@ -66,7 +66,7 @@ class AssetDownloadView(SmartTemplateView):
             file_error = None
             self.request.user.set_org(asset_org)
 
-        download_url = get_asset_url(asset_type, identifier, direct=True)
+        download_url = get_asset_url(asset_type, pk, direct=True)
 
         context['file_error'] = file_error
         context['download_url'] = download_url
@@ -80,6 +80,6 @@ class AssetStreamView(View):
     """
     def get(self, request, *args, **kwargs):
         asset_type = AssetType[kwargs.pop('type')]
-        identifier = kwargs.pop('identifier')
+        pk = kwargs.pop('pk')
 
-        return handle_asset_request(request.user, asset_type, identifier)
+        return handle_asset_request(request.user, asset_type, pk)

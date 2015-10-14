@@ -3319,14 +3319,14 @@ class ExportFlowResultsTask(SmartModel):
         from temba.assets.views import get_asset_url
 
         store = AssetType.results_export.store
-        store.save(self.uuid, File(temp), 'xls')
+        store.save(self.pk, File(temp), 'xls')
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
 
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.uuid))
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.pk))
 
         # force a gc
         import gc

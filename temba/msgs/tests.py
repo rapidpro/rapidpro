@@ -579,7 +579,7 @@ class MsgTest(TembaTest):
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
@@ -614,7 +614,7 @@ class MsgTest(TembaTest):
         self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
         task = ExportMessagesTask.objects.get()
 
-        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
@@ -633,7 +633,7 @@ class MsgTest(TembaTest):
             self.client.post(reverse('msgs.msg_export'))
             task = ExportMessagesTask.objects.get()
 
-            filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+            filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 

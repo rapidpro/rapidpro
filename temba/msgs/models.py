@@ -1757,14 +1757,14 @@ class ExportMessagesTask(SmartModel):
         from temba.assets.views import get_asset_url
 
         store = AssetType.message_export.store
-        store.save(self.uuid, File(temp), 'xls')
+        store.save(self.pk, File(temp), 'xls')
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
 
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'
-        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.uuid)
+        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
 
         # force a gc
         import gc
