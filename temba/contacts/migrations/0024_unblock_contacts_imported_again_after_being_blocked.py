@@ -11,7 +11,8 @@ def unblock_contacts_imported_again(apps, schema_editor):
     blocked_contacts = Contact.objects.filter(is_blocked=True, is_test=False).annotate(group_count=Count('all_groups'))
     reimported_contacts = blocked_contacts.filter(Q(group_count__gt=1) | Q(group_count__lt=1))
 
-    updated = reimported_contacts.update(is_blocked=False)
+    updated = Contact.objects.filter(pk__in=reimported_contacts).update(is_blocked=False)
+
     if updated:
         print "Fixed %d contacts that are blocked and has another group" % updated
 
