@@ -1454,6 +1454,9 @@ class ContactGroup(TembaModel, SmartModel):
 
             # if we are adding the contact to the group, and this contact is not in this group
             if add:
+                if contact.is_blocked:
+                    raise ValueError("Can't add or remove groups on blocked contact")
+
                 if not group_contacts.filter(id=contact.id):
                     self.contacts.add(contact)
                     contact_changed = True

@@ -270,6 +270,9 @@ class ContactGroupTest(TembaTest):
         # blocking a contact removes them from all user groups
         self.joe.block()
 
+        with self.assertRaises(ValueError):
+            group.update_contacts([self.joe], True)
+
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEquals(group.count, 1)
         self.assertEquals(set(group.contacts.all()), {self.frank, test_contact})
