@@ -14,6 +14,7 @@ app.config [ '$httpProvider', '$sceDelegateProvider', ($httpProvider, $sceDelega
     'self',
     'http://*.s3.amazonaws.com/**',
     'https://*.s3.amazonaws.com/**',
+    'http://textit.ngrok.com/**',
   ])
 ]
 
