@@ -509,6 +509,7 @@ def get_or_create_api_token(user):
         org = Org.get_org(user)
 
     role = user.get_role()
+
     if org:
         tokens = APIToken.objects.filter(user=user, org=org, role=role)
 
@@ -521,7 +522,7 @@ def get_or_create_api_token(user):
         return None
 
 
-def api_token(user, role):
+def api_token(user):
     """
     Cached property access to a user's lazily-created API token
     """

@@ -1341,11 +1341,10 @@ def get_org_group(obj):
 
 def get_role(obj):
 
-    if obj._role:
-        return obj._role
+    if not hasattr(obj, '_role'):
+        obj._role = obj.get_org_group().name[0:1]
 
-    obj._role = obj.get_org_group().name[0:1]
-    return obj.role
+    return obj._role
 
 
 def _user_has_org_perm(user, org, permission):

@@ -83,20 +83,26 @@ class ApiPermission(BasePermission):
             if request.user.is_anonymous():
                 return False
 
-            if not request.auth:
-                return False
+            group = None
 
-            api_token = request.auth
+            # try to determine group from api token
+            if request.auth:
+                if request.auth.role:
+                    group = Group.objects.filter(name__startswith=request.auth.role).first()
 
-            if api_token.role:
-                group = Group.objects.filter(name__startswith=api_token.role).first()
-                if group:
-                    codename = view.permission.split(".")[-1]
-                    return group.permissions.filter(codename=codename)
+            # otherwise lean on the logged in user
+            else:
+                org = request.user.get_org()
+                group = org.get_user_org_group(request.user)
+
+            # if we have a group, check its permissions
+            if group:
+                codename = view.permission.split(".")[-1]
+                return group.permissions.filter(codename=codename)
 
             return False
 
-        else: # pragma: no cover
+        else:  # pragma: no cover
             return True
 
 

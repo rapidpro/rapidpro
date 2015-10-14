@@ -1471,6 +1471,7 @@ class APITest(TembaTest):
 
         # page is implicit
         response = self.fetchJSON(url)
+        self.assertEqual(200, response.status_code)
         self.assertResultCount(response, 300)
         self.assertEqual(response.json['results'][0]['name'], "Minion 300")
 
