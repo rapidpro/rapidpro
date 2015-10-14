@@ -36,6 +36,8 @@ def migrate_to_version_8(json_flow):
         for action in action_set['actions']:
             migrate_node(action)
 
+    return json_flow
+
 
 def migrate_to_version_7(json_flow):
     """

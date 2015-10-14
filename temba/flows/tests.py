@@ -3131,8 +3131,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(7, definition.get('version', 0))
-        self.assertEquals(1, len(definition.get('flows', [])))
+        self.assertEqual(CURRENT_EXPORT_VERSION, definition.get('version', 0))
+        self.assertEqual(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow
         Flow.import_flows(definition, self.org, self.admin)
@@ -3529,19 +3529,19 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_to_8(self):
         # file uses old style expressions
-        flow = self.get_flow_json('old-expressions')
+        flow_json = self.get_flow_json('old-expressions')
 
         # migrate to the version right before us first
-        migrate_to_version_7(flow)
-        migrate_to_version_8(flow)
+        flow_json = migrate_to_version_7(flow_json)
+        flow_json = migrate_to_version_8(flow_json)
 
-        self.assertEqual(flow['action_sets'][0]['actions'][0]['msg']['eng'], "Hi @(UPPER(contact.name)). Today is @(date.now)")
-        self.assertEqual(flow['action_sets'][1]['actions'][0]['groups'][0], "@flow.response_1.category")
-        self.assertEqual(flow['action_sets'][1]['actions'][1]['msg']['eng'], "Was @(PROPER(LOWER(contact.name))).")
-        self.assertEqual(flow['action_sets'][1]['actions'][1]['variables'][0]['id'], "@flow.response_1.category")
-        self.assertEqual(flow['rule_sets'][0]['webhook'], "http://example.com/query.php?contact=@(UPPER(contact.name))")
-        self.assertEqual(flow['rule_sets'][0]['operand'], "@(step.value)")
-        self.assertEqual(flow['rule_sets'][1]['operand'], "@(step.value + 3)")
+        self.assertEqual(flow_json['action_sets'][0]['actions'][0]['msg']['eng'], "Hi @(UPPER(contact.name)). Today is @(date.now)")
+        self.assertEqual(flow_json['action_sets'][1]['actions'][0]['groups'][0], "@flow.response_1.category")
+        self.assertEqual(flow_json['action_sets'][1]['actions'][1]['msg']['eng'], "Was @(PROPER(LOWER(contact.name))).")
+        self.assertEqual(flow_json['action_sets'][1]['actions'][1]['variables'][0]['id'], "@flow.response_1.category")
+        self.assertEqual(flow_json['rule_sets'][0]['webhook'], "http://example.com/query.php?contact=@(UPPER(contact.name))")
+        self.assertEqual(flow_json['rule_sets'][0]['operand'], "@(step.value)")
+        self.assertEqual(flow_json['rule_sets'][1]['operand'], "@(step.value + 3)")
 
     def test_migrate_to_7(self):
         flow_json = self.get_flow_json('call-me-maybe')
