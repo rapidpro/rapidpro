@@ -457,7 +457,7 @@ class Flow(TembaModel, SmartModel):
         # if we've been sent a recording, go grab it
         if recording_url:
             url = Flow.download_recording(call, recording_url, recording_id)
-            recording_url = "http://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
+            recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
@@ -1025,7 +1025,7 @@ class Flow(TembaModel, SmartModel):
                 return None
 
             try:
-                url = "http://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
+                url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
@@ -4153,7 +4153,7 @@ class SayAction(Action):
 
             # if we have a localized recording, create the url
             if recording:
-                recording_url = "http://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
+                recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)

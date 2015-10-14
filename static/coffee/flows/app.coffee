@@ -12,9 +12,8 @@ app.config [ '$httpProvider', '$sceDelegateProvider', ($httpProvider, $sceDelega
   # we need to whitelist our urls to reference our recordings
   $sceDelegateProvider.resourceUrlWhitelist([
     'self',
-    'http://dl.textit.in/**',
-    'http://dl.rapidpro.io/**',
-    'http://textit.ngrok.com/**',
+    'http://*.s3.amazonaws.com/**',
+    'https://*.s3.amazonaws.com/**',
   ])
 ]
 
