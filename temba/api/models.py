@@ -479,6 +479,7 @@ class APIToken(models.Model):
     user = models.ForeignKey(User, related_name='api_tokens')
     org = models.ForeignKey(Org, related_name='api_tokens')
     created = models.DateTimeField(auto_now_add=True)
+    role = models.CharField(max_length=1, null=False)
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -493,7 +494,7 @@ class APIToken(models.Model):
         return self.key
 
     class Meta:
-        unique_together = ('user', 'org')
+        unique_together = ('user', 'org', 'role')
 
 
 def get_or_create_api_token(user):
@@ -507,19 +508,20 @@ def get_or_create_api_token(user):
     if not org:
         org = Org.get_org(user)
 
+    role = user.get_role()
     if org:
-        tokens = APIToken.objects.filter(user=user, org=org)
+        tokens = APIToken.objects.filter(user=user, org=org, role=role)
 
         if tokens:
             return str(tokens[0])
         else:
-            token = APIToken.objects.create(user=user, org=org)
+            token = APIToken.objects.create(user=user, org=org, role=role)
             return str(token)
     else:
         return None
 
 
-def api_token(user):
+def api_token(user, role):
     """
     Cached property access to a user's lazily-created API token
     """

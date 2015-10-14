@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+from django.contrib.auth.models import Group
 import requests
 import urllib
 
@@ -21,7 +22,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView, SmartReadView, SmartListView
-from temba.api.models import WebHookEvent, WebHookResult, APIToken, get_or_create_api_token
+from temba.api.models import WebHookEvent, WebHookResult, get_or_create_api_token
 from temba.api.serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
@@ -73,17 +74,28 @@ def webhook_status_processor(request):
 
 class ApiPermission(BasePermission):
     def has_permission(self, request, view):
+
+        # TODO: Lookup group based on token in request.auth
+
+        # api_token = request.auth
         if getattr(view, 'permission', None):
+
             if request.user.is_anonymous():
                 return False
 
-            org = request.user.get_org()
-            if org:
-                group = org.get_user_org_group(request.user)
-                codename = view.permission.split(".")[-1]
-                return group.permissions.filter(codename=codename)
-            else:
+            if not request.auth:
                 return False
+
+            api_token = request.auth
+
+            if api_token.role:
+                group = Group.objects.filter(name__startswith=api_token.role).first()
+                if group:
+                    codename = view.permission.split(".")[-1]
+                    return group.permissions.filter(codename=codename)
+
+            return False
+
         else: # pragma: no cover
             return True
 
@@ -309,13 +321,16 @@ class ApiExplorerView(SmartTemplateView):
 
         return context
 
+
 class AuthenticateEndpoint(SmartFormView):
 
     class LoginForm(forms.Form):
         email = forms.CharField()
         password = forms.CharField()
+        role = forms.CharField()
 
     form_class = LoginForm
+
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super(AuthenticateEndpoint, self).dispatch(*args, **kwargs)
@@ -323,13 +338,28 @@ class AuthenticateEndpoint(SmartFormView):
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
         password = form.cleaned_data.get('password')
+        role = form.cleaned_data.get('role')
+
         user = authenticate(username=username, password=password)
         if user and user.is_active:
             login(self.request, user)
 
+            # the types of users that can login to the api
             orgs = []
-            for org in Org.objects.filter(Q(administrators__in=[user]) | Q(surveyors__in=[user])):
+
+            valid_orgs = []
+            if role == 'A':
+                valid_orgs = Org.objects.filter(administrators__in=[user])
+            elif role == 'E':
+                # admins can authenticate as editors
+                valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
+            elif role == 'S':
+                # admins and editors can authenticate as surveyors
+                valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
+
+            for org in valid_orgs:
                 user.set_org(org)
+                user._role = role
                 token = get_or_create_api_token(user)
 
                 if token:

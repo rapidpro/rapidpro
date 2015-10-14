@@ -1339,6 +1339,15 @@ def get_org_group(obj):
     return org_group
 
 
+def get_role(obj):
+
+    if obj._role:
+        return obj._role
+
+    obj._role = obj.get_org_group().name[0:1]
+    return obj.role
+
+
 def _user_has_org_perm(user, org, permission):
     """
     Determines if a user has the given permission in this org
@@ -1370,12 +1379,14 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.get_role = get_role
 User.has_org_perm = _user_has_org_perm
 
 
 USER_GROUPS = (('A', _("Administrator")),
                ('E', _("Editor")),
-               ('V', _("Viewer")))
+               ('V', _("Viewer")),
+               ('S', _("Surveyor")))
 
 
 def get_stripe_credentials():
