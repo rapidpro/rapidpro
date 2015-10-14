@@ -552,7 +552,7 @@ class RuleTest(TembaTest):
         json_dict = self.flow.as_json()
 
         self.maxDiff = None
-        self.definition['version'] = 7
+        self.definition['version'] = CURRENT_EXPORT_VERSION
         self.definition['metadata']['name'] = self.flow.name
         self.definition['metadata']['saved_on'] = datetime_to_str(self.flow.saved_on)
         self.definition['metadata']['revision'] = 1

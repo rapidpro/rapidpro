@@ -23,7 +23,7 @@ def migrate_to_version_8(json_flow):
                 node[key] = migrate_node(val)
         return node
 
-    for rule_set in json_flow['rule_sets']:
+    for rule_set in json_flow.get('rule_sets', []):
         for rule in rule_set['rules']:
             migrate_node(rule['test'])
 
@@ -32,7 +32,7 @@ def migrate_to_version_8(json_flow):
         if 'webhook' in rule_set and rule_set['webhook']:
             rule_set['webhook'] = migrate_node(rule_set['webhook'])
 
-    for action_set in json_flow['action_sets']:
+    for action_set in json_flow.get('action_sets', []):
         for action in action_set['actions']:
             migrate_node(action)
 
