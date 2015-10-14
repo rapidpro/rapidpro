@@ -27,7 +27,7 @@ from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowDefinitionReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowDefinitionWriteSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowDefinitionWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
 from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer
@@ -2735,10 +2735,10 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
 class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     """
     This endpoint returns a flow definition given a flow uuid. Posting to it allows creation
-    or updating of existing flows. This endpoint has only alpha-level support and is subject
-    to modification or removal.
+    or updating of existing flows. This endpoint should be considered to only have alpha-level
+    support and is subject to modification or removal.
 
-    ## Getting a flow defintion
+    ## Getting a flow definition
 
     Returns the flow definition for the given flow.
 
@@ -2746,63 +2746,69 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     Example:
 
-        GET /api/v1/flowdefinition.json
+        GET /api/v1/flow_definition.json?uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
 
     Response is a flow definition
 
         {
-          "results": {
-            "base_language": "eng",
-            "last_saved": "2015-09-23T00:25:50.709164Z",
-            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-            "type": "S",
-            "metadata": {},
-            "action_sets": [
-              {
-                "y": 0,
-                "x": 100,
-                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-                "actions": [
-                  {
-                    "msg": {
-                      "eng": "What is your name?"
-                    },
-                    "type": "reply"
-                  }
-                ]
-              },
-              ...
-            ],
-            "rule_sets": [
-              {
-                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "webhook_action": null,
-                "rules": [
-                  {
-                    "test": {
-                      "test": "true",
-                      "type": "true"
-                    },
-                    "category": {
-                      "eng": "All Responses"
-                    },
-                    "destination": null,
-                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                    "destination_type": null
-                  }
-                ],
-                "webhook": null,
-                "ruleset_type": "wait_message",
-                "label": "Name",
-                "operand": "@step.value",
-                "finished_key": null,
-                "y": 162,
-                "x": 62,
-                "config": {}
-              },
-              ...
-            ]
+          metadata: {
+            "name": "Water Point Survey",
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
+            "saved_on": "2015-09-23T00:25:50.709164Z",
+            "revision":28,
+            "expires":7880,
+            "id":12712,
+          },
+          "version": 7,
+          "flow_type": "S",
+          "base_language": "eng",
+          "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+          "action_sets": [
+            {
+              "y": 0,
+              "x": 100,
+              "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+              "actions": [
+                {
+                  "msg": {
+                    "eng": "What is your name?"
+                  },
+                  "type": "reply"
+                }
+              ]
+            },
+            ...
+          ],
+          "rule_sets": [
+            {
+              "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "webhook_action": null,
+              "rules": [
+                {
+                  "test": {
+                    "test": "true",
+                    "type": "true"
+                  },
+                  "category": {
+                    "eng": "All Responses"
+                  },
+                  "destination": null,
+                  "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                  "destination_type": null
+                }
+              ],
+              "webhook": null,
+              "ruleset_type": "wait_message",
+              "label": "Name",
+              "operand": "@step.value",
+              "finished_key": null,
+              "y": 162,
+              "x": 62,
+              "config": {}
+            },
+            ...
+          ]
           }
         }
 
@@ -2810,80 +2816,80 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     By making a ```POST``` request to the endpoint you can create or update an existing flow
 
-    * **uuid** - the UUID of the flow (string, optional)
-    * **name** - the name of the flow
-    * **definition** - the flow definition to save (string)
+    * **metadata** - contains the name and uuid (optional) for the flow
+    * **version** - the flow spec version for the definition being submitted
+    * **base_language** - the default language code to us for the flow
+    * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
+    * **action_sets** - the actions in the flow
+    * **rule_sets** - the rules in the flow
+    * **entry** - the uuid for the action_set or rule_set the flow starts at
 
     Example:
 
-        POST /api/v1/flowdefinition.json
+        POST /api/v1/flow_definition.json
         {
-          "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
-          "name": "Registration Flow",
-          "definition":
-          {
-            "base_language": "eng",
-            "last_saved": "2015-09-23T00:25:50.709164Z",
-            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-            "type": "S",
-            "metadata": {},
-            "action_sets": [
-              {
-                "y": 0,
-                "x": 100,
-                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-                "actions": [
-                  {
-                    "msg": {
-                      "eng": "What is your name?"
-                    },
-                    "type": "reply"
-                  }
-                ]
-              },
-              ...
-            ],
-            "rule_sets": [
-              {
-                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "webhook_action": null,
-                "rules": [
-                  {
-                    "test": {
-                      "test": "true",
-                      "type": "true"
-                    },
-                    "category": {
-                      "eng": "All Responses"
-                    },
-                    "destination": null,
-                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                    "destination_type": null
-                  }
-                ],
-                "webhook": null,
-                "ruleset_type": "wait_message",
-                "label": "Name",
-                "operand": "@step.value",
-                "finished_key": null,
-                "y": 162,
-                "x": 62,
-                "config": {}
-              },
-              ...
-            ]
-          }
+          "metadata": {
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "name": "Registration Flow"
+          },
+          "version": 7,
+          "flow_type": "S",
+          "base_language": "eng",
+          "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+          "action_sets": [
+            {
+              "y": 0,
+              "x": 100,
+              "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+              "actions": [
+                {
+                  "msg": {
+                    "eng": "What is your name?"
+                  },
+                  "type": "reply"
+                }
+              ]
+            },
+            ...
+          ],
+          "rule_sets": [
+            {
+              "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "webhook_action": null,
+              "rules": [
+                {
+                  "test": {
+                    "test": "true",
+                    "type": "true"
+                  },
+                  "category": {
+                    "eng": "All Responses"
+                  },
+                  "destination": null,
+                  "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                  "destination_type": null
+                }
+              ],
+              "webhook": null,
+              "ruleset_type": "wait_message",
+              "label": "Name",
+              "operand": "@step.value",
+              "finished_key": null,
+              "y": 162,
+              "x": 62,
+              "config": {}
+            },
+            ...
+          ]
         }
 
     """
     permission = 'flows.flow_api'
     model = Flow
-    serializer_class = FlowDefinitionReadSerializer
     write_serializer_class = FlowDefinitionWriteSerializer
 
     def get(self, request, *args, **kwargs):
-        user = request.user
 
         uuid = request.GET.get('uuid')
         flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
@@ -2891,9 +2897,12 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
         if flow:
             # make sure we have the latest format
             flow.ensure_current_version()
-            return Response(dict(results=flow.as_json()), status=status.HTTP_200_OK)
+            return Response(flow.as_json(), status=status.HTTP_200_OK)
         else:
-            return Response(dict(error="Invalid flow uuid", status=status.HTTP_400_BAD_REQUEST))
+            return Response(dict(error="Invalid flow uuid"), status=status.HTTP_400_BAD_REQUEST)
+
+    def render_write_response(self, flow, context):
+        return Response(flow.as_json(), status=status.HTTP_201_CREATED)
 
 
 class FlowEndpoint(ListAPIMixin, BaseAPIView):

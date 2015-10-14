@@ -168,7 +168,10 @@ class MsgReadSerializer(serializers.ModelSerializer):
     def get_urn(self, obj):
         if obj.org.is_anon:
             return None
-        return obj.contact_urn.urn
+        elif obj.contact_urn:
+            return obj.contact_urn.urn
+        else:
+            return None
 
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
@@ -600,27 +603,31 @@ class ContactFieldWriteSerializer(WriteSerializer):
     value_type = serializers.CharField(required=True)
 
     def validate_key(self, attrs, source):
-        key = attrs.get(source, '')
-        if key:
-            # if key is specified, then we're updating a field, so key must exist
-            if not ContactField.objects.filter(org=self.org, key=key).exists():
-                raise ValidationError("No such contact field key")
+        key = attrs.get(source, None)
+        if key and not ContactField.is_valid_key(key):
+            raise ValidationError("Field key is invalid or is a reserved name")
+        return attrs
+
+    def validate_label(self, attrs, source):
+        label = attrs.get(source, None)
+        if label and not ContactField.is_valid_label(label):
+            raise ValidationError("Invalid field label")
         return attrs
 
     def validate_value_type(self, attrs, source):
         value_type = attrs.get(source, '')
-        if value_type:
-            if not value_type in [t for t, label in VALUE_TYPE_CHOICES]:
-                raise ValidationError("Invalid field value type")
+        if value_type and value_type not in [t for t, label in VALUE_TYPE_CHOICES]:
+            raise ValidationError("Invalid field value type")
         return attrs
 
     def validate(self, attrs):
-
         key = attrs.get('key', None)
         label = attrs.get('label')
 
         if not key:
-            key = ContactField.api_make_key(label)
+            key = ContactField.make_key(label)
+            if not ContactField.is_valid_key(key):
+                raise ValidationError(_("Generated key for '%s' is invalid or a reserved name") % label)
 
         attrs['key'] = key
         return attrs
@@ -870,7 +877,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
         # ensure contact field exists
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
-            key = ContactField.api_make_key(relative_to_label)
+            key = ContactField.make_key(relative_to_label)
+            if not ContactField.is_valid_key(key):
+                raise ValidationError(_("Cannot create contact field with key '%s'") % key)
             relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
 
         if event:
@@ -1006,67 +1015,94 @@ class CampaignWriteSerializer(WriteSerializer):
         return campaign
 
 
-class FlowDefinitionReadSerializer(serializers.ModelSerializer):
-
-    uuid = serializers.Field(source='uuid')
-    definition = serializers.SerializerMethodField('get_definition')
-    archived = serializers.Field(source='is_archived')
-    expires = serializers.Field(source='expires_after_minutes')
-
-    def get_definition(self, obj):
-        return obj.as_json()
-
-    class Meta:
-        model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'created_on', 'definition')
-
-
 class FlowDefinitionWriteSerializer(WriteSerializer):
-    uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=True)
+    version = serializers.WritableField(required=True)
+    metadata = serializers.WritableField(required=False)
+    base_language = serializers.WritableField(required=False)
+    flow_type = serializers.WritableField(required=False)
+    action_sets = serializers.WritableField(required=False)
+    rule_sets = serializers.WritableField(required=False)
+    entry = serializers.WritableField(required=False)
+
+    # old versions had different top level elements
+    uuid = serializers.WritableField(required=False)
     definition = serializers.WritableField(required=False)
+    name = serializers.WritableField(required=False)
+    id = serializers.WritableField(required=False)
 
-    def validate_uuid(self, attrs, source):
-        uuid = attrs.get(source, None)
-
-        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
-            raise ValidationError("No such flow with UUID: %s" % uuid)
+    def validate_version(self, attrs, source):
+        version = attrs.get(source)
+        from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
+        if version > CURRENT_EXPORT_VERSION or version < EARLIEST_IMPORT_VERSION:
+            raise ValidationError("Flow version %s not supported" % version)
         return attrs
 
-    def validate_definition(self, attrs, source):
-        definition = attrs.get('definition', None)
-
-        if definition:
-            flow_type = definition.get('type', None)
-            if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
-                raise ValidationError("Invalid flow type: %s" % flow_type)
+    def validate_name(self, attrs, source):
+        version = attrs.get('version')
+        if version < 7:
+            name = attrs.get(source)
+            if not name:
+                raise ValidationError("This field is required for version %s" % version)
         return attrs
 
-    def restore_object(self, attrs, instance=None):
+    def validate_metadata(self, attrs, source):
+
+        # only required starting at version 7
+        version = attrs.get('version')
+        if version >= 7:
+            metadata = attrs.get(source)
+            if metadata:
+                if 'name' not in metadata:
+                    raise ValidationError("Name is missing from metadata")
+
+                uuid = metadata.get('uuid', None)
+                if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+                    raise ValidationError("No such flow with UUID: %s" % uuid)
+            else:
+                raise ValidationError("This field is required for version %s" % version)
+
+        return attrs
+
+    def validate_flow_type(self, attrs, source):
+        flow_type = attrs.get(source, None)
+
+        if flow_type and flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
+            raise ValidationError("Invalid flow type: %s" % flow_type)
+
+        return attrs
+
+    def restore_object(self, flow_json, instance=None):
         """
         Update our flow
         """
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        uuid = attrs.get('uuid', None)
-        name = attrs['name']
-        definition = attrs.get('definition', None)
+        # first, migrate our definition forward if necessary
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        from temba.flows.models import FlowVersion
+        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
+        if version < CURRENT_EXPORT_VERSION:
+            flow_json = FlowVersion.migrate_definition(flow_json, version, CURRENT_EXPORT_VERSION)
 
-        flow_type = Flow.FLOW
-        if definition:
-            flow_type = definition.get('type', Flow.FLOW)
+        # previous to version 7, uuid could be supplied on the outer element
+        uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
+        name = flow_json.get('metadata').get('name')
 
         if uuid:
             flow = Flow.objects.get(org=self.org, uuid=uuid)
             flow.name = name
+
+            flow_type = flow_json.get('flow_type', None)
+            if flow_type:
+                flow.flow_type = flow_type
+
             flow.save()
         else:
+            flow_type = flow_json.get('flow_type', Flow.FLOW)
             flow = Flow.create(self.org, self.user, name, flow_type)
 
-        if definition:
-            flow.update(definition, self.user, force=True)
-
+        flow.update(flow_json, self.user, force=True)
         return flow
 
 class FlowReadSerializer(serializers.ModelSerializer):
@@ -1265,8 +1301,61 @@ class FlowRunWriteSerializer(WriteSerializer):
     flow = serializers.CharField(required=True, max_length=36)
     contact = serializers.CharField(required=True, max_length=36)
     started = serializers.DateTimeField(required=True)
+    version = serializers.IntegerField(required=True)
     completed = serializers.BooleanField(required=False)
     steps = serializers.WritableField()
+
+    def validate_steps(self, attrs, source):
+
+        class VersionNode:
+            def __init__(self, node, is_ruleset):
+                self.node = node
+                self.uuid = node['uuid']
+                self.ruleset = is_ruleset
+
+            def is_ruleset(self):
+                return self.ruleset
+
+            def is_pause(self):
+                from temba.flows.models import RuleSet
+                return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
+
+            def get_step_type(self):
+                from temba.flows.models import RULE_SET, ACTION_SET
+                if self.is_ruleset():
+                    return RULE_SET
+                else:
+                    return ACTION_SET
+
+        steps = attrs.get(source)
+        flow = attrs.get('flow')
+        version = attrs.get('version')
+
+        flow_version = flow.versions.filter(version=version).first()
+
+        if not flow_version:
+            raise ValidationError("Invalid version: %s" % version)
+
+        definition = json.loads(flow_version.definition)
+
+        # make sure we are operating off a current spec
+        from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
+        definition = FlowVersion.migrate_definition(definition, flow.version_number, CURRENT_EXPORT_VERSION)
+
+        for step in steps:
+            node_obj = None
+            key = 'rule_sets' if 'rule' in step else 'action_sets'
+            for json_node in definition[key]:
+                if json_node['uuid'] == step['node']:
+                    node_obj = VersionNode(json_node, 'rule' in step)
+                    break
+
+            if not node_obj:
+                raise ValidationError("No such node with UUID %s in flow '%s'" % (step['node'], flow.name))
+            else:
+                step['node'] = node_obj
+
+        return attrs
 
     def validate_flow(self, attrs, source):
         flow_uuid = attrs.get(source, None)

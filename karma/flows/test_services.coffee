@@ -23,7 +23,7 @@ describe 'Services:', ->
 
       $http.whenGET('/flow/json/' + config.id + '/').respond(
         {
-          flow: getJSONFixture(file + '.json').flows[0].definition,
+          flow: getJSONFixture(file + '.json').flows[0],
           languages: config.languages
         }
       )

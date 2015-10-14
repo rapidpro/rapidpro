@@ -29,7 +29,7 @@ def migrate_broadcasts(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0031_msg_contact_urn_optional'),
+        ('msgs', '0032_auto_20151002_1411'),
     ]
 
     operations = [

@@ -35,7 +35,7 @@ describe 'Controllers:', ->
       $http.whenPOST('/flow/json/' + config.id + '/').respond()
       $http.whenGET('/flow/json/' + config.id + '/').respond(
         {
-          flow: getJSONFixture(file + '.json').flows[0].definition,
+          flow: getJSONFixture(file + '.json').flows[0],
           languages: config.languages
         }
       )
@@ -178,13 +178,13 @@ describe 'Controllers:', ->
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(false)
 
         # now pretend we are a voice flow
-        flowService.flow.type = 'V'
+        flowService.flow.flow_type = 'V'
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(true)
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(true)
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(true)
 
         # and now a survey flow
-        flowService.flow.type = 'S'
+        flowService.flow.flow_type = 'S'
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
         expect(modalScope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(false)
@@ -219,14 +219,14 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
 
         # pretend we are a voice flow
-        flowService.flow.type = 'V'
+        flowService.flow.flow_type = 'V'
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
 
         # now try a survey
-        flowService.flow.type = 'S'
+        flowService.flow.flow_type = 'S'
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)

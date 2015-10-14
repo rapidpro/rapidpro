@@ -1213,6 +1213,8 @@ class FlowCRUDL(SmartCRUDL):
             from temba.flows.models import FlowException
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
+
+                print response_data
                 return build_json_response(response_data, status=200)
             except FlowException as e:
                 return build_json_response(dict(status="failure", description=str(e)), status=400)

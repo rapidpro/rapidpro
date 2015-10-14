@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-from collections import defaultdict
 
 import datetime
 import json
@@ -9,13 +8,9 @@ import regex
 import time
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
 from django.db import models
-from django.utils import timezone
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
@@ -28,14 +23,10 @@ from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
 
-# cache keys and TTLs
-GROUP_MEMBER_COUNT_CACHE_KEY = 'org:%d:cache:group_member_count:%d'
-
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
-
 
 
 class ContactField(models.Model):
@@ -56,17 +47,15 @@ class ContactField(models.Model):
 
     @classmethod
     def make_key(cls, label):
+        """
+        Generates a key from a label. There is no guarantee that the key is valid so should be checked with is_valid_key
+        """
         key = regex.sub(r'([^a-z0-9]+)', ' ', label.lower(), regex.V0)
         return regex.sub(r'([^a-z0-9]+)', '_', key.strip(), regex.V0)
 
     @classmethod
-    def api_make_key(cls, label):
-        key = cls.make_key(label)
-
-        if key in Contact.RESERVED_FIELDS:
-            raise ValidationError(_("key for %s is a reserved name for contact fields") % label)
-
-        return key
+    def is_valid_key(cls, key):
+        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS
 
     @classmethod
     def is_valid_label(cls, label):
@@ -103,7 +92,7 @@ class ContactField(models.Model):
                     changed = True
 
                 # update whether we show in tables if passed in
-                if not show_in_table is None and show_in_table != field.show_in_table:
+                if show_in_table is not None and show_in_table != field.show_in_table:
                     field.show_in_table = show_in_table
                     changed = True
 
@@ -127,7 +116,7 @@ class ContactField(models.Model):
             else:
                 # we need to create a new contact field, use our key with invalid chars removed
                 if not label:
-                    label = regex.sub(r'([A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
+                    label = regex.sub(r'([^A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
 
                 if not value_type:
                     value_type = TEXT

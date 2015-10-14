@@ -22,6 +22,7 @@ from . import format_decimal, slugify_with, str_to_datetime, str_to_time, trunca
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
 from temba.utils.exporter import TableExporter
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from xlrd import open_workbook
 
 
@@ -571,6 +572,18 @@ class ExpressionsTest(TembaTest):
         self.assertEquals(0, percentage(100, 0))
         self.assertEquals(75, percentage(75, 100))
         self.assertEquals(76, percentage(759, 1000))
+
+
+class GSM7Test(TembaTest):
+
+    def test_is_gsm7(self):
+        self.assertTrue(is_gsm7("Hello World! {} <>"))
+        self.assertFalse(is_gsm7("No capital accented È!"))
+        self.assertFalse(is_gsm7("No unicode. ☺"))
+
+        replaced = replace_non_gsm7_accents("No capital accented È!")
+        self.assertEquals("No capital accented E!", replaced)
+        self.assertTrue(is_gsm7(replaced))
 
 
 class TableExporterTest(TembaTest):

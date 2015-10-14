@@ -529,9 +529,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           $log.debug("Saving.")
 
-          if $rootScope.saved_on
-            Flow.flow['last_saved'] = $rootScope.saved_on
-
           $http.post('/flow/json/' + Flow.flowId + '/', utils.toJson(Flow.flow)).error (data, statusCode) ->
 
             if statusCode == 400
@@ -585,7 +582,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                   document.location.reload()
 
             else
-              $rootScope.saved_on = data.saved_on
+
+              # store our latest revision
+              Flow.flow.metadata.revision = data.revision
+              Flow.flow.metadata.saved_on = data.saved_on
 
               # update our auto completion options
               $http.get('/flow/completion/?flow=' + Flow.flowId).success (data) ->
@@ -874,6 +874,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       $http.get('/flow/json/' + flowId + '/').success (data) ->
 
         flow = data.flow
+
+        flow.type = window.flow_type
 
         # add uuids for the individual actions, need this for the UI
         for actionset in flow.action_sets
