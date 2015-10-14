@@ -3591,7 +3591,6 @@ class FlowMigrationTest(FlowFileTest):
         flow_json = flow.as_json()
         self.assertEquals(flow_json['metadata']['name'], 'Call Me Maybe')
         self.assertEquals(flow_json['metadata']['revision'], 2)
-        self.assertEquals(flow_json['metadata']['id'], 1)
         self.assertEquals(flow_json['metadata']['expires'], 720)
         self.assertEquals(flow_json['base_language'], 'base')
         self.assertEquals(5, len(flow_json['action_sets']))
