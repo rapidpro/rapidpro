@@ -3574,6 +3574,28 @@ class FlowMigrationTest(FlowFileTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
+    def test_ensure_current_version(self):
+        flow_json = self.get_flow_json('call-me-maybe')['definition']
+        flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=3))
+
+        FlowVersion.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                         spec_version=3, version=1,
+                                         created_by=self.admin, modified_by=self.admin))
+
+        # now make sure we are on the latest version
+        flow.ensure_current_version()
+
+        # and that the format looks correct
+        flow_json = flow.as_json()
+        self.assertEquals(flow_json['metadata']['name'], 'Call Me Maybe')
+        self.assertEquals(flow_json['metadata']['revision'], 2)
+        self.assertEquals(flow_json['metadata']['expires'], 720)
+        self.assertEquals(flow_json['base_language'], 'base')
+        self.assertEquals(5, len(flow_json['action_sets']))
+        self.assertEquals(1, len(flow_json['rule_sets']))
+
     def test_migrate_to_7(self):
 
         flow_json = self.get_flow_json('call-me-maybe')
