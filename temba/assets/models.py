@@ -9,7 +9,6 @@ from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 
-
 class AssetException(Exception):
     pass
 
@@ -64,9 +63,24 @@ class BaseAssetStore(object):
 
         # create a more friendly download filename
         remainder, extension = path.rsplit('.', 1)
-        filename = '%s.%s' % (self.asset_type.name, extension)
+        filename = '%s_%s.%s' % (self.asset_type.name, pk, extension)
 
-        return asset.org, default_storage.url(path), filename
+        # if our storage backend is S3
+        if settings.DEFAULT_FILE_STORAGE == 'storages.backends.s3boto.S3BotoStorage':
+            # generate our URL manually so that we can force the download name for the user
+            url = default_storage.connection.generate_url(default_storage.querystring_expire,
+                                                          method='GET', bucket=default_storage.bucket.name,
+                                                          key=default_storage._encode_name(path),
+                                                          query_auth=default_storage.querystring_auth,
+                                                          force_http=not default_storage.secure_urls,
+                                                          response_headers={'response-content-disposition':
+                                                                            'attachment;filename=%s' % filename})
+
+        # otherwise, let the backend generate the URL
+        else:
+            url = default_storage.url(path)
+
+        return asset.org, url, filename
 
     def save(self, pk, _file, extension):
         """
