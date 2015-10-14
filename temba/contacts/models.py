@@ -510,6 +510,9 @@ class Contact(TembaModel, SmartModel):
 
             analytics.track(user.username, 'temba.contact_created', params)
 
+        # make sure the contact is not blocked
+        contact.unblock()
+
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
         return contact
@@ -1637,6 +1640,9 @@ class ExportContactsTask(SmartModel):
                         else:
                             value = contact.get_field(field['key'])
                             field_value = Contact.get_field_display_for_value(field['field'], value)
+
+                        if field_value is None:
+                            field_value = ''
 
                         if field_value:
                             field_value = unicode(field_value)
