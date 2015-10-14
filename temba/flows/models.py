@@ -3017,6 +3017,8 @@ class ExportFlowResultsTask(SmartModel):
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export is complete"))
+    uuid = models.CharField(max_length=36, null=True,
+                            help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """
@@ -3308,19 +3310,23 @@ class ExportFlowResultsTask(SmartModel):
         book.save(temp)
         temp.flush()
 
+        # initialize the UUID which we will save results as
+        self.uuid = str(uuid4())
+        self.save(update_fields=['uuid'])
+
         # save as file asset associated with this task
         from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
 
         store = AssetType.results_export.store
-        store.save(self.pk, File(temp), 'xls')
+        store.save(self.uuid, File(temp), 'xls')
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
 
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.pk))
+        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.uuid))
 
         # force a gc
         import gc
@@ -3328,15 +3334,6 @@ class ExportFlowResultsTask(SmartModel):
 
         # only send the email if this is production
         send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
-
-    def queryset_iterator(self, queryset, chunksize=1000):
-        pk = 0
-        last_pk = queryset.order_by('-pk')[0].pk
-        queryset = queryset.order_by('pk')
-        while pk < last_pk:
-            for row in queryset.filter(pk__gt=pk)[:chunksize]:
-                pk = row.pk
-                yield row
 
 
 class ActionLog(models.Model):
