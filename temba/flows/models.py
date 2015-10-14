@@ -2012,7 +2012,6 @@ class Flow(TembaModel, SmartModel):
             with self.lock_on(FlowLock.definition):
                 version = self.versions.all().order_by('-version').all().first()
                 if version:
-                    version_number = version.version
                     json_flow = version.get_definition_json()
                 else:
                     json_flow = self.as_json()
