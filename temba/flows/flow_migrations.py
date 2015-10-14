@@ -43,23 +43,27 @@ def migrate_to_version_7(json_flow):
     """
     Adds flow details to metadata section
     """
-    definition = json_flow.get('definition', dict())
-    definition['flow_type'] = json_flow.get('flow_type', 'F')
+    definition = json_flow.get('definition', None)
 
-    metadata = definition.get('metadata', None)
-    if not metadata:
-        metadata = dict()
-        definition['metadata'] = metadata
+    # don't attempt if there isn't a nested definition block
+    if definition:
+        definition['flow_type'] = json_flow.get('flow_type', 'F')
+        metadata = definition.get('metadata', None)
+        if not metadata:
+            metadata = dict()
+            definition['metadata'] = metadata
 
-    metadata['name'] = json_flow.get('name')
-    metadata['id'] = json_flow.get('id', None)
-    metadata['uuid'] = json_flow.get('uuid', None)
-    revision = json_flow.get('revision', None)
-    if revision:
-        metadata['revision'] = revision
-    metadata['saved_on'] = json_flow.get('last_saved')
+        metadata['name'] = json_flow.get('name')
+        metadata['id'] = json_flow.get('id', None)
+        metadata['uuid'] = json_flow.get('uuid', None)
+        revision = json_flow.get('revision', None)
+        if revision:
+            metadata['revision'] = revision
+        metadata['saved_on'] = json_flow.get('last_saved')
 
-    return definition
+        return definition
+
+    return json_flow
 
 
 def migrate_to_version_6(json_flow):

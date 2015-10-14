@@ -1071,6 +1071,13 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
 
         return attrs
 
+    def validate_definition(self, attrs, source):
+        definition = attrs.get(source, None)
+        version = attrs.get('version')
+        if version < 7 and not definition:
+            attrs['definition'] = dict(action_sets=[], rule_sets=[])
+        return attrs
+
     def restore_object(self, flow_json, instance=None):
         """
         Update our flow

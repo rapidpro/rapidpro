@@ -1373,7 +1373,7 @@ class Flow(TembaModel, SmartModel):
             start_msg.save(update_fields=['msg_type'])
 
         all_contacts = Contact.all().filter(Q(all_groups__in=[_.pk for _ in groups]) | Q(pk__in=[_.pk for _ in contacts]))
-        all_contacts = all_contacts.order_by('pk').distinct('pk')
+        all_contacts = all_contacts.only('is_test').order_by('pk').distinct('pk')
 
         if not restart_participants:
             # exclude anybody who has already participated in the flow
@@ -2009,7 +2009,12 @@ class Flow(TembaModel, SmartModel):
         """
         if self.version_number < CURRENT_EXPORT_VERSION:
             with self.lock_on(FlowLock.definition):
-                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number, self)
+                version = self.versions.all().order_by('-version').all().first()
+                if version:
+                    json_flow = version.get_definition_json()
+                else:
+                    json_flow = self.as_json()
+
                 self.update(json_flow)
                 # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
 
@@ -2195,7 +2200,7 @@ class Flow(TembaModel, SmartModel):
 
                 if destination_uuid:
                     if not destination_type:
-                        raise FlowException("Destination '%s' for actionset does not exist" % destination_uuid)
+                        destination_uuid = None
 
                 # only create actionsets if there are actions
                 if actions:
@@ -2686,8 +2691,7 @@ class FlowVersion(SmartModel):
             to_version = CURRENT_EXPORT_VERSION
 
         from temba.flows import flow_migrations
-
-        while version < to_version:
+        while (version < to_version and version < CURRENT_EXPORT_VERSION):
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
                 json_flow = migrate_fn(json_flow)
@@ -2704,7 +2708,7 @@ class FlowVersion(SmartModel):
         if self.spec_version <= 6:
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
-                              revision=self.version)
+                              revision=self.version, uuid=self.flow.uuid)
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
@@ -3622,7 +3626,7 @@ class FlowStart(SmartModel):
 
         try:
             groups = [g for g in self.groups.all()]
-            contacts = [c for c in self.contacts.all()]
+            contacts = [c for c in self.contacts.all().only('is_test')]
 
             self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
 
@@ -4698,7 +4702,7 @@ class SendAction(VariableContactAction):
         return log
 
     def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
+        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
 
 
 class Rule(object):
