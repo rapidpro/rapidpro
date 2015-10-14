@@ -56,6 +56,9 @@ class BaseAssetStore(object):
         if not user.has_org_perm(asset.org, self.permission):
             raise AssetAccessDenied()
 
+        if not asset.uuid:
+            raise AssetFileNotFound()
+
         path = self.derive_path(asset.org, asset.uuid)
 
         if not default_storage.exists(path):
