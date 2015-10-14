@@ -200,50 +200,29 @@ class Value(models.Model):
 
         # we are summarizing a flow ruleset
         if ruleset:
-            runs = FlowRun.objects.filter(flow=ruleset.flow).order_by('contact', '-created_on', '-pk').distinct('contact')
-            runs = [r['id'] for r in runs.values('id', 'contact') if r['contact'] in contacts]
+            filter_uuids = set(self_filter_uuids)
 
-            # our dict will contain category name to count
-            results = dict()
+            # grab all the flow steps for this ruleset, this gets us the most recent run for each contact
+            steps = [fs for fs in FlowStep.objects.filter(step_uuid=ruleset.uuid)
+                                                  .values('arrived_on', 'rule_uuid', 'contact')
+                                                  .order_by('-arrived_on')]
 
-            # we can't use a subselect here because of a bug in Django, should be fixed in 1.7
-            # see: https://code.djangoproject.com/ticket/22434
-            value_counts = Value.objects.filter(org=org, ruleset=ruleset, rule_uuid__in=uuid_to_category.keys())
-
-            # restrict our runs, using ANY is way quicker than IN
-            if runs:
-                value_counts = value_counts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
-
-            # no matching runs, exclude any values
-            else:
-                value_counts = value_counts.extra(where=["1=0"])
-
-            # contacts that have gotten to this step
-            step_contacts = FlowStep.objects.filter(step_uuid=ruleset.uuid)
-
-            # if we have runs to filter by, do so using ANY
-            if runs:
-                step_contacts = step_contacts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
-
-            # otherwise, exclude all
-            else:
-                step_contacts = step_contacts.extra(where=["1=0"])
-
-            step_contacts = set([s['run__contact'] for s in step_contacts.values('run__contact')])
-
-            # restrict to our filter uuids if we are self filtering
-            if self_filter_uuids:
-                value_counts = value_counts.filter(rule_uuid__in=self_filter_uuids)
-
-            values = value_counts.values('rule_uuid', 'contact')
+            # this will build up sets of contacts for each rule uuid
+            seen_contacts = set()
             value_contacts = defaultdict(set)
-            for value in values:
-                value_contacts[value['rule_uuid']].add(value['contact'])
+            for step in steps:
+                contact = step['contact']
+                if contact in contacts:
+                    if contact not in seen_contacts:
+                        value_contacts[step['rule_uuid']].add(contact)
+                        seen_contacts.add(contact)
 
             results = defaultdict(set)
             for uuid, contacts in value_contacts.items():
-                category = uuid_to_category[uuid]
-                results[category] |= contacts
+                if uuid and (not filter_uuids or uuid in filter_uuids):
+                    category = uuid_to_category.get(uuid, None)
+                    if category:
+                        results[category] |= contacts
 
             # now create an ordered array of our results
             set_contacts = set()
@@ -257,7 +236,7 @@ class Value(models.Model):
 
             # how many runs actually entered a response?
             set_contacts = set_contacts
-            unset_contacts = step_contacts - set_contacts
+            unset_contacts = value_contacts[None]
 
         # we are summarizing based on contact field
         else:

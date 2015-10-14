@@ -1427,9 +1427,9 @@
 }
 
 #version-mask {
-  position:absolute;
-  right:230px;
-  top:132px;
+  position:fixed;
+  right:0;
+  top:0;
   width:100%;
   height:100%;
   background: yellow;
@@ -1444,33 +1444,49 @@
 
 #versions {
 
-  position: absolute;
+  position: fixed;
   z-index: @z-versions;
-  width:230px;
+  width:270px;
+
   background: rgba(255,255,255, 1);
-  border-left: 1px solid lightgrey;
-  top: 132px;
-  right: 0;
-  padding-top:15px;
-  overflow-y:scroll;
-  height:100%;
+  border: 2px solid @color-button-primary;
+  top: 230px;
+  right: 30px;
+  .drop-shadow();
 
   h4 {
-    padding-left: 15px;
+    margin:0;
+    padding: 10px;
+    background: @color-button-primary;
+    color: @color-font-white;
+    cursor:pointer;
+
+    .icon-close {
+      margin-top:-2px;
+    }
   }
 
-  .version {
+  .choices {
+    height:300px;
+    overflow-y:scroll;
+    .version {
 
-    &.selected {
-      background: #e6e6e6;
-    }
+      .revert {
+        float:right;
+        margin-top:8px;
+      }
 
-    padding: 8px 15px;
-    font-size:13px;
-    .author {
-      font-size:12px;
-      line-height:13px;
-      color: @color-font-lightgrey;
+      &.selected {
+        background: #e6e6e6;
+      }
+
+      padding: 8px 8px;
+      font-size: 13px;
+      .author {
+        font-size: 12px;
+        line-height: 13px;
+        color: @color-font-lightgrey;
+      }
     }
   }
 }

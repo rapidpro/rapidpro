@@ -22,7 +22,8 @@ from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
-from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO
+from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, \
+    SMART_ENCODING, UNICODE_ENCODING
 from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
@@ -410,13 +411,25 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 2)
 
-    def test_api_flowdefinition_update(self):
-        url = reverse('api.flowdefinition')
+    def test_api_flow_definition(self):
+
+        url = reverse('api.flow_definition')
         self.login(self.admin)
 
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
-        definition = flow.as_json()
+        definition = self.get_flow_json('pick_a_number')['definition']
+        response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
+        self.assertEquals(1, response.json['metadata']['revision'])
+        self.assertEquals("Pick a Number", response.json['metadata']['name'])
+        self.assertEquals("F", response.json['flow_type'])
+
+        # make sure the version that is returned increments properly
+        flow.update(flow.as_json())
+        response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
+        self.assertEquals(2, response.json['metadata']['revision'])
+
+        # now delete our flow, we'll create it from scratch below
         flow.delete()
 
         # post something that isn't an object
@@ -424,18 +437,22 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'non_field_errors', "Request body should be a single JSON object")
 
         # can't create a flow without a name
-        response = self.postJSON(url, dict(name=""))
+        response = self.postJSON(url, dict(name="", version=6))
         self.assertEqual(response.status_code, 400)
 
         # but we can create an empty flow
-        response = self.postJSON(url, dict(name="Empty"))
+        response = self.postJSON(url, dict(name="Empty", version=6))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Empty")
+        self.assertEqual(response.json['metadata']['name'], "Empty")
+
+        # can't create a flow without a version
+        response = self.postJSON(url, dict(name='No Version'))
+        self.assertEqual(response.status_code, 400)
 
         # and create flow with a definition
-        response = self.postJSON(url, dict(name="Pick a Number", definition=definition))
+        response = self.postJSON(url, dict(name="Pick a Number", definition=definition, version=6))
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a Number")
+        self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
@@ -448,19 +465,26 @@ class APITest(TembaTest):
         flow.flow_type = 'V'
         flow.save()
 
-        # updating should overwrite local change
-        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='F', definition=definition))
+        response = self.postJSON(url, dict(uuid=flow.uuid, name="Pick a Number", flow_type='S',
+                                           definition=definition, version=6))
+
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['name'], "Pick a Number")
+        self.assertEqual(response.json['metadata']['name'], "Pick a Number")
 
         # make sure our flow is there as expected
         flow = Flow.objects.get(name='Pick a Number')
-        self.assertEqual(flow.flow_type, 'F')
+        self.assertEqual(flow.flow_type, 'S')
+
+        # post a version 7 flow
+        definition['metadata'] = dict(name='Version 7 flow', flow_type='S', uuid=flow.uuid)
+        definition['version'] = 7
+        response = self.postJSON(url, definition)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Flow.objects.get(uuid=flow.uuid).name, 'Version 7 flow')
 
         # No invalid type
         flow.delete()
-        definition['type'] = 'X'
-        response = self.postJSON(url, dict(name="Hello World", definition=definition))
+        response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X', version=6))
         self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):
@@ -476,9 +500,29 @@ class APITest(TembaTest):
         # login as surveyor
         self.login(self.surveyor)
 
-        flow = self.create_flow(uuid_start=0)
+        uuid_start = 0
+        flow = self.create_flow(uuid_start)
+
+        # add an update action
+        definition = flow.as_json()
+        from temba.tests import uuid
+        new_node_uuid = uuid(uuid_start + 20)
+
+        # add a new action set
+        definition['action_sets'].append(dict(uuid=new_node_uuid, x=100, y=4, destination=None,
+                                              actions=[dict(type='save', field='tel_e164', value='+12065551212')]))
+
+        # point one of our nodes to it
+        definition['action_sets'][1]['destination'] = new_node_uuid
+
+        print json.dumps(definition, indent=5)
+        print flow.version_number
+
+        flow.update(definition)
+
 
         data = dict(flow=flow.uuid,
+                    version=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
@@ -530,6 +574,7 @@ class APITest(TembaTest):
         self.assertEqual(flow.get_activity(), ({u'00000000-00000000-00000000-00000001': 1}, {}))
 
         data = dict(flow=flow.uuid,
+                    version=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
@@ -543,7 +588,12 @@ class APITest(TembaTest):
                              arrived_on='2015-08-25T11:13:30.088Z',
                              actions=[
                                  dict(type="reply", msg="I love orange too!")
-                             ])
+                             ]),
+                        dict(node=new_node_uuid,
+                             arrived_on='2015-08-25T11:15:30.088Z',
+                             actions=[
+                                 dict(type="save", field="tel_e164", value="+12065551212")
+                             ]),
                     ],
                     completed=True)
 
@@ -555,7 +605,10 @@ class APITest(TembaTest):
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
-        self.assertEqual(run.steps.count(), 3)
+        self.assertEqual(run.steps.count(), 4)
+
+        # joe should have an urn now
+        self.assertIsNotNone(self.joe.urns.filter(path='+12065551212').first())
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
@@ -597,8 +650,8 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].rule_value, None)
         self.assertEqual(steps[2].rule_decimal_value, None)
         self.assertEqual(steps[2].arrived_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[2].next_uuid, None)
+        self.assertEqual(steps[2].left_on, datetime(2015, 8, 25, 11, 15, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[2].next_uuid, new_node_uuid)
 
         # new outgoing message for reply
         out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
@@ -616,8 +669,48 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {'00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002': 1,
+                                               {'00000000-00000000-00000000-00000002:00000000-00000000-00000000-00000020': 1,
+                                                '00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002': 1,
                                                 '00000000-00000000-00000000-00000001:00000000-00000000-00000000-00000005': 1}))
+
+        # now lets remove our last action set
+        definition['action_sets'].pop()
+        definition['action_sets'][1]['destination'] = None
+        flow.update(definition)
+
+        # update a value for our missing node
+        data = dict(flow=flow.uuid,
+                    version=2,
+                    contact=self.joe.uuid,
+                    started='2015-08-26T11:09:29.088Z',
+                    steps=[
+                        dict(node=new_node_uuid,
+                             arrived_on='2015-08-26T11:15:30.088Z',
+                             actions=[
+                                 dict(type="save", field="tel_e164", value="+13605551212")
+                             ]),
+                    ],
+                    completed=True)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
+
+            # this version doesn't have our node
+            data['version'] = 3
+            response = self.postJSON(url, data)
+            self.assertEquals(400, response.status_code)
+            self.assertEquals("No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'", response.json['steps'][0])
+
+            # this version doesn't exist
+            data['version'] = 12
+            response = self.postJSON(url, data)
+            self.assertEquals(400, response.status_code)
+            self.assertEquals('Invalid version: 12', response.json['steps'][0])
+
+            # this one exists and has our node
+            data['version'] = 2
+            response = self.postJSON(url, data)
+            self.assertEquals(201, response.status_code)
+            self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
     def test_api_results(self):
         url = reverse('api.results')
@@ -1234,16 +1327,16 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertEqual(len(response.json['results']), 2)
 
-        self.assertEqual(response.json['results'][0]['name'], "Dr Dre")
-        self.assertEqual(response.json['results'][0]['urns'], ['twitter:drdre', 'tel:+250788123456'])
-        self.assertEqual(response.json['results'][0]['fields'], {'real_name': "Andre", 'registration_date': None})
-        self.assertEqual(response.json['results'][0]['group_uuids'], [artists.uuid])
-        self.assertEqual(response.json['results'][0]['groups'], ["Music Artists"])
-        self.assertEqual(response.json['results'][0]['blocked'], False)
-        self.assertEqual(response.json['results'][0]['failed'], False)
+        self.assertEqual(response.json['results'][1]['name'], "Dr Dre")
+        self.assertEqual(response.json['results'][1]['urns'], ['twitter:drdre', 'tel:+250788123456'])
+        self.assertEqual(response.json['results'][1]['fields'], {'real_name': "Andre", 'registration_date': None})
+        self.assertEqual(response.json['results'][1]['group_uuids'], [artists.uuid])
+        self.assertEqual(response.json['results'][1]['groups'], ["Music Artists"])
+        self.assertEqual(response.json['results'][1]['blocked'], False)
+        self.assertEqual(response.json['results'][1]['failed'], False)
 
-        self.assertEqual(response.json['results'][1]['name'], "Jay-Z")
-        self.assertEqual(response.json['results'][1]['fields'], {'real_name': None,
+        self.assertEqual(response.json['results'][0]['name'], "Jay-Z")
+        self.assertEqual(response.json['results'][0]['fields'], {'real_name': None,
                                                                  'registration_date': "2014-12-31T01:04:00.000000Z"})
 
         # search using deprecated phone field
@@ -1356,6 +1449,11 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.get(pk=shinonda.pk).is_active)
         self.assertFalse(Contact.objects.get(pk=chad.pk).is_active)
 
+        # add a naked contact
+        response = self.postJSON(url, dict())
+        self.assertIsNotNone(json.loads(response.content)['uuid'])
+        self.assertEquals(201, response.status_code)
+
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.contacts')
 
@@ -1373,21 +1471,21 @@ class APITest(TembaTest):
         # page is implicit
         response = self.fetchJSON(url)
         self.assertResultCount(response, 300)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 300")
 
         Contact.objects.create(org=self.org, name="Minion 301", created_by=self.admin, modified_by=self.admin)
 
         # page 1 request always recalculates count
         response = self.fetchJSON(url, 'page=1')
         self.assertResultCount(response, 301)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 1")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 301")
 
         Contact.objects.create(org=self.org, name="Minion 302", created_by=self.admin, modified_by=self.admin)
 
         # other page numbers won't
         response = self.fetchJSON(url, 'page=2')
         self.assertResultCount(response, 301)
-        self.assertEqual(response.json['results'][0]['name'], "Minion 251")
+        self.assertEqual(response.json['results'][0]['name'], "Minion 52")
 
         # handle non-ascii chars in params
         response = self.fetchJSON(url, 'page=1&test=é')
@@ -1440,11 +1538,6 @@ class APITest(TembaTest):
         self.assertEquals('real_age', field.key)
         self.assertEquals(self.org, field.org)
 
-        # update no-existent key
-        response = self.postJSON(url, dict(key='real_age_2', label='Actual Age 2', value_type='N'))
-        self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'key', "No such contact field key")
-
         # update with invalid value type
         response = self.postJSON(url, dict(key='real_age', value_type='X'))
         self.assertEquals(400, response.status_code)
@@ -1460,9 +1553,27 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
         self.assertResponseError(response, 'value_type', "This field is required.")
 
+        # create with invalid label
+        response = self.postJSON(url, dict(label='!@#', value_type='T'))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'label', "Invalid field label")
+
+        # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'non_field_errors', "key for Name is a reserved name for contact fields")
+        self.assertResponseError(response, 'non_field_errors', "Generated key for 'Name' is invalid or a reserved name")
+
+        # create with key specified
+        response = self.postJSON(url, dict(key='real_age_2', label="Actual Age 2", value_type='N'))
+        self.assertEquals(201, response.status_code)
+        field = ContactField.objects.get(key='real_age_2')
+        self.assertEqual(field.label, "Actual Age 2")
+        self.assertEqual(field.value_type, 'N')
+
+        # create with invalid key specified
+        response = self.postJSON(url, dict(key='name', label='Real Name', value_type='T'))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'key', "Field key is invalid or is a reserved name")
 
     def test_api_contact_actions(self):
         url = reverse('api.contact_actions')
@@ -1653,6 +1764,8 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0]['broadcast'], msg1.broadcast.pk)
         self.assertEqual(response.json['results'][0]['text'], msg1.text)
         self.assertEqual(response.json['results'][0]['direction'], 'O')
+        self.assertEqual(response.json['results'][0]['contact'], contact.uuid)
+        self.assertEqual(response.json['results'][0]['urn'], 'tel:+250788123123')
 
         response = self.fetchJSON(url, "status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
         self.assertEquals(200, response.status_code)
@@ -2403,6 +2516,10 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultCount(response, 2)
 
+        # reverse order by created_on
+        self.assertEqual(response.json['results'][0]['name'], "Just Joe")
+        self.assertEqual(response.json['results'][1]['name'], "Reporters")
+
         # fetch by partial name
         response = self.fetchJSON(url, "name=Report")
         self.assertResultCount(response, 1)
@@ -2898,6 +3015,92 @@ class KannelTest(TembaTest):
                 self.clear_cache()
 
             self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
+                                                  encoding=SMART_ENCODING,
+                                                  send_url='http://foo/', verify_ssl=False))
+            self.channel.save()
+
+            sms.text = "No capital accented È!"
+            sms.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
+                self.assertFalse('coding' in mock.call_args[1]['params'])
+                self.clear_cache()
+
+            sms.text = "Unicode. ☺"
+            sms.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals("Unicode. ☺", mock.call_args[1]['params']['text'])
+                self.assertEquals('2', mock.call_args[1]['params']['coding'])
+
+                self.clear_cache()
+
+            sms.text = "Normal"
+            sms.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals("Normal", mock.call_args[1]['params']['text'])
+                self.assertFalse('coding' in mock.call_args[1]['params'])
+
+                self.clear_cache()
+
+            self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
+                                                  encoding=UNICODE_ENCODING,
+                                                  send_url='http://foo/', verify_ssl=False))
+            self.channel.save()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, 'Accepted 201')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals("Normal", mock.call_args[1]['params']['text'])
+                self.assertEquals('2', mock.call_args[1]['params']['coding'])
+
+                self.clear_cache()
+
+            self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
                                                   send_url='http://foo/', verify_ssl=False))
             self.channel.save()
 
@@ -3038,6 +3241,35 @@ class NexmoTest(TembaTest):
                 # assert we sent the messages out in a reasonable amount of time
                 end = time.time()
                 self.assertTrue(1.5 > end - start > 1, "Sending of six messages took: %f" % (end - start))
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status':0, 'message-id':12}])), method='POST')
+
+                sms.text = u"Unicode ☺"
+                sms.save()
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(SENT, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals('12', msg.external_id)
+
+                # assert that we were called with unicode
+                mock.assert_called_once_with('https://rest.nexmo.com/sms/json',
+                                             params={'from': u'250785551212',
+                                                     'api_secret': u'1234',
+                                                     'status-report-req': 1,
+                                                     'to': u'250788383383',
+                                                     'text': u'Unicode \u263a',
+                                                     'api_key': u'1234',
+                                                     'type': 'unicode'})
+
+                self.clear_cache()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')

@@ -61,8 +61,8 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
       other.selected = false
 
     markDirty = false
-    if definition != Versions.original
-      definition.last_saved = Versions.original.last_saved
+    if definition.metadata.revision != Versions.original.metadata.revision
+      definition.metadata.saved_on = Versions.original.metadata.saved_on
       markDirty = true
 
     $scope.showDefinition definition, ->
@@ -72,9 +72,9 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
         Flow.markDirty()
 
   $scope.hideVersions = ->
-      $rootScope.original = null
-      $rootScope.visibleActivity = true
-      $rootScope.showVersions = false
+    Versions.original = null
+    $rootScope.visibleActivity = true
+    $rootScope.showVersions = false
 ]
 
 app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $modal, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
@@ -1017,7 +1017,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     return true
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
-    valid = flow.type in rulesetConfig.filter
+    valid = flow.flow_type in rulesetConfig.filter
 
     if (rulesetConfig.type == 'flow_field' or rulesetConfig.type == 'form_field') and $scope.flowFields.length == 0
       return false
@@ -1322,7 +1322,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     valid = false
     if action.filter
-      valid = flow.type in action.filter
+      valid = flow.flow_type in action.filter
 
     if startsFlow and action.type == 'flow'
       return false

@@ -26,9 +26,9 @@ from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Msg, Broadcast, Call, IVR
-from temba.channels.models import Channel, ChannelCount, SyncEvent, Alert
+from temba.channels.models import Channel, ChannelCount, SyncEvent, Alert, SMART_ENCODING, ENCODING
 from temba.channels.models import ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
-from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
+from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, ENCODING, SMART_ENCODING
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.orgs.models import FREE_PLAN
@@ -1719,6 +1719,7 @@ class ChannelAlertTest(TembaTest):
         post_data['country'] = 'RW'
         post_data['url'] = 'http://kannel.temba.com/cgi-bin/sendsms'
         post_data['verify_ssl'] = False
+        post_data['encoding'] = SMART_ENCODING
 
         response = self.client.post(reverse('channels.channel_claim_kannel'), post_data)
 
@@ -1729,6 +1730,7 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals(post_data['number'], channel.address)
         self.assertEquals(post_data['url'], channel.config_json()['send_url'])
         self.assertEquals(False, channel.config_json()['verify_ssl'])
+        self.assertEquals(SMART_ENCODING, channel.config_json()[ENCODING])
 
         # make sure we generated a username and password
         self.assertTrue(channel.config_json()['username'])

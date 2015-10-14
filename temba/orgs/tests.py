@@ -1173,7 +1173,8 @@ class OrgCRUDLTest(TembaTest):
         self.assertRedirect(response, '/msg/inbox/')
 
         # create a new contact
-        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', __urn__tel='0788123123'))
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty',
+                                                                                  __urn__tel__0='0788123123'))
         self.assertNoFormErrors(response)
 
         # make sure that contact's created on is our cs rep
@@ -1222,7 +1223,6 @@ class BulkExportTest(TembaTest):
         # should have this actionset, but only one action now since one was removed
         other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
         self.assertEquals(1, len(other_actionset.get_actions()))
-
 
     def test_export_import(self):
 

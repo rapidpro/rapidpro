@@ -8,7 +8,7 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
-def migrate_to_version_7(json_flow):
+def migrate_to_version_8(json_flow):
     """
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
@@ -37,12 +37,37 @@ def migrate_to_version_7(json_flow):
             migrate_node(action)
 
 
+def migrate_to_version_7(json_flow):
+    """
+    Adds flow details to metadata section
+    """
+    definition = json_flow.get('definition', dict())
+    definition['flow_type'] = json_flow.get('flow_type', 'F')
+
+    metadata = definition.get('metadata', None)
+    if not metadata:
+        metadata = dict()
+        definition['metadata'] = metadata
+
+    metadata['name'] = json_flow.get('name')
+    metadata['id'] = json_flow.get('id', None)
+    metadata['uuid'] = json_flow.get('uuid', None)
+    revision = json_flow.get('revision', None)
+    if revision:
+        metadata['revision'] = revision
+    metadata['saved_on'] = json_flow.get('last_saved')
+
+    return definition
+
+
 def migrate_to_version_6(json_flow):
     """
     This migration removes the non-localized flow format. This means all potentially localizable
     text will be a dict from the outset. If no language is set, we will use 'base' as the
     default language.
     """
+
+    definition = json_flow.get('definition')
 
     # the name of the base language if its not set yet
     base_language = 'base'
@@ -51,10 +76,10 @@ def migrate_to_version_6(json_flow):
         if not isinstance(d[key], dict):
             d[key] = {base_language: d[key]}
 
-    if 'base_language' not in json_flow:
-        json_flow['base_language'] = base_language
+    if 'base_language' not in definition:
+        definition['base_language'] = base_language
 
-        for ruleset in json_flow.get('rule_sets'):
+        for ruleset in definition.get('rule_sets'):
             for rule in ruleset.get('rules'):
 
                 # betweens haven't always required a category name, create one
@@ -70,12 +95,13 @@ def migrate_to_version_6(json_flow):
                                              StartsWithTest.TYPE, RegexTest.TYPE]):
                     convert_to_dict(rule['test'], 'test')
 
-        for actionset in json_flow.get('action_sets'):
+        for actionset in definition.get('action_sets'):
             for action in actionset.get('actions'):
                 if action['type'] in [SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE]:
                     convert_to_dict(action, 'msg')
                 if action['type'] == SayAction.TYPE:
                     convert_to_dict(action, 'recording')
+    return json_flow
 
 
 def migrate_to_version_5(json_flow):
@@ -92,7 +118,9 @@ def migrate_to_version_5(json_flow):
             return True
         return False
 
-    for ruleset in json_flow.get('rule_sets'):
+    definition = json_flow.get('definition')
+
+    for ruleset in definition.get('rule_sets'):
 
         response_type = ruleset.pop('response_type', None)
         ruleset_type = ruleset.get('ruleset_type', None)
@@ -144,8 +172,8 @@ def migrate_to_version_5(json_flow):
                         pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                         pausing_ruleset['operand'] = '@step.value'
                         pausing_ruleset['label'] = label + ' Response'
-                        remove_extra_rules(json_flow, pausing_ruleset)
-                        insert_node(json_flow, pausing_ruleset, ruleset)
+                        remove_extra_rules(definition, pausing_ruleset)
+                        insert_node(definition, pausing_ruleset, ruleset)
 
             else:
                 # if there's no reference to step, figure out our type
@@ -166,8 +194,8 @@ def migrate_to_version_5(json_flow):
                     pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                     pausing_ruleset['operand'] = '@step.value'
                     pausing_ruleset['label'] = label + ' Response'
-                    remove_extra_rules(json_flow, pausing_ruleset)
-                    insert_node(json_flow, pausing_ruleset, ruleset)
+                    remove_extra_rules(definition, pausing_ruleset)
+                    insert_node(definition, pausing_ruleset, ruleset)
 
             # finally insert our webhook node if necessary
             if has_old_webhook:
@@ -177,12 +205,12 @@ def migrate_to_version_5(json_flow):
                 webhook_ruleset['operand'] = '@step.value'
                 webhook_ruleset['ruleset_type'] = RuleSet.TYPE_WEBHOOK
                 webhook_ruleset['label'] = label + ' Webhook'
-                remove_extra_rules(json_flow, webhook_ruleset)
-                insert_node(json_flow, webhook_ruleset, ruleset)
+                remove_extra_rules(definition, webhook_ruleset)
+                insert_node(definition, webhook_ruleset, ruleset)
 
+    return json_flow
 
 # Helper methods for flow migrations
-
 def remove_extra_rules(json_flow, ruleset):
     """ Remove all rules but the all responses rule """
     rules = []

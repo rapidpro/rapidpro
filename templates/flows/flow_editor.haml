@@ -46,7 +46,10 @@
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
+    window.flow_type = '{{object.flow_type}}';
     window.recordingURL = '{{recording_url}}';
+
+    $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations
 
     // Editing the flow
@@ -173,26 +176,23 @@
         %br
         -trans "Simulator"
 
-  #version-mask{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
-    .buttons.pull-right
-      .btn.btn-danger{ng-click:'apply()'}
-        Revert
-      .btn.btn-secondary{ng-click:'cancel()'}
-        Cancel
-
-  #versions{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
+  #version-mask{ng-show:'showVersions', ng-cloak:''}
+  #versions.draggable{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
     %h4
       Revision History
-    .version{ng-repeat:'version in versions()', ng-class:'{selected:version.selected}'}
+      .close.icon-close{ng-click:'cancel()'}
 
+    .choices
+      .version{ng-repeat:'version in versions()', ng-class:'{selected:version.selected}'}
+        .revert.btn.btn-tiny.btn-primary{ng-click:'apply()', ng-show:'version.selected'}
+          Revert
 
-      <a ng-click='showVersion(version)' href='#'>[[version.created_on|date:'medium']]</a>
-      .author
-        .name
-          [[version.user.name]]
-        .email
-          [[version.user.email]]
-
+        <a ng-click='showVersion(version)' href='javascript:void(0);'>[[version.created_on|date:'medium']]</a>
+        .author
+          .name
+            [[version.user.name]]
+          .email
+            [[version.user.email]]
 
   #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:'', ng-init:"init()"}
     -include "flows/simulator.html"

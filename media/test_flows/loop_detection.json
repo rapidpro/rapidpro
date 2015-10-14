@@ -1,274 +1,274 @@
 {
   "campaigns": [],
-  "version": 3,
+  "version": 7,
   "site": "http://rapidpro.io",
   "flows": [
     {
-      "definition": {
-        "base_language": "eng",
-        "action_sets": [
-          {
-            "y": 0,
-            "x": 132,
-            "destination": "9e348f0c-f7fa-4c06-a78b-9ffa839e5779",
-            "uuid": "13977cf2-68ee-49b9-8d88-2b9dbce12c5b",
-            "actions": [
-              {
-                "msg": {
-                  "eng": "Message One"
-                },
-                "type": "reply"
-              }
-            ]
-          },
-          {
-            "y": 167,
-            "x": 133,
-            "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
-            "uuid": "fb3e6f98-2cf3-40e8-ba1a-ea87dfcbd458",
-            "actions": [
-              {
-                "msg": {
-                  "eng": "You are in Group A"
-                },
-                "type": "reply"
-              }
-            ]
-          },
-          {
-            "y": 400,
-            "x": 434,
-            "destination": null,
-            "uuid": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
-            "actions": [
-              {
-                "msg": {
-                  "eng": "You picked @flow.message_split_a.category"
-                },
-                "type": "reply"
-              }
-            ]
-          }
-        ],
-        "last_saved": "2015-05-04T19:48:06.359817Z",
-        "entry": "13977cf2-68ee-49b9-8d88-2b9dbce12c5b",
-        "rule_sets": [
-          {
-            "uuid": "9e348f0c-f7fa-4c06-a78b-9ffa839e5779",
-            "webhook_action": "GET",
-            "rules": [
-              {
-                "test": {
-                  "test": {
-                    "eng": "Group A"
-                  },
-                  "base": "Group A",
-                  "type": "contains_any"
-                },
-                "category": {
-                  "eng": "Group A",
-                  "base": "Group A"
-                },
-                "destination": "fb3e6f98-2cf3-40e8-ba1a-ea87dfcbd458",
-                "uuid": "605e4e98-5d85-45e7-a885-9c198977b63c"
+      "version": 7,
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 132,
+          "destination": "9e348f0c-f7fa-4c06-a78b-9ffa839e5779",
+          "uuid": "13977cf2-68ee-49b9-8d88-2b9dbce12c5b",
+          "actions": [
+            {
+              "msg": {
+                "eng": "Message One"
               },
-              {
-                "test": {
-                  "test": {
-                    "eng": "Group B"
-                  },
-                  "base": "Group B",
-                  "type": "contains_any"
-                },
-                "category": {
-                  "eng": "Group B",
-                  "base": "Group B"
-                },
-                "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
-                "uuid": "81ba32a2-b3ea-4d46-aa7e-2ef32d7ced1e"
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 167,
+          "x": 133,
+          "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
+          "uuid": "fb3e6f98-2cf3-40e8-ba1a-ea87dfcbd458",
+          "actions": [
+            {
+              "msg": {
+                "eng": "You are in Group A"
               },
-              {
-                "test": {
-                  "test": "true",
-                  "type": "true"
-                },
-                "category": {
-                  "eng": "Other",
-                  "base": "Other"
-                },
-                "destination": "782e9e71-c116-4195-add3-1867132f95b6",
-                "uuid": "9e712fa4-d988-483b-9820-e6bcc6d0cfba"
-              }
-            ],
-            "webhook": null,
-            "label": "Group Split A",
-            "operand": "@contact.groups",
-            "finished_key": null,
-            "ruleset_type": "expression",
-            "y": 70,
-            "x": 401
-          },
-          {
-            "uuid": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
-            "webhook_action": null,
-            "rules": [
-              {
-                "test": {
-                  "test": {
-                    "eng": "Red"
-                  },
-                  "base": "Red",
-                  "type": "contains_any"
-                },
-                "category": {
-                  "eng": "Red",
-                  "base": "Red"
-                },
-                "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
-                "uuid": "77f97500-0f06-443d-aec1-8d045962c7b8"
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 400,
+          "x": 434,
+          "destination": null,
+          "uuid": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
+          "actions": [
+            {
+              "msg": {
+                "eng": "You picked @flow.message_split_a.category"
               },
-              {
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "last_saved": "2015-05-04T19:48:06.359817Z",
+      "entry": "13977cf2-68ee-49b9-8d88-2b9dbce12c5b",
+      "rule_sets": [
+        {
+          "uuid": "9e348f0c-f7fa-4c06-a78b-9ffa839e5779",
+          "webhook_action": "GET",
+          "rules": [
+            {
+              "test": {
                 "test": {
-                  "test": {
-                    "eng": "Green"
-                  },
-                  "base": "Green",
-                  "type": "contains_any"
+                  "eng": "Group A"
                 },
-                "category": {
-                  "eng": "Green",
-                  "base": "Green"
-                },
-                "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
-                "uuid": "15fa4511-c63e-4e45-be09-c63c87480189"
+                "base": "Group A",
+                "type": "contains_any"
               },
-              {
-                "test": {
-                  "test": {
-                    "eng": "Blue"
-                  },
-                  "base": "Blue",
-                  "type": "contains_any"
-                },
-                "category": {
-                  "eng": "Blue",
-                  "base": "Blue"
-                },
-                "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
-                "uuid": "8b8dc778-7d49-4572-af9f-97d5aee5dce8"
+              "category": {
+                "eng": "Group A",
+                "base": "Group A"
               },
-              {
+              "destination": "fb3e6f98-2cf3-40e8-ba1a-ea87dfcbd458",
+              "uuid": "605e4e98-5d85-45e7-a885-9c198977b63c"
+            },
+            {
+              "test": {
                 "test": {
-                  "test": "true",
-                  "type": "true"
+                  "eng": "Group B"
                 },
-                "category": {
-                  "eng": "Other",
-                  "base": "All Responses"
-                },
-                "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
-                "uuid": "1d9900bc-9315-4ee2-892f-60013dd9541d"
-              }
-            ],
-            "webhook": null,
-            "label": "Message Split A",
-            "operand": "@step.value",
-            "finished_key": null,
-            "ruleset_type": "wait_message",
-            "y": 265,
-            "x": 356
-          },
-          {
-            "uuid": "782e9e71-c116-4195-add3-1867132f95b6",
-            "webhook_action": "GET",
-            "rules": [
-              {
-                "test": {
-                  "test": {
-                    "eng": "Rowan"
-                  },
-                  "base": "Rowan",
-                  "type": "contains_any"
-                },
-                "category": {
-                  "eng": "Rowan",
-                  "base": "Rowan"
-                },
-                "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
-                "uuid": "f78edeea-4339-4f06-b95e-141975b97cb8"
+                "base": "Group B",
+                "type": "contains_any"
               },
-              {
-                "test": {
-                  "test": {
-                    "eng": "Norbert"
-                  },
-                  "base": "Norbert",
-                  "type": "contains_any"
-                },
-                "category": {
-                  "eng": "Norbert",
-                  "base": "Norbert"
-                },
-                "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
-                "uuid": "e399c915-6226-4b00-bd9a-8347bd03a85a"
+              "category": {
+                "eng": "Group B",
+                "base": "Group B"
               },
-              {
+              "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
+              "uuid": "81ba32a2-b3ea-4d46-aa7e-2ef32d7ced1e"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "Other",
+                "base": "Other"
+              },
+              "destination": "782e9e71-c116-4195-add3-1867132f95b6",
+              "uuid": "9e712fa4-d988-483b-9820-e6bcc6d0cfba"
+            }
+          ],
+          "webhook": null,
+          "label": "Group Split A",
+          "operand": "@contact.groups",
+          "finished_key": null,
+          "ruleset_type": "expression",
+          "y": 70,
+          "x": 401
+        },
+        {
+          "uuid": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
+          "webhook_action": null,
+          "rules": [
+            {
+              "test": {
                 "test": {
-                  "test": "true",
-                  "type": "true"
+                  "eng": "Red"
                 },
-                "category": {
-                  "eng": "Other",
-                  "base": "Other"
-                },
-                "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
-                "uuid": "7247d462-6ac5-4302-8ace-5a61c714377d"
-              }
-            ],
-            "webhook": null,
-            "label": "Name Split",
-            "operand": "@contact.name",
-            "finished_key": null,
-            "ruleset_type": "contact_field",
-            "y": 153,
-            "x": 735
-          },
-          {
-            "uuid": "771088fd-fc77-4966-8541-93c3c59c923d",
-            "webhook_action": null,
-            "rules": [
-              {
+                "base": "Red",
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Red",
+                "base": "Red"
+              },
+              "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
+              "uuid": "77f97500-0f06-443d-aec1-8d045962c7b8"
+            },
+            {
+              "test": {
                 "test": {
-                  "test": "true",
-                  "type": "true"
+                  "eng": "Green"
                 },
-                "category": {
-                  "base": "All Responses",
-                  "eng": "All Responses"
+                "base": "Green",
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Green",
+                "base": "Green"
+              },
+              "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
+              "uuid": "15fa4511-c63e-4e45-be09-c63c87480189"
+            },
+            {
+              "test": {
+                "test": {
+                  "eng": "Blue"
                 },
-                "config": {
-                  "type": "true",
-                  "verbose_name": "contains anything",
-                  "name": "Other",
-                  "operands": 0
+                "base": "Blue",
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Blue",
+                "base": "Blue"
+              },
+              "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
+              "uuid": "8b8dc778-7d49-4572-af9f-97d5aee5dce8"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "Other",
+                "base": "All Responses"
+              },
+              "destination": "3a0f77d1-f6bf-47f1-b194-de2051ba0738",
+              "uuid": "1d9900bc-9315-4ee2-892f-60013dd9541d"
+            }
+          ],
+          "webhook": null,
+          "label": "Message Split A",
+          "operand": "@step.value",
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "y": 265,
+          "x": 356
+        },
+        {
+          "uuid": "782e9e71-c116-4195-add3-1867132f95b6",
+          "webhook_action": "GET",
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Rowan"
                 },
-                "uuid": "865baac0-da29-4752-be1e-1488457f708c"
-              }
-            ],
-            "webhook": null,
-            "label": "Message Split B",
-            "operand": "@step.value",
-            "finished_key": null,
-            "ruleset_type": "wait_message",
-            "y": 555,
-            "x": 419
-          }
-        ],
-        "metadata": {}
-      },
+                "base": "Rowan",
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Rowan",
+                "base": "Rowan"
+              },
+              "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
+              "uuid": "f78edeea-4339-4f06-b95e-141975b97cb8"
+            },
+            {
+              "test": {
+                "test": {
+                  "eng": "Norbert"
+                },
+                "base": "Norbert",
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Norbert",
+                "base": "Norbert"
+              },
+              "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
+              "uuid": "e399c915-6226-4b00-bd9a-8347bd03a85a"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "Other",
+                "base": "Other"
+              },
+              "destination": "1f1adefb-0791-4e3c-9e8f-10dc6d56d3a5",
+              "uuid": "7247d462-6ac5-4302-8ace-5a61c714377d"
+            }
+          ],
+          "webhook": null,
+          "label": "Name Split",
+          "operand": "@contact.name",
+          "finished_key": null,
+          "ruleset_type": "contact_field",
+          "y": 153,
+          "x": 735
+        },
+        {
+          "uuid": "771088fd-fc77-4966-8541-93c3c59c923d",
+          "webhook_action": null,
+          "rules": [
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "All Responses",
+                "eng": "All Responses"
+              },
+              "config": {
+                "type": "true",
+                "verbose_name": "contains anything",
+                "name": "Other",
+                "operands": 0
+              },
+              "uuid": "865baac0-da29-4752-be1e-1488457f708c"
+            }
+          ],
+          "webhook": null,
+          "label": "Message Split B",
+          "operand": "@step.value",
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "y": 555,
+          "x": 419
+        }
+      ],
       "flow_type": "F",
-      "name": "Loop Detection",
-      "id": 1000
+      "metadata": {
+        "name": "Loop Detection",
+        "id": 1000
+      }
     }
   ],
   "triggers": []
