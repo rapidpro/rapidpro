@@ -72,12 +72,10 @@ def webhook_status_processor(request):
 
     return status
 
+
 class ApiPermission(BasePermission):
     def has_permission(self, request, view):
 
-        # TODO: Lookup group based on token in request.auth
-
-        # api_token = request.auth
         if getattr(view, 'permission', None):
 
             if request.user.is_anonymous():

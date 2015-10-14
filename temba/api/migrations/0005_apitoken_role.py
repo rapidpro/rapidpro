@@ -19,8 +19,8 @@ class Migration(migrations.Migration):
                 token.role = group.name[0:1]  # S, A, V, E
                 token.save()
             else:
-                token.delete()
                 print "Removing abandoned token for %s: %s (%s)" % (token.user, token.org, token.key)
+                token.delete()
 
     operations = [
         migrations.AddField(
