@@ -1094,7 +1094,7 @@ class Flow(TembaModel, SmartModel):
 
         uuid = str(uuid4())
         action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
-        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets, base_language='base'))
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)

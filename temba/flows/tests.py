@@ -3574,6 +3574,26 @@ class FlowMigrationTest(FlowFileTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
+    def test_migrate_malformed_single_message_flow(self):
+
+        flow = Flow.create_instance(dict(name='Single Message Flow', org=self.org,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=3))
+
+        flow_json = self.get_flow_json('malformed_single_message')['definition']
+
+        FlowVersion.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                         spec_version=3, version=1,
+                                         created_by=self.admin, modified_by=self.admin))
+
+        flow.ensure_current_version()
+        flow_json = flow.as_json()
+
+        self.assertTrue(1, len(flow_json['action_sets']))
+        self.assertEquals(0, len(flow_json['rule_sets']))
+        self.assertEquals(7, flow_json['version'])
+        self.assertEquals(2, flow_json['metadata']['revision'])
+
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json('call-me-maybe')['definition']
         flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org,
