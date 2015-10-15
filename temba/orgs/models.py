@@ -1346,7 +1346,7 @@ def set_role(obj, role):
 def get_role(obj):
 
     if not hasattr(obj, '_role'):
-        obj._role = obj.get_org_group().name[0:1]
+        obj._role = obj.get_org_group()
 
     return obj._role
 
