@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -2146,17 +2147,20 @@ class APITest(TembaTest):
         # fetch our html docs
         self.assertEqual(self.fetchHTML(url).status_code, 200)
 
+        admin_group = Group.objects.get(name='Administrators')
+        surveyor_group = Group.objects.get(name='Surveyors')
+
         # login an admin as an admin
         admin = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).content)
         self.assertEqual(1, len(admin))
         self.assertEqual('Temba', admin[0]['name'])
-        self.assertIsNotNone(APIToken.objects.filter(key=admin[0]['token'], role='A').first())
+        self.assertIsNotNone(APIToken.objects.filter(key=admin[0]['token'], role=admin_group).first())
 
         # login an admin as a surveyor
         surveyor = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).content)
         self.assertEqual(1, len(surveyor))
         self.assertEqual('Temba', surveyor[0]['name'])
-        self.assertIsNotNone(APIToken.objects.filter(key=surveyor[0]['token'], role='S').first())
+        self.assertIsNotNone(APIToken.objects.filter(key=surveyor[0]['token'], role=surveyor_group).first())
 
         # the keys should be different
         self.assertNotEqual(admin[0]['token'], surveyor[0]['token'])

@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import hmac
 import json
+from django.db.models import Q
 import requests
 import uuid
 
@@ -479,7 +480,33 @@ class APIToken(models.Model):
     user = models.ForeignKey(User, related_name='api_tokens')
     org = models.ForeignKey(Org, related_name='api_tokens')
     created = models.DateTimeField(auto_now_add=True)
-    role = models.CharField(max_length=1, null=False)
+    role = models.ForeignKey(Group, null=True)
+
+    @classmethod
+    def get_orgs_for_role(cls, user, role):
+        """
+        Gets all the orgs the user can login to with the given role. Also
+        takes a single character role (A, E, S, etc) and maps it to a UserGroup.
+        """
+
+        if role == 'A':
+            valid_orgs = Org.objects.filter(administrators__in=[user])
+            role = Group.objects.get(name='Administrators')
+        elif role == 'E':
+            # admins can authenticate as editors
+            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
+            role = Group.objects.get(name='Editors')
+        elif role == 'S':
+            # admins and editors can authenticate as surveyors
+            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
+            role = Group.objects.get(name='Surveyors')
+        else:
+            # can't authenticate via the api as anything else
+            valid_orgs = []
+            role = None
+
+        return valid_orgs, role
+
 
     def save(self, *args, **kwargs):
         if not self.key:

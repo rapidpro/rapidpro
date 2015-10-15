@@ -22,7 +22,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView, SmartReadView, SmartListView
-from temba.api.models import WebHookEvent, WebHookResult, get_or_create_api_token
+from temba.api.models import WebHookEvent, WebHookResult, get_or_create_api_token, APIToken
 from temba.api.serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
@@ -81,13 +81,9 @@ class ApiPermission(BasePermission):
             if request.user.is_anonymous():
                 return False
 
-            group = None
-
             # try to determine group from api token
             if request.auth:
-                if request.auth.role:
-                    group = Group.objects.filter(name__startswith=request.auth.role).first()
-
+                group = request.auth.role
             # otherwise lean on the logged in user
             else:
                 org = request.user.get_org()
@@ -348,26 +344,19 @@ class AuthenticateEndpoint(SmartFormView):
         if user and user.is_active:
             login(self.request, user)
 
-            # the types of users that can login to the api
             orgs = []
 
-            valid_orgs = []
-            if role == 'A':
-                valid_orgs = Org.objects.filter(administrators__in=[user])
-            elif role == 'E':
-                # admins can authenticate as editors
-                valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
-            elif role == 'S':
-                # admins and editors can authenticate as surveyors
-                valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
+            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
+            if role:
+                for org in valid_orgs:
+                    user.set_org(org)
+                    user.set_role(role)
+                    token = get_or_create_api_token(user)
 
-            for org in valid_orgs:
-                user.set_org(org)
-                user._role = role
-                token = get_or_create_api_token(user)
-
-                if token:
-                    orgs.append(dict(id=org.pk, name=org.name, token=token))
+                    if token:
+                        orgs.append(dict(id=org.pk, name=org.name, token=token))
+            else:
+                return HttpResponse(status=403)
 
             return JsonResponse(orgs, safe=False)
         else:

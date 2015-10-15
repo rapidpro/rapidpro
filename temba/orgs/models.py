@@ -1339,6 +1339,10 @@ def get_org_group(obj):
     return org_group
 
 
+def set_role(obj, role):
+    obj._role = role
+
+
 def get_role(obj):
 
     if not hasattr(obj, '_role'):
@@ -1379,6 +1383,7 @@ User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
 User.get_role = get_role
+User.set_role = set_role
 User.has_org_perm = _user_has_org_perm
 
 
