@@ -514,6 +514,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_surveyor',
         'orgs.org_api',
         'contacts.contact_api',
+        'contacts.contactfield_api',
         'locations.adminboundary_api',
         'flows.flow_api'
     ),

@@ -2194,11 +2194,13 @@ class APITest(TembaTest):
         response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).content)
         self.assertEqual(1, len(response))
 
-        # and can fetch flows and contacts, but not campaigns
+        # and can fetch flows, contacts, and fields, but not campaigns
         client.credentials(HTTP_AUTHORIZATION='Token ' + response[0]['token'])
         self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
         self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.contactfields') + '.json').status_code)
         self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
