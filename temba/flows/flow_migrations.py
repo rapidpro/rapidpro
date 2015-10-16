@@ -61,6 +61,11 @@ def migrate_to_version_7(json_flow):
             metadata['revision'] = revision
         metadata['saved_on'] = json_flow.get('last_saved')
 
+        # single message flows incorrectly created an empty rulesets
+        # element which should be rule_sets instead
+        if 'rulesets' in definition:
+            definition.pop('rulesets')
+
         return definition
 
     return json_flow
@@ -85,7 +90,7 @@ def migrate_to_version_6(json_flow):
     if 'base_language' not in definition:
         definition['base_language'] = base_language
 
-        for ruleset in definition.get('rule_sets'):
+        for ruleset in definition.get('rule_sets', []):
             for rule in ruleset.get('rules'):
 
                 # betweens haven't always required a category name, create one
@@ -126,7 +131,7 @@ def migrate_to_version_5(json_flow):
 
     definition = json_flow.get('definition')
 
-    for ruleset in definition.get('rule_sets'):
+    for ruleset in definition.get('rule_sets', []):
 
         response_type = ruleset.pop('response_type', None)
         ruleset_type = ruleset.get('ruleset_type', None)

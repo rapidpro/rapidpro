@@ -456,7 +456,7 @@ class Flow(TembaModel, SmartModel):
         # if we've been sent a recording, go grab it
         if recording_url:
             url = Flow.download_recording(call, recording_url, recording_id)
-            recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, url)
+            recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
@@ -1024,7 +1024,7 @@ class Flow(TembaModel, SmartModel):
                 return None
 
             try:
-                url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, url)
+                url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
@@ -1093,7 +1093,7 @@ class Flow(TembaModel, SmartModel):
 
         uuid = str(uuid4())
         action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
-        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets, base_language='base'))
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -3020,6 +3020,8 @@ class ExportFlowResultsTask(SmartModel):
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export is complete"))
+    uuid = models.CharField(max_length=36, null=True,
+                            help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """
@@ -3311,6 +3313,10 @@ class ExportFlowResultsTask(SmartModel):
         book.save(temp)
         temp.flush()
 
+        # initialize the UUID which we will save results as
+        self.uuid = str(uuid4())
+        self.save(update_fields=['uuid'])
+
         # save as file asset associated with this task
         from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
@@ -3318,12 +3324,12 @@ class ExportFlowResultsTask(SmartModel):
         store = AssetType.results_export.store
         store.save(self.pk, File(temp), 'xls')
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
-
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.pk))
+
+        from temba.middleware import BrandingMiddleware
+        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
 
         # force a gc
         import gc
@@ -3331,15 +3337,6 @@ class ExportFlowResultsTask(SmartModel):
 
         # only send the email if this is production
         send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
-
-    def queryset_iterator(self, queryset, chunksize=1000):
-        pk = 0
-        last_pk = queryset.order_by('-pk')[0].pk
-        queryset = queryset.order_by('pk')
-        while pk < last_pk:
-            for row in queryset.filter(pk__gt=pk)[:chunksize]:
-                pk = row.pk
-                yield row
 
 
 class ActionLog(models.Model):
@@ -4159,7 +4156,7 @@ class SayAction(Action):
 
             # if we have a localized recording, create the url
             if recording:
-                recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, recording)
+                recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
