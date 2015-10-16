@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -77,15 +78,20 @@ class Value(models.Model):
 
     @classmethod
     def _filtered_values_to_categories(cls, contacts, values, label_field, formatter=None, return_contacts=False):
+        set_contacts = set()
+
         value_contacts = defaultdict(list)
         for value in values:
-            if value['contact'] in contacts:
+            contact = value['contact']
+
+            if contact in contacts:
                 if formatter:
                     label = formatter(value[label_field])
                 else:
                     label = value[label_field]
 
-                value_contacts[label].append(value['contact'])
+                value_contacts[label].append(contact)
+                set_contacts.add(contact)
 
         categories = []
         for value, contacts in value_contacts.items():
@@ -96,7 +102,7 @@ class Value(models.Model):
             categories.append(category)
 
         # sort our categories by our count decreasing
-        return sorted(categories, key=lambda c: c['count'], reverse=True)
+        return sorted(categories, key=lambda c: c['count'], reverse=True), set_contacts
 
     @classmethod
     def get_filtered_value_summary(cls, ruleset=None, contact_field=None, filters=None, return_contacts=False, filter_contacts=None):
@@ -240,33 +246,34 @@ class Value(models.Model):
 
         # we are summarizing based on contact field
         else:
-            set_contacts = contacts & set([v['contact'] for v in Value.objects.filter(contact_field=contact_field).values('contact')])
-            unset_contacts = contacts - set_contacts
-
             values = Value.objects.filter(contact_field=contact_field)
 
             if contact_field.value_type == TEXT:
                 values = values.values('string_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'string_value',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'string_value',
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type == DECIMAL:
                 values = values.values('decimal_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
-                                                                formatter=format_decimal, return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
+                                                                              formatter=format_decimal,
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type == DATETIME:
                 values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'date_value',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type in [STATE, DISTRICT]:
                 values = values.values('location_value__osm_id', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
+                                                                              return_contacts=return_contacts)
 
             else:
                 raise ValueError(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
+
+            set_contacts = contacts & set_contacts
+            unset_contacts = contacts - set_contacts
 
         print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
 
@@ -546,14 +553,14 @@ class Value(models.Model):
         pipe.execute()
 
         # leave me: nice for profiling..
-        # from django.db import connection as db_connection, reset_queries
-        # print "=" * 80
-        # for query in db_connection.queries:
-        #     print "%s - %s" % (query['time'], query['sql'][:100])
-        # print "-" * 80
-        # print "took: %f" % (time.time() - start)
-        # print "=" * 80
-        # reset_queries()
+        #from django.db import connection as db_connection, reset_queries
+        #print "=" * 80
+        #for query in db_connection.queries:
+        #    print "%s - %s" % (query['time'], query['sql'][:1000])
+        #print "-" * 80
+        #print "took: %f" % (time.time() - start)
+        #print "=" * 80
+        #reset_queries()
 
         return results
 
