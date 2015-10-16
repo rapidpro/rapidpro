@@ -30,6 +30,9 @@ class window.AutoComplete
         highlighter: (li, query) -> return li
 
         matcher: (flag, subtext) ->
+          if ac.parser.isInStringLiteral(subtext)
+            return null
+
           return ac.parser.expressionContext(subtext)
 
         filter: (query, data, searchKey) ->

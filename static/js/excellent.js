@@ -46,7 +46,7 @@
      * which may be a function name or a context reference.
      */
     excellent.Parser.prototype.autoCompleteContext = function(partialExpression) {
-        if (isInStringLiteral(partialExpression)) {
+        if (this.isInStringLiteral(partialExpression)) {
             return null;
         }
 
@@ -71,10 +71,25 @@
     };
 
     /**
+     * Determines whether we are in a string literal
+     */
+    excellent.Parser.prototype.isInStringLiteral = function(partialExpression) {
+        // count number quotation marks
+        var num_quotes = 0;
+        for (var pos = 0; pos < partialExpression.length; pos++) {
+            if (partialExpression[pos] === '"') {
+                num_quotes++;
+            }
+        }
+        return num_quotes % 2 != 0;  // odd means last string literal is open
+    };
+
+
+    /**
      * TODO find the function context
      */
     excellent.Parser.prototype.functionContext = function(partialExpression) {
-        var inString = isInStringLiteral(partialExpression);
+        var inString = this.isInStringLiteral(partialExpression);
 
         // initial state is string literal if number of quotes is odd
         var state = inString ? STATE_IGNORE : STATE_STRING_LITERAL;
@@ -117,7 +132,7 @@
     };
 
     /**
-     * Finds all expressions in the given text, including a partially complete expression at the end of the input
+     * Finds all expressions in the given text, including any partially complete expression at the end of the input
      */
     excellent.Parser.prototype.expressions = function(text) {
         var expressions = [];
@@ -230,20 +245,6 @@
             }
             return false;
         }
-    }
-
-    /**
-     * Determines whether we are in a string literal
-     */
-    function isInStringLiteral(partialExpression) {
-        // count number quotation marks
-        var num_quotes = 0;
-        for (var pos = 0; pos < partialExpression.length; pos++) {
-            if (partialExpression[pos] === '"') {
-                num_quotes++;
-            }
-        }
-        return num_quotes % 2 != 0;  // odd means last string literal is open
     }
 
     /**
