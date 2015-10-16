@@ -498,7 +498,7 @@ class Org(SmartModel):
             app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.twilio_handler')
 
             # the the twiml to run when the voice app fails
-            fallback_url = "https://" + settings.AWS_STORAGE_BUCKET_NAME + "/voice_unavailable.xml"
+            fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
 
             temba_app = client.applications.create(friendly_name=app_name,
                                                    voice_url=app_url,

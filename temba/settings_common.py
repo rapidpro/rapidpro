@@ -46,7 +46,8 @@ EMAIL_HOST_PASSWORD = 'mypassword'
 EMAIL_USE_TLS = True
 
 # where recordings and exports are stored
-AWS_STORAGE_BUCKET_NAME = 'dl.temba.io'
+AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
+AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
 STORAGE_ROOT_DIR = 'test_orgs' if TESTING else 'orgs'
 
 #-----------------------------------------------------------------------------------

@@ -1621,7 +1621,7 @@ class OrgCRUDL(SmartCRUDL):
             asset_type = types_to_assets[task_type]
             identifier = self.kwargs.get('pk')
             return HttpResponseRedirect(reverse('assets.download',
-                                                kwargs=dict(type=asset_type.name, identifier=identifier)))
+                                                kwargs=dict(type=asset_type.name, pk=identifier)))
 
 
 class TopUpCRUDL(SmartCRUDL):

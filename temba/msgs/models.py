@@ -28,6 +28,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.models import TembaModel
 from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
+from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -1653,6 +1654,8 @@ class ExportMessagesTask(SmartModel):
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export is finished running"))
+    uuid = models.CharField(max_length=36, null=True,
+                            help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """
@@ -1745,6 +1748,9 @@ class ExportMessagesTask(SmartModel):
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
+
+        self.uuid = str(uuid4())
+        self.save(update_fields=['uuid'])
 
         # save as file asset associated with this task
         from temba.assets.models import AssetType

@@ -2055,7 +2055,7 @@ class ContactFieldTest(TembaTest):
         self.client.get(reverse('contacts.contact_export'), dict())
         task = ExportContactsTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/contact_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
