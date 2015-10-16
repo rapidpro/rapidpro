@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
 
         for msg in Msg.objects.filter(msg_type='V').exclude(recording_url=None):
             # if our recording URL is on our old bucket
-            if msg.recording_url.find(old_bucket_domain) > 0:
+            if msg.recording_url.find(old_bucket_domain) >= 0:
                 # rename it to our new bucket
                 old_recording_url = msg.recording_url
                 msg.recording_url = msg.recording_url.replace(old_bucket_domain,
