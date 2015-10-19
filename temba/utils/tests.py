@@ -19,6 +19,7 @@ from .parser_functions import *
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
+from . import datetime_to_str
 from temba.utils.exporter import TableExporter
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from xlrd import open_workbook
@@ -47,6 +48,16 @@ class InitTest(TembaTest):
         self.assertEqual(datetime_to_json_date(d2), '2014-01-02T01:04:05.000Z')
         self.assertEqual(json_date_to_datetime('2014-01-02T01:04:05.000Z'), d2.astimezone(pytz.utc))
         self.assertEqual(json_date_to_datetime('2014-01-02T01:04:05.000'), d2.astimezone(pytz.utc))
+
+    def test_datetime_to_str(self):
+        tz = pytz.timezone("Africa/Kigali")
+        d2 = tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))
+
+        self.assertEqual(datetime_to_str(d2), '2014-01-02T01:04:05.000006Z')  # no format
+        self.assertEqual(datetime_to_str(d2, format='%Y-%m-%d'), '2014-01-02')  # format provided
+        self.assertEqual(datetime_to_str(d2, tz=tz), '2014-01-02T03:04:05.000006Z')  # in specific timezone
+        self.assertEqual(datetime_to_str(d2, ms=False), '2014-01-02T01:04:05Z')  # no ms
+        self.assertEqual(datetime_to_str(d2.date()), '2014-01-02T00:00:00.000000Z')  # no ms
 
     def test_str_to_datetime(self):
         tz = pytz.timezone('Asia/Kabul')
