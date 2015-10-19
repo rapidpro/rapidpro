@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import datetime
 import json
+from uuid import uuid4
 import os
 import phonenumbers
 import regex
@@ -22,6 +23,7 @@ from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
 from urlparse import urlparse, urlunparse, ParseResult
+from uuid import uuid4
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = '12065551212'
@@ -509,6 +511,9 @@ class Contact(TembaModel, SmartModel):
                 params["%s%d" % (scheme, count)] = path
 
             analytics.track(user.username, 'temba.contact_created', params)
+
+        # make sure the contact is not blocked
+        contact.unblock()
 
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
@@ -1568,6 +1573,8 @@ class ExportContactsTask(SmartModel):
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export has completed"))
+    uuid = models.CharField(max_length=36, null=True,
+                            help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """
@@ -1638,6 +1645,9 @@ class ExportContactsTask(SmartModel):
                             value = contact.get_field(field['key'])
                             field_value = Contact.get_field_display_for_value(field['field'], value)
 
+                        if field_value is None:
+                            field_value = ''
+
                         if field_value:
                             field_value = unicode(field_value)
 
@@ -1664,15 +1674,18 @@ class ExportContactsTask(SmartModel):
         # get our table file
         table_file = exporter.save_file()
 
+        self.uuid = str(uuid4())
+        self.save(update_fields=['uuid'])
+
         store = AssetType.contact_export.store
         store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
 
-        subject = "Your contacts export is ready"
-        template = 'contacts/email/contacts_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.contact_export, self.pk))
-
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)
+        download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)
+
+        subject = "Your contacts export is ready"
+        template = 'contacts/email/contacts_export_download'
 
         # force a gc
         import gc

@@ -456,7 +456,7 @@ class Flow(TembaModel, SmartModel):
         # if we've been sent a recording, go grab it
         if recording_url:
             url = Flow.download_recording(call, recording_url, recording_id)
-            recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, url)
+            recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
@@ -1024,7 +1024,7 @@ class Flow(TembaModel, SmartModel):
                 return None
 
             try:
-                url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, url)
+                url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
@@ -1093,7 +1093,7 @@ class Flow(TembaModel, SmartModel):
 
         uuid = str(uuid4())
         action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
-        self.update(dict(entry=uuid, rulesets=[], action_sets=action_sets, base_language='base'))
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -1373,7 +1373,7 @@ class Flow(TembaModel, SmartModel):
             start_msg.save(update_fields=['msg_type'])
 
         all_contacts = Contact.all().filter(Q(all_groups__in=[_.pk for _ in groups]) | Q(pk__in=[_.pk for _ in contacts]))
-        all_contacts = all_contacts.order_by('pk').distinct('pk')
+        all_contacts = all_contacts.only('is_test').order_by('pk').distinct('pk')
 
         if not restart_participants:
             # exclude anybody who has already participated in the flow
@@ -2009,7 +2009,12 @@ class Flow(TembaModel, SmartModel):
         """
         if self.version_number < CURRENT_EXPORT_VERSION:
             with self.lock_on(FlowLock.definition):
-                json_flow = FlowVersion.migrate_definition(self.as_json(), self.version_number, self)
+                version = self.versions.all().order_by('-version').all().first()
+                if version:
+                    json_flow = version.get_definition_json()
+                else:
+                    json_flow = self.as_json()
+
                 self.update(json_flow)
                 # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
 
@@ -2195,7 +2200,7 @@ class Flow(TembaModel, SmartModel):
 
                 if destination_uuid:
                     if not destination_type:
-                        raise FlowException("Destination '%s' for actionset does not exist" % destination_uuid)
+                        destination_uuid = None
 
                 # only create actionsets if there are actions
                 if actions:
@@ -2687,7 +2692,8 @@ class FlowVersion(SmartModel):
 
         from temba.flows import flow_migrations
 
-        while version < to_version:
+        while version < to_version and version < CURRENT_EXPORT_VERSION:
+
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
                 json_flow = migrate_fn(json_flow)
@@ -2704,7 +2710,7 @@ class FlowVersion(SmartModel):
         if self.spec_version <= 6:
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
-                              revision=self.version)
+                              revision=self.version, uuid=self.flow.uuid)
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
@@ -3016,6 +3022,8 @@ class ExportFlowResultsTask(SmartModel):
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export is complete"))
+    uuid = models.CharField(max_length=36, null=True,
+                            help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """
@@ -3307,6 +3315,10 @@ class ExportFlowResultsTask(SmartModel):
         book.save(temp)
         temp.flush()
 
+        # initialize the UUID which we will save results as
+        self.uuid = str(uuid4())
+        self.save(update_fields=['uuid'])
+
         # save as file asset associated with this task
         from temba.assets.models import AssetType
         from temba.assets.views import get_asset_url
@@ -3314,12 +3326,12 @@ class ExportFlowResultsTask(SmartModel):
         store = AssetType.results_export.store
         store.save(self.pk, File(temp), 'xls')
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
-
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
-        download_url = 'https://%s/%s' % (settings.TEMBA_HOST, get_asset_url(AssetType.results_export, self.pk))
+
+        from temba.middleware import BrandingMiddleware
+        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
 
         # force a gc
         import gc
@@ -3327,15 +3339,6 @@ class ExportFlowResultsTask(SmartModel):
 
         # only send the email if this is production
         send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
-
-    def queryset_iterator(self, queryset, chunksize=1000):
-        pk = 0
-        last_pk = queryset.order_by('-pk')[0].pk
-        queryset = queryset.order_by('pk')
-        while pk < last_pk:
-            for row in queryset.filter(pk__gt=pk)[:chunksize]:
-                pk = row.pk
-                yield row
 
 
 class ActionLog(models.Model):
@@ -3622,7 +3625,7 @@ class FlowStart(SmartModel):
 
         try:
             groups = [g for g in self.groups.all()]
-            contacts = [c for c in self.contacts.all()]
+            contacts = [c for c in self.contacts.all().only('is_test')]
 
             self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
 
@@ -4155,7 +4158,7 @@ class SayAction(Action):
 
             # if we have a localized recording, create the url
             if recording:
-                recording_url = "http://%s/%s" % (settings.AWS_STORAGE_BUCKET_NAME, recording)
+                recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
@@ -4698,7 +4701,7 @@ class SendAction(VariableContactAction):
         return log
 
     def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ",".join(self.contacts + self.groups))
+        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
 
 
 class Rule(object):

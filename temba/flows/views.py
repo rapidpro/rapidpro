@@ -806,7 +806,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
 
-            context['recording_url'] = 'http://%s/' % settings.AWS_STORAGE_BUCKET_NAME
+            context['recording_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
 
             # are there pending starts?
             starting = False
@@ -875,7 +875,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 else:
                     export = ExportFlowResultsTask.objects.get(id=export.pk)
-                    dl_url = reverse('assets.download', kwargs=dict(type='results_export', identifier=export.pk))
+                    dl_url = reverse('assets.download', kwargs=dict(type='results_export', pk=export.pk))
                     messages.info(self.request,
                                   _("Export complete, you can find it here: %s (production users will get an email)")
                                   % dl_url)
@@ -1210,8 +1210,6 @@ class FlowCRUDL(SmartCRUDL):
             from temba.flows.models import FlowException
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
-
-                print response_data
                 return build_json_response(response_data, status=200)
             except FlowException as e:
                 return build_json_response(dict(status="failure", description=str(e)), status=400)

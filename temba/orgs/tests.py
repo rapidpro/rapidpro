@@ -1224,6 +1224,11 @@ class BulkExportTest(TembaTest):
         other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
         self.assertEquals(1, len(other_actionset.get_actions()))
 
+        # now make sure it does the same thing from an actionset
+        self.import_file('start-missing-flow-from-actionset')
+        self.assertIsNotNone(Flow.objects.filter(name='Start Missing Flow').first())
+        self.assertIsNone(Flow.objects.filter(name='Missing Flow').first())
+
     def test_export_import(self):
 
         def assert_object_counts():

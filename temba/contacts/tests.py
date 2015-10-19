@@ -1651,10 +1651,17 @@ class ContactTest(TembaTest):
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
         c1 = Contact.create_instance(field_dict)
 
-        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         field_dict['name'] = 'LaToya Jackson'
         c2 = Contact.create_instance(field_dict)
         self.assertEquals(c1.pk, c2.pk)
+
+        c1.block()
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
+        field_dict['name'] = 'LaToya Jackson'
+        c2 = Contact.create_instance(field_dict)
+        self.assertEquals(c1.pk, c2.pk)
+        self.assertFalse(c2.is_blocked)
 
         import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
             dict(key='nick_name', header='nick name', label='Nickname', type='T')
@@ -2048,7 +2055,7 @@ class ContactFieldTest(TembaTest):
         self.client.get(reverse('contacts.contact_export'), dict())
         task = ExportContactsTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/contact_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 

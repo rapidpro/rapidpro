@@ -36,7 +36,7 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, DeleteFromGroupAction
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, ActionLog
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 
 
@@ -361,7 +361,7 @@ class RuleTest(TembaTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
@@ -438,7 +438,7 @@ class RuleTest(TembaTest):
         task = ExportFlowResultsTask.objects.all()[0]
 
         from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(2, len(workbook.sheets()))
@@ -1047,7 +1047,7 @@ class RuleTest(TembaTest):
         self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg="hello world")).__class__)
         self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg="hello world", contacts=[], groups=[], variables=[])).__class__)
 
-    def test_actions(self):
+    def test_send_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
@@ -1074,7 +1074,6 @@ class RuleTest(TembaTest):
         action_json = test.as_json()
         test = SendAction.from_json(self.org, action_json)
         self.assertEquals(test.msg['base'], "What is your favorite color?")
-
         self.assertEquals(2, Broadcast.objects.all().count())
 
         broadcast = Broadcast.objects.all().order_by('pk')[1]
@@ -1082,6 +1081,29 @@ class RuleTest(TembaTest):
         msg = broadcast.get_messages().first()
         self.assertEquals(self.contact, msg.contact)
         self.assertEquals("What is your favorite color?", msg.text)
+
+        # empty message should be a no-op
+        test = SendAction(dict(base=""), [], [self.contact], [])
+        test.execute(run, None, None)
+        self.assertEquals(2, Broadcast.objects.all().count())
+
+        # try with a test contact
+        self.test_contact = self.create_contact('Test Contact', '+12065551212', is_test=True)
+        self.other_group.update_contacts([self.contact2], True)
+
+        test = SendAction(dict(base="What is your favorite color?"), [self.other_group], [self.contact], [])
+        run = FlowRun.create(self.flow, self.test_contact)
+        test.execute(run, None, None)
+
+        # check the description, this is shown on the contact history debug view
+        self.assertEquals("Sent '{'base': u'What is your favorite color?'}' to Eric, Other", test.get_description())
+
+        # since we are test contact now, no new broadcasts
+        self.assertEquals(2, Broadcast.objects.all().count())
+
+        # but we should have logged instead
+        self.assertEquals("Sending &#39;What is your favorite color?&#39; to 2 contacts",
+                          ActionLog.objects.all().first().text)
 
     def test_email_action(self):
         flow = self.flow
@@ -1627,8 +1649,10 @@ class RuleTest(TembaTest):
         json_dict['action_sets'][0]['destination'] = 'notthere'
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
-        self.assertEquals(400, response.status_code)
-        self.assertEquals('failure', json.loads(response.content)['status'])
+        self.assertEquals(200, response.status_code)
+        flow = Flow.objects.get(pk=flow.pk)
+        flow_json = flow.as_json()
+        self.assertIsNone(flow_json['action_sets'][0]['destination'])
 
         # flow should still be there though
         flow = Flow.objects.get(pk=flow.pk)
@@ -3072,7 +3096,7 @@ class FlowsTest(FlowFileTest):
 
         # read it back in, check values
         from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
         self.assertEquals(3, len(workbook.sheets()))
@@ -3526,6 +3550,48 @@ class FlowMigrationTest(FlowFileTest):
 
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
+
+    def test_migrate_malformed_single_message_flow(self):
+
+        flow = Flow.create_instance(dict(name='Single Message Flow', org=self.org,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=3))
+
+        flow_json = self.get_flow_json('malformed_single_message')['definition']
+
+        FlowVersion.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                         spec_version=3, version=1,
+                                         created_by=self.admin, modified_by=self.admin))
+
+        flow.ensure_current_version()
+        flow_json = flow.as_json()
+
+        self.assertEqual(len(flow_json['action_sets']), 1)
+        self.assertEqual(len(flow_json['rule_sets']), 0)
+        self.assertEqual(flow_json['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow_json['metadata']['revision'], 2)
+
+    def test_ensure_current_version(self):
+        flow_json = self.get_flow_json('call-me-maybe')['definition']
+        flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=3))
+
+        FlowVersion.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                         spec_version=3, version=1,
+                                         created_by=self.admin, modified_by=self.admin))
+
+        # now make sure we are on the latest version
+        flow.ensure_current_version()
+
+        # and that the format looks correct
+        flow_json = flow.as_json()
+        self.assertEquals(flow_json['metadata']['name'], 'Call Me Maybe')
+        self.assertEquals(flow_json['metadata']['revision'], 2)
+        self.assertEquals(flow_json['metadata']['expires'], 720)
+        self.assertEquals(flow_json['base_language'], 'base')
+        self.assertEquals(5, len(flow_json['action_sets']))
+        self.assertEquals(1, len(flow_json['rule_sets']))
 
     def test_migrate_to_8(self):
         # file uses old style expressions

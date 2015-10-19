@@ -29,7 +29,7 @@ def migrate_broadcasts(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0032_auto_20151002_1411'),
+        ('msgs', '0034_move_recording_domains'),
     ]
 
     operations = [
