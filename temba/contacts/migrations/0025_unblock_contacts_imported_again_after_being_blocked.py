@@ -20,7 +20,7 @@ def unblock_contacts_imported_again(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0023_remove_test_contacts_from_sys_groups'),
+        ('contacts', '0024_exportcontactstask_uuid'),
     ]
 
     operations = [
