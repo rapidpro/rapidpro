@@ -1137,18 +1137,24 @@ class Msg(models.Model):
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
 
+            channel_id = channel.pk if channel else None
+
             if same_msg_count >= 10:
-                analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel.pk))
+                analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel_id))
                 return None
 
             # be more aggressive about short codes for duplicate messages
             # we don't want machines talking to each other
             tel = contact.raw_tel()
             if tel and len(tel) < 6:
-                same_msg_count = Msg.objects.filter(contact_urn=contact_urn, contact__is_test=False, channel=channel, text=text,
-                                                    direction=OUTGOING, created_on__gte=created_on - timedelta(hours=24)).count()
+                same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
+                                                    contact__is_test=False,
+                                                    channel=channel,
+                                                    text=text,
+                                                    direction=OUTGOING,
+                                                    created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
-                    analytics.track('System', "temba.msg_shortcode_loop_caught", dict(org=org.pk, channel=channel.pk))
+                    analytics.track('System', "temba.msg_shortcode_loop_caught", dict(org=org.pk, channel=channel_id))
                     return None
 
         # costs 1 credit to send a message
