@@ -3571,10 +3571,10 @@ class FlowMigrationTest(FlowFileTest):
         flow.ensure_current_version()
         flow_json = flow.as_json()
 
-        self.assertTrue(1, len(flow_json['action_sets']))
-        self.assertEquals(0, len(flow_json['rule_sets']))
-        self.assertEquals(7, flow_json['version'])
-        self.assertEquals(2, flow_json['metadata']['revision'])
+        self.assertEqual(len(flow_json['action_sets']), 1)
+        self.assertEqual(len(flow_json['rule_sets']), 0)
+        self.assertEqual(flow_json['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow_json['metadata']['revision'], 2)
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json('call-me-maybe')['definition']

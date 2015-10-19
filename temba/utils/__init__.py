@@ -37,15 +37,27 @@ INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
                             'GMT': '',
                             'UTC': ''}
 
+
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
+    """
+    Formats a datetime or date as a string
+    :param date_obj: the datetime or date
+    :param format: the format (defaults to ISO8601)
+    :param ms: whether to include microseconds
+    :param tz: the timezone to localize in
+    :return: the formatted date string
+    """
     if not date_obj:
         return None
 
-    if date_obj.year < 1900:
-        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
-
     if not tz:
         tz = timezone.utc
+
+    if type(date_obj) == datetime.date:
+        date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
+
+    if date_obj.year < 1900:
+        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
 
     if isinstance(date_obj, datetime.datetime):
         date_obj = timezone.localtime(date_obj, tz)

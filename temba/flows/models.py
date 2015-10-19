@@ -2691,6 +2691,7 @@ class FlowVersion(SmartModel):
             to_version = CURRENT_EXPORT_VERSION
 
         from temba.flows import flow_migrations
+
         while (version < to_version and version < CURRENT_EXPORT_VERSION):
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
