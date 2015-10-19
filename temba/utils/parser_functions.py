@@ -467,7 +467,6 @@ def f_field(text, index, delimiter=' '):
     :param index: which index in the result to return
     :param delimiter: the character to split by
     """
-
     splits = text.split(delimiter)
 
     # remove our delimiters and whitespace
