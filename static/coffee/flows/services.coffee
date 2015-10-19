@@ -661,8 +661,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # translates a string into a slug
     slugify: (label) ->
-      label = label.toString().toLowerCase().replace(/([^a-z0-9]+)/, ' ')
-      return label.replace(/([^a-z0-9]+)/g, '_')
+      return label.toString().toLowerCase().replace(/([^a-z0-9]+)/g, '_')
 
     # Get an array of current flow fields as:
     # [ { id: 'label_name', name: 'Label Name' } ]
