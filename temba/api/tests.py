@@ -1474,8 +1474,6 @@ class APITest(TembaTest):
         self.assertIsNotNone(json.loads(response.content)['uuid'])
         self.assertEquals(201, response.status_code)
 
-    test_api_contacts.active = True
-
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.contacts')
 

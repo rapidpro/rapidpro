@@ -1575,6 +1575,8 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
             }
+            "blocked": false,
+            "failed": false
         }
 
     ## Updating Contacts
