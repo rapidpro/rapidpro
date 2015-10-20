@@ -309,7 +309,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 else:
                     export = ExportContactsTask.objects.get(id=export.pk)
-                    dl_url = reverse('assets.download', kwargs=dict(type='contact_export', identifier=export.pk))
+                    dl_url = reverse('assets.download', kwargs=dict(type='contact_export', pk=export.pk))
                     messages.info(self.request,
                                   _("Export complete, you can find it here: %s (production users will get an email)")
                                   % dl_url)

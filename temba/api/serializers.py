@@ -326,46 +326,66 @@ class ContactGroupReadSerializer(serializers.ModelSerializer):
 
 
 class ContactReadSerializer(serializers.ModelSerializer):
-    name = serializers.Field(source='name')
+    name = serializers.SerializerMethodField('get_name')
     uuid = serializers.Field(source='uuid')
-    language = serializers.Field(source='language')
+    language = serializers.SerializerMethodField('get_language')
     group_uuids = serializers.SerializerMethodField('get_group_uuids')
     urns = serializers.SerializerMethodField('get_urns')
     fields = serializers.SerializerMethodField('get_contact_fields')
     phone = serializers.SerializerMethodField('get_tel')  # deprecated, use urns
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
-    blocked = serializers.Field(source='is_blocked')
-    failed = serializers.Field(source='is_failed')
+    blocked = serializers.SerializerMethodField('is_blocked')
+    failed = serializers.SerializerMethodField('is_failed')
+
+    def get_name(self, obj):
+        return obj.name if obj.is_active else None
+
+    def get_language(self, obj):
+        return obj.language if obj.is_active else None
+
+    def is_blocked(self, obj):
+        return obj.is_blocked if obj.is_active else None
+
+    def is_failed(self, obj):
+        return obj.is_failed if obj.is_active else None
 
     def get_groups(self, obj):
+        if not obj.is_active:
+            return []
+
         groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
         return [_.name for _ in groups]
 
     def get_group_uuids(self, obj):
+        if not obj.is_active:
+            return []
+
         groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
         return [_.uuid for _ in groups]
 
     def get_urns(self, obj):
-        if obj.org.is_anon:
+        if obj.org.is_anon or not obj.is_active:
             return dict()
 
         return [urn.urn for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
-        for contact_field in self.context['contact_fields']:
+        if not obj.is_active:
+            return fields
 
+        for contact_field in self.context['contact_fields']:
             value = obj.get_field(contact_field.key)
             fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
         return fields
 
     def get_tel(self, obj):
-        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, full=True)
+        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, full=True) if obj.is_active else None
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'blocked', 'failed', 'modified_on',
-                  'phone', 'groups')
+        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields',
+                  'blocked', 'failed', 'modified_on', 'phone', 'groups')
 
 
 class ContactWriteSerializer(WriteSerializer):
@@ -1069,6 +1089,13 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
         if flow_type and flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
             raise ValidationError("Invalid flow type: %s" % flow_type)
 
+        return attrs
+
+    def validate_definition(self, attrs, source):
+        definition = attrs.get(source, None)
+        version = attrs.get('version')
+        if version < 7 and not definition:
+            attrs['definition'] = dict(action_sets=[], rule_sets=[])
         return attrs
 
     def restore_object(self, flow_json, instance=None):

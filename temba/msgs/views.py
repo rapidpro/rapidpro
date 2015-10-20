@@ -587,7 +587,7 @@ class MsgCRUDL(SmartCRUDL):
 
                 else:
                     export = ExportMessagesTask.objects.get(id=export.pk)
-                    dl_url = reverse('assets.download', kwargs=dict(type='message_export', identifier=export.pk))
+                    dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
                     messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
 
             try:

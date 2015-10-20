@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -18,6 +19,7 @@ from django.utils.http import urlquote_plus
 from mock import patch
 from redis_cache import get_redis_connection
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
@@ -38,7 +40,7 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from urlparse import parse_qs
-from .models import WebHookEvent, WebHookResult, SMS_RECEIVED
+from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
 from .serializers import DictionaryField, IntegerArrayField, StringArrayField, PhoneArrayField, ChannelField, FlowField
 
 
@@ -1349,13 +1351,17 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         # search using urns field
-        response = self.fetchJSON(url, 'urns=' + urlquote_plus("tel:+250788123456"))
+        response = self.fetchJSON(url, 'deleted=false&urns=' + urlquote_plus("tel:+250788123456"))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
         response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
         self.assertResultCount(response, 2)
+
+        # search deleted contacts
+        response = self.fetchJSON(url, 'deleted=true')
+        self.assertResultCount(response, 0)
 
         # search by group
         response = self.fetchJSON(url, "group=Music+Artists")
@@ -1407,6 +1413,20 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=' + drdre.uuid)
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=drdre.pk).is_active)
+
+        # fetching deleted contacts should now show drdre
+        response = self.fetchJSON(url, "deleted=true")
+        self.assertEquals(200, response.status_code)
+        self.assertEqual(len(response.json['results']), 1)
+
+        self.assertEquals(response.json['results'][0]['uuid'], drdre.uuid)
+        self.assertIsNone(response.json['results'][0]['name'])
+        self.assertFalse(response.json['results'][0]['urns'])
+        self.assertFalse(response.json['results'][0]['fields'])
+        self.assertFalse(response.json['results'][0]['group_uuids'])
+        self.assertFalse(response.json['results'][0]['groups'])
+        self.assertIsNone(response.json['results'][0]['blocked'])
+        self.assertIsNone(response.json['results'][0]['failed'])
 
         # check deleting with wrong UUID gives 404
         response = self.deleteJSON(url, 'uuid=XYZ')
@@ -1470,6 +1490,7 @@ class APITest(TembaTest):
 
         # page is implicit
         response = self.fetchJSON(url)
+        self.assertEqual(200, response.status_code)
         self.assertResultCount(response, 300)
         self.assertEqual(response.json['results'][0]['name'], "Minion 300")
 
@@ -2137,6 +2158,68 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % junk.uuid)
         self.assertResultCount(response, 1)
         self.assertContains(response, "Junk")
+
+    def test_api_authenticate(self):
+
+        url = reverse('api.authenticate')
+
+        # fetch our html docs
+        self.assertEqual(self.fetchHTML(url).status_code, 200)
+
+        admin_group = Group.objects.get(name='Administrators')
+        surveyor_group = Group.objects.get(name='Surveyors')
+
+        # login an admin as an admin
+        admin = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='A')).content)
+        self.assertEqual(1, len(admin))
+        self.assertEqual('Temba', admin[0]['name'])
+        self.assertIsNotNone(APIToken.objects.filter(key=admin[0]['token'], role=admin_group).first())
+
+        # login an admin as a surveyor
+        surveyor = json.loads(self.client.post(url, dict(email='Administrator', password='Administrator', role='S')).content)
+        self.assertEqual(1, len(surveyor))
+        self.assertEqual('Temba', surveyor[0]['name'])
+        self.assertIsNotNone(APIToken.objects.filter(key=surveyor[0]['token'], role=surveyor_group).first())
+
+        # the keys should be different
+        self.assertNotEqual(admin[0]['token'], surveyor[0]['token'])
+
+        # don't do ssl auth check
+        settings.SESSION_COOKIE_SECURE = False
+
+        # configure our api client
+        client = APIClient()
+
+        admin_token = dict(HTTP_AUTHORIZATION='Token ' + admin[0]['token'])
+        surveyor_token = dict(HTTP_AUTHORIZATION='Token ' + surveyor[0]['token'])
+
+        # campaigns can be fetched by admin token
+        client.credentials(**admin_token)
+        self.assertEqual(200, client.get(reverse('api.campaigns') + '.json').status_code)
+
+        # but not by an admin's surveyor token
+        client.credentials(**surveyor_token)
+        self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+
+        # but their surveyor token can get flows or contacts
+        self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
+
+        # our surveyor can't login with an admin role
+        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content)
+        self.assertEqual(0, len(response))
+
+        # but they can with a surveyor role
+        response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='S')).content)
+        self.assertEqual(1, len(response))
+
+        # and can fetch flows, contacts, and fields, but not campaigns
+        client.credentials(HTTP_AUTHORIZATION='Token ' + response[0]['token'])
+        self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.contactfields') + '.json').status_code)
+        self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
