@@ -1426,6 +1426,7 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
 
         response = self.fetchJSON(url, "deleted=true")
+        print json.dumps(response.json)
         self.assertEquals(200, response.status_code)
         self.assertEqual(len(response.json['results']), 1)
 
