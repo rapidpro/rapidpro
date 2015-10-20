@@ -1415,6 +1415,18 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.get(pk=drdre.pk).is_active)
 
         # fetching deleted contacts should now show drdre
+        response = self.fetchJSON(url, "deleted=true")
+        self.assertEquals(200, response.status_code)
+        self.assertEqual(len(response.json['results']), 1)
+
+        self.assertEquals(response.json['results'][0]['uuid'], drdre.uuid)
+        self.assertIsNone(response.json['results'][0]['name'])
+        self.assertFalse(response.json['results'][0]['urns'])
+        self.assertFalse(response.json['results'][0]['fields'])
+        self.assertFalse(response.json['results'][0]['group_uuids'])
+        self.assertFalse(response.json['results'][0]['groups'])
+        self.assertIsNone(response.json['results'][0]['blocked'])
+        self.assertIsNone(response.json['results'][0]['failed'])
 
         # check deleting with wrong UUID gives 404
         response = self.deleteJSON(url, 'uuid=XYZ')
@@ -1424,19 +1436,6 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'urns=tel:123555')
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
-
-        response = self.fetchJSON(url, "deleted=true")
-        print json.dumps(response.json)
-        self.assertEquals(200, response.status_code)
-        self.assertEqual(len(response.json['results']), 1)
-
-        self.assertIsNone(response.json['results'][0]['name'])
-        self.assertFalse(response.json['results'][0]['urns'])
-        self.assertFalse(response.json['results'][0]['fields'])
-        self.assertFalse(response.json['results'][0]['group_uuids'])
-        self.assertFalse(response.json['results'][0]['groups'])
-        self.assertIsNone(response.json['results'][0]['blocked'])
-        self.assertIsNone(response.json['results'][0]['failed'])
 
         britney = self.create_contact("Britney", number='078222')
 
