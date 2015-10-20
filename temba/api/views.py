@@ -1672,7 +1672,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
 
         # if they pass in deleted=true then only return deleted contacts
-        if request.QUERY_PARAMS.get('deleted', '').lower() == 'true':
+        if str_to_bool(request.QUERY_PARAMS.get('deleted', '')):
             return queryset.filter(is_active=False)
         else:
             return queryset.filter(is_active=True)
