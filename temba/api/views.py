@@ -1,7 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
-from django.contrib.auth.models import Group
 import requests
 import urllib
 
@@ -40,7 +39,6 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEM
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
-from temba.orgs.models import Org
 from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
 from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
@@ -2841,7 +2839,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     * **metadata** - contains the name and uuid (optional) for the flow
     * **version** - the flow spec version for the definition being submitted
-    * **base_language** - the default language code to us for the flow
+    * **base_language** - the default language code to use for the flow
     * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
     * **action_sets** - the actions in the flow
     * **rule_sets** - the rules in the flow

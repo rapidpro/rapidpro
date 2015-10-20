@@ -576,10 +576,10 @@ class ContactWriteSerializer(WriteSerializer):
         group_uuids = attrs.get('group_uuids', None)
         group_names = attrs.get('groups', None)
 
-        if not group_uuids is None:
+        if group_uuids is not None:
             contact.update_groups(group_uuids)
 
-        elif not group_names is None:
+        elif group_names is not None:
             # by name creates groups if necessary
             groups = [ContactGroup.get_or_create(self.org, self.user, name) for name in group_names]
             contact.update_groups(groups)
@@ -698,6 +698,12 @@ class ContactBulkActionSerializer(WriteSerializer):
         action = attrs['action']
 
         contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
+
+        # check for UUIDs that didn't resolve to a valid contact
+        if len(contacts) != contact_uuids:
+            fetched_uuids = {c.uuid for c in contacts}
+            invalid_uuids = [u for u in contact_uuids if u not in fetched_uuids]
+            raise ValidationError("Some contact UUIDs were invalid: %s" % ','.join(invalid_uuids))
 
         if action == 'add':
             attrs['group'].update_contacts(contacts, add=True)
