@@ -2,13 +2,11 @@ from __future__ import unicode_literals
 
 import datetime
 import json
-from uuid import uuid4
 import os
 import phonenumbers
 import regex
 import time
 
-from django.conf import settings
 from django.core.files import File
 from django.db import models
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -512,9 +510,6 @@ class Contact(TembaModel, SmartModel):
 
             analytics.track(user.username, 'temba.contact_created', params)
 
-        # make sure the contact is not blocked
-        contact.unblock()
-
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
         return contact
@@ -837,8 +832,7 @@ class Contact(TembaModel, SmartModel):
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
-        for group in self.user_groups.all():
-            group.update_contacts([self], False)
+        self.update_groups([])
 
     def unblock(self):
         """
@@ -858,8 +852,7 @@ class Contact(TembaModel, SmartModel):
         self.save(update_fields=['is_failed'])
 
         if permanently:
-            for group in self.user_groups.all():
-                group.update_contacts([self], False)
+            self.update_groups([])
 
     def unfail(self):
         """
@@ -878,11 +871,10 @@ class Contact(TembaModel, SmartModel):
             self.save(update_fields=['is_active'])
 
             # detach all contact's URNs
-            self.urns.update(contact=None)
+            self.update_urns([])
 
             # remove contact from all groups
-            for group in self.user_groups.all():
-                group.update_contacts((self,), False)
+            self.update_groups([])
 
             # release all messages with this contact
             for msg in self.msgs.all():
@@ -1452,6 +1444,12 @@ class ContactGroup(TembaModel, SmartModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
+            if not contact.is_active:
+                raise ValueError("Deleted contacts can't be in groups")
+
+            if add and contact.is_blocked:  # adding blocked contacts to groups implicitly unblocks them
+                contact.unblock()
+
             contact_changed = False
 
             # if we are adding the contact to the group, and this contact is not in this group
