@@ -1351,13 +1351,17 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         # search using urns field
-        response = self.fetchJSON(url, 'urns=' + urlquote_plus("tel:+250788123456"))
+        response = self.fetchJSON(url, 'deleted=false&urns=' + urlquote_plus("tel:+250788123456"))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
         response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
         self.assertResultCount(response, 2)
+
+        # search deleted contacts
+        response = self.fetchJSON(url, 'deleted=true')
+        self.assertResultCount(response, 0)
 
         # search by group
         response = self.fetchJSON(url, "group=Music+Artists")
@@ -1409,6 +1413,20 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=' + drdre.uuid)
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=drdre.pk).is_active)
+
+        # fetching deleted contacts should now show drdre
+        response = self.fetchJSON(url, "deleted=true")
+        self.assertEquals(200, response.status_code)
+        self.assertEqual(len(response.json['results']), 1)
+
+        self.assertEquals(response.json['results'][0]['uuid'], drdre.uuid)
+        self.assertIsNone(response.json['results'][0]['name'])
+        self.assertFalse(response.json['results'][0]['urns'])
+        self.assertFalse(response.json['results'][0]['fields'])
+        self.assertFalse(response.json['results'][0]['group_uuids'])
+        self.assertFalse(response.json['results'][0]['groups'])
+        self.assertIsNone(response.json['results'][0]['blocked'])
+        self.assertIsNone(response.json['results'][0]['failed'])
 
         # check deleting with wrong UUID gives 404
         response = self.deleteJSON(url, 'uuid=XYZ')
