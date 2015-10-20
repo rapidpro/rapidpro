@@ -381,10 +381,12 @@ class @Modax extends @ConfirmationModal
       @ele.find('.loader').show()
 
       modal = @
+
+      modal.submitText = modal.ele.find('.primary').text()
+
       fetchPJAXContent(@url, "#active-modal .fetched-content",
         onSuccess: ->
           modal.ele.find('.loader').hide()
-          modal.submitText = modal.ele.find(".form-actions input[type='submit']").val()
           modal.ele.find(".primary").text(modal.submitText)
           modal.focusFirstInput()
           if modal.listeners and modal.listeners.onFormLoaded

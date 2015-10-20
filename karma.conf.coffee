@@ -27,10 +27,13 @@ module.exports = (config) ->
       'static/angular/sortable.js',
       'static/js/jasmine-jquery.js',
       'static/js/uuid.js',
+      'static/scripts/bootstrap/js/bootstrap.js',
+      'karma/helpers.coffee',
       'karma/flows/helpers.coffee',
 
       # the code we are testing
       'static/coffee/flows/*.coffee',
+      'static/coffee/temba.coffee',
 
       # our json fixtures
       { pattern: 'media/test_flows/*.json', watched: true, served: true, included: false },
@@ -39,10 +42,10 @@ module.exports = (config) ->
       'karma/flows/test_services.coffee',
       'karma/flows/test_directives.coffee',
       'karma/flows/test_controllers.coffee',
+      'karma/test_temba.coffee',
 
-      # paritals templates to be loaded by ng-html2js
+      # paritals templates to be loaded by ng-haml2js
       'templates/partials/*.haml'
-
     ]
 
     # list of files to exclude
@@ -53,12 +56,12 @@ module.exports = (config) ->
     # preprocess matching files before serving them to the browser
     # available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'templates/partials/*.haml': ["ng-html2js"],
+      'templates/partials/*.haml': ["ng-haml2js"],
       'karma/**/*.coffee': ['coffee'],
       'static/**/*.coffee': ['coverage']
     }
 
-    ngHtml2JsPreprocessor: {
+    ngHaml2JsPreprocessor: {
       # the name of the Angular module to create
       moduleName: "partials"
       cacheIdFromPath: (filepath) ->
