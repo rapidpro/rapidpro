@@ -329,7 +329,7 @@ class ContactCRUDL(SmartCRUDL):
 
                         if not ContactField.is_valid_label(field_label):
                             raise ValidationError(_("Field names can only contain letters, numbers, "
-                                                    "hypens and not trailling spaces"))
+                                                    "hypens"))
 
                         if field_key in Contact.RESERVED_FIELDS:
                             raise ValidationError(_("%s is a reserved name for contact fields") % value)
@@ -1019,8 +1019,7 @@ class ManageFieldsForm(forms.Form):
 
                 if label:
                     if not ContactField.is_valid_label(label):
-                        raise forms.ValidationError(_("Field names can only contain letters, numbers, "
-                                                      "hypens and not trailling spaces"))
+                        raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
 
                     if label.lower() in used_labels:
                         raise ValidationError(_("Field names must be unique"))

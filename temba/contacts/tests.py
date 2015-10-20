@@ -2025,8 +2025,6 @@ class ContactFieldTest(TembaTest):
         self.assertTrue(ContactField.is_valid_label("Age Now 2"))
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
-        self.assertFalse(ContactField.is_valid_label("Age "))  # no trailling spaces
-        self.assertFalse(ContactField.is_valid_label(" Age"))  # no trailling spaces
 
     def test_export(self):
         from xlrd import open_workbook
@@ -2160,7 +2158,7 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = '@name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None,
-                             "Field names can only contain letters, numbers, hypens and not trailling spaces")
+                             "Field names can only contain letters, numbers and hypens")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')
