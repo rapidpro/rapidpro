@@ -1585,7 +1585,8 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     ## Listing Contacts
 
-    A **GET** returns the list of contacts for your organization, in the order of last activity date.
+    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
+    only deleted contacts by passing the "?deleted=true" parameter to your call.
 
     * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of this contact (string, optional)
@@ -1595,7 +1596,6 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     * **fields** - any contact fields on this contact (JSON, optional)
     * **after** - only contacts which have changed on this date or after (string) ex: 2012-01-28T18:00:00.000
     * **before** - only contacts which have been changed on this date or before (string) ex: 2012-01-28T18:00:00.000
-
 
     Example:
 
@@ -1667,7 +1667,13 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_base_queryset(self, request):
-        return self.model.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
+        queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
+
+        # if they pass in deleted=true then only return deleted contacts
+        if request.QUERY_PARAMS.get('deleted', '').lower() == 'true':
+            return queryset.filter(is_active=False)
+        else:
+            return queryset.filter(is_active=True)
 
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)

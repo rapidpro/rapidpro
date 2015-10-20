@@ -1351,13 +1351,17 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         # search using urns field
-        response = self.fetchJSON(url, 'urns=' + urlquote_plus("tel:+250788123456"))
+        response = self.fetchJSON(url, 'deleted=false&urns=' + urlquote_plus("tel:+250788123456"))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
         response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
         self.assertResultCount(response, 2)
+
+        # search deleted contacts
+        response = self.fetchJSON(url, 'deleted=true')
+        self.assertResultCount(response, 0)
 
         # search by group
         response = self.fetchJSON(url, "group=Music+Artists")
@@ -1410,6 +1414,8 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=drdre.pk).is_active)
 
+        # fetching deleted contacts should now show drdre
+
         # check deleting with wrong UUID gives 404
         response = self.deleteJSON(url, 'uuid=XYZ')
         self.assertEqual(response.status_code, 404)
@@ -1418,6 +1424,18 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'urns=tel:123555')
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
+
+        response = self.fetchJSON(url, "deleted=true")
+        self.assertEquals(200, response.status_code)
+        self.assertEqual(len(response.json['results']), 1)
+
+        self.assertIsNone(response.json['results'][0]['name'])
+        self.assertFalse(response.json['results'][0]['urns'])
+        self.assertFalse(response.json['results'][0]['fields'])
+        self.assertFalse(response.json['results'][0]['group_uuids'])
+        self.assertFalse(response.json['results'][0]['groups'])
+        self.assertIsNone(response.json['results'][0]['blocked'])
+        self.assertIsNone(response.json['results'][0]['failed'])
 
         britney = self.create_contact("Britney", number='078222')
 
@@ -1455,6 +1473,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict())
         self.assertIsNotNone(json.loads(response.content)['uuid'])
         self.assertEquals(201, response.status_code)
+
+    test_api_contacts.active = True
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.contacts')
