@@ -463,9 +463,14 @@ class UpdateChannelForm(forms.ModelForm):
         model = Channel
         fields = 'name', 'address', 'country', 'alert_email'
         config_fields = []
-        readonly = 'address', 'country'
-        labels = {'address': _('Number')}
-        helps = {'address': _('Phone number of this service')}
+        readonly = ('address', 'country',)
+        labels = {'address': _('Address')}
+        helps = {'address': _('The number or address of this channel')}
+
+
+class UpdateNexmoForm(UpdateChannelForm):
+    class Meta(UpdateChannelForm.Meta):
+        readonly = ('country',)
 
 
 class UpdateAndroidForm(UpdateChannelForm):
@@ -475,7 +480,6 @@ class UpdateAndroidForm(UpdateChannelForm):
 
 
 class UpdateTwitterForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         fields = 'name', 'address', 'alert_email'
         readonly = ('address',)
@@ -767,6 +771,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             if channel_type == ANDROID:
                 return UpdateAndroidForm
+            elif channel_type == NEXMO:
+                return UpdateNexmoForm
             elif scheme == TWITTER_SCHEME:
                 return UpdateTwitterForm
             else:
