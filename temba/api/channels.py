@@ -404,7 +404,7 @@ class ExternalHandler(View):
         # this is a new incoming message
         elif action == 'received':
             sender = request.REQUEST.get('from', request.REQUEST.get('sender', None))
-            if sender is None:
+            if not sender:
                 return HttpResponse("Missing 'from' or 'sender' parameter, invalid call.", status=400)
 
             text = request.REQUEST.get('text', request.REQUEST.get('message', None))
