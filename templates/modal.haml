@@ -1,0 +1,26 @@
+#modal-template.modal.hide{data-dismiss:'modal'}
+
+  #onConfirm.hide
+
+  .modal-header
+    %button.pull-right.close{type:'button', aria-hidden:'true'}
+      &times;
+    %h3
+      .icon
+      %span#modal-title
+        Uh oh!
+
+  .modal-body
+    .fetched-content
+      #modal-message
+      .form
+    .loader
+      %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
+
+  .modal-footer
+    %button.btn.tertiary.pull-left.hide
+      Tertiary
+    %button.btn.btn-primary.primary
+      Ok
+    %button.btn.secondary.hide
+      Cancel
