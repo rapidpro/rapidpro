@@ -982,11 +982,10 @@ REST_FRAMEWORK = {
         'temba.api.renderers.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.XMLRenderer',
-    )
+    ),
+    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler'
 }
-
-if not TESTING:
-    REST_FRAMEWORK['EXCEPTION_HANDLER'] = 'temba.api.temba_exception_handler'
+REST_HANDLE_EXCEPTIONS = not TESTING
 
 #-----------------------------------------------------------------------------------
 # Aggregator settings

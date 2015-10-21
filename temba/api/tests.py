@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from mock import patch
@@ -266,19 +267,16 @@ class APITest(TembaTest):
         self.channel.save()
         self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
 
+    @override_settings(REST_HANDLE_EXCEPTIONS=True)
     @patch('temba.api.views.FieldEndpoint.get_queryset')
     def test_api_error_handling(self, mock_get_queryset):
         mock_get_queryset.side_effect = ValueError("DOH!")
-
-        settings.REST_FRAMEWORK['EXCEPTION_HANDLER'] = 'temba.api.temba_exception_handler'
 
         self.login(self.admin)
 
         response = self.client.get(reverse('api.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
-
-        del settings.REST_FRAMEWORK['EXCEPTION_HANDLER']
 
     def test_api_org(self):
         url = reverse('api.org')

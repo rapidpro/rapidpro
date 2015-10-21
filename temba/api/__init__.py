@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+from django.conf import settings
 from django.http import HttpResponseServerError
 from rest_framework.views import exception_handler
 
@@ -10,7 +11,7 @@ def temba_exception_handler(exc):
     """
     response = exception_handler(exc)
 
-    if response:
+    if response or not getattr(settings, 'REST_HANDLE_EXCEPTIONS', False):
         return response
     else:
         return HttpResponseServerError("Server Error. Site administrators have been notified.")
