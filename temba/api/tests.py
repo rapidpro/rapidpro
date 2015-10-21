@@ -27,7 +27,7 @@ from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, \
     SMART_ENCODING, UNICODE_ENCODING
 from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
-from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH
+from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH, YO
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
 from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVED, DELETED
@@ -2807,7 +2807,7 @@ class ExternalTest(TembaTest):
         self.assertEquals(self.channel, sms.channel)
         self.assertEquals("Hello World!", sms.text)
 
-        data = {'from':"", 'text':"Hi there"}
+        data = {'from': "", 'text': "Hi there"}
         response = self.client.post(callback_url, data)
 
         self.assertEquals(400, response.status_code)
@@ -2858,12 +2858,13 @@ class ExternalTest(TembaTest):
 class YoTest(TembaTest):
     def setUp(self):
         super(YoTest, self).setUp()
-        self.channel.channel_type = 'YO'
+        self.channel.channel_type = YO
         self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.config = json.dumps(dict(username='test', password='sesame'))
         self.channel.save()
 
     def test_receive(self):
-        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('api.yo_handler', args=['received', self.channel.uuid])
         response = self.client.get(callback_url + "?sender=252788123123&message=Hello+World")
 
         self.assertEquals(200, response.status_code)
@@ -2932,7 +2933,7 @@ class YoTest(TembaTest):
                 # message should be marked as an error
                 msg = bcast.get_messages()[0]
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(2, msg.error_count)
+                self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False

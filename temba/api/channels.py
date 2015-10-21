@@ -411,7 +411,7 @@ class ExternalHandler(View):
             if text is None:
                 return HttpResponse("Missing 'text' or 'message' parameter, invalid call.", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['from']), request.REQUEST['text'])
+            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 

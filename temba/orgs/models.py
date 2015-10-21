@@ -1218,20 +1218,26 @@ class Org(SmartModel):
                                      'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
 
         countrycode = timezone_to_country_code(self.timezone)
-
         recommended = 'android'
-        if countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'nexmo'
-        elif countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
+
+        if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
             recommended = 'twilio'
+
+        elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
+            recommended = 'nexmo'
+
         elif countrycode == 'KE':
             recommended = 'africastalking'
+
         elif countrycode == 'ID':
             recommended = 'hub9'
+
         elif countrycode == 'SO':
             recommended = 'shaqodoon'
+
         elif countrycode == 'NP':
             recommended = 'blackmyna'
+
         elif countrycode == 'UG':
             recommended = 'yo'
 

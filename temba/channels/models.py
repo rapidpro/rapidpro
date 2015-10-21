@@ -1260,7 +1260,7 @@ class Channel(SmartModel):
         log_params['password'] = 'x' * len(log_params['password'])
 
         url = YO_API_URL + '?' + urlencode(params)
-        log_url = YO_API_URL + '?' + urlencode(params)
+        log_url = YO_API_URL + '?' + urlencode(log_params)
 
         start = time.time()
         try:
@@ -1283,7 +1283,7 @@ class Channel(SmartModel):
                                 response_status=response.status_code)
 
         # if it wasn't successfully delivered, throw
-        if response_qs.get('ybs_autocreate_status', '') != 'OK':
+        if response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
             raise SendException("Received error from Yo! API",
                                 url=log_url,
                                 method='GET',
