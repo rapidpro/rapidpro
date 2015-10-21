@@ -554,6 +554,9 @@ class Contact(TembaModel, SmartModel):
 
     @classmethod
     def create_instance(cls, field_dict):
+        """
+        Creates or updates a contact from the given field values during an import
+        """
         org = field_dict['org']
         del field_dict['org']
 
@@ -615,8 +618,12 @@ class Contact(TembaModel, SmartModel):
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
-        # create our contact
+        # create new contact or fetch existing one
         contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
+
+        # if they exist and are blocked, unblock them
+        if contact.is_blocked:
+            contact.unblock()
 
         for key in field_dict.keys():
             # ignore any reserved fields
@@ -1442,11 +1449,8 @@ class ContactGroup(TembaModel, SmartModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
-            if not contact.is_active:
-                raise ValueError("Deleted contacts can't be in groups")
-
-            if add and contact.is_blocked:  # adding blocked contacts to groups implicitly unblocks them
-                contact.unblock()
+            if add and contact.is_blocked or not contact.is_active:
+                raise ValueError("Blocked or deleted contacts can't be added to groups")
 
             contact_changed = False
 

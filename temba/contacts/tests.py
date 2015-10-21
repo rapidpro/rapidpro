@@ -588,26 +588,21 @@ class ContactTest(TembaTest):
         testers = self.create_group("Testers", [])
 
         self.joe.update_groups([spammers, testers])
-
         self.assertEqual(self.joe.user_groups.all(), {spammers, testers})
 
         self.joe.update_groups([testers])
-
         self.assertEqual(self.joe.user_groups.all(), {testers})
 
         self.joe.update_groups([])
-
         self.assertEqual(self.joe.user_groups.all(), {})
 
+        # can't add blocked contacts to a group
         self.joe.block()
-
-        # can't add to group if blocked
         self.assertRaises(ValueError, self.joe.update_groups, [spammers])
 
+        # can't add deleted contacts to a group
         self.joe.unblock()
         self.joe.release()
-
-        # or deleted
         self.assertRaises(ValueError, self.joe.update_groups, [spammers])
 
     def test_contact_display(self):

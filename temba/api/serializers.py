@@ -653,17 +653,37 @@ class ContactBulkActionSerializer(WriteSerializer):
     group_uuid = serializers.CharField(required=False)
 
     def validate(self, attrs):
-        group_provided = attrs.get('group', None) or attrs.get('group_uuid', None)
-        if attrs['action'] in ('add', 'remove') and not group_provided:
+        contacts = attrs.get('contacts', [])
+        action = attrs.get('action')
+        group_provided = attrs.get('group') or attrs.get('group_uuid')
+
+        if action in ('add', 'remove') and not group_provided:
             raise ValidationError("For action %s you should also specify group or group_uuid" % attrs['action'])
-        elif attrs['action'] in ('block', 'unblock', 'expire', 'delete') and group_provided:
+        elif action in ('block', 'unblock', 'expire', 'delete') and group_provided:
             raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
+
+        if action == 'add':
+            # if adding to a group, check for blocked contacts
+            blocked_uuids = {c.uuid for c in contacts if c.is_blocked}
+            if blocked_uuids:
+                raise ValidationError("Blocked cannot be added to groups: %s" % ', '.join(blocked_uuids))
+
         return attrs
 
     def validate_contacts(self, attrs, source):
-        contacts = attrs.get(source, [])
-        if len(contacts) > MAX_BULK_ACTION_ITEMS:
+        contact_uuids = attrs.get(source, [])
+        if len(contact_uuids) > MAX_BULK_ACTION_ITEMS:
             raise ValidationError("Maximum of %d contacts allowed" % MAX_BULK_ACTION_ITEMS)
+
+        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
+
+        # check for UUIDs that didn't resolve to a valid contact
+        if len(contacts) != len(contact_uuids):
+            fetched_uuids = {c.uuid for c in contacts}
+            invalid_uuids = [u for u in contact_uuids if u not in fetched_uuids]
+            raise ValidationError("Some contacts are invalid: %s" % ', '.join(invalid_uuids))
+
+        attrs['contacts'] = contacts
         return attrs
 
     def validate_action(self, attrs, source):
@@ -694,16 +714,8 @@ class ContactBulkActionSerializer(WriteSerializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        contact_uuids = attrs['contacts']
+        contacts = attrs['contacts']
         action = attrs['action']
-
-        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
-
-        # check for UUIDs that didn't resolve to a valid contact
-        if len(contacts) != contact_uuids:
-            fetched_uuids = {c.uuid for c in contacts}
-            invalid_uuids = [u for u in contact_uuids if u not in fetched_uuids]
-            raise ValidationError("Some contact UUIDs were invalid: %s" % ','.join(invalid_uuids))
 
         if action == 'add':
             attrs['group'].update_contacts(contacts, add=True)
