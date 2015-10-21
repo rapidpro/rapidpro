@@ -588,13 +588,13 @@ class ContactTest(TembaTest):
         testers = self.create_group("Testers", [])
 
         self.joe.update_groups([spammers, testers])
-        self.assertEqual(self.joe.user_groups.all(), {spammers, testers})
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers})
 
         self.joe.update_groups([testers])
-        self.assertEqual(self.joe.user_groups.all(), {testers})
+        self.assertEqual(set(self.joe.user_groups.all()), {testers})
 
         self.joe.update_groups([])
-        self.assertEqual(self.joe.user_groups.all(), {})
+        self.assertEqual(set(self.joe.user_groups.all()), set())
 
         # can't add blocked contacts to a group
         self.joe.block()

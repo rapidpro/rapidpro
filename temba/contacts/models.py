@@ -1449,7 +1449,7 @@ class ContactGroup(TembaModel, SmartModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
-            if add and contact.is_blocked or not contact.is_active:
+            if add and (contact.is_blocked or not contact.is_active):
                 raise ValueError("Blocked or deleted contacts can't be added to groups")
 
             contact_changed = False
