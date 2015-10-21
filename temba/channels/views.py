@@ -38,7 +38,7 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       EXTERNAL: "icon-channel-external",
@@ -490,7 +490,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_m3tech')
+               'claim_blackmyna', 'claim_smscentral', 'claim_m3tech', 'claim_yo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -870,9 +870,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse('orgs.org_home')
 
-
     class CreateCaller(OrgPermsMixin, SmartFormView):
-
         class CallerForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
 
@@ -1133,12 +1131,30 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
 
+    class ClaimYo(ClaimAuthenticatedExternal):
+        class YoClaimForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The phone number or short code you are connecting with country code. "
+                                                 "ex: +250788123124"))
+            username = forms.CharField(label=_("Account Number"),
+                                       help_text=_("Your Yo! account YBS account number"))
+            password = forms.CharField(label=_("Gateway Password"),
+                                       help_text=_("Your Yo! SMS Gateway password"))
+
+        title = _("Connect Yo!")
+        template_name = 'channels/channel_claim_yo.html'
+        channel_type = YO
+        form_class = YoClaimForm
+
     class ClaimVerboice(ClaimAuthenticatedExternal):
         class VerboiceClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
+                                     help_text=_("The phone number with country code or short code you are connecting. "
+                                                 "ex: +250788123124 or 15543"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username provided by the provider to use their API"))
             password = forms.CharField(label=_("Password"),
