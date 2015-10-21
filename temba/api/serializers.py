@@ -379,33 +379,38 @@ class ContactWriteSerializer(WriteSerializer):
     groups = StringArrayField(required=False)  # deprecated, use group_uuids
 
     def validate(self, attrs):
-        urns = attrs.get('urns', [])
-        phone = attrs.get('phone', None)
-        uuid = attrs.get('uuid', None)
+        contact = attrs.get('contact')
+        urns = attrs.get('urn_objs', [])
+        groups = attrs.get('group_objs')
 
-        if urns and phone:
+        if attrs.get('urns') is not None and attrs.get('phone') is not None:
             raise ValidationError("Cannot provide both urns and phone parameters together")
 
-        if attrs.get('group_uuids', []) and attrs.get('groups', []):
+        if attrs.get('group_uuids') is not None and attrs.get('groups') is not None:
             raise ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
-        if uuid:
-            if phone:
-                urns = [(TEL_SCHEME, attrs['phone'])]
+        if urns:
+            urns_strings = ["%s:%s" % u for u in urns]
+            urn_query = Q(pk__lt=0)
+            for urn_string in urns_strings:
+                urn_query |= Q(urns__urn__iexact=urn_string)
 
-            if urns:
-                urns_strings = ["%s:%s" % u for u in urns]
-                urn_query = Q(pk__lt=0)
-                for urn_string in urns_strings:
-                    urn_query |= Q(urns__urn__iexact=urn_string)
+            urn_contacts = Contact.objects.filter(org=self.org).filter(urn_query).distinct()
+            if len(urn_contacts) > 1:
+                raise ValidationError(_("URNs %s are used by multiple contacts") % urns_strings)
 
-                other_contacts = Contact.objects.filter(org=self.org)
-                other_contacts = other_contacts.filter(urn_query).distinct()
-                other_contacts = other_contacts.exclude(uuid=uuid)
-                if other_contacts:
-                    if phone:
-                        raise ValidationError(_("phone %s is used by another contact") % phone)
-                    raise ValidationError(_("URNs %s are used by other contacts") % urns_strings)
+            contact_by_urns = urn_contacts[0] if len(urn_contacts) > 0 else None
+
+            if contact and contact_by_urns != contact:
+                raise ValidationError(_("URNs %s are used by other contacts") % urns_strings)
+        else:
+            contact_by_urns = None
+
+        contact = contact or contact_by_urns
+
+        # if contact is blocked, they can't be added to groups
+        if contact and contact.is_blocked and groups:
+            raise ValidationError("Cannot add blocked contact to groups")
 
         return attrs
 
@@ -437,6 +442,8 @@ class ContactWriteSerializer(WriteSerializer):
             if not contact:
                 raise ValidationError("Unable to find contact with UUID: %s" % uuid)
 
+            attrs['contact'] = contact
+
         return attrs
 
     def validate_phone(self, attrs, source):
@@ -450,7 +457,7 @@ class ContactWriteSerializer(WriteSerializer):
                 raise ValidationError("Invalid phone number: '%s'" % phone)
 
             phone = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
-            attrs['phone'] = phone
+            attrs['urn_objs'] = [(TEL_SCHEME, phone)]
         return attrs
 
     def validate_urns(self, attrs, source):
@@ -472,7 +479,7 @@ class ContactWriteSerializer(WriteSerializer):
 
                 urns.append((norm_scheme, norm_path))
 
-        attrs['urns'] = urns
+        attrs['urn_objs'] = urns
         return attrs
 
     def validate_fields(self, attrs, source):
@@ -497,9 +504,9 @@ class ContactWriteSerializer(WriteSerializer):
             for name in group_names:
                 if not ContactGroup.is_valid_name(name):
                     raise ValidationError(_("Invalid group name: '%s'") % name)
-                groups.append(name)
+                groups.append(ContactGroup.get_or_create(self.org, self.user, name))
 
-            attrs['groups'] = groups
+            attrs['group_objs'] = groups
         return attrs
 
     def validate_group_uuids(self, attrs, source):
@@ -513,7 +520,7 @@ class ContactWriteSerializer(WriteSerializer):
 
                 groups.append(group)
 
-            attrs['group_uuids'] = groups
+            attrs['group_objs'] = groups
         return attrs
 
     def restore_object(self, attrs, instance=None):
@@ -526,22 +533,14 @@ class ContactWriteSerializer(WriteSerializer):
         if self.org.is_anon:
             raise ValidationError("Cannot update contacts on anonymous organizations")
 
-        urns = attrs.get('urns', None)
-        phone = attrs.get('phone', None)
-        uuid = attrs.get('uuid', None)
+        contact = attrs.get('contact')
+        urns = attrs.get('urn_objs', None)
 
-        # user only specified phone, build our urns from it
-        if phone:
-            urns = [(TEL_SCHEME, phone)]
-
-        if uuid:
-            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
-            
-            if urns:
+        if contact:
+            if urns is not None:
                 contact.update_urns(urns)
-
         else:
-            contact = Contact.get_or_create(self.org, self.user, urns=urns, uuid=uuid)
+            contact = Contact.get_or_create(self.org, self.user, urns=urns)
 
         changed = []
 
@@ -560,7 +559,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our fields
         fields = attrs.get('fields', None)
-        if not fields is None:
+        if fields is not None:
             for key, value in fields.items():
                 existing_by_key = ContactField.objects.filter(org=self.org, key__iexact=key, is_active=True).first()
                 if existing_by_key:
@@ -572,16 +571,9 @@ class ContactWriteSerializer(WriteSerializer):
                 if existing_by_label:
                     contact.set_field(existing_by_label.key, value)
 
-        # update our groups by UUID or name (deprecated)
-        group_uuids = attrs.get('group_uuids', None)
-        group_names = attrs.get('groups', None)
-
-        if group_uuids is not None:
-            contact.update_groups(group_uuids)
-
-        elif group_names is not None:
-            # by name creates groups if necessary
-            groups = [ContactGroup.get_or_create(self.org, self.user, name) for name in group_names]
+        # update our contact's groups
+        groups = attrs.get('group_objs')
+        if groups is not None:
             contact.update_groups(groups)
 
         return contact

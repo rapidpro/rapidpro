@@ -1296,6 +1296,15 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
         self.assertEquals(400, response.status_code)
 
+        # can't add a contact to a group if they're blocked
+        contact.block()
+        response = self.postJSON(url, dict(phone='+250788123456', groups=["Dancers"]))
+        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "Cannot add blocked contact to groups")
+
+        contact.unblock()
+        artists.contacts.add(contact)
+
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEquals(400, response.status_code)
