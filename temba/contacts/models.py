@@ -865,28 +865,26 @@ class Contact(TembaModel, SmartModel):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
         """
-        # perform everything in an org level lock to prevent conflicts with get_or_create or update_urns
-        with self.org.lock_on(OrgLock.contacts):
-            self.is_active = False
-            self.save(update_fields=['is_active'])
+        self.is_active = False
+        self.save(update_fields=['is_active'])
 
-            # detach all contact's URNs
-            self.update_urns([])
+        # detach all contact's URNs
+        self.update_urns([])
 
-            # remove contact from all groups
-            self.update_groups([])
+        # remove contact from all groups
+        self.update_groups([])
 
-            # release all messages with this contact
-            for msg in self.msgs.all():
-                msg.release()
+        # release all messages with this contact
+        for msg in self.msgs.all():
+            msg.release()
 
-            # release all calls with this contact
-            for call in self.calls.all():
-                call.release()
+        # release all calls with this contact
+        for call in self.calls.all():
+            call.release()
 
-            # remove all flow runs and steps
-            for run in self.runs.all():
-                run.release()
+        # remove all flow runs and steps
+        for run in self.runs.all():
+            run.release()
 
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
