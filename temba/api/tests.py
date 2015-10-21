@@ -317,6 +317,10 @@ class APITest(TembaTest):
         # can't access, get 403
         self.assert403(url)
 
+        # login as non-org user
+        self.login(self.non_org_user)
+        self.assert403(url)
+
         # login as plain user
         self.login(self.user)
         self.assert403(url)

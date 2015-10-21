@@ -87,7 +87,7 @@ class ApiPermission(BasePermission):
             # otherwise lean on the logged in user
             else:
                 org = request.user.get_org()
-                group = org.get_user_org_group(request.user)
+                group = org.get_user_org_group(request.user) if org else None
 
             # if we have a group, check its permissions
             if group:
