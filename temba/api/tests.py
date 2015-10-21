@@ -270,11 +270,15 @@ class APITest(TembaTest):
     def test_api_error_handling(self, mock_get_queryset):
         mock_get_queryset.side_effect = ValueError("DOH!")
 
+        settings.REST_FRAMEWORK['EXCEPTION_HANDLER'] = 'temba.api.temba_exception_handler'
+
         self.login(self.admin)
 
         response = self.client.get(reverse('api.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
+
+        del settings.REST_FRAMEWORK['EXCEPTION_HANDLER']
 
     def test_api_org(self):
         url = reverse('api.org')
