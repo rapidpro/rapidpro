@@ -1581,7 +1581,8 @@ class APITest(TembaTest):
         # create with invalid label
         response = self.postJSON(url, dict(label='!@#', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'label', "Invalid field label")
+        self.assertResponseError(response, 'label',
+                                 "Invalid Field label: Field labels can only contain letters, numbers and hypens")
 
         # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))

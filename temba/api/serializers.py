@@ -631,7 +631,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
     def validate_label(self, attrs, source):
         label = attrs.get(source, None)
         if label and not ContactField.is_valid_label(label):
-            raise ValidationError("Invalid field label")
+            raise ValidationError("Invalid Field label: Field labels can only contain letters, numbers and hypens")
         return attrs
 
     def validate_value_type(self, attrs, source):

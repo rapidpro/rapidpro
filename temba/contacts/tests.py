@@ -1560,13 +1560,18 @@ class ContactTest(TembaTest):
         self.assertEquals(Contact.objects.all().count(), 0)
         self.assertEquals(ContactGroup.user_groups.all().count(), 0)
 
+        # existing field
+        ContactField.get_or_create(self.org, 'ride_or_drive', 'Vehicle')
+        ContactField.get_or_create(self.org, 'wears', 'Shoes')  # has trailing spaces on excel files as " Shoes  "
+
+
         # import spreadsheet with extra columns
         csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
         self.assertIsNotNone(response.context['task'])
         self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_customize', args=[response.context['task'].pk]))
-        self.assertEquals(len(response.context['form'].fields.keys()), 15)
+        self.assertEquals(len(response.context['form'].fields.keys()), 21)
 
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
         post_data = dict()
@@ -1574,18 +1579,24 @@ class ContactTest(TembaTest):
         post_data['column_professional_status_include'] = 'on'
         post_data['column_zip_code_include'] = 'on'
         post_data['column_joined_include'] = 'on'
+        post_data['column_vehicle_include'] = 'on'
+        post_data['column_shoes_include'] = 'on'
 
         post_data['column_country_label'] = 'Location'
         post_data['column_district_label'] = 'District'
         post_data['column_professional_status_label'] = 'Job and Projects'
         post_data['column_zip_code_label'] = 'Postal Code'
         post_data['column_joined_label'] = 'Joined'
+        post_data['column_vehicle_label'] = 'Vehicle'
+        post_data['column_shoes_label'] = ' Shoes  '
 
         post_data['column_country_type'] = 'T'
         post_data['column_district_type'] = 'T'
         post_data['column_professional_status_type'] = 'T'
         post_data['column_zip_code_type'] = 'N'
         post_data['column_joined_type'] = 'D'
+        post_data['column_vehicle_type'] = 'T'
+        post_data['column_shoes_type'] = 'T'
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
@@ -1596,6 +1607,9 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('location'), 'Rwanda')  # renamed from 'Country'
         self.assertEquals(contact1.get_field_display('location'), 'Rwanda')  # renamed from 'Country'
+
+        self.assertEquals(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
+        self.assertEquals(contact1.get_field_raw('wears'), 'Nike')  # existing field was looked up by label & stripped
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=DATETIME)
@@ -2153,7 +2167,8 @@ class ContactFieldTest(TembaTest):
         # check that a field name which contains disallowed characters, gives an error
         post_data['label_2'] = '@name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, spaces and hypens")
+        self.assertFormError(response, 'form', None,
+                             "Field names can only contain letters, numbers and hypens")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

@@ -61,6 +61,7 @@ class ContactField(models.Model):
 
     @classmethod
     def is_valid_label(cls, label):
+        label = label.strip()
         return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
 
     @classmethod
@@ -80,6 +81,9 @@ class ContactField(models.Model):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
+        if label:
+            label = label.strip()
+
         with org.lock_on(OrgLock.field, key):
             field = ContactField.objects.filter(org=org, key__iexact=key).first()
 
