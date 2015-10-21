@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from mock import patch
@@ -265,6 +266,17 @@ class APITest(TembaTest):
         self.channel.is_active = False
         self.channel.save()
         self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
+
+    @override_settings(REST_HANDLE_EXCEPTIONS=True)
+    @patch('temba.api.views.FieldEndpoint.get_queryset')
+    def test_api_error_handling(self, mock_get_queryset):
+        mock_get_queryset.side_effect = ValueError("DOH!")
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse('api.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
 
     def test_api_org(self):
         url = reverse('api.org')
@@ -1269,7 +1281,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
         self.assertEquals("Music Artists", artists.name)
         self.assertEqual(1, artists.contacts.count())
-        self.assertEqual(1, artists.get_member_count())  # check cached value
+        self.assertEqual(1, artists.get_member_count())  # check trigger-based count
 
         # remove contact from a group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
@@ -1289,6 +1301,15 @@ class APITest(TembaTest):
         # specifying both groups and group_uuids should return error
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
         self.assertEquals(400, response.status_code)
+
+        # can't add a contact to a group if they're blocked
+        contact.block()
+        response = self.postJSON(url, dict(phone='+250788123456', groups=["Dancers"]))
+        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "Cannot add blocked contact to groups")
+
+        contact.unblock()
+        artists.contacts.add(contact)
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
@@ -1623,9 +1644,10 @@ class APITest(TembaTest):
         contact1 = self.create_contact("Ann", '+250788000001')
         contact2 = self.create_contact("Bob", '+250788000002')
         contact3 = self.create_contact("Cat", '+250788000003')
-        contact4 = self.create_contact("Don", '+250788000004')
+        contact4 = self.create_contact("Don", '+250788000004')  # a blocked contact
+        contact5 = self.create_contact("Eve", '+250788000005')  # a deleted contact
         contact4.block()
-        contact4.release()
+        contact5.release()
         test_contact = Contact.get_test_contact(self.user)
 
         group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
@@ -1635,11 +1657,27 @@ class APITest(TembaTest):
         flow.start([], [contact1, contact2, contact3])
         runs = FlowRun.objects.filter(flow=flow)
 
-        # add contacts to the group by name
-        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact4.uuid, test_contact.uuid],
+        # try adding all contacts to a group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
+                                                     contact5.uuid, test_contact.uuid],
+                                           action='add', group="Testers"))
+
+        # error reporting that the deleted and test contacts are invalid
+        self.assertResponseError(response, 'contacts',
+                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+
+        # try adding a blocked contact to a group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
+                                           action='add', group="Testers"))
+
+        # error reporting that the deleted and test contacts are invalid
+        self.assertResponseError(response, 'non_field_errors', "Blocked cannot be added to groups: %s" % contact4.uuid)
+
+        # add valid contacts to the group by name
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid],
                                            action='add', group="Testers"))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(group.contacts.all()), {contact1, contact2})  # not 4 (it's deleted) or the test contact
+        self.assertEqual(set(group.contacts.all()), {contact1, contact2})
 
         # try to add to a non-existent group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Spammers'))
@@ -1666,23 +1704,23 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group=''))
         self.assertResponseError(response, 'non_field_errors', "For action add you should also specify group or group_uuid")
 
-        # block all contacts
-        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, test_contact.uuid],
+        # try to block all contacts
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
+                                                     contact5.uuid, test_contact.uuid],
+                                           action='block'))
+        self.assertResponseError(response, 'contacts',
+                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+
+        # block all valid contacts
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
                                            action='block'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {test_contact})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3, contact4})
 
         # unblock contact 1
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='unblock'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, test_contact})
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
-
-        # can't unblock a deleted contact
-        response = self.postJSON(url, dict(contacts=[contact4.uuid], action='unblock'))
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5, test_contact})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # expire contacts 1 and 2 from any active runs
@@ -1694,15 +1732,15 @@ class APITest(TembaTest):
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact4})
-        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
+        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
 
         # try to provide a group for a non-group action
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='block', group='Testers'))
+        response = self.postJSON(url, dict(contacts=[contact3.uuid], action='block', group='Testers'))
         self.assertResponseError(response, 'non_field_errors', "For action block you should not specify group or group_uuid")
 
         # try to invoke an invalid action
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='like'))
+        response = self.postJSON(url, dict(contacts=[contact3.uuid], action='like'))
         self.assertResponseError(response, 'action', "Invalid action name: like")
 
     def test_api_messages(self):
