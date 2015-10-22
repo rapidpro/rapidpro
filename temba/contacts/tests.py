@@ -7,15 +7,13 @@ import pytz
 from datetime import datetime, date
 from django.utils import timezone
 
-from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME, \
-    URN_SCHEME_CHOICES
-from temba.contacts.models import ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
@@ -270,6 +268,9 @@ class ContactGroupTest(TembaTest):
         # blocking a contact removes them from all user groups
         self.joe.block()
 
+        with self.assertRaises(ValueError):
+            group.update_contacts([self.joe], True)
+
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEquals(group.count, 1)
         self.assertEquals(set(group.contacts.all()), {self.frank, test_contact})
@@ -382,7 +383,7 @@ class ContactGroupTest(TembaTest):
 
 class ContactTest(TembaTest):
     def setUp(self):
-        TembaTest.setUp(self)
+        super(ContactTest, self).setUp()
 
         self.user1 = self.create_user("nash")
         self.manager1 = self.create_user("mike")
@@ -584,6 +585,28 @@ class ContactTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         self.assertRaises(ValueError, test_contact.block)
         self.assertRaises(ValueError, test_contact.fail)
+
+    def test_update_groups(self):
+        spammers = self.create_group("Spammers", [])
+        testers = self.create_group("Testers", [])
+
+        self.joe.update_groups([spammers, testers])
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers})
+
+        self.joe.update_groups([testers])
+        self.assertEqual(set(self.joe.user_groups.all()), {testers})
+
+        self.joe.update_groups([])
+        self.assertEqual(set(self.joe.user_groups.all()), set())
+
+        # can't add blocked contacts to a group
+        self.joe.block()
+        self.assertRaises(ValueError, self.joe.update_groups, [spammers])
+
+        # can't add deleted contacts to a group
+        self.joe.unblock()
+        self.joe.release()
+        self.assertRaises(ValueError, self.joe.update_groups, [spammers])
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
@@ -1557,13 +1580,18 @@ class ContactTest(TembaTest):
         self.assertEquals(Contact.objects.all().count(), 0)
         self.assertEquals(ContactGroup.user_groups.all().count(), 0)
 
+        # existing field
+        ContactField.get_or_create(self.org, 'ride_or_drive', 'Vehicle')
+        ContactField.get_or_create(self.org, 'wears', 'Shoes')  # has trailing spaces on excel files as " Shoes  "
+
+
         # import spreadsheet with extra columns
         csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
         self.assertIsNotNone(response.context['task'])
         self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_customize', args=[response.context['task'].pk]))
-        self.assertEquals(len(response.context['form'].fields.keys()), 15)
+        self.assertEquals(len(response.context['form'].fields.keys()), 21)
 
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
         post_data = dict()
@@ -1571,18 +1599,24 @@ class ContactTest(TembaTest):
         post_data['column_professional_status_include'] = 'on'
         post_data['column_zip_code_include'] = 'on'
         post_data['column_joined_include'] = 'on'
+        post_data['column_vehicle_include'] = 'on'
+        post_data['column_shoes_include'] = 'on'
 
         post_data['column_country_label'] = 'Location'
         post_data['column_district_label'] = 'District'
         post_data['column_professional_status_label'] = 'Job and Projects'
         post_data['column_zip_code_label'] = 'Postal Code'
         post_data['column_joined_label'] = 'Joined'
+        post_data['column_vehicle_label'] = 'Vehicle'
+        post_data['column_shoes_label'] = ' Shoes  '
 
         post_data['column_country_type'] = 'T'
         post_data['column_district_type'] = 'T'
         post_data['column_professional_status_type'] = 'T'
         post_data['column_zip_code_type'] = 'N'
         post_data['column_joined_type'] = 'D'
+        post_data['column_vehicle_type'] = 'T'
+        post_data['column_shoes_type'] = 'T'
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
@@ -1593,6 +1627,9 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('location'), 'Rwanda')  # renamed from 'Country'
         self.assertEquals(contact1.get_field_display('location'), 'Rwanda')  # renamed from 'Country'
+
+        self.assertEquals(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
+        self.assertEquals(contact1.get_field_raw('wears'), 'Nike')  # existing field was looked up by label & stripped
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=DATETIME)
@@ -2150,7 +2187,8 @@ class ContactFieldTest(TembaTest):
         # check that a field name which contains disallowed characters, gives an error
         post_data['label_2'] = '@name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, spaces and hypens")
+        self.assertFormError(response, 'form', None,
+                             "Field names can only contain letters, numbers and hypens")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

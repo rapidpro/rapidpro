@@ -2,13 +2,11 @@ from __future__ import unicode_literals
 
 import datetime
 import json
-from uuid import uuid4
 import os
 import phonenumbers
 import regex
 import time
 
-from django.conf import settings
 from django.core.files import File
 from django.db import models
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -61,6 +59,7 @@ class ContactField(models.Model):
 
     @classmethod
     def is_valid_label(cls, label):
+        label = label.strip()
         return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
 
     @classmethod
@@ -80,6 +79,9 @@ class ContactField(models.Model):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
+        if label:
+            label = label.strip()
+
         with org.lock_on(OrgLock.field, key):
             field = ContactField.objects.filter(org=org, key__iexact=key).first()
 
@@ -512,9 +514,6 @@ class Contact(TembaModel, SmartModel):
 
             analytics.track(user.username, 'temba.contact_created', params)
 
-        # make sure the contact is not blocked
-        contact.unblock()
-
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
         return contact
@@ -559,6 +558,9 @@ class Contact(TembaModel, SmartModel):
 
     @classmethod
     def create_instance(cls, field_dict):
+        """
+        Creates or updates a contact from the given field values during an import
+        """
         org = field_dict['org']
         del field_dict['org']
 
@@ -583,6 +585,9 @@ class Contact(TembaModel, SmartModel):
                 urn_scheme = TEL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
+
+                value = regex.sub(r'[ \-()]+', '', value, regex.V0)
+
                 # at this point the number might be a decimal, something that looks like '18094911278.0' due to
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
@@ -620,8 +625,12 @@ class Contact(TembaModel, SmartModel):
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
-        # create our contact
+        # create new contact or fetch existing one
         contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
+
+        # if they exist and are blocked, unblock them
+        if contact.is_blocked:
+            contact.unblock()
 
         for key in field_dict.keys():
             # ignore any reserved fields
@@ -837,8 +846,7 @@ class Contact(TembaModel, SmartModel):
         self.is_blocked = True
         self.save(update_fields=['is_blocked'])
 
-        for group in self.user_groups.all():
-            group.update_contacts([self], False)
+        self.update_groups([])
 
     def unblock(self):
         """
@@ -858,8 +866,7 @@ class Contact(TembaModel, SmartModel):
         self.save(update_fields=['is_failed'])
 
         if permanently:
-            for group in self.user_groups.all():
-                group.update_contacts([self], False)
+            self.update_groups([])
 
     def unfail(self):
         """
@@ -872,29 +879,26 @@ class Contact(TembaModel, SmartModel):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
         """
-        # perform everything in an org level lock to prevent conflicts with get_or_create or update_urns
-        with self.org.lock_on(OrgLock.contacts):
-            self.is_active = False
-            self.save(update_fields=['is_active'])
+        self.is_active = False
+        self.save(update_fields=['is_active'])
 
-            # detach all contact's URNs
-            self.urns.update(contact=None)
+        # detach all contact's URNs
+        self.update_urns([])
 
-            # remove contact from all groups
-            for group in self.user_groups.all():
-                group.update_contacts((self,), False)
+        # remove contact from all groups
+        self.update_groups([])
 
-            # release all messages with this contact
-            for msg in self.msgs.all():
-                msg.release()
+        # release all messages with this contact
+        for msg in self.msgs.all():
+            msg.release()
 
-            # release all calls with this contact
-            for call in self.calls.all():
-                call.release()
+        # release all calls with this contact
+        for call in self.calls.all():
+            call.release()
 
-            # remove all flow runs and steps
-            for run in self.runs.all():
-                run.release()
+        # remove all flow runs and steps
+        for run in self.runs.all():
+            run.release()
 
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
@@ -1452,10 +1456,16 @@ class ContactGroup(TembaModel, SmartModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
+            if add and (contact.is_blocked or not contact.is_active):
+                raise ValueError("Blocked or deleted contacts can't be added to groups")
+
             contact_changed = False
 
             # if we are adding the contact to the group, and this contact is not in this group
             if add:
+                if contact.is_blocked:
+                    raise ValueError("Can't add or remove groups on blocked contact")
+
                 if not group_contacts.filter(id=contact.id):
                     self.contacts.add(contact)
                     contact_changed = True

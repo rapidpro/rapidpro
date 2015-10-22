@@ -20,7 +20,7 @@ django-redis==3.1.5
 redis==2.10.1
 BeautifulSoup==3.2.1
 xlutils==1.7.1
-phonenumbers==7.0.2
+phonenumbers==7.1.0
 django-countries==3.0.1
 djangorestframework==2.4.5
 django-ttag==2.4

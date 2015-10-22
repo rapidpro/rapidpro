@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from mock import patch
@@ -27,7 +28,7 @@ from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, \
     SMART_ENCODING, UNICODE_ENCODING
 from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
-from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH
+from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH, YO
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
 from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVED, DELETED
@@ -266,6 +267,17 @@ class APITest(TembaTest):
         self.channel.save()
         self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
 
+    @override_settings(REST_HANDLE_EXCEPTIONS=True)
+    @patch('temba.api.views.FieldEndpoint.get_queryset')
+    def test_api_error_handling(self, mock_get_queryset):
+        mock_get_queryset.side_effect = ValueError("DOH!")
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse('api.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
+
     def test_api_org(self):
         url = reverse('api.org')
 
@@ -315,6 +327,10 @@ class APITest(TembaTest):
         url = reverse('api.flows')
 
         # can't access, get 403
+        self.assert403(url)
+
+        # login as non-org user
+        self.login(self.non_org_user)
         self.assert403(url)
 
         # login as plain user
@@ -1265,7 +1281,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
         self.assertEquals("Music Artists", artists.name)
         self.assertEqual(1, artists.contacts.count())
-        self.assertEqual(1, artists.get_member_count())  # check cached value
+        self.assertEqual(1, artists.get_member_count())  # check trigger-based count
 
         # remove contact from a group by name
         response = self.postJSON(url, dict(phone='+250788123456', groups=[]))
@@ -1285,6 +1301,15 @@ class APITest(TembaTest):
         # specifying both groups and group_uuids should return error
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
         self.assertEquals(400, response.status_code)
+
+        # can't add a contact to a group if they're blocked
+        contact.block()
+        response = self.postJSON(url, dict(phone='+250788123456', groups=["Dancers"]))
+        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "Cannot add blocked contact to groups")
+
+        contact.unblock()
+        artists.contacts.add(contact)
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
@@ -1351,13 +1376,17 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
         # search using urns field
-        response = self.fetchJSON(url, 'urns=' + urlquote_plus("tel:+250788123456"))
+        response = self.fetchJSON(url, 'deleted=false&urns=' + urlquote_plus("tel:+250788123456"))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
         response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
         self.assertResultCount(response, 2)
+
+        # search deleted contacts
+        response = self.fetchJSON(url, 'deleted=true')
+        self.assertResultCount(response, 0)
 
         # search by group
         response = self.fetchJSON(url, "group=Music+Artists")
@@ -1409,6 +1438,20 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=' + drdre.uuid)
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=drdre.pk).is_active)
+
+        # fetching deleted contacts should now show drdre
+        response = self.fetchJSON(url, "deleted=true")
+        self.assertEquals(200, response.status_code)
+        self.assertEqual(len(response.json['results']), 1)
+
+        self.assertEquals(response.json['results'][0]['uuid'], drdre.uuid)
+        self.assertIsNone(response.json['results'][0]['name'])
+        self.assertFalse(response.json['results'][0]['urns'])
+        self.assertFalse(response.json['results'][0]['fields'])
+        self.assertFalse(response.json['results'][0]['group_uuids'])
+        self.assertFalse(response.json['results'][0]['groups'])
+        self.assertIsNone(response.json['results'][0]['blocked'])
+        self.assertIsNone(response.json['results'][0]['failed'])
 
         # check deleting with wrong UUID gives 404
         response = self.deleteJSON(url, 'uuid=XYZ')
@@ -1559,7 +1602,8 @@ class APITest(TembaTest):
         # create with invalid label
         response = self.postJSON(url, dict(label='!@#', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'label', "Invalid field label")
+        self.assertResponseError(response, 'label',
+                                 "Invalid Field label: Field labels can only contain letters, numbers and hypens")
 
         # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))
@@ -1600,9 +1644,10 @@ class APITest(TembaTest):
         contact1 = self.create_contact("Ann", '+250788000001')
         contact2 = self.create_contact("Bob", '+250788000002')
         contact3 = self.create_contact("Cat", '+250788000003')
-        contact4 = self.create_contact("Don", '+250788000004')
+        contact4 = self.create_contact("Don", '+250788000004')  # a blocked contact
+        contact5 = self.create_contact("Eve", '+250788000005')  # a deleted contact
         contact4.block()
-        contact4.release()
+        contact5.release()
         test_contact = Contact.get_test_contact(self.user)
 
         group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
@@ -1612,11 +1657,27 @@ class APITest(TembaTest):
         flow.start([], [contact1, contact2, contact3])
         runs = FlowRun.objects.filter(flow=flow)
 
-        # add contacts to the group by name
-        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact4.uuid, test_contact.uuid],
+        # try adding all contacts to a group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
+                                                     contact5.uuid, test_contact.uuid],
+                                           action='add', group="Testers"))
+
+        # error reporting that the deleted and test contacts are invalid
+        self.assertResponseError(response, 'contacts',
+                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+
+        # try adding a blocked contact to a group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
+                                           action='add', group="Testers"))
+
+        # error reporting that the deleted and test contacts are invalid
+        self.assertResponseError(response, 'non_field_errors', "Blocked cannot be added to groups: %s" % contact4.uuid)
+
+        # add valid contacts to the group by name
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid],
                                            action='add', group="Testers"))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(group.contacts.all()), {contact1, contact2})  # not 4 (it's deleted) or the test contact
+        self.assertEqual(set(group.contacts.all()), {contact1, contact2})
 
         # try to add to a non-existent group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Spammers'))
@@ -1643,23 +1704,23 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group=''))
         self.assertResponseError(response, 'non_field_errors', "For action add you should also specify group or group_uuid")
 
-        # block all contacts
-        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, test_contact.uuid],
+        # try to block all contacts
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
+                                                     contact5.uuid, test_contact.uuid],
+                                           action='block'))
+        self.assertResponseError(response, 'contacts',
+                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+
+        # block all valid contacts
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
                                            action='block'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {test_contact})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3, contact4})
 
         # unblock contact 1
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='unblock'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, test_contact})
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
-
-        # can't unblock a deleted contact
-        response = self.postJSON(url, dict(contacts=[contact4.uuid], action='unblock'))
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5, test_contact})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # expire contacts 1 and 2 from any active runs
@@ -1671,15 +1732,15 @@ class APITest(TembaTest):
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact4})
-        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
+        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
 
         # try to provide a group for a non-group action
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='block', group='Testers'))
+        response = self.postJSON(url, dict(contacts=[contact3.uuid], action='block', group='Testers'))
         self.assertResponseError(response, 'non_field_errors', "For action block you should not specify group or group_uuid")
 
         # try to invoke an invalid action
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='like'))
+        response = self.postJSON(url, dict(contacts=[contact3.uuid], action='like'))
         self.assertResponseError(response, 'action', "Invalid action name: like")
 
     def test_api_messages(self):
@@ -2789,10 +2850,12 @@ class ExternalTest(TembaTest):
         self.assertEquals(self.channel, sms.channel)
         self.assertEquals("Hello World!", sms.text)
 
-        data = {'from':"", 'text':"Hi there"}
+        data = {'from': "", 'text': "Hi there"}
         response = self.client.post(callback_url, data)
 
         self.assertEquals(400, response.status_code)
+
+   test_receive.active = True
 
    def test_send(self):
         from temba.channels.models import EXTERNAL
@@ -2824,6 +2887,90 @@ class ExternalTest(TembaTest):
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(400, "Error")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+        finally:
+            settings.SEND_MESSAGES = False
+
+
+class YoTest(TembaTest):
+    def setUp(self):
+        super(YoTest, self).setUp()
+        self.channel.channel_type = YO
+        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.config = json.dumps(dict(username='test', password='sesame'))
+        self.channel.save()
+
+    def test_receive(self):
+        callback_url = reverse('api.yo_handler', args=['received', self.channel.uuid])
+        response = self.client.get(callback_url + "?sender=252788123123&message=Hello+World")
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.objects.get()
+        self.assertEquals("+252788123123", sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("Hello World", sms.text)
+
+        # fails if missing sender
+        response = self.client.get(callback_url + "?sender=252788123123")
+        self.assertEquals(400, response.status_code)
+
+        # fails if missing message
+        response = self.client.get(callback_url + "?message=Hello+World")
+        self.assertEquals(400, response.status_code)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+252788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "ybs_autocreate_status=OK")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(SENT, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(400, "Kaboom")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
+                                                      "YBS+AutoCreate+Subsystem%3A+Access+denied" +
+                                                      "+due+to+wrong+authorization+code")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))

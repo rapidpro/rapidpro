@@ -1,7 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
-from django.contrib.auth.models import Group
 import requests
 import urllib
 
@@ -40,7 +39,6 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEM
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.orgs.views import OrgPermsMixin
-from temba.orgs.models import Org
 from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
 from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
@@ -87,7 +85,7 @@ class ApiPermission(BasePermission):
             # otherwise lean on the logged in user
             else:
                 org = request.user.get_org()
-                group = org.get_user_org_group(request.user)
+                group = org.get_user_org_group(request.user) if org else None
 
             # if we have a group, check its permissions
             if group:
@@ -1575,6 +1573,8 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
             }
+            "blocked": false,
+            "failed": false
         }
 
     ## Updating Contacts
@@ -1585,7 +1585,8 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     ## Listing Contacts
 
-    A **GET** returns the list of contacts for your organization, in the order of last activity date.
+    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
+    only deleted contacts by passing the "?deleted=true" parameter to your call.
 
     * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of this contact (string, optional)
@@ -1595,7 +1596,6 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     * **fields** - any contact fields on this contact (JSON, optional)
     * **after** - only contacts which have changed on this date or after (string) ex: 2012-01-28T18:00:00.000
     * **before** - only contacts which have been changed on this date or before (string) ex: 2012-01-28T18:00:00.000
-
 
     Example:
 
@@ -1667,7 +1667,13 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_base_queryset(self, request):
-        return self.model.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
+        queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
+
+        # if they pass in deleted=true then only return deleted contacts
+        if str_to_bool(request.QUERY_PARAMS.get('deleted', '')):
+            return queryset.filter(is_active=False)
+        else:
+            return queryset.filter(is_active=True)
 
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)
@@ -2841,7 +2847,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
 
     * **metadata** - contains the name and uuid (optional) for the flow
     * **version** - the flow spec version for the definition being submitted
-    * **base_language** - the default language code to us for the flow
+    * **base_language** - the default language code to use for the flow
     * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
     * **action_sets** - the actions in the flow
     * **rule_sets** - the rules in the flow

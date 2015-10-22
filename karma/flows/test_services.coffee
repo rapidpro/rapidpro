@@ -54,6 +54,10 @@ describe 'Services:', ->
       $timeout = _$timeout_
     )
 
+    it 'should slugify properly', ->
+      expect(flowService.slugify('This Response Slugged')).toBe('this_response_slugged')
+      expect(flowService.slugify('This RESPONSE$@slugGed')).toBe('this_response_slugged')
+      expect(flowService.slugify('this    response %slugged')).toBe('this_response_slugged')
 
     it 'should set flow definition after fetching', ->
       flowService.fetch(flows.rules_first.id).then (response) ->

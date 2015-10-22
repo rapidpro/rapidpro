@@ -996,7 +996,21 @@ class ChannelTest(TembaTest):
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
                 # make sure it is actually connected
-                Channel.objects.get(channel_type='NX', org=self.org)
+                channel = Channel.objects.get(channel_type='NX', org=self.org)
+
+                # test the update page for nexmo
+                update_url = reverse('channels.channel_update', args=[channel.pk])
+                response = self.client.get(update_url)
+
+                # try changing our address
+                updated = response.context['form'].initial
+                updated['address'] = 'MTN'
+                updated['alert_email'] = 'foo@bar.com'
+
+                response = self.client.post(update_url, updated)
+                channel = Channel.objects.get(pk=channel.id)
+
+                self.assertEquals('MTN', channel.address)
 
     def test_claim_plivo(self):
         self.login(self.admin)

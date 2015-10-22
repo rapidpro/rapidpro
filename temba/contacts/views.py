@@ -324,11 +324,12 @@ class ContactCRUDL(SmartCRUDL):
                 re_col_name_field = regex.compile(r'column_\w+_label', regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
-                        field_label = value
+                        field_label = value.strip()
                         field_key = slugify_with(value)
 
                         if not ContactField.is_valid_label(field_label):
-                            raise ValidationError(_("Field names can only contain letters, numbers, spaces and hypens"))
+                            raise ValidationError(_("Field names can only contain letters, numbers, "
+                                                    "hypens"))
 
                         if field_key in Contact.RESERVED_FIELDS:
                             raise ValidationError(_("%s is a reserved name for contact fields") % value)
@@ -394,8 +395,16 @@ class ContactCRUDL(SmartCRUDL):
             for column in self.column_controls:
                 if cleaned_data[column['include_field']]:
                     label = cleaned_data[column['label_field']]
+                    label = label.strip()
                     value_type = cleaned_data[column['type_field']]
+                    org = self.derive_org()
+
                     field_key = slugify_with(label)
+
+                    existing_field = ContactField.get_by_label(org, label)
+                    if existing_field:
+                        field_key = existing_field.key
+
                     extra_fields.append(dict(key=field_key, header=column['header'], label=label, type=value_type))
 
             # update the extra_fields in the task's params
@@ -1010,7 +1019,7 @@ class ManageFieldsForm(forms.Form):
 
                 if label:
                     if not ContactField.is_valid_label(label):
-                        raise forms.ValidationError(_("Field names can only contain letters, numbers, spaces and hypens"))
+                        raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
 
                     if label.lower() in used_labels:
                         raise ValidationError(_("Field names must be unique"))
