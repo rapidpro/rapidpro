@@ -17,7 +17,8 @@ from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
-from temba.channels.models import Channel, TWILIO, CALL
+
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
@@ -37,7 +38,7 @@ from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, ActionLog
-from .flow_migrations import migrate_to_version_6, migrate_to_version_5, migrate_to_version_7
+from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 
 
 class RuleTest(TembaTest):
@@ -552,7 +553,7 @@ class RuleTest(TembaTest):
         json_dict = self.flow.as_json()
 
         self.maxDiff = None
-        self.definition['version'] = 7
+        self.definition['version'] = CURRENT_EXPORT_VERSION
         self.definition['metadata']['name'] = self.flow.name
         self.definition['metadata']['saved_on'] = datetime_to_str(self.flow.saved_on)
         self.definition['metadata']['revision'] = 1
@@ -963,9 +964,9 @@ class RuleTest(TembaTest):
                 sms.text = "sometime on %d/%d/%d" % (now.day, now.month, now.year)
                 self.assertDateTest(True, now, test)
 
-                # date before/equal/after tests using old deprecated time_delta filter
+                # date before/equal/after tests using date arithmetic
 
-                test = DateBeforeTest('@date.today|time_delta:"-1"')
+                test = DateBeforeTest('@(date.today - 1)')
                 self.assertDateTest(False, None, test)
 
                 sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
@@ -974,36 +975,13 @@ class RuleTest(TembaTest):
                 sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
                 self.assertDateTest(False, None, test)
 
-                test = DateEqualTest('@date.today|time_delta:"-3"')
+                test = DateEqualTest('@(date.today - 3)')
                 self.assertDateTest(False, None, test)
 
                 sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
                 self.assertDateTest(True, three_days_ago, test)
 
-                test = DateAfterTest("@date.today|time_delta:'3'")
-                self.assertDateTest(False, None, test)
-
-                sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
-                self.assertDateTest(True, five_days_next, test)
-
-                # date before/equal/after tests using new date arithmetic
-
-                test = DateBeforeTest('=(date.today - 1)')
-                self.assertDateTest(False, None, test)
-
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
-                self.assertDateTest(True, three_days_ago, test)
-
-                sms.text = "in the next three days %d/%d/%d" % (three_days_next.day, three_days_next.month, three_days_next.year)
-                self.assertDateTest(False, None, test)
-
-                test = DateEqualTest('=(date.today - 3)')
-                self.assertDateTest(False, None, test)
-
-                sms.text = "this is for three days ago %d/%d/%d" % (three_days_ago.day, three_days_ago.month, three_days_ago.year)
-                self.assertDateTest(True, three_days_ago, test)
-
-                test = DateAfterTest('=(date.today + 3)')
+                test = DateAfterTest('@(date.today + 3)')
                 self.assertDateTest(False, None, test)
 
                 sms.text = "this is for three days ago %d/%d/%d" % (five_days_next.day, five_days_next.month, five_days_next.year)
@@ -2600,19 +2578,23 @@ class FlowsTest(FlowFileTest):
         response = self.client.get('%s?flow=%d' % (reverse('flows.flow_completion'), flow.pk))
         response = json.loads(response.content)
 
-        def assertInResponse(response, key):
+        def assertInResponse(response, data_key, key):
             found = False
-            for item in response:
+            for item in response[data_key]:
                 if key == item['name']:
                     found = True
             self.assertTrue(found, 'Key %s not found in %s' % (key, response))
 
-        assertInResponse(response, 'contact')
-        assertInResponse(response, 'contact.first_name')
-        assertInResponse(response, 'flow.color')
-        assertInResponse(response, 'flow.color.category')
-        assertInResponse(response, 'flow.color.text')
-        assertInResponse(response, 'flow.color.time')
+        assertInResponse(response, 'message_completions', 'contact')
+        assertInResponse(response, 'message_completions', 'contact.first_name')
+        assertInResponse(response, 'message_completions', 'flow.color')
+        assertInResponse(response, 'message_completions', 'flow.color.category')
+        assertInResponse(response, 'message_completions', 'flow.color.text')
+        assertInResponse(response, 'message_completions', 'flow.color.time')
+
+        assertInResponse(response, 'function_completions', 'SUM')
+        assertInResponse(response, 'function_completions', 'ABS')
+        assertInResponse(response, 'function_completions', 'YEAR')
 
     def test_expiration(self):
         flow = self.get_flow('favorites')
@@ -3178,8 +3160,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
 
         definition = json.loads(response.content)
-        self.assertEquals(7, definition.get('version', 0))
-        self.assertEquals(1, len(definition.get('flows', [])))
+        self.assertEqual(CURRENT_EXPORT_VERSION, definition.get('version', 0))
+        self.assertEqual(1, len(definition.get('flows', [])))
 
         # try importing it and see that we have an updated flow
         Flow.import_flows(definition, self.org, self.admin)
@@ -3589,10 +3571,10 @@ class FlowMigrationTest(FlowFileTest):
         flow.ensure_current_version()
         flow_json = flow.as_json()
 
-        self.assertTrue(1, len(flow_json['action_sets']))
-        self.assertEquals(0, len(flow_json['rule_sets']))
-        self.assertEquals(7, flow_json['version'])
-        self.assertEquals(2, flow_json['metadata']['revision'])
+        self.assertEqual(len(flow_json['action_sets']), 1)
+        self.assertEqual(len(flow_json['rule_sets']), 0)
+        self.assertEqual(flow_json['version'], CURRENT_EXPORT_VERSION)
+        self.assertEqual(flow_json['metadata']['revision'], 2)
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json('call-me-maybe')['definition']
@@ -3616,8 +3598,23 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals(5, len(flow_json['action_sets']))
         self.assertEquals(1, len(flow_json['rule_sets']))
 
-    def test_migrate_to_7(self):
+    def test_migrate_to_8(self):
+        # file uses old style expressions
+        flow_json = self.get_flow_json('old-expressions')
 
+        # migrate to the version right before us first
+        flow_json = migrate_to_version_7(flow_json)
+        flow_json = migrate_to_version_8(flow_json)
+
+        self.assertEqual(flow_json['action_sets'][0]['actions'][0]['msg']['eng'], "Hi @(UPPER(contact.name)). Today is @(date.now)")
+        self.assertEqual(flow_json['action_sets'][1]['actions'][0]['groups'][0], "@flow.response_1.category")
+        self.assertEqual(flow_json['action_sets'][1]['actions'][1]['msg']['eng'], "Was @(PROPER(LOWER(contact.name))).")
+        self.assertEqual(flow_json['action_sets'][1]['actions'][1]['variables'][0]['id'], "@flow.response_1.category")
+        self.assertEqual(flow_json['rule_sets'][0]['webhook'], "http://example.com/query.php?contact=@(UPPER(contact.name))")
+        self.assertEqual(flow_json['rule_sets'][0]['operand'], "@(step.value)")
+        self.assertEqual(flow_json['rule_sets'][1]['operand'], "@(step.value + 3)")
+
+    def test_migrate_to_7(self):
         flow_json = self.get_flow_json('call-me-maybe')
 
         # migrate to the version right before us first

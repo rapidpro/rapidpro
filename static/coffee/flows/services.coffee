@@ -589,7 +589,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
               # update our auto completion options
               $http.get('/flow/completion/?flow=' + Flow.flowId).success (data) ->
-                Flow.completions = data
+                Flow.completions = data.message_completions
+                Flow.function_completions = data.function_completions
+                Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
               Versions.updateVersions(Flow.flowId)
 
@@ -912,7 +914,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         # update our auto completion options
         $http.get('/flow/completion/?flow=' + flowId).success (data) ->
-          Flow.completions = data
+          Flow.completions = data.message_completions
+          Flow.function_completions = data.function_completions
+          Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
         $http.get('/contactfield/json/').success (fields) ->
           Flow.contactFields = fields

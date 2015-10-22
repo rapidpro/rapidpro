@@ -32,7 +32,10 @@ describe 'Services:', ->
         [],  {'content-type':'application/json'}
       )
 
-      $http.whenGET('/flow/completion/?flow=' + config.id).respond([])
+      $http.whenGET('/flow/completion/?flow=' + config.id).respond(
+        {message_completions: [{name:'contact.name', display:'Contact Name'}], function_completions: [{name:'SUM', display:'Returns the sum of all arguments'}]}
+      ,  {'content-type':'application/json'}
+      )
   )
 
   describe 'Flow', ->
@@ -62,6 +65,10 @@ describe 'Services:', ->
       , (error) ->
         throwError('Failed to fetch mock flow data:' + error)
       $http.flush()
+
+      expect(flowService.completions).toEqual([{name:'contact.name', display:'Contact Name'}])
+      expect(flowService.function_completions).toEqual([{name:'SUM', display:'Returns the sum of all arguments'}])
+      expect(flowService.variables_and_functions).toEqual([flowService.completions..., flowService.function_completions...])
 
     it 'should determine the flow entry', ->
       flowService.fetch(flows.favorites.id).then ->

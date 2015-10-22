@@ -26,9 +26,8 @@
 
       $('#id_unit').on('change', toggleDeliveryHour);
 
-      window.message_completions = {{completions|safe}};
       $("#id_message").attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
-      initAtMessageText("#id_message");
+      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_message'));
 
       // Add the message length counter and initialize it
       $("#id_message").parent().append('<div id="counter">0</div>');

@@ -27,12 +27,14 @@ module.exports = (config) ->
       'static/angular/sortable.js',
       'static/js/jasmine-jquery.js',
       'static/js/uuid.js',
+      'static/js/excellent.js',
       'static/scripts/bootstrap/js/bootstrap.js',
       'karma/helpers.coffee',
       'karma/flows/helpers.coffee',
 
       # the code we are testing
       'static/coffee/flows/*.coffee',
+      'static/coffee/completions.coffee',
       'static/coffee/temba.coffee',
 
       # our json fixtures
@@ -42,6 +44,7 @@ module.exports = (config) ->
       'karma/flows/test_services.coffee',
       'karma/flows/test_directives.coffee',
       'karma/flows/test_controllers.coffee',
+      'karma/test_completions.coffee',
       'karma/test_temba.coffee',
 
       # paritals templates to be loaded by ng-haml2js

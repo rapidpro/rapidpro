@@ -32,6 +32,7 @@ from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger, KEYWORD_TRIGGER
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
+from temba.utils.expressions import get_function_listing
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
@@ -710,7 +711,9 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.text' % key, display='%s Text' % rule_set.label))
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
-            return build_json_response(contact_variables + date_variables + flow_variables)
+            function_completions = get_function_listing()
+            return build_json_response(dict(message_completions=contact_variables + date_variables + flow_variables,
+                                            function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
         def derive_title(self):
