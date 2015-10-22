@@ -1143,13 +1143,15 @@ TWITTER_SCHEME = 'twitter'
 TWILIO_SCHEME = 'twilio'
 FACEBOOK_SCHEME = 'facebook'
 EMAIL_SCHEME = 'mailto'
+EXTERNAL_SCHEME = 'ext'
 
 LOWEST_PRIORITY = 1
 STANDARD_PRIORITY = 50
 HIGHEST_PRIORITY = 99
 
 URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
-                      (TWITTER_SCHEME, _("Twitter handle")))  # for now just phone and twitter
+                      (TWITTER_SCHEME, _("Twitter handle")),
+                      (EXTERNAL_SCHEME, _("External")))
 
 URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
                          TWITTER_SCHEME: 90}

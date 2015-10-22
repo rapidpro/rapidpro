@@ -25,7 +25,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
 from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -999,20 +999,25 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
+            scheme = forms.ChoiceField(choices=URN_SCHEME_CHOICES, label=_("URN Type"),
+                                       help_text=_("The URN scheme handled by this channel"))
 
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
                                      help_text=_("The phone number or short code you are connecting"))
+
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
+
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will call when sending messages, with variable substitutions"))
+
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
-
 
         class EXSendClaimForm(forms.Form):
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will POST to when sending messages, with variable substitutions"))
+
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
 
@@ -1020,7 +1025,6 @@ class ChannelCRUDL(SmartCRUDL):
         success_url = "id@channels.channel_configuration"
 
         def get_form_class(self):
-
             if self.request.REQUEST.get('role', None) == 'S':
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
@@ -1053,12 +1057,9 @@ class ChannelCRUDL(SmartCRUDL):
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
-            # TODO add to form
-            scheme = 'tel'
-
             config = {SEND_URL: data['url'], SEND_METHOD: data['method']}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, EXTERNAL,
-                                                              config, role, scheme, parent=channel)
+                                                              config, role, data['scheme'], parent=channel)
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()

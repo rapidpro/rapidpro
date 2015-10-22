@@ -1538,6 +1538,7 @@ class ChannelAlertTest(TembaTest):
         post_data['country'] = 'RW'
         post_data['url'] = url
         post_data['method'] = 'GET'
+        post_data['scheme'] = 'tel'
 
         response = self.client.post(reverse('channels.channel_claim_external'), post_data)
 
