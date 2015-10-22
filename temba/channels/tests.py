@@ -49,7 +49,7 @@ class ChannelTest(TembaTest):
         self.twitter_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
                                               address="billy_bob", role="SR", scheme='twitter')
 
-        self.released_channel = Channel.create(self.org, self.user, 'RW', 'NX', name="Released Channel", address=None,
+        self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
 
     def assertHasCommand(self, cmd_name, response):
@@ -534,6 +534,7 @@ class ChannelTest(TembaTest):
         # change channel type to Twitter
         channel.channel_type = TWITTER
         channel.address = 'billy_bob'
+        channel.scheme = 'twitter'
         channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
         channel.save()
 

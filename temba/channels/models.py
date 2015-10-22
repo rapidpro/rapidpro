@@ -96,7 +96,7 @@ CHANNEL_SETTINGS = {
     VUMI: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
     HUB9: dict(scheme='tel', max_length=1600),
-    TWITTER: dict(scheme='twitter', max_length=10000),
+    TWITTER: dict(scheme='twitter', max_length=10000, country_bound=False),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     CLICKATELL: dict(scheme='tel', max_length=420),
     PLIVO: dict(scheme='tel', max_length=1600),
@@ -197,12 +197,16 @@ class Channel(SmartModel):
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=SEND+RECEIVE, scheme=None, **kwargs):
         type_settings = CHANNEL_SETTINGS[channel_type]
-        if 'scheme' in type_settings:
-            if scheme:
-                if type_settings['scheme'] != scheme:
-                    raise ValueError("Channel type %s cannot support scheme %s" % (channel_type, scheme))
-            else:
-                scheme = type_settings['scheme']
+        fixed_scheme = type_settings.get('scheme')
+
+        if scheme:
+            if fixed_scheme and fixed_scheme != scheme:
+                raise ValueError("Channel type %s cannot support scheme %s" % (channel_type, scheme))
+        else:
+            scheme = fixed_scheme
+
+        if country and not type_settings.get('country_bound', True):
+            raise ValueError("Channel type %s cannot be bound to a country")
 
         if config is None:
             config = {}

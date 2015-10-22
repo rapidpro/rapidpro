@@ -714,7 +714,7 @@ class Contact(TembaModel, SmartModel):
 
     @classmethod
     def validate_import_header(cls, header):
-        possible_urn_fields = [Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        possible_urn_fields = [Contact.PHONE, 'twitter', 'external']
         header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
@@ -727,7 +727,6 @@ class Contact(TembaModel, SmartModel):
         if not header_urn_fields:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
                                      'should be included.' % possible_urn_fields_text))
-        return None
     
     @classmethod
     def import_csv(cls, task, log=None):
