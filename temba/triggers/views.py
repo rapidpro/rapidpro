@@ -66,8 +66,9 @@ class DefaultTriggerForm(BaseTriggerForm):
     Default trigger form which only allows selection of a non-message based flow
     """
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org()).exclude(flow_type=Flow.MESSAGE)
+        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(DefaultTriggerForm, self).__init__(user, flows,  *args, **kwargs)
+
 
 class GroupBasedTriggerForm(BaseTriggerForm):
 
@@ -101,6 +102,7 @@ class GroupBasedTriggerForm(BaseTriggerForm):
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('flow', 'groups')
+
 
 class KeywordTriggerForm(GroupBasedTriggerForm):
     """
@@ -165,7 +167,8 @@ class RegisterTriggerForm(BaseTriggerForm):
                                help_text=_("The message to send in response after they join the group (optional)"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org())
+        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+
         super(RegisterTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['flow'].required = False

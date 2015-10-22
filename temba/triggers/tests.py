@@ -7,6 +7,7 @@ import time
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from temba.orgs.models import Language
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.schedules.models import Schedule
@@ -14,6 +15,7 @@ from temba.msgs.models import Msg, INCOMING, Call, CALL_IN_MISSED
 from temba.channels.models import SEND, CALL, ANSWER, RECEIVE
 from temba.tests import TembaTest
 from .models import Trigger, MISSED_CALL_TRIGGER, CATCH_ALL_TRIGGER, INBOUND_CALL_TRIGGER
+from temba.triggers.views import DefaultTriggerForm, RegisterTriggerForm
 
 
 class TriggerTest(TembaTest):
@@ -397,6 +399,46 @@ class TriggerTest(TembaTest):
         # deleting our contact group should leave our triggers and flows since the group can be recreated
         self.client.post(reverse("contacts.contactgroup_delete", args=[group.pk]))
         self.assertTrue(Trigger.objects.get(pk=trigger.pk).is_active)
+
+        # try creating a join group on an org with a language
+        language = Language.objects.create(name='Klingon', iso_code='kli', org=self.org,
+                                           created_by=self.admin, modified_by=self.admin)
+        self.org.primary_language = language
+        self.org.save()
+
+        # now create another group trigger
+        group = self.create_group(name='Lang Group', contacts=[])
+        post_data = dict(keyword='join_lang', action_join_group=group.pk, response='Thanks for joining')
+        response = self.client.post(reverse("triggers.trigger_register"), data=post_data)
+        self.assertEquals(200, response.status_code)
+
+        # confirm our objects
+        flow = Flow.objects.filter(flow_type=Flow.FLOW).order_by('-pk').first()
+        trigger = Trigger.objects.get(keyword='join_lang', flow=flow)
+        self.assertEquals('Join Lang Group', trigger.flow.name)
+
+    def test_trigger_form(self):
+
+        for form in (DefaultTriggerForm, RegisterTriggerForm):
+
+            trigger_form = form(self.admin)
+            pick = self.get_flow('pick_a_number')
+            favorites = self.get_flow('favorites')
+            self.assertEquals(2, trigger_form.fields['flow'].choices.queryset.all().count())
+
+            # now change to a single message type
+            pick.flow_type = Flow.MESSAGE
+            pick.save()
+
+            # our flow should no longer be an option
+            trigger_form = form(self.admin)
+            choices = trigger_form.fields['flow'].choices
+            self.assertEquals(1, choices.queryset.all().count())
+            self.assertIsNone(choices.queryset.filter(pk=pick.pk).first())
+
+            pick.delete()
+            favorites.delete()
+
 
     def test_unicode_trigger(self):
         self.login(self.admin)
