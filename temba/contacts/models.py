@@ -585,6 +585,9 @@ class Contact(TembaModel, SmartModel):
                 urn_scheme = TEL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
+
+                value = regex.sub(r'[ \-()]+', '', value, regex.V0)
+
                 # at this point the number might be a decimal, something that looks like '18094911278.0' due to
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
