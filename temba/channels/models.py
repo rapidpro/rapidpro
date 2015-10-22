@@ -109,7 +109,7 @@ RELAYER_TYPE_CONFIG = {
     TWILIO: dict(scheme='tel', max_length=1600),
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
     ZENVIA: dict(scheme='tel', max_length=150),
-    EXTERNAL: dict(scheme='tel', max_length=160),
+    EXTERNAL: dict(max_length=160),
     NEXMO: dict(scheme='tel', max_length=1600, max_tps=4),
     INFOBIP: dict(scheme='tel', max_length=1600),
     VERBOICE: dict(scheme='tel', max_length=1600),
@@ -142,49 +142,83 @@ TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
 class Channel(SmartModel):
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
+
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
                             help_text=_("Descriptive label for this channel"))
+
     address = models.CharField(verbose_name=_("Address"), max_length=16, blank=True, null=True,
                                help_text=_("Address with which this channel communicates"))
+
     country = CountryField(verbose_name=_("Country"), null=True, blank=True,
                            help_text=_("Country which this channel is for"))
+
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="channels", blank=True, null=True,
                             help_text=_("Organization using this channel"))
+
     gcm_id = models.CharField(verbose_name=_("GCM ID"), max_length=255, blank=True, null=True,
                               help_text=_("The registration id for using Google Cloud Messaging"))
+
     uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=True, null=True, db_index=True,
                             help_text=_("UUID for this channel"))
+
     claim_code = models.CharField(verbose_name=_("Claim Code"), max_length=16, blank=True, null=True, unique=True,
                                   help_text=_("The token the user will us to claim this channel"))
+
     secret = models.CharField(verbose_name=_("Secret"), max_length=64, blank=True, null=True, unique=True,
                               help_text=_("The secret token this channel should use when signing requests"))
+
     last_seen = models.DateTimeField(verbose_name=_("Last Seen"), auto_now_add=True,
                                      help_text=_("The last time this channel contacted the server"))
+
     device = models.CharField(verbose_name=_("Device"), max_length=255, null=True, blank=True,
                               help_text=_("The type of Android device this channel is running on"))
+
     os = models.CharField(verbose_name=_("OS"), max_length=255, null=True, blank=True,
                           help_text=_("What Android OS version this channel is running on"))
+
     alert_email = models.EmailField(verbose_name=_("Alert Email"), null=True, blank=True,
                                     help_text=_("We will send email alerts to this address if experiencing issues sending"))
+
     config = models.TextField(verbose_name=_("Config"), null=True,
                               help_text=_("Any channel specific configuration, used for the various aggregators"))
+
+    scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
+                              help_text=_("The URN schemes this channel can handle"))
+
     role = models.CharField(verbose_name="Channel Role", max_length=4, default=SEND+RECEIVE,
                             help_text=_("The roles this channel can fulfill"))
+
     parent = models.ForeignKey('self', blank=True, null=True,
                                help_text=_("The channel this channel is working on behalf of"))
 
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
 
-    def get_scheme(self):
-        return RELAYER_TYPE_CONFIG[self.channel_type]['scheme']
-
     @classmethod
-    def types_for_scheme(cls, scheme):
-        """
-        Gets the channel types which support the given scheme
-        """
-        return [t for t, config in RELAYER_TYPE_CONFIG.iteritems() if config['scheme'] == scheme]
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=SEND+RECEIVE, scheme=None, **kwargs):
+        type_settings = RELAYER_TYPE_CONFIG[channel_type]
+        if 'scheme' in type_settings:
+            if scheme:
+                if type_settings['scheme'] != scheme:
+                    raise ValueError("Channel type %s cannot support scheme %s" % (channel_type, scheme))
+            else:
+                scheme = type_settings['scheme']
+
+        if config is None:
+            config = {}
+
+        create_args = dict(org=org, created_by=user, modified_by=user,
+                           country=country,
+                           channel_type=channel_type,
+                           name=name, address=address,
+                           config=json.dumps(config),
+                           role=role, scheme=scheme)
+        create_args.update(kwargs)
+
+        if 'uuid' not in create_args:
+            create_args['uuid'] = str(uuid4())
+
+        return Channel.objects.create(**create_args)
 
     @classmethod
     def derive_country_from_phone(cls, phone, country=None):
@@ -194,7 +228,7 @@ class Channel(SmartModel):
         try:
             parsed = phonenumbers.parse(phone, country)
             return phonenumbers.region_code_for_number(parsed)
-        except:
+        except Exception:
             return None
 
     @classmethod
@@ -202,22 +236,19 @@ class Channel(SmartModel):
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-        except:
+        except Exception:
             # this is a shortcode, just use it plain
             phone = phone_number
 
         config = dict(username=username, password=password)
-
-        return Channel.objects.create(channel_type=channel_type, country=country, name=phone,
-                                      address=phone_number, uuid=uuid4(), config=json.dumps(config),
-                                      org=org, created_by=user, modified_by=user)
+        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config)
 
     @classmethod
-    def add_config_external_channel(cls, org, user, country, phone_number, channel_type, config, role=SEND+RECEIVE, parent=None):
-        return Channel.objects.create(channel_type=channel_type, country=country, name=phone_number,
-                                      address=phone_number, uuid=str(uuid4()), config=json.dumps(config),
-                                      role=role, parent=parent,
-                                      org=org, created_by=user, modified_by=user)
+    def add_config_external_channel(cls, org, user, country, phone_number, channel_type, config, role=SEND+RECEIVE,
+                                    scheme='tel', parent=None):
+        return Channel.create(org, user, country, channel_type, name=phone_number, address=phone_number, config=config,
+                              role=role, scheme=scheme, parent=parent)
+
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
         plivo_uuid = unicode(uuid4())
@@ -234,10 +265,12 @@ class Channel(SmartModel):
 
         if plivo_response_status in [201, 200, 202]:
             plivo_app_id = plivo_response['app_id']
+        else:
+            plivo_app_id = None
 
-        plivo_config = json.dumps({PLIVO_AUTH_ID: auth_id,
-                                   PLIVO_AUTH_TOKEN: auth_token,
-                                   PLIVO_APP_ID: plivo_app_id})
+        plivo_config = {PLIVO_AUTH_ID: auth_id,
+                        PLIVO_AUTH_TOKEN: auth_token,
+                        PLIVO_APP_ID: plivo_app_id}
 
         plivo_number = phone_number.strip('+ ').replace(' ', '')
 
@@ -261,10 +294,8 @@ class Channel(SmartModel):
         phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
                                            phonenumbers.PhoneNumberFormat.NATIONAL)
 
-        return Channel.objects.create(channel_type=PLIVO, country=country, name=phone,
-                                      address=phone_number, uuid=plivo_uuid, config=plivo_config,
-                                      org=org, created_by=user, modified_by=user)
-
+        return Channel.create(org, user, country, PLIVO, name=phone, address=phone_number,
+                              config=plivo_config, uuid=plivo_uuid)
 
     @classmethod
     def add_nexmo_channel(cls, org, user, country, phone_number):
@@ -317,9 +348,7 @@ class Channel(SmartModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.objects.create(channel_type=NEXMO, country=country,
-                                      name=phone, address=phone_number, uuid=nexmo_phone_number,
-                                      org=org, created_by=user, modified_by=user)
+        return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, uuid=nexmo_phone_number)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country):
@@ -353,61 +382,51 @@ class Channel(SmartModel):
         phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
                                            phonenumbers.PhoneNumberFormat.NATIONAL)
 
-        return Channel.objects.create(channel_type=TWILIO, country=country,
-                                      name=phone, address=phone_number, uuid=twilio_phone.sid,
-                                      org=org, created_by=user, modified_by=user, role=SEND+RECEIVE+CALL+ANSWER)
+        return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number,
+                              uuid=twilio_phone.sid, role=SEND+RECEIVE+CALL+ANSWER)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, phone, username, api_key, is_shared=False):
         config = dict(username=username, api_key=api_key, is_shared=is_shared)
 
-        return Channel.objects.create(channel_type=AFRICAS_TALKING, country='KE',
-                                      name="Africa's Talking: %s" % phone, address=phone, uuid=str(uuid4()),
-                                      config=json.dumps(config),
-                                      org=org, created_by=user, modified_by=user)
+        return Channel.create(org, user, 'KE', AFRICAS_TALKING,
+                              name="Africa's Talking: %s" % phone, address=phone, config=config)
 
     @classmethod
     def add_zenvia_channel(cls, org, user, phone, account, code):
         config = dict(account=account, code=code)
 
-        return Channel.objects.create(channel_type=ZENVIA, country='BR',
-                                      name="Zenvia: %s" % phone, address=phone, uuid=str(uuid4()),
-                                      config=json.dumps(config),
-                                      org=org, created_by=user, modified_by=user)
+        return Channel.create(org, user, 'BR', ZENVIA, name="Zenvia: %s" % phone, address=phone, config=config)
 
     @classmethod
     def add_send_channel(cls, user, channel):
         # nexmo ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
-        return Channel.objects.create(name="Nexmo Sender", channel_type=NEXMO, address=channel.address,
-                                      uuid=nexmo_phone_number, country=channel.country,
-                                      created_by=user, modified_by=user,
-                                      role=SEND, org=user.get_org(), parent=channel)
+
+        return Channel.create(user.get_org(), user, channel.country, NEXMO, name="Nexmo Sender",
+                              address=channel.address, role=SEND, parent=channel, uuid=nexmo_phone_number)
 
     @classmethod
     def add_call_channel(cls, org, user, channel):
-        return Channel.objects.create(channel_type=TWILIO, country=channel.country,
-                                      name="Twilio Caller", address=channel.address, org=org, created_by=user,
-                                      modified_by=user, role=CALL, parent=channel)
+        return Channel.create(org, user, channel.country, TWILIO, name="Twilio Caller",
+                              address=channel.address, role=CALL, parent=channel)
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
-        config = json.dumps(dict(handle_id=long(handle_id),
-                                 oauth_token=oauth_token,
-                                 oauth_token_secret=oauth_token_secret))
+        config = dict(handle_id=long(handle_id),
+                      oauth_token=oauth_token,
+                      oauth_token_secret=oauth_token_secret)
 
         with org.lock_on(OrgLock.channels):
             channel = Channel.objects.filter(org=org, channel_type=TWITTER, address=screen_name, is_active=True).first()
             if channel:
-                channel.config = config
+                channel.config = json.dumps(config)
                 channel.modified_by = user
                 channel.save()
             else:
-                channel = Channel.objects.create(channel_type=TWITTER, address=screen_name,
-                                                 org=org, role=SEND+RECEIVE, uuid=str(uuid4()),
-                                                 config=config, name="@%s" % screen_name,
-                                                 created_by=user, modified_by=user)
+                channel = Channel.create(org, user, None, TWITTER, name="@%s" % screen_name, address=screen_name,
+                                         config=config)
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
@@ -435,14 +454,8 @@ class Channel(SmartModel):
                 claim_code = random_string(9)
             anon = User.objects.get(pk=-1)
 
-            return Channel.objects.create(gcm_id=gcm_id,
-                                          uuid=uuid,
-                                          country=country,
-                                          device=device,
-                                          claim_code=claim_code,
-                                          secret=secret,
-                                          created_by=anon,
-                                          modified_by=anon)
+            return Channel.create(None, anon, country, ANDROID, None, None, uuid=uuid,
+                                  gcm_id=gcm_id,  device=device, claim_code=claim_code, secret=secret)
 
     def has_sending_log(self):
         return self.channel_type != 'A'
@@ -533,7 +546,7 @@ class Channel(SmartModel):
         if not self.address:
             return ''
 
-        if self.address and self.get_scheme() == TEL_SCHEME and self.country:
+        if self.address and self.scheme == TEL_SCHEME and self.country:
             # assume that a number not starting with + is a short code and return as is
             if self.address[0] != '+':
                 return self.address
@@ -558,7 +571,7 @@ class Channel(SmartModel):
         default = address if address else self.__unicode__()
 
         # for backwards compatibility
-        if self.get_scheme() == TEL_SCHEME:
+        if self.scheme == TEL_SCHEME:
             tel = address
             tel_e164 = self.get_address_display(e164=True)
         else:

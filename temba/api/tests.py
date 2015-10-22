@@ -1087,7 +1087,7 @@ class APITest(TembaTest):
             mock.return_value = ""
 
             # create a Twitter channel and delete it
-            twitter = Channel.objects.create(org=self.org, channel_type='TT', created_by=self.user, modified_by=self.user)
+            twitter = Channel.create(self.org, self.user, None, 'TT')
             response = self.deleteJSON(url, "id=%d" % twitter.pk)
             self.assertEquals(204, response.status_code)
 
@@ -2300,8 +2300,7 @@ class APITest(TembaTest):
         self.assertEqual(broadcast5.get_message_count(), 1)
         self.assertEqual(broadcast5.get_messages().first().contact_urn.urn, 'tel:+250780000003')
 
-        twitter = Channel.objects.create(org=self.org, name="Twitter", address="nyaruka", channel_type='TT',
-                                         created_by=self.admin, modified_by=self.admin)
+        twitter = Channel.create(self.org, self.admin, None, 'TT', "Twitter", "nyaruka")
 
         # creating with a forced channel
         response = self.postJSON(url, dict(urns=['tel:0780000003', 'twitter:bobby'], text="Hello 6", channel=twitter.pk))
@@ -4902,10 +4901,7 @@ class MageHandlerTest(TembaTest):
 
         flow = self.create_flow()
 
-        channel = Channel.objects.create(name="Twitter Channel", org=self.org,
-                                         channel_type="TT", address="billy_bob", role="SR",
-                                         secret="78901",
-                                         created_by=self.user, modified_by=self.user)
+        channel = Channel.create(self.org, self.user, None, 'TT', "Twitter Channel", address="billy_bob")
 
         Trigger.objects.create(created_by=self.user, modified_by=self.user, org=self.org, trigger_type=FOLLOW_TRIGGER,
                                flow=flow, channel=channel)

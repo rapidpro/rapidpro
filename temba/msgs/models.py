@@ -1199,7 +1199,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(role)
+        resolved_schemes = {channel.scheme} if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:

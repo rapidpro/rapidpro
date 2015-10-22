@@ -43,20 +43,14 @@ class ChannelTest(TembaTest):
 
         self.channel.delete()
 
-        self.tel_channel = Channel.objects.create(name="Test Channel", org=self.org, country='RW',
-                                                  channel_type="A", address="+250785551212", role="SR",
-                                                  secret="12345", gcm_id="123",
-                                                  created_by=self.user, modified_by=self.user)
+        self.tel_channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                                          role="SR", secret="12345", gcm_id="123")
 
-        self.twitter_channel = Channel.objects.create(name="Twitter Channel", org=self.org,
-                                                      channel_type="TT", address="billy_bob", role="SR",
-                                                      secret="78901",
-                                                      created_by=self.user, modified_by=self.user)
+        self.twitter_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
+                                              address="billy_bob", role="SR", scheme='twitter')
 
-        self.released_channel = Channel.objects.create(name="Released Channel",
-                                                       channel_type="NX",
-                                                       created_by=self.user, modified_by=self.user,
-                                                       secret=None, gcm_id="000")
+        self.released_channel = Channel.create(self.org, self.user, 'RW', 'NX', name="Released Channel", address=None,
+                                               secret=None, gcm_id="000")
 
     def assertHasCommand(self, cmd_name, response):
         self.assertEquals(200, response.status_code)
@@ -101,19 +95,10 @@ class ChannelTest(TembaTest):
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
-    def test_schemes(self):
-        self.assertEquals(self.tel_channel.get_scheme(), TEL_SCHEME)
-        self.assertEquals(self.twitter_channel.get_scheme(), TWITTER_SCHEME)
-        self.assertEquals(self.released_channel.get_scheme(), TEL_SCHEME)
-
-        self.assertIn('A', Channel.types_for_scheme(TEL_SCHEME))
-        self.assertIn('TT', Channel.types_for_scheme(TWITTER_SCHEME))
-
     def test_get_channel_type_name(self):
         self.assertEquals(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEquals(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
         self.assertEquals(self.released_channel.get_channel_type_name(), "Nexmo Channel")
-
 
     def test_channel_selection(self):
         # make our default tel channel MTN

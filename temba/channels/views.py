@@ -763,7 +763,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_form_class(self):
             channel_type = self.object.channel_type
-            scheme = self.object.get_scheme()
+            scheme = self.object.scheme
 
             if channel_type == ANDROID:
                 return UpdateAndroidForm
@@ -787,7 +787,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # update our delegate channels with the new number
-            if not obj.parent and obj.get_scheme() == TEL_SCHEME:
+            if not obj.parent and obj.scheme == TEL_SCHEME:
                 e164_phone_number = None
                 try:
                     parsed = phonenumbers.parse(obj.address, None)
@@ -1053,9 +1053,12 @@ class ChannelCRUDL(SmartCRUDL):
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
+            # TODO add to form
+            scheme = 'tel'
+
             config = {SEND_URL: data['url'], SEND_METHOD: data['method']}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, EXTERNAL,
-                                                              config, role=role, parent=channel)
+                                                              config, role, scheme, parent=channel)
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()

@@ -768,7 +768,7 @@ class BroadcastTest(TembaTest):
         self.lucy = self.create_contact(name="Lucy M", twitter="lucy")
 
         # a Twitter channel
-        self.twitter = Channel.objects.create(org=self.org, channel_type='TT', created_by=self.user, modified_by=self.user)
+        self.twitter = Channel.create(self.org, self.user, None, 'TT')
 
     def test_broadcast_model(self):
 
@@ -860,12 +860,9 @@ class BroadcastTest(TembaTest):
         Broadcast.objects.all()[0].delete()
 
         # test when we have many channels
-        Channel.objects.create(org=self.org, channel_type="A", secret="123456", gcm_id="1234",
-                               created_by=self.user, modified_by=self.user)
-        Channel.objects.create(org=self.org, channel_type="A", secret="12345", gcm_id="123",
-                               created_by=self.user, modified_by=self.user)
-        Channel.objects.create(org=self.org, channel_type="TT",
-                               created_by=self.user, modified_by=self.user)
+        Channel.create(self.org, self.user, None, "A", secret="123456", gcm_id="1234")
+        Channel.create(self.org, self.user, None, "A", secret="12345", gcm_id="123")
+        Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])

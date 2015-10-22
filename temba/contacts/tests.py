@@ -848,7 +848,7 @@ class ContactTest(TembaTest):
         self.assertEquals(0, len(response['results']))
 
         # create twitter channel
-        Channel.objects.create(org=self.org, channel_type='TT', created_by=self.user, modified_by=self.user)
+        Channel.create(self.org, self.user, None, 'TT')
 
         # search for again for Joe by twitter
         response = json.loads(self.client.get("%s?search=blow80" % reverse("contacts.contact_omnibox")).content)

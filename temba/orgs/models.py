@@ -315,10 +315,9 @@ class Org(SmartModel):
         """
         Gets a channel for this org which supports the given scheme and role
         """
-        from temba.channels.models import Channel, SEND, CALL
+        from temba.channels.models import SEND, CALL
 
-        types = Channel.types_for_scheme(scheme)
-        channel = self.channels.filter(is_active=True, channel_type__in=types,
+        channel = self.channels.filter(is_active=True, scheme=scheme,
                                        role__contains=role).order_by('-pk').first()
 
         if channel and (role == SEND or role == CALL):
@@ -405,7 +404,7 @@ class Org(SmartModel):
 
         schemes = set()
         for channel in self.channels.filter(is_active=True, role__contains=role):
-            schemes.add(channel.get_scheme())
+            schemes.add(channel.scheme)
 
         setattr(self, cache_attr, schemes)
         return schemes
