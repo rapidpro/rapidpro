@@ -68,35 +68,14 @@ DEFAULT_ENCODING = 'D'  # we just pass the text down to the endpoint
 SMART_ENCODING = 'S'    # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
 UNICODE_ENCODING = 'U'  # we send everything as unicode
 
-ENCODING_CHOICES = \
-    ((DEFAULT_ENCODING, _("Default Encoding")),
-    (SMART_ENCODING, _("Smart Encoding")),
-    (UNICODE_ENCODING, _("Unicode Encoding")))
+ENCODING_CHOICES = ((DEFAULT_ENCODING, _("Default Encoding")),
+                    (SMART_ENCODING, _("Smart Encoding")),
+                    (UNICODE_ENCODING, _("Unicode Encoding")))
 
 SEND = 'S'
 RECEIVE = 'R'
 CALL = 'C'
 ANSWER = 'A'
-
-RELAYER_TYPE_CHOICES = ((ANDROID, "Android"),
-                        (TWILIO, "Twilio"),
-                        (AFRICAS_TALKING, "Africa's Talking"),
-                        (ZENVIA, "Zenvia"),
-                        (NEXMO, "Nexmo"),
-                        (INFOBIP, "Infobip"),
-                        (VERBOICE, "Verboice"),
-                        (HUB9, "Hub9"),
-                        (VUMI, "Vumi"),
-                        (KANNEL, "Kannel"),
-                        (EXTERNAL, "External"),
-                        (TWITTER, "Twitter"),
-                        (CLICKATELL, "Clickatell"),
-                        (PLIVO, "Plivo"),
-                        (SHAQODOON, "Shaqodoon"),
-                        (HIGH_CONNECTION, "High Connection"),
-                        (BLACKMYNA, "Blackmyna"),
-                        (SMSCENTRAL, "SMSCentral"),
-                        (M3TECH, "M3 Tech"))
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -104,7 +83,8 @@ SEND_QUEUE_DEPTH = 500
 # how big each batch of outgoing messages can be
 SEND_BATCH_SIZE = 100
 
-RELAYER_TYPE_CONFIG = {
+# various hard coded settings for the channel types
+CHANNEL_SETTINGS = {
     ANDROID: dict(scheme='tel', max_length=-1),
     TWILIO: dict(scheme='tel', max_length=1600),
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
@@ -140,7 +120,27 @@ TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
 
 
 class Channel(SmartModel):
-    channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=RELAYER_TYPE_CHOICES,
+    TYPE_CHOICES = ((ANDROID, "Android"),
+                    (TWILIO, "Twilio"),
+                    (AFRICAS_TALKING, "Africa's Talking"),
+                    (ZENVIA, "Zenvia"),
+                    (NEXMO, "Nexmo"),
+                    (INFOBIP, "Infobip"),
+                    (VERBOICE, "Verboice"),
+                    (HUB9, "Hub9"),
+                    (VUMI, "Vumi"),
+                    (KANNEL, "Kannel"),
+                    (EXTERNAL, "External"),
+                    (TWITTER, "Twitter"),
+                    (CLICKATELL, "Clickatell"),
+                    (PLIVO, "Plivo"),
+                    (SHAQODOON, "Shaqodoon"),
+                    (HIGH_CONNECTION, "High Connection"),
+                    (BLACKMYNA, "Blackmyna"),
+                    (SMSCENTRAL, "SMSCentral"),
+                    (M3TECH, "M3 Tech"))
+
+    channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
 
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
@@ -196,7 +196,7 @@ class Channel(SmartModel):
 
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=SEND+RECEIVE, scheme=None, **kwargs):
-        type_settings = RELAYER_TYPE_CONFIG[channel_type]
+        type_settings = CHANNEL_SETTINGS[channel_type]
         if 'scheme' in type_settings:
             if scheme:
                 if type_settings['scheme'] != scheme:
@@ -1798,7 +1798,7 @@ class Channel(SmartModel):
 
         # populate redis in our config
         channel.config['r'] = r
-        type_config = RELAYER_TYPE_CONFIG[channel.channel_type]
+        type_settings = CHANNEL_SETTINGS[channel.channel_type]
 
         send_funcs = {AFRICAS_TALKING: Channel.send_africas_talking_message,
                       EXTERNAL: Channel.send_external_message,
@@ -1822,7 +1822,7 @@ class Channel(SmartModel):
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
         # and a low throttle rate, we will have lots of threads waiting, but since throttling is currently
         # a rare event, this is an ok stopgap.
-        max_tps = type_config.get('max_tps', 0)
+        max_tps = type_settings.get('max_tps', 0)
         if max_tps:
             tps_set_name = 'channel_tps_%d' % channel.id
             lock_name = '%s_lock' % tps_set_name
@@ -1848,7 +1848,7 @@ class Channel(SmartModel):
                 time.sleep(1 / float(max_tps))
 
         sent_count = 0
-        parts = Msg.get_text_parts(msg.text, type_config['max_length'])
+        parts = Msg.get_text_parts(msg.text, type_settings['max_length'])
         for part in parts:
             sent_count += 1
             try:
