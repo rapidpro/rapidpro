@@ -762,7 +762,10 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('flows.flow_broadcast') and not self.get_object().is_archived:
+            if self.get_object().flow_type != 'S' \
+                    and self.has_org_perm('flows.flow_broadcast') \
+                    and not self.get_object().is_archived:
+
                 links.append(dict(title=_("Start Flow"),
                                   style='btn-primary',
                                   js_class='broadcast-rulesflow',
