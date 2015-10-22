@@ -9,6 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('api', '0004_webhookresult_request'),
+        ('orgs', '0009_org_surveyors')
     ]
 
     def populate_token_roles(apps, schema_editor):
