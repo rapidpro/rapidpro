@@ -146,6 +146,7 @@ PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('LT', _('Lithuania')),
                              ('MX', _('Mexico')),
                              ('NO', _('Norway')),
+                             ('PK', _('Pakistan')),
                              ('PL', _('Poland')),
                              ('ZA', _('South Africa')),
                              ('SE', _('Sweden')),
@@ -153,7 +154,7 @@ PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('GB', _('United Kingdom')),
                              ('US', _('United States')))
 
-PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 48, 27, 46, 41, 44]
+PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 27, 46, 41, 44]
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
