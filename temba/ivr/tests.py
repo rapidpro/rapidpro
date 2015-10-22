@@ -30,6 +30,36 @@ class IVRTests(FlowFileTest):
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_twilio_failed_auth(self):
+
+        def create(self, to=None, from_=None, url=None, status_callback=None):
+            from twilio import TwilioRestException
+            raise TwilioRestException(403, 'http://twilio.com', code=20003)
+        MockTwilioClient.MockCalls.create = create
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file('call-me-maybe')
+        flow = Flow.objects.filter(name='Call me maybe').first()
+
+        user_settings = self.admin.get_settings()
+        user_settings.tel = '+18005551212'
+        user_settings.save()
+
+        test_contact = Contact.get_test_contact(self.admin)
+        Contact.set_simulation(True)
+        flow.start([], [test_contact])
+
+        log = ActionLog.objects.all().order_by('-pk').first()
+        self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
+                                    'Check your token and try again.')
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_recording(self):
 
         # create our ivr setup
