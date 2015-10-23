@@ -98,7 +98,7 @@ CHANNEL_SETTINGS = {
     VUMI: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
     HUB9: dict(scheme='tel', max_length=1600),
-    TWITTER: dict(scheme='twitter', max_length=10000, country_bound=False),
+    TWITTER: dict(scheme='twitter', max_length=10000),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     CLICKATELL: dict(scheme='tel', max_length=420),
     PLIVO: dict(scheme='tel', max_length=1600),
@@ -189,7 +189,7 @@ class Channel(SmartModel):
                               help_text=_("Any channel specific configuration, used for the various aggregators"))
 
     scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
-                              help_text=_("The URN schemes this channel can handle"))
+                              help_text=_("The URN scheme this channel can handle"))
 
     role = models.CharField(verbose_name="Channel Role", max_length=4, default=SEND+RECEIVE,
                             help_text=_("The roles this channel can fulfill"))

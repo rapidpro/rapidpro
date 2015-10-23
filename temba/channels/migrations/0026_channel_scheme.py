@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='channel',
             name='scheme',
-            field=models.CharField(default='tel', help_text='The URN schemes this channel can handle', max_length=8, verbose_name='URN Scheme'),
+            field=models.CharField(default='tel', help_text='The URN scheme this channel can handle', max_length=8, verbose_name='URN Scheme'),
             preserve_default=True,
         ),
         migrations.RunPython(set_twitter_channel_schemes)
