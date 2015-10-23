@@ -938,9 +938,9 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     # we need to parse our dates
     if rule.test.type in ['date_before', 'date_after', 'date_equal']
-      # relative dates formatted as: @date.today|time_delta:'n'
+      # relative dates formatted as: @(date.today + n)
       # lets rip out the delta parameter and use it as our test instead
-      rule.test._base = rule.test.test.slice(24, -1)
+      rule.test._base = rule.test.test.slice(15, -1)
 
     # set the operands
     else if rule.test.type != "between"
@@ -1057,22 +1057,24 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     else if op == "date"
       categoryName = "is a date"
     else if op in ["date_before", "date_equal", "date_after"]
-      if categoryName[0] == '-'
-        categoryName = "today " + op
-      else
-        categoryName = "today +" + op
+      days = rule._config.operand
+      if days
+        if days[0] == '-'
+          categoryName = "today " + op
+        else
+          categoryName = "today +" + op
 
-      if categoryName in ['1', '-1']
-        categoryName = categoryName + " day"
-      else
-        categoryName = categoryName + " days"
+        if days in ['1', '-1']
+          categoryName = categoryName + " day"
+        else
+          categoryName = categoryName + " days"
 
-      if op == 'date_before'
-        categoryName = "< " + categoryName
-      else if op == 'date_equal'
-        categoryName = "= " + categoryName
-      else if op == 'date_after'
-        categoryName = "> " + categoryName
+        if op == 'date_before'
+          categoryName = "< " + categoryName
+        else if op == 'date_equal'
+          categoryName = "= " + categoryName
+        else if op == 'date_after'
+          categoryName = "> " + categoryName
 
     # this is a rule matching keywords
     else if op in ["contains", "contains_any", "starts"]
@@ -1161,7 +1163,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
         # add our time delta filter for our date operators
         if rule._config.type in ["date_before", "date_after", "date_equal"]
-          rule.test.test = "@date.today|time_delta:'" + rule.test._base + "'"
+          rule.test.test = "@(date.today + " + rule.test._base + ")"
         else
           if rule._config.localized
             if not rule.test.test
