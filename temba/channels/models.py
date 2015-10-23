@@ -211,8 +211,11 @@ class Channel(SmartModel):
         else:
             scheme = fixed_scheme
 
-        if country and not type_settings.get('country_bound', True):
-            raise ValueError("Channel type %s cannot be bound to a country")
+        if not scheme:
+            raise ValueError("Cannot create channel without scheme")
+
+        if country and scheme != 'tel':
+            raise ValueError("Only channels handling phone numbers can be country specific")
 
         if config is None:
             config = {}
@@ -254,10 +257,10 @@ class Channel(SmartModel):
         return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config)
 
     @classmethod
-    def add_config_external_channel(cls, org, user, country, phone_number, channel_type, config, role=SEND+RECEIVE,
+    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=SEND+RECEIVE,
                                     scheme='tel', parent=None):
-        return Channel.create(org, user, country, channel_type, name=phone_number, address=phone_number, config=config,
-                              role=role, scheme=scheme, parent=parent)
+        return Channel.create(org, user, country, channel_type, name=address, address=address,
+                              config=config, role=role, scheme=scheme, parent=parent)
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):

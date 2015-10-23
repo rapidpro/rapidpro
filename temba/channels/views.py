@@ -1005,12 +1005,18 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
             scheme = forms.ChoiceField(choices=URN_SCHEME_CHOICES, label=_("URN Type"),
-                                       help_text=_("The URN scheme handled by this channel"))
+                                       help_text=_("The type of URNs handled by this channel"))
 
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"), required=False,
+                                     help_text=_("The phone number or that this channel will send from"))
 
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+            handle = forms.CharField(max_length=32, min_length=1, label=_("Handle"), required=False,
+                                     help_text=_("The Twitter handle that this channel will send from"))
+
+            address = forms.CharField(max_length=64, min_length=1, label=_("Address"), required=False,
+                                      help_text=_("The external address that this channel will send from"))
+
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), required=False,
                                         help_text=_("The country this phone number is used in"))
 
             url = forms.URLField(max_length=1024, label=_("Send URL"),
@@ -1038,7 +1044,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception("No org for this user, cannot claim")
 
             data = form.cleaned_data
@@ -1046,15 +1052,22 @@ class ChannelCRUDL(SmartCRUDL):
             if self.request.REQUEST.get('role', None) == 'S':
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
-
-                country = receive.country
-                number = receive.address
                 role = SEND
-
+                scheme = TEL_SCHEME
+                address = receive.address
+                country = receive.country
             else:
-                country = data['country']
-                number = data['number']
                 role = SEND + RECEIVE
+                scheme = data['scheme']
+                if scheme == TEL_SCHEME:
+                    address = data['number']
+                    country = data['country']
+                elif scheme == TWITTER_SCHEME:
+                    address = data['handle']
+                    country = None
+                else:
+                    address = data['address']
+                    country = None
 
             # see if there is a parent channel we are adding a delegate for
             channel = self.request.REQUEST.get('channel', None)
@@ -1063,8 +1076,8 @@ class ChannelCRUDL(SmartCRUDL):
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
             config = {SEND_URL: data['url'], SEND_METHOD: data['method']}
-            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, EXTERNAL,
-                                                              config, role, data['scheme'], parent=channel)
+            self.object = Channel.add_config_external_channel(org, self.request.user, country, address, EXTERNAL,
+                                                              config, role, scheme, parent=channel)
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()
