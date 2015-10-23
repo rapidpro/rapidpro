@@ -1533,6 +1533,10 @@ class RuleTest(TembaTest):
         self.assertEqual(flow2.flow_type, 'S')
         self.assertEqual(flow2.expires_after_minutes, 5)
 
+        # make sure we don't get a start flow button for Android Surveys
+        response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
+        self.assertNotContains(response, "broadcast-rulesflow btn-primary")
+
         user.groups.remove(Group.objects.get(name="Beta"))
 
         # test flows with triggers
