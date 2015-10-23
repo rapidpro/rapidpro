@@ -127,7 +127,7 @@
               // single operand rules with relative dates
               .operation{ng-if:'rule._config.operands == 1 && rule._config.validate =="date"'}
                 -trans "today +"
-                %input{ng-model:"rule.test._base",name:"days",number:"",ng-required:"rule.category._base",type:"text",class:"operand-small"}
+                %input{ng-change:"updateCategory(rule)",ng-model:"rule.test._base",name:"days",number:"",ng-required:"rule.category._base",type:"text",class:"operand-small"}
                 -trans "days"
               .operation{ng-if:"rule._config.operands == 0"}
               .categorize

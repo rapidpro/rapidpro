@@ -1057,12 +1057,12 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     else if op == "date"
       categoryName = "is a date"
     else if op in ["date_before", "date_equal", "date_after"]
-      days = rule._config.operand
+      days = rule.test._base
       if days
         if days[0] == '-'
-          categoryName = "today " + op
+          categoryName = "today " + days
         else
-          categoryName = "today +" + op
+          categoryName = "today +" + days
 
         if days in ['1', '-1']
           categoryName = categoryName + " day"
