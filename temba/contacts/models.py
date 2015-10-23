@@ -28,6 +28,13 @@ OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
+TEL_SCHEME = 'tel'
+TWITTER_SCHEME = 'twitter'
+TWILIO_SCHEME = 'twilio'
+FACEBOOK_SCHEME = 'facebook'
+EMAIL_SCHEME = 'mailto'
+EXTERNAL_SCHEME = 'ext'
+
 
 class ContactField(models.Model):
     """
@@ -146,6 +153,7 @@ class ContactField(models.Model):
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
+
 class Contact(TembaModel, SmartModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
@@ -174,6 +182,7 @@ class Contact(TembaModel, SmartModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
+                       TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME,
                        'created_by', 'modified_by', 'org', 'uuid', 'groups']
 
     @classmethod
@@ -1137,20 +1146,13 @@ class Contact(TembaModel, SmartModel):
         return self.get_display()
 
 
-TEL_SCHEME = 'tel'
-TWITTER_SCHEME = 'twitter'
-TWILIO_SCHEME = 'twilio'
-FACEBOOK_SCHEME = 'facebook'
-EMAIL_SCHEME = 'mailto'
-EXTERNAL_SCHEME = 'ext'
-
 LOWEST_PRIORITY = 1
 STANDARD_PRIORITY = 50
 HIGHEST_PRIORITY = 99
 
 URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
                       (TWITTER_SCHEME, _("Twitter handle")),
-                      (EXTERNAL_SCHEME, _("External")))
+                      (EXTERNAL_SCHEME, _("External identifier")))
 
 URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
                          TWITTER_SCHEME: 90}
