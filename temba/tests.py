@@ -79,10 +79,8 @@ class TembaTest(SmartminTest):
         self.welcome_topup = self.org.topups.all()[0]
 
         # a single Android channel
-        self.channel = Channel.objects.create(org=self.org, name="Test Channel",
-                                              address="+250785551212", country='RW', channel_type='A',
-                                              secret="12345", gcm_id="123",
-                                              created_by=self.user, modified_by=self.user)
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                                      secret="12345", gcm_id="123")
 
         # reset our simulation to False
         Contact.set_simulation(False)
@@ -435,9 +433,8 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
         # set up our channel for claiming
         anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
-        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
-                                         created_by=anon, modified_by=anon, claim_code='AAABBBCCC',
-                                         secret="12345", gcm_id="123")
+        channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
+                                 claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
         # and claim it
         self.fetch_page(reverse('channels.channel_claim_android'))

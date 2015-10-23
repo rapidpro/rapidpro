@@ -868,7 +868,7 @@ class ContactTest(TembaTest):
         self.assertEquals(0, len(response['results']))
 
         # create twitter channel
-        Channel.objects.create(org=self.org, channel_type='TT', created_by=self.user, modified_by=self.user)
+        Channel.create(self.org, self.user, None, 'TT')
 
         # search for again for Joe by twitter
         response = json.loads(self.client.get("%s?search=blow80" % reverse("contacts.contact_omnibox")).content)
@@ -1234,7 +1234,7 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals(6, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
+        self.assertEquals(5, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
         self.assertEquals("Joe Blow", response.context['form'].initial['name'])
         self.assertEquals("123", response.context['form'].fields['__urn__tel__0'].initial)
         self.assertEquals("Kigali City", response.context['form'].fields['__field__state'].initial)  # parsed name
@@ -1369,18 +1369,15 @@ class ContactTest(TembaTest):
             Contact.validate_import_header([])
 
         with self.assertRaises(Exception):
-            Contact.validate_import_header(['name'])
-
-        active_urn_schemes = [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME] + ['phone']
+            Contact.validate_import_header(['name'])  # missing a URN
 
         with self.assertRaises(Exception):
-            Contact.validate_import_header(active_urn_schemes)
+            Contact.validate_import_header(['phone', 'twitter', 'external'])  # missing name
 
-        self.assertIsNone(Contact.validate_import_header(active_urn_schemes + ['name']))
-
-        for allowed_urn_scheme in active_urn_schemes:
-            self.assertIsNone(Contact.validate_import_header(['name', allowed_urn_scheme]))
-
+        Contact.validate_import_header(['name', 'phone', 'twitter', 'external'])
+        Contact.validate_import_header(['name', 'phone'])
+        Contact.validate_import_header(['name', 'twitter'])
+        Contact.validate_import_header(['name', 'external'])
 
     def do_import(self, user, filename):
 
@@ -1566,15 +1563,15 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing a required header. At least one of "Phone", "Twitter" '
-                             'should be included.')
+                             'The file you provided is missing a required header. At least one of '
+                             '"Phone", "Twitter", "External" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing required headers called "Name" and one of '
-                             '"Phone", "Twitter".')
+                             '"Phone", "Twitter", "External".')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)

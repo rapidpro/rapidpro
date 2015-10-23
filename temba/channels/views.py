@@ -25,7 +25,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
 from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -148,12 +148,13 @@ PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('NO', _('Norway')),
                              ('PK', _('Pakistan')),
                              ('PL', _('Poland')),
+                             ('ZA', _('South Africa')),
                              ('SE', _('Sweden')),
                              ('CH', _('Switzerland')),
                              ('GB', _('United Kingdom')),
                              ('US', _('United States')))
 
-PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 46, 41, 44]
+PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 27, 46, 41, 44]
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
@@ -767,7 +768,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_form_class(self):
             channel_type = self.object.channel_type
-            scheme = self.object.get_scheme()
+            scheme = self.object.scheme
 
             if channel_type == ANDROID:
                 return UpdateAndroidForm
@@ -793,7 +794,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # update our delegate channels with the new number
-            if not obj.parent and obj.get_scheme() == TEL_SCHEME:
+            if not obj.parent and obj.scheme == TEL_SCHEME:
                 e164_phone_number = None
                 try:
                     parsed = phonenumbers.parse(obj.address, None)
@@ -1003,20 +1004,31 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
+            scheme = forms.ChoiceField(choices=URN_SCHEME_CHOICES, label=_("URN Type"),
+                                       help_text=_("The type of URNs handled by this channel"))
 
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting"))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"), required=False,
+                                     help_text=_("The phone number or that this channel will send from"))
+
+            handle = forms.CharField(max_length=32, min_length=1, label=_("Handle"), required=False,
+                                     help_text=_("The Twitter handle that this channel will send from"))
+
+            address = forms.CharField(max_length=64, min_length=1, label=_("Address"), required=False,
+                                      help_text=_("The external address that this channel will send from"))
+
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), required=False,
                                         help_text=_("The country this phone number is used in"))
+
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will call when sending messages, with variable substitutions"))
+
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
-
 
         class EXSendClaimForm(forms.Form):
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will POST to when sending messages, with variable substitutions"))
+
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
 
@@ -1024,7 +1036,6 @@ class ChannelCRUDL(SmartCRUDL):
         success_url = "id@channels.channel_configuration"
 
         def get_form_class(self):
-
             if self.request.REQUEST.get('role', None) == 'S':
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
@@ -1033,7 +1044,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception("No org for this user, cannot claim")
 
             data = form.cleaned_data
@@ -1041,15 +1052,22 @@ class ChannelCRUDL(SmartCRUDL):
             if self.request.REQUEST.get('role', None) == 'S':
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
-
-                country = receive.country
-                number = receive.address
                 role = SEND
-
+                scheme = TEL_SCHEME
+                address = receive.address
+                country = receive.country
             else:
-                country = data['country']
-                number = data['number']
                 role = SEND + RECEIVE
+                scheme = data['scheme']
+                if scheme == TEL_SCHEME:
+                    address = data['number']
+                    country = data['country']
+                elif scheme == TWITTER_SCHEME:
+                    address = data['handle']
+                    country = None
+                else:
+                    address = data['address']
+                    country = None
 
             # see if there is a parent channel we are adding a delegate for
             channel = self.request.REQUEST.get('channel', None)
@@ -1058,8 +1076,8 @@ class ChannelCRUDL(SmartCRUDL):
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
             config = {SEND_URL: data['url'], SEND_METHOD: data['method']}
-            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, EXTERNAL,
-                                                              config, role=role, parent=channel)
+            self.object = Channel.add_config_external_channel(org, self.request.user, country, address, EXTERNAL,
+                                                              config, role, scheme, parent=channel)
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()

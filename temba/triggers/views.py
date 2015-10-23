@@ -66,8 +66,9 @@ class DefaultTriggerForm(BaseTriggerForm):
     Default trigger form which only allows selection of a non-message based flow
     """
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org()).exclude(flow_type=Flow.MESSAGE)
+        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(DefaultTriggerForm, self).__init__(user, flows,  *args, **kwargs)
+
 
 class GroupBasedTriggerForm(BaseTriggerForm):
 
@@ -101,6 +102,7 @@ class GroupBasedTriggerForm(BaseTriggerForm):
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('flow', 'groups')
+
 
 class KeywordTriggerForm(GroupBasedTriggerForm):
     """
@@ -165,7 +167,8 @@ class RegisterTriggerForm(BaseTriggerForm):
                                help_text=_("The message to send in response after they join the group (optional)"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org())
+        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+
         super(RegisterTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['flow'].required = False
@@ -204,6 +207,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         model = Trigger
         fields = ('flow', 'omnibox', 'repeat_period', 'repeat_days', 'start', 'start_datetime_value')
 
+
 class InboundCallTriggerForm(GroupBasedTriggerForm):
 
     def __init__(self, user, *args, **kwargs):
@@ -215,6 +219,7 @@ class InboundCallTriggerForm(GroupBasedTriggerForm):
         existing = existing.filter(trigger_type=INBOUND_CALL_TRIGGER)
         return existing
 
+
 class FollowTriggerForm(BaseTriggerForm):
     """
     Form for social network follow triggers
@@ -225,13 +230,8 @@ class FollowTriggerForm(BaseTriggerForm):
         flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
-        # all channel types that support follow triggers
-        types_for_follow = set()
-        for scheme in URN_SCHEMES_SUPPORTING_FOLLOW:
-            types_for_follow.update(Channel.types_for_scheme(scheme))
-
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 channel_type__in=types_for_follow)
+                                                                 scheme__in=URN_SCHEMES_SUPPORTING_FOLLOW)
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
