@@ -21,6 +21,7 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
+from temba.channels.models import SEND
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
@@ -183,13 +184,14 @@ class ContactForm(forms.ModelForm):
         super(ContactForm, self).__init__(*args, **kwargs)
 
     def add_extra_fields(self, inc_contact_fields):
-
         extra_fields = []
 
         # add all URN scheme fields if org is not anon
         if not self.org.is_anon:
-            for urn_options in URN_SCHEME_CHOICES:
-                scheme, label = urn_options
+            # always include phone but other schemes only if they're supported
+            supported_urn_choices = [c for c in URN_SCHEME_CHOICES if c[0] in self.org.get_schemes(SEND) or c[0] == TEL_SCHEME]
+
+            for scheme, label in supported_urn_choices:
                 help_text = '%s for this contact (@contact.%s)' % (label, scheme)
 
                 # get all the urns for this scheme
@@ -259,6 +261,7 @@ class UpdateContactForm(ContactForm):
 
         self.fields['groups'].initial = self.instance.user_groups.all()
         self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].help_text = _("The groups which this contact belongs to")
 
 
 class ContactCRUDL(SmartCRUDL):
