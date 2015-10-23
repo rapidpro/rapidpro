@@ -400,7 +400,7 @@ class FlowCRUDL(SmartCRUDL):
                 model = Flow
 
         form_class = FlowCreateForm
-        fields = ('name', 'keyword_triggers', 'expires_after_minutes')
+        fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type')
         success_url = 'id@flows.flow_editor'
         success_message = ''
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
@@ -411,9 +411,6 @@ class FlowCRUDL(SmartCRUDL):
 
             if org.primary_language:
                 fields += ('base_language',)
-
-            if org.supports_ivr() or self.request.user.is_beta():
-                fields += ('flow_type',)
 
             return fields
 

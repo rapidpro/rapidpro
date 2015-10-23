@@ -1496,16 +1496,9 @@ class RuleTest(TembaTest):
         # get our create page
         response = self.client.get(reverse('flows.flow_create'))
         self.assertTrue(response.context['has_flows'])
-        self.assertNotIn('flow_type', response.context['form'].fields)  # don't show flow type
+        self.assertIn('flow_type', response.context['form'].fields)
 
-        user.groups.add(Group.objects.get(name="Beta"))
-
-        response = self.client.get(reverse('flows.flow_create'))
-        self.assertTrue(response.context['has_flows'])
-        self.assertIn('flow_type', response.context['form'].fields)  # shown because we're beta
-
-        # remove from beta and add call channel
-        user.groups.remove(Group.objects.get(name="Beta"))
+        # add call channel
         twilio = Channel.objects.create(name="Twilio", channel_type='T', address="0785553434", role="C", org=self.org,
                                         created_by=self.user, modified_by=self.user, secret="56789", gcm_id="456")
 
@@ -1516,7 +1509,7 @@ class RuleTest(TembaTest):
         twilio.delete()
 
         # create a new regular flow
-        response = self.client.post(reverse('flows.flow_create'), dict(name="Flow", expires_after_minutes=5), follow=True)
+        response = self.client.post(reverse('flows.flow_create'), dict(name='Flow', flow_type='F', expires_after_minutes=5), follow=True)
         flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(org=self.org, keyword='unique', flow=flow1,
@@ -1525,10 +1518,8 @@ class RuleTest(TembaTest):
         self.assertEqual(flow1.flow_type, 'F')
         self.assertEqual(flow1.expires_after_minutes, 5)
 
-        user.groups.add(Group.objects.get(name="Beta"))
-
         # create a new surveyor flow
-        response = self.client.post(reverse('flows.flow_create'), dict(name="Surveyor Flow", expires_after_minutes=5, flow_type='S'), follow=True)
+        self.client.post(reverse('flows.flow_create'), dict(name='Surveyor Flow', expires_after_minutes=5, flow_type='S'), follow=True)
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, 'S')
         self.assertEqual(flow2.expires_after_minutes, 5)
@@ -1537,10 +1528,7 @@ class RuleTest(TembaTest):
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
-        user.groups.remove(Group.objects.get(name="Beta"))
-
         # test flows with triggers
-
         # create a new flow with one unformatted keyword
         post_data = dict()
         post_data['name'] = "Flow With Unformated Keyword Triggers"
@@ -1561,6 +1549,7 @@ class RuleTest(TembaTest):
         post_data = dict()
         post_data['name'] = "Flow With Good Keyword Triggers"
         post_data['keyword_triggers'] = "this,is,it"
+        post_data['flow_type'] = 'F'
         post_data['expires_after_minutes'] = 30
         response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
         flow3 = Flow.objects.get(name=post_data['name'])
