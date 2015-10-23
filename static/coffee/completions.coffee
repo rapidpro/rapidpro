@@ -208,10 +208,8 @@ class window.AutoComplete
     if variables
       @completions = variables.concat(@functions)
 
-
-
     $inputor = $(selector).atwho(@config)
-    $inputor.focus().atwho('run')
+    $inputor.atwho('run')
 
     # when an option is selected, insert the text and update the caret
     $inputor.on 'inserted.atwho', (atEvent, li, browserEvent) ->
