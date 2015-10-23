@@ -158,6 +158,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
   if selected
     ele.data('select2').data(selected)
 
+###
 
 
 @initAtMessageText = (selector, completions=null) ->
@@ -246,6 +247,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
           null
 
     tpl: "<li data-value='${name}'>${name} (<span>${display}</span>)</li>"
+###
 
 
 # -------------------------------------------------------------------

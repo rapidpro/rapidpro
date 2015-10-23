@@ -426,6 +426,7 @@ PERMISSIONS = {
                          'claim_twitter',
                          'claim_verboice',
                          'claim_vumi',
+                         'claim_yo',
                          'claim_zenvia',
                          'configuration',
                          'create_bulk_sender',
@@ -615,6 +616,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_vumi',
+        'channels.channel_claim_yo',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
@@ -725,6 +727,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_vumi',
+        'channels.channel_claim_yo',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
@@ -982,8 +985,10 @@ REST_FRAMEWORK = {
         'temba.api.renderers.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.XMLRenderer',
-    )
+    ),
+    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler'
 }
+REST_HANDLE_EXCEPTIONS = not TESTING
 
 #-----------------------------------------------------------------------------------
 # Aggregator settings

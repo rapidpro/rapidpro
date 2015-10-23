@@ -7,7 +7,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from .channels import StripeHandler, TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler, M3TechHandler
 from .channels import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .channels import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
-from .channels import SMSCentralHandler, MageHandler
+from .channels import SMSCentralHandler, MageHandler, YoHandler
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
 from .views import api, ApiExplorerView, AuthenticateEndpoint, OrgEndpoint
 from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint
@@ -36,6 +36,7 @@ urlpatterns = patterns('api.views',
                        url(r'^/blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', BlackmynaHandler.as_view(), name='api.blackmyna_handler'),
                        url(r'^/smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', SMSCentralHandler.as_view(), name='api.smscentral_handler'),
                        url(r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', M3TechHandler.as_view(), name='api.m3tech_handler'),
+                       url(r'^/yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$', YoHandler.as_view(), name='api.yo_handler'),
 
                        url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='api.mage_handler'),
 

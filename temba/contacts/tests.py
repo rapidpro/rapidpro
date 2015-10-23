@@ -7,15 +7,13 @@ import pytz
 from datetime import datetime, date
 from django.utils import timezone
 
-from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME, \
-    URN_SCHEME_CHOICES
-from temba.contacts.models import ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
@@ -385,7 +383,7 @@ class ContactGroupTest(TembaTest):
 
 class ContactTest(TembaTest):
     def setUp(self):
-        TembaTest.setUp(self)
+        super(ContactTest, self).setUp()
 
         self.user1 = self.create_user("nash")
         self.manager1 = self.create_user("mike")
@@ -587,6 +585,28 @@ class ContactTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         self.assertRaises(ValueError, test_contact.block)
         self.assertRaises(ValueError, test_contact.fail)
+
+    def test_update_groups(self):
+        spammers = self.create_group("Spammers", [])
+        testers = self.create_group("Testers", [])
+
+        self.joe.update_groups([spammers, testers])
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers})
+
+        self.joe.update_groups([testers])
+        self.assertEqual(set(self.joe.user_groups.all()), {testers})
+
+        self.joe.update_groups([])
+        self.assertEqual(set(self.joe.user_groups.all()), set())
+
+        # can't add blocked contacts to a group
+        self.joe.block()
+        self.assertRaises(ValueError, self.joe.update_groups, [spammers])
+
+        # can't add deleted contacts to a group
+        self.joe.unblock()
+        self.joe.release()
+        self.assertRaises(ValueError, self.joe.update_groups, [spammers])
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")

@@ -1006,21 +1006,20 @@ class BroadcastTest(TembaTest):
         self.assertEquals(("Hello World Joe", []), Msg.substitute_variables("Hello World @contact.first_name", self.joe, dict()))
         self.assertEquals(("Hello World Joe Blow", []), Msg.substitute_variables("Hello World @contact", self.joe, dict()))
         self.assertEquals(("Hello World: Well", []), Msg.substitute_variables("Hello World: @flow.water_source", self.joe, dict(flow=dict(water_source="Well"))))
-        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable 'flow.boil'"]), Msg.substitute_variables("Hello World: @flow.water_source  Boil: @flow.boil", self.joe, dict(flow=dict(water_source="Well"))))
+        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]), Msg.substitute_variables("Hello World: @flow.water_source  Boil: @flow.boil", self.joe, dict(flow=dict(water_source="Well"))))
 
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @contact.first_name|notthere", self.joe, dict()))
-        self.assertEquals(("Hello joe", []), Msg.substitute_variables("Hello @contact.first_name|lower_case", self.joe, dict()))
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @contact.first_name|lower_case|capitalize", self.joe, dict()))
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @contact|first_word", self.joe, dict()))
-        self.assertEquals(("Hello Blow", []), Msg.substitute_variables("Hello @contact|remove_first_word|title_case", self.joe, dict()))
-        self.assertEquals(("Hello Joe Blow", []), Msg.substitute_variables("Hello @contact|title_case", self.joe, dict()))
-        self.assertEquals(("Hello JOE", []), Msg.substitute_variables("Hello @contact.first_name|upper_case", self.joe, dict()))
-        self.assertEquals(("Hello 3", []), Msg.substitute_variables("Hello @contact.goats", self.joe, dict()))
+        self.assertEquals(("Hello joe", []), Msg.substitute_variables("Hello @(LOWER(contact.first_name))", self.joe, dict()))
+        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(PROPER(LOWER(contact.first_name)))", self.joe, dict()))
+        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(first_word(contact))", self.joe, dict()))
+        self.assertEquals(("Hello Blow", []), Msg.substitute_variables("Hello @(Proper(remove_first_word(contact)))", self.joe, dict()))
+        self.assertEquals(("Hello Joe Blow", []), Msg.substitute_variables("Hello @(PROPER(contact))", self.joe, dict()))
+        self.assertEquals(("Hello JOE", []), Msg.substitute_variables("Hello @(UPPER(contact.first_name))", self.joe, dict()))
+        self.assertEquals(("Hello 3", []), Msg.substitute_variables("Hello @(contact.goats)", self.joe, dict()))
 
         self.assertEquals(("Email is: foo@bar.com", []),
-                          Msg.substitute_variables("Email is: @flow.sms|remove_first_word", self.joe, dict(flow=dict(sms="Join foo@bar.com"))))
+                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@bar.com"))))
         self.assertEquals(("Email is: foo@@bar.com", []),
-                          Msg.substitute_variables("Email is: @flow.sms|remove_first_word", self.joe, dict(flow=dict(sms="Join foo@@bar.com"))))
+                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@@bar.com"))))
 
         # check date variables
         text, errors = Msg.substitute_variables("Today is @date.today", self.joe, dict())
@@ -1040,38 +1039,38 @@ class BroadcastTest(TembaTest):
         self.joe.name = u"شاملیدل عمومی"
         self.joe.save()
 
-        self.assertEquals((u"شاملیدل", []), Msg.substitute_variables("@contact|first_word", self.joe, dict()))
-        self.assertEquals((u"عمومی", []), Msg.substitute_variables("@contact|remove_first_word|title_case", self.joe, dict()))
+        self.assertEquals((u"شاملیدل", []), Msg.substitute_variables("@(first_word(contact))", self.joe, dict()))
+        self.assertEquals((u"عمومی", []), Msg.substitute_variables("@(proper(remove_first_word(contact)))", self.joe, dict()))
 
         # credit card
         self.joe.name = '1234567890123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # phone number
         self.joe.name = '123456789012'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # triplets
         self.joe.name = '123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6", []), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # soc security
         self.joe.name = '123456789'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # regular number, street address, etc
         self.joe.name = '12345'
         self.joe.save()
-        self.assertEquals(("1,2,3,4,5", []), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1,2,3,4,5", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # regular number, street address, etc
         self.joe.name = '123'
         self.joe.save()
-        self.assertEquals(("1,2,3", []), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
     def test_message_context(self):
 

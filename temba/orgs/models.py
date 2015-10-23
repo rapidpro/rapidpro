@@ -41,7 +41,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 7
+CURRENT_EXPORT_VERSION = 8
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -1217,20 +1217,28 @@ class Org(SmartModel):
                                      'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
 
         countrycode = timezone_to_country_code(self.timezone)
-
         recommended = 'android'
-        if countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'nexmo'
+
         if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
             recommended = 'twilio'
-        if countrycode == 'KE':
+
+        elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
+            recommended = 'nexmo'
+
+        elif countrycode == 'KE':
             recommended = 'africastalking'
-        if countrycode == 'ID':
+
+        elif countrycode == 'ID':
             recommended = 'hub9'
-        if countrycode == 'SO':
+
+        elif countrycode == 'SO':
             recommended = 'shaqodoon'
-        if countrycode == 'NP':
+
+        elif countrycode == 'NP':
             recommended = 'blackmyna'
+
+        elif countrycode == 'UG':
+            recommended = 'yo'
 
         return recommended
 

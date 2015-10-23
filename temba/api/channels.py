@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
@@ -373,7 +373,8 @@ class ExternalHandler(View):
         action = kwargs['action'].lower()
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True,
+                                         channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -402,13 +403,15 @@ class ExternalHandler(View):
 
         # this is a new incoming message
         elif action == 'received':
-            if not request.REQUEST.get('from', None):
-                return HttpResponse("Missing 'from' parameter, invalid call.", status=400)
+            sender = request.REQUEST.get('from', request.REQUEST.get('sender', None))
+            if not sender:
+                return HttpResponse("Missing 'from' or 'sender' parameter, invalid call.", status=400)
 
-            if not 'text' in request.REQUEST:
-                return HttpResponse("Missing 'text' parameter, invalid call.", status=400)
+            text = request.REQUEST.get('text', request.REQUEST.get('message', None))
+            if text is None:
+                return HttpResponse("Missing 'text' or 'message' parameter, invalid call.", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['from']), request.REQUEST['text'])
+            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -421,9 +424,15 @@ class ShaqodoonHandler(ExternalHandler):
     Overloaded external channel for accepting Shaqodoon messages
     """
     def get_channel_type(self):
-        from temba.channels.models import SHAQODOON
         return SHAQODOON
 
+
+class YoHandler(ExternalHandler):
+    """
+    Overloaded external channel for accepting Yo! Messages.
+    """
+    def get_channel_type(self):
+        return YO
 
 class InfobipHandler(View):
 

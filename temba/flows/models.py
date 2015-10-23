@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import copy
 import json
 import numbers
 import phonenumbers
@@ -259,8 +258,7 @@ class Flow(TembaModel, SmartModel):
         """
         Creates a special 'join group' flow
         """
-
-        base_language = org.primary_lanuage.iso_code if org.primary_language else 'base'
+        base_language = org.primary_language.iso_code if org.primary_language else 'base'
 
         name = Flow.get_unique_name('Join %s' % group.name, org)
         flow = Flow.create(org, user, name, base_language=base_language)
@@ -2383,13 +2381,8 @@ class RuleSet(models.Model):
         if text:
             text = text.strip()
 
-        # if we start with =( then we are an expression
-        is_expression = text and len(text) > 2 and text[0:2] == '=('
-
-        if '@step' in text or (is_expression and 'step' in text):
-            return True
-
-        return False
+        # match @step.value or @(step.value)
+        return text and text[0] == '@' and 'step' in text
 
     def config_json(self):
         if not self.config:
@@ -2503,7 +2496,7 @@ class RuleSet(models.Model):
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
                 config = self.config_json()
                 delim = config.get('field_delimiter', ' ')
-                self.operand = '=field(%s, %d, "%s")' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
+                self.operand = '@(FIELD(%s, %d, "%s"))' % (self.operand[1:], config.get('field_index', 0) + 1, delim)
 
             # if we have a custom operand, figure that out
             text = None
@@ -2684,20 +2677,25 @@ class FlowVersion(SmartModel):
     JSON definitions for previous flow versions
     """
     flow = models.ForeignKey(Flow, related_name='versions')
+
     definition = models.TextField(help_text=_("The JSON flow definition"))
+
     spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+
     version = models.IntegerField(null=True, help_text=_("Version counter for each definition"))
 
     @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
+
         from temba.flows import flow_migrations
+
         while (version < to_version and version < CURRENT_EXPORT_VERSION):
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
                 json_flow = migrate_fn(json_flow)
-            version +=1
+            version += 1
 
         return json_flow
 
@@ -2725,6 +2723,7 @@ class FlowVersion(SmartModel):
                     id=self.pk,
                     version=self.spec_version,
                     revision=self.version)
+
 
 class FlowRun(models.Model):
     org = models.ForeignKey(Org, related_name='runs', db_index=False)

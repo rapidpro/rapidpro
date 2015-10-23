@@ -6,6 +6,7 @@ import phonenumbers
 import plivo
 import requests
 import time
+import urlparse
 
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -54,6 +55,7 @@ TWITTER = 'TT'
 VERBOICE = 'VB'
 VUMI = 'VM'
 ZENVIA = 'ZV'
+YO = 'YO'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -103,7 +105,8 @@ CHANNEL_SETTINGS = {
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     BLACKMYNA: dict(scheme='tel', max_length=1600),
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
-    M3TECH: dict(scheme='tel', max_length=160)
+    M3TECH: dict(scheme='tel', max_length=160),
+    YO: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -117,6 +120,8 @@ PLIVO_APP_ID = 'PLIVO_APP_ID'
 
 TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
                       "users who are not following you")  # handle no longer follows us
+
+YO_API_URL = 'http://smgw1.yo.co.ug:9100/sendsms'
 
 
 class Channel(SmartModel):
@@ -138,6 +143,7 @@ class Channel(SmartModel):
                     (HIGH_CONNECTION, "High Connection"),
                     (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
+                    (YO, "Yo!"),
                     (M3TECH, "M3 Tech"))
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
@@ -1257,6 +1263,62 @@ class Channel(SmartModel):
                                response=response.text,
                                response_status=response.status_code)
 
+
+    @classmethod
+    def send_yo_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, SENT
+
+        # build our message dict
+        params = dict(origin=channel.address.lstrip('+'),
+                      sms_content=text,
+                      destinations=msg.urn_path.lstrip('+'),
+                      ybsacctno=channel.config['username'],
+                      password=channel.config['password'])
+        log_params = params.copy()
+        log_params['password'] = 'x' * len(log_params['password'])
+
+        url = YO_API_URL + '?' + urlencode(params)
+        log_url = YO_API_URL + '?' + urlencode(log_params)
+
+        start = time.time()
+        try:
+            response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
+            response_qs = urlparse.parse_qs(response.text)
+        except Exception as e:
+            raise SendException(u"Unable to send message: %s" % unicode(e),
+                                url=log_url,
+                                method='GET',
+                                request='',
+                                response=response.text,
+                                response_status=response.status_code)
+
+        if response.status_code != 200 and response.status_code != 201:
+            raise SendException("Received non 200 status: %d" % response.status_code,
+                                url=log_url,
+                                method='GET',
+                                request='',
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # if it wasn't successfully delivered, throw
+        if response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
+            raise SendException("Received error from Yo! API",
+                                url=log_url,
+                                method='GET',
+                                request='',
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               url=log_url,
+                               method='GET',
+                               request='',
+                               response=response.text,
+                               response_status=response.status_code)
+
     @classmethod
     def send_infobip_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
@@ -1820,7 +1882,8 @@ class Channel(SmartModel):
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       BLACKMYNA: Channel.send_blackmyna_message,
                       SMSCENTRAL: Channel.send_smscentral_message,
-                      M3TECH: Channel.send_m3tech_message}
+                      M3TECH: Channel.send_m3tech_message,
+                      YO: Channel.send_yo_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
@@ -2315,6 +2378,7 @@ class Alert(SmartModel):
 
         send_temba_email(self.channel.alert_email, subject, template, context, branding)
 
+
 def get_alert_user():
     user = User.objects.filter(username='alert').first()
     if user:
@@ -2324,11 +2388,13 @@ def get_alert_user():
         user.groups.add(Group.objects.get(name='Service Users'))
         return user
 
+
 def get_twilio_application_sid():
     return os.environ.get('TWILIO_APPLICATION_SID', settings.TWILIO_APPLICATION_SID)
+
 
 def get_twilio_client():
     account_sid = os.environ.get('TWILIO_ACCOUNT_SID', settings.TWILIO_ACCOUNT_SID)
     auth_token = os.environ.get('TWILIO_AUTH_TOKEN', settings.TWILIO_AUTH_TOKEN)
-    from temba.ivr.models.clients import TwilioClient
+    from temba.ivr.clients import TwilioClient
     return TwilioClient(account_sid, auth_token)

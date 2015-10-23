@@ -16,7 +16,7 @@ from smartmin.tests import SmartminTest
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.middleware import BrandingMiddleware
-from temba.orgs.models import Org, OrgEvent, TopUp, Invitation, DAYFIRST, MONTHFIRST
+from temba.orgs.models import Org, OrgEvent, TopUp, Invitation, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from temba.orgs.models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
@@ -1316,7 +1316,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
         exported = json.loads(response.content)
-        self.assertEquals(7, exported.get('version', 0))
+        self.assertEquals(CURRENT_EXPORT_VERSION, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 
         self.assertEquals(8, len(exported.get('flows', [])))
