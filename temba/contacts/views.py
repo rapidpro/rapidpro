@@ -261,6 +261,7 @@ class UpdateContactForm(ContactForm):
 
         self.fields['groups'].initial = self.instance.user_groups.all()
         self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].help_text = _("The groups which this contact belongs to")
 
 
 class ContactCRUDL(SmartCRUDL):
