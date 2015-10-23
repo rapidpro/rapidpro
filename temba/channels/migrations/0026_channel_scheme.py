@@ -12,7 +12,7 @@ def set_twitter_channel_schemes(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0024_auto_20151002_1407'),
+        ('channels', '0025_auto_20151021_1619'),
     ]
 
     operations = [
