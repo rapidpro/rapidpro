@@ -550,11 +550,11 @@ class ContactWriteSerializer(WriteSerializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        if self.org.is_anon:
-            raise ValidationError("Cannot update contacts on anonymous organizations")
-
         contact = attrs.get('contact')
         urns = attrs.get('urn_objs', None)
+
+        if self.org.is_anon and contact:
+            raise ValidationError("Cannot update contacts on anonymous organizations, can only create")
 
         if contact:
             if urns is not None:

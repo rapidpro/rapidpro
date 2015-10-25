@@ -1434,6 +1434,16 @@ class APITest(TembaTest):
             self.assertContains(response, "Jay-Z")
             self.assertNotContains(response, '123555')
 
+            # try to create a contact with an external URN
+            response = self.postJSON(url, dict(urns=['ext:external-id'], name="Test Name"))
+            self.assertEqual(response.status_code, 201)
+
+            # assert that that contact now exists
+            contact = Contact.objects.get(name="Test Name", urns__path='external-id', urns__scheme='ext')
+
+            # remove it
+            contact.delete()
+
         # check deleting a contact by UUID
         response = self.deleteJSON(url, 'uuid=' + drdre.uuid)
         self.assertEqual(response.status_code, 204)

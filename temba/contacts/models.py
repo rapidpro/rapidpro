@@ -1252,8 +1252,15 @@ class ContactURN(models.Model):
                     return False
 
             return True  # if we don't have a channel with country, we can't for now validate tel numbers
+
+        # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
             return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+        # anything goes for external schemes
+        elif scheme == EXTERNAL_SCHEME:
+            return True
+
         else:
             return False  # only tel and twitter currently supported
 
