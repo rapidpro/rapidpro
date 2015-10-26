@@ -781,11 +781,16 @@ class ContactCRUDL(SmartCRUDL):
             return qs.filter(is_test=False)
 
         def derive_exclude(self):
+            obj = self.get_object()
             exclude = []
-            for ex in self.exclude:
-                exclude.append(ex)
-            if not self.get_object().org.primary_language:
+            exclude.extend(self.exclude)
+
+            if not obj.org.primary_language:
                 exclude.append('language')
+
+            if obj.is_blocked:
+                exclude.append('groups')
+
             return exclude
 
         def get_form_kwargs(self, *args, **kwargs):
