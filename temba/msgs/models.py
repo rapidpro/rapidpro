@@ -1040,7 +1040,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, contact, message_context, org=None, url_encode=False):
+    def substitute_variables(cls, text, contact, message_context, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1081,7 +1081,7 @@ class Msg(models.Model):
         context = EvaluationContext(message_context, tz, date_style)
 
         # returns tuple of output and errors
-        return evaluate_template(text, context, url_encode)
+        return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,

@@ -1048,63 +1048,75 @@ class RuleTest(TembaTest):
         self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg="hello world")).__class__)
         self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg="hello world", contacts=[], groups=[], variables=[])).__class__)
 
-    def test_send_action(self):
+    def test_reply_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
-        test = ReplyAction(dict(base="We love green too!"))
-        test.execute(run, None, msg)
+        action = ReplyAction(dict(base="We love green too!"))
+        action.execute(run, None, msg)
         msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", msg.text)
 
         Broadcast.objects.all().delete()
 
-        action_json = test.as_json()
-        test = ReplyAction.from_json(self.org, action_json)
-        self.assertEquals(dict(base="We love green too!"), test.msg)
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+        self.assertEquals(dict(base="We love green too!"), action.msg)
 
-        test.execute(run, None, msg)
+        action.execute(run, None, msg)
 
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
-        test = SendAction(dict(base="What is your favorite color?"), [], [self.contact], [])
-        test.execute(run, None, None)
+    def test_send_action(self):
+        msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
 
-        action_json = test.as_json()
-        test = SendAction.from_json(self.org, action_json)
-        self.assertEquals(test.msg['base'], "What is your favorite color?")
-        self.assertEquals(2, Broadcast.objects.all().count())
+        self.contact.set_field('state', "WA", label="State")
+        self.contact2.set_field('state', "GA", label="State")
+        run = FlowRun.create(self.flow, self.contact)
 
-        broadcast = Broadcast.objects.all().order_by('pk')[1]
-        self.assertEquals(1, broadcast.get_messages().count())
+        action = SendAction(dict(base=msg_body),
+                            [], [self.contact2], [])
+        action.execute(run, None, None)
+
+        action_json = action.as_json()
+        action = SendAction.from_json(self.org, action_json)
+        self.assertEqual(action.msg['base'], msg_body)
+
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
-        self.assertEquals(self.contact, msg.contact)
-        self.assertEquals("What is your favorite color?", msg.text)
+        self.assertEqual(msg.contact, self.contact2)
+        self.assertEqual(msg.text, "Hi Nic (GA). Eric (WA) is in the flow")
 
         # empty message should be a no-op
-        test = SendAction(dict(base=""), [], [self.contact], [])
-        test.execute(run, None, None)
-        self.assertEquals(2, Broadcast.objects.all().count())
+        action = SendAction(dict(base=""), [], [self.contact], [])
+        action.execute(run, None, None)
+        self.assertEqual(Broadcast.objects.all().count(), 1)
 
-        # try with a test contact
-        self.test_contact = self.create_contact('Test Contact', '+12065551212', is_test=True)
+        # try with a test contact and a group
+        test_contact = Contact.get_test_contact(self.user)
+        test_contact.name = "Mr Test"
+        test_contact.save()
+        test_contact.set_field('state', "IN", label="State")
+
         self.other_group.update_contacts([self.contact2], True)
 
-        test = SendAction(dict(base="What is your favorite color?"), [self.other_group], [self.contact], [])
-        run = FlowRun.create(self.flow, self.test_contact)
-        test.execute(run, None, None)
+        action = SendAction(dict(base=msg_body), [self.other_group], [self.contact], [])
+        run = FlowRun.create(self.flow, test_contact)
+        action.execute(run, None, None)
 
-        # check the description, this is shown on the contact history debug view
-        self.assertEquals("Sent '{'base': u'What is your favorite color?'}' to Eric, Other", test.get_description())
+        # check the action description
+        description = "Sent '{'base': u'Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow'}' to Eric, Other"
+        self.assertEqual(action.get_description(), description)
 
         # since we are test contact now, no new broadcasts
-        self.assertEquals(2, Broadcast.objects.all().count())
+        self.assertEqual(Broadcast.objects.all().count(), 1)
 
         # but we should have logged instead
-        self.assertEquals("Sending &#39;What is your favorite color?&#39; to 2 contacts",
-                          ActionLog.objects.all().first().text)
+        logged = "Sending &#39;Hi @contact.name (@contact.state). Mr Test (IN) is in the flow&#39; to 2 contacts"
+        self.assertEqual(ActionLog.objects.all().first().text, logged)
 
     def test_email_action(self):
         flow = self.flow

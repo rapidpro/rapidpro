@@ -1172,6 +1172,8 @@ class Flow(TembaModel, SmartModel):
         else:
             results = []
 
+        contact_context = contact.build_message_context() if contact else dict()
+
         # create a flow dict
         flow_context = dict()
 
@@ -1210,7 +1212,7 @@ class Flow(TembaModel, SmartModel):
                 channel_context = msg.channel.build_message_context()
 
         elif contact:
-            message_context = dict(__default__='', contact=contact.build_message_context())
+            message_context = dict(__default__='', contact=contact_context)
         else:
             message_context = dict(__default__='')
 
@@ -1221,7 +1223,7 @@ class Flow(TembaModel, SmartModel):
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
         if contact:
-            context['contact'] = contact
+            context['contact'] = contact_context
 
         return context
 
@@ -4681,9 +4683,12 @@ class SendAction(VariableContactAction):
                     for contact in group.contacts.all():
                         unique_contacts.add(contact.pk)
 
+                # contact refers to each contact this message is being sent to so evaluate without it for logging
+                del message_context['contact']
+
                 text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, errors) = Msg.substitute_variables(text, None, flow.build_message_context(run.contact, msg),
-                                                             org=run.flow.org)
+                (message, errors) = Msg.substitute_variables(text, None, message_context,
+                                                             org=run.flow.org, partial_vars=True)
 
                 self.logger(run, message, len(unique_contacts))
 
