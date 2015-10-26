@@ -19,7 +19,7 @@ def temba_exception_handler(exc):
         return response
     else:
         # ensure exception still goes to Sentry
-        logger.error('Exception in API request', exc_info=True)
+        logger.error('Exception in API request: %s' % unicode(exc), exc_info=True)
 
         # respond with simple message
         return HttpResponseServerError("Server Error. Site administrators have been notified.")
