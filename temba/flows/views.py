@@ -385,18 +385,14 @@ class FlowCRUDL(SmartCRUDL):
             flow_type = forms.ChoiceField(label=_('Run flow over'),
                                           help_text=_('Place a phone call or use text messaging'),
                                           choices=((Flow.FLOW, 'Text Messaging'),
-                                                   (Flow.VOICE, 'Phone Call')))
+                                                   (Flow.VOICE, 'Phone Call'),
+                                                   (Flow.SURVEY, 'Android Phone')))
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
                 # if they are a beta user, add option for android phone survey
-                if self.user.is_beta():
-                    self.fields['flow_type'].choices = ((Flow.FLOW, 'Text Messaging'),
-                                                        (Flow.VOICE, 'Phone Call'),
-                                                        (Flow.SURVEY, 'Android Phone'))
-
                 self.fields['base_language'] = forms.ChoiceField(label=_('Language'), initial=self.user.get_org().primary_language,
                     choices=((lang.iso_code, lang.name) for lang in self.user.get_org().languages.all().order_by('orgs', 'name')))
 
@@ -404,7 +400,7 @@ class FlowCRUDL(SmartCRUDL):
                 model = Flow
 
         form_class = FlowCreateForm
-        fields = ('name', 'keyword_triggers', 'expires_after_minutes')
+        fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type')
         success_url = 'id@flows.flow_editor'
         success_message = ''
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
@@ -415,9 +411,6 @@ class FlowCRUDL(SmartCRUDL):
 
             if org.primary_language:
                 fields += ('base_language',)
-
-            if org.supports_ivr() or self.request.user.is_beta():
-                fields += ('flow_type',)
 
             return fields
 
@@ -762,7 +755,10 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('flows.flow_broadcast') and not self.get_object().is_archived:
+            if self.get_object().flow_type != 'S' \
+                    and self.has_org_perm('flows.flow_broadcast') \
+                    and not self.get_object().is_archived:
+
                 links.append(dict(title=_("Start Flow"),
                                   style='btn-primary',
                                   js_class='broadcast-rulesflow',

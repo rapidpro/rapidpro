@@ -205,6 +205,8 @@
       %h2
         -if flow.flow_type == 'V'
           .icon-phone
+        -elif flow.flow_type == 'S'
+          .icon-channel-android
         {{ flow.name }}
 
       #pending{ng-show:'pending == "S" || pending == "P"'}
