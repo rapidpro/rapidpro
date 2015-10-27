@@ -5486,9 +5486,13 @@ class WebHookTest(TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
 
-            response = self.client.post(reverse('api.webhook_tunnel'), dict(url="http://webhook.url/", data="phone=250788383383"))
+            response = self.client.post(reverse('api.webhook_tunnel'),
+                                        dict(url="http://webhook.url/", data="phone=250788383383&values=foo&bogus=2"))
             self.assertEquals(200, response.status_code)
             self.assertContains(response, "I am success")
+            self.assertTrue('values' in mock.call_args[1]['data'])
+            self.assertTrue('phone' in mock.call_args[1]['data'])
+            self.assertFalse('bogus' in mock.call_args[1]['data'])
 
             response = self.client.post(reverse('api.webhook_tunnel'), dict())
             self.assertEquals(400, response.status_code)
