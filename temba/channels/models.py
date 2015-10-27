@@ -1,14 +1,16 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import time
+import urlparse
+from datetime import timedelta
+from uuid import uuid4
+from urllib import quote_plus
+
 import os
 import phonenumbers
 import plivo
 import requests
-import time
-import urlparse
-
-from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.db import models
@@ -27,14 +29,11 @@ from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
-from temba.temba_email import send_temba_email
+from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
 from twilio.rest import TwilioRestClient
 from twython import Twython
-from uuid import uuid4
-from urllib import quote_plus
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
-
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -2379,7 +2378,7 @@ class Alert(SmartModel):
         context['unsent_count'] = Msg.objects.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
         context['subject'] = subject
 
-        send_temba_email(self.channel.alert_email, subject, template, context, branding)
+        send_template_email(self.channel.alert_email, subject, template, context, branding)
 
 
 def get_alert_user():

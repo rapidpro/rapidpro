@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
@@ -15,16 +15,17 @@ from mock import patch
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
+from xlrd import open_workbook
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
+from .email import is_valid_address
+from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
+from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
 from . import datetime_to_str
-from temba.utils.exporter import TableExporter
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
-from xlrd import open_workbook
 
 
 class InitTest(TembaTest):
@@ -228,6 +229,19 @@ class CacheTest(TembaTest):
 
         incrby_existing('xxx', -2, r)  # non-existent key
         self.assertIsNone(r.get('xxx'))
+
+
+class EmailTest(TembaTest):
+
+    def test_is_valid_address(self):
+        self.assertFalse(is_valid_address(None))
+        self.assertFalse(is_valid_address(""))
+        self.assertFalse(is_valid_address("abc"))
+        self.assertFalse(is_valid_address("a@b"))
+        self.assertFalse(is_valid_address(" @ .c"))
+        self.assertFalse(is_valid_address("a @b.c"))
+        self.assertTrue(is_valid_address("a@b.c"))
+        self.assertTrue(is_valid_address('"Abc@def"+label@example.com'))
 
 
 class JsonTest(TembaTest):
