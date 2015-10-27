@@ -1956,14 +1956,14 @@ class ActionTest(TembaTest):
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
 
     def test_set_language_action(self):
-        action = SetLanguageAction('kli', 'Kingon')
+        action = SetLanguageAction('kli', 'Klingon')
 
         # check to and from JSON
         action_json = action.as_json()
         action = SetLanguageAction.from_json(self.org, action_json)
 
         self.assertEqual('kli', action.lang)
-        self.assertEqual('Klingon', action.lang)
+        self.assertEqual('Klingon', action.name)
 
         # execute our action and check we are Klingon now, eeektorp shnockahltip.
         run = FlowRun.create(self.flow, self.contact)
@@ -2095,7 +2095,7 @@ class ActionTest(TembaTest):
 
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
-                                                   headers={'User-agent': 'RapidPro'},
+                                                   headers={'User-agent': "RapidPro"},
                                                    data={'run': 1,
                                                          'phone': u'+250788382382',
                                                          'text': None,
