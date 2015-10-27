@@ -102,6 +102,8 @@ ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 ORG_ACTIVE_TOPUP_KEY = 'org:%d:cache:active_topup'
 ORG_ACTIVE_TOPUP_REMAINING = 'org:%d:cache:credits_remaining:%d'
+ORG_CREDIT_EXPIRING_CACHE_KEY = 'org:%d:cache:credits_expiring'
+ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = 'org:%d:cache:low_credits_threshold'
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
@@ -858,8 +860,31 @@ class Org(SmartModel):
         else:
             return None
 
+    def get_credits_expiring_soon(self):
+        """
+        Get the number of credits expiring in less than a month.
+        """
+        return get_cacheable_result(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                                    self._calculate_credits_expiring_soon)
+
+    def _calculate_credits_expiring_soon(self):
+        one_month_period = timezone.now() + timedelta(days=30)
+        expiring_topups = self.topups.filter(is_active=True, expires_on__lte=one_month_period).aggregate(Sum('credits')).get('credits__sum')
+        return expiring_topups if expiring_topups else 0
+
     def has_low_credits(self):
-        return self.get_credits_remaining() <= ORG_LOW_CREDIT_THRESHOLD
+        return self.get_credits_remaining() <= self.get_low_credits_threshold()
+
+    def get_low_credits_threshold(self):
+        """
+        Get the credits number to consider as low threshold to this org
+        """
+        return get_cacheable_result(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
+                                    self._calculate_low_credits_threshold)
+
+    def _calculate_low_credis_threshold(self):
+        last_topup = self.topups.filter(is_active=True).last()
+        return int(last_topup.credits * 0.25)
 
     def get_credits_total(self):
         """
@@ -1628,30 +1653,43 @@ class CreditAlert(SmartModel):
     alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES,
                                   help_text="The type of this alert")
 
-
     @classmethod
-    def trigger_credit_alert(cls, org, threshold):
+    def trigger_credit_alert(cls, org, alert_type):
         # is there already an active alert at this threshold? if so, exit
-        if CreditAlert.objects.filter(is_active=True, org=org, threshold__lte=threshold):
+        if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):
             return None
 
-        print "triggering alert at %d for %s" % (threshold, org.name)
+        print "triggering %s credits alert type for %s" % (alert_type, org.name)
 
         admin = org.get_org_admins().first()
 
         if admin:
             # Otherwise, create our alert objects and trigger our event
-            CreditAlert.objects.create(org=org, threshold=threshold,
-                                       created_by=admin, modified_by=admin)
+            alert = CreditAlert.objects.create(org=org, alert_type=alert_type,
+                                               created_by=admin, modified_by=admin)
 
-            properties = dict(remaining=org.get_credits_remaining(),
-                              threshold=threshold,
-                              org=org.name)
+            alert.send_alert()
 
-            if threshold == 0:
-                analytics.track(admin.username, 'temba.credits_over', properties)
-            else:
-                analytics.track(admin.username, 'temba.credits_low', properties)
+    def send_alert(self):
+        from .tasks import send_alert_email_task
+        send_alert_email_task(self.id)
+
+    def send_email(self):
+        email = self.created_by.email
+        if not email:
+            return
+
+        from temba.middleware import BrandingMiddleware
+        branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
+
+        subject = _("%(name)s Credits Alert") % branding
+        template = "orgs/email/alert_email"
+        to_email = email
+
+        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
+        context['subject'] = subject
+
+        send_temba_email(to_email, subject, template, context, branding)
 
     @classmethod
     def reset_for_org(cls, org):
@@ -1668,8 +1706,15 @@ class CreditAlert(SmartModel):
             org = msg.org
 
             # does this org have less than 0 messages?
-            remaining = org.get_credits_remaining()
-            if remaining <= 0:
-                CreditAlert.trigger_credit_alert(org, 0)
-            elif remaining <= 500:
-                CreditAlert.trigger_credit_alert(org, 500)
+            org_remaining_credits = org.get_credits_remaining()
+            org_low_credits = org.has_low_credits()
+            org_credits_expiring = org.get_credits_expiring_soon()
+
+            if org_remaining_credits <= 0:
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
+            elif org_low_credits:
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
+            elif org_credits_expiring > 0:
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
+
+
