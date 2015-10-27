@@ -3888,8 +3888,8 @@ class APIAction(Action):
         self.action = action
 
     @classmethod
-    def from_json(cls, org, json):
-        return APIAction(json.get('webhook', org.get_webhook_url()), json.get('action', 'POST'))
+    def from_json(cls, org, json_obj):
+        return APIAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
 
     def as_json(self):
         return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
@@ -3925,16 +3925,16 @@ class AddToGroupAction(Action):
         self.groups = groups
 
     @classmethod
-    def from_json(cls, org, json):
-        return AddToGroupAction(AddToGroupAction.get_groups(org, json))
+    def from_json(cls, org, json_obj):
+        return AddToGroupAction(AddToGroupAction.get_groups(org, json_obj))
 
     @classmethod
-    def get_groups(cls, org, json):
+    def get_groups(cls, org, json_obj):
 
         # for backwards compatibility
-        group_data = json.get(AddToGroupAction.GROUP, None)
+        group_data = json_obj.get(AddToGroupAction.GROUP, None)
         if not group_data:
-            group_data = json.get(AddToGroupAction.GROUPS)
+            group_data = json_obj.get(AddToGroupAction.GROUPS)
         else:
             group_data = [group_data]
 
@@ -3946,7 +3946,7 @@ class AddToGroupAction(Action):
 
                 try:
                     group_id = int(group_id)
-                except:
+                except Exception:
                     group_id = -1
 
                 if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
@@ -4034,11 +4034,12 @@ class DeleteFromGroupAction(AddToGroupAction):
         return DeleteFromGroupAction.TYPE
 
     @classmethod
-    def from_json(cls, org, json):
-        return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json))
+    def from_json(cls, org, json_obj):
+        return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
     def get_description(self):
         return "Removed from group %s" % ", ".join([g.name for g in self.groups])
+
 
 class AddLabelAction(Action):
     """
@@ -4053,8 +4054,8 @@ class AddLabelAction(Action):
         self.labels = labels
 
     @classmethod
-    def from_json(cls, org, json):
-        labels_data = json.get(AddLabelAction.LABELS)
+    def from_json(cls, org, json_obj):
+        labels_data = json_obj.get(AddLabelAction.LABELS)
 
         labels = []
         for l_data in labels_data:
@@ -4143,10 +4144,10 @@ class SayAction(Action):
         self.recording = recording
 
     @classmethod
-    def from_json(cls, org, json):
-        return SayAction(json.get(SayAction.UUID, None),
-                         json.get(SayAction.MESSAGE, None),
-                         json.get(SayAction.RECORDING, None))
+    def from_json(cls, org, json_obj):
+        return SayAction(json_obj.get(SayAction.UUID),
+                         json_obj.get(SayAction.MESSAGE),
+                         json_obj.get(SayAction.RECORDING))
 
     def as_json(self):
         return dict(type=SayAction.TYPE, msg=self.msg,
@@ -4199,9 +4200,9 @@ class PlayAction(Action):
         self.url = url
 
     @classmethod
-    def from_json(cls, org, json):
-        return PlayAction(json.get(PlayAction.UUID, None),
-                         json.get(PlayAction.URL, None))
+    def from_json(cls, org, json_obj):
+        return PlayAction(json_obj.get(PlayAction.UUID),
+                         json_obj.get(PlayAction.URL))
 
     def as_json(self):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
@@ -4236,8 +4237,8 @@ class ReplyAction(Action):
         self.msg = msg
 
     @classmethod
-    def from_json(cls, org, json):
-        return ReplyAction(msg=json.get(ReplyAction.MESSAGE, None))
+    def from_json(cls, org, json_obj):
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
 
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
@@ -4282,10 +4283,10 @@ class VariableContactAction(Action):
         self.variables = variables
 
     @classmethod
-    def parse_groups(cls, org, json):
+    def parse_groups(cls, org, json_obj):
         # we actually instantiate our contacts here
         groups = []
-        for group_data in json.get(VariableContactAction.GROUPS):
+        for group_data in json_obj.get(VariableContactAction.GROUPS):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
@@ -4301,9 +4302,9 @@ class VariableContactAction(Action):
         return groups
 
     @classmethod
-    def parse_contacts(cls, org, json):
+    def parse_contacts(cls, org, json_obj):
         contacts = []
-        for contact in json.get(VariableContactAction.CONTACTS):
+        for contact in json_obj.get(VariableContactAction.CONTACTS):
             name = contact.get(VariableContactAction.NAME, None)
             phone = contact.get(VariableContactAction.PHONE, None)
             contact_id = contact.get(VariableContactAction.ID, None)
@@ -4323,10 +4324,10 @@ class VariableContactAction(Action):
         return contacts
 
     @classmethod
-    def parse_variables(cls, org, json):
+    def parse_variables(cls, org, json_obj):
         variables = []
-        if VariableContactAction.VARIABLES in json:
-            variables = list(_.get(VariableContactAction.ID) for _ in json.get(VariableContactAction.VARIABLES))
+        if VariableContactAction.VARIABLES in json_obj:
+            variables = list(_.get(VariableContactAction.ID) for _ in json_obj.get(VariableContactAction.VARIABLES))
         return variables
 
     def build_groups_and_contacts(self, run, msg):
@@ -4376,17 +4377,17 @@ class TriggerFlowAction(VariableContactAction):
         super(TriggerFlowAction, self).__init__(groups, contacts, variables)
 
     @classmethod
-    def from_json(cls, org, json):
-        flow_pk = json.get(cls.ID)
+    def from_json(cls, org, json_obj):
+        flow_pk = json_obj.get(cls.ID)
         flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
 
         # it is possible our flow got deleted
         if not flow:
             return None
 
-        groups = VariableContactAction.parse_groups(org, json)
-        contacts = VariableContactAction.parse_contacts(org, json)
-        variables = VariableContactAction.parse_variables(org, json)
+        groups = VariableContactAction.parse_groups(org, json_obj)
+        contacts = VariableContactAction.parse_contacts(org, json_obj)
+        variables = VariableContactAction.parse_variables(org, json_obj)
 
         return TriggerFlowAction(flow, groups, contacts, variables)
 
@@ -4449,8 +4450,8 @@ class SetLanguageAction(Action):
         self.name = name
 
     @classmethod
-    def from_json(cls, org, json):
-        return SetLanguageAction(json.get(cls.LANG), json.get(cls.NAME))
+    def from_json(cls, org, json_obj):
+        return SetLanguageAction(json_obj.get(cls.LANG), json_obj.get(cls.NAME))
 
     def as_json(self):
         return dict(type=SetLanguageAction.TYPE, lang=self.lang, name=self.name)
@@ -4486,8 +4487,8 @@ class StartFlowAction(Action):
         self.flow = flow
 
     @classmethod
-    def from_json(cls, org, json):
-        flow_pk = json.get(cls.ID)
+    def from_json(cls, org, json_obj):
+        flow_pk = json_obj.get(cls.ID)
         flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
 
         # it is possible our flow got deleted
@@ -4552,11 +4553,11 @@ class SaveToContactAction(Action):
         return label
 
     @classmethod
-    def from_json(cls, org, json):
+    def from_json(cls, org, json_obj):
         # they are creating a new field
-        label = json.get(cls.LABEL)
-        field = json.get(cls.FIELD, None)
-        value = json.get(cls.VALUE)
+        label = json_obj.get(cls.LABEL)
+        field = json_obj.get(cls.FIELD)
+        value = json_obj.get(cls.VALUE)
 
         # create our contact field if necessary
         if not field:
@@ -4637,12 +4638,12 @@ class SendAction(VariableContactAction):
         super(SendAction, self).__init__(groups, contacts, variables)
 
     @classmethod
-    def from_json(cls, org, json):
-        groups = VariableContactAction.parse_groups(org, json)
-        contacts = VariableContactAction.parse_contacts(org, json)
-        variables = VariableContactAction.parse_variables(org, json)
+    def from_json(cls, org, json_obj):
+        groups = VariableContactAction.parse_groups(org, json_obj)
+        contacts = VariableContactAction.parse_contacts(org, json_obj)
+        variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(json.get(SendAction.MESSAGE), groups, contacts, variables)
+        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
