@@ -3128,6 +3128,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
     By making a ```POST``` request to the endpoint you can add a new steps to a flow run.
 
     * **flow** - the UUID of the flow (string)
+    * **revision** - the revision of the flow that was executed (integer)
     * **contact** - the UUID of the contact (string)
     * **steps** - the new step objects (array of objects)
     * **started** - the datetime when the run was started
@@ -3138,6 +3139,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
         POST /api/v1/steps.json
         {
             "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+            "revision": 2,
             "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
             "completed": true,
             "started": "2015-09-23T17:59:47.572Z"
