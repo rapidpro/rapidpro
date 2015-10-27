@@ -2096,10 +2096,10 @@ class ActionTest(TembaTest):
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
                                                    headers={'User-agent': "RapidPro"},
-                                                   data={'run': 1,
+                                                   data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'text': None,
-                                                         'flow': 1,
+                                                         'flow': self.flow.pk,
                                                          'relayer': -1,
                                                          'step': 'None',
                                                          'values': '[]',
@@ -2119,16 +2119,16 @@ class ActionTest(TembaTest):
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
                                                    headers={'User-agent': 'RapidPro'},
-                                                   data={'run': 1,
+                                                   data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'text': "Green is my favorite",
-                                                         'flow': 1,
-                                                         'relayer': 1,
+                                                         'flow': self.flow.pk,
+                                                         'relayer': msg.channel.pk,
                                                          'step': 'None',
                                                          'values': '[]',
                                                          'time': '2015-10-27T14:07:30.000006Z',
                                                          'steps': '[]',
-                                                         'channel': 1},
+                                                         'channel': msg.channel.pk},
                                                    timeout=10)
 
         # check simulator warns of webhook URL errors
