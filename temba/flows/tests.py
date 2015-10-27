@@ -1707,7 +1707,7 @@ class ActionTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
-        self.flow = Flow.create(self.org, self.admin, "Color Flow", base_language='base')
+        self.flow = Flow.create(self.org, self.admin, "Empty Flow", base_language='base')
 
         self.other_group = self.create_group("Other", [])
 
