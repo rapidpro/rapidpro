@@ -2,23 +2,23 @@ from __future__ import unicode_literals
 
 import json
 import numbers
+import time
+import urllib2
+from collections import OrderedDict
+from datetime import timedelta
+from decimal import Decimal
+from string import maketrans, punctuation
+from uuid import uuid4
+
 import phonenumbers
 import pytz
 import regex
 import requests
-import time
 import xlwt
-import urllib2
-
-from collections import OrderedDict
-from datetime import timedelta
-from decimal import Decimal
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
-from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
@@ -29,12 +29,11 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.temba_email import send_temba_email
+from temba.utils.email import send_template_email, is_valid_address
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
@@ -43,7 +42,6 @@ from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
 from twilio import twiml
 from unidecode import unidecode
-from uuid import uuid4
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
@@ -3338,7 +3336,7 @@ class ExportFlowResultsTask(SmartModel):
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
+        send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
 
 
 class ActionLog(models.Model):
@@ -3767,11 +3765,14 @@ def get_flow_user():
 
 
 class Action(object):
+    """
+    Base class for actions that can be added to an action set and executed during a flow run
+    """
     TYPE = 'type'
     __action_mapping = None
 
     @classmethod
-    def from_json(cls, org, json):
+    def from_json(cls, org, json_obj):
         if not cls.__action_mapping:
             cls.__action_mapping = {
                 ReplyAction.TYPE: ReplyAction,
@@ -3789,19 +3790,19 @@ class Action(object):
                 TriggerFlowAction.TYPE: TriggerFlowAction,
             }
 
-        type = json.get(cls.TYPE, None)
-        if not type: # pragma: no cover
-            raise FlowException("Action definition missing 'type' attribute: %s" % json)
+        action_type = json_obj.get(cls.TYPE)
+        if not action_type:  # pragma: no cover
+            raise FlowException("Action definition missing 'type' attribute: %s" % json_obj)
 
-        if not type in cls.__action_mapping: # pragma: no cover
-            raise FlowException("Unknown action type '%s' in definition: '%s'" % (type, json))
+        if action_type not in cls.__action_mapping:  # pragma: no cover
+            raise FlowException("Unknown action type '%s' in definition: '%s'" % (action_type, json_obj))
 
-        return cls.__action_mapping[type].from_json(org, json)
+        return cls.__action_mapping[action_type].from_json(org, json_obj)
 
     @classmethod
-    def from_json_array(cls, org, json):
+    def from_json_array(cls, org, json_arr):
         actions = []
-        for inner in json:
+        for inner in json_arr:
             action = Action.from_json(org, inner)
             if action:
                 actions.append(action)
@@ -3829,10 +3830,10 @@ class EmailAction(Action):
         self.message = message
 
     @classmethod
-    def from_json(cls, org, json):
-        emails = json.get(EmailAction.EMAILS)
-        message = json.get(EmailAction.MESSAGE)
-        subject = json.get(EmailAction.SUBJECT)
+    def from_json(cls, org, json_obj):
+        emails = json_obj.get(EmailAction.EMAILS)
+        message = json_obj.get(EmailAction.MESSAGE)
+        subject = json_obj.get(EmailAction.SUBJECT)
         return EmailAction(emails, subject, message)
 
     def as_json(self):
@@ -3846,34 +3847,33 @@ class EmailAction(Action):
         (message, errors) = Msg.substitute_variables(self.message, run.contact, message_context, org=run.flow.org)
         (subject, errors) = Msg.substitute_variables(self.subject, run.contact, message_context, org=run.flow.org)
 
-        emails = []
+        # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
+        subject = regex.sub('\s+', ' ', subject, regex.V0)
+
+        valid_addresses = []
+        invalid_addresses = []
         for email in self.emails:
-            if email[0] == '@':
-                (email, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
-            # TODO: validate email format
-            emails.append(email)
+            # a valid email will contain @ so this is very likely to generate evaluation errors
+            (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
+            address = address.strip()
+
+            if is_valid_address(address):
+                valid_addresses.append(address)
+            else:
+                invalid_addresses.append(address)
 
         if not run.contact.is_test:
-            send_email_action_task.delay(emails, subject, message)
+            if valid_addresses:
+                send_email_action_task.delay(valid_addresses, subject, message)
         else:
-            log_txt = _("\"%s\" would be sent to %s") % (message, ", ".join(emails))
-            ActionLog.create(run, log_txt)
+            if valid_addresses:
+                ActionLog.info(run, _("\"%s\" would be sent to %s") % (message, ", ".join(valid_addresses)))
+            if invalid_addresses:
+                ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
-    @classmethod
-    def send_email(cls, emails, subject, message):
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
-
-        # do not send unless we are in a prod environment
-        if not settings.SEND_EMAILS:
-            print "!! Skipping email send, SEND_EMAILS set to False"
-        else:
-            # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-            subject = regex.sub('\s+', ' ', subject, regex.V0)
-            send_mail(subject, message, from_email, emails)
-
     def get_description(self):
-        return "Email to %s with subject %s" % (",".join(self.emails), self.subject)
+        return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
 
 
 class APIAction(Action):

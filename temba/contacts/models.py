@@ -2,11 +2,13 @@ from __future__ import unicode_literals
 
 import datetime
 import json
+import time
+from urlparse import urlparse, urlunparse, ParseResult
+from uuid import uuid4
+
 import os
 import phonenumbers
 import regex
-import time
-
 from django.core.files import File
 from django.db import models
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -14,14 +16,13 @@ from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
-from temba.temba_email import send_temba_email
+from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list
 from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
-from urlparse import urlparse, urlunparse, ParseResult
-from uuid import uuid4
+
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = '12065551212'
@@ -1711,4 +1712,4 @@ class ExportContactsTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)

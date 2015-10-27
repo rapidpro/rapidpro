@@ -2,12 +2,13 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import pytz
-import regex
 import time
 import traceback
-
 from datetime import datetime, timedelta
+from uuid import uuid4
+
+import pytz
+import regex
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -24,12 +25,11 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.temba_email import send_temba_email
+from temba.utils.email import send_template_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -1777,4 +1777,4 @@ class ExportMessagesTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)

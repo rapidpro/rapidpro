@@ -1119,49 +1119,63 @@ class RuleTest(TembaTest):
         self.assertEqual(ActionLog.objects.all().first().text, logged)
 
     def test_email_action(self):
-        flow = self.flow
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
-        recipients = ["steve@apple.com"]
-        test = EmailAction(recipients, "Subject", "Body")
-        action_json = test.as_json()
+        action = EmailAction(["steve@apple.com"], "Subject", "Body")
 
-        test = EmailAction.from_json(self.org, action_json)
-        test.execute(run, None, sms)
+        # check to and from JSON
+        action_json = action.as_json()
+        action = EmailAction.from_json(self.org, action_json)
+
+        action.execute(run, None, msg)
 
         self.assertEquals(len(mail.outbox), 1)
-        self.assertEquals(mail.outbox[0].subject, 'Subject')
-        self.assertEquals(mail.outbox[0].body, 'Body')
-        self.assertEquals(mail.outbox[0].recipients(), recipients)
+        self.assertEquals(mail.outbox[0].subject, "Subject")
+        self.assertEquals(mail.outbox[0].body, "Body")
+        self.assertEquals(mail.outbox[0].recipients(), ["steve@apple.com"])
 
         try:
-            test = EmailAction([], "Subject", "Body")
+            EmailAction([], "Subject", "Body")
             self.fail("Should have thrown due to empty recipient list")
-        except FlowException as fe:
+        except FlowException:
             pass
 
-        test = EmailAction(recipients, "@contact.name added in subject", "In the body; @contact.name uses phone @contact.tel")
-        action_json = test.as_json()
+        # check expression evaluation in action fields
+        action = EmailAction(["@contact.name", "xyz", '@(SUBSTITUTE(LOWER(contact), " ", ""))@nyaruka.com'],
+                             "@contact.name added in subject",
+                             "@contact.name uses phone @contact.tel")
 
-        test = EmailAction.from_json(self.org, action_json)
-        test.execute(run, None, sms)
+        action_json = action.as_json()
+        action = EmailAction.from_json(self.org, action_json)
+
+        action.execute(run, None, msg)
 
         self.assertEquals(len(mail.outbox), 2)
-        self.assertEquals(mail.outbox[1].subject, 'Eric added in subject')
-        self.assertEquals(mail.outbox[1].body, 'In the body; Eric uses phone 0788 382 382')
-        self.assertEquals(mail.outbox[1].recipients(), recipients)
+        self.assertEquals(mail.outbox[1].subject, "Eric added in subject")
+        self.assertEquals(mail.outbox[1].body, "Eric uses phone 0788 382 382")
+        self.assertEquals(mail.outbox[1].recipients(), ["eric@nyaruka.com"])  # invalid emails are ignored
 
-        test = EmailAction(recipients, "Allo \n allo\tmessage", "Email notification for allo allo")
-        action_json = test.as_json()
+        # check simulator reports invalid addresses
+        test_contact = Contact.get_test_contact(self.user)
+        test_run = FlowRun.create(self.flow, test_contact)
 
-        test = EmailAction.from_json(self.org, action_json)
-        test.execute(run, None, sms)
+        action.execute(test_run, None, msg)
+
+        logs = list(ActionLog.objects.order_by('pk'))
+        self.assertEqual(logs[0].level, ActionLog.LEVEL_INFO)
+        self.assertEqual(logs[0].text, "&quot;Test Contact uses phone (206) 555-0100&quot; would be sent to testcontact@nyaruka.com")
+        self.assertEqual(logs[1].level, ActionLog.LEVEL_WARN)
+        self.assertEqual(logs[1].text, "Some email address appear to be invalid: Test Contact, xyz")
+
+        # check that all white space is replaced with single spaces in the subject
+        test = EmailAction(["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo")
+        test.execute(run, None, msg)
 
         self.assertEquals(len(mail.outbox), 3)
         self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
         self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
-        self.assertEquals(mail.outbox[2].recipients(), recipients)
+        self.assertEquals(mail.outbox[2].recipients(), ["steve@apple.com"])
 
     def test_decimal_values(self):
         flow = self.flow
