@@ -1144,7 +1144,18 @@ class Org(SmartModel):
 
             print context
 
-            analytics.track(user.email, "temba.topup_purchased", context)
+            from temba.middleware import BrandingMiddleware
+            branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
+
+            subject = _("%(name)s Receipt") % branding
+            template = "orgs/email/receipt_email"
+            to_email = user.email
+
+            context['customer'] = user
+            context['branding'] = branding
+            context['subject'] = subject
+
+            send_temba_email(to_email, subject, template, context, branding)
 
             # apply our new topups
             self.apply_topups()
