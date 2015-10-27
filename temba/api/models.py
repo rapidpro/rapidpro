@@ -352,12 +352,12 @@ class WebHookEvent(SmartModel):
         try:
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+
             # some hosts deny generic user agents, use Temba as our user agent
-            headers = TEMBA_HEADERS
+            headers = TEMBA_HEADERS.copy()
 
             # also include any user-defined headers
             headers.update(self.org.get_webhook_headers())
-
 
             s = requests.Session()
             prepped = requests.Request('POST', self.org.get_webhook_url(),
