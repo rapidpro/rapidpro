@@ -191,6 +191,8 @@ class Org(SmartModel):
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
                                          help_text=_('The primary language will be used for contacts with no language preference.'), on_delete=models.SET_NULL)
 
+    brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
+                             help_text=_("The brand used in emails"))
 
     @classmethod
     def get_unique_slug(cls, name):

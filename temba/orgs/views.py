@@ -1249,6 +1249,7 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data['name'])
             obj.slug = slug
+            obj.brand = self.request.get_host()
 
             return obj
 
@@ -1262,7 +1263,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            brand = BrandingMiddleware.get_branding_for_host(self.request.get_host())
+            brand = BrandingMiddleware.get_branding_for_host(obj.brand)
             obj.initialize(brand=brand, topup_size=self.get_welcome_size())
 
             return obj
