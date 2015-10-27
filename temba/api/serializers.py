@@ -1338,9 +1338,11 @@ class FlowRunWriteSerializer(WriteSerializer):
     flow = serializers.CharField(required=True, max_length=36)
     contact = serializers.CharField(required=True, max_length=36)
     started = serializers.DateTimeField(required=True)
-    version = serializers.IntegerField(required=True)
     completed = serializers.BooleanField(required=False)
     steps = serializers.WritableField()
+
+    revision = serializers.IntegerField(required=False) # for backwards compatibility
+    version = serializers.IntegerField(required=False) # for backwards compatibility
 
     def validate_steps(self, attrs, source):
 
@@ -1366,14 +1368,17 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         steps = attrs.get(source)
         flow = attrs.get('flow')
-        version = attrs.get('version')
+        revision = attrs.get('revision', attrs.get('version'))
 
-        flow_version = flow.versions.filter(version=version).first()
+        if not revision:
+            raise ValidationError("Missing 'revision' field")
 
-        if not flow_version:
-            raise ValidationError("Invalid version: %s" % version)
+        flow_revision = flow.versions.filter(version=revision).first()
 
-        definition = json.loads(flow_version.definition)
+        if not flow_revision:
+            raise ValidationError("Invalid revision: %s" % revision)
+
+        definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
         from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION

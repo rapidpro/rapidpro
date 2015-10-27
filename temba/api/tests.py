@@ -540,7 +540,7 @@ class APITest(TembaTest):
 
 
         data = dict(flow=flow.uuid,
-                    version=2,
+                    revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
@@ -592,7 +592,7 @@ class APITest(TembaTest):
         self.assertEqual(flow.get_activity(), ({u'00000000-00000000-00000000-00000001': 1}, {}))
 
         data = dict(flow=flow.uuid,
-                    version=2,
+                    revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
@@ -698,7 +698,7 @@ class APITest(TembaTest):
 
         # update a value for our missing node
         data = dict(flow=flow.uuid,
-                    version=2,
+                    revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-26T11:09:29.088Z',
                     steps=[
@@ -713,18 +713,25 @@ class APITest(TembaTest):
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
 
             # this version doesn't have our node
-            data['version'] = 3
+            data['revision'] = 3
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
             self.assertEquals("No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'", response.json['steps'][0])
 
             # this version doesn't exist
-            data['version'] = 12
+            data['revision'] = 12
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
-            self.assertEquals('Invalid version: 12', response.json['steps'][0])
+            self.assertEquals('Invalid revision: 12', response.json['steps'][0])
 
             # this one exists and has our node
+            data['revision'] = 2
+            response = self.postJSON(url, data)
+            self.assertEquals(201, response.status_code)
+            self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
+
+            # test with old name
+            del data['revision']
             data['version'] = 2
             response = self.postJSON(url, data)
             self.assertEquals(201, response.status_code)
