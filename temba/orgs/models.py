@@ -91,6 +91,10 @@ NEXMO_UUID = 'NEXMO_UUID'
 
 ORG_LOW_CREDIT_THRESHOLD = 500
 
+ORG_CREDIT_OVER = 'O'
+ORG_CREDIT_LOW = 'L'
+ORG_CREDIT_EXPIRING = 'E'
+
 # cache keys and TTLs
 ORG_LOCK_KEY = 'org:%d:lock:%s'
 ORG_CREDITS_TOTAL_CACHE_KEY = 'org:%d:cache:credits_total'
@@ -1615,8 +1619,15 @@ class CreditAlert(SmartModel):
     """
     Tracks when we have sent alerts to organization admins about low credits.
     """
+
+    ALERT_TYPES_CHOICES = ((ORG_CREDIT_OVER, _("Credits Over")),
+                           (ORG_CREDIT_LOW, _("Low Credits")),
+                           (ORG_CREDIT_EXPIRING, _("Credits expiring soon")))
+
     org = models.ForeignKey(Org, help_text="The organization this alert was triggered for")
-    threshold = models.IntegerField(help_text="The threshold this alert was sent for")
+    alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES,
+                                  help_text="The type of this alert")
+
 
     @classmethod
     def trigger_credit_alert(cls, org, threshold):
