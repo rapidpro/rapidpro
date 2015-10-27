@@ -10,9 +10,9 @@ import time
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.urlresolvers import reverse
+from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
@@ -41,10 +41,10 @@ from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, ActionL
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 
 
-class RuleTest(TembaTest):
+class FlowTest(TembaTest):
 
     def setUp(self):
-        super(RuleTest, self).setUp()
+        super(FlowTest, self).setUp()
 
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
@@ -53,40 +53,7 @@ class RuleTest(TembaTest):
 
         self.other_group = self.create_group("Other", [])
 
-        self.definition = dict(action_sets=[dict(uuid=uuid(1), x=1, y=1, destination=uuid(5),
-                                            actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
-                                       dict(uuid=uuid(2), x=2, y=2, destination=None,
-                                            actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
-                                       dict(uuid=uuid(3), x=3, y=3, destination=None,
-                                            actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
-                                       dict(uuid=uuid(4), x=4, y=4, destination=None,
-                                            actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])
-                                       ],
-                          rule_sets=[dict(uuid=uuid(5), x=5, y=5,
-                                          label='color',
-                                          finished_key=None,
-                                          operand=None,
-                                          webhook=None,
-                                          webhook_action=None,
-                                          response_type='',
-                                          ruleset_type='wait_message',
-                                          config={},
-                                          rules=[
-                                              dict(uuid=uuid(12), destination=uuid(2), test=dict(type='contains', test=dict(base='orange')), category=dict(base="Orange")),
-                                              dict(uuid=uuid(13), destination=uuid(3), test=dict(type='contains', test=dict(base='blue')), category=dict(base="Blue")),
-                                              dict(uuid=uuid(14), destination=uuid(4), test=dict(type='true'), category=dict(base="Other")),
-                                              dict(uuid=uuid(15), test=dict(type='true'), category=dict(base="Nothing"))]) # test case with no destination
-                                    ],
-                          entry=uuid(1), base_language='base', metadata=dict(author="Ryan Lewis"))
-
-        settings.SEND_EMAILS = True
-        settings.SEND_WEBHOOKS = True
-
-    def tearDown(self):
-        super(RuleTest, self).tearDown()
-
-        settings.SEND_EMAILS = False
-        settings.SEND_WEBHOOKS = False
+        self.definition = self.create_flow_definition(0)
 
     def test_revision_history(self):
 
@@ -491,9 +458,17 @@ class RuleTest(TembaTest):
         self.assertEquals(copy.action_sets.all().count(), self.flow.action_sets.all().count())
         self.assertEquals(copy.rule_sets.all().count(), self.flow.rule_sets.all().count())
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_optimization_reply_action(self):
 
-        self.flow.update({"base_language":"base", "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a", "rule_sets": [], "action_sets": [{"y": 0, "x": 100, "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a", "actions": [{"type": "api", "webhook": "https://rapidpro.io/demo/coupon/"}, {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}], "metadata": {"notes": []}})
+        self.flow.update({"base_language": "base",
+                          "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a",
+                          "rule_sets": [],
+                          "action_sets": [{"y": 0, "x": 100,
+                                           "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
+                                           "actions": [{"type": "api", "webhook": "https://rapidpro.io/demo/coupon/"},
+                                                       {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}],
+                          "metadata": {"notes": []}})
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
@@ -1048,135 +1023,6 @@ class RuleTest(TembaTest):
         self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg="hello world")).__class__)
         self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg="hello world", contacts=[], groups=[], variables=[])).__class__)
 
-    def test_reply_action(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
-        action = ReplyAction(dict(base="We love green too!"))
-        action.execute(run, None, msg)
-        msg = Msg.objects.get(contact=self.contact, direction='O')
-        self.assertEquals("We love green too!", msg.text)
-
-        Broadcast.objects.all().delete()
-
-        action_json = action.as_json()
-        action = ReplyAction.from_json(self.org, action_json)
-        self.assertEquals(dict(base="We love green too!"), action.msg)
-
-        action.execute(run, None, msg)
-
-        response = msg.responses.get()
-        self.assertEquals("We love green too!", response.text)
-        self.assertEquals(self.contact, response.contact)
-
-    def test_send_action(self):
-        msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
-
-        self.contact.set_field('state', "WA", label="State")
-        self.contact2.set_field('state', "GA", label="State")
-        run = FlowRun.create(self.flow, self.contact)
-
-        action = SendAction(dict(base=msg_body),
-                            [], [self.contact2], [])
-        action.execute(run, None, None)
-
-        action_json = action.as_json()
-        action = SendAction.from_json(self.org, action_json)
-        self.assertEqual(action.msg['base'], msg_body)
-
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.get_messages().count(), 1)
-        msg = broadcast.get_messages().first()
-        self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, "Hi Nic (GA). Eric (WA) is in the flow")
-
-        # empty message should be a no-op
-        action = SendAction(dict(base=""), [], [self.contact], [])
-        action.execute(run, None, None)
-        self.assertEqual(Broadcast.objects.all().count(), 1)
-
-        # try with a test contact and a group
-        test_contact = Contact.get_test_contact(self.user)
-        test_contact.name = "Mr Test"
-        test_contact.save()
-        test_contact.set_field('state', "IN", label="State")
-
-        self.other_group.update_contacts([self.contact2], True)
-
-        action = SendAction(dict(base=msg_body), [self.other_group], [self.contact], [])
-        run = FlowRun.create(self.flow, test_contact)
-        action.execute(run, None, None)
-
-        # check the action description
-        description = "Sent '{'base': u'Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow'}' to Eric, Other"
-        self.assertEqual(action.get_description(), description)
-
-        # since we are test contact now, no new broadcasts
-        self.assertEqual(Broadcast.objects.all().count(), 1)
-
-        # but we should have logged instead
-        logged = "Sending &#39;Hi @contact.name (@contact.state). Mr Test (IN) is in the flow&#39; to 2 contacts"
-        self.assertEqual(ActionLog.objects.all().first().text, logged)
-
-    def test_email_action(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
-        action = EmailAction(["steve@apple.com"], "Subject", "Body")
-
-        # check to and from JSON
-        action_json = action.as_json()
-        action = EmailAction.from_json(self.org, action_json)
-
-        action.execute(run, None, msg)
-
-        self.assertEquals(len(mail.outbox), 1)
-        self.assertEquals(mail.outbox[0].subject, "Subject")
-        self.assertEquals(mail.outbox[0].body, "Body")
-        self.assertEquals(mail.outbox[0].recipients(), ["steve@apple.com"])
-
-        try:
-            EmailAction([], "Subject", "Body")
-            self.fail("Should have thrown due to empty recipient list")
-        except FlowException:
-            pass
-
-        # check expression evaluation in action fields
-        action = EmailAction(["@contact.name", "xyz", '@(SUBSTITUTE(LOWER(contact), " ", ""))@nyaruka.com'],
-                             "@contact.name added in subject",
-                             "@contact.name uses phone @contact.tel")
-
-        action_json = action.as_json()
-        action = EmailAction.from_json(self.org, action_json)
-
-        action.execute(run, None, msg)
-
-        self.assertEquals(len(mail.outbox), 2)
-        self.assertEquals(mail.outbox[1].subject, "Eric added in subject")
-        self.assertEquals(mail.outbox[1].body, "Eric uses phone 0788 382 382")
-        self.assertEquals(mail.outbox[1].recipients(), ["eric@nyaruka.com"])  # invalid emails are ignored
-
-        # check simulator reports invalid addresses
-        test_contact = Contact.get_test_contact(self.user)
-        test_run = FlowRun.create(self.flow, test_contact)
-
-        action.execute(test_run, None, msg)
-
-        logs = list(ActionLog.objects.order_by('pk'))
-        self.assertEqual(logs[0].level, ActionLog.LEVEL_INFO)
-        self.assertEqual(logs[0].text, "&quot;Test Contact uses phone (206) 555-0100&quot; would be sent to testcontact@nyaruka.com")
-        self.assertEqual(logs[1].level, ActionLog.LEVEL_WARN)
-        self.assertEqual(logs[1].text, "Some email address appear to be invalid: Test Contact, xyz")
-
-        # check that all white space is replaced with single spaces in the subject
-        test = EmailAction(["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo")
-        test.execute(run, None, msg)
-
-        self.assertEquals(len(mail.outbox), 3)
-        self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
-        self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
-        self.assertEquals(mail.outbox[2].recipients(), ["steve@apple.com"])
-
     def test_decimal_values(self):
         flow = self.flow
         flow.update(self.definition)
@@ -1199,236 +1045,6 @@ class RuleTest(TembaTest):
         self.assertEquals(uuid(13), step.rule_uuid)
         self.assertEquals("15", step.rule_value)
         self.assertEquals(Decimal("15"), step.rule_decimal_value)
-
-    def test_save_to_contact_action(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Superhero Name", value='@step'))
-        run = FlowRun.create(self.flow, self.contact)
-
-        field = ContactField.objects.get(org=self.org, key="superhero_name")
-        self.assertEquals("Superhero Name", field.label)
-
-        test.execute(run, None, sms)
-
-        # user should now have a nickname field with a value of batman
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals("batman", contact.get_field_raw('superhero_name'))
-
-        # test clearing our value
-        test = SaveToContactAction.from_json(self.org, test.as_json())
-        test.value = ""
-        test.execute(run, None, sms)
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals(None, contact.get_field_raw('superhero_name'))
-
-        # test setting our name
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Name", value='', field='name'))
-        test.value = "Eric Newcomer"
-        test.execute(run, None, sms)
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals("Eric Newcomer", contact.name)
-        run.contact = contact
-
-        # test setting just the first name
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
-        test.value = "Jen"
-        test.execute(run, None, sms)
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals("Jen Newcomer", contact.name)
-
-        # we should strip whitespace
-        run.contact = contact
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
-        test.value = " Jackson "
-        test.execute(run, None, sms)
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals("Jackson Newcomer", contact.name)
-
-        # first name works with a single word
-        run.contact = contact
-        contact.name = "Percy"
-        contact.save()
-
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
-        test.value = " Cole"
-        test.execute(run, None, sms)
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals("Cole", contact.name)
-
-        # test saving something really long to another field
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Last Message", value='', field='last_message'))
-        test.value = "This is a long message, longer than 160 characters, longer than 250 characters, all the way up "\
-                      "to 500 some characters long because sometimes people save entire messages to their contact " \
-                      "fields and we want to enable that for them so that they can do what they want with the platform."
-        test.execute(run, None, sms)
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals(test.value, contact.get_field('last_message').string_value)
-
-        # test saving a contact's phone number
-        test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
-
-        # make sure they have a twitter urn first
-        contact.urns.add(ContactURN.get_or_create(self.org, TWITTER_SCHEME, 'enewcomer'))
-        self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
-
-        # add another phone number to make sure it doesn't get removed too
-        contact.urns.add(ContactURN.get_or_create(self.org, TEL_SCHEME, '+18005551212'))
-        self.assertEquals(3, contact.urns.all().count())
-
-        # create an inbound message on our original phone number
-        sms = self.create_msg(direction=INCOMING, contact=self.contact,
-                              text="+12065551212", contact_urn=contact.urns.filter(path='+250788382382').first())
-
-        # create another contact with that phone number, to test stealing
-        robbed = self.create_contact("Robzor", "+12065551212")
-
-        test.execute(run, None, sms)
-
-        # updating Phone Number should not create a contact field
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key='tel_e164').first())
-
-        # instead it should update the tel urn for our contact
-        contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEquals(4, contact.urns.all().count())
-        self.assertIsNotNone(contact.urns.filter(path='+12065551212').first())
-
-        # we should still have our twitter scheme
-        self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
-
-        # and our other phone number
-        self.assertIsNotNone(contact.urns.filter(path='+18005551212').first())
-
-        # and our original number too
-        self.assertIsNotNone(contact.urns.filter(path='+250788382382').first())
-
-        # robzor shouldn't have a number anymore
-        self.assertFalse(robbed.urns.all())
-
-        # try the same with a simulator contact
-        test_contact = Contact.get_test_contact(self.admin)
-        test_contact_urn = test_contact.urns.all().first()
-        run = FlowRun.create(self.flow, test_contact)
-        test.execute(run, None, sms)
-
-        # URN should be unchanged on the simulator contact
-        test_contact = Contact.objects.get(id=test_contact.id)
-        self.assertEquals(test_contact_urn, test_contact.urns.all().first())
-
-    def test_language_action(self):
-
-        test = SetLanguageAction('kli', 'Kingon')
-
-        # export and reimport
-        action_json = test.as_json()
-        test = SetLanguageAction.from_json(self.org, action_json)
-
-        self.assertTrue('kli', test.lang)
-        self.assertTrue('Klingon', test.lang)
-
-        # execute our action and check we are Klingon now, eeektorp shnockahltip.
-        run = FlowRun.create(self.flow, self.contact)
-        test.execute(run, None, None)
-        self.assertEquals('kli', Contact.objects.get(pk=self.contact.pk).language)
-
-    def test_flow_action(self):
-        orig_flow = self.create_flow()
-        run = FlowRun.create(orig_flow, self.contact)
-
-        flow = self.flow
-        flow.update(self.definition)
-
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-
-        test = StartFlowAction(flow)
-        action_json = test.as_json()
-
-        test = StartFlowAction.from_json(self.org, action_json)
-        test.execute(run, None, sms, [])
-
-        # our contact should now be in the flow
-        self.assertTrue(FlowStep.objects.filter(run__flow=flow, run__contact=self.contact))
-        self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='What is your favorite color?'))
-
-    def test_group_actions(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
-        group = self.create_group("Flow Group", [])
-
-        test = AddToGroupAction([group, "@step.contact"])
-        action_json = test.as_json()
-        test = AddToGroupAction.from_json(self.org, action_json)
-
-        test.execute(run, None, sms)
-
-        # user should now be in the group
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(1, group.contacts.all().count())
-
-        # we should have acreated a group with the name of the contact
-        replace_group = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(1, replace_group.contacts.all().count())
-
-        # passing through twice doesn't change anything
-        test.execute(run, None, sms)
-
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(1, group.contacts.all().count())
-
-        test = DeleteFromGroupAction([group, "@step.contact"])
-        action_json = test.as_json()
-        test = DeleteFromGroupAction.from_json(self.org, action_json)
-
-        test.execute(run, None, sms)
-
-        # user should be gone now
-        self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(0, group.contacts.all().count())
-        self.assertFalse(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(0, replace_group.contacts.all().count())
-
-        test.execute(run, None, sms)
-
-        self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(0, group.contacts.all().count())
-
-    def test_add_label_action(self):
-        flow = self.flow
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(flow, self.contact)
-
-        label = Label.get_or_create(self.org, self.user, "green label")
-
-        test = AddLabelAction([label, "@step.contact"])
-        action_json = test.as_json()
-        test = AddLabelAction.from_json(self.org, action_json)
-
-        # no message yet; such Add Label action on entry Actionset. No error should be raised
-        test.execute(run, None, None)
-        self.assertFalse(label.get_messages())
-        self.assertEqual(label.get_visible_count(), 0)
-
-        test.execute(run, None, msg)
-
-        # new label should have been created with the name of the contact
-        new_label = Label.label_objects.get(name=self.contact.name)
-        label = Label.label_objects.get(pk=label.pk)
-
-        # and message should have been labeled with both labels
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual(set(msg.labels.all()), {label, new_label})
-        self.assertEqual(set(label.get_messages()), {msg})
-        self.assertEqual(label.get_visible_count(), 1)
-        self.assertTrue(set(new_label.get_messages()), {msg})
-        self.assertEqual(new_label.get_visible_count(), 1)
-
-        # passing through twice doesn't change anything
-        test.execute(run, None, msg)
-
-        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
-        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
-        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
@@ -2081,6 +1697,378 @@ class RuleTest(TembaTest):
 
         # now we should trigger the other flow as we are at our terminal flow
         self.assertTrue(Trigger.find_and_handle(other_incoming))
+
+
+class ActionTest(TembaTest):
+
+    def setUp(self):
+        super(ActionTest, self).setUp()
+
+        self.contact = self.create_contact('Eric', '+250788382382')
+        self.contact2 = self.create_contact('Nic', '+250788383383')
+
+        self.flow = Flow.create(self.org, self.admin, "Color Flow", base_language='base')
+
+        self.other_group = self.create_group("Other", [])
+
+    def test_reply_action(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact)
+
+        action = ReplyAction(dict(base="We love green too!"))
+        action.execute(run, None, msg)
+        msg = Msg.objects.get(contact=self.contact, direction='O')
+        self.assertEquals("We love green too!", msg.text)
+
+        Broadcast.objects.all().delete()
+
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+        self.assertEquals(dict(base="We love green too!"), action.msg)
+
+        action.execute(run, None, msg)
+
+        response = msg.responses.get()
+        self.assertEquals("We love green too!", response.text)
+        self.assertEquals(self.contact, response.contact)
+
+    def test_send_action(self):
+        msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
+
+        self.contact.set_field('state', "WA", label="State")
+        self.contact2.set_field('state', "GA", label="State")
+        run = FlowRun.create(self.flow, self.contact)
+
+        action = SendAction(dict(base=msg_body),
+                            [], [self.contact2], [])
+        action.execute(run, None, None)
+
+        action_json = action.as_json()
+        action = SendAction.from_json(self.org, action_json)
+        self.assertEqual(action.msg['base'], msg_body)
+
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.get_messages().count(), 1)
+        msg = broadcast.get_messages().first()
+        self.assertEqual(msg.contact, self.contact2)
+        self.assertEqual(msg.text, "Hi Nic (GA). Eric (WA) is in the flow")
+
+        # empty message should be a no-op
+        action = SendAction(dict(base=""), [], [self.contact], [])
+        action.execute(run, None, None)
+        self.assertEqual(Broadcast.objects.all().count(), 1)
+
+        # try with a test contact and a group
+        test_contact = Contact.get_test_contact(self.user)
+        test_contact.name = "Mr Test"
+        test_contact.save()
+        test_contact.set_field('state', "IN", label="State")
+
+        self.other_group.update_contacts([self.contact2], True)
+
+        action = SendAction(dict(base=msg_body), [self.other_group], [self.contact], [])
+        run = FlowRun.create(self.flow, test_contact)
+        action.execute(run, None, None)
+
+        # check the action description
+        description = "Sent '{'base': u'Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow'}' to Eric, Other"
+        self.assertEqual(action.get_description(), description)
+
+        # since we are test contact now, no new broadcasts
+        self.assertEqual(Broadcast.objects.all().count(), 1)
+
+        # but we should have logged instead
+        logged = "Sending &#39;Hi @contact.name (@contact.state). Mr Test (IN) is in the flow&#39; to 2 contacts"
+        self.assertEqual(ActionLog.objects.all().first().text, logged)
+
+    @override_settings(SEND_EMAILS=True)
+    def test_email_action(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact)
+
+        action = EmailAction(["steve@apple.com"], "Subject", "Body")
+
+        # check to and from JSON
+        action_json = action.as_json()
+        action = EmailAction.from_json(self.org, action_json)
+
+        action.execute(run, None, msg)
+
+        self.assertEquals(len(mail.outbox), 1)
+        self.assertEquals(mail.outbox[0].subject, "Subject")
+        self.assertEquals(mail.outbox[0].body, "Body")
+        self.assertEquals(mail.outbox[0].recipients(), ["steve@apple.com"])
+
+        try:
+            EmailAction([], "Subject", "Body")
+            self.fail("Should have thrown due to empty recipient list")
+        except FlowException:
+            pass
+
+        # check expression evaluation in action fields
+        action = EmailAction(["@contact.name", "xyz", '@(SUBSTITUTE(LOWER(contact), " ", ""))@nyaruka.com'],
+                             "@contact.name added in subject",
+                             "@contact.name uses phone @contact.tel")
+
+        action_json = action.as_json()
+        action = EmailAction.from_json(self.org, action_json)
+
+        action.execute(run, None, msg)
+
+        self.assertEquals(len(mail.outbox), 2)
+        self.assertEquals(mail.outbox[1].subject, "Eric added in subject")
+        self.assertEquals(mail.outbox[1].body, "Eric uses phone 0788 382 382")
+        self.assertEquals(mail.outbox[1].recipients(), ["eric@nyaruka.com"])  # invalid emails are ignored
+
+        # check simulator reports invalid addresses
+        test_contact = Contact.get_test_contact(self.user)
+        test_run = FlowRun.create(self.flow, test_contact)
+
+        action.execute(test_run, None, msg)
+
+        logs = list(ActionLog.objects.order_by('pk'))
+        self.assertEqual(logs[0].level, ActionLog.LEVEL_INFO)
+        self.assertEqual(logs[0].text, "&quot;Test Contact uses phone (206) 555-0100&quot; would be sent to testcontact@nyaruka.com")
+        self.assertEqual(logs[1].level, ActionLog.LEVEL_WARN)
+        self.assertEqual(logs[1].text, "Some email address appear to be invalid: Test Contact, xyz")
+
+        # check that all white space is replaced with single spaces in the subject
+        test = EmailAction(["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo")
+        test.execute(run, None, msg)
+
+        self.assertEquals(len(mail.outbox), 3)
+        self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
+        self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
+        self.assertEquals(mail.outbox[2].recipients(), ["steve@apple.com"])
+
+    def test_save_to_contact_action(self):
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Superhero Name", value='@step'))
+        run = FlowRun.create(self.flow, self.contact)
+
+        field = ContactField.objects.get(org=self.org, key="superhero_name")
+        self.assertEquals("Superhero Name", field.label)
+
+        test.execute(run, None, sms)
+
+        # user should now have a nickname field with a value of batman
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals("batman", contact.get_field_raw('superhero_name'))
+
+        # test clearing our value
+        test = SaveToContactAction.from_json(self.org, test.as_json())
+        test.value = ""
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals(None, contact.get_field_raw('superhero_name'))
+
+        # test setting our name
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Name", value='', field='name'))
+        test.value = "Eric Newcomer"
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals("Eric Newcomer", contact.name)
+        run.contact = contact
+
+        # test setting just the first name
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
+        test.value = "Jen"
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals("Jen Newcomer", contact.name)
+
+        # we should strip whitespace
+        run.contact = contact
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
+        test.value = " Jackson "
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals("Jackson Newcomer", contact.name)
+
+        # first name works with a single word
+        run.contact = contact
+        contact.name = "Percy"
+        contact.save()
+
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
+        test.value = " Cole"
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals("Cole", contact.name)
+
+        # test saving something really long to another field
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label="Last Message", value='', field='last_message'))
+        test.value = "This is a long message, longer than 160 characters, longer than 250 characters, all the way up "\
+                      "to 500 some characters long because sometimes people save entire messages to their contact " \
+                      "fields and we want to enable that for them so that they can do what they want with the platform."
+        test.execute(run, None, sms)
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals(test.value, contact.get_field('last_message').string_value)
+
+        # test saving a contact's phone number
+        test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
+
+        # make sure they have a twitter urn first
+        contact.urns.add(ContactURN.get_or_create(self.org, TWITTER_SCHEME, 'enewcomer'))
+        self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
+
+        # add another phone number to make sure it doesn't get removed too
+        contact.urns.add(ContactURN.get_or_create(self.org, TEL_SCHEME, '+18005551212'))
+        self.assertEquals(3, contact.urns.all().count())
+
+        # create an inbound message on our original phone number
+        sms = self.create_msg(direction=INCOMING, contact=self.contact,
+                              text="+12065551212", contact_urn=contact.urns.filter(path='+250788382382').first())
+
+        # create another contact with that phone number, to test stealing
+        robbed = self.create_contact("Robzor", "+12065551212")
+
+        test.execute(run, None, sms)
+
+        # updating Phone Number should not create a contact field
+        self.assertIsNone(ContactField.objects.filter(org=self.org, key='tel_e164').first())
+
+        # instead it should update the tel urn for our contact
+        contact = Contact.objects.get(id=self.contact.pk)
+        self.assertEquals(4, contact.urns.all().count())
+        self.assertIsNotNone(contact.urns.filter(path='+12065551212').first())
+
+        # we should still have our twitter scheme
+        self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
+
+        # and our other phone number
+        self.assertIsNotNone(contact.urns.filter(path='+18005551212').first())
+
+        # and our original number too
+        self.assertIsNotNone(contact.urns.filter(path='+250788382382').first())
+
+        # robzor shouldn't have a number anymore
+        self.assertFalse(robbed.urns.all())
+
+        # try the same with a simulator contact
+        test_contact = Contact.get_test_contact(self.admin)
+        test_contact_urn = test_contact.urns.all().first()
+        run = FlowRun.create(self.flow, test_contact)
+        test.execute(run, None, sms)
+
+        # URN should be unchanged on the simulator contact
+        test_contact = Contact.objects.get(id=test_contact.id)
+        self.assertEquals(test_contact_urn, test_contact.urns.all().first())
+
+    def test_set_language_action(self):
+
+        test = SetLanguageAction('kli', 'Kingon')
+
+        # export and reimport
+        action_json = test.as_json()
+        test = SetLanguageAction.from_json(self.org, action_json)
+
+        self.assertTrue('kli', test.lang)
+        self.assertTrue('Klingon', test.lang)
+
+        # execute our action and check we are Klingon now, eeektorp shnockahltip.
+        run = FlowRun.create(self.flow, self.contact)
+        test.execute(run, None, None)
+        self.assertEquals('kli', Contact.objects.get(pk=self.contact.pk).language)
+
+    def test_start_flow_action(self):
+        orig_flow = self.create_flow()
+        run = FlowRun.create(orig_flow, self.contact)
+
+        self.flow.update(create_color_flow_definition())
+
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+
+        test = StartFlowAction(self.flow)
+        action_json = test.as_json()
+
+        test = StartFlowAction.from_json(self.org, action_json)
+        test.execute(run, None, sms, [])
+
+        # our contact should now be in the flow
+        self.assertTrue(FlowStep.objects.filter(run__flow=self.flow, run__contact=self.contact))
+        self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='What is your favorite color?'))
+
+    def test_group_actions(self):
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact)
+
+        group = self.create_group("Flow Group", [])
+
+        test = AddToGroupAction([group, "@step.contact"])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        # user should now be in the group
+        self.assertTrue(group.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group.contacts.all().count())
+
+        # we should have acreated a group with the name of the contact
+        replace_group = ContactGroup.user_groups.get(name=self.contact.name)
+        self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, replace_group.contacts.all().count())
+
+        # passing through twice doesn't change anything
+        test.execute(run, None, sms)
+
+        self.assertTrue(group.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group.contacts.all().count())
+
+        test = DeleteFromGroupAction([group, "@step.contact"])
+        action_json = test.as_json()
+        test = DeleteFromGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        # user should be gone now
+        self.assertFalse(group.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group.contacts.all().count())
+        self.assertFalse(replace_group.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, replace_group.contacts.all().count())
+
+        test.execute(run, None, sms)
+
+        self.assertFalse(group.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group.contacts.all().count())
+
+    def test_add_label_action(self):
+        flow = self.flow
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(flow, self.contact)
+
+        label = Label.get_or_create(self.org, self.user, "green label")
+
+        test = AddLabelAction([label, "@step.contact"])
+        action_json = test.as_json()
+        test = AddLabelAction.from_json(self.org, action_json)
+
+        # no message yet; such Add Label action on entry Actionset. No error should be raised
+        test.execute(run, None, None)
+        self.assertFalse(label.get_messages())
+        self.assertEqual(label.get_visible_count(), 0)
+
+        test.execute(run, None, msg)
+
+        # new label should have been created with the name of the contact
+        new_label = Label.label_objects.get(name=self.contact.name)
+        label = Label.label_objects.get(pk=label.pk)
+
+        # and message should have been labeled with both labels
+        msg = Msg.objects.get(pk=msg.pk)
+        self.assertEqual(set(msg.labels.all()), {label, new_label})
+        self.assertEqual(set(label.get_messages()), {msg})
+        self.assertEqual(label.get_visible_count(), 1)
+        self.assertTrue(set(new_label.get_messages()), {msg})
+        self.assertEqual(new_label.get_visible_count(), 1)
+
+        # passing through twice doesn't change anything
+        test.execute(run, None, msg)
+
+        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
+        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
 
 
 class FlowRunTest(TembaTest):

@@ -172,41 +172,43 @@ class TembaTest(SmartminTest):
         return Msg.objects.create(**kwargs)
 
     def create_flow(self, uuid_start=None):
+        flow = Flow.create(self.org, self.admin, "Color Flow")
+        flow.update(self.create_flow_definition(uuid_start))
+        return Flow.objects.get(pk=flow.pk)
+
+    def create_flow_definition(self, uuid_start=None):
+        """
+        Creates the "Color" flow definition
+        """
         if uuid_start is None:
             uuid_start = int(time.time() * 1000) % 1000000
 
-        definition = dict(action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                            actions=[dict(type='reply', msg="What is your favorite color?")]),
-                                       dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                            actions=[dict(type='reply', msg="I love orange too!")]),
-                                       dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
-                                            actions=[dict(type='reply', msg="Blue is sad. :(")]),
-                                       dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
-                                            actions=[dict(type='reply', msg="That is a funny color.")])
-                                       ],
-                          rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
-                                          label='color',
-                                          ruleset_type='wait_message',
-                                          rules=[
-                                              dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test='orange'), category="Orange"),
-                                              dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test='blue'), category="Blue"),
-                                              dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category="Other"),
-                                              dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
-                                     ],
-                          entry=uuid(uuid_start + 1))
-
-        flow = Flow.create(self.org, self.admin, "Color Flow")
-        from temba.flows.flow_migrations import migrate_to_version_6, migrate_to_version_7
-        from temba.utils import datetime_to_str
-        definition = dict(definition=definition, expires=flow.expires_after_minutes,
-                          name=flow.name, saved_on=datetime_to_str(flow.saved_on),
-                          flow_type=flow.flow_type, id=flow.pk)
-        definition = migrate_to_version_6(definition)
-        definition = migrate_to_version_7(definition)
-
-        flow.update(definition)
-
-        return Flow.objects.get(pk=flow.pk)
+        return dict(version=8,
+                    action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
+                                      actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
+                                 dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
+                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                 dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
+                                      actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
+                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
+                                      actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])],
+                    rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
+                                    label='color',
+                                    finished_key=None,
+                                    operand=None,
+                                    webhook=None,
+                                    webhook_action=None,
+                                    response_type='',
+                                    ruleset_type='wait_message',
+                                    config={},
+                                    rules=[dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test=dict(base='orange')), category=dict(base="Orange")),
+                                           dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test=dict(base='blue')), category=dict(base="Blue")),
+                                           dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category=dict(base="Other")),
+                                           dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category=dict(base="Nothing"))])],  # test case with no destination
+                    entry=uuid(uuid_start + 1),
+                    base_language='base',
+                    flow_type='F',
+                    metadata=dict(author="Ryan Lewis"))
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()

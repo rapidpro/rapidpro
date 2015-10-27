@@ -2,19 +2,17 @@ from __future__ import unicode_literals
 
 import json
 import numbers
-import time
-import urllib2
-from collections import OrderedDict
-from datetime import timedelta
-from decimal import Decimal
-from string import maketrans, punctuation
-from uuid import uuid4
-
 import phonenumbers
 import pytz
 import regex
 import requests
+import time
+import urllib2
 import xlwt
+
+from collections import OrderedDict
+from datetime import timedelta
+from decimal import Decimal
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import default_storage
@@ -29,6 +27,7 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
@@ -42,6 +41,7 @@ from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
 from twilio import twiml
 from unidecode import unidecode
+from uuid import uuid4
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
@@ -3899,7 +3899,11 @@ class APIAction(Action):
 
         message_context = run.flow.build_message_context(run.contact, msg)
         (value, errors) = Msg.substitute_variables(self.webhook, run.contact, message_context,
-                                         org=run.flow.org, url_encode=True)
+                                                   org=run.flow.org, url_encode=True)
+
+        if errors:
+            ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
+
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
         return []
 
