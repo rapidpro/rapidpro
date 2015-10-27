@@ -17,7 +17,7 @@ from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
-
+from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
@@ -37,7 +37,7 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, ActionLog
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, APIAction, ActionLog
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 
 
@@ -1956,34 +1956,34 @@ class ActionTest(TembaTest):
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
 
     def test_set_language_action(self):
+        action = SetLanguageAction('kli', 'Kingon')
 
-        test = SetLanguageAction('kli', 'Kingon')
+        # check to and from JSON
+        action_json = action.as_json()
+        action = SetLanguageAction.from_json(self.org, action_json)
 
-        # export and reimport
-        action_json = test.as_json()
-        test = SetLanguageAction.from_json(self.org, action_json)
-
-        self.assertTrue('kli', test.lang)
-        self.assertTrue('Klingon', test.lang)
+        self.assertEqual('kli', action.lang)
+        self.assertEqual('Klingon', action.lang)
 
         # execute our action and check we are Klingon now, eeektorp shnockahltip.
         run = FlowRun.create(self.flow, self.contact)
-        test.execute(run, None, None)
+        action.execute(run, None, None)
         self.assertEquals('kli', Contact.objects.get(pk=self.contact.pk).language)
 
     def test_start_flow_action(self):
         orig_flow = self.create_flow()
         run = FlowRun.create(orig_flow, self.contact)
 
-        self.flow.update(create_color_flow_definition())
+        self.flow.update(self.create_flow_definition())
 
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
 
-        test = StartFlowAction(self.flow)
-        action_json = test.as_json()
+        action = StartFlowAction(self.flow)
 
-        test = StartFlowAction.from_json(self.org, action_json)
-        test.execute(run, None, sms, [])
+        action_json = action.as_json()
+        action = StartFlowAction.from_json(self.org, action_json)
+
+        action.execute(run, None, sms, [])
 
         # our contact should now be in the flow
         self.assertTrue(FlowStep.objects.filter(run__flow=self.flow, run__contact=self.contact))
@@ -1995,11 +1995,12 @@ class ActionTest(TembaTest):
 
         group = self.create_group("Flow Group", [])
 
-        test = AddToGroupAction([group, "@step.contact"])
-        action_json = test.as_json()
-        test = AddToGroupAction.from_json(self.org, action_json)
+        action = AddToGroupAction([group, "@step.contact"])
 
-        test.execute(run, None, sms)
+        action_json = action.as_json()
+        action = AddToGroupAction.from_json(self.org, action_json)
+
+        action.execute(run, None, sms)
 
         # user should now be in the group
         self.assertTrue(group.contacts.filter(id=self.contact.pk))
@@ -2011,16 +2012,16 @@ class ActionTest(TembaTest):
         self.assertEquals(1, replace_group.contacts.all().count())
 
         # passing through twice doesn't change anything
-        test.execute(run, None, sms)
+        action.execute(run, None, sms)
 
         self.assertTrue(group.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, group.contacts.all().count())
 
-        test = DeleteFromGroupAction([group, "@step.contact"])
-        action_json = test.as_json()
-        test = DeleteFromGroupAction.from_json(self.org, action_json)
+        action = DeleteFromGroupAction([group, "@step.contact"])
+        action_json = action.as_json()
+        action = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, sms)
+        action.execute(run, None, sms)
 
         # user should be gone now
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
@@ -2028,7 +2029,7 @@ class ActionTest(TembaTest):
         self.assertFalse(replace_group.contacts.filter(id=self.contact.pk))
         self.assertEquals(0, replace_group.contacts.all().count())
 
-        test.execute(run, None, sms)
+        action.execute(run, None, sms)
 
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
         self.assertEquals(0, group.contacts.all().count())
@@ -2040,16 +2041,18 @@ class ActionTest(TembaTest):
 
         label = Label.get_or_create(self.org, self.user, "green label")
 
-        test = AddLabelAction([label, "@step.contact"])
-        action_json = test.as_json()
-        test = AddLabelAction.from_json(self.org, action_json)
+        action = AddLabelAction([label, "@step.contact"])
+
+        action_json = action.as_json()
+        action = AddLabelAction.from_json(self.org, action_json)
 
         # no message yet; such Add Label action on entry Actionset. No error should be raised
-        test.execute(run, None, None)
+        action.execute(run, None, None)
+
         self.assertFalse(label.get_messages())
         self.assertEqual(label.get_visible_count(), 0)
 
-        test.execute(run, None, msg)
+        action.execute(run, None, msg)
 
         # new label should have been created with the name of the contact
         new_label = Label.label_objects.get(name=self.contact.name)
@@ -2064,11 +2067,84 @@ class ActionTest(TembaTest):
         self.assertEqual(new_label.get_visible_count(), 1)
 
         # passing through twice doesn't change anything
-        test.execute(run, None, msg)
+        action.execute(run, None, msg)
 
         self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
         self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
         self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
+
+    @override_settings(SEND_WEBHOOKS=True)
+    @patch('django.utils.timezone.now')
+    @patch('requests.post')
+    def test_api_action(self, mock_requests_post, mock_timezone_now):
+        mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
+        mock_timezone_now.return_value = datetime.datetime(2015, 10, 27, 16, 07, 30, 6, pytz.timezone("Africa/Kigali"))
+
+        action = APIAction('http://example.com/callback.php')
+
+        # check to and from JSON
+        action_json = action.as_json()
+        action = APIAction.from_json(self.org, action_json)
+
+        self.assertEqual(action.webhook, 'http://example.com/callback.php')
+
+        run = FlowRun.create(self.flow, self.contact)
+
+        # test with no incoming message
+        action.execute(run, None, None)
+
+        # check webhook was called with correct payload
+        mock_requests_post.assert_called_once_with('http://example.com/callback.php',
+                                                   headers={'User-agent': 'RapidPro'},
+                                                   data={'run': 1,
+                                                         'phone': u'+250788382382',
+                                                         'text': None,
+                                                         'flow': 1,
+                                                         'relayer': -1,
+                                                         'step': 'None',
+                                                         'values': '[]',
+                                                         'time': '2015-10-27T14:07:30.000006Z',
+                                                         'steps': '[]',
+                                                         'channel': -1},
+                                                   timeout=10)
+        mock_requests_post.reset_mock()
+
+        # check that run @extra was updated
+        self.assertEqual(json.loads(run.fields), {'coupon': "NEXUS4"})
+
+        # test with an incoming message
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        action.execute(run, None, msg)
+
+        # check webhook was called with correct payload
+        mock_requests_post.assert_called_once_with('http://example.com/callback.php',
+                                                   headers={'User-agent': 'RapidPro'},
+                                                   data={'run': 1,
+                                                         'phone': u'+250788382382',
+                                                         'text': "Green is my favorite",
+                                                         'flow': 1,
+                                                         'relayer': 1,
+                                                         'step': 'None',
+                                                         'values': '[]',
+                                                         'time': '2015-10-27T14:07:30.000006Z',
+                                                         'steps': '[]',
+                                                         'channel': 1},
+                                                   timeout=10)
+
+        # check simulator warns of webhook URL errors
+        action = APIAction('http://example.com/callback.php?@contact.xyz')
+        test_contact = Contact.get_test_contact(self.user)
+        test_run = FlowRun.create(self.flow, test_contact)
+
+        action.execute(test_run, None, None)
+
+        event = WebHookEvent.objects.order_by('-pk').first()
+
+        logs = list(ActionLog.objects.order_by('pk'))
+        self.assertEqual(logs[0].level, ActionLog.LEVEL_WARN)
+        self.assertEqual(logs[0].text, "URL appears to contain errors: Undefined variable: contact.xyz")
+        self.assertEqual(logs[1].level, ActionLog.LEVEL_INFO)
+        self.assertEqual(logs[1].text, "Triggered <a href='/api/v1/log/%d/' target='_log'>webhook event</a> - 200" % event.pk)
 
 
 class FlowRunTest(TembaTest):
