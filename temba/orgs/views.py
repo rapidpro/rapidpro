@@ -24,6 +24,7 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from datetime import timedelta
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
@@ -1640,7 +1641,10 @@ class TopUpCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
             context['org'] = self.request.user.get_org()
-            context['now'] = timezone.now()
+
+            now = timezone.now()
+            context['now'] = now
+            context['expiration_period'] = now + timedelta(days=30)
             return context
 
         def get_template_names(self):
