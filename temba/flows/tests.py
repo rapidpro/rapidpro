@@ -1806,7 +1806,7 @@ class ActionTest(TembaTest):
             pass
 
         # check expression evaluation in action fields
-        action = EmailAction(["@contact.name", "xyz", '@(SUBSTITUTE(LOWER(contact), " ", ""))@nyaruka.com'],
+        action = EmailAction(["@contact.name", "xyz", '@(SUBSTITUTE(LOWER(contact), " ", "") & "@nyaruka.com")'],
                              "@contact.name added in subject",
                              "@contact.name uses phone @contact.tel")
 

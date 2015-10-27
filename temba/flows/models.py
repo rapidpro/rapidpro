@@ -3853,8 +3853,12 @@ class EmailAction(Action):
         valid_addresses = []
         invalid_addresses = []
         for email in self.emails:
-            # a valid email will contain @ so this is very likely to generate evaluation errors
-            (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
+            if email[0] == '@':
+                # a valid email will contain @ so this is very likely to generate evaluation errors
+                (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
+            else:
+                address = email
+
             address = address.strip()
 
             if is_valid_address(address):
