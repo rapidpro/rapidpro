@@ -5,39 +5,39 @@ app = angular.module('temba.controllers', ['ui.bootstrap', 'temba.services', 'ng
 
 version = new Date().getTime()
 
-app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout', 'Flow', 'Versions', ($scope, $rootScope, $log, $timeout, Flow, Versions) ->
+app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout', 'Flow', 'Revisions', ($scope, $rootScope, $log, $timeout, Flow, Revisions) ->
 
-  $scope.versions = ->
-    return Versions.versions
+  $scope.revisions = ->
+    return Revisions.revisions
 
   # apply the current flow as our definition
   $scope.apply = ->
     $scope.applyDefinition(Flow.flow)
 
-  # go back to our original version
+  # go back to our original revision
   $scope.cancel = ->
-    if Versions.original
-      $scope.applyDefinition(Versions.original)
+    if Revisions.original
+      $scope.applyDefinition(Revisions.original)
     else
-      $scope.hideVersions()
+      $scope.hideRevisions()
 
-  # Select the version to show
-  $scope.showVersion = (version) ->
+  # Select the revision show
+  $scope.showRevision = (revision) ->
 
-    # show our version selection
-    for other in Versions.versions
+    # show our revision selection
+    for other in Revision.revisions
       other.selected = false
-    version.selected = true
+    revision.selected = true
 
     # store our original definition
-    if not Versions.original
-      Versions.original = Flow.flow
+    if not Revisions.original
+      Revisions.original = Flow.flow
 
-    # show the version definition
-    Versions.getVersion(version).then ->
-      $scope.showDefinition(Versions.definition)
+    # show the revision definition
+    Revisions.getRevision(revision).then ->
+      $scope.showDefinition(Revisions.definition)
 
-  # Show a definition from a version or our original definition
+  # Show a definition from a revision or our original definition
   $scope.showDefinition = (definition, onChange) ->
     $rootScope.visibleActivity = false
     Flow.flow = null
@@ -56,25 +56,25 @@ app.controller 'VersionController', [ '$scope', '$rootScope', '$log', '$timeout'
         for action in actionset.actions
           action.uuid = uuid()
 
-    # remove all version selection
-    for other in Versions.versions
+    # remove all revision selection
+    for other in Revisions.revisions
       other.selected = false
 
     markDirty = false
-    if definition.metadata.revision != Versions.original.metadata.revision
-      definition.metadata.saved_on = Versions.original.metadata.saved_on
+    if definition.metadata.revision != Revisions.original.metadata.revision
+      definition.metadata.saved_on = Revisions.original.metadata.saved_on
       markDirty = true
 
     $scope.showDefinition definition, ->
-      $scope.hideVersions()
+      $scope.hideRevisios()
       # save if things have changed
       if markDirty
         Flow.markDirty()
 
-  $scope.hideVersions = ->
-    Versions.original = null
+  $scope.hideRevisions = ->
+    Revisions.original = null
     $rootScope.visibleActivity = true
-    $rootScope.showVersions = false
+    $rootScope.showRevisions = false
 ]
 
 app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $modal, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
@@ -130,7 +130,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
-      $rootScope.showVersions = true
+      $rootScope.showRevisions = true
 
   $scope.setBaseLanguage = (lang) ->
 

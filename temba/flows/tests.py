@@ -30,7 +30,7 @@ from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
 from xlrd import xldate_as_tuple
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowVersion, FlowException, ExportFlowResultsTask, COMPLETE
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
@@ -60,26 +60,26 @@ class FlowTest(TembaTest):
         # every save should result in a new flow version
         response = self.flow.update(self.definition)
 
-        self.assertEquals(self.flow.created_by, self.flow.versions.all()[0].created_by)
+        self.assertEquals(self.flow.created_by, self.flow.revisions.all()[0].created_by)
 
         # one version
-        versions = self.flow.versions.all()
-        self.assertEquals(1, versions.count())
-        self.assertEquals(1, versions[0].version)
+        revisions = self.flow.revisions.all()
+        self.assertEquals(1, revisions.count())
+        self.assertEquals(1, revisions[0].revision)
 
         # create a new update
         self.definition['metadata']['saved_on'] = response['saved_on']
         self.flow.update(self.definition, user=self.admin)
-        versions = self.flow.versions.all().order_by('created_on')
+        revisions = self.flow.revisions.all().order_by('created_on')
 
         # now we should have two revisions
-        self.assertEquals(2, versions.count())
-        self.assertEquals(1, versions[0].version)
-        self.assertEquals(2, versions[1].version)
+        self.assertEquals(2, revisions.count())
+        self.assertEquals(1, revisions[0].revision)
+        self.assertEquals(2, revisions[1].revision)
 
-        self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].spec_version)
-        self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].as_json()['version'])
-        self.assertEquals('base', versions[0].get_definition_json()['base_language'])
+        self.assertEquals(CURRENT_EXPORT_VERSION, revisions[0].spec_version)
+        self.assertEquals(CURRENT_EXPORT_VERSION, revisions[0].as_json()['version'])
+        self.assertEquals('base', revisions[0].get_definition_json()['base_language'])
 
     def test_flow_lists(self):
 
@@ -3627,12 +3627,12 @@ class FlowMigrationTest(FlowFileTest):
 
         flow_json = flow.as_json()
         if flow.version_number <= 6:
-            version = flow.versions.all().order_by('-version').first()
+            revision = flow.revisions.all().order_by('-revision').first()
             flow_json = dict(definition=flow_json, flow_type=flow.flow_type,
                              expires=flow.expires_after_minutes, id=flow.pk,
-                             revision=version.version if version else 1)
+                             revision=revision.revision if revision else 1)
 
-        flow_json = FlowVersion.migrate_definition(flow_json, flow.version_number, to_version=to_version)
+        flow_json = FlowRevision.migrate_definition(flow_json, flow.version_number, to_version=to_version)
         if 'definition' in flow_json:
             flow_json = flow_json['definition']
 
@@ -3647,9 +3647,9 @@ class FlowMigrationTest(FlowFileTest):
 
         flow_json = self.get_flow_json('malformed_single_message')['definition']
 
-        FlowVersion.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
-                                         spec_version=3, version=1,
-                                         created_by=self.admin, modified_by=self.admin))
+        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                          spec_version=3, revision=1,
+                                          created_by=self.admin, modified_by=self.admin))
 
         flow.ensure_current_version()
         flow_json = flow.as_json()
@@ -3665,9 +3665,9 @@ class FlowMigrationTest(FlowFileTest):
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
-        FlowVersion.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
-                                         spec_version=3, version=1,
-                                         created_by=self.admin, modified_by=self.admin))
+        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                          spec_version=3, revision=1,
+                                          created_by=self.admin, modified_by=self.admin))
 
         # now make sure we are on the latest version
         flow.ensure_current_version()
