@@ -306,10 +306,8 @@ class APITest(TembaTest):
                                              date_style="day_first",
                                              anon=False))
 
-        eng = Language.objects.create(org=self.org, iso_code='eng', name='English',
-                                      created_by=self.admin, modified_by=self.admin)
-        fre = Language.objects.create(org=self.org, iso_code='fre', name='French',
-                                      created_by=self.admin, modified_by=self.admin)
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 

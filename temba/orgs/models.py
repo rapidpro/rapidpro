@@ -1411,8 +1411,14 @@ class Language(SmartModel):
     language selection options to real-world languages.
     """
     name = models.CharField(max_length=128)
+
     iso_code = models.CharField(max_length=4)
+
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="languages")
+
+    @classmethod
+    def create(cls, org, user, name, iso_code):
+        return cls.objects.create(org=org, name=name, iso_code=iso_code, created_by=user, modified_by=user)
 
     def as_json(self):
         return dict(name=self.name, iso_code=self.iso_code)
@@ -1450,6 +1456,7 @@ class Language(SmartModel):
 
     def __unicode__(self):
         return '%s' % self.name
+
 
 class Invitation(SmartModel):
     """

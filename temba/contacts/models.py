@@ -394,7 +394,7 @@ class Contact(TembaModel, SmartModel):
         return existing[0].contact if existing else None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, is_test=False):
+    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False):
         """
         Gets or creates a contact with the given URNs
         """
@@ -480,12 +480,18 @@ class Contact(TembaModel, SmartModel):
                 updated_attrs = dict()
                 if name:
                     contact.name = name
-                    contact.save()
                     updated_attrs[Contact.NAME] = name
+                if language:
+                    contact.language = language
+                    updated_attrs[Contact.LANGUAGE] = language
+
+                if updated_attrs:
+                    contact.save(update_fields=updated_attrs)
 
             # otherwise create new contact with all URNs
             else:
-                updated_attrs = dict(name=name, org=org, created_by=user, modified_by=user, is_test=is_test)
+                updated_attrs = dict(org=org, name=name, language=language, is_test=is_test,
+                                     created_by=user, modified_by=user)
                 contact = Contact.objects.create(**updated_attrs)
 
                 # add attribute which allows import process to track new vs existing
@@ -530,6 +536,9 @@ class Contact(TembaModel, SmartModel):
 
     @classmethod
     def get_test_contact(cls, user):
+        """
+        Gets or creates the test contact for the given user
+        """
         org = user.get_org()
         test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user).first()
 
@@ -635,8 +644,12 @@ class Contact(TembaModel, SmartModel):
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
+        language = field_dict.get(Contact.LANGUAGE)
+        if language is not None and len(language) != 3:
+            language = None  # ignore anything that's not a 3-letter code
+
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns)
+        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns, language=language)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
@@ -755,7 +768,7 @@ class Contact(TembaModel, SmartModel):
         if task.import_params:
             try:
                 import_params = json.loads(task.import_params)
-            except:
+            except Exception:
                 pass
 
         # this file isn't good enough, lets write it to local disk
@@ -765,7 +778,7 @@ class Contact(TembaModel, SmartModel):
         # make sure our tmp directory is present (throws if already present)
         try:
             os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
-        except:
+        except Exception:
             pass
 
         # rewrite our file to local disk

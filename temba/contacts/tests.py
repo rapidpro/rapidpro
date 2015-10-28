@@ -5,18 +5,17 @@ import json
 import pytz
 
 from datetime import datetime, date
-from django.utils import timezone
-
 from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.utils import timezone
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
@@ -1397,11 +1396,7 @@ class ContactTest(TembaTest):
         return Contact.import_csv(task, log=None)
 
     def test_contact_import(self):
-
-        #file = open ('../imports/sample_contacts.csv')
-
         # first import brings in 3 contacts
-
         user = self.user
         records = self.do_import(user, 'sample_contacts.xls')
         self.assertEquals(3, len(records))
@@ -1680,7 +1675,14 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
 
-    test_contact_import.active = True
+    def test_contact_import_with_languages(self):
+        self.create_contact(name="Eric", number="+250788382382")
+
+        self.do_import(self.user, 'sample_contacts_with_language.xls')
+
+        self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
+        self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
+        self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
 
     def test_import_methods(self):
         user = self.user

@@ -1624,10 +1624,8 @@ class BroadcastLanguageTest(TembaTest):
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
-        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
-                                      created_by=self.admin, modified_by=self.admin)
-        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
-                                      created_by=self.admin, modified_by=self.admin)
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
