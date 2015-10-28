@@ -806,8 +806,9 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             super(ContactCRUDL.Update, self).save(obj)
 
-            new_groups = self.form.cleaned_data['groups']
-            obj.update_groups(new_groups)
+            new_groups = self.form.cleaned_data.get('groups')
+            if new_groups is not None:
+                obj.update_groups(new_groups)
 
             # TODO replace the contact edit dialog with something more substantial that will support multiple URNs with
             # the same scheme
