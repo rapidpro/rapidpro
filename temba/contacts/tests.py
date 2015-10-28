@@ -1234,10 +1234,10 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals(5, len(response.context['form'].fields.keys()))  # name, groups, tel, state, loc
-        self.assertEquals("Joe Blow", response.context['form'].initial['name'])
-        self.assertEquals("123", response.context['form'].fields['__urn__tel__0'].initial)
-        self.assertEquals("Kigali City", response.context['form'].fields['__field__state'].initial)  # parsed name
+        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', 'loc', '__urn__tel__0', '__field__state'])
+        self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
+        self.assertEqual(response.context['form'].fields['__urn__tel__0'].initial, "123")
+        self.assertEqual(response.context['form'].fields['__field__state'].initial, "Kigali City")  # parsed name
 
         # update it to something else
         self.joe.set_field('state', "eastern province")
@@ -1295,6 +1295,12 @@ class ContactTest(TembaTest):
 
         # Done!
         self.assertFalse(response.context['contact'].user_groups.all())
+
+        # check that groups field isn't displayed when contact is blocked
+        self.joe.block()
+        response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
+        self.assertNotIn('groups', response.context['form'].fields)
+        self.joe.unblock()
 
         # check updating when org is anon
         self.org.is_anon = True

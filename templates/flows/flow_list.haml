@@ -132,6 +132,8 @@
                         %td.value-name
                           -if object.flow_type == 'V'
                             .icon-phone
+                          -elif object.flow_type == 'S'
+                            .icon-channel-android
 
                           {{ object.name }}
 

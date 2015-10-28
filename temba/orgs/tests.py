@@ -21,7 +21,7 @@ from temba.orgs.models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Label, Msg, INCOMING
-from temba.temba_email import link_components
+from temba.utils.email import link_components
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 
@@ -370,8 +370,8 @@ class OrgTest(TembaTest):
         # and should no longer be an admin
         self.assertFalse(self.admin in self.org.administrators.all())
 
-    @patch('temba.temba_email.send_multipart_email')
-    def test_join(self, mock_send_multipart_email):
+    @patch('temba.utils.email.send_temba_email')
+    def test_join(self, mock_send_temba_email):
         editor_invitation = Invitation.objects.create(org=self.org,
                                                       user_group="E",
                                                       email="norkans7@gmail.com",
@@ -380,7 +380,7 @@ class OrgTest(TembaTest):
                                                       modified_by=self.admin)
 
         editor_invitation.send_invitation()
-        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "RapidPro Invitation")
         self.assertIn('https://app.rapidpro.io/org/join/%s/' % editor_invitation.secret, email_args[1])

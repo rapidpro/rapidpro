@@ -7,18 +7,16 @@ import pytz
 import regex
 import requests
 import time
-import xlwt
 import urllib2
+import xlwt
 
 from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
-from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
@@ -34,7 +32,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.temba_email import send_temba_email
+from temba.utils.email import send_template_email, is_valid_address
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
@@ -1172,6 +1170,8 @@ class Flow(TembaModel, SmartModel):
         else:
             results = []
 
+        contact_context = contact.build_message_context() if contact else dict()
+
         # create a flow dict
         flow_context = dict()
 
@@ -1210,7 +1210,7 @@ class Flow(TembaModel, SmartModel):
                 channel_context = msg.channel.build_message_context()
 
         elif contact:
-            message_context = dict(__default__='', contact=contact.build_message_context())
+            message_context = dict(__default__='', contact=contact_context)
         else:
             message_context = dict(__default__='')
 
@@ -1221,7 +1221,7 @@ class Flow(TembaModel, SmartModel):
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
         if contact:
-            context['contact'] = contact
+            context['contact'] = contact_context
 
         return context
 
@@ -3336,7 +3336,7 @@ class ExportFlowResultsTask(SmartModel):
         gc.collect()
 
         # only send the email if this is production
-        send_temba_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
+        send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
 
 
 class ActionLog(models.Model):
@@ -3765,11 +3765,14 @@ def get_flow_user():
 
 
 class Action(object):
+    """
+    Base class for actions that can be added to an action set and executed during a flow run
+    """
     TYPE = 'type'
     __action_mapping = None
 
     @classmethod
-    def from_json(cls, org, json):
+    def from_json(cls, org, json_obj):
         if not cls.__action_mapping:
             cls.__action_mapping = {
                 ReplyAction.TYPE: ReplyAction,
@@ -3787,19 +3790,19 @@ class Action(object):
                 TriggerFlowAction.TYPE: TriggerFlowAction,
             }
 
-        type = json.get(cls.TYPE, None)
-        if not type: # pragma: no cover
-            raise FlowException("Action definition missing 'type' attribute: %s" % json)
+        action_type = json_obj.get(cls.TYPE)
+        if not action_type:  # pragma: no cover
+            raise FlowException("Action definition missing 'type' attribute: %s" % json_obj)
 
-        if not type in cls.__action_mapping: # pragma: no cover
-            raise FlowException("Unknown action type '%s' in definition: '%s'" % (type, json))
+        if action_type not in cls.__action_mapping:  # pragma: no cover
+            raise FlowException("Unknown action type '%s' in definition: '%s'" % (action_type, json_obj))
 
-        return cls.__action_mapping[type].from_json(org, json)
+        return cls.__action_mapping[action_type].from_json(org, json_obj)
 
     @classmethod
-    def from_json_array(cls, org, json):
+    def from_json_array(cls, org, json_arr):
         actions = []
-        for inner in json:
+        for inner in json_arr:
             action = Action.from_json(org, inner)
             if action:
                 actions.append(action)
@@ -3827,10 +3830,10 @@ class EmailAction(Action):
         self.message = message
 
     @classmethod
-    def from_json(cls, org, json):
-        emails = json.get(EmailAction.EMAILS)
-        message = json.get(EmailAction.MESSAGE)
-        subject = json.get(EmailAction.SUBJECT)
+    def from_json(cls, org, json_obj):
+        emails = json_obj.get(EmailAction.EMAILS)
+        message = json_obj.get(EmailAction.MESSAGE)
+        subject = json_obj.get(EmailAction.SUBJECT)
         return EmailAction(emails, subject, message)
 
     def as_json(self):
@@ -3844,34 +3847,37 @@ class EmailAction(Action):
         (message, errors) = Msg.substitute_variables(self.message, run.contact, message_context, org=run.flow.org)
         (subject, errors) = Msg.substitute_variables(self.subject, run.contact, message_context, org=run.flow.org)
 
-        emails = []
+        # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
+        subject = regex.sub('\s+', ' ', subject, regex.V0)
+
+        valid_addresses = []
+        invalid_addresses = []
         for email in self.emails:
             if email[0] == '@':
-                (email, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
-            # TODO: validate email format
-            emails.append(email)
+                # a valid email will contain @ so this is very likely to generate evaluation errors
+                (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
+            else:
+                address = email
+
+            address = address.strip()
+
+            if is_valid_address(address):
+                valid_addresses.append(address)
+            else:
+                invalid_addresses.append(address)
 
         if not run.contact.is_test:
-            send_email_action_task.delay(emails, subject, message)
+            if valid_addresses:
+                send_email_action_task.delay(valid_addresses, subject, message)
         else:
-            log_txt = _("\"%s\" would be sent to %s") % (message, ", ".join(emails))
-            ActionLog.create(run, log_txt)
+            if valid_addresses:
+                ActionLog.info(run, _("\"%s\" would be sent to %s") % (message, ", ".join(valid_addresses)))
+            if invalid_addresses:
+                ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
-    @classmethod
-    def send_email(cls, emails, subject, message):
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
-
-        # do not send unless we are in a prod environment
-        if not settings.SEND_EMAILS:
-            print "!! Skipping email send, SEND_EMAILS set to False"
-        else:
-            # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-            subject = regex.sub('\s+', ' ', subject, regex.V0)
-            send_mail(subject, message, from_email, emails)
-
     def get_description(self):
-        return "Email to %s with subject %s" % (",".join(self.emails), self.subject)
+        return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
 
 
 class APIAction(Action):
@@ -3886,8 +3892,8 @@ class APIAction(Action):
         self.action = action
 
     @classmethod
-    def from_json(cls, org, json):
-        return APIAction(json.get('webhook', org.get_webhook_url()), json.get('action', 'POST'))
+    def from_json(cls, org, json_obj):
+        return APIAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
 
     def as_json(self):
         return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
@@ -3897,7 +3903,11 @@ class APIAction(Action):
 
         message_context = run.flow.build_message_context(run.contact, msg)
         (value, errors) = Msg.substitute_variables(self.webhook, run.contact, message_context,
-                                         org=run.flow.org, url_encode=True)
+                                                   org=run.flow.org, url_encode=True)
+
+        if errors:
+            ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
+
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
         return []
 
@@ -3919,16 +3929,16 @@ class AddToGroupAction(Action):
         self.groups = groups
 
     @classmethod
-    def from_json(cls, org, json):
-        return AddToGroupAction(AddToGroupAction.get_groups(org, json))
+    def from_json(cls, org, json_obj):
+        return AddToGroupAction(AddToGroupAction.get_groups(org, json_obj))
 
     @classmethod
-    def get_groups(cls, org, json):
+    def get_groups(cls, org, json_obj):
 
         # for backwards compatibility
-        group_data = json.get(AddToGroupAction.GROUP, None)
+        group_data = json_obj.get(AddToGroupAction.GROUP, None)
         if not group_data:
-            group_data = json.get(AddToGroupAction.GROUPS)
+            group_data = json_obj.get(AddToGroupAction.GROUPS)
         else:
             group_data = [group_data]
 
@@ -3940,7 +3950,7 @@ class AddToGroupAction(Action):
 
                 try:
                     group_id = int(group_id)
-                except:
+                except Exception:
                     group_id = -1
 
                 if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
@@ -4028,11 +4038,12 @@ class DeleteFromGroupAction(AddToGroupAction):
         return DeleteFromGroupAction.TYPE
 
     @classmethod
-    def from_json(cls, org, json):
-        return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json))
+    def from_json(cls, org, json_obj):
+        return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
     def get_description(self):
         return "Removed from group %s" % ", ".join([g.name for g in self.groups])
+
 
 class AddLabelAction(Action):
     """
@@ -4047,8 +4058,8 @@ class AddLabelAction(Action):
         self.labels = labels
 
     @classmethod
-    def from_json(cls, org, json):
-        labels_data = json.get(AddLabelAction.LABELS)
+    def from_json(cls, org, json_obj):
+        labels_data = json_obj.get(AddLabelAction.LABELS)
 
         labels = []
         for l_data in labels_data:
@@ -4137,10 +4148,10 @@ class SayAction(Action):
         self.recording = recording
 
     @classmethod
-    def from_json(cls, org, json):
-        return SayAction(json.get(SayAction.UUID, None),
-                         json.get(SayAction.MESSAGE, None),
-                         json.get(SayAction.RECORDING, None))
+    def from_json(cls, org, json_obj):
+        return SayAction(json_obj.get(SayAction.UUID),
+                         json_obj.get(SayAction.MESSAGE),
+                         json_obj.get(SayAction.RECORDING))
 
     def as_json(self):
         return dict(type=SayAction.TYPE, msg=self.msg,
@@ -4193,9 +4204,9 @@ class PlayAction(Action):
         self.url = url
 
     @classmethod
-    def from_json(cls, org, json):
-        return PlayAction(json.get(PlayAction.UUID, None),
-                         json.get(PlayAction.URL, None))
+    def from_json(cls, org, json_obj):
+        return PlayAction(json_obj.get(PlayAction.UUID),
+                         json_obj.get(PlayAction.URL))
 
     def as_json(self):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
@@ -4230,8 +4241,8 @@ class ReplyAction(Action):
         self.msg = msg
 
     @classmethod
-    def from_json(cls, org, json):
-        return ReplyAction(msg=json.get(ReplyAction.MESSAGE, None))
+    def from_json(cls, org, json_obj):
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
 
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
@@ -4276,10 +4287,10 @@ class VariableContactAction(Action):
         self.variables = variables
 
     @classmethod
-    def parse_groups(cls, org, json):
+    def parse_groups(cls, org, json_obj):
         # we actually instantiate our contacts here
         groups = []
-        for group_data in json.get(VariableContactAction.GROUPS):
+        for group_data in json_obj.get(VariableContactAction.GROUPS):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
@@ -4295,9 +4306,9 @@ class VariableContactAction(Action):
         return groups
 
     @classmethod
-    def parse_contacts(cls, org, json):
+    def parse_contacts(cls, org, json_obj):
         contacts = []
-        for contact in json.get(VariableContactAction.CONTACTS):
+        for contact in json_obj.get(VariableContactAction.CONTACTS):
             name = contact.get(VariableContactAction.NAME, None)
             phone = contact.get(VariableContactAction.PHONE, None)
             contact_id = contact.get(VariableContactAction.ID, None)
@@ -4317,10 +4328,10 @@ class VariableContactAction(Action):
         return contacts
 
     @classmethod
-    def parse_variables(cls, org, json):
+    def parse_variables(cls, org, json_obj):
         variables = []
-        if VariableContactAction.VARIABLES in json:
-            variables = list(_.get(VariableContactAction.ID) for _ in json.get(VariableContactAction.VARIABLES))
+        if VariableContactAction.VARIABLES in json_obj:
+            variables = list(_.get(VariableContactAction.ID) for _ in json_obj.get(VariableContactAction.VARIABLES))
         return variables
 
     def build_groups_and_contacts(self, run, msg):
@@ -4370,17 +4381,17 @@ class TriggerFlowAction(VariableContactAction):
         super(TriggerFlowAction, self).__init__(groups, contacts, variables)
 
     @classmethod
-    def from_json(cls, org, json):
-        flow_pk = json.get(cls.ID)
+    def from_json(cls, org, json_obj):
+        flow_pk = json_obj.get(cls.ID)
         flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
 
         # it is possible our flow got deleted
         if not flow:
             return None
 
-        groups = VariableContactAction.parse_groups(org, json)
-        contacts = VariableContactAction.parse_contacts(org, json)
-        variables = VariableContactAction.parse_variables(org, json)
+        groups = VariableContactAction.parse_groups(org, json_obj)
+        contacts = VariableContactAction.parse_contacts(org, json_obj)
+        variables = VariableContactAction.parse_variables(org, json_obj)
 
         return TriggerFlowAction(flow, groups, contacts, variables)
 
@@ -4443,8 +4454,8 @@ class SetLanguageAction(Action):
         self.name = name
 
     @classmethod
-    def from_json(cls, org, json):
-        return SetLanguageAction(json.get(cls.LANG), json.get(cls.NAME))
+    def from_json(cls, org, json_obj):
+        return SetLanguageAction(json_obj.get(cls.LANG), json_obj.get(cls.NAME))
 
     def as_json(self):
         return dict(type=SetLanguageAction.TYPE, lang=self.lang, name=self.name)
@@ -4480,8 +4491,8 @@ class StartFlowAction(Action):
         self.flow = flow
 
     @classmethod
-    def from_json(cls, org, json):
-        flow_pk = json.get(cls.ID)
+    def from_json(cls, org, json_obj):
+        flow_pk = json_obj.get(cls.ID)
         flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
 
         # it is possible our flow got deleted
@@ -4546,11 +4557,11 @@ class SaveToContactAction(Action):
         return label
 
     @classmethod
-    def from_json(cls, org, json):
+    def from_json(cls, org, json_obj):
         # they are creating a new field
-        label = json.get(cls.LABEL)
-        field = json.get(cls.FIELD, None)
-        value = json.get(cls.VALUE)
+        label = json_obj.get(cls.LABEL)
+        field = json_obj.get(cls.FIELD)
+        value = json_obj.get(cls.VALUE)
 
         # create our contact field if necessary
         if not field:
@@ -4631,12 +4642,12 @@ class SendAction(VariableContactAction):
         super(SendAction, self).__init__(groups, contacts, variables)
 
     @classmethod
-    def from_json(cls, org, json):
-        groups = VariableContactAction.parse_groups(org, json)
-        contacts = VariableContactAction.parse_contacts(org, json)
-        variables = VariableContactAction.parse_variables(org, json)
+    def from_json(cls, org, json_obj):
+        groups = VariableContactAction.parse_groups(org, json_obj)
+        contacts = VariableContactAction.parse_contacts(org, json_obj)
+        variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(json.get(SendAction.MESSAGE), groups, contacts, variables)
+        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
@@ -4681,9 +4692,12 @@ class SendAction(VariableContactAction):
                     for contact in group.contacts.all():
                         unique_contacts.add(contact.pk)
 
+                # contact refers to each contact this message is being sent to so evaluate without it for logging
+                del message_context['contact']
+
                 text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, errors) = Msg.substitute_variables(text, None, flow.build_message_context(run.contact, msg),
-                                                             org=run.flow.org)
+                (message, errors) = Msg.substitute_variables(text, None, message_context,
+                                                             org=run.flow.org, partial_vars=True)
 
                 self.logger(run, message, len(unique_contacts))
 

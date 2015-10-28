@@ -6,13 +6,15 @@ from temba.utils.queues import pop_task
 from temba.contacts.models import Contact
 from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
+from temba.utils.email import send_simple_email
 from redis_cache import get_redis_connection
-from .models import EmailAction, ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 
 
 @task(track_started=True, name='send_email_action_task')
-def send_email_action_task(emails, subject, message):
-    EmailAction.send_email(emails, subject, message)
+def send_email_action_task(recipients, subject, message):
+    send_simple_email(recipients, subject, message)
+
 
 @task(track_started=True, name='update_run_expirations_task')  # pragma: no cover
 def update_run_expirations_task(flow_id):
@@ -24,6 +26,7 @@ def update_run_expirations_task(flow_id):
 
     # force an expiration update
     check_flows_task.apply()
+
 
 @task(track_started=True, name='check_flows_task')  # pragma: no cover
 def check_flows_task():

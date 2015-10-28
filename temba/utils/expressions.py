@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import regex
 
-from temba_expressions.evaluator import Evaluator, DEFAULT_FUNCTION_MANAGER
+from temba_expressions.evaluator import Evaluator, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
 
 ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step')
 
@@ -11,8 +11,9 @@ evaluator = Evaluator(allowed_top_levels=ALLOWED_TOP_LEVELS)
 listing = None  # lazily initialized
 
 
-def evaluate_template(template, context, url_encode=False):
-    return evaluator.evaluate_template(template, context, url_encode)
+def evaluate_template(template, context, url_encode=False, partial_vars=False):
+    strategy = EvaluationStrategy.RESOLVE_AVAILABLE if partial_vars else EvaluationStrategy.COMPLETE
+    return evaluator.evaluate_template(template, context, url_encode, strategy)
 
 
 def evaluate_template_compat(template, context, url_encode=False):

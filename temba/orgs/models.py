@@ -3,17 +3,19 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
+import random
+import traceback
+from datetime import datetime, timedelta
+from decimal import Decimal
+from urlparse import urlparse
+from uuid import uuid4
+
 import os
 import pycountry
 import pytz
-import random
 import regex
 import stripe
-import traceback
-
 from dateutil.relativedelta import relativedelta
-from datetime import datetime, timedelta
-from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import Sum, F, Q
@@ -28,15 +30,12 @@ from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
-from temba.temba_email import send_temba_email
+from temba.utils.email import send_template_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
-from urlparse import urlparse
-from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
-
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
@@ -811,7 +810,6 @@ class Org(SmartModel):
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):
-        from temba.flows.models import Flow
         import json
 
         # get our sample dir
@@ -1549,7 +1547,7 @@ class Invitation(SmartModel):
         context = dict(org=self.org, now=timezone.now(), branding=branding, invitation=self)
         context['subject'] = subject
 
-        send_temba_email(to_email, subject, template, context, branding)
+        send_template_email(to_email, subject, template, context, branding)
 
 
 class UserSettings(models.Model):

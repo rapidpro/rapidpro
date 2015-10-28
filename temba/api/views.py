@@ -170,8 +170,9 @@ class WebHookTunnelView(View):
             incoming_data = parse_qs(data)
             outgoing_data = dict()
             for key in incoming_data.keys():
-                if key in ['relayer', 'sms', 'phone', 'text', 'time', 'call', 'duration', 'power_level', 'power_status',
-                           'power_source', 'network_type', 'pending_message_count', 'retry_message_count', 'last_seen', 'event']:
+                if key in ['relayer', 'channel', 'sms', 'phone', 'text', 'time', 'call', 'duration', 'power_level', 'power_status',
+                           'power_source', 'network_type', 'pending_message_count', 'retry_message_count', 'last_seen', 'event',
+                           'step', 'values', 'flow', 'relayer_phone']:
                     outgoing_data[key] = incoming_data[key]
 
             response = requests.post(url, data=outgoing_data, timeout=3)
@@ -249,6 +250,7 @@ class WebHookSimulatorView(SmartTemplateView):
         fields = list()
         fields.append(dict(name="relayer", help="The id of the channel which handled this flow step", default=1))
         fields.append(dict(name="relayer_phone", help="The phone number of the channel", default="+250788123123"))
+        fields.append(dict(name="phone", help="The phone number of the contact", default="+250788788123"))
         fields.append(dict(name="flow", help="The id of the flow (reference the URL on your flow page)", default=504))
         fields.append(dict(name="step", help="The uuid of the step which triggered this event (reference your flow)", default="15121251-15121241-15145152-12541241"))
         fields.append(dict(name="time", help="The time that this step was reached by the user in ECMA-162 format", default="2013-01-21T22:34:00.123"))
@@ -3126,6 +3128,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
     By making a ```POST``` request to the endpoint you can add a new steps to a flow run.
 
     * **flow** - the UUID of the flow (string)
+    * **revision** - the revision of the flow that was executed (integer)
     * **contact** - the UUID of the contact (string)
     * **steps** - the new step objects (array of objects)
     * **started** - the datetime when the run was started
@@ -3136,6 +3139,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
         POST /api/v1/steps.json
         {
             "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+            "revision": 2,
             "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
             "completed": true,
             "started": "2015-09-23T17:59:47.572Z"

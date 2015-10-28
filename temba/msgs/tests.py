@@ -545,8 +545,8 @@ class MsgTest(TembaTest):
         check_messages_task()
         self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
-    @patch('temba.temba_email.send_multipart_email')
-    def test_message_export(self, mock_send_multipart_email):
+    @patch('temba.utils.email.send_temba_email')
+    def test_message_export(self, mock_send_temba_email):
         self.clear_storage()
         self.login(self.admin)
 
@@ -597,7 +597,7 @@ class MsgTest(TembaTest):
         self.assertEquals(sheet.cell(2, 5).value, "hello 2")
         self.assertEquals(sheet.cell(2, 6).value, "")
 
-        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "Your messages export is ready")
         self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
