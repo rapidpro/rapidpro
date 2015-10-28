@@ -282,16 +282,4 @@ describe 'Controllers:', ->
         expect(added.id).toBe('a_new_field')
         expect(added.text).toBe('A New Field')
       $timeout.flush()
-
-
-
-
-
-
-
-
-
-
-
-
-
+      
