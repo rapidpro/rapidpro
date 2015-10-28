@@ -356,11 +356,14 @@ class Broadcast(models.Model):
             priority = SMS_BULK_PRIORITY
 
         # determine our preferred languages
-        preferred_languages = []
+        org_languages = {l.iso_code for l in self.org.languages.all()}
+        other_preferred_languages = []
+
         if self.org.primary_language:
-            preferred_languages.append(self.org.primary_language.iso_code)
+            other_preferred_languages.append(self.org.primary_language.iso_code)
+
         if base_language:
-            preferred_languages.append(base_language)
+            other_preferred_languages.append(base_language)
 
         # if they didn't pass in a created on, create one ourselves
         if not created_on:
@@ -375,8 +378,16 @@ class Broadcast(models.Model):
             text_translations = json.loads(self.language_dict)
 
         for recipient in recipients:
+            contact = recipient if isinstance(recipient, Contact) else recipient.contact
+
+            # if contact has a language and it's a valid org language, it has priority
+            if contact.language and contact.language in org_languages:
+                preferred_languages = [contact.language] + other_preferred_languages
+            else:
+                preferred_languages = other_preferred_languages
+
             # find the right text to send
-            text = Language.get_localized_text(self.text, text_translations, preferred_languages, contact=recipient)
+            text = Language.get_localized_text(text_translations, preferred_languages, self.text)
 
             try:
                 msg = Msg.create_outgoing(org,

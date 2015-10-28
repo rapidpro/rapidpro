@@ -983,19 +983,26 @@ class Flow(TembaModel, SmartModel):
         :param text_translations: The text in all supported languages, or string (which will just return immediately)
         :param contact: the contact we are interacting with
         :param default_text: What to use if all else fails
-        :return:
+        :return: the localized text
         """
+        org_languages = {l.iso_code for l in self.org.languages.all()}
+
         # We return according to the following precedence:
-        #   1) Contact's language
+        #   1) Contact's language (if it's a valid org language)
         #   2) Org Primary Language
         #   3) Flow Base Language
         #   4) Default Text
         preferred_languages = []
+
+        if contact and contact.language and contact.language in org_languages:
+            preferred_languages.append(contact.language)
+
         if self.org.primary_language:
             preferred_languages.append(self.org.primary_language.iso_code)
+
         preferred_languages.append(self.base_language)
 
-        return Language.get_localized_text(default_text, text_translations, preferred_languages, contact=contact)
+        return Language.get_localized_text(text_translations, preferred_languages, default_text)
 
     def update_run_expirations(self):
         """

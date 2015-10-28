@@ -1644,33 +1644,6 @@ class BroadcastLanguageTest(TembaTest):
         self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
 
-    def test_localization(self):
-        text_translations = dict(eng="Hello", esp="Hola")
-
-        # null case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
-
-        # simple dictionary case
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
-
-        # missing language case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", text_translations, ['fre']))
-
-        # secondary option
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp']))
-
-        # missing preference on contact
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.francois))
-
-        # no contact preference
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.greg))
-
-        # has a matching preference
-        self.wilbert.language = 'eng'
-        self.wilbert.save()
-
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))
-
 
 class SystemLabelTest(TembaTest):
     def test_get_counts(self):
