@@ -1199,20 +1199,12 @@ class APITest(TembaTest):
         self.assertEquals(None, contact.language)
         self.assertEquals(self.org, contact.org)
 
-        # try to update the language, which should fail as there are no languages on this org yet
-        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
+        # try to update the language to something that is not a 3-letter code
+        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='ENGRISH'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "You do not have any languages configured for your organization.")
+        self.assertResponseError(response, 'language', "Ensure this value has at most 3 characters (it has 7).")
 
-        # let's configure English on their org
-        self.org.languages.create(iso_code='eng', name="English", created_by=self.admin, modified_by=self.admin)
-
-        # try another language than one that is configured
-        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='fre'))
-        self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "Language code 'fre' is not one of supported for organization. (eng)")
-
-        # ok, now try english
+        # now try 'eng' for English
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
         self.assertEquals(201, response.status_code)
 
