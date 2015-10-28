@@ -391,7 +391,7 @@ class ContactReadSerializer(serializers.ModelSerializer):
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=False, max_length=64)
-    language = serializers.CharField(required=False, max_length=3)
+    language = serializers.CharField(required=False, min_length=3, max_length=3)
     urns = StringArrayField(required=False)
     group_uuids = StringArrayField(required=False)
     fields = DictionaryField(required=False)

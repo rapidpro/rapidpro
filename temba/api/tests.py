@@ -1199,10 +1199,15 @@ class APITest(TembaTest):
         self.assertEquals(None, contact.language)
         self.assertEquals(self.org, contact.org)
 
-        # try to update the language to something that is not a 3-letter code
+        # try to update the language to something longer than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='ENGRISH'))
         self.assertEquals(400, response.status_code)
         self.assertResponseError(response, 'language', "Ensure this value has at most 3 characters (it has 7).")
+
+        # try to update the language to something shorter than 3-letters
+        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='X'))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'language', "Ensure this value has at least 3 characters (it has 1).")
 
         # now try 'eng' for English
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
