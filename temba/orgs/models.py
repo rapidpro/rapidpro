@@ -1153,7 +1153,7 @@ class Org(SmartModel):
             context['branding'] = branding
             context['subject'] = subject
 
-            send_temba_email(to_email, subject, template, context, branding)
+            send_template_email(to_email, subject, template, context, branding)
 
             # apply our new topups
             self.apply_topups()
@@ -1698,7 +1698,7 @@ class CreditAlert(SmartModel):
         context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
         context['subject'] = subject
 
-        send_temba_email(to_email, subject, template, context, branding)
+        send_template_email(to_email, subject, template, context, branding)
 
     @classmethod
     def reset_for_org(cls, org):
