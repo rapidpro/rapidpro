@@ -1276,14 +1276,15 @@ class ContactTest(TembaTest):
         post_data = dict(name="Joe Gashyantare", groups=[self.just_joe.id],
                          __urn__tel__0="123", __urn__tel__1="67890")
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
-        self.assertEquals(response.context['contact'].name, "Joe Gashyantare")
-        self.assertIn(self.just_joe, response.context['contact'].user_groups.all())
+        self.assertEqual(response.context['contact'].name, "Joe Gashyantare")
+        self.assertEqual(set(self.joe.user_groups.all()), {self.just_joe})
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="123"))
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="67890"))
 
-        # Now remove him from  this group "Just joe", and his second number
+        # remove him from this group "Just joe", and his second number
         post_data = dict(name="Joe Gashyantare", __urn__tel__0="12345", groups=[])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
+        self.assertEqual(set(self.joe.user_groups.all()), set())
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="12345"))
         self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="67890"))
         self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="1232"))
@@ -1293,13 +1294,18 @@ class ContactTest(TembaTest):
         self.assertEquals("12345", response.context['form'].fields['__urn__tel__0'].initial)
         self.assertFalse('__urn__tel__1' in response.context['form'].fields)
 
-        # Done!
-        self.assertFalse(response.context['contact'].user_groups.all())
-
         # check that groups field isn't displayed when contact is blocked
         self.joe.block()
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertNotIn('groups', response.context['form'].fields)
+
+        # and that we can still update the contact
+        post_data = dict(name="Joe Bloggs", __urn__tel__0="12345")
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
+
+        self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.assertEquals(self.joe.name, "Joe Bloggs")
+
         self.joe.unblock()
 
         # check updating when org is anon
