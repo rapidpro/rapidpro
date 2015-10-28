@@ -2077,8 +2077,9 @@ class ActionTest(TembaTest):
     @patch('django.utils.timezone.now')
     @patch('requests.post')
     def test_api_action(self, mock_requests_post, mock_timezone_now):
+        tz = pytz.timezone("Africa/Kigali")
         mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
-        mock_timezone_now.return_value = datetime.datetime(2015, 10, 27, 16, 07, 30, 6, pytz.timezone("Africa/Kigali"))
+        mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 07, 30, 6))
 
         action = APIAction('http://example.com/callback.php')
 
