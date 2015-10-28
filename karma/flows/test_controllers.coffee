@@ -4,6 +4,7 @@ describe 'Controllers:', ->
     # initialize our angular app
     module 'app'
     module 'partials'
+    window.testing = true
 
   $rootScope = null
   $compile = null
@@ -233,3 +234,64 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
 
       $timeout.flush()
+
+    it 'updateContactAction should not duplicate fields on save', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+      flowService.contactFieldSearch = [{id:'national_id',text:'National ID'}]
+
+      # find an actin to edit
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      # open our editor modal so we can save it
+      $scope.clickAction(actionset, action)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        field =
+          id: 'national_id'
+          text: 'National ID'
+
+        # save an update contact action
+        modalScope.saveUpdateContact(field, '@flow.natl_id')
+
+        # should still have one to choose from
+        expect(flowService.contactFieldSearch.length).toBe(1)
+      $timeout.flush()
+
+      # now open our modal and try adding a field
+      $scope.clickAction(actionset, action)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        field =
+          id: '[_NEW_]a_new_field'
+          text: 'Add new variable: A New Field'
+        modalScope.saveUpdateContact(field, 'save me')
+
+        # new fields should be tacked on the end
+        expect(flowService.contactFieldSearch.length).toBe(2)
+
+        # check that the NEW markers are stripped off
+        added = flowService.contactFieldSearch[1]
+        expect(added.id).toBe('a_new_field')
+        expect(added.text).toBe('A New Field')
+      $timeout.flush()
+
+
+
+
+
+
+
+
+
+
+
+
+
