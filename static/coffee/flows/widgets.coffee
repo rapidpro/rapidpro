@@ -141,7 +141,7 @@ app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
 
     element.select2
       tags: Flow.labels
-      mutiple: true
+      multiple: true
 
     field = form[attrs['name']]
     select2 = element.data('select2')
@@ -154,6 +154,18 @@ app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
       select2.data(initLabels)
 
     field['selected'] = select2.data()
+
+    # select2 won't let us attach to search keypress so
+    # we hook into the event right before the change is made
+    element.on 'select2-selecting', (e) ->
+      if e.val.length < 1
+        e.preventDefault()
+        return
+
+      # labels can't start with @, strip it off if we get this far
+      if e.val[0] == '@'
+        element.select2("search", e.val.slice(1))
+        e.preventDefault()
 
     element.on 'change', (e) ->
       field['selected'] = select2.data()
