@@ -54,6 +54,21 @@ class FlowTest(TembaTest):
 
         self.definition = self.create_flow_definition(0)
 
+    def export_flow_results(self, flow):
+        """
+        Exports results for the given flow and returns the generated workbook
+        """
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % flow.pk)
+        self.assertEqual(response.status_code, 302)
+
+        task = ExportFlowResultsTask.objects.order_by('-pk').first()
+        self.assertIsNotNone(task)
+
+        from xlrd import open_workbook
+        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        return open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
+
     def test_revision_history(self):
 
         # every save should result in a new flow version
@@ -352,16 +367,7 @@ class FlowTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
-
-        self.assertEquals(302, exported.status_code)
-
-        task = ExportFlowResultsTask.objects.all().order_by('-id').first()
-
-        # read it back in, check values
-        from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
+        workbook = self.export_flow_results(self.flow)
 
         self.assertEquals(3, len(workbook.sheets()))
         entries = workbook.sheets()[0]
@@ -379,9 +385,13 @@ class FlowTest(TembaTest):
 
         self.assertEqual(entries.cell(1, 0).value, "+250788382382")
         self.assertEqual(entries.cell(1, 1).value, "Eric")
+        self.assertEqual(entries.cell(1, 5).value, "Orange")
+        self.assertEqual(entries.cell(1, 6).value, "orange")
+        self.assertEqual(entries.cell(1, 7).value, "orange")
 
         self.assertEqual(entries.cell(2, 0).value, "+250788383383")
         self.assertEqual(entries.cell(2, 1).value, "Nic")
+        self.assertEqual(entries.cell(1, 5).value, "Orange")
 
         messages = workbook.sheets()[2]
         self.assertEquals(5, messages.nrows)
@@ -422,30 +432,51 @@ class FlowTest(TembaTest):
         self.assertEquals(uuid(5), color['node'])
         self.assertEquals(incoming.text, color['text'])
 
-    def test_export_results_flow_with_no_response(self):
-        self.login(self.admin)
-        flow_missing_responses = self.create_flow()
-        flow_missing_responses.update(self.definition)
+    def test_export_results_with_surveyor_msgs(self):
+        self.flow.update(self.definition)
+        self.flow.start([], [self.contact])
 
-        self.assertEquals(0, flow_missing_responses.get_total_contacts())
-        self.assertEquals(0, flow_missing_responses.get_completed_percentage())
+        # no urn or channel
+        Msg.create_incoming(None, None, "Blue", org=self.org, contact=self.contact)
 
-        # try exporting the flow without responses
-        exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % flow_missing_responses.pk)
-        self.assertEquals(302, exported.status_code)
+        workbook = self.export_flow_results(self.flow)
 
-        task = ExportFlowResultsTask.objects.all()[0]
+        self.assertEqual(len(workbook.sheets()), 3)
 
-        from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
+        entries = workbook.sheets()[0]
 
-        self.assertEquals(2, len(workbook.sheets()))
+        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
+        self.assertEqual(entries.cell(1, 1).value, "Eric")
+        self.assertEqual(entries.cell(1, 5).value, "Blue")
+
+        messages = workbook.sheets()[2]
+
+        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
+        self.assertEqual(messages.cell(1, 1).value, "Eric")
+        self.assertEqual(messages.cell(1, 3).value, "OUT")
+        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
+        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
+
+        self.assertEqual(messages.cell(2, 0).value, "")
+        self.assertEqual(messages.cell(2, 1).value, "Eric")
+        self.assertEqual(messages.cell(2, 3).value, "IN")
+        self.assertEqual(messages.cell(2, 4).value, "Blue")
+        self.assertEqual(messages.cell(2, 5).value, "")
+
+    def test_export_results_with_no_responses(self):
+        self.flow.update(self.definition)
+
+        self.assertEqual(self.flow.get_total_contacts(), 0)
+        self.assertEqual(self.flow.get_completed_percentage(), 0)
+
+        workbook = self.export_flow_results(self.flow)
+
+        self.assertEqual(len(workbook.sheets()), 2)
 
         # every sheet has only the head row
         for entries in workbook.sheets():
-            self.assertEquals(1, entries.nrows)
-            self.assertEquals(8, entries.ncols)
+            self.assertEqual(entries.nrows, 1)
+            self.assertEqual(entries.ncols, 8)
 
     def test_copy(self):
         # save our original flow

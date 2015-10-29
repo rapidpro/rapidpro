@@ -3020,11 +3020,15 @@ class ExportFlowResultsTask(SmartModel):
     Container for managing our export requests
     """
     org = models.ForeignKey(Org, related_name='flow_results_exports', help_text=_("The Organization of the user."))
+
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
+
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
+
     task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export is complete"))
+
+    is_finished = models.BooleanField(default=False,  help_text=_("Whether this export is complete"))
+
     uuid = models.CharField(max_length=36, null=True,
                             help_text=_("The uuid used to name the resulting export file"))
 
@@ -3173,10 +3177,25 @@ class ExportFlowResultsTask(SmartModel):
         start = time.time()
         flow_names = ", ".join([f['name'] for f in self.flows.values('name')])
 
+        urn_display_cache = {}
+
+        def get_contact_urn_display(contact):
+            """
+            Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
+            """
+            urn_display = urn_display_cache.get(contact.pk)
+            if urn_display:
+                return urn_display
+            urn_display = contact.get_urn_display(org=org, full=True)
+            urn_display_cache[contact.pk] = urn_display
+            return urn_display
+
         for run_step in FlowStepIterator(step_ids,
                                          order_by=['contact', 'run', 'arrived_on', 'pk'],
                                          select_related=['run', 'contact'],
-                                         prefetch_related=['messages', 'messages__channel', 'contact__all_groups']):
+                                         prefetch_related=['messages__contact_urn',
+                                                           'messages__channel',
+                                                           'contact__all_groups']):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:
@@ -3186,6 +3205,8 @@ class ExportFlowResultsTask(SmartModel):
             # skip over test contacts
             if run_step.contact.is_test:
                 continue
+
+            contact_urn_display = get_contact_urn_display(run_step.contact)
 
             # if this is a rule step, write out the value collected
             if run_step.step_type == RULE_SET:
@@ -3227,11 +3248,11 @@ class ExportFlowResultsTask(SmartModel):
                     group_names.sort()
                     groups = ", ".join(group_names)
 
-                    runs.write(run_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                    runs.write(run_row, 0, contact_urn_display)
                     runs.write(run_row, 1, run_step.contact.name)
                     runs.write(run_row, 2, groups)
 
-                    merged_runs.write(merged_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                    merged_runs.write(merged_row, 0, contact_urn_display)
                     merged_runs.write(merged_row, 1, run_step.contact.name)
                     merged_runs.write(merged_row, 2, groups)
 
@@ -3274,7 +3295,10 @@ class ExportFlowResultsTask(SmartModel):
                 last_contact = run_step.contact.pk
 
             # write out any message associated with this step
-            if run_step.get_text():
+            step_msgs = list(run_step.messages.all())
+
+            if step_msgs:
+                msg = step_msgs[0]
                 msg_row += 1
 
                 if msg_row % 1000 == 0:
@@ -3301,18 +3325,15 @@ class ExportFlowResultsTask(SmartModel):
                     msgs.col(4).width = large_width
                     msgs.col(5).width = small_width
 
-                msgs.write(msg_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                msg_urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
+                channel_name = msg.channel.name if msg.channel else ''
+
+                msgs.write(msg_row, 0, msg_urn_display)
                 msgs.write(msg_row, 1, run_step.contact.name)
-                arrived_on = as_org_tz(run_step.arrived_on)
-
-                msgs.write(msg_row, 2, arrived_on, date_format)
-                if run_step.step_type == RULE_SET:
-                    msgs.write(msg_row, 3, "IN")
-                else:
-                    msgs.write(msg_row, 3, "OUT")
-
-                msgs.write(msg_row, 4, run_step.get_text())
-                msgs.write(msg_row, 5, run_step.get_channel_name())
+                msgs.write(msg_row, 2, as_org_tz(run_step.arrived_on), date_format)
+                msgs.write(msg_row, 3, "IN" if msg.direction == INCOMING else "OUT")
+                msgs.write(msg_row, 4, msg.text)
+                msgs.write(msg_row, 5, channel_name)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
@@ -3565,13 +3586,7 @@ class FlowStep(models.Model):
 
     def get_text(self):
         msg = self.messages.all().first()
-        if msg:
-            return msg.text
-
-    def get_channel_name(self):
-        msg = self.messages.all().first()
-        if msg:
-            return msg.channel.name
+        return msg.text if msg else None
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
