@@ -24,7 +24,7 @@ from temba.channels.models import Channel, RECEIVE, ANSWER
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics
-from .models import Trigger, KEYWORD_TRIGGER, SCHEDULE_TRIGGER, INBOUND_CALL_TRIGGER, MISSED_CALL_TRIGGER, CATCH_ALL_TRIGGER, FOLLOW_TRIGGER
+from .models import Trigger
 
 
 class BaseTriggerForm(forms.ModelForm):
@@ -216,7 +216,7 @@ class InboundCallTriggerForm(GroupBasedTriggerForm):
 
     def get_existing_triggers(self, cleaned_data):
         existing = super(InboundCallTriggerForm, self).get_existing_triggers(cleaned_data)
-        existing = existing.filter(trigger_type=INBOUND_CALL_TRIGGER)
+        existing = existing.filter(trigger_type=Trigger.TYPE_INBOUND_CALL)
         return existing
 
 
@@ -301,12 +301,12 @@ class TriggerCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
         success_message = ''
-        trigger_forms = {KEYWORD_TRIGGER: KeywordTriggerForm,
-                         SCHEDULE_TRIGGER: ScheduleTriggerForm,
-                         MISSED_CALL_TRIGGER: DefaultTriggerForm,
-                         INBOUND_CALL_TRIGGER: InboundCallTriggerForm,
-                         CATCH_ALL_TRIGGER: DefaultTriggerForm,
-                         FOLLOW_TRIGGER: FollowTriggerForm}
+        trigger_forms = {Trigger.TYPE_KEYWORD: KeywordTriggerForm,
+                         Trigger.TYPE_SCHEDULE: ScheduleTriggerForm,
+                         Trigger.TYPE_MISSED_CALL: DefaultTriggerForm,
+                         Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
+                         Trigger.TYPE_CATCH_ALL: DefaultTriggerForm,
+                         Trigger.TYPE_FOLLOW: FollowTriggerForm}
 
         def get_form_class(self):
             trigger_type = self.object.trigger_type
@@ -329,7 +329,7 @@ class TriggerCRUDL(SmartCRUDL):
         def derive_initial(self):
             obj = self.object
             trigger_type = obj.trigger_type
-            if trigger_type == SCHEDULE_TRIGGER:
+            if trigger_type == Trigger.TYPE_SCHEDULE:
                 repeat_period = obj.schedule.repeat_period
                 selected = ['g-%d' % _.pk for _ in self.object.groups.all()]
                 selected += ['c-%d' % _.pk for _ in self.object.contacts.all()]
@@ -345,11 +345,11 @@ class TriggerCRUDL(SmartCRUDL):
             trigger = self.object
             trigger_type = trigger.trigger_type
 
-            if trigger_type == MISSED_CALL_TRIGGER or trigger_type == CATCH_ALL_TRIGGER:
+            if trigger_type == Trigger.TYPE_MISSED_CALL or trigger_type == Trigger.TYPE_CATCH_ALL:
                 trigger.flow = form.cleaned_data['flow']
                 trigger.save()
 
-            if trigger_type == SCHEDULE_TRIGGER:
+            if trigger_type == Trigger.TYPE_SCHEDULE:
                 schedule = trigger.schedule
 
                 if form.starts_never():
@@ -493,7 +493,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             Trigger.objects.create(created_by=self.request.user, modified_by=self.request.user,
                                    org=self.request.user.get_org(), keyword=keyword,
-                                   trigger_type=KEYWORD_TRIGGER,
+                                   trigger_type=Trigger.TYPE_KEYWORD,
                                    flow=group_flow)
 
             analytics.track(self.request.user.username, 'temba.trigger_created_register', dict(name=join_group.name))
@@ -563,7 +563,7 @@ class TriggerCRUDL(SmartCRUDL):
             trigger = Trigger.objects.create(flow=self.form.cleaned_data['flow'],
                                              org=self.request.user.get_org(),
                                              schedule=schedule,
-                                             trigger_type=SCHEDULE_TRIGGER,
+                                             trigger_type=Trigger.TYPE_SCHEDULE,
                                              created_by=self.request.user,
                                              modified_by=self.request.user)
 
@@ -601,7 +601,7 @@ class TriggerCRUDL(SmartCRUDL):
         def pre_save(self, obj, *args, **kwargs):
             obj = super(TriggerCRUDL.InboundCall, self).pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
-            obj.trigger_type=INBOUND_CALL_TRIGGER
+            obj.trigger_type=Trigger.TYPE_INBOUND_CALL
             return obj
 
         def get_form_kwargs(self):
@@ -624,11 +624,11 @@ class TriggerCRUDL(SmartCRUDL):
 
             # first archive all missed call triggers
             Trigger.objects.filter(org=org,
-                                   trigger_type=MISSED_CALL_TRIGGER,
+                                   trigger_type=Trigger.TYPE_MISSED_CALL,
                                    is_active=True).update(is_archived=True)
 
             # then create a new missed call trigger
-            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=MISSED_CALL_TRIGGER,
+            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_MISSED_CALL,
                                    flow=form.cleaned_data['flow'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_missed_call')
@@ -651,11 +651,11 @@ class TriggerCRUDL(SmartCRUDL):
 
             # first archive all catch all message triggers
             Trigger.objects.filter(org=org,
-                                   trigger_type=CATCH_ALL_TRIGGER,
+                                   trigger_type=Trigger.TYPE_CATCH_ALL,
                                    is_active=True).update(is_archived=True)
 
             # then create a new catch all trigger
-            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=CATCH_ALL_TRIGGER,
+            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_CATCH_ALL,
                                    flow=form.cleaned_data['flow'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_catchall')
@@ -676,7 +676,7 @@ class TriggerCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=FOLLOW_TRIGGER,
+            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_FOLLOW,
                                    flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_follow')

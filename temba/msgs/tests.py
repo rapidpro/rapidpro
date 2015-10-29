@@ -13,7 +13,7 @@ from temba.channels.models import Channel, KANNEL
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, CALL_IN
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -1658,7 +1658,7 @@ class SystemLabelTest(TembaTest):
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
-        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
+        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                                   schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
@@ -1671,7 +1671,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
+        Call.create_call(self.channel, "0783835002", timezone.now(), 10, Call.TYPE_IN)
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 

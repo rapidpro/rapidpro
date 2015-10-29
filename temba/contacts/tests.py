@@ -967,7 +967,7 @@ class ContactTest(TembaTest):
         self.assertEquals(5, len(response.context['all_messages']))
 
         # lets create an incoming call from this contact
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "CALL_IN")
+        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_IN)
 
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(6, len(response.context['all_messages']))
@@ -981,7 +981,7 @@ class ContactTest(TembaTest):
         self.assertTrue(isinstance(response.context['all_messages'][0], Msg))
 
         # lets create an outgoing call from this contact
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "CALL_OUT_MISSED")
+        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
 
         # visit a contact detail page as an admin with the organization
         response = self.fetch_protected(read_url, self.admin)

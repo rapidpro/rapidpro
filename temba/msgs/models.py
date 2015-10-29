@@ -856,7 +856,8 @@ class Msg(models.Model):
             return parts
 
     def reply(self, text, user, trigger_send=False, message_context=None):
-        return self.contact.send(text, user, trigger_send=trigger_send, response_to=self, message_context=message_context)
+        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                 response_to=self if self.id else None)
 
     def update(self, cmd):
         """
@@ -1336,20 +1337,7 @@ class Msg(models.Model):
     class Meta:
         ordering = ['-created_on', '-pk']
 
-
-CALL_OUT = 'mt_call'
-CALL_OUT_MISSED = 'mt_miss'
-CALL_IN = 'mo_call'
-CALL_IN_MISSED = 'mo_miss'
-
-CALL_TYPES = (('unk', _("Unknown Call Type")),
-              (CALL_IN, _("Incoming Call")),
-              (CALL_IN_MISSED, _("Missed Incoming Call")),
-              (CALL_OUT, _("Outgoing Call")),
-              (CALL_OUT_MISSED, _("Missed Outgoing Call")))
-
 class Call(SmartModel):
-
     """
     Call represents a inbound, outobound, or missed call on an Android Channel. When such an event occurs
     on an Android Phone with the Channel application installed, the calls are relayed to the server much
@@ -1357,6 +1345,17 @@ class Call(SmartModel):
 
     Note: These are not related to calls made for voice-based flows.
     """
+    TYPE_UNKNOWN = 'unk'
+    TYPE_OUT = 'mt_call'
+    TYPE_OUT_MISSED = 'mt_miss'
+    TYPE_IN = 'mo_call'
+    TYPE_IN_MISSED = 'mo_miss'
+
+    CALL_TYPES = ((TYPE_UNKNOWN, _("Unknown Call Type")),
+                  (TYPE_IN, _("Incoming Call")),
+                  (TYPE_IN_MISSED, _("Missed Incoming Call")),
+                  (TYPE_OUT, _("Outgoing Call")),
+                  (TYPE_OUT_MISSED, _("Missed Outgoing Call")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
 
@@ -1374,7 +1373,7 @@ class Call(SmartModel):
     @classmethod
     def create_call(cls, channel, phone, date, duration, call_type, user=None):
         from temba.api.models import WebHookEvent
-        from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
+        from temba.triggers.models import Trigger
 
         if not user:
             user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
@@ -1395,8 +1394,8 @@ class Call(SmartModel):
 
         WebHookEvent.trigger_call_event(call)
 
-        if call_type == CALL_IN_MISSED:
-            Trigger.catch_triggers(call, MISSED_CALL_TRIGGER)
+        if call_type == Call.TYPE_IN_MISSED:
+            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL)
 
         return call
 
