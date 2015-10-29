@@ -220,6 +220,10 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
   recalculateOffsets: (nodeId) ->
 
+    # don't bother with offsets if we are running inside a test
+    if window.testing
+      return
+
     # update ourselves
     $timeout ->
 

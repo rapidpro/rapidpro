@@ -1,29 +1,48 @@
 describe 'Directives:', ->
 
+  $rootScope = null
+  $compile = null
+  $timeout = null
+  Flow = null
+
   beforeEach ->
     # initialize our angular app
     module 'app'
 
+  beforeEach inject((_$rootScope_, _$compile_, _$timeout_, _Flow_) ->
+    $rootScope = _$rootScope_.$new()
+    $compile = _$compile_
+    $timeout = _$timeout_
+    Flow = _Flow_
+  )
+
+  describe 'Select2', ->
+
+    it 'should show proper options for static list', ->
+      ele = angular.element("<ng-form><input ng-model='field' name='field' text='[[action.label]]' select-static='[[contactFields]]' required='' key='[[action.field]]' type='hidden'/></ng-form>")
+      scope = $rootScope.$new()
+      scope.contactFields = [{id:'national_id',text:'National ID'}]
+      scope.action =
+        field: 'national_id'
+        label: 'National ID'
+
+      $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      # should have created a select2 widget
+      expect(ele.html()).toMatch(/select2/)
+
+      # and the default should be national_id
+      expect(ele.html()).toMatch(/national_id/)
+
+
   describe 'Action directive', ->
-
-    $rootScope = null
-    $compile = null
-    Flow = null
-
-    beforeEach inject((_$rootScope_, _$compile_, _Flow_) ->
-      $rootScope = _$rootScope_.$new()
-      $compile = _$compile_
-      Flow = _Flow_
-    )
 
     it 'should show the correct message', ->
 
-      # TODO: directives should not depend on root scope
-      #       hack it in until we clean that up
-
       Flow.flow = getJSONFixture('favorites.json').flows[0]
       scope = $rootScope.$new()
-      scope.$root = $rootScope
 
       # pick our first action to build some html for
       scope.action = Flow.flow.action_sets[0].actions[0]

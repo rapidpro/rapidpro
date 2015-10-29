@@ -81,6 +81,38 @@ class FlowTest(TembaTest):
         self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].as_json()['version'])
         self.assertEquals('base', versions[0].get_definition_json()['base_language'])
 
+    def test_get_localized_text(self):
+
+        text_translations = dict(eng="Hello", esp="Hola", fre="Salut")
+
+        # use default when flow, contact and org don't have language set
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
+
+        # flow language used regardless of whether it's an org language
+        self.flow.base_language = 'eng'
+        self.flow.save(update_fields=('base_language',))
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        esp = Language.create(self.org, self.admin, "Spanish", 'esp')
+
+        # flow language now valid org language
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+
+        # org primary language overrides flow language
+        self.flow.org.primary_language = esp
+        self.flow.org.save(update_fields=('primary_language',))
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+
+        # contact language doesn't override if it's not an org language
+        self.contact.language = 'fre'
+        self.contact.save(update_fields=('language',))
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+
+        # does override if it is
+        Language.create(self.org, self.admin, "French", 'fre')
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
+
     def test_flow_lists(self):
 
         self.login(self.admin)
@@ -1455,8 +1487,7 @@ class FlowTest(TembaTest):
 
         # test creating a  flow with base language
         # create the language for our org
-        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
-                                           created_by=flow.created_by, modified_by=flow.modified_by)
+        language = Language.create(self.org, flow.created_by, "English", 'eng')
         self.org.primary_language = language
         self.org.save()
 
@@ -3296,6 +3327,8 @@ class FlowsTest(FlowFileTest):
             self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
 
     def test_cross_language_import(self):
+        spanish = Language.create(self.org, self.admin, "Spanish", 'spa')
+        english = Language.create(self.org, self.admin, "English", 'eng')
 
         # import our localized flow into an org with no languages
         self.import_file('multi-language-flow')
@@ -3313,8 +3346,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('This message was not translated.', replies[1])
 
         # now add a primary language to our org
-        spanish = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
-                                          created_by=self.admin, modified_by=self.admin)
         self.org.primary_language = spanish
         self.org.save()
 
@@ -3481,8 +3512,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('group_membership')
 
         # create the language for our org
-        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
-                                           created_by=flow.created_by, modified_by=flow.modified_by)
+        language = Language.create(self.org, flow.created_by, "English", 'eng')
         self.org.primary_language = language
         self.org.save()
 
@@ -3506,8 +3536,7 @@ class FlowsTest(FlowFileTest):
         favorites = self.get_flow('favorites')
 
         # create a new language on the org
-        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
-                                           created_by=favorites.created_by, modified_by=favorites.modified_by)
+        language = Language.create(self.org, favorites.created_by, "English", 'eng')
 
         # set it as our primary language
         self.org.primary_language = language
@@ -3534,8 +3563,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED"))
 
         # now let's add a second language
-        Language.objects.create(iso_code='kli', name='Klingon', org=self.org,
-                                created_by=favorites.created_by, modified_by=favorites.modified_by)
+        Language.create(self.org, favorites.created_by, "Klingon", 'kli')
 
         # update our initial message
         initial_message = json_dict['action_sets'][0]['actions'][0]
