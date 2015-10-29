@@ -25,7 +25,7 @@ app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout
   $scope.showRevision = (revision) ->
 
     # show our revision selection
-    for other in Revision.revisions
+    for other in Revisions.revisions
       other.selected = false
     revision.selected = true
 
@@ -66,7 +66,7 @@ app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout
       markDirty = true
 
     $scope.showDefinition definition, ->
-      $scope.hideRevisios()
+      $scope.hideRevisions()
       # save if things have changed
       if markDirty
         Flow.markDirty()

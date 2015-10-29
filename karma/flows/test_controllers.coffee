@@ -40,7 +40,7 @@ describe 'Controllers:', ->
         }
       )
 
-      $http.whenGET('/flow/versions/' + config.id + '/').respond(
+      $http.whenGET('/flow/revisions/' + config.id + '/').respond(
         [],  {'content-type':'application/json'}
       )
 

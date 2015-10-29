@@ -379,14 +379,14 @@ app.factory "Revisions", ['$http', '$log', ($http, $log) ->
 
     getRevision: (revision) ->
       _this = @
-      return $http.get('/flow/revision/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
+      return $http.get('/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
 
 ]
 
-app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Revision', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Revision, DragHelper) ->
+app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Revision, DragHelper) ->
 
   new class Flow
 
