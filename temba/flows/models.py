@@ -1215,7 +1215,6 @@ class Flow(TembaModel, SmartModel):
             # where the message was sent to
             elif msg.channel:
                 channel_context = msg.channel.build_message_context()
-
         elif contact:
             message_context = dict(__default__='', contact=contact_context)
         else:
