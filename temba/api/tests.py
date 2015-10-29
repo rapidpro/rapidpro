@@ -306,10 +306,8 @@ class APITest(TembaTest):
                                              date_style="day_first",
                                              anon=False))
 
-        eng = Language.objects.create(org=self.org, iso_code='eng', name='English',
-                                      created_by=self.admin, modified_by=self.admin)
-        fre = Language.objects.create(org=self.org, iso_code='fre', name='French',
-                                      created_by=self.admin, modified_by=self.admin)
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -1201,20 +1199,17 @@ class APITest(TembaTest):
         self.assertEquals(None, contact.language)
         self.assertEquals(self.org, contact.org)
 
-        # try to update the language, which should fail as there are no languages on this org yet
-        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
+        # try to update the language to something longer than 3-letters
+        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='ENGRISH'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "You do not have any languages configured for your organization.")
+        self.assertResponseError(response, 'language', "Ensure this value has at most 3 characters (it has 7).")
 
-        # let's configure English on their org
-        self.org.languages.create(iso_code='eng', name="English", created_by=self.admin, modified_by=self.admin)
-
-        # try another language than one that is configured
-        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='fre'))
+        # try to update the language to something shorter than 3-letters
+        response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='X'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "Language code 'fre' is not one of supported for organization. (eng)")
+        self.assertResponseError(response, 'language', "Ensure this value has at least 3 characters (it has 1).")
 
-        # ok, now try english
+        # now try 'eng' for English
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
         self.assertEquals(201, response.status_code)
 

@@ -401,8 +401,7 @@ class TriggerTest(TembaTest):
         self.assertTrue(Trigger.objects.get(pk=trigger.pk).is_active)
 
         # try creating a join group on an org with a language
-        language = Language.objects.create(name='Klingon', iso_code='kli', org=self.org,
-                                           created_by=self.admin, modified_by=self.admin)
+        language = Language.create(self.org, self.admin, "Klingon", 'kli')
         self.org.primary_language = language
         self.org.save()
 

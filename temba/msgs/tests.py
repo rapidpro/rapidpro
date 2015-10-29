@@ -1624,10 +1624,8 @@ class BroadcastLanguageTest(TembaTest):
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
-        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
-                                      created_by=self.admin, modified_by=self.admin)
-        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
-                                      created_by=self.admin, modified_by=self.admin)
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -1645,33 +1643,6 @@ class BroadcastLanguageTest(TembaTest):
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.francois).text)
         self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
-
-    def test_localization(self):
-        text_translations = dict(eng="Hello", esp="Hola")
-
-        # null case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
-
-        # simple dictionary case
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
-
-        # missing language case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", text_translations, ['fre']))
-
-        # secondary option
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp']))
-
-        # missing preference on contact
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.francois))
-
-        # no contact preference
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.greg))
-
-        # has a matching preference
-        self.wilbert.language = 'eng'
-        self.wilbert.save()
-
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))
 
 
 class SystemLabelTest(TembaTest):
