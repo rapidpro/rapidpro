@@ -2693,7 +2693,7 @@ class FlowRevision(SmartModel):
 
         from temba.flows import flow_migrations
 
-        while (version < to_version and version < CURRENT_EXPORT_VERSION):
+        while version < to_version and version < CURRENT_EXPORT_VERSION:
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
                 json_flow = migrate_fn(json_flow)

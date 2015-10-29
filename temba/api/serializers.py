@@ -1117,10 +1117,10 @@ class FlowDefinitionWriteSerializer(WriteSerializer):
 
         # first, migrate our definition forward if necessary
         from temba.orgs.models import CURRENT_EXPORT_VERSION
-        from temba.flows.models import FlowVersion
+        from temba.flows.models import FlowRevision
         version = flow_json.get('version', CURRENT_EXPORT_VERSION)
         if version < CURRENT_EXPORT_VERSION:
-            flow_json = FlowVersion.migrate_definition(flow_json, version, CURRENT_EXPORT_VERSION)
+            flow_json = FlowRevision.migrate_definition(flow_json, version, CURRENT_EXPORT_VERSION)
 
         # previous to version 7, uuid could be supplied on the outer element
         uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
@@ -1373,7 +1373,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not revision:
             raise ValidationError("Missing 'revision' field")
 
-        flow_revision = flow.versions.filter(version=revision).first()
+        flow_revision = flow.revisions.filter(revision=revision).first()
 
         if not flow_revision:
             raise ValidationError("Invalid revision: %s" % revision)
@@ -1381,8 +1381,8 @@ class FlowRunWriteSerializer(WriteSerializer):
         definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
-        from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
-        definition = FlowVersion.migrate_definition(definition, flow.version_number, CURRENT_EXPORT_VERSION)
+        from temba.flows.models import FlowRevision, CURRENT_EXPORT_VERSION
+        definition = FlowRevision.migrate_definition(definition, flow.version_number, CURRENT_EXPORT_VERSION)
 
         for step in steps:
             node_obj = None
