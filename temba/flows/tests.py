@@ -1639,6 +1639,19 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
         self.assertEquals(302, response.status_code)
 
+    def test_flow_update_error(self):
+
+        flow = self.get_flow('favorites')
+        json_dict = flow.as_json()
+        json_dict['action_sets'][0]['actions'].append(dict(type='add_label', labels=[dict(name='@badlabel')]))
+        self.login(self.admin)
+        response = self.client.post(reverse('flows.flow_json', args=[flow.pk]),
+                                    json.dumps(json_dict),
+                                    content_type="application/json")
+
+        self.assertEquals(400, response.status_code)
+        self.assertEquals('Invalid label name: @badlabel', json.loads(response.content)['description'])
+
     def test_flow_start_with_start_msg(self):
         # set our flow
         self.flow.update(self.definition)

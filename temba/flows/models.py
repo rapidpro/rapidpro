@@ -2301,11 +2301,10 @@ class Flow(TembaModel, SmartModel):
             return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on), revision=version)
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-
-            transaction.rollback()
-            transaction.leave_transaction_management()
+            # note that badness happened
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(unicode(e), exc_info=True)
             raise e
 
     def __unicode__(self):

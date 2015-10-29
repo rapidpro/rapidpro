@@ -547,6 +547,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                   type: -> "error"
                   title: -> "Error Saving"
                   body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                  details: -> data.description
                   ok: -> 'Reload'
 
               modalInstance.result.then (reload) ->
@@ -1191,11 +1192,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
 ]
 
-ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
+ModalController = ($scope, $modalInstance, type, title, body, details=null, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
   $scope.error = error
+  $scope.details = details
 
   if ok
     $scope.okButton = ok

@@ -1206,11 +1206,11 @@ class FlowCRUDL(SmartCRUDL):
             json_dict = json.loads(json_string)
             print json.dumps(json_dict, indent=2)
 
-            from temba.flows.models import FlowException
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
                 return build_json_response(response_data, status=200)
-            except FlowException as e:
+            except Exception as e:
+                # give the editor a formatted error response
                 return build_json_response(dict(status="failure", description=str(e)), status=400)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
