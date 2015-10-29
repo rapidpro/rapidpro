@@ -30,7 +30,7 @@ from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowVersio
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
-from temba.triggers.models import Trigger, KEYWORD_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value, STATE, DISTRICT
@@ -490,7 +490,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.user = user
 
                 flow_triggers = Trigger.objects.filter(org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
-                                                       trigger_type=KEYWORD_TRIGGER).order_by('created_on')
+                                                       trigger_type=Trigger.TYPE_KEYWORD).order_by('created_on')
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -524,7 +524,7 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
             existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
-                                                                           trigger_type=KEYWORD_TRIGGER,
+                                                                           trigger_type=Trigger.TYPE_KEYWORD,
                                                                            is_archived=False, groups=None))
 
             if len(self.form.cleaned_data['keyword_triggers']) > 0:
@@ -536,14 +536,14 @@ class FlowCRUDL(SmartCRUDL):
                                     groups=None, is_archived=False).update(is_archived=True)
 
             added_keywords = keywords.difference(existing_keywords)
-            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=KEYWORD_TRIGGER,
+            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD,
                                                                         is_archived=True, groups=None)]
             for keyword in added_keywords:
                 # first check if the added keyword is not amongst archived
                 if keyword in archived_keywords:
                     obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
                 else:
-                    Trigger.objects.create(org=org, keyword=keyword, trigger_type=KEYWORD_TRIGGER,
+                    Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
                                            flow=obj, created_by=user, modified_by=user)
 
             # run async task to update all runs

@@ -664,8 +664,7 @@ class Flow(TembaModel, SmartModel):
         msgs = actionset.execute_actions(run, msg, started_flows)
 
         for msg in msgs:
-            if msg:
-                step.add_message(msg)
+            step.add_message(msg)
 
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
@@ -1215,7 +1214,6 @@ class Flow(TembaModel, SmartModel):
             # where the message was sent to
             elif msg.channel:
                 channel_context = msg.channel.build_message_context()
-
         elif contact:
             message_context = dict(__default__='', contact=contact_context)
         else:
@@ -1374,7 +1372,7 @@ class Flow(TembaModel, SmartModel):
         if not self.entry_uuid:
             return
 
-        if start_msg:
+        if start_msg and start_msg.id:
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=['msg_type'])
 
@@ -3575,6 +3573,10 @@ class FlowStep(models.Model):
             return msg.channel.name
 
     def add_message(self, msg):
+        # no-op for no msg or mock msgs
+        if not msg or not msg.id:
+            return
+
         self.messages.add(msg)
 
         # incoming non-IVR messages won't have a type yet so update that

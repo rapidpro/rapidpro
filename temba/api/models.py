@@ -17,7 +17,7 @@ from smartmin.models import SmartModel
 from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel, TEMBA_HEADERS
-from temba.msgs.models import CALL_OUT, CALL_OUT_MISSED, CALL_IN, CALL_IN_MISSED
+from temba.msgs.models import Call
 from temba.utils import datetime_to_str, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
@@ -45,10 +45,10 @@ CATEGORIZE = 'categorize'
 EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (SMS_SENT, "Outgoing SMS Sent"),
                  (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (CALL_OUT, "Outgoing Call"),
-                 (CALL_OUT_MISSED, "Missed Outgoing Call"),
-                 (CALL_IN, "Incoming Call"),
-                 (CALL_IN_MISSED, "Missed Incoming Call"),
+                 (Call.TYPE_OUT, "Outgoing Call"),
+                 (Call.TYPE_OUT_MISSED, "Missed Outgoing Call"),
+                 (Call.TYPE_IN, "Incoming Call"),
+                 (Call.TYPE_IN_MISSED, "Missed Incoming Call"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))

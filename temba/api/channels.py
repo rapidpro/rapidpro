@@ -18,7 +18,7 @@ from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
-from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import analytics, JsonResponse
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
@@ -96,7 +96,7 @@ class TwilioHandler(View):
                     response.hangup()
 
                     # if they have a missed call trigger, fire that off
-                    Trigger.catch_triggers(contact, MISSED_CALL_TRIGGER)
+                    Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL)
 
                     # either way, we need to hangup now
                     return HttpResponse(unicode(response))
