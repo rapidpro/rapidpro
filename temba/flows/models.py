@@ -664,8 +664,7 @@ class Flow(TembaModel, SmartModel):
         msgs = actionset.execute_actions(run, msg, started_flows)
 
         for msg in msgs:
-            if msg:
-                step.add_message(msg)
+            step.add_message(msg)
 
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
@@ -983,19 +982,26 @@ class Flow(TembaModel, SmartModel):
         :param text_translations: The text in all supported languages, or string (which will just return immediately)
         :param contact: the contact we are interacting with
         :param default_text: What to use if all else fails
-        :return:
+        :return: the localized text
         """
+        org_languages = {l.iso_code for l in self.org.languages.all()}
+
         # We return according to the following precedence:
-        #   1) Contact's language
+        #   1) Contact's language (if it's a valid org language)
         #   2) Org Primary Language
         #   3) Flow Base Language
         #   4) Default Text
         preferred_languages = []
+
+        if contact and contact.language and contact.language in org_languages:
+            preferred_languages.append(contact.language)
+
         if self.org.primary_language:
             preferred_languages.append(self.org.primary_language.iso_code)
+
         preferred_languages.append(self.base_language)
 
-        return Language.get_localized_text(default_text, text_translations, preferred_languages, contact=contact)
+        return Language.get_localized_text(text_translations, preferred_languages, default_text)
 
     def update_run_expirations(self):
         """
@@ -1208,7 +1214,6 @@ class Flow(TembaModel, SmartModel):
             # where the message was sent to
             elif msg.channel:
                 channel_context = msg.channel.build_message_context()
-
         elif contact:
             message_context = dict(__default__='', contact=contact_context)
         else:
@@ -1367,7 +1372,7 @@ class Flow(TembaModel, SmartModel):
         if not self.entry_uuid:
             return
 
-        if start_msg:
+        if start_msg and start_msg.id:
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=['msg_type'])
 
@@ -3569,6 +3574,10 @@ class FlowStep(models.Model):
             return msg.channel.name
 
     def add_message(self, msg):
+        # no-op for no msg or mock msgs
+        if not msg or not msg.id:
+            return
+
         self.messages.add(msg)
 
         # incoming non-IVR messages won't have a type yet so update that

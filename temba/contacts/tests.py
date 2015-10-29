@@ -5,18 +5,17 @@ import json
 import pytz
 
 from datetime import datetime, date
-from django.utils import timezone
-
 from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.utils import timezone
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org
+from temba.orgs.models import Org, Language
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
@@ -968,7 +967,7 @@ class ContactTest(TembaTest):
         self.assertEquals(5, len(response.context['all_messages']))
 
         # lets create an incoming call from this contact
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "CALL_IN")
+        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_IN)
 
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(6, len(response.context['all_messages']))
@@ -982,7 +981,7 @@ class ContactTest(TembaTest):
         self.assertTrue(isinstance(response.context['all_messages'][0], Msg))
 
         # lets create an outgoing call from this contact
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "CALL_OUT_MISSED")
+        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
 
         # visit a contact detail page as an admin with the organization
         response = self.fetch_protected(read_url, self.admin)
@@ -1276,14 +1275,15 @@ class ContactTest(TembaTest):
         post_data = dict(name="Joe Gashyantare", groups=[self.just_joe.id],
                          __urn__tel__0="123", __urn__tel__1="67890")
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
-        self.assertEquals(response.context['contact'].name, "Joe Gashyantare")
-        self.assertIn(self.just_joe, response.context['contact'].user_groups.all())
+        self.assertEqual(response.context['contact'].name, "Joe Gashyantare")
+        self.assertEqual(set(self.joe.user_groups.all()), {self.just_joe})
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="123"))
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="67890"))
 
-        # Now remove him from  this group "Just joe", and his second number
+        # remove him from this group "Just joe", and his second number
         post_data = dict(name="Joe Gashyantare", __urn__tel__0="12345", groups=[])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
+        self.assertEqual(set(self.joe.user_groups.all()), set())
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="12345"))
         self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="67890"))
         self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="1232"))
@@ -1293,13 +1293,18 @@ class ContactTest(TembaTest):
         self.assertEquals("12345", response.context['form'].fields['__urn__tel__0'].initial)
         self.assertFalse('__urn__tel__1' in response.context['form'].fields)
 
-        # Done!
-        self.assertFalse(response.context['contact'].user_groups.all())
-
         # check that groups field isn't displayed when contact is blocked
         self.joe.block()
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertNotIn('groups', response.context['form'].fields)
+
+        # and that we can still update the contact
+        post_data = dict(name="Joe Bloggs", __urn__tel__0="12345")
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
+
+        self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.assertEquals(self.joe.name, "Joe Bloggs")
+
         self.joe.unblock()
 
         # check updating when org is anon
@@ -1397,11 +1402,7 @@ class ContactTest(TembaTest):
         return Contact.import_csv(task, log=None)
 
     def test_contact_import(self):
-
-        #file = open ('../imports/sample_contacts.csv')
-
         # first import brings in 3 contacts
-
         user = self.user
         records = self.do_import(user, 'sample_contacts.xls')
         self.assertEquals(3, len(records))
@@ -1680,7 +1681,14 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
 
-    test_contact_import.active = True
+    def test_contact_import_with_languages(self):
+        self.create_contact(name="Eric", number="+250788382382")
+
+        self.do_import(self.user, 'sample_contacts_with_language.xls')
+
+        self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
+        self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
+        self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
 
     def test_import_methods(self):
         user = self.user

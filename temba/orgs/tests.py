@@ -16,14 +16,14 @@ from smartmin.tests import SmartminTest
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.middleware import BrandingMiddleware
-from temba.orgs.models import Org, OrgEvent, TopUp, Invitation, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
-from temba.orgs.models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.utils.email import link_components
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
+from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
+from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -1191,6 +1191,25 @@ class OrgCRUDLTest(TembaTest):
         # can no longer go to inbox, asked to log in
         response = self.client.get(reverse('msgs.msg_inbox'))
         self.assertRedirect(response, '/users/login/')
+
+
+class LanguageTest(TembaTest):
+
+    def test_get_localized_text(self):
+        text_translations = dict(eng="Hello", esp="Hola")
+
+        # null case
+        self.assertEqual(Language.get_localized_text(None, None, "Hi"), "Hi")
+
+        # simple dictionary case
+        self.assertEqual(Language.get_localized_text(text_translations, ['eng'], "Hi"), "Hello")
+
+        # missing language case
+        self.assertEqual(Language.get_localized_text(text_translations, ['fre'], "Hi"), "Hi")
+
+        # secondary option
+        self.assertEqual(Language.get_localized_text(text_translations, ['fre', 'esp'], "Hi"), "Hola")
+
 
 class BulkExportTest(TembaTest):
 

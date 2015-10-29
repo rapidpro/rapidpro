@@ -378,24 +378,47 @@ class Channel(SmartModel):
                 break
 
         if not exists:
-            raise Exception(_("Your Twilio account is no longer connected. First remove your Twilio account, reconnect it and try again."))
+            raise Exception(_("Your Twilio account is no longer connected. "
+                              "First remove your Twilio account, reconnect it and try again."))
 
-        if twilio_phones:
-            twilio_phone = twilio_phones[0]
-            client.phone_numbers.update(twilio_phone.sid,
-                                        voice_application_sid=application_sid,
-                                        sms_application_sid=application_sid)
-                                        
+        role = SEND+RECEIVE+CALL+ANSWER
+        is_short_code = len(phone_number) <= 6
+
+        if is_short_code:
+            short_codes = client.sms.short_codes.list(short_code=phone_number)
+
+            if short_codes:
+                short_code = short_codes[0]
+                twilio_sid = short_code.sid
+                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.twilio_handler')
+                client.sms.short_codes.update(twilio_sid, sms_url=app_url)
+
+                role = SEND+RECEIVE
+                phone = phone_number
+
+
+            else:
+                raise Exception(_("Short code not found on your Twilio Account. "
+                                  "Please check you own the short code and Try again"))
         else:
-            twilio_phone = client.phone_numbers.purchase(phone_number=phone_number,
-                                                         voice_application_sid=application_sid,
-                                                         sms_application_sid=application_sid)
+            if twilio_phones:
+                twilio_phone = twilio_phones[0]
+                client.phone_numbers.update(twilio_phone.sid,
+                                            voice_application_sid=application_sid,
+                                            sms_application_sid=application_sid)
 
-        phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
-                                           phonenumbers.PhoneNumberFormat.NATIONAL)
+            else:
+                twilio_phone = client.phone_numbers.purchase(phone_number=phone_number,
+                                                             voice_application_sid=application_sid,
+                                                             sms_application_sid=application_sid)
+
+            phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
+                                               phonenumbers.PhoneNumberFormat.NATIONAL)
+
+            twilio_sid = twilio_phone.sid
 
         return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number,
-                              uuid=twilio_phone.sid, role=SEND+RECEIVE+CALL+ANSWER)
+                              uuid=twilio_sid, role=role)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, phone, username, api_key, is_shared=False):
@@ -804,8 +827,8 @@ class Channel(SmartModel):
         # if we just lost answering capabilities, archive our inbound call trigger
         if ANSWER in self.role:
             if not org.get_schemes(ANSWER):
-                from temba.triggers.models import Trigger, INBOUND_CALL_TRIGGER
-                Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, org=org, is_archived=False).update(is_archived=True)
+                from temba.triggers.models import Trigger
+                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=org, is_archived=False).update(is_archived=True)
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)

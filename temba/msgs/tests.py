@@ -13,7 +13,7 @@ from temba.channels.models import Channel, KANNEL
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, CALL_IN
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -1624,10 +1624,8 @@ class BroadcastLanguageTest(TembaTest):
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
-        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
-                                      created_by=self.admin, modified_by=self.admin)
-        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
-                                      created_by=self.admin, modified_by=self.admin)
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -1646,33 +1644,6 @@ class BroadcastLanguageTest(TembaTest):
         self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
 
-    def test_localization(self):
-        text_translations = dict(eng="Hello", esp="Hola")
-
-        # null case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
-
-        # simple dictionary case
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
-
-        # missing language case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", text_translations, ['fre']))
-
-        # secondary option
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp']))
-
-        # missing preference on contact
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.francois))
-
-        # no contact preference
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.greg))
-
-        # has a matching preference
-        self.wilbert.language = 'eng'
-        self.wilbert.save()
-
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))
-
 
 class SystemLabelTest(TembaTest):
     def test_get_counts(self):
@@ -1687,7 +1658,7 @@ class SystemLabelTest(TembaTest):
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
-        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
+        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                                   schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
@@ -1700,7 +1671,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
+        Call.create_call(self.channel, "0783835002", timezone.now(), 10, Call.TYPE_IN)
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 

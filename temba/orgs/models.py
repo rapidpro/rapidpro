@@ -1453,20 +1453,25 @@ class Language(SmartModel):
     language selection options to real-world languages.
     """
     name = models.CharField(max_length=128)
+
     iso_code = models.CharField(max_length=4)
+
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="languages")
+
+    @classmethod
+    def create(cls, org, user, name, iso_code):
+        return cls.objects.create(org=org, name=name, iso_code=iso_code, created_by=user, modified_by=user)
 
     def as_json(self):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, default_text, text_translations, preferred_languages, contact=None):
+    def get_localized_text(cls, text_translations, preferred_languages, default_text):
         """
         Returns the appropriate translation to use.
-        @param default_text: The default text to use if no match is found
-        @param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
-        @param preferred_languages: The prioritized list of language preferences (list of iso codes)
-        @param contact (optional): The contact this message is being localized for
+        :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
+        :param preferred_languages: The prioritized list of language preferences (list of iso codes)
+        :param default_text: default text to use if no match is found
         """
         # No translations, return our default text
         if not text_translations:
@@ -1475,12 +1480,6 @@ class Language(SmartModel):
         # If we are handed raw text without translations, just return that
         if not isinstance(text_translations, dict):
             return text_translations
-
-        # first priority is our contact's language
-        if contact and contact.language:
-            localized = text_translations.get(contact.language, None)
-            if localized:
-                return localized
 
         # otherwise, find the first preferred language
         for lang in preferred_languages:
@@ -1492,6 +1491,7 @@ class Language(SmartModel):
 
     def __unicode__(self):
         return '%s' % self.name
+
 
 class Invitation(SmartModel):
     """

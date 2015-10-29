@@ -21,11 +21,10 @@ from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
-from temba.msgs.models import OUTGOING
+from temba.msgs.models import OUTGOING, Call
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
-from temba.triggers.models import Trigger, FOLLOW_TRIGGER, CATCH_ALL_TRIGGER, MISSED_CALL_TRIGGER, INBOUND_CALL_TRIGGER
-from temba.triggers.models import SCHEDULE_TRIGGER, KEYWORD_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
@@ -80,6 +79,38 @@ class FlowTest(TembaTest):
         self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].spec_version)
         self.assertEquals(CURRENT_EXPORT_VERSION, versions[0].as_json()['version'])
         self.assertEquals('base', versions[0].get_definition_json()['base_language'])
+
+    def test_get_localized_text(self):
+
+        text_translations = dict(eng="Hello", esp="Hola", fre="Salut")
+
+        # use default when flow, contact and org don't have language set
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
+
+        # flow language used regardless of whether it's an org language
+        self.flow.base_language = 'eng'
+        self.flow.save(update_fields=('base_language',))
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        esp = Language.create(self.org, self.admin, "Spanish", 'esp')
+
+        # flow language now valid org language
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+
+        # org primary language overrides flow language
+        self.flow.org.primary_language = esp
+        self.flow.org.save(update_fields=('primary_language',))
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+
+        # contact language doesn't override if it's not an org language
+        self.contact.language = 'fre'
+        self.contact.save(update_fields=('language',))
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+
+        # does override if it is
+        Language.create(self.org, self.admin, "French", 'fre')
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
 
@@ -1067,19 +1098,19 @@ class FlowTest(TembaTest):
 
         # add triggers of other types
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=FOLLOW_TRIGGER, flow=flow_with_keywords, channel=self.channel)
+                               trigger_type=Trigger.TYPE_FOLLOW, flow=flow_with_keywords, channel=self.channel)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=CATCH_ALL_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=MISSED_CALL_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_MISSED_CALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=INBOUND_CALL_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_INBOUND_CALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=SCHEDULE_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_SCHEDULE, flow=flow_with_keywords)
 
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
 
@@ -1096,16 +1127,18 @@ class FlowTest(TembaTest):
         self.assertTrue(flow_with_keywords in response.context['object_list'].all())
         self.assertEquals(flow_with_keywords.triggers.count(), 9)
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True, trigger_type=KEYWORD_TRIGGER).count(), 2)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True,
+                                                             trigger_type=Trigger.TYPE_KEYWORD).count(), 2)
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True, trigger_type=KEYWORD_TRIGGER).count(), 2)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True,
+                                                             trigger_type=Trigger.TYPE_KEYWORD).count(), 2)
 
         # only keyword triggers got archived, other are stil active
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=FOLLOW_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=CATCH_ALL_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=SCHEDULE_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=MISSED_CALL_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=INBOUND_CALL_TRIGGER))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_FOLLOW))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_SCHEDULE))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_INBOUND_CALL))
 
     def test_views(self):
         self.create_secondary_org()
@@ -1455,8 +1488,7 @@ class FlowTest(TembaTest):
 
         # test creating a  flow with base language
         # create the language for our org
-        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
-                                           created_by=flow.created_by, modified_by=flow.modified_by)
+        language = Language.create(self.org, flow.created_by, "English", 'eng')
         self.org.primary_language = language
         self.org.save()
 
@@ -2077,8 +2109,9 @@ class ActionTest(TembaTest):
     @patch('django.utils.timezone.now')
     @patch('requests.post')
     def test_api_action(self, mock_requests_post, mock_timezone_now):
+        tz = pytz.timezone("Africa/Kigali")
         mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
-        mock_timezone_now.return_value = datetime.datetime(2015, 10, 27, 16, 07, 30, 6, pytz.timezone("Africa/Kigali"))
+        mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 07, 30, 6))
 
         action = APIAction('http://example.com/callback.php')
 
@@ -3295,6 +3328,8 @@ class FlowsTest(FlowFileTest):
             self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
 
     def test_cross_language_import(self):
+        spanish = Language.create(self.org, self.admin, "Spanish", 'spa')
+        english = Language.create(self.org, self.admin, "English", 'eng')
 
         # import our localized flow into an org with no languages
         self.import_file('multi-language-flow')
@@ -3312,8 +3347,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('This message was not translated.', replies[1])
 
         # now add a primary language to our org
-        spanish = Language.objects.create(name='Spanish', iso_code='spa', org=self.org,
-                                          created_by=self.admin, modified_by=self.admin)
         self.org.primary_language = spanish
         self.org.save()
 
@@ -3480,8 +3513,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('group_membership')
 
         # create the language for our org
-        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
-                                           created_by=flow.created_by, modified_by=flow.modified_by)
+        language = Language.create(self.org, flow.created_by, "English", 'eng')
         self.org.primary_language = language
         self.org.save()
 
@@ -3505,8 +3537,7 @@ class FlowsTest(FlowFileTest):
         favorites = self.get_flow('favorites')
 
         # create a new language on the org
-        language = Language.objects.create(iso_code='eng', name='English', org=self.org,
-                                           created_by=favorites.created_by, modified_by=favorites.modified_by)
+        language = Language.create(self.org, favorites.created_by, "English", 'eng')
 
         # set it as our primary language
         self.org.primary_language = language
@@ -3533,8 +3564,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED"))
 
         # now let's add a second language
-        Language.objects.create(iso_code='kli', name='Klingon', org=self.org,
-                                created_by=favorites.created_by, modified_by=favorites.modified_by)
+        Language.create(self.org, favorites.created_by, "Klingon", 'kli')
 
         # update our initial message
         initial_message = json_dict['action_sets'][0]['actions'][0]
@@ -3915,6 +3945,22 @@ class WebhookLoopTest(FlowFileTest):
         with patch('requests.get') as mock:
             mock.return_value = MockResponse(200, '{ "text": "second message" }')
             self.assertEquals("second message", self.send_message(flow, "second"))
+
+
+class MissedCallChannelTest(FlowFileTest):
+
+    def test_missed_call_channel(self):
+        flow = self.get_flow('call-channel-split')
+
+        # trigger a missed call on our channel
+        call = Call.create_call(self.channel, '+250788111222', timezone.now(), 0, Call.TYPE_IN_MISSED)
+
+        # should have triggered our flow
+        FlowRun.objects.get(flow=flow)
+
+        # should have sent a message to the user
+        msg = Msg.objects.get(contact=call.contact, channel=self.channel)
+        self.assertEquals(msg.text, "Matched +250785551212")
 
 
 class GhostActionNodeTest(FlowFileTest):

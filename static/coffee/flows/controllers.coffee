@@ -1412,15 +1412,17 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       field.id = field.id.slice(7)
       field.id = field.id.toLowerCase().replace(/[^0-9a-z]+/gi, ' ').strip().replace(/[^0-9a-z]+/gi, '_')
 
+      # add the new field to our list so it shows up without reloading
+      Flow.contactFieldSearch.push
+        id: field.id
+        text: field.text
+
+
     $scope.action.type = 'save'
     $scope.action.field = field.id
     $scope.action.label = field.text
     $scope.action.value = value
 
-    # add the new field to our list so it shows up without reloading
-    Flow.contactFieldSearch.push
-      id: field.id
-      text: field.text
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

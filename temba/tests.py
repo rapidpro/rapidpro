@@ -506,6 +506,7 @@ class MockRequestValidator(RequestValidator):
     def validate(self, url, post, signature):
         return True
 
+
 class MockTwilioClient(TwilioClient):
 
     def __init__(self, sid, token):
@@ -513,10 +514,31 @@ class MockTwilioClient(TwilioClient):
         self.calls = MockTwilioClient.MockCalls()
         self.accounts = MockTwilioClient.MockAccounts()
         self.phone_numbers = MockTwilioClient.MockPhoneNumbers()
+        self.sms = MockTwilioClient.MockSMS()
         self.auth = ['', 'FakeRequestToken']
 
     def validate(self, request):
         return True
+
+    class MockShortCode():
+        def __init__(self, short_code):
+            self.short_code = short_code
+            self.sid = "ShortSid"
+
+    class MockShortCodes():
+        def __init__(self, *args):
+            pass
+
+        def list(self, short_code=None):
+            return [MockTwilioClient.MockShortCode(short_code)]
+
+        def update(self, sid, **kwargs):
+            print "Updating short code with sid %s" % sid
+
+    class MockSMS():
+        def __init__(self, *args):
+            self.uri = "/SMS"
+            self.short_codes = MockTwilioClient.MockShortCodes()
 
     class MockCall():
         def __init__(self, to=None, from_=None, url=None, status_callback=None):

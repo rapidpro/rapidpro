@@ -391,7 +391,7 @@ class ContactReadSerializer(serializers.ModelSerializer):
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=False, max_length=64)
-    language = serializers.CharField(required=False, max_length=4)
+    language = serializers.CharField(required=False, min_length=3, max_length=3)
     urns = StringArrayField(required=False)
     group_uuids = StringArrayField(required=False)
     fields = DictionaryField(required=False)
@@ -431,27 +431,6 @@ class ContactWriteSerializer(WriteSerializer):
         # if contact is blocked, they can't be added to groups
         if contact and contact.is_blocked and groups:
             raise ValidationError("Cannot add blocked contact to groups")
-
-        return attrs
-
-    def validate_language(self, attrs, source):
-        if 'language' in attrs:
-            language = attrs.get(source, None)
-            supported_languages = [l.iso_code for l in self.user.get_org().languages.all()]
-
-            if language:
-                # no languages configured
-                if not supported_languages:
-                    raise ValidationError(_("You do not have any languages configured for your organization."))
-
-                # is it one of the languages on this org?
-                if not language.lower() in supported_languages:
-                    raise ValidationError(_("Language code '%s' is not one of supported for organization. (%s)") %
-                                          (language, ",".join(supported_languages)))
-
-                attrs['language'] = language.lower()
-            else:
-                attrs['language'] = None
 
         return attrs
 
@@ -570,7 +549,7 @@ class ContactWriteSerializer(WriteSerializer):
             changed.append('name')
 
         if 'language' in attrs:
-            contact.language = attrs['language']
+            contact.language = attrs['language'].lower() if attrs['language'] else None
             changed.append('language')
 
         # save our contact if it changed
