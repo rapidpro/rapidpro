@@ -922,29 +922,57 @@ class ChannelTest(TembaTest):
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
 
-            response = self.client.get(claim_twilio)
-            self.assertContains(response, '206-234-5678')
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = []
 
-            # claim it
-            response = self.client.post(claim_twilio, dict(country='US', phone_number='12062345678'))
-            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '206-234-5678')
 
-            # make sure it is actually connected
-            Channel.objects.get(channel_type='T', org=self.org)
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='US', phone_number='12062345678'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                Channel.objects.get(channel_type='T', org=self.org)
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+4545335500')]
-            Channel.objects.all().delete()
 
-            response = self.client.get(claim_twilio)
-            self.assertContains(response, '45 33 55 00')
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = []
 
-            # claim it
-            response = self.client.post(claim_twilio, dict(country='DK', phone_number='4545335500'))
-            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                Channel.objects.all().delete()
 
-            # make sure it is actually connected
-            Channel.objects.get(channel_type='T', org=self.org)
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '45 33 55 00')
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='DK', phone_number='4545335500'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                Channel.objects.get(channel_type='T', org=self.org)
+
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = []
+
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = [MockTwilioClient.MockShortCode('8080')]
+                Channel.objects.all().delete()
+
+                self.org.timezone = 'America/New_York'
+                self.org.save()
+
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '8080')
+                self.assertContains(response, 'class="country">US')  # we look up the country from the timezone
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='US', phone_number='8080'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                Channel.objects.get(channel_type='T', org=self.org)
 
     def test_claim_nexmo(self):
         self.login(self.admin)

@@ -30,7 +30,7 @@ from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
-from temba.utils import analytics, non_atomic_when_eager
+from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
@@ -1626,6 +1626,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_phone_number(self):
                 phone = self.cleaned_data['phone_number']
+
+                # short code should not be formatted
+                if len(phone) <= 6:
+                    return phone
+
                 phone = phonenumbers.parse(phone, self.cleaned_data['country'])
                 return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
@@ -1728,11 +1733,14 @@ class ChannelCRUDL(SmartCRUDL):
                 form._errors['phone_number'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
                 return self.form_invalid(form)
 
-            phone = phonenumbers.parse(data['phone_number'])
-            if not self.is_valid_country(phone.country_code):
-                form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
-                                                                   "You can still deploy in any country using your own SIM card and an Android phone.")])
-                return self.form_invalid(form)
+            # no number parse for short codes
+            if len(data['phone_number']) > 6:
+                phone = phonenumbers.parse(data['phone_number'])
+                if not self.is_valid_country(phone.country_code):
+                    form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
+                                                                       "You can still deploy in any country using your "
+                                                                       "own SIM card and an Android phone.")])
+                    return self.form_invalid(form)
 
             # don't add the same number twice to the same account
             existing = org.channels.filter(is_active=True, address=data['phone_number']).first()
@@ -1790,7 +1798,6 @@ class ChannelCRUDL(SmartCRUDL):
             else:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
-
         def get_search_countries_tuple(self):
             return TWILIO_SEARCH_COUNTRIES
 
@@ -1807,12 +1814,18 @@ class ChannelCRUDL(SmartCRUDL):
             client = org.get_twilio_client()
             if client:
                 twilio_account_numbers = client.phone_numbers.list()
+                twilio_short_codes = client.sms.short_codes.list()
 
             numbers = []
             for number in twilio_account_numbers:
                 parsed = phonenumbers.parse(number.phone_number, None)
                 numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
                                     country=region_code_for_number(parsed)))
+
+            org_country = timezone_to_country_code(org.timezone)
+            for number in twilio_short_codes:
+                numbers.append(dict(number=number.short_code, country=org_country))
+
             return numbers
 
         def is_valid_country(self, country_code):
