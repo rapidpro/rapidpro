@@ -16,4 +16,4 @@ class CatchAllHandler(MessageHandler):
         super(CatchAllHandler, self).__init__('triggers')
 
     def handle(self, msg):
-        return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL)
+        return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)

@@ -150,7 +150,7 @@ class Trigger(SmartModel):
         return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
 
     @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel_id=None):
+    def catch_triggers(cls, entity, trigger_type, channel):
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
@@ -159,14 +159,14 @@ class Trigger(SmartModel):
             start_msg = Msg(contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
-            start_msg = None
+            start_msg = Msg(contact=contact, channel=channel, created_on=timezone.now(), id=0)
         else:
             raise ValueError("Entity must be of type msg, call or contact")
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
 
-        if channel_id:
-            triggers = triggers.filter(channel_id=channel_id)
+        if trigger_type == Trigger.TYPE_FOLLOW:
+            triggers = triggers.filter(channel=channel)
 
         for trigger in triggers:
             trigger.flow.start([], [contact], start_msg=start_msg, restart_participants=True)
