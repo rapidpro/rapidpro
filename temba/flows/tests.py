@@ -1110,7 +1110,7 @@ class FlowTest(TembaTest):
                                trigger_type=Trigger.TYPE_INBOUND_CALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=Trigger.SCHEDULE, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_SCHEDULE, flow=flow_with_keywords)
 
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
 
