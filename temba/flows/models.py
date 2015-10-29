@@ -3313,8 +3313,10 @@ class ExportFlowResultsTask(SmartModel):
                 else:
                     msgs.write(msg_row, 3, "OUT")
 
+                channel = run_step.get_channel()
+
                 msgs.write(msg_row, 4, run_step.get_text())
-                msgs.write(msg_row, 5, run_step.get_channel_name())
+                msgs.write(msg_row, 5, channel.name if channel else '')
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
@@ -3566,14 +3568,12 @@ class FlowStep(models.Model):
                 return previous.text
 
     def get_text(self):
-        msg = self.messages.all().first()
-        if msg:
-            return msg.text
+        msg = self.messages.first()
+        return msg.text if msg else None
 
-    def get_channel_name(self):
-        msg = self.messages.all().first()
-        if msg:
-            return msg.channel.name
+    def get_channel(self):
+        msg = self.messages.select_related('channel').first()
+        return msg.channel if msg else None
 
     def add_message(self, msg):
         self.messages.add(msg)
