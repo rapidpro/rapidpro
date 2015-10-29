@@ -3022,11 +3022,15 @@ class ExportFlowResultsTask(SmartModel):
     Container for managing our export requests
     """
     org = models.ForeignKey(Org, related_name='flow_results_exports', help_text=_("The Organization of the user."))
+
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
+
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
+
     task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export is complete"))
+
+    is_finished = models.BooleanField(default=False,  help_text=_("Whether this export is complete"))
+
     uuid = models.CharField(max_length=36, null=True,
                             help_text=_("The uuid used to name the resulting export file"))
 
@@ -3276,7 +3280,10 @@ class ExportFlowResultsTask(SmartModel):
                 last_contact = run_step.contact.pk
 
             # write out any message associated with this step
-            if run_step.get_text():
+            step_msgs = run_step.get_messages()
+
+            if step_msgs:
+                msg = step_msgs[0]
                 msg_row += 1
 
                 if msg_row % 1000 == 0:
@@ -3303,20 +3310,15 @@ class ExportFlowResultsTask(SmartModel):
                     msgs.col(4).width = large_width
                     msgs.col(5).width = small_width
 
-                msgs.write(msg_row, 0, run_step.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True))
+                urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
+                channel_name = msg.channel.name if msg.channel else ''
+
+                msgs.write(msg_row, 0, urn_display)
                 msgs.write(msg_row, 1, run_step.contact.name)
-                arrived_on = as_org_tz(run_step.arrived_on)
-
-                msgs.write(msg_row, 2, arrived_on, date_format)
-                if run_step.step_type == RULE_SET:
-                    msgs.write(msg_row, 3, "IN")
-                else:
-                    msgs.write(msg_row, 3, "OUT")
-
-                channel = run_step.get_channel()
-
-                msgs.write(msg_row, 4, run_step.get_text())
-                msgs.write(msg_row, 5, channel.name if channel else '')
+                msgs.write(msg_row, 2, as_org_tz(run_step.arrived_on), date_format)
+                msgs.write(msg_row, 3, "IN" if msg.direction == INCOMING else "OUT")
+                msgs.write(msg_row, 4, msg.text)
+                msgs.write(msg_row, 5, channel_name)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
@@ -3571,9 +3573,8 @@ class FlowStep(models.Model):
         msg = self.messages.first()
         return msg.text if msg else None
 
-    def get_channel(self):
-        msg = self.messages.select_related('channel').first()
-        return msg.channel if msg else None
+    def get_messages(self):
+        return self.messages.select_related('channel', 'contact_urn')
 
     def add_message(self, msg):
         self.messages.add(msg)
