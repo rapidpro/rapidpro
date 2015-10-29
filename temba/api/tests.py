@@ -30,11 +30,11 @@ from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND
 from temba.channels.models import PLIVO, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from temba.channels.models import API_ID, USERNAME, PASSWORD, CLICKATELL, SHAQODOON, M3TECH, YO
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
-from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, CALL_IN_MISSED
+from temba.msgs.models import Broadcast, Call, Msg, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
 from temba.msgs.models import MSG_SENT_KEY, Label, SystemLabel, VISIBLE, ARCHIVED, DELETED
 from temba.orgs.models import Language
 from temba.tests import MockResponse, TembaTest, AnonymousOrg
-from temba.triggers.models import Trigger, FOLLOW_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_json_date
 from temba.values.models import Value, DATETIME
 from twilio.util import RequestValidator
@@ -5039,8 +5039,8 @@ class MageHandlerTest(TembaTest):
 
         channel = Channel.create(self.org, self.user, None, 'TT', "Twitter Channel", address="billy_bob")
 
-        Trigger.objects.create(created_by=self.user, modified_by=self.user, org=self.org, trigger_type=FOLLOW_TRIGGER,
-                               flow=flow, channel=channel)
+        Trigger.objects.create(created_by=self.user, modified_by=self.user, org=self.org,
+                               trigger_type=Trigger.TYPE_FOLLOW, flow=flow, channel=channel)
 
         contact = self.create_contact("Mary Jo", twitter='mary_jo')
         urn = contact.get_urn(TWITTER_SCHEME)
@@ -5097,7 +5097,7 @@ class WebHookTest(TembaTest):
         call = Call.objects.create(org=self.org,
                                    channel=self.channel,
                                    contact=self.joe,
-                                   call_type=CALL_IN_MISSED,
+                                   call_type=Call.TYPE_IN_MISSED,
                                    time=now,
                                    created_by=self.admin,
                                    modified_by=self.admin)

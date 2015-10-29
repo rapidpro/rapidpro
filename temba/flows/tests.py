@@ -21,11 +21,10 @@ from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
-from temba.msgs.models import OUTGOING
+from temba.msgs.models import OUTGOING, Call
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
-from temba.triggers.models import Trigger, FOLLOW_TRIGGER, CATCH_ALL_TRIGGER, MISSED_CALL_TRIGGER, INBOUND_CALL_TRIGGER
-from temba.triggers.models import SCHEDULE_TRIGGER, KEYWORD_TRIGGER
+from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
@@ -1099,19 +1098,19 @@ class FlowTest(TembaTest):
 
         # add triggers of other types
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=FOLLOW_TRIGGER, flow=flow_with_keywords, channel=self.channel)
+                               trigger_type=Trigger.TYPE_FOLLOW, flow=flow_with_keywords, channel=self.channel)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=CATCH_ALL_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=MISSED_CALL_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_MISSED_CALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=INBOUND_CALL_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_INBOUND_CALL, flow=flow_with_keywords)
 
         Trigger.objects.create(created_by=self.admin, modified_by=self.admin, org=self.org,
-                               trigger_type=SCHEDULE_TRIGGER, flow=flow_with_keywords)
+                               trigger_type=Trigger.TYPE_SCHEDULE, flow=flow_with_keywords)
 
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
 
@@ -1128,16 +1127,18 @@ class FlowTest(TembaTest):
         self.assertTrue(flow_with_keywords in response.context['object_list'].all())
         self.assertEquals(flow_with_keywords.triggers.count(), 9)
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True, trigger_type=KEYWORD_TRIGGER).count(), 2)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True,
+                                                             trigger_type=Trigger.TYPE_KEYWORD).count(), 2)
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
-        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True, trigger_type=KEYWORD_TRIGGER).count(), 2)
+        self.assertEquals(flow_with_keywords.triggers.filter(is_archived=True,
+                                                             trigger_type=Trigger.TYPE_KEYWORD).count(), 2)
 
         # only keyword triggers got archived, other are stil active
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=FOLLOW_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=CATCH_ALL_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=SCHEDULE_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=MISSED_CALL_TRIGGER))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=INBOUND_CALL_TRIGGER))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_FOLLOW))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_SCHEDULE))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))
+        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_INBOUND_CALL))
 
     def test_views(self):
         self.create_secondary_org()
@@ -3944,6 +3945,22 @@ class WebhookLoopTest(FlowFileTest):
         with patch('requests.get') as mock:
             mock.return_value = MockResponse(200, '{ "text": "second message" }')
             self.assertEquals("second message", self.send_message(flow, "second"))
+
+
+class MissedCallChannelTest(FlowFileTest):
+
+    def test_missed_call_channel(self):
+        flow = self.get_flow('call-channel-split')
+
+        # trigger a missed call on our channel
+        call = Call.create_call(self.channel, '+250788111222', timezone.now(), 0, Call.TYPE_IN_MISSED)
+
+        # should have triggered our flow
+        FlowRun.objects.get(flow=flow)
+
+        # should have sent a message to the user
+        msg = Msg.objects.get(contact=call.contact, channel=self.channel)
+        self.assertEquals(msg.text, "Matched +250785551212")
 
 
 class GhostActionNodeTest(FlowFileTest):

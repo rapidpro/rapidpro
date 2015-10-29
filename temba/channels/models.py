@@ -827,8 +827,8 @@ class Channel(SmartModel):
         # if we just lost answering capabilities, archive our inbound call trigger
         if ANSWER in self.role:
             if not org.get_schemes(ANSWER):
-                from temba.triggers.models import Trigger, INBOUND_CALL_TRIGGER
-                Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, org=org, is_archived=False).update(is_archived=True)
+                from temba.triggers.models import Trigger
+                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=org, is_archived=False).update(is_archived=True)
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
