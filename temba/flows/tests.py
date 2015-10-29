@@ -386,9 +386,13 @@ class FlowTest(TembaTest):
 
         self.assertEqual(entries.cell(1, 0).value, "+250788382382")
         self.assertEqual(entries.cell(1, 1).value, "Eric")
+        self.assertEqual(entries.cell(1, 5).value, "Orange")
+        self.assertEqual(entries.cell(1, 6).value, "orange")
+        self.assertEqual(entries.cell(1, 7).value, "orange")
 
         self.assertEqual(entries.cell(2, 0).value, "+250788383383")
         self.assertEqual(entries.cell(2, 1).value, "Nic")
+        self.assertEqual(entries.cell(1, 5).value, "Orange")
 
         messages = workbook.sheets()[2]
         self.assertEquals(5, messages.nrows)
@@ -440,14 +444,13 @@ class FlowTest(TembaTest):
 
         self.assertEqual(len(workbook.sheets()), 3)
 
-        messages = workbook.sheets()[2]
+        entries = workbook.sheets()[0]
 
-        self.assertEqual(messages.cell(0, 0).value, "Phone")
-        self.assertEqual(messages.cell(0, 1).value, "Name")
-        self.assertEqual(messages.cell(0, 2).value, "Date")
-        self.assertEqual(messages.cell(0, 3).value, "Direction")
-        self.assertEqual(messages.cell(0, 4).value, "Message")
-        self.assertEqual(messages.cell(0, 5).value, "Channel")
+        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
+        self.assertEqual(entries.cell(1, 1).value, "Eric")
+        self.assertEqual(entries.cell(1, 5).value, "Blue")
+
+        messages = workbook.sheets()[2]
 
         self.assertEqual(messages.cell(1, 0).value, "+250788382382")
         self.assertEqual(messages.cell(1, 1).value, "Eric")
