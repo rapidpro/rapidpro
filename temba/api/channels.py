@@ -96,7 +96,7 @@ class TwilioHandler(View):
                     response.hangup()
 
                     # if they have a missed call trigger, fire that off
-                    Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL)
+                    Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
                     return HttpResponse(unicode(response))

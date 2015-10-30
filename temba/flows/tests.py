@@ -4006,6 +4006,13 @@ class MissedCallChannelTest(FlowFileTest):
         msg = Msg.objects.get(contact=call.contact, channel=self.channel)
         self.assertEquals(msg.text, "Matched +250785551212")
 
+        # try the same thing with a contact trigger (same as missed calls via twilio)
+        Trigger.catch_triggers(msg.contact, Trigger.TYPE_MISSED_CALL, msg.channel)
+
+        self.assertEquals(2, Msg.objects.filter(contact=call.contact, channel=self.channel).count())
+        last = Msg.objects.filter(contact=call.contact, channel=self.channel).order_by('-pk').first()
+        self.assertEquals(last.text, "Matched +250785551212")
+
 
 class GhostActionNodeTest(FlowFileTest):
 

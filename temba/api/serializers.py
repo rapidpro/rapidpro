@@ -365,7 +365,7 @@ class ContactReadSerializer(serializers.ModelSerializer):
 
     def get_urns(self, obj):
         if obj.org.is_anon or not obj.is_active:
-            return dict()
+            return []
 
         return [urn.urn for urn in obj.get_urns()]
 

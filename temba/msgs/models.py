@@ -1395,7 +1395,7 @@ class Call(SmartModel):
         WebHookEvent.trigger_call_event(call)
 
         if call_type == Call.TYPE_IN_MISSED:
-            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL)
+            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL, channel)
 
         return call
 
