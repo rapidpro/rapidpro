@@ -328,6 +328,10 @@ class Broadcast(models.Model):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
+        # ignore mock messages
+        if response_to and not response_to.id:
+            response_to = None
+
         # cannot ask for sending by us AND specify a created on, blow up in that case
         if trigger_send and created_on:
             raise Exception("Cannot trigger send and specify a created_on, breaks creating batches")
