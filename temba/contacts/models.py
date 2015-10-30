@@ -1175,6 +1175,12 @@ URN_ANON_MASK = '*' * 8  # returned instead of URN values
 
 URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, FACEBOOK_SCHEME}  # schemes that support "follow" triggers
 
+URN_SCHEMES_EXPORT_FIELDS = {
+    TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
+    TWITTER_SCHEME: dict(label='Twitter handle', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+    EXTERNAL_SCHEME: dict(label='External identifier', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+}
+
 
 class ContactURN(models.Model):
     """
@@ -1625,9 +1631,16 @@ class ExportContactsTask(SmartModel):
             self.is_finished = True
             self.save(update_fields=['is_finished'])
 
-    def do_export(self):
-        fields = [dict(label='Phone', key=Contact.PHONE, id=0, field=None),
-                  dict(label='Name', key=Contact.NAME, id=0, field=None)]
+    def get_export_fields(self):
+
+        fields = [dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
+                  dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+
+        org_schemes = self.org.get_all_schemes()
+
+        for scheme in org_schemes:
+            if scheme != TEL_SCHEME:
+                fields.append(URN_SCHEMES_EXPORT_FIELDS[scheme])
 
         with SegmentProfiler("building up contact fields"):
             contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
@@ -1635,7 +1648,13 @@ class ExportContactsTask(SmartModel):
                 fields.append(dict(field=contact_field,
                                    label=contact_field.label,
                                    key=contact_field.key,
-                                   id=contact_field.id))
+                                   id=contact_field.id,
+                                   urn_scheme=None))
+
+        return fields
+
+    def do_export(self):
+        fields = self.get_export_fields()
 
         with SegmentProfiler("build up contact ids"):
             all_contacts = Contact.get_contacts(self.org)
@@ -1673,8 +1692,8 @@ class ExportContactsTask(SmartModel):
 
                         if field['key'] == Contact.NAME:
                             field_value = contact.name
-                        elif field['key'] == Contact.PHONE:
-                            field_value = contact.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
+                        elif field['urn_scheme'] is not None:
+                            field_value = contact.get_urn_display(self.org, scheme=field['urn_scheme'], full=True)
                         else:
                             value = contact.get_field(field['key'])
                             field_value = Contact.get_field_display_for_value(field['field'], value)
