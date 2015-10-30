@@ -282,4 +282,32 @@ describe 'Controllers:', ->
         expect(added.id).toBe('a_new_field')
         expect(added.text).toBe('A New Field')
       $timeout.flush()
-      
+
+
+    it 'should give proper language choices', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+      action.type = 'lang'
+      action.name = 'Achinese'
+      action.lang = 'ace'
+
+      $scope.clickAction(actionset, action)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # Achinese should be added as an option since it was previously
+        # set on the flow even though it is not an org language
+        expect(modalScope.languages[0]).toEqual({name:'Achinese', iso_code:'ace'})
+
+        # make sure 'Default' isn't added as an option
+        expect(modalScope.languages.length).toEqual(1)
+
+      $timeout.flush()

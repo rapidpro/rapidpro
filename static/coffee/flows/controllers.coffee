@@ -798,10 +798,12 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.options = options
 
   $scope.contactFields = Flow.contactFieldSearch
-  $scope.languages = Flow.languages
   $scope.actionConfigs = Flow.actions
   $scope.rulesetConfigs = Flow.rulesets
   $scope.operatorConfigs = Flow.operators
+
+  # all org languages except default
+  $scope.languages = utils.clone(Flow.languages).filter (lang) -> lang.name isnt "Default"
 
   formData = {}
 
@@ -825,6 +827,23 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     actionset = options.actionset
     action = options.action
+
+    # if its a language type, see if we need to add a missing lanugage to the list
+    if action.type == "lang"
+      found = false
+      for lang in $scope.languages
+        if lang.iso_code == action.lang
+          found = true
+          break
+
+      if not found
+        $scope.languages.push({name:action.name, iso_code:action.lang})
+        $scope.languages.sort (a, b) ->
+          if a.name < b.name
+            return -1
+          if a.name > b.name
+            return 1
+          return 0
 
     #our place holder ruleset if the flip
     ruleset =
@@ -1318,6 +1337,13 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     $scope.action.action = 'GET'
 
   $scope.config = Flow.getActionConfig({type:$scope.action.type})
+
+  $scope.validLanguageFilter = (language) ->
+    if language.iso_code == "base"
+      return false
+    if language.name == "Default"
+      return false
+    return true
 
   # a simple function to filter out invalid actions
   $scope.validActionFilter = (action) ->
