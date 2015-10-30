@@ -1338,13 +1338,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
   $scope.config = Flow.getActionConfig({type:$scope.action.type})
 
-  $scope.validLanguageFilter = (language) ->
-    if language.iso_code == "base"
-      return false
-    if language.name == "Default"
-      return false
-    return true
-
   # a simple function to filter out invalid actions
   $scope.validActionFilter = (action) ->
 
