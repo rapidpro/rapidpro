@@ -23,7 +23,7 @@ xlutils==1.7.1
 phonenumbers==7.1.0
 django-countries==3.0.1
 djangorestframework==2.4.5
-django-ttag==2.4
+-e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools==0.6.1
 requests==1.2.3
 mock==1.0.1
