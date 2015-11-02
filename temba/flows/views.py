@@ -36,6 +36,7 @@ from temba.utils.expressions import get_function_listing
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
+
 class BaseFlowForm(forms.ModelForm):
     expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
                                               help_text=_("When inactive contacts should be removed from the flow"),
@@ -89,6 +90,8 @@ class BaseFlowForm(forms.ModelForm):
 
     class Meta:
         model = Flow
+        fields = '__all__'
+
 
 class FlowActionForm(BaseActionForm):
     ALLOWED_ACTIONS = (('archive', _("Archive Flows")),
@@ -102,6 +105,7 @@ class FlowActionForm(BaseActionForm):
 
     class Meta:
         fields = ('action', 'objects', 'label', 'add')
+
 
 class FlowActionMixin(SmartListView):
 
@@ -398,9 +402,9 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
+                fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type')
 
         form_class = FlowCreateForm
-        fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type')
         success_url = 'id@flows.flow_editor'
         success_message = ''
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
@@ -1325,6 +1329,7 @@ class FlowLabelForm(forms.ModelForm):
 
     class Meta:
         model = FlowLabel
+        fields = '__all__'
 
 
 class FlowLabelCRUDL(SmartCRUDL):

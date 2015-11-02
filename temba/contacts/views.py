@@ -79,6 +79,7 @@ class ContactGroupForm(forms.ModelForm):
         return data
 
     class Meta:
+        fields = '__all__'
         model = ContactGroup
 
 
@@ -237,6 +238,7 @@ class ContactForm(forms.ModelForm):
 
     class Meta:
         model = Contact
+        fields = '__all__'
 
 
 class UpdateContactForm(ContactForm):
@@ -340,6 +342,7 @@ class ContactCRUDL(SmartCRUDL):
 
             class Meta:
                 model = ImportTask
+                fields = '__all__'
 
         model = ImportTask
         form_class = CustomizeForm
@@ -443,6 +446,7 @@ class ContactCRUDL(SmartCRUDL):
 
             class Meta:
                 model = ImportTask
+                fields = '__all__'
 
         form_class = ImportForm
         model = ImportTask
