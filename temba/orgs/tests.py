@@ -202,7 +202,7 @@ class OrgTest(TembaTest):
 
         # check that our webhook settings have changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals('http://webhooks.uniceflabs.org/', org.get_webhook_url())
+        self.assertEquals('http://webhooks.uniceflabs.org', org.get_webhook_url())
         self.assertDictEqual({'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, org.get_webhook_headers())
 
     def test_org_administration(self):

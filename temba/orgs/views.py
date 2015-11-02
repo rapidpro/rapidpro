@@ -455,7 +455,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return super(OrgCRUDL.Import, self).form_valid(form)
 
-    class Export(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
         def post(self, request, *args, **kwargs):
 
@@ -1210,7 +1210,6 @@ class OrgCRUDL(SmartCRUDL):
     class Surveyor(InferOrgMixin, OrgPermsMixin, SmartReadView):
         def derive_title(self):
             return _('Welcome!')
-
 
     class Grant(SmartCreateView):
         title = _("Create Organization Account")
