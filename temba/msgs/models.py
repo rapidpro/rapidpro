@@ -1665,18 +1665,23 @@ class ExportMessagesTask(SmartModel):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
-
     org = models.ForeignKey(Org, help_text=_("The organization of the user."))
-    groups = models.ManyToManyField(ContactGroup, null=True)
+
+    groups = models.ManyToManyField(ContactGroup)
+
     label = models.ForeignKey(Label, null=True)
+
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
+
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
+
     task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export is finished running"))
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
+
+    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
+
+    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """

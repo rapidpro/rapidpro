@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 @task(track_started=True, name='process_message_task')  # pragma: no cover
 def process_message_task(msg_id, from_mage=False, new_contact=False):
     """
-    Processses a single incoming message through our queue.
+    Processes a single incoming message through our queue.
     """
     r = get_redis_connection()
-    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org').prefetch_related('contact__urns').first()
+    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org').first()
 
     # somebody already handled this message, move on
     if not msg:
