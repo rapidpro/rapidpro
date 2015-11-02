@@ -2304,7 +2304,7 @@ class Flow(TembaModel, SmartModel):
             # note that badness happened
             import logging
             logger = logging.getLogger(__name__)
-            logger.exception(unicode(e), exc_info=True)
+            logger.exception(unicode(e))
             raise e
 
     def __unicode__(self):
