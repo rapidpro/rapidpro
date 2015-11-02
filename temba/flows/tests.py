@@ -2046,6 +2046,15 @@ class ActionTest(TembaTest):
         action.execute(run, None, None)
         self.assertEquals('kli', Contact.objects.get(pk=self.contact.pk).language)
 
+        # try setting the language to something thats not three characters
+        action_json['lang'] = 'base'
+        action_json['name'] = 'Default'
+        action = SetLanguageAction.from_json(self.org, action_json)
+        action.execute(run, None, None)
+
+        # should clear the contacts language
+        self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
+
     def test_start_flow_action(self):
         orig_flow = self.create_flow()
         run = FlowRun.create(orig_flow, self.contact)
