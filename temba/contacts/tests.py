@@ -16,7 +16,7 @@ from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, Language
-from temba.channels.models import Channel
+from temba.channels.models import Channel, TWITTER
 from temba.msgs.models import Msg, Call, Label, SystemLabel
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
@@ -2085,7 +2085,7 @@ class ContactFieldTest(TembaTest):
         flow.start([], [contact])
 
         # create another contact, this should sort before Ben
-        self.create_contact("Adam Sumner", '+12067799191')
+        self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
 
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
@@ -2123,6 +2123,38 @@ class ContactFieldTest(TembaTest):
         self.assertEqual('+12067799294', sheet.cell(2, 0).value)
         self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
         self.assertEqual("One", sheet.cell(2, 2).value)
+
+        self.assertEqual(sheet.nrows, 3)  # no other contacts
+
+        # make sure we have a channel with twitter scheme so we can export twitter urns
+        Channel.create(self.org, self.admin, None, TWITTER, address='rwot', scheme=TWITTER_SCHEME)
+
+        self.client.get(reverse('contacts.contact_export'), dict())
+        task = ExportContactsTask.objects.all().order_by('-id').first()
+
+        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        # check our headers have Twitter
+        self.assertEqual('Phone', sheet.cell(0, 0).value)
+        self.assertEqual('Name', sheet.cell(0, 1).value)
+        self.assertEqual('Twitter handle', sheet.cell(0, 2).value)
+        self.assertEqual('First', sheet.cell(0, 3).value)
+        self.assertEqual('Second', sheet.cell(0, 4).value)
+        self.assertEqual('Third', sheet.cell(0, 5).value)
+
+        # first row should be adam
+        self.assertEquals('+12067799191', sheet.cell(1, 0).value)
+        self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
+        self.assertEquals('adam', sheet.cell(1, 2).value)
+        self.assertFalse(sheet.cell(1,3).value)
+
+        # second should be ben
+        self.assertEqual('+12067799294', sheet.cell(2, 0).value)
+        self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
+        self.assertFalse(sheet.cell(2,2).value)
+        self.assertEqual("One", sheet.cell(2, 3).value)
 
         self.assertEqual(sheet.nrows, 3)  # no other contacts
 
