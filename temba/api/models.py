@@ -484,6 +484,8 @@ class APIToken(models.Model):
 
     created = models.DateTimeField(auto_now_add=True)
 
+    role = models.ForeignKey(Group)
+
     @classmethod
     def get_orgs_for_role(cls, user, role):
         """
