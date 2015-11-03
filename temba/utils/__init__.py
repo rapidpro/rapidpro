@@ -5,6 +5,8 @@ import json
 import pytz
 import random
 import datetime
+import locale
+import resource
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -456,3 +458,16 @@ def chunk_list(iterable, size):
         chunk_iter = islice(source_iter, size)
         yield chain([chunk_iter.next()], chunk_iter)
 
+
+def print_max_mem_usage(msg=None):
+    """
+    Prints the maximum RAM used by the process thus far.
+    """
+    if msg is None:
+        msg = "Max usage: "
+
+    locale.setlocale(locale.LC_ALL, '')
+    print
+    print "=" * 80
+    print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
+    print "=" * 80
