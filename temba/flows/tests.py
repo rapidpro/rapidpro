@@ -3188,7 +3188,7 @@ class FlowsTest(FlowFileTest):
         self.contact.name = "Ben Haggerty"
         self.contact.save()
 
-        runs = flow.start_msg_flow([self.contact])
+        runs = flow.start_msg_flow(Contact.objects.filter(id=self.contact.id))
         self.assertEquals(1, len(runs))
         self.assertEquals(1, self.contact.msgs.all().count())
         self.assertEquals('Hi Ben Haggerty, what is your phone number?', self.contact.msgs.all()[0].text)
@@ -3572,7 +3572,7 @@ class FlowsTest(FlowFileTest):
 
         # start our flow without a message (simulating it being fired by a trigger or the simulator)
         # this will evaluate requires_step() to make sure it handles localized flows
-        runs = flow.start_msg_flow([self.contact])
+        runs = flow.start_msg_flow(Contact.objects.filter(id=self.contact.id))
         self.assertEquals(1, len(runs))
         self.assertEquals(1, self.contact.msgs.all().count())
         self.assertEquals('You are not in the enrolled group.', self.contact.msgs.all()[0].text)
@@ -3580,7 +3580,7 @@ class FlowsTest(FlowFileTest):
         enrolled_group = ContactGroup.create(self.org, self.user, "Enrolled")
         enrolled_group.update_contacts([self.contact], True)
 
-        runs_started = flow.start_msg_flow([self.contact])
+        runs_started = flow.start_msg_flow(Contact.objects.filter(id=self.contact.id))
         self.assertEquals(1, len(runs_started))
         self.assertEquals(2, self.contact.msgs.all().count())
         self.assertEquals('You are in the enrolled group.', self.contact.msgs.all().order_by('-pk')[0].text)

@@ -212,6 +212,23 @@ class Broadcast(models.Model):
         broadcast.update_recipients(recipients)
         return broadcast
 
+    def update_contacts(self, contact_ids):
+        """
+        Optimization for broadcasts that only contain contacts. Updates our contacts according to the passed in
+        queryset or array.
+        """
+        self.urns.clear()
+        self.groups.clear()
+        self.contacts.clear()
+
+        # get our through model
+        RelatedModel = self.contacts.through
+
+        # clear called automatically by django
+        for chunk in chunk_list(contact_ids, 1000):
+            bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
+            RelatedModel.objects.bulk_create(bulk_contacts)
+
     def update_recipients(self, recipients):
         """
         Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a

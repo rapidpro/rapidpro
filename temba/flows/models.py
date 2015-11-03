@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, QuerySet
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -1358,6 +1358,18 @@ class Flow(TembaModel, SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        # build up querysets of our groups for memory efficiency
+        if isinstance(groups, QuerySet):
+            group_qs = groups
+        else:
+            group_qs = ContactGroup.all_groups.filter(id__in=[g.id for g in groups])
+
+        # build up querysets of our contacts for memory efficiency
+        if isinstance(contacts, QuerySet):
+            contact_qs = contacts
+        else:
+            contact_qs = Contact.objects.filter(id__in=[c.id for c in contacts])
+
         self.ensure_current_version()
 
         if started_flows is None:
@@ -1377,30 +1389,30 @@ class Flow(TembaModel, SmartModel):
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=['msg_type'])
 
-        all_contacts = Contact.all().filter(Q(all_groups__in=[_.pk for _ in groups]) | Q(pk__in=[_.pk for _ in contacts]))
+        all_contacts = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
         all_contacts = all_contacts.only('is_test').order_by('pk').distinct('pk')
 
         if not restart_participants:
             # exclude anybody who has already participated in the flow
-            all_contacts = all_contacts.exclude(pk__in=[_.contact_id for _ in self.runs.all()])
+            all_contacts = all_contacts.exclude(pk__in=[r['contact'] for r in self.runs.all().values('contact')])
         else:
             # mark any current runs as no longer active
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            self.remove_active_for_run_ids([run.pk for run in previous_runs])
+            self.remove_active_for_run_ids([r['id'] for r in previous_runs.values('id')])
             previous_runs.update(is_active=False)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
-            flow_start.contact_count = len(all_contacts)
+            flow_start.contact_count = all_contacts.count()
             flow_start.save(update_fields=['contact_count'])
 
         # if there are no contacts to start this flow, then update our status and exit this flow
-        if not all_contacts:
+        if all_contacts.count() == 0:
             if flow_start: flow_start.update_status()
             return
 
         # single contact starting from a trigger? increment our unread count
-        if start_msg and len(contacts) == 1 and not all_contacts[0].is_test:
+        if start_msg and all_contacts.count() == 1 and not all_contacts.first().is_test:
             self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
@@ -1463,6 +1475,9 @@ class Flow(TembaModel, SmartModel):
         # create the broadcast for this flow
         send_actions = self.get_entry_send_actions()
 
+        # convert to contact ids
+        all_contact_ids = [c['id'] for c in all_contacts.values('id')]
+
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
         for send_action in send_actions:
@@ -1474,8 +1489,9 @@ class Flow(TembaModel, SmartModel):
                 language_dict = json.dumps(send_action.msg)
 
             if message_text:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, all_contacts,
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
                                              language_dict=language_dict)
+                broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
                 broadcast.status = QUEUED
@@ -1485,7 +1501,7 @@ class Flow(TembaModel, SmartModel):
                 broadcasts.append(broadcast)
 
         # if there are fewer contacts than our batch size, do it immediately
-        if len(all_contacts) < START_FLOW_BATCH_SIZE:
+        if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
             return self.start_msg_flow_batch(all_contacts, broadcasts=broadcasts, started_flows=started_flows,
                                              start_msg=start_msg, extra=extra, flow_start=flow_start)
 
@@ -1496,8 +1512,8 @@ class Flow(TembaModel, SmartModel):
                                 started_flows=started_flows, broadcasts=[b.id for b in broadcasts], start_msg=start_msg_id, extra=extra)
 
             batch_contacts = task_context['contacts']
-            for contact in all_contacts:
-                batch_contacts.append(contact.pk)
+            for contact_id in all_contact_ids:
+                batch_contacts.append(contact_id)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
                     print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
