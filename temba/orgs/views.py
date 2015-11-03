@@ -179,6 +179,9 @@ class ModalMixin(SmartFormView):
 
 
 class OrgSignupForm(forms.ModelForm):
+    """
+    Signup for new organizations
+    """
     first_name = forms.CharField(help_text=_("Your first name"))
     last_name = forms.CharField(help_text=_("Your last name"))
     email = forms.EmailField(help_text=_("Your email address"))
@@ -211,6 +214,7 @@ class OrgSignupForm(forms.ModelForm):
 
     class Meta:
         model = Org
+        fields = '__all__'
 
 
 class OrgGrantForm(forms.ModelForm):
@@ -259,6 +263,7 @@ class OrgGrantForm(forms.ModelForm):
 
     class Meta:
         model = Org
+        fields = '__all__'
 
 
 class UserCRUDL(SmartCRUDL):
@@ -302,7 +307,6 @@ class UserCRUDL(SmartCRUDL):
                 model = User
                 fields = ('first_name', 'last_name', 'email', 'current_password', 'new_password', 'language')
 
-        fields = ('first_name', 'last_name', 'email', 'current_password', 'new_password', 'language')
         form_class = EditForm
         permission = 'orgs.org_profile'
         success_url = '@orgs.org_home'
@@ -451,7 +455,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return super(OrgCRUDL.Import, self).form_valid(form)
 
-    class Export(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
         def post(self, request, *args, **kwargs):
 
@@ -793,6 +797,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
+                fields = ('viewers', 'editors', 'surveyors', 'administrators')
 
         form_class = OrgUpdateForm
         success_url = '@orgs.org_manage'
@@ -1206,7 +1211,6 @@ class OrgCRUDL(SmartCRUDL):
         def derive_title(self):
             return _('Welcome!')
 
-
     class Grant(SmartCreateView):
         title = _("Create Organization Account")
         form_class = OrgGrantForm
@@ -1315,9 +1319,9 @@ class OrgCRUDL(SmartCRUDL):
             mo_call = forms.BooleanField(required=False, label=_("Outgoing Calls"))
             alarm = forms.BooleanField(required=False, label=_("Channel Alarms"))
 
-
             class Meta:
                 model = Org
+                fields = ('webhook', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
 
             def clean_headers(self):
                 idx = 1
@@ -1336,10 +1340,8 @@ class OrgCRUDL(SmartCRUDL):
                 return headers
 
         form_class = WebhookForm
-        fields = ('webhook', 'headers', 'mt_sms', 'mo_sms', 'mt_call', 'mo_call', 'alarm')
         success_url = '@orgs.org_home'
         success_message = ''
-
 
         def pre_save(self, obj):
             obj = super(OrgCRUDL.Webhook, self).pre_save(obj)
@@ -1441,8 +1443,8 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
+                fields = ('name', 'slug', 'timezone', 'date_format')
 
-        fields = ('name', 'slug', 'timezone', 'date_format')
         success_message = ''
         form_class = OrgForm
 
@@ -1459,8 +1461,8 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
+                fields = ('country',)
 
-        fields = ('country',)
         success_message = ''
         form_class = CountryForm
 
@@ -1494,8 +1496,8 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
+                fields = ('primary_lang', 'languages')
 
-        fields = ('primary_lang', 'languages')
         success_message = ''
         form_class = LanguagesForm
 

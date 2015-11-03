@@ -6,6 +6,8 @@ from datetime import timedelta
 from django import template
 from django.utils import timezone
 from django.utils.safestring import mark_safe
+from ttag.helpers import AsTag
+
 
 register = template.Library()
 
@@ -44,7 +46,8 @@ def as_icon(contact_event):
         icon = 'icon-call-outgoing red'
     return mark_safe('<span class="glyph %s"></span>' % icon)
 
-class Render(ttag.helpers.AsTag):
+
+class Render(AsTag):
     """
     A block tag that renders its contents to a context variable.
 
@@ -76,7 +79,7 @@ class Render(ttag.helpers.AsTag):
     """
     no_strip = ttag.BooleanArg()
 
-    class Meta():
+    class Meta:
         block = True
 
     def as_value(self, data, context):
