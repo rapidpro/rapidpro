@@ -3585,8 +3585,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(2, self.contact.msgs.all().count())
         self.assertEquals('You are in the enrolled group.', self.contact.msgs.all().order_by('-pk')[0].text)
 
-    test_translations_rule_first.active = True
-
     def test_translations(self):
 
         favorites = self.get_flow('favorites')
