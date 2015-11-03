@@ -11,6 +11,7 @@ import phonenumbers
 import regex
 from django.core.files import File
 from django.db import models
+from django.db.models import Count, Max
 from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
@@ -1633,14 +1634,22 @@ class ExportContactsTask(SmartModel):
 
     def get_export_fields(self):
 
-        fields = [dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-                  dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+        fields = [dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
-        org_schemes = self.org.get_all_schemes()
+        active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
 
-        for scheme in org_schemes:
-            if scheme != TEL_SCHEME:
-                fields.append(URN_SCHEMES_EXPORT_FIELDS[scheme])
+        scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
+
+        schemes = scheme_counts.keys()
+        schemes.sort()
+
+        for scheme in schemes:
+            count = scheme_counts[scheme]
+            if count is not None:
+                for i in range(count):
+                    field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
+                    field_dict['position'] = i
+                    fields.append(field_dict)
 
         with SegmentProfiler("building up contact fields"):
             contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
@@ -1651,10 +1660,10 @@ class ExportContactsTask(SmartModel):
                                    id=contact_field.id,
                                    urn_scheme=None))
 
-        return fields
+        return fields, scheme_counts
 
     def do_export(self):
-        fields = self.get_export_fields()
+        fields, scheme_counts = self.get_export_fields()
 
         with SegmentProfiler("build up contact ids"):
             all_contacts = Contact.get_contacts(self.org)
@@ -1693,7 +1702,17 @@ class ExportContactsTask(SmartModel):
                         if field['key'] == Contact.NAME:
                             field_value = contact.name
                         elif field['urn_scheme'] is not None:
-                            field_value = contact.get_urn_display(self.org, scheme=field['urn_scheme'], full=True)
+                            contact_urns = contact.get_urns()
+                            scheme_urns = []
+                            for urn in contact_urns:
+                                if urn.scheme == field['urn_scheme']:
+                                    scheme_urns.append(urn)
+                            position = field['position']
+                            if len(scheme_urns) > position:
+                                urn_obj = scheme_urns[position]
+                                field_value = urn_obj.get_display(org=self.org, full=True) if urn_obj else ''
+                            else:
+                                field_value = ''
                         else:
                             value = contact.get_field(field['key'])
                             field_value = Contact.get_field_display_for_value(field['field'], value)

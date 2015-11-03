@@ -2100,63 +2100,73 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        self.client.get(reverse('contacts.contact_export'), dict())
-        task = ExportContactsTask.objects.all().order_by('-id').first()
+        with self.assertNumQueries(32):
+            self.client.get(reverse('contacts.contact_export'), dict())
+            task = ExportContactsTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(filename, 'rb')
-        sheet = workbook.sheets()[0]
+            filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = open_workbook(filename, 'rb')
+            sheet = workbook.sheets()[0]
 
-        # check our headers
-        self.assertEqual('Phone', sheet.cell(0, 0).value)
-        self.assertEqual('Name', sheet.cell(0, 1).value)
-        self.assertEqual('First', sheet.cell(0, 2).value)
-        self.assertEqual('Second', sheet.cell(0, 3).value)
-        self.assertEqual('Third', sheet.cell(0, 4).value)
+            # check our headers
+            self.assertEqual('Name', sheet.cell(0, 0).value)
+            self.assertEqual('Phone', sheet.cell(0, 1).value)
+            self.assertEqual('Twitter handle', sheet.cell(0, 2).value)
+            self.assertEqual('First', sheet.cell(0, 3).value)
+            self.assertEqual('Second', sheet.cell(0, 4).value)
+            self.assertEqual('Third', sheet.cell(0, 5).value)
 
-        # first row should be adam
-        self.assertEquals('+12067799191', sheet.cell(1, 0).value)
-        self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
-        self.assertFalse(sheet.cell(1,2).value)
+            # first row should be adam
+            self.assertEquals('Adam Sumner', sheet.cell(1, 0).value)
+            self.assertEquals('+12067799191', sheet.cell(1, 1).value)
+            self.assertEquals('adam', sheet.cell(1, 2).value)
+            self.assertFalse(sheet.cell(1,3).value)
 
-        # second should be ben
-        self.assertEqual('+12067799294', sheet.cell(2, 0).value)
-        self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
-        self.assertEqual("One", sheet.cell(2, 2).value)
+            # second should be ben
+            self.assertEquals('Ben Haggerty', sheet.cell(2, 0).value)
+            self.assertEqual('+12067799294', sheet.cell(2, 1).value)
+            self.assertEqual("One", sheet.cell(2, 3).value)
 
-        self.assertEqual(sheet.nrows, 3)  # no other contacts
+            self.assertEqual(sheet.nrows, 3)  # no other contacts
 
-        # make sure we have a channel with twitter scheme so we can export twitter urns
-        Channel.create(self.org, self.admin, None, TWITTER, address='rwot', scheme=TWITTER_SCHEME)
+        # more contacts do not increase the queries
+        self.create_contact('Luol Deng', '+120788776655', twitter='deng')
+        self.create_contact('Stephen', '+120788778899', twitter='stephen')
+        ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
 
-        self.client.get(reverse('contacts.contact_export'), dict())
-        task = ExportContactsTask.objects.all().order_by('-id').first()
+        with self.assertNumQueries(32):
+            self.client.get(reverse('contacts.contact_export'), dict())
+            task = ExportContactsTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(filename, 'rb')
-        sheet = workbook.sheets()[0]
+            filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = open_workbook(filename, 'rb')
+            sheet = workbook.sheets()[0]
 
-        # check our headers have Twitter
-        self.assertEqual('Phone', sheet.cell(0, 0).value)
-        self.assertEqual('Name', sheet.cell(0, 1).value)
-        self.assertEqual('Twitter handle', sheet.cell(0, 2).value)
-        self.assertEqual('First', sheet.cell(0, 3).value)
-        self.assertEqual('Second', sheet.cell(0, 4).value)
-        self.assertEqual('Third', sheet.cell(0, 5).value)
+            # check our headers have Twitter
+            self.assertEqual('Name', sheet.cell(0, 0).value)
+            self.assertEqual('Phone', sheet.cell(0, 1).value)
+            self.assertEqual('Phone', sheet.cell(0, 2).value)
+            self.assertEqual('Twitter handle', sheet.cell(0, 3).value)
+            self.assertEqual('First', sheet.cell(0, 4).value)
+            self.assertEqual('Second', sheet.cell(0, 5).value)
+            self.assertEqual('Third', sheet.cell(0, 6).value)
 
-        # first row should be adam
-        self.assertEquals('+12067799191', sheet.cell(1, 0).value)
-        self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
-        self.assertEquals('adam', sheet.cell(1, 2).value)
-        self.assertFalse(sheet.cell(1,3).value)
+            # first row should be adam
+            self.assertEquals('Adam Sumner', sheet.cell(1, 0).value)
+            self.assertEquals('+12067799191', sheet.cell(1, 1).value)
+            self.assertFalse(sheet.cell(1,2).value)
+            self.assertEquals('adam', sheet.cell(1, 3).value)
+            self.assertFalse(sheet.cell(1,4).value)
 
-        # second should be ben
-        self.assertEqual('+12067799294', sheet.cell(2, 0).value)
-        self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
-        self.assertFalse(sheet.cell(2,2).value)
-        self.assertEqual("One", sheet.cell(2, 3).value)
+            # second should be ben
+            self.assertEquals('Ben Haggerty', sheet.cell(2, 0).value)
+            self.assertEqual('+12067799294', sheet.cell(2, 1).value)
+            self.assertEqual('+12062233445', sheet.cell(2, 2).value)
+            self.assertFalse(sheet.cell(2,3).value)
+            self.assertEqual("One", sheet.cell(2, 4).value)
 
-        self.assertEqual(sheet.nrows, 3)  # no other contacts
+            self.assertEquals('Luol Deng', sheet.cell(3, 0).value)
+            self.assertEqual(sheet.nrows, 5)  # no other contacts
 
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
