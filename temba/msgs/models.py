@@ -1821,6 +1821,7 @@ class ExportMessagesTask(SmartModel):
             processed += 1
 
             if processed % 10000 == 0:
+                current_messages_sheet.flush_row_data()
                 print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
                       (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
 
