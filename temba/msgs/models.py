@@ -1673,6 +1673,40 @@ class Label(TembaModel, SmartModel):
         unique_together = ('org', 'name')
 
 
+class MsgIterator(object):
+    """
+    Queryset wrapper to chunk queries and reduce in-memory footprint
+    """
+    def __init__(self, ids, order_by=None, select_related=None, prefetch_related=None, max_obj_num=1000):
+        self._ids = ids
+        self._order_by = order_by
+        self._select_related = select_related
+        self._prefetch_related = prefetch_related
+        self._generator = self._setup()
+        self.max_obj_num = max_obj_num
+
+    def _setup(self):
+        for i in xrange(0, len(self._ids), self.max_obj_num):
+            chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
+
+            if self._order_by:
+                chunk_queryset = chunk_queryset.order_by(*self._order_by)
+
+            if self._select_related:
+                chunk_queryset = chunk_queryset.select_related(*self._select_related)
+
+            if self._prefetch_related:
+                chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
+
+            for obj in chunk_queryset:
+                yield obj
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        return self._generator.next()
+
 class ExportMessagesTask(SmartModel):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
@@ -1718,8 +1752,7 @@ class ExportMessagesTask(SmartModel):
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
-        all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
-        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.label_objects.order_by('name')))
+        all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
@@ -1735,53 +1768,61 @@ class ExportMessagesTask(SmartModel):
         if self.label:
             all_messages = all_messages.filter(labels=self.label)
 
-        all_messages = list(all_messages)
+        all_message_ids = [m['id'] for m in all_messages.values('id')]
 
         messages_sheet_number = 1
 
-        if not all_messages:
-            current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        for col in range(len(fields)):
+            field = fields[col]
+            current_messages_sheet.write(0, col, unicode(field))
 
-        while all_messages:
-            if len(all_messages) >= 65535:
-                messages = all_messages[:65535]
-                all_messages = all_messages[65535:]
+        row = 1
+        processed = 0
+        start = time.time()
+
+        prefetch = Prefetch('labels', queryset=Label.label_objects.order_by('name'))
+        for msg in MsgIterator(all_message_ids,
+                               order_by=[''
+                                         '-created_on'],
+                               select_related=['contact', 'contact_urn'],
+                               prefetch_related=[prefetch]):
+
+            if row >= 65535:
+                messages_sheet_number += 1
+                current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+                for col in range(len(fields)):
+                    field = fields[col]
+                    current_messages_sheet.write(0, col, unicode(field))
+                row = 1
+
+            contact_name = msg.contact.name if msg.contact.name else ''
+            created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
+            msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
+
+            # only show URN path if org isn't anon and there is a URN
+            if self.org.is_anon:
+                urn_path = msg.contact.anon_identifier
+            elif msg.contact_urn:
+                urn_path = msg.contact_urn.get_display(org=self.org, full=True)
             else:
-                messages = all_messages
-                all_messages = None
+                urn_path = ''
 
-            current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+            urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            for col in range(len(fields)):
-                field = fields[col]
-                current_messages_sheet.write(0, col, unicode(field))
+            current_messages_sheet.write(row, 0, created_on, date_style)
+            current_messages_sheet.write(row, 1, urn_path)
+            current_messages_sheet.write(row, 2, urn_scheme)
+            current_messages_sheet.write(row, 3, contact_name)
+            current_messages_sheet.write(row, 4, msg.get_direction_display())
+            current_messages_sheet.write(row, 5, msg.text)
+            current_messages_sheet.write(row, 6, msg_labels)
+            row += 1
+            processed += 1
 
-            row = 1
-            for msg in messages:
-                contact_name = msg.contact.name if msg.contact.name else ''
-                created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
-                msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
-
-                # only show URN path if org isn't anon and there is a URN
-                if self.org.is_anon:
-                    urn_path = msg.contact.anon_identifier
-                elif msg.contact_urn:
-                    urn_path = msg.contact_urn.get_display(org=self.org, full=True)
-                else:
-                    urn_path = ''
-
-                urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
-
-                current_messages_sheet.write(row, 0, created_on, date_style)
-                current_messages_sheet.write(row, 1, urn_path)
-                current_messages_sheet.write(row, 2, urn_scheme)
-                current_messages_sheet.write(row, 3, contact_name)
-                current_messages_sheet.write(row, 4, msg.get_direction_display())
-                current_messages_sheet.write(row, 5, msg.text)
-                current_messages_sheet.write(row, 6, msg_labels)
-                row += 1
-
-            messages_sheet_number += 1
+            if processed % 10000 == 0:
+                print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
+                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
