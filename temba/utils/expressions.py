@@ -28,8 +28,29 @@ def get_function_listing():
     global listing
 
     if listing is None:
-        listing = [{'name': f['name'], 'display': f['description']} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
+        listing = [{'name': f['name'], 'display': f['description'], 'example': _build_function_signature(f)} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
     return listing
+
+
+def _build_function_signature(f):
+    signature = f['name'] + "("
+    params_len = len(f['params'])
+
+    formatted_params_list = []
+    for param in f['params']:
+        formatted_param = param['name']
+
+        if param['optional']:
+            formatted_param = "[" + formatted_param + "]"
+
+        if param['vararg']:
+            formatted_param += ", [" + formatted_param + "], ..."
+
+        if len(formatted_params_list) < params_len - 1:
+            formatted_param += ","
+        formatted_params_list.append(formatted_param)
+
+    return signature + " ".join(formatted_params_list) + ")"
 
 
 # ======================================================================================================================
