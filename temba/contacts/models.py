@@ -1632,7 +1632,7 @@ class ExportContactsTask(SmartModel):
             self.is_finished = True
             self.save(update_fields=['is_finished'])
 
-    def get_export_fields(self):
+    def get_export_fields_and_schemes(self):
 
         fields = [dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
@@ -1663,7 +1663,7 @@ class ExportContactsTask(SmartModel):
         return fields, scheme_counts
 
     def do_export(self):
-        fields, scheme_counts = self.get_export_fields()
+        fields, scheme_counts = self.get_export_fields_and_schemes()
 
         with SegmentProfiler("build up contact ids"):
             all_contacts = Contact.get_contacts(self.org)

@@ -408,13 +408,6 @@ class Org(SmartModel):
         setattr(self, cache_attr, schemes)
         return schemes
 
-    def get_all_schemes(self):
-        from temba.channels.models import SEND, RECEIVE, ANSWER, CALL
-        schemes = set()
-        for role in [SEND, RECEIVE, CALL, ANSWER]:
-            schemes = schemes | self.get_schemes(role)
-        return schemes
-
     def get_webhook_url(self):
         """
         Returns a string with webhook url.
