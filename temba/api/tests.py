@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import calendar
 import json
+import pytz
 import time
 import uuid
-import pytz
 import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
@@ -42,7 +42,7 @@ from twython import TwythonError
 from urllib import urlencode
 from urlparse import parse_qs
 from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
-from .serializers import DictionaryField, IntegerArrayField, StringArrayField, PhoneArrayField, ChannelField, FlowField
+from .v1.serializers import DictionaryField, IntegerArrayField, StringArrayField, PhoneArrayField, ChannelField, FlowField
 
 
 class APITest(TembaTest):
@@ -268,7 +268,7 @@ class APITest(TembaTest):
         self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
 
     @override_settings(REST_HANDLE_EXCEPTIONS=True)
-    @patch('temba.api.views.FieldEndpoint.get_queryset')
+    @patch('temba.api.v1.views.FieldEndpoint.get_queryset')
     def test_api_error_handling(self, mock_get_queryset):
         mock_get_queryset.side_effect = ValueError("DOH!")
 
@@ -3066,7 +3066,7 @@ class ShaqodoonTest(TembaTest):
 class M3TechTest(TembaTest):
 
     def setUp(self):
-        from temba.channels.models import USERNAME, PASSWORD, KEY
+        from temba.channels.models import USERNAME, PASSWORD
 
         super(M3TechTest, self).setUp()
 
@@ -3741,7 +3741,6 @@ class ZenviaTest(TembaTest):
         self.assertEquals("Héllo World!", sms.text)
 
     def test_send(self):
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
         self.channel.config = json.dumps(dict(account='zv-account', code='zv-code'))
         self.channel.channel_type = 'ZV'
         self.channel.save()
