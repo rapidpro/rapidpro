@@ -2880,8 +2880,6 @@ class ExternalTest(TembaTest):
         self.assertEquals(2012, sms.created_on.year)
         self.assertEquals(18, sms.created_on.hour)
 
-    test_receive.active = True
-
     def test_send(self):
         from temba.channels.models import EXTERNAL
         self.channel.channel_type = EXTERNAL
