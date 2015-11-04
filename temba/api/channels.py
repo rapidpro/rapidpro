@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -1104,8 +1105,11 @@ class ClickatellHandler(View):
                 return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
 
             # dates come in the format "2014-04-18 03:54:20" GMT+2
-            sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
-            gmt_date = pytz.timezone('Europe/Berlin').localize(sms_date)
+            sms_date = parse_datetime(request.REQUEST['timestamp'])
+
+            # Posix makes this timezone name back-asswards:
+            # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
+            gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
             text = request.REQUEST['text']
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
