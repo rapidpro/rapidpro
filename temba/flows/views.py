@@ -26,7 +26,7 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowVersion, STARTING, PENDING, ACTION_SET, RULE_SET
+from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING, ACTION_SET, RULE_SET
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.msgs.views import BaseActionForm
@@ -318,7 +318,7 @@ class PartialTemplate(SmartTemplateView):
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
-               'completion', 'versions', 'recent_messages')
+               'completion', 'revisions', 'recent_messages')
 
     model = Flow
 
@@ -359,19 +359,19 @@ class FlowCRUDL(SmartCRUDL):
 
             return build_json_response(recent_messages[:5])
 
-    class Versions(OrgObjPermsMixin, SmartReadView):
+    class Revisions(OrgObjPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            version_id = request.REQUEST.get('definition', None)
+            revision_id = request.REQUEST.get('definition', None)
 
-            if version_id:
-                version = FlowVersion.objects.get(flow=flow, pk=version_id)
-                return build_json_response(version.get_definition_json())
+            if revision_id:
+                revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
+                return build_json_response(revision.get_definition_json())
             else:
-                versions = [version.as_json() for version in flow.versions.all().order_by('-created_on')[:25]]
-                return build_json_response(versions)
+                revisions = [revision.as_json() for revision in flow.revisions.all().order_by('-created_on')[:25]]
+                return build_json_response(revisions)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
@@ -791,7 +791,7 @@ class FlowCRUDL(SmartCRUDL):
                                   href=reverse('flows.flow_export', args=[self.get_object().id])))
 
 
-            if self.has_org_perm('flows.flow_versions'):
+            if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Revision History"),
                                   ngClick='showRevisionHistory()',

@@ -372,25 +372,25 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     return connections
 ]
 
-app.factory "Versions", ['$http', '$log', ($http, $log) ->
-  new class Versions
-    updateVersions: (flowId) ->
+app.factory "Revisions", ['$http', '$log', ($http, $log) ->
+  new class Revisions
+    updateRevisions: (flowId) ->
       _this = @
-      $http.get('/flow/versions/' + flowId + '/').success (data, status, headers) ->
-        # only set the versions if we get back json, if we don't have permission we'll get a login page
+      $http.get('/flow/revisions/' + flowId + '/').success (data, status, headers) ->
+        # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
-          _this.versions = data
+          _this.revisions = data
 
-    getVersion: (version) ->
+    getRevision: (revision) ->
       _this = @
-      return $http.get('/flow/versions/' + flowId + '/?definition=' + version.id).success (data, status, headers) ->
-        # only set the versions if we get back json, if we don't have permission we'll get a login page
+      return $http.get('/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
+        # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
 
 ]
 
-app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->
+app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Revisions, DragHelper) ->
 
   new class Flow
 
@@ -598,7 +598,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 Flow.function_completions = data.function_completions
                 Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
-              Versions.updateVersions(Flow.flowId)
+              Revisions.updateRevisions(Flow.flowId)
 
             $rootScope.saving = null
 
@@ -872,7 +872,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     fetch: (flowId, onComplete = null) ->
 
       @flowId = flowId
-      Versions.updateVersions(flowId)
+      Revisions.updateRevisions(flowId)
 
       Flow = @
       $http.get('/flow/json/' + flowId + '/').success (data) ->
