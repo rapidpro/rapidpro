@@ -8,13 +8,13 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from mock import patch
 from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
 from temba.channels.models import Channel, SyncEvent
@@ -27,7 +27,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value, DATETIME
 from urlparse import parse_qs
 from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
-from .v1.serializers import DictionaryField, IntegerArrayField, StringArrayField, PhoneArrayField, ChannelField, FlowField
+from .v1.serializers import StringArrayField, PhoneArrayField, ChannelField, FlowField
 
 
 class APITest(TembaTest):
@@ -205,52 +205,33 @@ class APITest(TembaTest):
         self.assertEqual(response.xml.find('labels').text, 'https://testserver:80/api/v1/labels')
 
     def test_api_serializer_fields(self):
-        dict_field = DictionaryField(source='test')
-
-        self.assertEqual(dict_field.from_native({'a': '123'}), {'a': '123'})
-        self.assertRaises(ValidationError, dict_field.from_native, [])  # must be a dict
-        self.assertRaises(ValidationError, dict_field.from_native, {123: '456'})  # keys and values must be strings
-        self.assertRaises(ValidationError, dict_field.to_native, {})  # not writable
-
-        ints_field = IntegerArrayField(source='test')
-
-        self.assertEqual(ints_field.from_native([1, 2, 3]), [1, 2, 3])
-        self.assertEqual(ints_field.from_native(123), [123])  # convert single number to array
-        self.assertRaises(ValidationError, ints_field.from_native, {})  # must be a list
-        self.assertRaises(ValidationError, ints_field.from_native, ['x'])  # items must be ints or longs
-        self.assertRaises(ValidationError, ints_field.to_native, [])  # not writable
-
         strings_field = StringArrayField(source='test')
 
-        self.assertEqual(strings_field.from_native(['a', 'b', 'c']), ['a', 'b', 'c'])
-        self.assertEqual(strings_field.from_native('abc'), ['abc'])  # convert single string to array
-        self.assertRaises(ValidationError, strings_field.from_native, {})  # must be a list
-        self.assertRaises(ValidationError, strings_field.from_native, [123])  # items must be strings
-        self.assertRaises(ValidationError, strings_field.to_native, [])  # not writable
+        self.assertEqual(strings_field.to_internal_value(['a', 'b', 'c']), ['a', 'b', 'c'])
+        self.assertEqual(strings_field.to_internal_value('abc'), ['abc'])  # convert single string to array
+        self.assertRaises(ValidationError, strings_field.to_internal_value, {})  # must be a list
 
         phones_field = PhoneArrayField(source='test')
 
-        self.assertEqual(phones_field.from_native(['123', '234']), [('tel', '123'), ('tel', '234')])
-        self.assertEqual(phones_field.from_native('123'), [('tel', '123')])  # convert single string to array
-        self.assertRaises(ValidationError, phones_field.from_native, {})  # must be a list
-        self.assertRaises(ValidationError, phones_field.from_native, [123])  # items must be strings
-        self.assertRaises(ValidationError, phones_field.from_native, ['123'] * 101)  # 100 items max
-        self.assertRaises(ValidationError, phones_field.to_native, [])  # not writable
+        self.assertEqual(phones_field.to_internal_value(['123', '234']), [('tel', '123'), ('tel', '234')])
+        self.assertEqual(phones_field.to_internal_value('123'), [('tel', '123')])  # convert single string to array
+        self.assertRaises(ValidationError, phones_field.to_internal_value, {})  # must be a list
+        self.assertRaises(ValidationError, phones_field.to_internal_value, ['123'] * 101)  # 100 items max
 
         flow_field = FlowField(source='test')
 
         flow = self.create_flow()
-        self.assertEqual(flow_field.from_native(flow.pk), flow)
+        self.assertEqual(flow_field.to_internal_value(flow.pk), flow)
         flow.is_active = False
         flow.save()
-        self.assertRaises(ValidationError, flow_field.from_native, flow.pk)
+        self.assertRaises(ValidationError, flow_field.to_internal_value, flow.pk)
 
         channel_field = ChannelField(source='test')
 
-        self.assertEqual(channel_field.from_native(self.channel.pk), self.channel)
+        self.assertEqual(channel_field.to_internal_value(self.channel.pk), self.channel)
         self.channel.is_active = False
         self.channel.save()
-        self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
+        self.assertRaises(ValidationError, channel_field.to_internal_value, self.channel.pk)
 
     @override_settings(REST_HANDLE_EXCEPTIONS=True)
     @patch('temba.api.v1.views.FieldEndpoint.get_queryset')

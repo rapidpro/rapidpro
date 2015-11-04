@@ -3,12 +3,12 @@ from __future__ import unicode_literals
 import json
 import phonenumbers
 
-from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
@@ -26,71 +26,35 @@ MAX_BULK_ACTION_ITEMS = 100
 # Field types
 # ------------------------------------------------------------------------------------------
 
-class DictionaryField(serializers.WritableField):
 
-    def to_native(self, obj):
-        raise ValidationError("Reading of extra field not supported")
+class StringArrayField(serializers.ListField):
+    """
+    List of strings or a single string
+    """
+    def __init__(self, **kwargs):
+        super(StringArrayField, self).__init__(child=serializers.CharField(), **kwargs)
 
-    def from_native(self, data):
-        if isinstance(data, dict):
-            for key in data.keys():
-                value = data[key]
-
-                if not isinstance(key, basestring) or not isinstance(value, basestring):
-                    raise ValidationError("Invalid, keys and values must both be strings: %s" % unicode(value))
-            return data
-        else:
-            raise ValidationError("Invalid, must be dictionary: %s" % data)
-
-
-class IntegerArrayField(serializers.WritableField):
-
-    def to_native(self, obj):
-        raise ValidationError("Reading of integer array field not supported")
-
-    def from_native(self, data):
-        # single number case, this is ok
-        if isinstance(data, int) or isinstance(data, long):
-            return [data]
-        # it's a list, make sure they are all numbers
-        elif isinstance(data, list):
-            for value in data:
-                if not (isinstance(value, int) or isinstance(value, long)):
-                    raise ValidationError("Invalid, values must be integers or longs: %s" % unicode(value))
-            return data
-        # none of the above, error
-        else:
-            raise ValidationError("Invalid, must be array: %s" % data)
-
-
-class StringArrayField(serializers.WritableField):
-
-    def to_native(self, obj):
-        raise ValidationError("Reading of string array field not supported")
-
-    def from_native(self, data):
-        # single string case, this is ok
+    def to_internal_value(self, data):
+        # accept single string
         if isinstance(data, basestring):
             return [data]
-        # it's a list, make sure they are all strings
-        elif isinstance(data, list):
-            for value in data:
-                if not isinstance(value, basestring):
-                    raise ValidationError("Invalid, values must be strings: %s" % unicode(value))
-            return data
-        # none of the above, error
-        else:
-            raise ValidationError("Invalid, must be array: %s" % data)
+
+        # don't allow dicts. This is a bug in ListField due to be fixed in 3.3.2
+        # https://github.com/tomchristie/django-rest-framework/pull/3513
+        if isinstance(data, dict):
+            raise ValidationError("Should be a list")
+
+        return super(StringArrayField, self).to_internal_value(data)
 
 
-class PhoneArrayField(serializers.WritableField):
-
-    def to_native(self, obj):
-        raise ValidationError("Reading of phone field not supported")
-
-    def from_native(self, data):
+class PhoneArrayField(serializers.ListField):
+    """
+    List of phone numbers or a single phone number
+    """
+    def to_internal_value(self, data):
         if isinstance(data, basestring):
             return [(TEL_SCHEME, data)]
+
         elif isinstance(data, list):
             if len(data) > 100:
                 raise ValidationError("You can only specify up to 100 numbers at a time.")
@@ -136,13 +100,11 @@ class WriteSerializer(serializers.Serializer):
 
         super(WriteSerializer, self).__init__(*args, **kwargs)
 
-    def restore_fields(self, data, files):
-
+    def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
-            self._errors['non_field_errors'] = ["Request body should be a single JSON object"]
-            return {}
+            raise ValidationError("Request body should be a single JSON object")
 
-        return super(WriteSerializer, self).restore_fields(data, files)
+        return super(WriteSerializer, self).run_validation(data)
 
 
 class MsgReadSerializer(serializers.ModelSerializer):
@@ -196,7 +158,7 @@ class MsgReadSerializer(serializers.ModelSerializer):
 
 
 class MsgBulkActionSerializer(WriteSerializer):
-    messages = IntegerArrayField(required=True)
+    messages = serializers.ListField(required=True, child=serializers.IntegerField())
     action = serializers.CharField(required=True)
     label = serializers.CharField(required=False)
     label_uuid = serializers.CharField(required=False)
@@ -232,20 +194,18 @@ class MsgBulkActionSerializer(WriteSerializer):
             attrs['label'] = label
         return attrs
 
-    def restore_object(self, attrs, instance=None):
-        if instance:  # pragma: no cover
-            raise ValidationError("Invalid operation")
-
-        msg_ids = attrs['messages']
-        action = attrs['action']
+    def create(self, validated_data):
+        msg_ids = validated_data['messages']
+        action = validated_data['action']
+        label = validated_data.get('label')
 
         msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=DELETED)
         msgs = msgs.select_related('contact')
 
         if action == 'label':
-            attrs['label'].toggle_label(msgs, add=True)
+            label.toggle_label(msgs, add=True)
         elif action == 'unlabel':
-            attrs['label'].toggle_label(msgs, add=False)
+            label.toggle_label(msgs, add=False)
         else:
             # these are in-efficient but necessary to keep cached counts correct. In future if counts are completely
             # driven by triggers these could be replaced with queryset bulk update operations.
@@ -394,7 +354,7 @@ class ContactWriteSerializer(WriteSerializer):
     language = serializers.CharField(required=False, min_length=3, max_length=3)
     urns = StringArrayField(required=False)
     group_uuids = StringArrayField(required=False)
-    fields = DictionaryField(required=False)
+    fields = serializers.DictField(required=False, child=serializers.CharField())
     phone = serializers.CharField(required=False, max_length=16)  # deprecated, use urns
     groups = StringArrayField(required=False)  # deprecated, use group_uuids
 
@@ -1025,19 +985,19 @@ class CampaignWriteSerializer(WriteSerializer):
 
 
 class FlowDefinitionWriteSerializer(WriteSerializer):
-    version = serializers.WritableField(required=True)
-    metadata = serializers.WritableField(required=False)
-    base_language = serializers.WritableField(required=False)
-    flow_type = serializers.WritableField(required=False)
-    action_sets = serializers.WritableField(required=False)
-    rule_sets = serializers.WritableField(required=False)
-    entry = serializers.WritableField(required=False)
+    version = serializers.IntegerField(required=True)
+    metadata = serializers.DictField(required=False)
+    base_language = serializers.CharField(required=False)
+    flow_type = serializers.CharField(required=False, max_length=1)
+    action_sets = serializers.ListField(required=False)
+    rule_sets = serializers.ListField(required=False)
+    entry = UUIDField(required=False)
 
     # old versions had different top level elements
-    uuid = serializers.WritableField(required=False)
-    definition = serializers.WritableField(required=False)
-    name = serializers.WritableField(required=False)
-    id = serializers.WritableField(required=False)
+    uuid = UUIDField(required=False)
+    definition = serializers.DictField(required=False)
+    name = serializers.CharField(required=False)
+    id = serializers.IntegerField(required=False)
 
     def validate_version(self, attrs, source):
         version = attrs.get(source)
@@ -1182,7 +1142,7 @@ class FlowRunStartSerializer(WriteSerializer):
     flow_uuid = serializers.CharField(required=False, max_length=36)
     groups = StringArrayField(required=False)
     contacts = StringArrayField(required=False)
-    extra = DictionaryField(required=False)
+    extra = serializers.DictField(required=False, child=serializers.CharField())
     restart_participants = serializers.BooleanField(required=False, default=True)
     flow = FlowField(required=False)  # deprecated, use flow_uuid
     contact = StringArrayField(required=False)  # deprecated, use contacts
@@ -1318,7 +1278,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     contact = serializers.CharField(required=True, max_length=36)
     started = serializers.DateTimeField(required=True)
     completed = serializers.BooleanField(required=False)
-    steps = serializers.WritableField()
+    steps = serializers.ListField()
 
     revision = serializers.IntegerField(required=False) # for backwards compatibility
     version = serializers.IntegerField(required=False) # for backwards compatibility
