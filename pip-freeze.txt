@@ -1,5 +1,5 @@
 -e git+https://github.com/nyaruka/smartmin.git@e14f017c1e208a13aa7a844a30379d97e8ce57ea#egg=smartmin
-Django==1.8.5
+Django==1.8.6
 coverage==3.5.1
 django-celery==3.1.16
 django-compressor==1.4
