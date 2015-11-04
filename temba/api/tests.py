@@ -5210,12 +5210,12 @@ class WebHookTest(TembaTest):
         org = self.channel.org
         org.save()
 
-        from temba.flows.models import ActionSet, APIAction, Flow
+        from temba.flows.models import ActionSet, WebhookAction, Flow
         flow = self.create_flow()
 
         # replace our uuid of 4 with the right thing
         actionset = ActionSet.objects.get(x=4)
-        actionset.set_actions_dict([APIAction(org.get_webhook_url()).as_json()])
+        actionset.set_actions_dict([WebhookAction(org.get_webhook_url()).as_json()])
         actionset.save()
 
         with patch('requests.Session.send') as mock:

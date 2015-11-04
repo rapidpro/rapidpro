@@ -3805,7 +3805,7 @@ class Action(object):
                 DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
                 AddLabelAction.TYPE: AddLabelAction,
                 EmailAction.TYPE: EmailAction,
-                APIAction.TYPE: APIAction,
+                WebhookAction.TYPE: WebhookAction,
                 SaveToContactAction.TYPE: SaveToContactAction,
                 SetLanguageAction.TYPE: SetLanguageAction,
                 StartFlowAction.TYPE: StartFlowAction,
@@ -3904,7 +3904,7 @@ class EmailAction(Action):
         return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
 
 
-class APIAction(Action):
+class WebhookAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
     """
@@ -3917,10 +3917,10 @@ class APIAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return APIAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
+        return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
 
     def as_json(self):
-        return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
+        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
