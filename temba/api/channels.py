@@ -19,7 +19,7 @@ from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger
-from temba.utils import analytics, JsonResponse
+from temba.utils import analytics, JsonResponse, json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -411,7 +411,12 @@ class ExternalHandler(View):
             if text is None:
                 return HttpResponse("Missing 'text' or 'message' parameter, invalid call.", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text)
+            # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
+            date = request.REQUEST.get('date', request.REQUEST.get('time', None))
+            if date:
+                date = json_date_to_datetime(date)
+
+            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
