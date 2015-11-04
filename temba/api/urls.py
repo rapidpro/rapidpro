@@ -16,13 +16,4 @@ urlpatterns = [
         url(r'^/webhook/simulator/$', WebHookSimulatorView.as_view(), name='api.webhook_simulator'),
         url(r'^/webhook/tunnel/$', login_required(csrf_protect(WebHookTunnelView.as_view())), name='api.webhook_tunnel')
     ])),
-
-    # for backwards compatibility
-    url(r'^api/v1', include([
-        url(r'^/log/$', WebHookEventListView.as_view(), name='api.log'),
-        url(r'^/log/(?P<pk>\d+)/$', WebHookEventReadView.as_view(), name='api.log_read'),
-        url(r'^/webhook/$', WebHookView.as_view(), name='api.webhook'),
-        url(r'^/webhook/simulator/$', WebHookSimulatorView.as_view(), name='api.webhook_simulator'),
-        url(r'^/webhook/tunnel/$', login_required(csrf_protect(WebHookTunnelView.as_view())), name='api.webhook_tunnel')
-    ]))
 ]
