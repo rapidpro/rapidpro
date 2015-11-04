@@ -354,7 +354,7 @@ class WebHookEvent(SmartModel):
         return hook_event
 
     def deliver(self):
-        from temba.api.v1.serializers import MsgCreateSerializer
+        from .v1.serializers import MsgCreateSerializer
 
         # create our post parameters
         post_data = json.loads(self.data)

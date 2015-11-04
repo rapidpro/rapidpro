@@ -2152,7 +2152,7 @@ class ActionTest(TembaTest):
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
     @patch('requests.post')
-    def test_api_action(self, mock_requests_post, mock_timezone_now):
+    def test_webhook_action(self, mock_requests_post, mock_timezone_now):
         tz = pytz.timezone("Africa/Kigali")
         mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
         mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 07, 30, 6))
@@ -2221,7 +2221,7 @@ class ActionTest(TembaTest):
         self.assertEqual(logs[0].level, ActionLog.LEVEL_WARN)
         self.assertEqual(logs[0].text, "URL appears to contain errors: Undefined variable: contact.xyz")
         self.assertEqual(logs[1].level, ActionLog.LEVEL_INFO)
-        self.assertEqual(logs[1].text, "Triggered <a href='/api/v1/log/%d/' target='_log'>webhook event</a> - 200" % event.pk)
+        self.assertEqual(logs[1].text, "Triggered <a href='/webhooks/log/%d/' target='_log'>webhook event</a> - 200" % event.pk)
 
 
 class FlowRunTest(TembaTest):
