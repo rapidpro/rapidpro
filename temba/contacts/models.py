@@ -716,7 +716,7 @@ class Contact(TembaModel, SmartModel):
         # make sure our tmp directory is present (throws if already present)
         try:
             os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
-        except:
+        except Exception:
             pass
 
         # write our file out
@@ -732,13 +732,9 @@ class Contact(TembaModel, SmartModel):
             os.remove(tmp_file)
 
         Contact.validate_import_header(headers)
-        built_in_fields = [Contact.NAME, Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
-        optional_columns = []
-        for header in headers:
-            if header not in built_in_fields:
-                optional_columns.append(header)
 
-        return optional_columns
+        # return the column headers which can become contact fields
+        return [header for header in headers if header not in Contact.RESERVED_FIELDS]
 
     @classmethod
     def validate_import_header(cls, header):
