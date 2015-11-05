@@ -204,6 +204,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
+    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
+
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
         create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
@@ -211,6 +213,11 @@ class Broadcast(models.Model):
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
         return broadcast
+
+    def purge(self):
+        self.msgs.all().delete()
+        self.purged = True
+        self.save()
 
     def update_recipients(self, recipients):
         """

@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET, ExportFlowResultsTask
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -252,6 +252,19 @@ class TembaTest(SmartminTest):
             ruleset.save()
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
+
+    def export_flow(self, flow):
+        # export the flow
+        task = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+        task.flows.add(flow)
+        task.do_export()
+
+        task = ExportFlowResultsTask.objects.get(pk=task.id)
+
+        # read it back in, check values
+        from xlrd import open_workbook
+        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        return open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
 
 class FlowFileTest(TembaTest):
