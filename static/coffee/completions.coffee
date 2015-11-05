@@ -11,6 +11,7 @@ class window.AutoComplete
     # mark our functions as functions
     for f in @functions
       f['function'] = true
+      f['example'] = f['signature']
 
     ac = this
 

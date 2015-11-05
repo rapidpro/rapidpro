@@ -28,7 +28,7 @@ def get_function_listing():
     global listing
 
     if listing is None:
-        listing = [{'name': f['name'], 'display': f['description'], 'example': _build_function_signature(f)} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
+        listing = [{'name': f['name'], 'display': f['description'], 'signature': _build_function_signature(f)} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
     return listing
 
 
