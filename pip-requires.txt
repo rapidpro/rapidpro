@@ -11,7 +11,7 @@ django-guardian
 django-nose==1.4.2
 -e git+http://github.com/nyaruka/django-quickblocks.git#egg=django-quickblocks-dev
 django-rosetta==0.6.2
-gunicorn==18.0
+gunicorn==19.3.0
 nose==1.3.0
 pisa==3.0.33
 raven==4.0.4
