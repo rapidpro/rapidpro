@@ -20,6 +20,7 @@ from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
 from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
+from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
@@ -590,6 +591,55 @@ class ExpressionsTest(TembaTest):
     def test_get_function_listing(self):
         listing = get_function_listing()
         self.assertEqual(listing[0], {'signature':'ABS(number)', 'name': 'ABS', 'display': "Returns the absolute value of a number"})
+
+    def test_build_function_signature(self):
+        self.assertEqual('ABS()',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[])))
+
+        self.assertEqual('ABS(number)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=False)])))
+
+        self.assertEqual('ABS(number, ...)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=True)])))
+
+        self.assertEqual('ABS([number])',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=True,
+                                                                     name='number',
+                                                                     vararg=False)])))
+
+        self.assertEqual('ABS([number], ...)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=True,
+                                                                     name='number',
+                                                                     vararg=True)])))
+
+        self.assertEqual('MOD(number, divisor)',
+                         _build_function_signature(dict(name='MOD',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=False),
+                                                                dict(optional=False,
+                                                                     name='divisor',
+                                                                     vararg=False)])))
+
+        self.assertEqual('MOD(number, ..., divisor)',
+                         _build_function_signature(dict(name='MOD',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=True),
+                                                                dict(optional=False,
+                                                                     name='divisor',
+                                                                     vararg=False)])))
+
+
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))
