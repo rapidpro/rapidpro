@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -18,7 +19,7 @@ from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger
-from temba.utils import JsonResponse
+from temba.utils import JsonResponse, json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -336,7 +337,12 @@ class ExternalHandler(View):
             if text is None:
                 return HttpResponse("Missing 'text' or 'message' parameter, invalid call.", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text)
+            # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
+            date = request.REQUEST.get('date', request.REQUEST.get('time', None))
+            if date:
+                date = json_date_to_datetime(date)
+
+            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -1029,8 +1035,11 @@ class ClickatellHandler(View):
                 return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
 
             # dates come in the format "2014-04-18 03:54:20" GMT+2
-            sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
-            gmt_date = pytz.timezone('Europe/Berlin').localize(sms_date)
+            sms_date = parse_datetime(request.REQUEST['timestamp'])
+
+            # Posix makes this timezone name back-asswards:
+            # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
+            gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
             text = request.REQUEST['text']
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn

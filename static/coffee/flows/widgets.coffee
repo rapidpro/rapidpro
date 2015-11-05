@@ -24,15 +24,13 @@ app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
     scope.$watch (->scope.message), scope.countCharacters
 
     # determine the initial message based on the current language
-    scope.message = scope.sms
-
     if scope.sms
-      localized = scope.sms[Flow.flow.base_language]
-      if localized?
-        scope.message = localized
+      scope.message = scope.sms[Flow.flow.base_language]
+      if not scope.message
+        scope.message = ""
 
   return {
-    templateUrl: "/partials/sms_directive?ts=" + new Date().getTime()
+    templateUrl: "/partials/sms_directive"
     restrict: "A"
     link: link
     scope: {

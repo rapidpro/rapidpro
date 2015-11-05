@@ -802,7 +802,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ('viewers', 'editors', 'surveyors', 'administrators')
+                fields = '__all__'
 
         form_class = OrgUpdateForm
         success_url = '@orgs.org_manage'
