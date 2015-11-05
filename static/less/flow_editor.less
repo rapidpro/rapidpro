@@ -32,7 +32,7 @@
 @z-node-dragging: 1100;
 @z-connection-dragging: 1200;
 @z-mask: 2000;
-@z-versions: 2100;
+@z-revisions: 2100;
 @z-flip-button:2200;
 
 [ng-cloak] {
@@ -656,6 +656,10 @@
     .title {
       text-shadow: 0px 1px @color-response - #222;
       .bg-gradient(@color-response, @color-response - #101010);
+    }
+
+    .missing {
+      color: @flat-darkwhite;
     }
   }
 
@@ -1426,7 +1430,7 @@
   }
 }
 
-#version-mask {
+#revision-mask {
   position:fixed;
   right:0;
   top:0;
@@ -1442,10 +1446,10 @@
 }
 
 
-#versions {
+#revisions {
 
   position: fixed;
-  z-index: @z-versions;
+  z-index: @z-revisions;
   width:270px;
 
   background: rgba(255,255,255, 1);
@@ -1469,7 +1473,7 @@
   .choices {
     height:300px;
     overflow-y:scroll;
-    .version {
+    .revision {
 
       .revert {
         float:right;
