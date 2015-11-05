@@ -54,6 +54,7 @@ class UpdateCampaignForm(ModelForm):
 
     class Meta:
         model = Campaign
+        fields = '__all__'
 
 
 class CampaignCRUDL(SmartCRUDL):
@@ -132,6 +133,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Campaign
+                fields = '__all__'
 
         fields = ('name', 'group')
         form_class = CampaignForm
@@ -254,6 +256,7 @@ class EventForm(forms.ModelForm):
 
     class Meta:
         model = CampaignEvent
+        fields = '__all__'
 
 
 class CampaignEventCRUDL(SmartCRUDL):

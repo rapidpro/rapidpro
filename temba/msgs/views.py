@@ -148,6 +148,8 @@ class BroadcastForm(forms.ModelForm):
 
     class Meta:
         model = Broadcast
+        fields = '__all__'
+
 
 class BroadcastCRUDL(SmartCRUDL):
     actions = ('send', 'update', 'schedule_read', 'schedule_list')
@@ -815,6 +817,7 @@ class BaseLabelForm(forms.ModelForm):
 
     class Meta:
         model = Label
+        fields = '__all__'
 
 
 class LabelForm(BaseLabelForm):

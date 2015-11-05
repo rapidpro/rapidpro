@@ -2322,7 +2322,7 @@ class Flow(TembaModel, SmartModel):
             # note that badness happened
             import logging
             logger = logging.getLogger(__name__)
-            logger.exception(unicode(e), exc_info=True)
+            logger.exception(unicode(e))
             raise e
 
     def __unicode__(self):
@@ -2344,7 +2344,7 @@ class RuleSet(models.Model):
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_WAIT = [TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS]
+    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
@@ -3436,18 +3436,21 @@ class ActionLog(models.Model):
 
 
 class FlowStep(models.Model):
+    """
+    A contact's visit to a node in a flow (rule set or action set)
+    """
     run = models.ForeignKey(FlowRun, related_name='steps')
 
     contact = models.ForeignKey(Contact, related_name='flow_steps')
 
-    step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES,
+    step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
 
-                                 help_text=_("What type of node was visited"))
     step_uuid = models.CharField(max_length=36, db_index=True,
                                  help_text=_("The UUID of the ActionSet or RuleSet for this step"))
 
     rule_uuid = models.CharField(max_length=36, null=True,
                                  help_text=_("For uuid of the rule that matched on this ruleset, null on ActionSets"))
+
     rule_category = models.CharField(max_length=36, null=True,
                                      help_text=_("The category label that matched on this ruleset, null on ActionSets"))
 
@@ -3465,12 +3468,8 @@ class FlowStep(models.Model):
     left_on = models.DateTimeField(null=True, db_index=True,
                                    help_text=_("When the user left this step in the flow"))
 
-    messages = models.ManyToManyField(Msg,
-                                      null=True,
-                                      related_name='steps',
+    messages = models.ManyToManyField(Msg, related_name='steps',
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
-
-
 
     @classmethod
     def from_json(cls, json_obj, flow, run, previous_rule=None):
@@ -3633,7 +3632,6 @@ class FlowStep(models.Model):
         index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
 
 
-
 PENDING = 'P'
 STARTING = 'S'
 COMPLETE = 'C'
@@ -3644,17 +3642,20 @@ FLOW_START_STATUS_CHOICES = ((PENDING, "Pending"),
                              (COMPLETE, "Complete"),
                              (FAILED, "Failed"))
 
+
 class FlowStart(SmartModel):
-    flow = models.ForeignKey(Flow, related_name='starts',
-                             help_text=_("The flow that is being started"))
-    groups = models.ManyToManyField(ContactGroup, null=True, blank=True,
-                                    help_text=_("Groups that will start the flow"))
-    contacts = models.ManyToManyField(Contact, null=True, blank=True,
-                                      help_text=_("Contacts that will start the flow"))
+    flow = models.ForeignKey(Flow, related_name='starts', help_text=_("The flow that is being started"))
+
+    groups = models.ManyToManyField(ContactGroup, help_text=_("Groups that will start the flow"))
+
+    contacts = models.ManyToManyField(Contact, help_text=_("Contacts that will start the flow"))
+
     restart_participants = models.BooleanField(default=True,
                                                help_text=_("Whether to restart any participants already in this flow"))
+
     contact_count = models.IntegerField(default=0,
                                         help_text=_("How many unique contacts were started down the flow"))
+
     status = models.CharField(max_length=1, default='P', choices=FLOW_START_STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
