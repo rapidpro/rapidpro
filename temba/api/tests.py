@@ -2804,7 +2804,7 @@ class AfricasTalkingTest(TembaTest):
 
 class ExternalTest(TembaTest):
 
-   def test_status(self):
+    def test_status(self):
         # change our channel to an aggregator channel
         self.channel.channel_type = 'EX'
         self.channel.uuid = 'asdf-asdf-asdf-asdf'
@@ -2840,7 +2840,7 @@ class ExternalTest(TembaTest):
         assertStatus(sms, 'sent', SENT)
         assertStatus(sms, 'failed', FAILED)
 
-   def test_receive(self):
+    def test_receive(self):
         # change our channel to an external channel
         self.channel.channel_type = 'EX'
         self.channel.uuid = 'asdf-asdf-asdf-asdf'
@@ -2866,9 +2866,21 @@ class ExternalTest(TembaTest):
 
         self.assertEquals(400, response.status_code)
 
-   test_receive.active = True
+        Msg.objects.all().delete()
 
-   def test_send(self):
+        # receive with a date
+        data = {'from': '5511996458779', 'text': 'Hello World!', 'date': '2012-04-23T18:25:43.511Z'}
+        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message, make sure the date was saved properly
+        sms = Msg.objects.get()
+        self.assertEquals(2012, sms.created_on.year)
+        self.assertEquals(18, sms.created_on.hour)
+
+    def test_send(self):
         from temba.channels.models import EXTERNAL
         self.channel.channel_type = EXTERNAL
         self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send', SEND_METHOD: 'POST'})

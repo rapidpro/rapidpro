@@ -53,7 +53,7 @@
         -blocktrans
           Set the preferred language for the contact.
 
-      %select{ng-model:"action.lang",style:"height:34px",name:"lang",ng-options:"lang.iso_code as lang.name for lang in languages",required:"",class:"language",select2:""}
+      %select{ng-model:"action.lang",style:"height:34px",name:"lang",ng-options:"lang.iso_code as lang.name for lang in languages", required:"", class:"language", select2:""}
       %button{ng-click:"saveLanguage(action_editor.lang)",class:"submit hide"}
         -trans "Ok"
 

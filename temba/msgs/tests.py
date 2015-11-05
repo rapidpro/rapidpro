@@ -571,11 +571,9 @@ class MsgTest(TembaTest):
         response = self.client.post(reverse('msgs.msg_export'), follow=True)
         self.assertContains(response, "already an export in progress")
 
-        # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
+        # perform the export manually, assert how many queries
+        self.assertNumQueries(7, lambda: blocking_export.do_export())
 
-        # request export of all messages
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()
 

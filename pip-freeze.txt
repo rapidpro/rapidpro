@@ -1,15 +1,15 @@
--e git+https://github.com/nyaruka/smartmin.git@6c1310136b9648365a85fabe584860c1800dce8e#egg=smartmin
-Django==1.7.7
+-e git+https://github.com/nyaruka/smartmin.git@e14f017c1e208a13aa7a844a30379d97e8ce57ea#egg=smartmin
+Django==1.8.5
 coverage==3.5.1
 django-celery==3.1.16
-django-compressor==1.4
+django-compressor==1.5
 django-debug-toolbar==1.2.2
 django-digest==1.13
-django-guardian==1.2.4
+django-guardian==1.3.1
 -e git+http://github.com/nyaruka/django-modeltranslation.git@dffebc9363297d77d91c99d46e8e53b32dc05e61#egg=django_modeltranslation-master
-django-nose==1.2
+django-nose==1.4.2
 django-rosetta==0.6.2
-gunicorn==18.0
+gunicorn==19.3.0
 nose==1.3.0
 pisa==3.0.33
 raven==4.0.4
@@ -23,7 +23,7 @@ xlutils==1.7.1
 phonenumbers==7.1.0
 django-countries==3.0.1
 djangorestframework==2.4.5
-django-ttag==2.4
+-e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools==0.6.1
 requests==1.2.3
 mock==1.0.1
@@ -100,3 +100,4 @@ xlwt==0.7.5
 enum34==1.0.3
 plivo==0.10.1
 antlr4-python2-runtime==4.5.2
+django-extensions==1.5.7
