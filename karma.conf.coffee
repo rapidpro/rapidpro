@@ -48,7 +48,7 @@ module.exports = (config) ->
       'karma/test_completions.coffee',
       'karma/test_temba.coffee',
 
-      # paritals templates to be loaded by ng-haml2js
+      # paritals templates to be loaded by ng-html2js
       'templates/partials/*.haml'
     ]
 
@@ -60,12 +60,12 @@ module.exports = (config) ->
     # preprocess matching files before serving them to the browser
     # available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'templates/partials/*.haml': ["ng-haml2js"],
+      'templates/partials/*.haml': ["ng-html2js"],
       'karma/**/*.coffee': ['coffee'],
       'static/**/*.coffee': ['coverage']
     }
 
-    ngHaml2JsPreprocessor: {
+    ngHtml2JsPreprocessor: {
       # the name of the Angular module to create
       moduleName: "partials"
       cacheIdFromPath: (filepath) ->

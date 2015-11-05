@@ -477,10 +477,14 @@ class APIToken(models.Model):
     Our API token, ties in orgs
     """
     key = models.CharField(max_length=40, primary_key=True)
+
     user = models.ForeignKey(User, related_name='api_tokens')
+
     org = models.ForeignKey(Org, related_name='api_tokens')
+
     created = models.DateTimeField(auto_now_add=True)
-    role = models.ForeignKey(Group, null=True)
+
+    role = models.ForeignKey(Group)
 
     @classmethod
     def get_orgs_for_role(cls, user, role):
@@ -506,7 +510,6 @@ class APIToken(models.Model):
             role = None
 
         return valid_orgs, role
-
 
     def save(self, *args, **kwargs):
         if not self.key:

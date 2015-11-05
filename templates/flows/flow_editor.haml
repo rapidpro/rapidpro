@@ -285,7 +285,7 @@
                   Send Message
                 .summary
                   %span.translation
-                    Click here to send a message
+                    Click here to add a message
 
         // Empty rule node shown while dragging
         .ghost.rules.node.rule-node.hide
@@ -353,10 +353,14 @@
 
                   [[action.name]]
 
+
                 // messages with translations
                 %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
 
                   [[action._translation]]
+
+                  .missing{ng-hide:'action._translation'}
+                    -trans "Click here to add a message"
 
                   %span.recording{ng-show:'action.type=="say"'}
 
