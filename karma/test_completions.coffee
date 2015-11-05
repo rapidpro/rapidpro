@@ -116,11 +116,11 @@ describe 'find context query', ->
     expect(ac.parseQuery("(SUM(contact.date_added,  ")).toBe('SUM')
 
   it 'should ignore function out of balanced paratheses', ->
-    expect(ac.parseQuery("(SUM(contact.date_added, step)")).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added, step)")).toBe('')
 
-    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value)")).toBe('ABS')
+    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value)")).toBe('SUM')
 
-    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value))")).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value))")).toBe('')
 
   it 'should not include previous (', ->
     expect(ac.parseQuery("(contact.age")).toBe('contact.age')
