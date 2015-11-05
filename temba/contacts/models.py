@@ -1539,7 +1539,7 @@ class ContactGroup(TembaModel, SmartModel):
 
         group_change = False
 
-        for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None).prefetch_related("contacts"):
+        for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None):
             qs, is_complex = Contact.search(group.org, group.query)  # re-run group query
             qualifies = qs.filter(pk=contact.id).count() == 1        # should contact now be in group?
             changed = group.update_contacts([contact], qualifies)
