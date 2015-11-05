@@ -36,6 +36,11 @@ FACEBOOK_SCHEME = 'facebook'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
+# schemes that we actually support
+URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
+                      (TWITTER_SCHEME, _("Twitter handle")),
+                      (EXTERNAL_SCHEME, _("External identifier")))
+
 
 class ContactField(models.Model):
     """
@@ -183,8 +188,7 @@ class Contact(TembaModel, SmartModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME,
-                       'created_by', 'modified_by', 'org', 'uuid', 'groups']
+                       'created_by', 'modified_by', 'org', 'uuid', 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -1159,10 +1163,6 @@ class Contact(TembaModel, SmartModel):
 LOWEST_PRIORITY = 1
 STANDARD_PRIORITY = 50
 HIGHEST_PRIORITY = 99
-
-URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
-                      (TWITTER_SCHEME, _("Twitter handle")),
-                      (EXTERNAL_SCHEME, _("External identifier")))
 
 URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
                          TWITTER_SCHEME: 90}
