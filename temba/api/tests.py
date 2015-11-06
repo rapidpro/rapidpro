@@ -22,7 +22,8 @@ from redis_cache import get_redis_connection
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET
 from temba.orgs.models import ALL_EVENTS, NEXMO_UUID
 from temba.channels.models import Channel, ChannelLog, SyncEvent, SEND_URL, SEND_METHOD, VUMI, KANNEL, NEXMO, TWILIO, \
@@ -2879,6 +2880,25 @@ class ExternalTest(TembaTest):
         sms = Msg.objects.get()
         self.assertEquals(2012, sms.created_on.year)
         self.assertEquals(18, sms.created_on.hour)
+
+    def test_receive_external(self):
+        self.channel.channel_type = 'EX'
+        self.channel.scheme = 'ext'
+        self.channel.save()
+
+        data = {'from': 'lynch24', 'text': 'Beast Mode!'}
+        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(200, response.status_code)
+
+        # check our message
+        msg = Msg.objects.get()
+        self.assertEquals("lynch24", msg.contact.get_urn(EXTERNAL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Beast Mode!", msg.text)
 
     def test_send(self):
         from temba.channels.models import EXTERNAL
