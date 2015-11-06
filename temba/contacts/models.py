@@ -36,6 +36,11 @@ FACEBOOK_SCHEME = 'facebook'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
+# schemes that we actually support
+URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
+                      (TWITTER_SCHEME, _("Twitter handle")),
+                      (EXTERNAL_SCHEME, _("External identifier")))
+
 
 class ContactField(models.Model):
     """
@@ -183,8 +188,7 @@ class Contact(TembaModel, SmartModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME,
-                       'created_by', 'modified_by', 'org', 'uuid', 'groups']
+                       'created_by', 'modified_by', 'org', 'uuid', 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -716,7 +720,7 @@ class Contact(TembaModel, SmartModel):
         # make sure our tmp directory is present (throws if already present)
         try:
             os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
-        except:
+        except Exception:
             pass
 
         # write our file out
@@ -732,13 +736,9 @@ class Contact(TembaModel, SmartModel):
             os.remove(tmp_file)
 
         Contact.validate_import_header(headers)
-        built_in_fields = [Contact.NAME, Contact.PHONE] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
-        optional_columns = []
-        for header in headers:
-            if header not in built_in_fields:
-                optional_columns.append(header)
 
-        return optional_columns
+        # return the column headers which can become contact fields
+        return [header for header in headers if header not in Contact.RESERVED_FIELDS]
 
     @classmethod
     def validate_import_header(cls, header):
@@ -1164,10 +1164,6 @@ LOWEST_PRIORITY = 1
 STANDARD_PRIORITY = 50
 HIGHEST_PRIORITY = 99
 
-URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
-                      (TWITTER_SCHEME, _("Twitter handle")),
-                      (EXTERNAL_SCHEME, _("External identifier")))
-
 URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
                          TWITTER_SCHEME: 90}
 
@@ -1539,7 +1535,7 @@ class ContactGroup(TembaModel, SmartModel):
 
         group_change = False
 
-        for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None).prefetch_related("contacts"):
+        for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None):
             qs, is_complex = Contact.search(group.org, group.query)  # re-run group query
             qualifies = qs.filter(pk=contact.id).count() == 1        # should contact now be in group?
             changed = group.update_contacts([contact], qualifies)
