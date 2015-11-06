@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
+from django.db import connection
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -52,9 +53,14 @@ class APITest(TembaTest):
         settings.SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_HTTPS', 'https')
         settings.SESSION_COOKIE_SECURE = True
 
+        # this is needed to prevent REST framework from rolling back transaction created around each unit test
+        connection.settings_dict['ATOMIC_REQUESTS'] = False
+
     def tearDown(self):
         super(APITest, self).tearDown()
         settings.SESSION_COOKIE_SECURE = False
+
+        connection.settings_dict['ATOMIC_REQUESTS'] = False
 
     def fetchHTML(self, url, query=None):
         if query:
@@ -2091,7 +2097,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label'))
         self.assertResponseError(response, 'non_field_errors', "For action label you should also specify label or label_uuid")
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label=''))
-        self.assertResponseError(response, 'non_field_errors', "For action label you should also specify label or label_uuid")
+        self.assertResponseError(response, 'label', "This field may not be blank.")
 
         # archive all messages
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))

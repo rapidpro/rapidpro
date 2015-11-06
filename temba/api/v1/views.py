@@ -253,8 +253,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     permission_classes = (SSLPermission, ApiPermission)
 
-    # TODO figure out why transaction-less API requests no longer work in unit tests
-    #@non_atomic_gets
+    @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
