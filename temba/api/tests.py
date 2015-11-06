@@ -2894,11 +2894,11 @@ class ExternalTest(TembaTest):
 
         # check our message
         msg = Msg.objects.get()
-        self.assertEquals("lynch24", msg.contact.get_urn(EXTERNAL_SCHEME).path)
+        self.assertEquals('lynch24', msg.contact.get_urn(EXTERNAL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
-        self.assertEquals("Beast Mode!", msg.text)
+        self.assertEquals('Beast Mode!', msg.text)
 
     def test_send(self):
         from temba.channels.models import EXTERNAL
