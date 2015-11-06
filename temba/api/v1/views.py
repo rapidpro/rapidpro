@@ -253,7 +253,8 @@ class BaseAPIView(generics.GenericAPIView):
     """
     permission_classes = (SSLPermission, ApiPermission)
 
-    @non_atomic_gets
+    # TODO figure out why transaction-less API requests no longer work in unit tests
+    #@non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
@@ -346,7 +347,7 @@ class CreateAPIMixin(object):
     def post(self, request, *args, **kwargs):
         user = request.user
         context = self.get_serializer_context()
-        serializer = self.write_serializer_class(user=user, data=request.DATA, context=context)
+        serializer = self.write_serializer_class(user=user, data=request.data, context=context)
 
         if serializer.is_valid():
             serializer.save()
@@ -798,9 +799,10 @@ class MessageBulkActionEndpoint(BaseAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.serializer_class(user=user, data=request.DATA)
+        serializer = self.serializer_class(user=user, data=request.data)
 
         if serializer.is_valid():
+            serializer.save()
             return Response('', status=status.HTTP_204_NO_CONTENT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1732,9 +1734,10 @@ class ContactBulkActionEndpoint(BaseAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.serializer_class(user=user, data=request.DATA)
+        serializer = self.serializer_class(user=user, data=request.data)
 
         if serializer.is_valid():
+            serializer.save()
             return Response('', status=status.HTTP_204_NO_CONTENT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
