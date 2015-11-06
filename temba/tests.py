@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW
+from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -29,8 +29,8 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def uuid(id):
-    return '00000000-00000000-00000000-%08d' % id
+def uuid(val):
+    return '00000000-00000000-00000000-%08d' % val
 
 
 class TembaTest(SmartminTest):
@@ -45,6 +45,7 @@ class TembaTest(SmartminTest):
         self.user = self.create_user("User")
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
 
         # setup admin boundaries for Rwanda
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
@@ -69,16 +70,17 @@ class TembaTest(SmartminTest):
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
 
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
+
         self.superuser.set_org(self.org)
 
         # welcome topup with 1000 credits
         self.welcome_topup = self.org.topups.all()[0]
 
         # a single Android channel
-        self.channel = Channel.objects.create(org=self.org, name="Test Channel",
-                                              address="+250785551212", country='RW', channel_type='A',
-                                              secret="12345", gcm_id="123",
-                                              created_by=self.user, modified_by=self.user)
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                                      secret="12345", gcm_id="123")
 
         # reset our simulation to False
         Contact.set_simulation(False)
@@ -118,7 +120,13 @@ class TembaTest(SmartminTest):
         if last_flow:
             return Flow.objects.filter(pk__gt=last_flow.pk).first()
 
-        return Flow.objects.all().first()
+        return Flow.objects.all().order_by('-created_on').first()
+
+    def get_flow_json(self, file):
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+        data = handle.read()
+        handle.close()
+        return json.loads(data)['flows'][0]
 
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
@@ -163,32 +171,44 @@ class TembaTest(SmartminTest):
 
         return Msg.objects.create(**kwargs)
 
-    def create_flow(self):
-        start = int(time.time() * 1000) % 1000000
-
-        definition = dict(action_sets=[dict(uuid=uuid(start + 1), x=1, y=1, destination=uuid(start + 5),
-                                            actions=[dict(type='reply', msg='What is your favorite color?')]),
-                                       dict(uuid=uuid(start + 2), x=2, y=2, destination=None,
-                                            actions=[dict(type='reply', msg='I love orange too!')]),
-                                       dict(uuid=uuid(start + 3), x=3, y=3, destination=None,
-                                            actions=[dict(type='reply', msg='Blue is sad. :(')]),
-                                       dict(uuid=uuid(start + 4), x=4, y=4, destination=None,
-                                            actions=[dict(type='reply', msg='That is a funny color.')])
-                                       ],
-                          rule_sets=[dict(uuid=uuid(start + 5), x=5, y=5,
-                                          label='color',
-                                          ruleset_type='wait_message',
-                                          rules=[
-                                              dict(uuid=uuid(start + 12), destination=uuid(start + 2), test=dict(type='contains', test='orange'), category="Orange"),
-                                              dict(uuid=uuid(start + 13), destination=uuid(start + 3), test=dict(type='contains', test='blue'), category="Blue"),
-                                              dict(uuid=uuid(start + 14), destination=uuid(start + 4), test=dict(type='true'), category="Other"),
-                                              dict(uuid=uuid(start + 15), test=dict(type='true'), category="Nothing")])  # test case with no destination
-                                     ],
-                          entry=uuid(start + 1))
-
+    def create_flow(self, uuid_start=None):
         flow = Flow.create(self.org, self.admin, "Color Flow")
-        flow.update(definition)
-        return flow
+        flow.update(self.create_flow_definition(uuid_start))
+        return Flow.objects.get(pk=flow.pk)
+
+    def create_flow_definition(self, uuid_start=None):
+        """
+        Creates the "Color" flow definition
+        """
+        if uuid_start is None:
+            uuid_start = int(time.time() * 1000) % 1000000
+
+        return dict(version=8,
+                    action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
+                                      actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
+                                 dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
+                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                 dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
+                                      actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
+                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
+                                      actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])],
+                    rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
+                                    label='color',
+                                    finished_key=None,
+                                    operand=None,
+                                    webhook=None,
+                                    webhook_action=None,
+                                    response_type='',
+                                    ruleset_type='wait_message',
+                                    config={},
+                                    rules=[dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test=dict(base='orange')), category=dict(base="Orange")),
+                                           dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test=dict(base='blue')), category=dict(base="Blue")),
+                                           dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category=dict(base="Other")),
+                                           dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category=dict(base="Nothing"))])],  # test case with no destination
+                    entry=uuid(uuid_start + 1),
+                    base_language='base',
+                    flow_type='F',
+                    metadata=dict(author="Ryan Lewis"))
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()
@@ -207,9 +227,18 @@ class TembaTest(SmartminTest):
 
     def update_destination_no_check(self, flow, node, destination, rule=None):
         """ Update the destination without doing a cycle check """
+        # look up our destination, we need this in order to set the correct destination_type
+        destination_type = ACTION_SET
+        action_destination = Flow.get_node(flow, destination, destination_type)
+        if not action_destination:
+            destination_type = RULE_SET
+            ruleset_destination = Flow.get_node(flow, destination, destination_type)
+            self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
+
         actionset = ActionSet.get(flow, node)
         if actionset:
             actionset.destination = destination
+            actionset.destination_type = destination_type
             actionset.save()
 
         ruleset = RuleSet.get(flow, node)
@@ -218,8 +247,11 @@ class TembaTest(SmartminTest):
             for r in rules:
                 if r.uuid == rule:
                     r.destination = destination
+                    r.destination_type = destination_type
             ruleset.set_rules(rules)
             ruleset.save()
+        else:
+            self.fail("Couldn't find node with uuid: %s" % node)
 
 
 class FlowFileTest(TembaTest):
@@ -234,7 +266,8 @@ class FlowFileTest(TembaTest):
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
 
-    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False, assert_reply=True):
+    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
+                     assert_reply=True, assert_handle=True):
         """
         Starts the flow, sends the message, returns the reply
         """
@@ -252,7 +285,12 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                self.assertTrue(flow.find_and_handle(incoming), "'%s' did not handle message as expected" % flow.name)
+                handled = Flow.find_and_handle(incoming)
+
+                if assert_handle:
+                    self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
+                else:
+                    self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
 
             # our message should have gotten a reply
             if assert_reply:
@@ -265,6 +303,11 @@ class FlowFileTest(TembaTest):
 
                 # if it's more than one, send back a list of replies
                 return [reply.text for reply in replies]
+
+            else:
+                # assert we got no reply
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                self.assertFalse(replies)
 
             return None
 
@@ -392,9 +435,8 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
         # set up our channel for claiming
         anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
-        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
-                                         created_by=anon, modified_by=anon, claim_code='AAABBBCCC',
-                                         secret="12345", gcm_id="123")
+        channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
+                                 claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
         # and claim it
         self.fetch_page(reverse('channels.channel_claim_android'))
@@ -463,6 +505,7 @@ class MockRequestValidator(RequestValidator):
     def validate(self, url, post, signature):
         return True
 
+
 class MockTwilioClient(TwilioClient):
 
     def __init__(self, sid, token):
@@ -470,10 +513,31 @@ class MockTwilioClient(TwilioClient):
         self.calls = MockTwilioClient.MockCalls()
         self.accounts = MockTwilioClient.MockAccounts()
         self.phone_numbers = MockTwilioClient.MockPhoneNumbers()
+        self.sms = MockTwilioClient.MockSMS()
         self.auth = ['', 'FakeRequestToken']
 
     def validate(self, request):
         return True
+
+    class MockShortCode():
+        def __init__(self, short_code):
+            self.short_code = short_code
+            self.sid = "ShortSid"
+
+    class MockShortCodes():
+        def __init__(self, *args):
+            pass
+
+        def list(self, short_code=None):
+            return [MockTwilioClient.MockShortCode(short_code)]
+
+        def update(self, sid, **kwargs):
+            print "Updating short code with sid %s" % sid
+
+    class MockSMS():
+        def __init__(self, *args):
+            self.uri = "/SMS"
+            self.short_codes = MockTwilioClient.MockShortCodes()
 
     class MockCall():
         def __init__(self, to=None, from_=None, url=None, status_callback=None):

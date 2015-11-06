@@ -158,6 +158,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
   if selected
     ele.data('select2').data(selected)
 
+###
 
 
 @initAtMessageText = (selector, completions=null) ->
@@ -246,6 +247,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
           null
 
     tpl: "<li data-value='${name}'>${name} (<span>${display}</span>)</li>"
+###
 
 
 # -------------------------------------------------------------------
@@ -381,10 +383,17 @@ class @Modax extends @ConfirmationModal
       @ele.find('.loader').show()
 
       modal = @
+      modal.submitText = modal.ele.find('.primary').text()
+
       fetchPJAXContent(@url, "#active-modal .fetched-content",
         onSuccess: ->
           modal.ele.find('.loader').hide()
-          modal.submitText = modal.ele.find(".form-actions input[type='submit']").val()
+
+          # if the form comes back with a save button defer to that
+          submitText = $(".form-group button[type='submit']").text()
+          if submitText
+            modal.submitText = submitText
+
           modal.ele.find(".primary").text(modal.submitText)
           modal.focusFirstInput()
           if modal.listeners and modal.listeners.onFormLoaded

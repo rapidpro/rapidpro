@@ -1682,6 +1682,13 @@ tr.checked {
   .modal-body {
     padding: 20px;
 
+    .details {
+      color: #ccc;
+      margin-top: 15px;
+      font-size: 14px;
+      font-style: italic;
+    }
+
     #send-form {
       #counter {
         margin-right: 3px;
@@ -2232,10 +2239,16 @@ input[type='radio'] {
         &.value-name {
           width: 90%;
           .icon-phone {
-            color: @flat-mutedblue;
+            color: @color-font-lightgrey;
             font-size: 16px;
             margin-right: 5px;
             margin-top: -1px;
+          }
+
+          .icon-channel-android {
+            color: @color-font-lightgrey;
+            font-size:16px;
+            margin-right: 5px;
           }
         }
 
@@ -2479,4 +2492,76 @@ span.label a {
   -webkit-transform: rotateY(180deg);
   -moz-transform: rotateY(180deg);
   transform: rotateY(180deg);
+}
+
+// completion custom styles
+
+.atwho-view {
+  width: 280px;
+  max-width: 300px;
+  color: #555555;
+
+  .atwho-view-ul {
+    color: #555555;
+
+    .cur {
+      background: #efefef;
+      color: #555555;
+
+      small {
+        color: #555555;
+      }
+
+    }
+  }
+}
+
+.completion-dropdown {
+
+  .option-name {
+    font-size: 1em;
+  }
+
+  .option-example {
+    display: none;
+  }
+
+  .option-display {
+    display: none;
+  }
+
+  .display-labels {
+    display: none;
+  }
+
+  .cur > & {
+    .option-display {
+      display: block;
+    }
+  }
+
+  .cur:first-child:last-child > & {
+    .option-example {
+      display: block;
+      margin-top: 5px;
+    }
+
+    .display-labels {
+      display: block;
+      font-size: 0.75em;
+
+    }
+
+    .option-display {
+      display: block;
+      margin-top: 5px;
+    }
+
+  }
+
+}
+
+#intercom-container .intercom-launcher {
+  bottom: 60px;
+  right: 12px;
 }

@@ -2,7 +2,7 @@ from urllib import urlencode
 from urlparse import urljoin
 from django.utils.translation import ugettext_lazy as _
 import requests
-
+from temba.utils.gsm7 import is_gsm7
 
 class NexmoClient(object):
     """
@@ -66,6 +66,10 @@ class NexmoClient(object):
         params['to'] = to_number.strip('+')
         params['text'] = text
         params['status-report-req'] = 1
+
+        # if this isn't going to work as plaintext, send as unicode instead
+        if not is_gsm7(text):
+            params['type'] = 'unicode'
 
         response = requests.get(NexmoClient.SEND_URL, params=params)
         response_json = response.json()

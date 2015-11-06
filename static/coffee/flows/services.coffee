@@ -220,6 +220,10 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 
   recalculateOffsets: (nodeId) ->
 
+    # don't bother with offsets if we are running inside a test
+    if window.testing
+      return
+
     # update ourselves
     $timeout ->
 
@@ -368,61 +372,69 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     return connections
 ]
 
-app.factory "Versions", ['$http', '$log', ($http, $log) ->
-  new class Versions
-    updateVersions: (flowId) ->
+app.factory "Revisions", ['$http', '$log', ($http, $log) ->
+  new class Revisions
+    updateRevisions: (flowId) ->
       _this = @
-      $http.get('/flow/versions/' + flowId + '/').success (data, status, headers) ->
-        # only set the versions if we get back json, if we don't have permission we'll get a login page
+      $http.get('/flow/revisions/' + flowId + '/').success (data, status, headers) ->
+        # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
-          _this.versions = data
+          _this.revisions = data
 
-    getVersion: (version) ->
+    getRevision: (revision) ->
       _this = @
-      return $http.get('/flow/versions/' + flowId + '/?definition=' + version.id).success (data, status, headers) ->
-        # only set the versions if we get back json, if we don't have permission we'll get a login page
+      return $http.get('/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
+        # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
 
 ]
 
-app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Versions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Versions, DragHelper) ->
+app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Revisions, DragHelper) ->
 
   new class Flow
+
+    TEXT = 'F'
+    VOICE = 'V'
+    SURVEY = 'S'
+
+    ALL = [TEXT,VOICE,SURVEY]
+
     constructor: ->
 
       @actions = [
-        { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true }
-        { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic'}
-        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true }
-        { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true }
-        { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag' }
-        { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user'}
-        { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true }
-        { type:'del_group', name:'Remove from Groups', verbose_name:'Remove contact from a group', icon: 'icon-users-2', groups:true }
-        { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload' }
-        { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3' }
-        { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language'}
-        { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true }
-        { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true }
+        { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true, filter:[VOICE] }
+        { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic', filter:[VOICE]}
+        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:ALL }
+        { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
+        { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag', filter:ALL }
+        { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user', filter:ALL }
+        { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true, filter:ALL }
+        { type:'del_group', name:'Remove from Groups', verbose_name:'Remove contact from a group', icon: 'icon-users-2', groups:true, filter:ALL }
+        { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload', filter:[TEXT,VOICE] }
+        { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3', filter:[TEXT,VOICE] }
+        { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language', filter:ALL }
+        { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
+        { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
       ]
 
       @rulesets = [
-        # text flows only
-        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', text:true, split:'message response'},
+
+        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
 
         # voice flows only
-        { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', ivr:true},
-        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', ivr:true},
-        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', ivr:true, split:'digits'},
+        { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', filter:VOICE },
+        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', filter:VOICE },
+        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
+
+        # online flows
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE] },
 
         # all flows
-        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', ivr:true, text:true, split:'webhook response'},
-        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', ivr:true, text:true},
-        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', ivr:true, text:true},
-        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', ivr:true, text:true},
-        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', ivr:false, text:true},
-
+        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:ALL },
+        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:ALL },
+        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:ALL },
+        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', filter:ALL },
 
         # Not supported yet
         # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
@@ -521,9 +533,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           $log.debug("Saving.")
 
-          if $rootScope.saved_on
-            Flow.flow['last_saved'] = $rootScope.saved_on
-
           $http.post('/flow/json/' + Flow.flowId + '/', utils.toJson(Flow.flow)).error (data, statusCode) ->
 
             if statusCode == 400
@@ -538,6 +547,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                   type: -> "error"
                   title: -> "Error Saving"
                   body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                  details: -> data.description
                   ok: -> 'Reload'
 
               modalInstance.result.then (reload) ->
@@ -577,13 +587,18 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                   document.location.reload()
 
             else
-              $rootScope.saved_on = data.saved_on
+
+              # store our latest revision
+              Flow.flow.metadata.revision = data.revision
+              Flow.flow.metadata.saved_on = data.saved_on
 
               # update our auto completion options
               $http.get('/flow/completion/?flow=' + Flow.flowId).success (data) ->
-                Flow.completions = data
+                Flow.completions = data.message_completions
+                Flow.function_completions = data.function_completions
+                Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
-              Versions.updateVersions(Flow.flowId)
+              Revisions.updateRevisions(Flow.flowId)
 
             $rootScope.saving = null
 
@@ -653,8 +668,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     # translates a string into a slug
     slugify: (label) ->
-      label = label.toString().toLowerCase().replace(/([^a-z0-9]+)/, ' ')
-      return label.replace(/([^a-z0-9]+)/, '_')
+      return label.toString().toLowerCase().replace(/([^a-z0-9]+)/g, '_')
 
     # Get an array of current flow fields as:
     # [ { id: 'label_name', name: 'Label Name' } ]
@@ -746,7 +760,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     deriveCategories: (ruleset, base_language) ->
 
       categories = []
-
       for rule in ruleset.rules
 
         if not rule.uuid
@@ -754,19 +767,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         if rule.test.type == "between"
           if not rule.category
-            if base_language
-              rule.category = {}
-              rule.category[base_language] = rule.test.min + " - " + rule.test.max
-            else
-              rule.category = rule.test.min + " - " + rule.test.max
+            rule.category =
+              base_language: rule.test.min + "-" + rule.test.max
 
         if rule.category
-          if base_language
-            rule_cat = rule.category[base_language].toLocaleLowerCase()
-            existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
-          else
-            rule_cat = rule.category.toLocaleLowerCase()
-            existing = (category.name.toLocaleLowerCase() for category in categories)
+          rule_cat =  rule.category[base_language].toLocaleLowerCase()
+          existing = (category.name[base_language].toLocaleLowerCase() for category in categories)
 
           # don't munge the Other category
           if rule.test.type == 'true' or rule_cat not in existing
@@ -778,7 +784,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               # unlocalized flows just have a string name
               name = cat.name
 
-              if base_language and base_language of cat.name
+              if base_language of cat.name
                 name = cat.name[base_language]
 
               # if we are localized, use the base name
@@ -866,12 +872,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     fetch: (flowId, onComplete = null) ->
 
       @flowId = flowId
-      Versions.updateVersions(flowId)
+      Revisions.updateRevisions(flowId)
 
       Flow = @
       $http.get('/flow/json/' + flowId + '/').success (data) ->
 
         flow = data.flow
+
+        flow.type = window.flow_type
 
         # add uuids for the individual actions, need this for the UI
         for actionset in flow.action_sets
@@ -891,7 +899,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             languages.push(lang)
 
         # if they don't have our base language in the org, force ourselves as the default
-        if Flow.language and flow.base_language
+        if not Flow.language and flow.base_language
           Flow.language =
             iso_code: flow.base_language
 
@@ -905,14 +913,15 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         Flow.languages = languages
         Flow.flow = flow
 
-
         # fire our completion trigger if it was given to us
         if onComplete
           onComplete()
 
         # update our auto completion options
         $http.get('/flow/completion/?flow=' + flowId).success (data) ->
-          Flow.completions = data
+          Flow.completions = data.message_completions
+          Flow.function_completions = data.function_completions
+          Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
         $http.get('/contactfield/json/').success (fields) ->
           Flow.contactFields = fields
@@ -926,7 +935,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           contactFieldSearch.push
              id: "tel_e164"
-             text: "Phone Number"
+             text: "Phone Numbers"
 
           for field in fields
             contactFieldSearch.push
@@ -1183,11 +1192,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
 ]
 
-ModalController = ($scope, $modalInstance, type, title, body, ok=null) ->
+ModalController = ($scope, $modalInstance, type, title, body, details=null, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
   $scope.error = error
+  $scope.details = details
 
   if ok
     $scope.okButton = ok

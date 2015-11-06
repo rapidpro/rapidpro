@@ -6,7 +6,7 @@ from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet
 from temba.tests import TembaTest
 from temba.campaigns.tasks import check_campaigns_task
-from .models import Campaign, CampaignEvent, EventFire
+from .models import Campaign, CampaignEvent, EventFire, DAYS
 from django.utils import timezone
 from datetime import timedelta
 
@@ -75,7 +75,7 @@ class ScheduleTest(TembaTest):
         self.assertEquals(Flow.MESSAGE, flow.flow_type)
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
-        self.assertEquals("This is my message", entry.get_actions()[0].msg)
+        self.assertEquals("This is my message", entry.get_actions()[0].msg['base'])
         self.assertFalse(RuleSet.objects.filter(flow=flow))
 
         self.assertEquals(-1, event.offset)
@@ -136,7 +136,7 @@ class ScheduleTest(TembaTest):
         # test viewers cannot use action archive or restore
         self.client.logout()
 
-        #create a viewer
+        # create a viewer
         self.viewer= self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
@@ -188,6 +188,22 @@ class ScheduleTest(TembaTest):
         self.assertEquals(10, fire.scheduled.month)
         self.assertEquals(2020, fire.scheduled.year)
         self.assertEquals(event, fire.event)
+
+        # archive the campaign
+        post_data = dict(action='archive', objects=campaign.pk)
+        self.client.post(reverse('campaigns.campaign_list'), post_data)
+        response = self.client.get(reverse('campaigns.campaign_list'))
+        self.assertNotContains(response, "Planting Reminders")
+
+        # should have no event fires
+        self.assertFalse(EventFire.objects.all())
+
+        # restore the campaign
+        post_data = dict(action='restore', objects=campaign.pk)
+        self.client.post(reverse('campaigns.campaign_archived'), post_data)
+
+        # EventFire should be back
+        self.assertTrue(EventFire.objects.all())
 
         # set a planting date on our other farmer
         self.farmer2.set_field('planting_date', '1/6/2022')

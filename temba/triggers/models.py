@@ -13,27 +13,24 @@ from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Msg, Call
 from temba.ivr.models import IVRCall
 
-KEYWORD_TRIGGER = 'K'
-SCHEDULE_TRIGGER = 'S'
-MISSED_CALL_TRIGGER = 'M'
-CATCH_ALL_TRIGGER = 'C'
-FOLLOW_TRIGGER = 'F'
-INBOUND_CALL_TRIGGER = 'V'
-
-TRIGGER_TYPES = ((KEYWORD_TRIGGER, _("Keyword Trigger")),
-                 (SCHEDULE_TRIGGER, _("Schedule Trigger")),
-                 (INBOUND_CALL_TRIGGER, _("Inbound Call Trigger")),
-                 (MISSED_CALL_TRIGGER, _("Missed Call Trigger")),
-                 (CATCH_ALL_TRIGGER, _("Catch All Trigger")),
-                 (FOLLOW_TRIGGER, _("Follow Account Trigger")))
-
-
 class Trigger(SmartModel):
-
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
     for missed calls, inboud sms messages starting with a keyword, or on a repeating schedule.
     """
+    TYPE_KEYWORD = 'K'
+    TYPE_SCHEDULE = 'S'
+    TYPE_MISSED_CALL = 'M'
+    TYPE_INBOUND_CALL = 'V'
+    TYPE_CATCH_ALL = 'C'
+    TYPE_FOLLOW = 'F'
+
+    TRIGGER_TYPES = ((TYPE_KEYWORD, _("Keyword Trigger")),
+                     (TYPE_SCHEDULE, _("Schedule Trigger")),
+                     (TYPE_INBOUND_CALL, _("Inbound Call Trigger")),
+                     (TYPE_MISSED_CALL, _("Missed Call Trigger")),
+                     (TYPE_CATCH_ALL, _("Catch All Trigger")),
+                     (TYPE_FOLLOW, _("Follow Account Trigger")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
@@ -62,13 +59,13 @@ class Trigger(SmartModel):
                                     null=True, blank=True, related_name='trigger',
                                     help_text=_('Our recurring schedule'))
 
-    trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=KEYWORD_TRIGGER, verbose_name=_("Trigger Type"),
-                                    help_text=_('The type of this trigger'))
+    trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD,
+                                    verbose_name=_("Trigger Type"), help_text=_('The type of this trigger'))
 
     channel = models.OneToOneField(Channel, verbose_name=_("Channel"), null=True, help_text=_("The associated channel"))
 
     def __unicode__(self):
-        if self.trigger_type == KEYWORD_TRIGGER:
+        if self.trigger_type == Trigger.TYPE_KEYWORD:
             return self.keyword
         return self.get_trigger_type_display()
 
@@ -153,23 +150,23 @@ class Trigger(SmartModel):
         return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
 
     @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel_id=None):
+    def catch_triggers(cls, entity, trigger_type, channel):
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
         elif isinstance(entity, Call) or isinstance(entity, IVRCall):
             contact = entity.contact
-            start_msg = None
+            start_msg = Msg(contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
-            start_msg = None
+            start_msg = Msg(contact=contact, channel=channel, created_on=timezone.now(), id=0)
         else:
             raise ValueError("Entity must be of type msg, call or contact")
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
 
-        if channel_id:
-            triggers = triggers.filter(channel_id=channel_id)
+        if trigger_type == Trigger.TYPE_FOLLOW:
+            triggers = triggers.filter(channel=channel)
 
         for trigger in triggers:
             trigger.flow.start([], [contact], start_msg=start_msg, restart_participants=True)
@@ -232,13 +229,17 @@ class Trigger(SmartModel):
         groups_ids = contact.user_groups.values_list('pk', flat=True)
 
         # Check first if we have a trigger for the contact groups
-        matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org, trigger_type=INBOUND_CALL_TRIGGER,
-                                          flow__is_archived=False, flow__is_active=True, groups__in=groups_ids).order_by('groups__name').prefetch_related('groups', 'groups__contacts')
+        matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org,
+                                          trigger_type=Trigger.TYPE_INBOUND_CALL, flow__is_archived=False,
+                                          flow__is_active=True, groups__in=groups_ids).order_by('groups__name')\
+                                  .prefetch_related('groups', 'groups__contacts')
 
         # If no trigger for contact groups find there is a no group trigger
         if not matching:
-            matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org, trigger_type=INBOUND_CALL_TRIGGER,
-                                              flow__is_archived=False, flow__is_active=True, groups=None).prefetch_related('groups', 'groups__contacts')
+            matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org,
+                                              trigger_type=Trigger.TYPE_INBOUND_CALL, flow__is_archived=False,
+                                              flow__is_active=True, groups=None)\
+                                      .prefetch_related('groups', 'groups__contacts')
 
         if not matching:
             return None
@@ -257,8 +258,8 @@ class Trigger(SmartModel):
 
     @classmethod
     def apply_action_restore(cls, triggers):
-        m_last_triggered = triggers.filter(trigger_type=MISSED_CALL_TRIGGER).order_by('-last_triggered', '-modified_on')
-        c_last_triggered = triggers.filter(trigger_type=CATCH_ALL_TRIGGER).order_by('-last_triggered', '-modified_on')
+        m_last_triggered = triggers.filter(trigger_type=Trigger.TYPE_MISSED_CALL).order_by('-last_triggered', '-modified_on')
+        c_last_triggered = triggers.filter(trigger_type=Trigger.TYPE_CATCH_ALL).order_by('-last_triggered', '-modified_on')
 
         remaining_triggers = triggers.exclude(pk__in=m_last_triggered).exclude(pk__in=c_last_triggered)
 
@@ -266,7 +267,7 @@ class Trigger(SmartModel):
 
             if trigger.keyword:
                 same_keyword_triggers = Trigger.objects.filter(org=trigger.org, keyword=trigger.keyword, is_archived=False, is_active=True,
-                                                               trigger_type=KEYWORD_TRIGGER)
+                                                               trigger_type=Trigger.TYPE_KEYWORD)
                 if same_keyword_triggers:
                     same_keyword_triggers.update(is_archived=True)
 
@@ -276,7 +277,7 @@ class Trigger(SmartModel):
         if m_last_triggered:
             # first archive all our missed call triggers and unarchive the last triggered in the selected
             Trigger.objects.filter(org=m_last_triggered[0].org,
-                                   trigger_type=MISSED_CALL_TRIGGER,
+                                   trigger_type=Trigger.TYPE_MISSED_CALL,
                                    is_active=True).update(is_archived=True)
             m_last_triggered[0].is_archived = False
             m_last_triggered[0].save()
@@ -284,7 +285,7 @@ class Trigger(SmartModel):
         if c_last_triggered:
             # first archive all our catch all message triggers and unarchive the last triggered in the selected
             Trigger.objects.filter(org=c_last_triggered[0].org,
-                                   trigger_type=CATCH_ALL_TRIGGER,
+                                   trigger_type=Trigger.TYPE_CATCH_ALL,
                                    is_active=True).update(is_archived=True)
             c_last_triggered[0].is_archived = False
             c_last_triggered[0].save()

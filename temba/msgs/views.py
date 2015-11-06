@@ -21,6 +21,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
+from temba.utils.expressions import get_function_listing
 from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
 
 
@@ -51,7 +52,8 @@ def send_message_auto_complete_processor(request):
         completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
         completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
-    return dict(completions=json.dumps(completions))
+    function_completions = get_function_listing()
+    return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
 
 
 class SendMessageForm(Form):
@@ -146,6 +148,8 @@ class BroadcastForm(forms.ModelForm):
 
     class Meta:
         model = Broadcast
+        fields = '__all__'
+
 
 class BroadcastCRUDL(SmartCRUDL):
     actions = ('send', 'update', 'schedule_read', 'schedule_list')
@@ -587,7 +591,7 @@ class MsgCRUDL(SmartCRUDL):
 
                 else:
                     export = ExportMessagesTask.objects.get(id=export.pk)
-                    dl_url = reverse('assets.download', kwargs=dict(type='message_export', identifier=export.pk))
+                    dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
                     messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
 
             try:
@@ -813,6 +817,7 @@ class BaseLabelForm(forms.ModelForm):
 
     class Meta:
         model = Label
+        fields = '__all__'
 
 
 class LabelForm(BaseLabelForm):
