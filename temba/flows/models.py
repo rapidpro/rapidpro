@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, QuerySet
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -226,7 +226,8 @@ class Flow(TembaModel, SmartModel):
                                      help_text=_('The primary language for editing this flow'),
                                      default='base')
 
-    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
+                                         help_text=_("The flow version this definition is in"))
 
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
@@ -334,7 +335,7 @@ class Flow(TembaModel, SmartModel):
 
             # migrate our flow definition forward if necessary
             if export_version < CURRENT_EXPORT_VERSION:
-                flow_spec = FlowVersion.migrate_definition(flow_spec, export_version)
+                flow_spec = FlowRevision.migrate_definition(flow_spec, export_version)
 
             flow_type = flow_spec.get('flow_type', Flow.FLOW)
             name = flow_spec['metadata']['name'][:64].strip()
@@ -1357,6 +1358,18 @@ class Flow(TembaModel, SmartModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        # build up querysets of our groups for memory efficiency
+        if isinstance(groups, QuerySet):
+            group_qs = groups
+        else:
+            group_qs = ContactGroup.all_groups.filter(id__in=[g.id for g in groups])
+
+        # build up querysets of our contacts for memory efficiency
+        if isinstance(contacts, QuerySet):
+            contact_qs = contacts
+        else:
+            contact_qs = Contact.objects.filter(id__in=[c.id for c in contacts])
+
         self.ensure_current_version()
 
         if started_flows is None:
@@ -1376,30 +1389,30 @@ class Flow(TembaModel, SmartModel):
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=['msg_type'])
 
-        all_contacts = Contact.all().filter(Q(all_groups__in=[_.pk for _ in groups]) | Q(pk__in=[_.pk for _ in contacts]))
+        all_contacts = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
         all_contacts = all_contacts.only('is_test').order_by('pk').distinct('pk')
 
         if not restart_participants:
             # exclude anybody who has already participated in the flow
-            all_contacts = all_contacts.exclude(pk__in=[_.contact_id for _ in self.runs.all()])
+            all_contacts = all_contacts.exclude(pk__in=[r['contact'] for r in self.runs.all().values('contact')])
         else:
             # mark any current runs as no longer active
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            self.remove_active_for_run_ids([run.pk for run in previous_runs])
+            self.remove_active_for_run_ids([r['id'] for r in previous_runs.values('id')])
             previous_runs.update(is_active=False)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
-            flow_start.contact_count = len(all_contacts)
+            flow_start.contact_count = all_contacts.count()
             flow_start.save(update_fields=['contact_count'])
 
         # if there are no contacts to start this flow, then update our status and exit this flow
-        if not all_contacts:
+        if all_contacts.count() == 0:
             if flow_start: flow_start.update_status()
             return
 
         # single contact starting from a trigger? increment our unread count
-        if start_msg and len(contacts) == 1 and not all_contacts[0].is_test:
+        if start_msg and all_contacts.count() == 1 and not all_contacts.first().is_test:
             self.increment_unread_responses()
 
         if self.flow_type == Flow.VOICE:
@@ -1462,6 +1475,9 @@ class Flow(TembaModel, SmartModel):
         # create the broadcast for this flow
         send_actions = self.get_entry_send_actions()
 
+        # convert to contact ids
+        all_contact_ids = [c['id'] for c in all_contacts.values('id')]
+
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
         for send_action in send_actions:
@@ -1473,8 +1489,9 @@ class Flow(TembaModel, SmartModel):
                 language_dict = json.dumps(send_action.msg)
 
             if message_text:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, all_contacts,
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
                                              language_dict=language_dict)
+                broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
                 broadcast.status = QUEUED
@@ -1484,7 +1501,7 @@ class Flow(TembaModel, SmartModel):
                 broadcasts.append(broadcast)
 
         # if there are fewer contacts than our batch size, do it immediately
-        if len(all_contacts) < START_FLOW_BATCH_SIZE:
+        if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
             return self.start_msg_flow_batch(all_contacts, broadcasts=broadcasts, started_flows=started_flows,
                                              start_msg=start_msg, extra=extra, flow_start=flow_start)
 
@@ -1495,8 +1512,8 @@ class Flow(TembaModel, SmartModel):
                                 started_flows=started_flows, broadcasts=[b.id for b in broadcasts], start_msg=start_msg_id, extra=extra)
 
             batch_contacts = task_context['contacts']
-            for contact in all_contacts:
-                batch_contacts.append(contact.pk)
+            for contact_id in all_contact_ids:
+                batch_contacts.append(contact_id)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
                     print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
@@ -1927,10 +1944,10 @@ class Flow(TembaModel, SmartModel):
         else:
             flow[Flow.METADATA] = json.loads(self.metadata)
 
-        version = self.versions.all().order_by('-version').first()
+        revision = self.revisions.all().order_by('-revision').first()
         flow[Flow.METADATA][Flow.NAME] = self.name
         flow[Flow.METADATA][Flow.SAVED_ON] = datetime_to_str(self.saved_on)
-        flow[Flow.METADATA][Flow.REVISION] = version.version if version else 1
+        flow[Flow.METADATA][Flow.REVISION] = revision.revision if revision else 1
         flow[Flow.METADATA][Flow.ID] = self.pk
         flow[Flow.METADATA][Flow.EXPIRES] = self.expires_after_minutes
 
@@ -2013,9 +2030,9 @@ class Flow(TembaModel, SmartModel):
         """
         if self.version_number < CURRENT_EXPORT_VERSION:
             with self.lock_on(FlowLock.definition):
-                version = self.versions.all().order_by('-version').all().first()
-                if version:
-                    json_flow = version.get_definition_json()
+                revision = self.revisions.all().order_by('-revision').all().first()
+                if revision:
+                    json_flow = revision.get_definition_json()
                 else:
                     json_flow = self.as_json()
 
@@ -2286,25 +2303,26 @@ class Flow(TembaModel, SmartModel):
                 user = self.created_by
 
             # last version
-            version = 1
-            last_version = self.versions.order_by('-version').first()
-            if last_version:
-                version = last_version.version + 1
+            revision = 1
+            last_revision = self.revisions.order_by('-revision').first()
+            if last_revision:
+                revision = last_revision.revision + 1
 
             # create a new version
-            self.versions.create(definition=json.dumps(json_dict),
-                                 created_by=user,
-                                 modified_by=user,
-                                 spec_version=CURRENT_EXPORT_VERSION,
-                                 version=version)
+            self.revisions.create(definition=json.dumps(json_dict),
+                                  created_by=user,
+                                  modified_by=user,
+                                  spec_version=CURRENT_EXPORT_VERSION,
+                                  revision=revision)
 
-            return dict(status="success", description="Flow Saved", saved_on=datetime_to_str(self.saved_on), revision=version)
+            return dict(status="success", description="Flow Saved",
+                        saved_on=datetime_to_str(self.saved_on), revision=revision)
 
         except Exception as e:
             # note that badness happened
             import logging
             logger = logging.getLogger(__name__)
-            logger.exception(unicode(e), exc_info=True)
+            logger.exception(unicode(e))
             raise e
 
     def __unicode__(self):
@@ -2326,7 +2344,7 @@ class RuleSet(models.Model):
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_WAIT = [TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS]
+    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
@@ -2676,17 +2694,17 @@ class ActionSet(models.Model):
         return "ActionSet: %s" % (self.uuid, )
 
 
-class FlowVersion(SmartModel):
+class FlowRevision(SmartModel):
     """
-    JSON definitions for previous flow versions
+    JSON definitions for previous flow revisions
     """
-    flow = models.ForeignKey(Flow, related_name='versions')
+    flow = models.ForeignKey(Flow, related_name='revisions')
 
     definition = models.TextField(help_text=_("The JSON flow definition"))
 
     spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
 
-    version = models.IntegerField(null=True, help_text=_("Version counter for each definition"))
+    revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
     @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):
@@ -2695,7 +2713,7 @@ class FlowVersion(SmartModel):
 
         from temba.flows import flow_migrations
 
-        while (version < to_version and version < CURRENT_EXPORT_VERSION):
+        while version < to_version and version < CURRENT_EXPORT_VERSION:
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
                 json_flow = migrate_fn(json_flow)
@@ -2712,11 +2730,11 @@ class FlowVersion(SmartModel):
         if self.spec_version <= 6:
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
-                              revision=self.version, uuid=self.flow.uuid)
+                              revision=self.revision, uuid=self.flow.uuid)
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
-            definition = FlowVersion.migrate_definition(definition, self.spec_version, self.flow)
+            definition = FlowRevision.migrate_definition(definition, self.spec_version, self.flow)
 
         return definition
 
@@ -2726,7 +2744,7 @@ class FlowVersion(SmartModel):
                     created_on=datetime_to_str(self.created_on),
                     id=self.pk,
                     version=self.spec_version,
-                    revision=self.version)
+                    revision=self.revision)
 
 
 class FlowRun(models.Model):
@@ -3418,18 +3436,21 @@ class ActionLog(models.Model):
 
 
 class FlowStep(models.Model):
+    """
+    A contact's visit to a node in a flow (rule set or action set)
+    """
     run = models.ForeignKey(FlowRun, related_name='steps')
 
     contact = models.ForeignKey(Contact, related_name='flow_steps')
 
-    step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES,
+    step_type = models.CharField(max_length=1, choices=STEP_TYPE_CHOICES, help_text=_("What type of node was visited"))
 
-                                 help_text=_("What type of node was visited"))
     step_uuid = models.CharField(max_length=36, db_index=True,
                                  help_text=_("The UUID of the ActionSet or RuleSet for this step"))
 
     rule_uuid = models.CharField(max_length=36, null=True,
                                  help_text=_("For uuid of the rule that matched on this ruleset, null on ActionSets"))
+
     rule_category = models.CharField(max_length=36, null=True,
                                      help_text=_("The category label that matched on this ruleset, null on ActionSets"))
 
@@ -3447,12 +3468,8 @@ class FlowStep(models.Model):
     left_on = models.DateTimeField(null=True, db_index=True,
                                    help_text=_("When the user left this step in the flow"))
 
-    messages = models.ManyToManyField(Msg,
-                                      null=True,
-                                      related_name='steps',
+    messages = models.ManyToManyField(Msg, related_name='steps',
                                       help_text=_("Any messages that are associated with this step (either sent or received)"))
-
-
 
     @classmethod
     def from_json(cls, json_obj, flow, run, previous_rule=None):
@@ -3615,7 +3632,6 @@ class FlowStep(models.Model):
         index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
 
 
-
 PENDING = 'P'
 STARTING = 'S'
 COMPLETE = 'C'
@@ -3626,17 +3642,20 @@ FLOW_START_STATUS_CHOICES = ((PENDING, "Pending"),
                              (COMPLETE, "Complete"),
                              (FAILED, "Failed"))
 
+
 class FlowStart(SmartModel):
-    flow = models.ForeignKey(Flow, related_name='starts',
-                             help_text=_("The flow that is being started"))
-    groups = models.ManyToManyField(ContactGroup, null=True, blank=True,
-                                    help_text=_("Groups that will start the flow"))
-    contacts = models.ManyToManyField(Contact, null=True, blank=True,
-                                      help_text=_("Contacts that will start the flow"))
+    flow = models.ForeignKey(Flow, related_name='starts', help_text=_("The flow that is being started"))
+
+    groups = models.ManyToManyField(ContactGroup, help_text=_("Groups that will start the flow"))
+
+    contacts = models.ManyToManyField(Contact, help_text=_("Contacts that will start the flow"))
+
     restart_participants = models.BooleanField(default=True,
                                                help_text=_("Whether to restart any participants already in this flow"))
+
     contact_count = models.IntegerField(default=0,
                                         help_text=_("How many unique contacts were started down the flow"))
+
     status = models.CharField(max_length=1, default='P', choices=FLOW_START_STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
@@ -4484,7 +4503,12 @@ class SetLanguageAction(Action):
         return dict(type=SetLanguageAction.TYPE, lang=self.lang, name=self.name)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
-        run.contact.language = self.lang
+
+        if len(self.lang) != 3:
+            run.contact.language = None
+        else:
+            run.contact.language = self.lang
+
         run.contact.save(update_fields=['language'])
         self.logger(run)
         return []

@@ -246,6 +246,15 @@ class MsgTest(TembaTest):
         self.assertEquals(0, broadcast.msgs.all().count())
         self.assertEquals(SENT, broadcast.status)
 
+    def test_update_contacts(self):
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+
+        # update the contacts using contact ids
+        broadcast.update_contacts([self.joe.id])
+
+        broadcast.refresh_from_db()
+        self.assertEquals(1, broadcast.recipient_count)
+
     def test_outbox(self):
         self.login(self.admin)
 
@@ -571,11 +580,9 @@ class MsgTest(TembaTest):
         response = self.client.post(reverse('msgs.msg_export'), follow=True)
         self.assertContains(response, "already an export in progress")
 
-        # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
+        # perform the export manually, assert how many queries
+        self.assertNumQueries(7, lambda: blocking_export.do_export())
 
-        # request export of all messages
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()
 

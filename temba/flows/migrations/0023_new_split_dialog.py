@@ -2,8 +2,6 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-from temba.flows.models import Flow, FlowVersion
-import json
 
 class Migration(migrations.Migration):
 
