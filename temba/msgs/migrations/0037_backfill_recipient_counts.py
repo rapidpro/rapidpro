@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         for broadcast in Broadcast.objects.filter(recipient_count=0):
             # set to # of msgs
             broadcast.recipient_count = Msg.objects.filter(broadcast=broadcast).count()
-            if recipient_count > 0:
+            if broadcast.recipient_count > 0:
                 broadcast.save()
                 print "Updated %d to %d recipients" % (broadcast.id, broadcast.recipient_count)
 
