@@ -1174,12 +1174,12 @@ class APITest(TembaTest):
         # try to update the language to something longer than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='ENGRISH'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "Ensure this value has at most 3 characters (it has 7).")
+        self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
 
         # try to update the language to something shorter than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='X'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "Ensure this value has at least 3 characters (it has 1).")
+        self.assertResponseError(response, 'language', "Ensure this field has at least 3 characters.")
 
         # now try 'eng' for English
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
@@ -1224,6 +1224,7 @@ class APITest(TembaTest):
         # finally try clearing our language
         response = self.postJSON(url, dict(phone='+250788123456', language=None))
         self.assertEquals(201, response.status_code)
+
         contact = Contact.objects.get()
         self.assertEquals(None, contact.language)
 
@@ -1243,7 +1244,7 @@ class APITest(TembaTest):
 
         # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
-        self.assertResponseError(response, 'groups', "Invalid group name: '  '")
+        self.assertResponseError(response, 'groups', "This field may not be blank.")
 
         # try to post a new group with invalid name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["+People"]))
@@ -1586,8 +1587,7 @@ class APITest(TembaTest):
         # create with invalid label
         response = self.postJSON(url, dict(label='!@#', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'label',
-                                 "Invalid Field label: Field labels can only contain letters, numbers and hypens")
+        self.assertResponseError(response, 'label', "Field can only contain letters, numbers and hypens")
 
         # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))
@@ -1604,7 +1604,7 @@ class APITest(TembaTest):
         # create with invalid key specified
         response = self.postJSON(url, dict(key='name', label='Real Name', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'key', "Field key is invalid or is a reserved name")
+        self.assertResponseError(response, 'key', "Field is invalid or a reserved name")
 
     def test_api_contact_actions(self):
         url = reverse('api.contact_actions')
