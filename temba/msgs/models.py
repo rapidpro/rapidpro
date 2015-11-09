@@ -229,6 +229,9 @@ class Broadcast(models.Model):
             bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
             RelatedModel.objects.bulk_create(bulk_contacts)
 
+        self.recipient_count = len(contact_ids)
+        self.save(update_fields=('recipient_count',))
+
     def update_recipients(self, recipients):
         """
         Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a

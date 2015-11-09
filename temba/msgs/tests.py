@@ -246,6 +246,15 @@ class MsgTest(TembaTest):
         self.assertEquals(0, broadcast.msgs.all().count())
         self.assertEquals(SENT, broadcast.status)
 
+    def test_update_contacts(self):
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+
+        # update the contacts using contact ids
+        broadcast.update_contacts([self.joe.id])
+
+        broadcast.refresh_from_db()
+        self.assertEquals(1, broadcast.recipient_count)
+
     def test_outbox(self):
         self.login(self.admin)
 

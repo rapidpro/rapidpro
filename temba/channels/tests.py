@@ -26,10 +26,10 @@ from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, Call, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
@@ -2268,6 +2268,7 @@ class AfricasTalkingTest(TembaTest):
         finally:
             settings.SEND_MESSAGES = False
 
+
 class ExternalTest(TembaTest):
 
     def test_status(self):
@@ -2345,6 +2346,25 @@ class ExternalTest(TembaTest):
         sms = Msg.objects.get()
         self.assertEquals(2012, sms.created_on.year)
         self.assertEquals(18, sms.created_on.hour)
+
+    def test_receive_external(self):
+        self.channel.channel_type = 'EX'
+        self.channel.scheme = 'ext'
+        self.channel.save()
+
+        data = {'from': 'lynch24', 'text': 'Beast Mode!'}
+        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(200, response.status_code)
+
+        # check our message
+        msg = Msg.objects.get()
+        self.assertEquals('lynch24', msg.contact.get_urn(EXTERNAL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals('Beast Mode!', msg.text)
 
     def test_send(self):
         from temba.channels.models import EXTERNAL

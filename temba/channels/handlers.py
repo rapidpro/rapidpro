@@ -342,7 +342,7 @@ class ExternalHandler(View):
             if date:
                 date = json_date_to_datetime(date)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text, date=date)
+            sms = Msg.create_incoming(channel, (channel.scheme, sender), text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
