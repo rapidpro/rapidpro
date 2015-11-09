@@ -204,6 +204,9 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
+    sent_to = models.ManyToManyField(Contact, verbose_name=_("Sent to"), related_name="sent",
+                                     help_text=_("The contacts this broadcast was sent to"))
+
     purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
 
     @classmethod
@@ -221,7 +224,7 @@ class Broadcast(models.Model):
         """
         self.msgs.all().delete()
         self.purged = True
-        self.save()
+        self.save(update_fields=['purged'])
 
     def update_contacts(self, contact_ids):
         """
@@ -239,6 +242,9 @@ class Broadcast(models.Model):
         for chunk in chunk_list(contact_ids, 1000):
             bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
             RelatedModel.objects.bulk_create(bulk_contacts)
+
+        self.recipient_count = len(contact_ids)
+        self.save(update_fields=('recipient_count',))
 
     def update_recipients(self, recipients):
         """

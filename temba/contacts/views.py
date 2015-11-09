@@ -567,15 +567,18 @@ class ContactCRUDL(SmartCRUDL):
                 raise Http404("No active contact with that id")
 
             def contact_cmp(a, b):
-                if a.__class__ == b.__class__:
-                    return a.pk - b.pk
+                if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
+                    a.created_on = a.fired
+
+                if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
+                    b.created_on = b.fired
+
+                if a.created_on == b.created_on:
+                    return 0
+                elif a.created_on < b.created_on:
+                    return -1
                 else:
-                    if a.created_on == b.created_on:
-                        return 0
-                    elif a.created_on < b.created_on:
-                        return -1
-                    else:
-                        return 1
+                    return 1
 
             # divide contact's URNs into those we can send to, and those we can't
             sendable_schemes = contact.org.get_schemes(SEND)
@@ -587,18 +590,54 @@ class ContactCRUDL(SmartCRUDL):
                 else:
                     unsendable_urns.append(urn)
 
-            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on', '-id')
+            from django.db.models import Q
+
+
+            # TODO: this is expensive
+            #broadcasts = Broadcast.objects.filter(Q(contacts__in=[contact])| Q(groups__in=contact.all_groups.all())).order_by('-created_on', '-id')
+            #broadcasts = Broadcast.objects.filter(contacts__in=[contact]).filter(Q(recipient_count__gt=1)|Q(purged=True)).order_by('-created_on', '-id')
+            broadcasts = Broadcast.objects.filter(contacts__in=[contact]).filter(purged=True).order_by('-created_on', '-id')
+            # broadcasts = []
+
+            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).exclude(broadcast__in=broadcasts).order_by('-created_on', '-id')
             call_messages = Call.objects.filter(contact=contact.id).order_by('-created_on', '-id')
-            all_messages = chain(text_messages, call_messages)
-            all_messages = sorted(all_messages, cmp=contact_cmp, reverse=True)
+
+            from temba.flows.models import FlowRun, Flow
+            from temba.campaigns.models import EventFire
+
+            runs = FlowRun.objects.filter(contact=contact).exclude(flow__flow_type=Flow.MESSAGE)
+            fired = EventFire.objects.filter(contact=contact).exclude(fired=None)
+
+
+            activity = chain(text_messages, call_messages, broadcasts, runs, fired)
+            activity = sorted(activity, cmp=contact_cmp, reverse=True)
+
 
             context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
-            context['all_messages'] = all_messages
+            context['activity'] = activity
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
-            context['contact_fields'] = ContactField.objects.filter(org=contact.org, is_active=True).order_by('pk')
+
+            from temba.flows.models import FlowRun
+
+            fields_featured = ContactField.objects.filter(org=contact.org, is_active=True, show_in_table=True).order_by('label', 'pk')
+            fields_featured = [ dict(label=f.label, value=contact.get_field_display(f.key)) for f in fields_featured if contact.get_field_display(f.key) ]
+
+            fields_other = ContactField.objects.filter(org=contact.org, is_active=True, show_in_table=False).order_by('label', 'pk')
+            fields_other = [ dict(label=f.label, value=contact.get_field_display(f.key)) for f in fields_other if contact.get_field_display(f.key) ]
+
+            context['fields_featured'] = fields_featured
+            context['fields_other'] = fields_other
+
             context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
-            context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
+            upcoming_events = contact.fire_events.filter(scheduled__gte=timezone.now() - timedelta(days=75)).order_by('scheduled')[:3]
+
+            context['upcoming_events'] = reversed(upcoming_events)
+            context['show_upcoming'] = len(upcoming_events)
+
+            from django.db import connection
+            for query in connection.queries:
+                print "%s: %s" % (query['time'], query['sql'][0:150])
             return context
 
         def post(self, request, *args, **kwargs):

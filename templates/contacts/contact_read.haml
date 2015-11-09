@@ -1,7 +1,7 @@
 -extends "smartmin/read.html" 
 
 -load smartmin sms contacts compress temba channels
--load i18n
+-load i18n humanize
 
 -block buttons
 
@@ -50,96 +50,163 @@
 -block read-buttons
 
 -block content
+
+  -if fields_featured or fields_other
+    .contact-fields{class:'{% if fields_other %}clickable{%endif%}'}
+      -for field in fields_featured
+        --if field.value
+          .contact-field
+            .contact-field-label
+              {{field.label|title}}
+            .contact-field-value
+              {{field.value}}
+
+
+      -if fields_other
+        %span.other-fields{class:'{% if fields_featured%}hide{%endif%}'}
+          -for field in fields_other
+            --if field.value
+              .contact-field
+                .contact-field-label
+                  {{field.label|title}}
+                .contact-field-value
+                  {{field.value}}
+
   #pjax
+
     -block pjax
 
-      .row
-        .span9
-          -for msg in all_messages
-            .message.span9{class:'type-{{msg.msg_type}}'}
-              .avatar{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%}'}
-                -if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss"
-                  .glyph.icon-user
+      :javascript
+
+        function updateEventVisibility(animate) {
+          if (window.all_events) {
+            if (animate) {
+              $('.history .non-msg').fadeIn({duration: 800});
+            } else {
+              $('.history .non-msg').show();
+            }
+            $('.show-events').text('Show Messages Only');
+          } else {
+            $('.history .non-msg').hide();
+            $('.show-events').text('Show All Events');
+          }
+        }
+
+        function toggleEventVisibility(animate) {
+          if (window.all_events) {
+            window.all_events = false;
+          } else {
+            window.all_events = true;
+          }
+          updateEventVisibility(animate);
+        }
+
+        updateEventVisibility(false);
+
+
+
+      -if show_upcoming
+        .header
+          Upcoming
+        %table.activity.pending
+          -for evt in upcoming_events
+            %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
+              %td.created_on
+                {{evt.scheduled}}
+              %td.icon
+                -if evt.event.event_type == 'M'
+                  %span.glyph.icon-bubble-right
+                -elif evt.event.event_type == 'F'
+                  %span.glyph.icon-tree-2
                 -else
-                  -if msg.direction == 'O' and msg.channel
-                    %a{href:'{% url "channels.channel_read" msg.channel.get_parent_channel.pk %}'}
-                      .glyph{class:'{{ msg.channel|channel_icon}}', title:'From: {{ msg.channel.get_address_display }}'}
-                  -elif msg.direction == 'O'
-                    %a{href:'#'}
-                      .glyph{class:'icon-circle-2', title:'No channel'}
+                  %span.glyph.icon-clock
 
-              .text{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%} {% if msg.visibility == "A" %}A{%endif%}'}
+              %td.details
 
-                -if msg.text != msg.recording_url
-                  {{msg.text}}
-                -elif msg.recording_url
-                  -trans "Recorded message from the contact"
-                -if msg.call_type == 'mo_call'
-                  -blocktrans with duration=msg.duration
-                    Incoming Call ({{duration}} seconds)
-                -if msg.call_type == 'mo_miss'
-                  -trans "Missed Incoming Call"
-                -if msg.call_type == 'mt_call'
-                  -blocktrans with duration=msg.duration                  
-                    Outgoing Call ({{duration}} seconds)
-                -if msg.call_type == 'mt_miss'
-                  -trans "Missed Outgoing Call"
+                .activity-scheduled
 
-                -if msg.get_flow_id
-                  .msg-flow
-                    %span.label.label-success
-                      %a{href:'{% url "flows.flow_editor" msg.get_flow_id %}'}
-                        {{ msg.get_flow_name }}
-
-                .sent-at{title:'{{ msg.created_on }}'}
-                  -if msg.recording_url
-                    .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
-                      %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
-                      .play
-                        .icon-phone
-                        .text
-                          -trans "Listen"
-                      .stop.hide
-                        .stop-icon
-                        .text
-                          -trans "Stop"
-                  -else
-                    {{ msg|as_icon }}
-
-                  {{ msg.created_on|gmail_time }}
-                  -if msg.visibility == 'A'
-                    (Archived)
-
-            .clearfix
-        .span3
-          .contact_fields
-            -if contact_fields
-              .contact_fields_title
-                -trans "Contact Fields"
-            -for field in contact_fields
-              .contact_field
-                .contact_field_label
-                  {{field.label|title}}
-                .contact_field_value
-                  {{ object|contact_field:field.key }}
-              .clearfix
-
-          .contact_fields
-            -if contact_fields
-              .contact_fields_title
-                -trans "Scheduled Messages"
-
-              -for evt in upcoming_events
-                .upcoming_event
-                  .upcoming_event_label
-                    {{evt.scheduled}}
-                  .upcoming_event_value
-                    -if evt.event.event_type == 'M'
+                  -if evt.event.event_type == 'M'
+                    //.summary
+                    //  Scheduled {{evt.event.campaign}} message
+                    .activity-body
                       {{evt.event.message}}
-                    -elif evt.event.event_type == 'F'
-                      %a.href{ href: "{% url 'campaigns.campaignevent_read' evt.event.pk %}" }= evt.event.flow.name
-                      flow
-                .clearfix
+                  -elif evt.event.event_type == 'F'
+                    Start
+                    %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
+
+      .pull-right
+        %a.show-events.btn.btn-secondary.btn-mini
+          Show All Events
+
+      .header
+        Message History
+      %table.activity.history
+        -for item in activity
+          %tr.item{class:'{% if item.direction or item.recipient_count%}msg{%else%}non-msg hide{%endif%}'}
+            %td.created_on
+              {{item.created_on}}
+
+            %td.icon
+              {{item|activity_icon}}
+            %td.details
+              -if item.recipient_count
+                -with item as broadcast
+                  .activity-broadcast
+                    .sent-to
+                      .summary
+                        Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+
+                    .activity-body
+                      {{broadcast.text}}
+              -elif item.flow
+                -with item as run
+                  .activity-run
+                    .activity-body
+                      .summary
+
+                      Started
+                      %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
+                        {{run.flow.name}}
+              -elif item.fired
+                -with item as eventfire
+                  %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
+                    {{eventfire.event.campaign.name}}
+
+                  &nbsp;triggered
+
+                  %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
+                    {{eventfire.event|event_time}}
+
+
+              -else
+                -with item as message
+                  .activity-message
+                    -if message.direction == 'O'
+
+                      -if message.broadcast.recipient_count > 1
+                        .sent-to
+                          .summary
+                            Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
+
+
+                      .summary
+
+                        -with message.get_flow_id as flow_id
+                          -if flow_id
+                            //Message from
+                            //%a{href:'{% url "flows.flow_editor" flow_id %}'}
+                            //  {{message.get_flow_name}}
+
+                      .activity-body
+                        .outbound
+                          {{message.text}}
+                    -else
+                      .activity-body
+                        .inbound
+                          {{message.text}}
+
+
+
 
 -block post-content
   -include "msgs/msg_send_modal.haml"
@@ -167,6 +234,151 @@
   -compress css
     {% lessblock %}
       :plain
+        .header {
+          padding: 8px;
+          font-size:14px;
+          border-bottom: 1px solid #d9d9d9;
+          margin-top: 10px;
+        }
+
+        table.activity {
+
+          width: 100%;
+
+          margin-bottom: 20px;
+          border-collapse: collapse;
+
+          &.pending {
+
+            color: #ddd;
+
+            tr.non-msg {
+              background: inherit;
+            }
+
+            .icon {
+              width: 25px;
+              .glyph.icon-bubble-right, .glyph.icon-tree-2 {
+                color: #ddd;
+              }
+            }
+
+            a {
+              color: #ddd;
+            }
+          }
+
+          tr {
+            border-top: 1px solid #f3f3f3;
+            border-bottom: 1px solid #f3f3f3;
+            width: 100%;
+
+          }
+
+          tr.non-msg {
+            background: #fafafa;
+          }
+
+          td {
+            vertical-align:middle;
+            padding: 2px 20px;
+
+            &.icon {
+              padding: 2px 0px;
+            }
+
+            &.details {
+
+            }
+          }
+
+
+
+          border: 0px solid;
+
+          .created_on {
+            width: 170px;
+            font-size:13px;
+            line-height:13px;
+            border: 0px solid;
+          }
+
+          .icon {
+            border: 0px solid;
+            .glyph {
+              margin-top:16px;
+              font-size:14px;
+              line-height:0;
+              color: @flat-darkwhite;
+              padding: 5px;
+
+              &.icon-bubble-right {
+                color: @color-status-green;
+              }
+
+              &.icon-bubble-left {
+                color: @color-status-blue;
+              }
+
+              &.icon-bullhorn {
+                color: @color-status-green;
+              }
+            }
+          }
+
+          .details {
+            border: 0px solid;
+            padding: 14px;
+
+            .summary {
+              font-size:11px;
+              font-weight:500;
+              line-height:10px;
+              color: @flat-grey;
+            }
+
+            .inbound {
+              //border: 1px solid #e1e1e1;
+              // .rounded-corners();
+              //background: #fafafa;
+              //padding: 8px;
+            }
+
+            .contact-count {
+              padding-left:5px;
+              font-weight:normal;
+            }
+          }
+        }
+
+
+        .message-history {
+          .broadcast {
+            .rounded-corners();
+            border: solid 1px #f3f3f3;
+
+            padding:15px;
+            margin-bottom:5px;
+
+            .icon-megaphone {
+              float:left;
+              font-size:30px;
+              color: @color-status-green;
+            }
+
+            .sent-to {
+              margin-left:50px;
+              font-size: 12px;
+              font-weight: 400;
+              color: #c1c1c1;
+              line-height:9px;
+            }
+            .message-body {
+              margin-left:50px;
+            }
+          }
+        }
+
         .contact-urn {
           display: inline-block;
           margin-right: 10px;
@@ -257,47 +469,42 @@
           }
         }
 
-        .contact_fields {
+
+        .contact-fields {
           font-size: 14px;
           color: @color-font-grey;
+          .rounded-corners();
+          border: 1px solid #f1f1f1;
+          margin-bottom:15px;
 
-          .contact_fields_title {
-            padding: 10px 40px;
-            font-weight: 400;
-            font-size: 18px;
+
+          &.clickable:hover {
+            background: #f1f1f1;
+            cursor:pointer;
           }
 
-          .upcoming_event {
-            padding: 10px 5px 10px 60px;
+          .show-more {
+            padding: 10px;
+            display:block;
+          }
 
-            .upcoming_event_label {
+          .contact-field {
+            display:inline-block;
+            width:208px;
+            // border: 1px solid red;
+            padding: 10px;
+
+            .contact-field-label {
               font-weight: 400;
               color: @color-font-black;
             }
 
-            .upcoming_event_value {
-              font-weight: 200;
-              color: @color-font-grey;
-              font-size: 14px;
-            }
-
-          }
-
-          .contact_field,  {
-            padding: 10px 60px;
-
-            .contact_field_label {
-              font-weight: 400;
-              color: @color-font-black;
-            }
-
-            .contact_field_value {
+            .contact-field-value {
               font-weight: 200;
               color: @color-font-grey;
             }
 
           }
-
         }
 
         .message {
@@ -384,6 +591,26 @@
   {{ block.super }}
 
   :javascript
+
+    $(document).ready(function() {
+      if ($('.non-msg').size() == 0) {
+        $('.show-events').hide()
+      } else {
+
+        $('.show-events').live('click', function() {
+          toggleEventVisibility(true);
+        });
+      }
+
+      $('.contact-fields').live('click', function() {
+      if ($('.other-fields').is(':visible')) {
+        $('.other-fields').hide();
+      } else {
+        $('.other-fields').show();
+      }
+    })});
+
+
     function playMessage (messageId) {
       var audio = $('audio#message-' + messageId)
       var parent = audio.parent();

@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
 
 from django import template
+from django.utils.safestring import mark_safe
 from temba.contacts.models import Contact, ContactURN, FACEBOOK_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, URN_ANON_MASK
+from django.utils.translation import ugettext_lazy as _
 
 register = template.Library()
 
@@ -10,13 +12,23 @@ URN_SCHEME_ICONS = {TEL_SCHEME: 'icon-mobile-2',
                     TWILIO_SCHEME: 'icon-twilio_original',
                     FACEBOOK_SCHEME: 'icon-facebook'}
 
+ACTIVITY_ICONS = {
+    'EventFire': 'icon-clock',
+    'FlowRun': 'icon-tree-2',
+    'Broadcast': 'icon-bullhorn',
+    'Incoming': 'icon-bubble-left',
+    'Outgoing': 'icon-bubble-right'
+}
+
+
+
 @register.filter
 def contact_field(contact, arg):
     value = contact.get_field_display(arg)
     if value:
         return value
     else:
-        return '--'
+        return None
 
 @register.filter
 def tel(contact, org):
@@ -44,3 +56,44 @@ def format_urn(urn_or_contact, org):
 @register.filter
 def urn_icon(urn):
     return URN_SCHEME_ICONS.get(urn.scheme, '')
+
+
+@register.filter
+def activity_icon(item):
+    name = type(item).__name__
+    if name == 'Msg':
+        if item.broadcast and item.broadcast.recipient_count > 1:
+            name = 'Broadcast'
+        elif item.direction == 'I':
+            name = 'Incoming'
+        else:
+            name = 'Outgoing'
+
+
+    return mark_safe('<span class="glyph %s"></span>' % ACTIVITY_ICONS.get(name, ''))
+
+@register.filter
+def event_time(event):
+
+    unit = event.unit
+    if abs(event.offset) == 1:
+        if event.unit == 'D':
+            unit = _('day')
+        elif event.unit == 'M':
+            unit = _('minute')
+        elif event.unit == 'H':
+            unit = _('hour')
+    else:
+        if event.unit == 'D':
+            unit = _('days')
+        elif event.unit == 'M':
+            unit = _('minutes')
+        elif event.unit == 'H':
+            unit = _('hours')
+
+    direction = 'after'
+    if event.offset < 0:
+        direction = 'before'
+
+    return "%d %s %s %s" % (abs(event.offset), unit, direction, event.relative_to.label)
+

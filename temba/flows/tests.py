@@ -4113,7 +4113,7 @@ class DataRetentionTest(FlowFileTest):
         for i in range(0, count):
             contacts.append(self.create_contact('Contact %d' % i, number=unicode(i)))
 
-        runs = flow.start_msg_flow(contacts)
+        runs = flow.start_msg_flow(Contact.objects.filter(pk__in=[c.pk for c in contacts]))
 
         # one broadcast for all messages
         self.assertEquals(1, Broadcast.objects.all().count())

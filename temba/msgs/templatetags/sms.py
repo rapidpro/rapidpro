@@ -19,10 +19,13 @@ def as_icon(contact_event):
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
 
+
     if hasattr(contact_event, 'status'):
         status = contact_event.status
-    else:
+    elif hasattr(contact_event, 'call_type'):
         status = contact_event.call_type
+    else:
+        status = None
 
     if msg_type == 'V':
         icon = 'icon-phone'

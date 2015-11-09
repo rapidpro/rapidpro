@@ -22,7 +22,7 @@
     :javascript
 
       function conditionalLoad(local, remote) {
-        if (local != null && (window.location.hostname == "localhost" || remote == null)) {
+        if (true || local != null && (window.location.hostname == "localhost" || remote == null)) {
           loadResource("{{ STATIC_URL }}" + local);
         } else if (remote != null) {
           loadResource(remote);
