@@ -29,11 +29,12 @@ from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, 
 from temba.values.models import Value
 from ..models import ApiPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
-from .serializers import CallSerializer, CampaignSerializer
-from .serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
+from .serializers import CallSerializer, CampaignReadSerializer, CampaignWriteSerializer
+from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
 from .serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
-from .serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowDefinitionWriteSerializer
+from .serializers import FlowReadSerializer, FlowWriteSerializer
+from .serializers import FlowRunReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer
 from .serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from .serializers import LabelReadSerializer, LabelWriteSerializer
 from .serializers import ChannelClaimSerializer, ChannelReadSerializer
@@ -2187,7 +2188,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     permission = 'campaigns.campaign_api'
     model = Campaign
-    serializer_class = CampaignSerializer
+    serializer_class = CampaignReadSerializer
     write_serializer_class = CampaignWriteSerializer
 
     def get_queryset(self):
@@ -2344,7 +2345,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     """
     permission = 'campaigns.campaignevent_api'
     model = CampaignEvent
-    serializer_class = CampaignEventSerializer
+    serializer_class = CampaignEventReadSerializer
     write_serializer_class = CampaignEventWriteSerializer
 
     def destroy(self, request, *args, **kwargs):
@@ -2696,7 +2697,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     """
     permission = 'flows.flow_api'
     model = Flow
-    write_serializer_class = FlowDefinitionWriteSerializer
+    write_serializer_class = FlowWriteSerializer
 
     def get(self, request, *args, **kwargs):
 

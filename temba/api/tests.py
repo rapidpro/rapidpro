@@ -28,7 +28,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value, DATETIME
 from urlparse import parse_qs
 from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
-from .v1.serializers import StringArrayField, PhoneArrayField, ChannelField, FlowField
+from .v1.serializers import StringArrayField, PhoneArrayField, ChannelField
 
 
 class APITest(TembaTest):
@@ -223,14 +223,6 @@ class APITest(TembaTest):
         self.assertEqual(phones_field.to_internal_value('123'), [('tel', '123')])  # convert single string to array
         self.assertRaises(ValidationError, phones_field.to_internal_value, {})  # must be a list
         self.assertRaises(ValidationError, phones_field.to_internal_value, ['123'] * 101)  # 100 items max
-
-        flow_field = FlowField(source='test')
-
-        flow = self.create_flow()
-        self.assertEqual(flow_field.to_internal_value(flow.pk), flow)
-        flow.is_active = False
-        flow.save()
-        self.assertRaises(ValidationError, flow_field.to_internal_value, flow.pk)
 
         channel_field = ChannelField(source='test')
 
@@ -686,13 +678,13 @@ class APITest(TembaTest):
             data['revision'] = 3
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
-            self.assertEquals("No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'", response.json['steps'][0])
+            self.assertResponseError(response, 'non_field_errors', "No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'")
 
             # this version doesn't exist
             data['revision'] = 12
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
-            self.assertEquals('Invalid revision: 12', response.json['steps'][0])
+            self.assertResponseError(response, 'non_field_errors', "Invalid revision: 12")
 
             # this one exists and has our node
             data['revision'] = 2
@@ -1648,7 +1640,7 @@ class APITest(TembaTest):
 
         # error reporting that the deleted and test contacts are invalid
         self.assertResponseError(response, 'contacts',
-                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+                                 "Some UUIDs are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
 
         # try adding a blocked contact to a group
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
@@ -1685,15 +1677,17 @@ class APITest(TembaTest):
         # try to add to group without specifying a group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add'))
         self.assertResponseError(response, 'non_field_errors', "For action add you should also specify group or group_uuid")
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group=''))
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add'))
         self.assertResponseError(response, 'non_field_errors', "For action add you should also specify group or group_uuid")
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group=''))
+        self.assertResponseError(response, 'group', "This field may not be blank.")
 
         # try to block all contacts
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
                                                      contact5.uuid, test_contact.uuid],
                                            action='block'))
         self.assertResponseError(response, 'contacts',
-                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+                                 "Some UUIDs are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
 
         # block all valid contacts
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
@@ -2245,7 +2239,6 @@ class APITest(TembaTest):
         self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
         self.assertEqual(200, client.get(reverse('api.contactfields') + '.json').status_code)
         self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
-
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
