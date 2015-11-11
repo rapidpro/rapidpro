@@ -253,7 +253,6 @@ class BaseAPIView(generics.GenericAPIView):
     """
     permission_classes = (SSLPermission, ApiPermission)
 
-    # TODO
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
