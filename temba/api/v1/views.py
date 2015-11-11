@@ -254,6 +254,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     permission_classes = (SSLPermission, ApiPermission)
 
+    # TODO
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
@@ -295,7 +296,7 @@ class ListAPIMixin(mixins.ListModelMixin):
 
     paginator_class = FixedCountPaginator
 
-    def paginate_queryset(self, queryset, page_size=None):
+    def paginate_queryset(self, queryset):
         if self.cache_counts:
             # total counts can be expensive so we let some views cache counts based on the query parameters
             query_params = self.request.query_params.copy()

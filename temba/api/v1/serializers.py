@@ -133,13 +133,13 @@ class WriteSerializer(serializers.Serializer):
     The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
     new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
     """
-    instance = None
-
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
         self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
 
         super(WriteSerializer, self).__init__(*args, **kwargs)
+
+        self.instance = None
 
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
@@ -207,7 +207,9 @@ class MsgBulkActionSerializer(WriteSerializer):
     label = serializers.CharField(required=False)
     label_uuid = serializers.CharField(required=False)
 
-    label_obj = None
+    def __init__(self, *args, **kwargs):
+        super(MsgBulkActionSerializer, self).__init__(*args, **kwargs)
+        self.label_obj = None
 
     def validate_action(self, value):
         if value not in ('label', 'unlabel', 'archive', 'unarchive', 'delete'):
@@ -382,8 +384,10 @@ class ContactWriteSerializer(WriteSerializer):
     phone = serializers.CharField(required=False, max_length=16)  # deprecated, use urns
     groups = StringArrayField(required=False)  # deprecated, use group_uuids
 
-    urn_tuples = None
-    group_objs = None
+    def __init__(self, *args, **kwargs):
+        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
+        self.urn_tuples = None
+        self.group_objs = None
 
     def validate_uuid(self, value):
         if value:
@@ -550,7 +554,9 @@ class ContactBulkActionSerializer(WriteSerializer):
     group = serializers.CharField(required=False)
     group_uuid = serializers.CharField(required=False)
 
-    group_obj = None
+    def __init__(self, *args, **kwargs):
+        super(ContactBulkActionSerializer, self).__init__(*args, **kwargs)
+        self.group_obj = None
 
     def validate_contacts(self, value):
         if len(value) > MAX_BULK_ACTION_ITEMS:
@@ -729,8 +735,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
     campaign = serializers.IntegerField(required=False)  # deprecated, use campaign_uuid
     flow = serializers.IntegerField(required=False)  # deprecated, use flow_uuid
 
-    campaign_obj = None
-    flow_obj = None
+    def __init__(self, *args, **kwargs):
+        super(CampaignEventWriteSerializer, self).__init__(*args, **kwargs)
+        self.campaign_obj = None
+        self.flow_obj = None
 
     def validate_event(self, value):
         if value:
@@ -879,7 +887,9 @@ class CampaignWriteSerializer(WriteSerializer):
     campaign = serializers.IntegerField(required=False)  # deprecated, use uuid
     group = serializers.CharField(required=False, max_length=64)  # deprecated, use group_uuid
 
-    group_obj = None
+    def __init__(self, *args, **kwargs):
+        super(CampaignWriteSerializer, self).__init__(*args, **kwargs)
+        self.group_obj = None
 
     def validate_uuid(self, value):
         if value:
@@ -1131,8 +1141,10 @@ class FlowRunWriteSerializer(WriteSerializer):
     revision = serializers.IntegerField(required=False)  # for backwards compatibility
     version = serializers.IntegerField(required=False)  # for backwards compatibility
 
-    contact_obj = None
-    flow_obj = None
+    def __init__(self, *args, **kwargs):
+        super(FlowRunWriteSerializer, self).__init__(*args, **kwargs)
+        self.contact_obj = None
+        self.flow_obj = None
 
     def validate_flow(self, value):
         if value:
@@ -1245,9 +1257,11 @@ class FlowRunStartSerializer(WriteSerializer):
     contact = StringArrayField(required=False)  # deprecated, use contacts
     phone = PhoneArrayField(required=False)  # deprecated
 
-    flow_obj = None
-    group_objs = []
-    contact_objs = []
+    def __init__(self, *args, **kwargs):
+        super(FlowRunStartSerializer, self).__init__(*args, **kwargs)
+        self.flow_obj = None
+        self.group_objs = []
+        self.contact_objs = []
 
     def validate_flow(self, value):
         if value:
