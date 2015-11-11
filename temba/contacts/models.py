@@ -186,10 +186,11 @@ class Contact(TembaModel, SmartModel):
     FIRST_NAME = 'first_name'
     LANGUAGE = 'language'
     PHONE = 'phone'
+    UUID = 'uuid'
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', 'uuid', 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
+                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -1630,7 +1631,8 @@ class ExportContactsTask(SmartModel):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+                  dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
         active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
 
@@ -1697,6 +1699,8 @@ class ExportContactsTask(SmartModel):
 
                         if field['key'] == Contact.NAME:
                             field_value = contact.name
+                        elif field['key'] == Contact.UUID:
+                            field_value = contact.uuid
                         elif field['urn_scheme'] is not None:
                             contact_urns = contact.get_urns()
                             scheme_urns = []

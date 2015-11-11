@@ -2085,7 +2085,7 @@ class ContactFieldTest(TembaTest):
         flow.start([], [contact])
 
         # create another contact, this should sort before Ben
-        self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
+        contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
 
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
@@ -2109,29 +2109,32 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers
-            self.assertEqual('Name', sheet.cell(0, 0).value)
-            self.assertEqual('Phone', sheet.cell(0, 1).value)
-            self.assertEqual('Twitter handle', sheet.cell(0, 2).value)
-            self.assertEqual('First', sheet.cell(0, 3).value)
-            self.assertEqual('Second', sheet.cell(0, 4).value)
-            self.assertEqual('Third', sheet.cell(0, 5).value)
+            self.assertEqual('Contact UUID', sheet.cell(0, 0).value)
+            self.assertEqual('Name', sheet.cell(0, 1).value)
+            self.assertEqual('Phone', sheet.cell(0, 2).value)
+            self.assertEqual('Twitter handle', sheet.cell(0, 3).value)
+            self.assertEqual('First', sheet.cell(0, 4).value)
+            self.assertEqual('Second', sheet.cell(0, 5).value)
+            self.assertEqual('Third', sheet.cell(0, 6).value)
 
             # first row should be adam
-            self.assertEquals('Adam Sumner', sheet.cell(1, 0).value)
-            self.assertEquals('+12067799191', sheet.cell(1, 1).value)
-            self.assertEquals('adam', sheet.cell(1, 2).value)
-            self.assertFalse(sheet.cell(1,3).value)
+            self.assertEquals(contact2.uuid, sheet.cell(1, 0).value)
+            self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
+            self.assertEquals('+12067799191', sheet.cell(1, 2).value)
+            self.assertEquals('adam', sheet.cell(1, 3).value)
+            self.assertFalse(sheet.cell(1, 4).value)
 
             # second should be ben
-            self.assertEquals('Ben Haggerty', sheet.cell(2, 0).value)
-            self.assertEqual('+12067799294', sheet.cell(2, 1).value)
-            self.assertEqual("One", sheet.cell(2, 3).value)
+            self.assertEquals(contact.uuid, sheet.cell(2, 0).value)
+            self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
+            self.assertEqual('+12067799294', sheet.cell(2, 2).value)
+            self.assertEqual("One", sheet.cell(2, 4).value)
 
             self.assertEqual(sheet.nrows, 3)  # no other contacts
 
         # more contacts do not increase the queries
-        self.create_contact('Luol Deng', '+120788776655', twitter='deng')
-        self.create_contact('Stephen', '+120788778899', twitter='stephen')
+        contact3 = self.create_contact('Luol Deng', '+120788776655', twitter='deng')
+        contact4 = self.create_contact('Stephen', '+120788778899', twitter='stephen')
         ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
 
         with self.assertNumQueries(32):
@@ -2143,29 +2146,36 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers have Twitter
-            self.assertEqual('Name', sheet.cell(0, 0).value)
-            self.assertEqual('Phone', sheet.cell(0, 1).value)
+            self.assertEqual('Contact UUID', sheet.cell(0, 0).value)
+            self.assertEqual('Name', sheet.cell(0, 1).value)
             self.assertEqual('Phone', sheet.cell(0, 2).value)
-            self.assertEqual('Twitter handle', sheet.cell(0, 3).value)
-            self.assertEqual('First', sheet.cell(0, 4).value)
-            self.assertEqual('Second', sheet.cell(0, 5).value)
-            self.assertEqual('Third', sheet.cell(0, 6).value)
+            self.assertEqual('Phone', sheet.cell(0, 3).value)
+            self.assertEqual('Twitter handle', sheet.cell(0, 4).value)
+            self.assertEqual('First', sheet.cell(0, 5).value)
+            self.assertEqual('Second', sheet.cell(0, 6).value)
+            self.assertEqual('Third', sheet.cell(0, 7).value)
 
             # first row should be adam
-            self.assertEquals('Adam Sumner', sheet.cell(1, 0).value)
-            self.assertEquals('+12067799191', sheet.cell(1, 1).value)
-            self.assertFalse(sheet.cell(1,2).value)
-            self.assertEquals('adam', sheet.cell(1, 3).value)
-            self.assertFalse(sheet.cell(1,4).value)
+            self.assertEquals(contact2.uuid, sheet.cell(1, 0).value)
+            self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
+            self.assertEquals('+12067799191', sheet.cell(1, 2).value)
+            self.assertFalse(sheet.cell(1, 3).value)
+            self.assertEquals('adam', sheet.cell(1, 4).value)
+            self.assertFalse(sheet.cell(1, 5).value)
 
             # second should be ben
-            self.assertEquals('Ben Haggerty', sheet.cell(2, 0).value)
-            self.assertEqual('+12067799294', sheet.cell(2, 1).value)
-            self.assertEqual('+12062233445', sheet.cell(2, 2).value)
-            self.assertFalse(sheet.cell(2,3).value)
-            self.assertEqual("One", sheet.cell(2, 4).value)
+            self.assertEquals(contact.uuid, sheet.cell(2, 0).value)
+            self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
+            self.assertEqual('+12067799294', sheet.cell(2, 2).value)
+            self.assertEqual('+12062233445', sheet.cell(2, 3).value)
+            self.assertFalse(sheet.cell(2, 4).value)
+            self.assertEqual("One", sheet.cell(2, 5).value)
 
-            self.assertEquals('Luol Deng', sheet.cell(3, 0).value)
+            self.assertEquals(contact3.uuid, sheet.cell(3, 0).value)
+            self.assertEquals('Luol Deng', sheet.cell(3, 1).value)
+
+            self.assertEquals(contact4.uuid, sheet.cell(4, 0).value)
+
             self.assertEqual(sheet.nrows, 5)  # no other contacts
 
     def test_manage_fields(self):
