@@ -6,11 +6,10 @@ import urllib
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.core.paginator import Paginator
 from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import generics, mixins, status
+from rest_framework import generics, mixins, status, pagination
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -264,6 +263,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
+    pagination_class = pagination.PageNumberPagination
     cache_counts = False
 
     def get(self, request, *args, **kwargs):
@@ -275,26 +275,6 @@ class ListAPIMixin(mixins.ListModelMixin):
             return Response([])
         else:
             return super(ListAPIMixin, self).list(request, *args, **kwargs)
-
-    class FixedCountPaginator(Paginator):
-        """
-        Paginator class which looks for fixed count stored as an attribute on the queryset, and uses that as it's total
-        count value if it exists, rather than calling count() on the queryset that may require an expensive db hit.
-        """
-        def __init__(self, queryset, *args, **kwargs):
-            self.fixed_count = getattr(queryset, 'fixed_count', None)
-
-            super(ListAPIMixin.FixedCountPaginator, self).__init__(queryset, *args, **kwargs)
-
-        def _get_count(self):
-            if self.fixed_count is not None:
-                return self.fixed_count
-            else:
-                return super(ListAPIMixin.FixedCountPaginator, self)._get_count()
-
-        count = property(_get_count)
-
-    paginator_class = FixedCountPaginator
 
     def paginate_queryset(self, queryset):
         if self.cache_counts:
@@ -313,15 +293,17 @@ class ListAPIMixin(mixins.ListModelMixin):
             if int(self.request.query_params.get('page', 1)) != 1:
                 cached_count = cache.get(count_key)
                 if cached_count is not None:
-                    queryset.fixed_count = int(cached_count)
+                    queryset.count = lambda: int(cached_count)  # monkey patch the queryset count() method
 
-            object_list = super(ListAPIMixin, self).paginate_queryset(queryset)
+            object_list = self.paginator.paginate_queryset(queryset, self.request, view=self)
 
-            # TODO page is now an object list so this won't work
+            # actual count (cached or calculated) is stored on the Django paginator rather than the REST paginator
+            actual_count = int(self.paginator.page.paginator.count)
+
             # reset the cached value
-            # cache.set(count_key, page.paginator.count, REQUEST_COUNT_CACHE_TTL)
+            cache.set(count_key, actual_count, REQUEST_COUNT_CACHE_TTL)
         else:
-            object_list = super(ListAPIMixin, self).paginate_queryset(queryset)
+            object_list = self.paginator.paginate_queryset(queryset, self.request, view=self)
 
         # give views a chance to prepare objects for serialization
         self.prepare_for_serialization(object_list)
