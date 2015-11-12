@@ -1320,9 +1320,6 @@ class APITest(TembaTest):
         # try to update using URNs from two different contacts
         response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123555']))
         self.assertEqual(response.status_code, 400)
-
-        import pdb; pdb.set_trace()
-
         self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
         # fetch all with blank query
