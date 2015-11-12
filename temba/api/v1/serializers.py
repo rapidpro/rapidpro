@@ -1641,6 +1641,7 @@ class CallSerializer(ReadSerializer):
 class ChannelReadSerializer(ReadSerializer):
     relayer = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
+    country = serializers.SerializerMethodField()
     power_level = serializers.ReadOnlyField(source='get_last_power')
     power_status = serializers.ReadOnlyField(source='get_last_power_status')
     power_source = serializers.ReadOnlyField(source='get_last_power_source')
@@ -1656,6 +1657,9 @@ class ChannelReadSerializer(ReadSerializer):
 
     def get_unsent_count(self, obj):
         return obj.get_unsent_messages().count()
+
+    def get_country(self, obj):
+        return unicode(obj.country) if obj.country else None
 
     class Meta:
         model = Channel

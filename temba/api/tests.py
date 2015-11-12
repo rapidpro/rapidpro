@@ -1063,12 +1063,23 @@ class APITest(TembaTest):
         self.assertTrue(channel2.is_active)
         self.assertFalse(channel.is_active)
 
-        # test removing Twitter channel with Mage client disabled
+        # test with Twitter channel
+        twitter = Channel.create(self.org, self.user, None, 'TT', name="@billy_bob")
+        response = self.fetchJSON(url, "relayer=%d" % twitter.pk)
+        self.assertEqual(response.json['results'], [{'pending_message_count': 0,
+                                                     'name': '@billy_bob',
+                                                     'phone': None,
+                                                     'country': None,
+                                                     'relayer': twitter.pk,
+                                                     'power_status': None,
+                                                     'power_source': None,
+                                                     'power_level': -1,
+                                                     'network_type': None,
+                                                     'last_seen': datetime_to_json_date(twitter.last_seen)}])
+
+        # check that removing Twitter channel notifies mage
         with patch('temba.utils.mage.MageClient._request') as mock:
             mock.return_value = ""
-
-            # create a Twitter channel and delete it
-            twitter = Channel.create(self.org, self.user, None, 'TT')
             response = self.deleteJSON(url, "id=%d" % twitter.pk)
             self.assertEquals(204, response.status_code)
 
