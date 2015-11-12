@@ -1311,9 +1311,19 @@ class APITest(TembaTest):
         self.assertEquals("IL", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
 
         drdre = Contact.objects.get()
+
+        # add another contact
         jay_z = self.create_contact("Jay-Z", number="123555")
         ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
         jay_z.set_field('registration_date', "2014-12-31 03:04:00")
+
+        # try to update using URNs from two different contacts
+        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123555']))
+        self.assertEqual(response.status_code, 400)
+
+        import pdb; pdb.set_trace()
+
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
         # fetch all with blank query
         self.clear_cache()

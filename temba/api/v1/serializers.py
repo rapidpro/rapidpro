@@ -478,12 +478,12 @@ class ContactWriteSerializer(WriteSerializer):
 
             urn_contacts = Contact.objects.filter(org=self.org).filter(urn_query).distinct()
             if len(urn_contacts) > 1:
-                raise serializers.ValidationError(_("URNs %s are used by multiple contacts") % urns_strings)
+                raise serializers.ValidationError(_("URNs are used by multiple contacts"))
 
             contact_by_urns = urn_contacts[0] if len(urn_contacts) > 0 else None
 
             if self.instance and contact_by_urns != self.instance:
-                raise serializers.ValidationError(_("URNs %s are used by other contacts") % urns_strings)
+                raise serializers.ValidationError(_("URNs are used by other contacts"))
         else:
             contact_by_urns = None
 
