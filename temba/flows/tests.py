@@ -2056,14 +2056,15 @@ class ActionTest(TembaTest):
         self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
 
     def test_start_flow_action(self):
-        orig_flow = self.create_flow()
-        run = FlowRun.create(orig_flow, self.contact)
-
         self.flow.update(self.create_flow_definition())
+        self.flow.start([], [self.contact])
 
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        sms = Msg.create_incoming(self.channel, ('tel', '+250788382382'), "Blue is my favorite")
 
-        action = StartFlowAction(self.flow)
+        run = FlowRun.objects.get()
+
+        new_flow = Flow.create_single_message(self.org, self.user, "You chose @extra.flow.color.category")
+        action = StartFlowAction(new_flow)
 
         action_json = action.as_json()
         action = StartFlowAction.from_json(self.org, action_json)
@@ -2071,8 +2072,8 @@ class ActionTest(TembaTest):
         action.execute(run, None, sms, [])
 
         # our contact should now be in the flow
-        self.assertTrue(FlowStep.objects.filter(run__flow=self.flow, run__contact=self.contact))
-        self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='What is your favorite color?'))
+        self.assertTrue(FlowStep.objects.filter(run__flow=new_flow, run__contact=self.contact))
+        self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='You chose Blue'))
 
     def test_group_actions(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
