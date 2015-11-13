@@ -1572,7 +1572,6 @@ class Flow(TembaModel, SmartModel):
             # create our message context
             message_context_base = self.build_message_context(None, start_msg)
             if extra:
-                extra['__default__'] = ", ".join("%s: %s" % (_, extra[_]) for _ in sorted(extra.keys()))
                 message_context_base['extra'] = extra
 
             # and add each contact and message to each broadcast
