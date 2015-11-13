@@ -1572,7 +1572,6 @@ class Flow(TembaModel, SmartModel):
             # create our message context
             message_context_base = self.build_message_context(None, start_msg)
             if extra:
-                extra['__default__'] = ", ".join("%s: %s" % (_, extra[_]) for _ in sorted(extra.keys()))
                 message_context_base['extra'] = extra
 
             # and add each contact and message to each broadcast
@@ -4552,7 +4551,13 @@ class StartFlowAction(Action):
         return dict(type=StartFlowAction.TYPE, id=self.flow.pk, name=self.flow.name)
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
-        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True)
+        message_context = run.flow.build_message_context(run.contact, msg)
+
+        # our extra will be the current flow variables
+        extra = message_context.get('extra', {})
+        extra['flow'] = message_context.get('flow', {})
+
+        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
         self.logger(run)
         return []
 
