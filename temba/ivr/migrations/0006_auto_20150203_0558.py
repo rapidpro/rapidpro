@@ -51,6 +51,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('ivr', '0005_auto_20150129_1759'),
         ('msgs', '0003_auto_20150129_0515'),
+        ('orgs', '0012_auto_20151026_1152'),
     ]
 
     operations = [

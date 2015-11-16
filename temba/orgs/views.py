@@ -24,6 +24,7 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from datetime import timedelta
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
@@ -1253,6 +1254,7 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data['name'])
             obj.slug = slug
+            obj.brand = self.request.get_host()
 
             return obj
 
@@ -1266,7 +1268,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            brand = BrandingMiddleware.get_branding_for_host(self.request.get_host())
+            brand = BrandingMiddleware.get_branding_for_host(obj.brand)
             obj.initialize(brand=brand, topup_size=self.get_welcome_size())
 
             return obj
@@ -1641,7 +1643,10 @@ class TopUpCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
             context['org'] = self.request.user.get_org()
-            context['now'] = timezone.now()
+
+            now = timezone.now()
+            context['now'] = now
+            context['expiration_period'] = now + timedelta(days=30)
             return context
 
         def get_template_names(self):

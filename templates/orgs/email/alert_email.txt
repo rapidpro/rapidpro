@@ -1,0 +1,31 @@
+{% load i18n %}
+
+{% blocktrans with org=alert.org.name brand=branding.name alert_type=alert.alert_type customer=customer.first_name expiring=org.get_credits_expiring_soon remaining=org.get_credits_remaining %}
+
+Hi {{ customer }},
+
+{% if alert_type == 'O' %}
+
+Your {{ brand }} account for {{ org }} is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.
+
+To resume your service please visit your account page to purchase a top up.
+
+{% elif alert_type == 'E' %}
+
+Your {{ brand }} account for {{ org }} has {{ expiring }} credits in less than one month.
+
+Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.
+
+{% else %}
+
+Your {{ brand }} account for {{ org }} is running low on credits, you currently only have {{ remaining }} credits remaining.
+
+Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.
+
+{% endif %}
+
+Thanks!
+
+The {{ brand }} Team
+
+{% endblocktrans %}
