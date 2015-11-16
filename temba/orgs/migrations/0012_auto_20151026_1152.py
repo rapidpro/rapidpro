@@ -21,4 +21,9 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(populate_orgs_brand),
+        migrations.AlterField(
+            model_name='invitation',
+            name='user_group',
+            field=models.CharField(default='V', max_length=1, verbose_name='User Role', choices=[('A', 'Administrator'), ('E', 'Editor'), ('V', 'Viewer'), ('S', 'Surveyor')]),
+        ),
     ]

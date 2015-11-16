@@ -11,6 +11,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name='invitation',
+            name='email',
+            field=models.EmailField(help_text='The email to which we send the invitation of the viewer', max_length=254, verbose_name='Email'),
+        ),
         migrations.AddField(
             model_name='org',
             name='brand',
