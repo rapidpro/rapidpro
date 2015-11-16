@@ -1631,7 +1631,7 @@ class ExportContactsTask(SmartModel):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+        fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
         active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]

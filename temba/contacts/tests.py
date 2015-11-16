@@ -2109,7 +2109,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers
-            self.assertEqual('Contact UUID', sheet.cell(0, 0).value)
+            self.assertEqual('UUID', sheet.cell(0, 0).value)
             self.assertEqual('Name', sheet.cell(0, 1).value)
             self.assertEqual('Phone', sheet.cell(0, 2).value)
             self.assertEqual('Twitter handle', sheet.cell(0, 3).value)
@@ -2146,7 +2146,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers have Twitter
-            self.assertEqual('Contact UUID', sheet.cell(0, 0).value)
+            self.assertEqual('UUID', sheet.cell(0, 0).value)
             self.assertEqual('Name', sheet.cell(0, 1).value)
             self.assertEqual('Phone', sheet.cell(0, 2).value)
             self.assertEqual('Phone', sheet.cell(0, 3).value)
