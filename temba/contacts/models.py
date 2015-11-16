@@ -11,6 +11,7 @@ import phonenumbers
 import regex
 from django.core.files import File
 from django.db import models
+from django.db.models import Count, Max
 from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel
 from smartmin.csv_imports.models import ImportTask
@@ -185,10 +186,11 @@ class Contact(TembaModel, SmartModel):
     FIRST_NAME = 'first_name'
     LANGUAGE = 'language'
     PHONE = 'phone'
+    UUID = 'uuid'
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', 'uuid', 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
+                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -1171,6 +1173,12 @@ URN_ANON_MASK = '*' * 8  # returned instead of URN values
 
 URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, FACEBOOK_SCHEME}  # schemes that support "follow" triggers
 
+URN_SCHEMES_EXPORT_FIELDS = {
+    TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
+    TWITTER_SCHEME: dict(label='Twitter handle', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+    EXTERNAL_SCHEME: dict(label='External identifier', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+}
+
 
 class ContactURN(models.Model):
     """
@@ -1621,9 +1629,25 @@ class ExportContactsTask(SmartModel):
             self.is_finished = True
             self.save(update_fields=['is_finished'])
 
-    def do_export(self):
-        fields = [dict(label='Phone', key=Contact.PHONE, id=0, field=None),
-                  dict(label='Name', key=Contact.NAME, id=0, field=None)]
+    def get_export_fields_and_schemes(self):
+
+        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+                  dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+
+        active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
+
+        scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
+
+        schemes = scheme_counts.keys()
+        schemes.sort()
+
+        for scheme in schemes:
+            count = scheme_counts[scheme]
+            if count is not None:
+                for i in range(count):
+                    field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
+                    field_dict['position'] = i
+                    fields.append(field_dict)
 
         with SegmentProfiler("building up contact fields"):
             contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
@@ -1631,7 +1655,13 @@ class ExportContactsTask(SmartModel):
                 fields.append(dict(field=contact_field,
                                    label=contact_field.label,
                                    key=contact_field.key,
-                                   id=contact_field.id))
+                                   id=contact_field.id,
+                                   urn_scheme=None))
+
+        return fields, scheme_counts
+
+    def do_export(self):
+        fields, scheme_counts = self.get_export_fields_and_schemes()
 
         with SegmentProfiler("build up contact ids"):
             all_contacts = Contact.get_contacts(self.org)
@@ -1669,8 +1699,20 @@ class ExportContactsTask(SmartModel):
 
                         if field['key'] == Contact.NAME:
                             field_value = contact.name
-                        elif field['key'] == Contact.PHONE:
-                            field_value = contact.get_urn_display(self.org, scheme=TEL_SCHEME, full=True)
+                        elif field['key'] == Contact.UUID:
+                            field_value = contact.uuid
+                        elif field['urn_scheme'] is not None:
+                            contact_urns = contact.get_urns()
+                            scheme_urns = []
+                            for urn in contact_urns:
+                                if urn.scheme == field['urn_scheme']:
+                                    scheme_urns.append(urn)
+                            position = field['position']
+                            if len(scheme_urns) > position:
+                                urn_obj = scheme_urns[position]
+                                field_value = urn_obj.get_display(org=self.org, full=True) if urn_obj else ''
+                            else:
+                                field_value = ''
                         else:
                             value = contact.get_field(field['key'])
                             field_value = Contact.get_field_display_for_value(field['field'], value)
