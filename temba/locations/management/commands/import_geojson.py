@@ -114,7 +114,7 @@ class Command(BaseCommand):  # pragma: no cover
         # now remove any unseen boundaries
         # matching based on the new names? (though unlikely to match if the
         # name didn't match when trying to find the boundary)
-        AdminBoundary.objects.filter(level=level, parent__osm_id=country_osm_id).exclude(
+        AdminBoundary.objects.filter(level=level, in_country=country_osm_id).exclude(
             osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
