@@ -14,7 +14,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='adminboundary',
             name='in_country',
-            field=models.CharField(help_text=b"The OSM id of this admin level's country id", max_length=15, null=True),
+            field=models.CharField(
+                help_text=b"The OSM id of this admin level's country id", max_length=15, null=True),
             preserve_default=True,
         ),
     ]

@@ -10,6 +10,7 @@ from temba.orgs.views import OrgPermsMixin
 from temba.utils import build_json_response
 from django.utils.translation import ugettext_lazy as _
 
+
 class BoundaryCRUDL(SmartCRUDL):
     actions = ('alias', 'geometry', 'boundaries')
     model = AdminBoundary
@@ -18,17 +19,21 @@ class BoundaryCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            # though we are a read view, we don't actually need an id passed in, that is derived
+            # though we are a read view, we don't actually need an id passed
+            # in, that is derived
             return r'^%s/%s/$' % (path, action)
 
         def pre_process(self, request, *args, **kwargs):
-            response = super(BoundaryCRUDL.Alias, self).pre_process(self, request, *args, **kwargs)
+            response = super(BoundaryCRUDL.Alias, self).pre_process(
+                self, request, *args, **kwargs)
 
-            # we didn't shortcut for some other reason, check that they have an org
+            # we didn't shortcut for some other reason, check that they have an
+            # org
             if not response:
                 org = request.user.get_org()
                 if not org.country:
-                    messages.warning(request, _("You must select a country for your organization."))
+                    messages.warning(request, _(
+                        "You must select a country for your organization."))
                     return HttpResponseRedirect(reverse('orgs.org_home'))
 
             return None
@@ -41,7 +46,8 @@ class BoundaryCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            # though we are a read view, we don't actually need an id passed in, that is derived
+            # though we are a read view, we don't actually need an id passed
+            # in, that is derived
             return r'^%s/%s/(?P<osmId>\w\d+)/$' % (path, action)
 
         def get_object(self):
@@ -60,7 +66,8 @@ class BoundaryCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            # though we are a read view, we don't actually need an id passed in, that is derived
+            # though we are a read view, we don't actually need an id passed
+            # in, that is derived
             return r'^%s/%s/(?P<osmId>\w\d+)/$' % (path, action)
 
         def get_object(self):
@@ -70,7 +77,8 @@ class BoundaryCRUDL(SmartCRUDL):
 
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
-                BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
+                BoundaryAlias.objects.filter(
+                    boundary=boundary, org=org).delete()
                 for new_alias in new_aliases.split('\n'):
                     if new_alias:
                         BoundaryAlias.objects.create(boundary=boundary, org=org, name=new_alias,
@@ -87,21 +95,25 @@ class BoundaryCRUDL(SmartCRUDL):
 
             # this can definitely be optimized
             for state in json_list:
-                state_boundary = AdminBoundary.objects.filter(osm_id=state['osm_id']).first()
+                state_boundary = AdminBoundary.objects.filter(
+                    osm_id=state['osm_id']).first()
                 state_aliases = state.get('aliases', '')
                 if state_boundary:
                     update_aliases(state_boundary, state_aliases)
                     if 'children' in state:
                         for district in state['children']:
-                            district_boundary = AdminBoundary.objects.filter(osm_id=district['osm_id']).first()
+                            district_boundary = AdminBoundary.objects.filter(
+                                osm_id=district['osm_id']).first()
                             district_aliases = district.get('aliases', '')
                             update_aliases(district_boundary, district_aliases)
 
             return build_json_response(json_list)
 
         def get(self, request, *args, **kwargs):
-            tops = list(AdminBoundary.objects.filter(parent__osm_id=self.get_object().osm_id).order_by('name'))
-            children = AdminBoundary.objects.filter(Q(parent__osm_id__in=[boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
+            tops = list(AdminBoundary.objects.filter(
+                parent__osm_id=self.get_object().osm_id).order_by('name'))
+            children = AdminBoundary.objects.filter(Q(parent__osm_id__in=[
+                                                    boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
 
             boundaries = []
             for top in tops:
@@ -117,14 +129,15 @@ class BoundaryCRUDL(SmartCRUDL):
                     for top in boundaries:
                         if top['osm_id'] == child['parent_osm_id']:
                             current_top = top
-                            match = '%s %s' % (current_top['name'], current_top['aliases'])
+                            match = '%s %s' % (
+                                current_top['name'], current_top['aliases'])
 
                 children = current_top.get('children', [])
-                child['match'] = '%s %s %s %s' % (child['name'], child['aliases'], current_top['name'], current_top['aliases'])
+                child['match'] = '%s %s %s %s' % (child['name'], child['aliases'], current_top[
+                                                  'name'], current_top['aliases'])
                 children.append(child)
                 match = '%s %s %s' % (match, child['name'], child['aliases'])
                 current_top['children'] = children
                 current_top['match'] = match
 
             return build_json_response(boundaries)
-

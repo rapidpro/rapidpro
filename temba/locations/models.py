@@ -6,9 +6,11 @@ logger = logging.getLogger(__name__)
 from django.contrib.gis.db import models
 import geojson
 
+
 COUNTRY_LEVEL = 0
 STATE_LEVEL = 1
 DISTRICT_LEVEL = 2
+
 
 class AdminBoundary(models.Model):
     """
@@ -20,7 +22,8 @@ class AdminBoundary(models.Model):
     name = models.CharField(max_length=128,
                             help_text="The name of our administrative boundary")
 
-    level = models.IntegerField(help_text="The level of the boundary, 0 for country, 1 for state, 2 for district")
+    level = models.IntegerField(
+        help_text="The level of the boundary, 0 for country, 1 for state, 2 for district")
 
     in_country = models.CharField(max_length=15, null=True,
                                   help_text="The OSM id of this admin level's country id")
@@ -43,7 +46,8 @@ class AdminBoundary(models.Model):
         return geojson.dumps(feature_collection)
 
     def as_json(self):
-        result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases='')
+        result = dict(osm_id=self.osm_id, name=self.name,
+                      level=self.level, aliases='')
 
         if self.parent:
             result['parent_osm_id'] = self.parent.osm_id
@@ -77,14 +81,8 @@ class BoundaryAlias(SmartModel):
 
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
-    boundary = models.ForeignKey(AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
+    boundary = models.ForeignKey(
+        AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
 
-    org = models.ForeignKey('orgs.Org', help_text="The org that owns this alias")
-
-
-
-
-
-
-
-
+    org = models.ForeignKey(
+        'orgs.Org', help_text="The org that owns this alias")
