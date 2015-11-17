@@ -678,7 +678,7 @@ class FlowTest(TembaTest):
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
