@@ -22,6 +22,9 @@ class AdminBoundary(models.Model):
 
     level = models.IntegerField(help_text="The level of the boundary, 0 for country, 1 for state, 2 for district")
 
+    in_country = models.CharField(max_length=15, null=True,
+                                  help_text="The OSM id of this admin level's country id")
+
     parent = models.ForeignKey('locations.AdminBoundary', null=True, related_name='children',
                                help_text="The parent to this political boundary if any")
 
