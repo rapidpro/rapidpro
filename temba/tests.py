@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import os
@@ -9,9 +9,8 @@ import time
 
 from datetime import datetime
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from django.db import connection
 from django.test import LiveServerTestCase
 from django.utils import timezone
 from smartmin.tests import SmartminTest
@@ -19,11 +18,14 @@ from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCH
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, RULE_SET, ACTION_SET
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
+from xlrd import xldate_as_tuple
+from xlrd.sheet import XL_CELL_DATE
+
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -188,11 +190,11 @@ class TembaTest(SmartminTest):
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
                                       actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
                                       actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
-                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])],
+                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
+                                      actions=[dict(type='reply', msg=dict(base='That is a funny color. Try again.'))])],
                     rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                     label='color',
                                     finished_key=None,
@@ -253,6 +255,29 @@ class TembaTest(SmartminTest):
             ruleset.save()
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
+
+    def assertExcelRow(self, sheet, row_num, values, tz=None):
+        """
+        Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
+        """
+        actual_values = []
+        expected_values = []
+        for c in range(0, len(values)):
+            cell = sheet.cell(row_num, c)
+            actual = cell.value
+            expected = values[c]
+
+            if cell.ctype == XL_CELL_DATE:
+                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+
+            # if expected value is datetime, localize and remove microseconds
+            if isinstance(expected, datetime):
+                expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
+
+            actual_values.append(actual)
+            expected_values.append(expected)
+
+        self.assertEqual(actual_values, expected_values)
 
 
 class FlowFileTest(TembaTest):

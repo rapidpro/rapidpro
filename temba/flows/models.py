@@ -3105,17 +3105,16 @@ class ExportFlowResultsTask(SmartModel):
                 for rule in ruleset.get_rules():
                     category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
-        with SegmentProfiler("calculate all steps"):
-            all_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)\
-                                        .order_by('contact', 'run', 'arrived_on', 'pk')
+        ruleset_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)
+        ruleset_steps = ruleset_steps.order_by('contact', 'run', 'arrived_on', 'pk')
 
         # count of unique flow runs
         with SegmentProfiler("# of runs"):
-            all_runs_count = all_steps.values('run').distinct().count()
+            all_runs_count = ruleset_steps.values('run').distinct().count()
 
         # count of unique contacts
         with SegmentProfiler("# of contacts"):
-            contacts_count = all_steps.values('contact').distinct().count()
+            contacts_count = ruleset_steps.values('contact').distinct().count()
 
         # grab the ids for all our steps so we don't have to ever calculate them again
         with SegmentProfiler("calculate step ids"):
@@ -3174,6 +3173,8 @@ class ExportFlowResultsTask(SmartModel):
 
         latest = None
         earliest = None
+        merged_latest = None
+        merged_earliest = None
 
         last_run = 0
         last_contact = None
@@ -3227,7 +3228,11 @@ class ExportFlowResultsTask(SmartModel):
             # if this is a rule step, write out the value collected
             if run_step.step_type == RULE_SET:
 
+                # a new contact
                 if last_contact != run_step.contact.pk:
+                    merged_earliest = run_step.arrived_on
+                    merged_latest = None
+
                     if merged_row % 1000 == 0:
                         merged_runs.flush_row_data()
 
@@ -3241,7 +3246,7 @@ class ExportFlowResultsTask(SmartModel):
 
                 # a new run
                 if last_run != run_step.run.pk:
-                    earliest = None
+                    earliest = run_step.arrived_on
                     latest = None
 
                     if run_row % 1000 == 0:
@@ -3275,16 +3280,14 @@ class ExportFlowResultsTask(SmartModel):
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
 
-                if not earliest or earliest > run_step.arrived_on:
-                    earliest = run_step.arrived_on
+                if not merged_latest or merged_latest < run_step.arrived_on:
+                    merged_latest = run_step.arrived_on
 
-                if earliest:
-                    runs.write(run_row, 3, as_org_tz(earliest), date_format)
-                    merged_runs.write(merged_row, 3, as_org_tz(earliest), date_format)
+                runs.write(run_row, 3, as_org_tz(earliest), date_format)
+                runs.write(run_row, 4, as_org_tz(latest), date_format)
 
-                if latest:
-                    runs.write(run_row, 4, as_org_tz(latest), date_format)
-                    merged_runs.write(merged_row, 4, as_org_tz(latest), date_format)
+                merged_runs.write(merged_row, 3, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, 4, as_org_tz(merged_latest), date_format)
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0)
@@ -3346,7 +3349,7 @@ class ExportFlowResultsTask(SmartModel):
 
                 msgs.write(msg_row, 0, msg_urn_display)
                 msgs.write(msg_row, 1, run_step.contact.name)
-                msgs.write(msg_row, 2, as_org_tz(run_step.arrived_on), date_format)
+                msgs.write(msg_row, 2, as_org_tz(msg.created_on), date_format)
                 msgs.write(msg_row, 3, "IN" if msg.direction == INCOMING else "OUT")
                 msgs.write(msg_row, 4, msg.text)
                 msgs.write(msg_row, 5, channel_name)
