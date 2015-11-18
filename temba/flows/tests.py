@@ -376,24 +376,17 @@ class FlowTest(TembaTest):
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
         Flow.find_and_handle(contact1_in1)
 
-        time.sleep(2)
-
         contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
         Flow.find_and_handle(contact1_in2)
 
-        time.sleep(2)
-
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
         Flow.find_and_handle(contact2_in1)
-
-        time.sleep(2)
 
         contact1_run2, contact2_run2 = self.flow.start([], [self.contact, self.contact2], restart_participants=True)
 
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
         Flow.find_and_handle(contact1_in3)
 
-        time.sleep(2)
 
         # check can't export anonymously
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
