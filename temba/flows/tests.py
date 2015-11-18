@@ -387,7 +387,6 @@ class FlowTest(TembaTest):
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
         Flow.find_and_handle(contact1_in3)
 
-
         # check can't export anonymously
         exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
         self.assertEquals(302, exported.status_code)
@@ -408,7 +407,6 @@ class FlowTest(TembaTest):
         workbook = self.export_flow_results(self.flow)
         tz = pytz.timezone(self.org.timezone)
 
-        self.assertEqual(len(workbook.sheets()), 3)
         sheet_runs, sheet_contacts, sheet_msgs = workbook.sheets()
 
         # check runs sheet...
@@ -487,34 +485,29 @@ class FlowTest(TembaTest):
 
     def test_export_results_with_surveyor_msgs(self):
         self.flow.update(self.definition)
-        self.flow.start([], [self.contact])
+        run = self.flow.start([], [self.contact])[0]
 
         # no urn or channel
-        Msg.create_incoming(None, None, "Blue", org=self.org, contact=self.contact)
+        in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
         workbook = self.export_flow_results(self.flow)
+        tz = pytz.timezone(self.org.timezone)
 
-        self.assertEqual(len(workbook.sheets()), 3)
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.sheets()
 
-        entries = workbook.sheets()[0]
+        run1_rs = FlowStep.objects.filter(run=run, step_type='R')
+        run1_first = run1_rs.order_by('pk').first().arrived_on
+        run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
-        self.assertEqual(entries.cell(1, 1).value, "Eric")
-        self.assertEqual(entries.cell(1, 5).value, "Blue")
+        self.assertExcelRow(sheet_runs, 1, ["+250788382382", "Eric", "", run1_first, run1_last,
+                                            "Blue", "blue", "blue"], tz)
 
-        messages = workbook.sheets()[2]
+        out1 = Msg.objects.get(steps__run=run, text="What is your favorite color?")
 
-        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
-        self.assertEqual(messages.cell(1, 1).value, "Eric")
-        self.assertEqual(messages.cell(1, 3).value, "OUT")
-        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
-        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
+        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", out1.created_on, "OUT",
+                                            "What is your favorite color?", "Test Channel"], tz)
 
-        self.assertEqual(messages.cell(2, 0).value, "")
-        self.assertEqual(messages.cell(2, 1).value, "Eric")
-        self.assertEqual(messages.cell(2, 3).value, "IN")
-        self.assertEqual(messages.cell(2, 4).value, "Blue")
-        self.assertEqual(messages.cell(2, 5).value, "")
+        self.assertExcelRow(sheet_msgs, 2, ["", "Eric", in1.created_on, "IN", "blue", ""], tz)  # no channel or phone
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
@@ -3298,80 +3291,6 @@ class FlowsTest(FlowFileTest):
         chw = self.contact
         sms = Msg.objects.filter(contact=chw).order_by('-created_on')[0]
         self.assertEquals("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
-
-    def test_flow_export_results(self):
-        self.clear_storage()
-
-        mother_flow = self.get_flow('new_mother')
-        registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-
-        # start our test contact down the flow
-        self.assertEquals("What is her expected delivery date?",
-                          self.send_message(registration_flow, "Test Mother", contact=Contact.get_test_contact(self.admin)))
-
-        # then a real contact
-        self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
-        self.assertEquals("That doesn't look like a valid date, try again.", self.send_message(registration_flow, "NO"))
-        self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
-        self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
-
-        # export the flow
-        task = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
-        task.flows.add(registration_flow)
-        task.do_export()
-
-        task = ExportFlowResultsTask.objects.get(pk=task.id)
-
-        # read it back in, check values
-        from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
-
-        self.assertEquals(3, len(workbook.sheets()))
-        entries = workbook.sheets()[0]
-        self.assertEquals(2, entries.nrows)
-        self.assertEquals(14, entries.ncols)
-
-        # make sure our date hour is correct in our current timezone, we only look at hour as that
-        # is what changes per timezone
-        org_timezone = pytz.timezone(self.org.timezone)
-        org_now = timezone.now().astimezone(org_timezone)
-        self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 4).value, 0)[3])
-
-        # name category and value and raw
-        self.assertEquals("All Responses", entries.cell(1, 5).value)
-        self.assertEquals("Judy Pottier", entries.cell(1, 6).value)
-        self.assertEquals("Judy Pottier", entries.cell(1, 7).value)
-
-        # EDD category and value and raw
-        self.assertEquals("is a date", entries.cell(1, 8).value)
-        self.assertTrue(entries.cell(1, 9).value.startswith("31-01-2014"))
-        self.assertEquals("31.1.2014", entries.cell(1, 10).value)
-
-        # Phone category and value and raw
-        self.assertEquals("phone", entries.cell(1, 11).value)
-        self.assertEquals("+250788383383", entries.cell(1, 12).value)
-        self.assertEquals("0788 383 383", entries.cell(1, 13).value)
-
-        messages = workbook.sheets()[2]
-        self.assertEquals(10, messages.nrows)
-        self.assertEquals(6, messages.ncols)
-
-        self.assertEqual(messages.cell(0, 0).value, "Phone")
-        self.assertEqual(messages.cell(0, 1).value, "Name")
-        self.assertEqual(messages.cell(0, 2).value, "Date")
-        self.assertEqual(messages.cell(0, 3).value, "Direction")
-        self.assertEqual(messages.cell(0, 4).value, "Message")
-        self.assertEqual(messages.cell(0, 5).value, "Channel")
-
-        self.assertEqual(messages.cell(1, 0).value, "+12065552020")
-        self.assertEqual(messages.cell(1, 1).value, "Ben Haggerty")
-        self.assertEqual(messages.cell(1, 3).value, "OUT")
-        self.assertEqual(messages.cell(1, 4).value, "Thanks for registering a new mother, what is her name?")
-        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
-
-        # assert the time is correct here as well
-        self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 3).value, 0)[3])
 
     def test_flow_export(self):
         flow = self.get_flow('favorites')
