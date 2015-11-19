@@ -2718,14 +2718,25 @@ class FlowRevision(SmartModel):
 
         # language should match values in definition
         base_language = flow_spec['base_language']
+
+        def validate_localization(lang_dict):
+
+            # must be a dict
+            if not isinstance(lang_dict, dict):
+                raise ValueError(non_localized_error)
+
+            # and contain the base_language
+            if base_language not in lang_dict:
+                raise ValueError(non_localized_error)
+
         for actionset in flow_spec['action_sets']:
             for action in actionset['actions']:
                 if 'msg' in action:
-                    if not isinstance(action['msg'], dict):
-                        raise ValueError(non_localized_error)
+                    validate_localization(action['msg'])
 
-                    if base_language not in action['msg']:
-                        raise ValueError(non_localized_error)
+        for ruleset in flow_spec['rule_sets']:
+            for rule in ruleset['rules']:
+                validate_localization(rule['category'])
 
     @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):

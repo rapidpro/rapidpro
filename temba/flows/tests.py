@@ -2588,11 +2588,14 @@ class FlowsTest(FlowFileTest):
 
         # base_language of null, but spec version 8
         with self.assertRaises(ValueError):
-            flow = self.get_flow('no_base_language_v8')
+            self.get_flow('no_base_language_v8')
 
         # base_language of 'eng' but non localized actions
         with self.assertRaises(ValueError):
-            flow = self.get_flow('non_localized_with_language')
+            self.get_flow('non_localized_with_language')
+
+        with self.assertRaises(ValueError):
+            self.get_flow('non_localized_ruleset')
 
     def test_sms_forms(self):
         flow = self.get_flow('sms-form')
