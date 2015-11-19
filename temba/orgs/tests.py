@@ -22,7 +22,8 @@ from temba.msgs.models import Label, Msg, INCOMING
 from temba.utils.email import link_components
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
-from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
+from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION, \
+    CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
 from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
 
 
@@ -56,7 +57,7 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_edit'))
         self.assertEquals(200, response.status_code)
 
-         # update the name and slug of the organization
+        # update the name and slug of the organization
         data = dict(name="Temba", timezone="Africa/Kigali", date_format=DAYFIRST, slug="nice temba")
         response = self.client.post(reverse('orgs.org_edit'), data)
         self.assertTrue('slug' in response.context['form'].errors)
@@ -1412,6 +1413,126 @@ class BulkExportTest(TembaTest):
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
         self.assertEquals(60, confirm_appointment.expires_after_minutes)
+
+
+class CreditAlertTest(TembaTest):
+    def test_check_org_credits(self):
+        self.joe = self.create_contact("Joe Blow", "123")
+        self.create_msg(contact=self.joe)
+        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
+            with patch('temba.orgs.models.Org.get_credits_remaining') as mock_get_credits_remaining:
+                mock_get_credits_remaining.return_value = -1
+
+                # no alert yet
+                self.assertFalse(CreditAlert.objects.all())
+
+                CreditAlert.check_org_credits()
+
+                # one alert created and sent
+                self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                alert_type=ORG_CREDIT_OVER).count())
+                self.assertEquals(1, len(mail.outbox))
+
+                # alert email is for out of credits type
+                sent_email = mail.outbox[0]
+                self.assertEqual(len(sent_email.to), 1)
+                self.assertTrue('RapidPro account for Temba' in sent_email.body)
+                self.assertTrue('is out of credit.' in sent_email.body)
+
+                # no new alert if one is sent and no new email
+                CreditAlert.check_org_credits()
+                self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                alert_type=ORG_CREDIT_OVER).count())
+                self.assertEquals(1, len(mail.outbox))
+
+                # reset alerts
+                CreditAlert.reset_for_org(self.org)
+                self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+
+                # can resend a new alert
+                CreditAlert.check_org_credits()
+                self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                alert_type=ORG_CREDIT_OVER).count())
+                self.assertEquals(2, len(mail.outbox))
+
+                mock_get_credits_remaining.return_value = 10
+
+                with patch('temba.orgs.models.Org.has_low_credits') as mock_has_low_credits:
+                    mock_has_low_credits.return_value = True
+
+                    self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_LOW))
+
+                    CreditAlert.check_org_credits()
+
+                    # low credit alert created and email sent
+                    self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                    alert_type=ORG_CREDIT_LOW).count())
+                    self.assertEquals(3, len(mail.outbox))
+
+                    # email sent
+                    sent_email = mail.outbox[2]
+                    self.assertEqual(len(sent_email.to), 1)
+                    self.assertTrue('RapidPro account for Temba' in sent_email.body)
+                    self.assertTrue('is running low on credits' in sent_email.body)
+
+                    # no new alert if one is sent and no new email
+                    CreditAlert.check_org_credits()
+                    self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                    alert_type=ORG_CREDIT_LOW).count())
+                    self.assertEquals(3, len(mail.outbox))
+
+                    # reset alerts
+                    CreditAlert.reset_for_org(self.org)
+                    self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+
+                    # can resend a new alert
+                    CreditAlert.check_org_credits()
+                    self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                    alert_type=ORG_CREDIT_LOW).count())
+                    self.assertEquals(4, len(mail.outbox))
+
+                    mock_has_low_credits.return_value = False
+
+                    with patch('temba.orgs.models.Org.get_credits_expiring_soon') as mock_get_credits_exipiring_soon:
+                        mock_get_credits_exipiring_soon.return_value = 0
+
+                        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
+
+                        CreditAlert.check_org_credits()
+
+                        # no alert since no expiring credits
+                        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
+
+                        mock_get_credits_exipiring_soon.return_value = 200
+
+                        CreditAlert.check_org_credits()
+
+                        # expiring credit alert created and email sent
+                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEquals(5, len(mail.outbox))
+
+                        # email sent
+                        sent_email = mail.outbox[4]
+                        self.assertEqual(len(sent_email.to), 1)
+                        self.assertTrue('RapidPro account for Temba' in sent_email.body)
+                        self.assertTrue('expiring credits in less than one month.' in sent_email.body)
+
+                        # no new alert if one is sent and no new email
+                        CreditAlert.check_org_credits()
+                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEquals(5, len(mail.outbox))
+
+                        # reset alerts
+                        CreditAlert.reset_for_org(self.org)
+                        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+
+                        # can resend a new alert
+                        CreditAlert.check_org_credits()
+                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEquals(6, len(mail.outbox))
 
 
 class UnreadCountTest(FlowFileTest):
