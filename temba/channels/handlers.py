@@ -5,7 +5,6 @@ import pytz
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
-from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
@@ -17,10 +16,10 @@ from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, PLIVO, SHAQODOON, YO
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
-from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
+from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger
-from temba.utils import analytics, JsonResponse, json_date_to_datetime
+from temba.utils import JsonResponse, json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -152,80 +151,6 @@ class TwilioHandler(View):
             return HttpResponse("", status=201)
 
         return HttpResponse("Not Handled, unknown action", status=400)
-
-class StripeHandler(View): # pragma: no cover
-    """
-    Handles WebHook events from Stripe.  We are interested as to when invoices are
-    charged by Stripe so we can send the user an invoice email.
-    """
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(StripeHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD")
-
-    def post(self, request, *args, **kwargs):
-        import stripe
-        from temba.orgs.models import Org, TopUp
-
-        # stripe delivers a JSON payload
-        stripe_data = json.loads(request.body)
-
-        # but we can't trust just any response, so lets go look up this event
-        stripe.api_key = get_stripe_credentials()[1]
-        event = stripe.Event.retrieve(stripe_data['id'])
-
-        if not event:
-            return HttpResponse("Ignored, no event")
-
-        if not event.livemode:
-            return HttpResponse("Ignored, test event")
-
-        # we only care about invoices being paid or failing
-        if event.type == 'charge.succeeded' or event.type == 'charge.failed':
-            charge = event.data.object
-            charge_date = datetime.fromtimestamp(charge.created)
-            description = charge.description
-            amount = "$%s" % (Decimal(charge.amount) / Decimal(100)).quantize(Decimal(".01"))
-
-            # look up our customer
-            customer = stripe.Customer.retrieve(charge.customer)
-
-            # and our org
-            org = Org.objects.filter(stripe_customer=customer.id).first()
-            if not org:
-                return HttpResponse("Ignored, no org for customer")
-
-            # look up the topup that matches this charge
-            topup = TopUp.objects.filter(stripe_charge=charge.id).first()
-            if topup and event.type == 'charge.failed':
-                topup.rollback()
-                topup.save()
-
-            # we know this org, trigger an event for a payment succeeding
-            if org.administrators.all():
-                if event.type == 'charge_succeeded':
-                    track = "temba.charge_succeeded"
-                else:
-                    track = "temba.charge_failed"
-
-                context = dict(description=description,
-                               invoice_id=charge.id,
-                               invoice_date=charge_date.strftime("%b %e, %Y"),
-                               amount=amount,
-                               org=org.name,
-                               cc_last4=charge.card.last4,
-                               cc_type=charge.card.type,
-                               cc_name=charge.card.name)
-
-                admin_email = org.administrators.all().first().email
-
-                analytics.track(admin_email, track, context)
-                return HttpResponse("Event '%s': %s" % (track, context))
-
-        # empty response, 200 lets Stripe know we handled it
-        return HttpResponse("Ignored, uninteresting event")
 
 
 class AfricasTalkingHandler(View):
