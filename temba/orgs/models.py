@@ -880,7 +880,7 @@ class Org(SmartModel):
         return get_cacheable_result(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
                                     self._calculate_low_credits_threshold)
 
-    def _calculate_low_credis_threshold(self):
+    def _calculate_low_credits_threshold(self):
         last_topup = self.topups.filter(is_active=True).last()
         return int(last_topup.credits * 0.25)
 
