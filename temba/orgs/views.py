@@ -6,6 +6,8 @@ import pycountry
 import regex
 
 from collections import OrderedDict
+from datetime import datetime
+from decimal import Decimal
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -22,6 +24,7 @@ from django.utils import timezone
 from django.utils.http import urlquote
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
+from django.views.generic import View
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from datetime import timedelta
@@ -30,7 +33,9 @@ from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient
+from temba.orgs.models import get_stripe_credentials
 from temba.utils import analytics, build_json_response
+from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
@@ -1710,3 +1715,78 @@ class TopUpCRUDL(SmartCRUDL):
         def derive_queryset(self):
             self.org = Org.objects.get(pk=self.request.REQUEST['org'])
             return self.org.topups.all()
+
+
+class StripeHandler(View):  # pragma: no cover
+    """
+    Handles WebHook events from Stripe.  We are interested as to when invoices are
+    charged by Stripe so we can send the user an invoice email.
+    """
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(StripeHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ILLEGAL METHOD")
+
+    def post(self, request, *args, **kwargs):
+        import stripe
+        from temba.orgs.models import Org, TopUp
+
+        # stripe delivers a JSON payload
+        stripe_data = json.loads(request.body)
+
+        # but we can't trust just any response, so lets go look up this event
+        stripe.api_key = get_stripe_credentials()[1]
+        event = stripe.Event.retrieve(stripe_data['id'])
+
+        if not event:
+            return HttpResponse("Ignored, no event")
+
+        if not event.livemode:
+            return HttpResponse("Ignored, test event")
+
+        # we only care about invoices being paid or failing
+        if event.type == 'charge.succeeded' or event.type == 'charge.failed':
+            charge = event.data.object
+            charge_date = datetime.fromtimestamp(charge.created)
+            description = charge.description
+            amount = "$%s" % (Decimal(charge.amount) / Decimal(100)).quantize(Decimal(".01"))
+
+            # look up our customer
+            customer = stripe.Customer.retrieve(charge.customer)
+
+            # and our org
+            org = Org.objects.filter(stripe_customer=customer.id).first()
+            if not org:
+                return HttpResponse("Ignored, no org for customer")
+
+            # look up the topup that matches this charge
+            topup = TopUp.objects.filter(stripe_charge=charge.id).first()
+            if topup and event.type == 'charge.failed':
+                topup.rollback()
+                topup.save()
+
+            # we know this org, trigger an event for a payment succeeding
+            if org.administrators.all():
+                if event.type == 'charge_succeeded':
+                    track = "temba.charge_succeeded"
+                else:
+                    track = "temba.charge_failed"
+
+                context = dict(description=description,
+                               invoice_id=charge.id,
+                               invoice_date=charge_date.strftime("%b %e, %Y"),
+                               amount=amount,
+                               org=org.name,
+                               cc_last4=charge.card.last4,
+                               cc_type=charge.card.type,
+                               cc_name=charge.card.name)
+
+                admin_email = org.administrators.all().first().email
+
+                analytics.track(admin_email, track, context)
+                return HttpResponse("Event '%s': %s" % (track, context))
+
+        # empty response, 200 lets Stripe know we handled it
+        return HttpResponse("Ignored, uninteresting event")

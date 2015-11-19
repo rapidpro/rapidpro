@@ -36,7 +36,7 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, APIAction, ActionLog
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 
 
@@ -2208,16 +2208,16 @@ class ActionTest(TembaTest):
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
     @patch('requests.post')
-    def test_api_action(self, mock_requests_post, mock_timezone_now):
+    def test_webhook_action(self, mock_requests_post, mock_timezone_now):
         tz = pytz.timezone("Africa/Kigali")
         mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
         mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 07, 30, 6))
 
-        action = APIAction('http://example.com/callback.php')
+        action = WebhookAction('http://example.com/callback.php')
 
         # check to and from JSON
         action_json = action.as_json()
-        action = APIAction.from_json(self.org, action_json)
+        action = WebhookAction.from_json(self.org, action_json)
 
         self.assertEqual(action.webhook, 'http://example.com/callback.php')
 
@@ -2265,7 +2265,7 @@ class ActionTest(TembaTest):
                                                    timeout=10)
 
         # check simulator warns of webhook URL errors
-        action = APIAction('http://example.com/callback.php?@contact.xyz')
+        action = WebhookAction('http://example.com/callback.php?@contact.xyz')
         test_contact = Contact.get_test_contact(self.user)
         test_run = FlowRun.create(self.flow, test_contact)
 
@@ -2277,7 +2277,7 @@ class ActionTest(TembaTest):
         self.assertEqual(logs[0].level, ActionLog.LEVEL_WARN)
         self.assertEqual(logs[0].text, "URL appears to contain errors: Undefined variable: contact.xyz")
         self.assertEqual(logs[1].level, ActionLog.LEVEL_INFO)
-        self.assertEqual(logs[1].text, "Triggered <a href='/api/v1/log/%d/' target='_log'>webhook event</a> - 200" % event.pk)
+        self.assertEqual(logs[1].text, "Triggered <a href='/webhooks/log/%d/' target='_log'>webhook event</a> - 200" % event.pk)
 
 
 class FlowRunTest(TembaTest):
