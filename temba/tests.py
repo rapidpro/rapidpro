@@ -56,7 +56,7 @@ class TembaTest(SmartminTest):
         self.district3 = AdminBoundary.objects.create(osm_id='60485579', name='Kigali', level=2, parent=self.state1)
         self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country,
+        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand='rapidpro.io',
                                       created_by=self.user, modified_by=self.user)
         self.org.initialize()
 
@@ -130,7 +130,8 @@ class TembaTest(SmartminTest):
 
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
-        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", created_by=self.admin2, modified_by=self.admin2)
+        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
+                                       created_by=self.admin2, modified_by=self.admin2)
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
 

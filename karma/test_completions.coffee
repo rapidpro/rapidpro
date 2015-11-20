@@ -95,45 +95,32 @@ describe 'find context query', ->
     expect(ac.parseQuery("contact.age")).toBe('contact.age')
     expect(ac.parseQuery("contact.added_on")).toBe('contact.added_on')
 
-  ###
   it 'no ( for function only', ->
-    ctxtQuery = findContextQuery "(SUM"
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM")).toBe('SUM')
 
   it 'ignore ( after function', ->
-    ctxtQuery = findContextQuery "(SUM("
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(")).toBe('SUM')
 
   it 'ignore ( followed by spaces after function', ->
-    ctxtQuery = findContextQuery "(SUM( "
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM( ")).toBe('SUM')
 
-    ctxtQuery = findContextQuery "(SUM(  "
-    expect(ctxtQuery).toBe('SUM')
-  ###
+    expect(ac.parseQuery("(SUM(  ")).toBe('SUM')
 
   it 'should give the last variable', ->
     expect(ac.parseQuery("(SUM(contact.date_added")).toBe('contact.date_added')
 
-  ###
   it 'should return function after comma', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added,"
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added,")).toBe('SUM')
 
   it 'should return empty string after comma followed by space', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added,  "
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added,  ")).toBe('SUM')
 
   it 'should ignore function out of balanced paratheses', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added, step)"
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added, step)")).toBe('')
 
-    ctxtQuery = findContextQuery "(SUM(contact.date_added, ABS(step.value)"
-    expect(ctxtQuery).toBe('ABS')
+    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value)")).toBe('SUM')
 
-    ctxtQuery = findContextQuery "(SUM(contact.date_added, ABS(step.value))"
-    expect(ctxtQuery).toBe('SUM')
-  ###
+    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value))")).toBe('')
 
   it 'should not include previous (', ->
     expect(ac.parseQuery("(contact.age")).toBe('contact.age')

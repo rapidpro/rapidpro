@@ -563,6 +563,12 @@ class OrgTest(TembaTest):
 
         create_msgs(contact, 10)
 
+        with self.assertNumQueries(1):
+            self.assertEquals(250, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(250, self.org.get_low_credits_threshold())
+
         # we should have 1000 minus 10 credits for this org
         with self.assertNumQueries(4):
             self.assertEquals(990, self.org.get_credits_remaining())  # from db

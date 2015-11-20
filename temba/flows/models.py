@@ -1572,7 +1572,6 @@ class Flow(TembaModel, SmartModel):
             # create our message context
             message_context_base = self.build_message_context(None, start_msg)
             if extra:
-                extra['__default__'] = ", ".join("%s: %s" % (_, extra[_]) for _ in sorted(extra.keys()))
                 message_context_base['extra'] = extra
 
             # and add each contact and message to each broadcast
@@ -3823,7 +3822,7 @@ class Action(object):
                 DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
                 AddLabelAction.TYPE: AddLabelAction,
                 EmailAction.TYPE: EmailAction,
-                APIAction.TYPE: APIAction,
+                WebhookAction.TYPE: WebhookAction,
                 SaveToContactAction.TYPE: SaveToContactAction,
                 SetLanguageAction.TYPE: SetLanguageAction,
                 StartFlowAction.TYPE: StartFlowAction,
@@ -3922,7 +3921,7 @@ class EmailAction(Action):
         return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
 
 
-class APIAction(Action):
+class WebhookAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
     """
@@ -3935,10 +3934,10 @@ class APIAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return APIAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
+        return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
 
     def as_json(self):
-        return dict(type=APIAction.TYPE, webhook=self.webhook, action=self.action)
+        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4552,7 +4551,13 @@ class StartFlowAction(Action):
         return dict(type=StartFlowAction.TYPE, id=self.flow.pk, name=self.flow.name)
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
-        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True)
+        message_context = run.flow.build_message_context(run.contact, msg)
+
+        # our extra will be the current flow variables
+        extra = message_context.get('extra', {})
+        extra['flow'] = message_context.get('flow', {})
+
+        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
         self.logger(run)
         return []
 
