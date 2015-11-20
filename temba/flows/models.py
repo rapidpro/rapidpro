@@ -2731,7 +2731,7 @@ class FlowRevision(SmartModel):
 
         for actionset in flow_spec['action_sets']:
             for action in actionset['actions']:
-                if 'msg' in action:
+                if 'msg' in action and action['type'] != 'email':
                     validate_localization(action['msg'])
 
         for ruleset in flow_spec['rule_sets']:
