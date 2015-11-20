@@ -35,10 +35,12 @@ urlpatterns = patterns('',
 if settings.DEBUG:
     urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }), )
 
+
 # import any additional urls
 import importlib
 for app in settings.APP_URLS:
     importlib.import_module(app)
+
 
 # provide a utility method to initialize our analytics
 def init_analytics():
@@ -47,8 +49,15 @@ def init_analytics():
     if analytics_key:
         analytics.init(analytics_key, send=settings.IS_PROD, log=not settings.IS_PROD, log_level=logging.DEBUG)
 
+    from temba.utils.analytics import init_librato
+    librato_user = getattr(settings, 'LIBRATO_USER', None)
+    librato_token = getattr(settings, 'LIBRATO_TOKEN', None)
+    if librato_user and librato_token:
+        init_librato(librato_user, librato_token)
+
 # and initialize them (in celery, the above will have to be called manually)
 init_analytics()
+
 
 def track_user(self):  # pragma: no cover
     """
