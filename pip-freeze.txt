@@ -101,5 +101,5 @@ enum34==1.0.3
 plivo==0.10.1
 antlr4-python2-runtime==4.5.2
 django-extensions==1.5.7
--e git+http://github.com/nyaruka/python-librato-bg.git@fed0cdd94f17f35710eef7241f2c2d488485f042#egg=librato_bg
+-e git+http://github.com/nyaruka/python-librato-bg.git@e765a83fa8a9b69b9d83f5c02abc60496c323183#egg=librato_bg
 
