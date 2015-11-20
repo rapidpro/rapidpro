@@ -692,7 +692,7 @@ class Msg(models.Model):
 
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
-        analytics.gauge('temba.channel_handling_latency', msg.delivered_on - msg.created_on).total_seconds())
+        analytics.gauge('temba.channel_handling_latency', (msg.delivered_on - msg.created_on).total_seconds())
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
