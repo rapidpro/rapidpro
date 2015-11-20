@@ -172,8 +172,8 @@ def api(request, format=None):
     ## Web Hook
 
     Your application can be notified when new messages are received, sent or delivered.  You can
-    configure a URL for those events to be delivered to.  Visit the [Web Hook Documentation](/api/v1/webhook/) and
-    [Simulator](/api/v1/webhook/simulator/) for more details.
+    configure a URL for those events to be delivered to.  Visit the [Web Hook Documentation](/webhooks/webhook/) and
+    [Simulator](/webhooks/webhook/simulator/) for more details.
 
     ## Verbs
 
