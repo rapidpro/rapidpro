@@ -681,6 +681,77 @@ class OrgTest(TembaTest):
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
 
+        # all top up expired
+        TopUp.objects.all().update(expires_on=yesterday)
+
+        # we have expiring credits, and no more active
+        gift_topup = TopUp.create(self.admin, price=0, credits=100)
+        next_week = timezone.now() + relativedelta(days=7)
+        gift_topup.expires_on = next_week
+        gift_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(99, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(25, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(99, self.org.get_credits_expiring_soon())
+            self.assertEquals(25, self.org.get_low_credits_threshold())
+
+        # some cedits expires but more credits will remain active
+        later_active_topup = TopUp.create(self.admin, price=0, credits=200)
+        five_week_ahead = timezone.now() + relativedelta(days=35)
+        later_active_topup.expires_on = five_week_ahead
+        later_active_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(75, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+            self.assertEquals(75, self.org.get_low_credits_threshold())
+
+        # no expiring credits
+        gift_topup.expires_on = five_week_ahead
+        gift_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(75, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+            self.assertEquals(75, self.org.get_low_credits_threshold())
+
+        # do not consider expired topup
+        gift_topup.expires_on = yesterday
+        gift_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(50, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+            self.assertEquals(50, self.org.get_low_credits_threshold())
+
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
