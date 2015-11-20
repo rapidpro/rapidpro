@@ -1988,7 +1988,7 @@ class Channel(SmartModel):
     def track_status(cls, channel, status):
         if channel:
             # track success, errors and failures
-            analytics.gauge('temba.channel_%s_%s' % (status.lower, channel.channel_type.lower()))
+            analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
     def build_twilio_callback_url(cls, sms_id):
