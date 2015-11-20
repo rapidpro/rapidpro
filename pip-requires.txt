@@ -58,4 +58,4 @@ twython
 enum34
 plivo
 rapidpro-expressions
--e git+http://github.com/nyaruka/python-librato-bg.git#egg=librato_bg-dev
+-e git+http://github.com/nyaruka/python-librato-bg.git#egg=librato_bg
