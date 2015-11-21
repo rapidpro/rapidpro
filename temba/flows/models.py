@@ -1160,7 +1160,7 @@ class Flow(TembaModel, SmartModel):
         rulesets = dict()
         rule_categories = dict()
 
-        if not ruleset_list:
+        if ruleset_list is None:
             ruleset_list = RuleSet.objects.filter(flow=self).exclude(label=None).order_by('pk').select_related('flow', 'flow__org')
 
         for ruleset in ruleset_list:

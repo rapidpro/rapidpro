@@ -12,6 +12,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core import mail
 from django.core.urlresolvers import reverse
+from django.db.models import Prefetch
 from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
@@ -68,6 +69,53 @@ class FlowTest(TembaTest):
         from xlrd import open_workbook
         filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         return open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
+
+    def test_flow_get_results_queries(self):
+
+        contact3 = self.create_contact('George', '+250788382234')
+        flow1 = self.create_flow()
+        flow1.start([], [self.contact, self.contact2, contact3])
+
+        with self.assertNumQueries(13):
+            runs = FlowRun.objects.filter(flow=flow1)
+            for run_elt in runs:
+                flow1.get_results(contact=run_elt.contact, run=run_elt)
+
+        # still perform ruleset lookup 7 queries because flow and flow__org select_related
+        with self.assertNumQueries(7):
+            steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
+
+            rulesets_prefetch = Prefetch('flow__rule_sets',
+                                         queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
+                                         to_attr='ruleset_prefetch')
+
+            # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
+            runs = FlowRun.objects.filter(flow=flow1).prefetch_related('flow', rulesets_prefetch, steps_prefetch,
+                                                                       'steps__messages', 'contact')
+            for run_elt in runs:
+                flow1.get_results(contact=run_elt.contact, run=run_elt)
+
+        flow2 = self.get_flow('no-ruleset-flow')
+        flow2.start([], [self.contact, self.contact2, contact3])
+
+        with self.assertNumQueries(13):
+            runs = FlowRun.objects.filter(flow=flow2)
+            for run_elt in runs:
+                flow2.get_results(contact=run_elt.contact, run=run_elt)
+
+        # no ruleset do not look up rulesets at all; 6 queries because no org query from flow__org select related too
+        with self.assertNumQueries(6):
+            steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
+
+            rulesets_prefetch = Prefetch('flow__rule_sets',
+                                         queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
+                                         to_attr='ruleset_prefetch')
+
+            # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
+            runs = FlowRun.objects.filter(flow=flow2).prefetch_related('flow', rulesets_prefetch, steps_prefetch,
+                                                                       'steps__messages', 'contact')
+            for run_elt in runs:
+                flow2.get_results(contact=run_elt.contact, run=run_elt)
 
     def test_revision_history(self):
 
