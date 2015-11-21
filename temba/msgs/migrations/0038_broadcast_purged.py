@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0036_auto_20151103_1014'),
+        ('msgs', '0037_backfill_recipient_counts'),
     ]
 
     operations = [

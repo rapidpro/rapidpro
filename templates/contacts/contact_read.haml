@@ -50,161 +50,59 @@
 -block read-buttons
 
 -block content
+  :javascript
 
-  -if fields_featured or fields_other
-    .contact-fields{class:'{% if fields_other %}clickable{%endif%}'}
-      -for field in fields_featured
+
+
+
+
+  -if contact_fields
+    .contact-fields{class:'{% if fields %}clickable{%endif%}'}
+      -for field in contact_fields
         --if field.value
-          .contact-field
+          .contact-field{class:'{% if field.featured %}featured{%else%}normal{%endif%}'}
             .contact-field-label
               {{field.label|title}}
             .contact-field-value
               {{field.value}}
 
 
-      -if fields_other
-        %span.other-fields{class:'{% if fields_featured%}hide{%endif%}'}
-          -for field in fields_other
-            --if field.value
-              .contact-field
-                .contact-field-label
-                  {{field.label|title}}
-                .contact-field-value
-                  {{field.value}}
+  -if show_upcoming
+    .header
+      Upcoming
+    %table.activity.pending
+      -for evt in upcoming_events
+        %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
+          %td.created_on
+            {{evt.scheduled}}
+          %td.icon
+            -if evt.event.event_type == 'M'
+              %span.glyph.icon-bubble-right
+            -elif evt.event.event_type == 'F'
+              %span.glyph.icon-tree-2
+            -else
+              %span.glyph.icon-clock
 
-  #pjax
+          %td.details
 
-    -block pjax
+            .activity-scheduled
 
-      :javascript
+              -if evt.event.event_type == 'M'
+                //.summary
+                //  Scheduled {{evt.event.campaign}} message
+                .activity-body
+                  {{evt.event.message}}
+              -elif evt.event.event_type == 'F'
+                Start
+                %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
 
-        function updateEventVisibility(animate) {
-          if (window.all_events) {
-            if (animate) {
-              $('.history .non-msg').fadeIn({duration: 800});
-            } else {
-              $('.history .non-msg').show();
-            }
-            $('.show-events').text('Show Messages Only');
-          } else {
-            $('.history .non-msg').hide();
-            $('.show-events').text('Show All Events');
-          }
-        }
+  .pull-right
+    %a.show-events.btn.btn-secondary.btn-mini
+      Show All Events
 
-        function toggleEventVisibility(animate) {
-          if (window.all_events) {
-            window.all_events = false;
-          } else {
-            window.all_events = true;
-          }
-          updateEventVisibility(animate);
-        }
-
-        updateEventVisibility(false);
-
-
-
-      -if show_upcoming
-        .header
-          Upcoming
-        %table.activity.pending
-          -for evt in upcoming_events
-            %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
-              %td.created_on
-                {{evt.scheduled}}
-              %td.icon
-                -if evt.event.event_type == 'M'
-                  %span.glyph.icon-bubble-right
-                -elif evt.event.event_type == 'F'
-                  %span.glyph.icon-tree-2
-                -else
-                  %span.glyph.icon-clock
-
-              %td.details
-
-                .activity-scheduled
-
-                  -if evt.event.event_type == 'M'
-                    //.summary
-                    //  Scheduled {{evt.event.campaign}} message
-                    .activity-body
-                      {{evt.event.message}}
-                  -elif evt.event.event_type == 'F'
-                    Start
-                    %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
-
-      .pull-right
-        %a.show-events.btn.btn-secondary.btn-mini
-          Show All Events
-
-      .header
-        Message History
-      %table.activity.history
-        -for item in activity
-          %tr.item{class:'{% if item.direction or item.recipient_count%}msg{%else%}non-msg hide{%endif%}'}
-            %td.created_on
-              {{item.created_on}}
-
-            %td.icon
-              {{item|activity_icon}}
-            %td.details
-              -if item.recipient_count
-                -with item as broadcast
-                  .activity-broadcast
-                    .sent-to
-                      .summary
-                        Broadcast to {{broadcast.recipient_count|intcomma}} recipients
-
-                    .activity-body
-                      {{broadcast.text}}
-              -elif item.flow
-                -with item as run
-                  .activity-run
-                    .activity-body
-                      .summary
-
-                      Started
-                      %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
-                        {{run.flow.name}}
-              -elif item.fired
-                -with item as eventfire
-                  %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
-                    {{eventfire.event.campaign.name}}
-
-                  &nbsp;triggered
-
-                  %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
-                    {{eventfire.event|event_time}}
-
-
-              -else
-                -with item as message
-                  .activity-message
-                    -if message.direction == 'O'
-
-                      -if message.broadcast.recipient_count > 1
-                        .sent-to
-                          .summary
-                            Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
-
-
-                      .summary
-
-                        -with message.get_flow_id as flow_id
-                          -if flow_id
-                            //Message from
-                            //%a{href:'{% url "flows.flow_editor" flow_id %}'}
-                            //  {{message.get_flow_name}}
-
-                      .activity-body
-                        .outbound
-                          {{message.text}}
-                    -else
-                      .activity-body
-                        .inbound
-                          {{message.text}}
-
+  .header
+    Message History
+  %table.activity.history
 
 
 
@@ -234,6 +132,7 @@
   -compress css
     {% lessblock %}
       :plain
+
         .header {
           padding: 8px;
           font-size:14px;
@@ -243,8 +142,40 @@
 
         table.activity {
 
-          width: 100%;
+          tr.item.msg_V.msg {
+              border-collapse: collapse;
+              border: 0px;
+              background: #f3f3f3;
+              padding: 5px;
+          }
 
+          tr.since {
+            border-bottom: none;
+            td {
+              text-align:center;
+              border-top: 3px solid @color-bg-grey + #555;
+              padding-top:15px;
+
+              .date {
+                border:0px solid red;
+              }
+
+              .btn {
+                margin-top:15px;
+              }
+            }
+          }
+
+          tr.end-call {
+            background: #ddd;
+            color: #000;
+            td {
+              text-align:center;
+              padding: 5px;
+            }
+          }
+
+          width: 100%;
           margin-bottom: 20px;
           border-collapse: collapse;
 
@@ -255,6 +186,7 @@
             tr.non-msg {
               background: inherit;
             }
+
 
             .icon {
               width: 25px;
@@ -284,6 +216,7 @@
             padding: 2px 20px;
 
             &.icon {
+              width: 25px;
               padding: 2px 0px;
             }
 
@@ -291,10 +224,6 @@
 
             }
           }
-
-
-
-          border: 0px solid;
 
           .created_on {
             width: 170px;
@@ -330,18 +259,33 @@
             border: 0px solid;
             padding: 14px;
 
+            .activity-message {
+
+              .activity-body {
+                .text {
+                  display: inline-block;
+                }
+                .channel {
+                  display:inline-block;
+                  font-size:11px;
+                  line-height:11px;
+                  color: @flat-white;
+                  a {
+                    color: #ccc;
+
+                    &:hover {
+                      text-decoration:none;
+                    }
+                  }
+                }
+              }
+            }
+
             .summary {
               font-size:11px;
               font-weight:500;
               line-height:10px;
               color: @flat-grey;
-            }
-
-            .inbound {
-              //border: 1px solid #e1e1e1;
-              // .rounded-corners();
-              //background: #fafafa;
-              //padding: 8px;
             }
 
             .contact-count {
@@ -394,92 +338,62 @@
           }
         }
 
+        .left-recording {
+          font-style: italic;
+          font-size:90%;
+        }
 
-        .sent-at {
+        .recording {
+          width:16px;
+          padding:4px;
+          text-align:center;
+          .stop {
 
-          .recording {
-            width:50px;
-            text-align:center;
-            .stop {
-              .stop-icon {
-                width:7px;
-                height:7px;
-                background: @flat-white;
-                display:inline-block;
-                line-height:0px;
-                margin-top:-6px;
-                margin-right:1px;
-                margin-left:5px;
-              }
-              .text {
-                padding-top:7px;
-              }
-            }
-
-            &.direction-I{
-
-            }
-
-            padding:1px 6px;
-            padding-bottom:4px;
-            padding-left:1px;
-            .rounded-corners(6px);
-            height:12px;
-            background: @flat-white;
-            color:@flat-white - #555;
-            display:inline-block;
-            margin-right:5px;
-            line-height:0px;
+            font-size:22px;
+            margin-left:-7px;
+            margin-top:-3px;
+          }
 
 
-            .icon-phone {
-              display:inline-block;
-              font-size:11px;
-              margin-top:1px;
-              margin-right:0px;
-            }
+          color:@color-links + #222;
+          display:inline-block;
+          margin-left:0px;
+          font-size:14px;
+          line-height:0px;
 
-            .text {
-              display:inline-block;
-              padding-left:0px;
-            }
+          &:hover {
+            color: @color-links;
+            cursor:pointer;
+          }
 
+          &.playing {
+            color: @color-links + #222;
             &:hover {
-              background: @color-links;
-              color: @flat-white;
-              cursor:pointer;
+              color: @color-links;
             }
 
-            &.playing {
-              background: @flat-blue;
-              color: #fff;
+            .stop {
+              display:block;
+            }
 
-              &:hover {
-                color: #fff;
-              }
-
-              .stop {
-                display:block;
-              }
-
-              .play {
-                display:none;
-              }
+            .play {
+              display:none;
             }
           }
         }
 
 
         .contact-fields {
-          font-size: 14px;
+          background: #f1f1f1;
+
+          font-size: 12px;
           color: @color-font-grey;
           .rounded-corners();
           border: 1px solid #f1f1f1;
           margin-bottom:15px;
 
-
           &.clickable:hover {
-            background: #f1f1f1;
+            background: #f1f1f1 - #111;
             cursor:pointer;
           }
 
@@ -489,99 +403,32 @@
           }
 
           .contact-field {
+            padding: 2px 10px;
+            width: 260px;
             display:inline-block;
-            width:208px;
-            // border: 1px solid red;
-            padding: 10px;
+
+            &.normal {
+              display:none;
+            }
 
             .contact-field-label {
-              font-weight: 400;
+              font-weight: normal;
               color: @color-font-black;
+              font-size:12px;
+              margin-right:2px;
+              padding-top:5px;
+              font-size:95%;
+
             }
 
             .contact-field-value {
-              font-weight: 200;
+              font-weight: bold;
               color: @color-font-grey;
-            }
-
-          }
-        }
-
-        .message {
-
-          border-top:1px solid @flat-darkwhite;
-
-          .avatar {
-            border: 0px solid red;
-            float:left;
-            width:67px;
-            height:67px;
-            background: @flat-white;
-
-
-            .glyph {
-              margin-left:8px;
-              margin-top:5px;
-              color: @flat-darkwhite;
-              font-size:50px;
-            }
-
-            &.O {
-              float:right;
-              .glyph {
-                font-size:30px;
-                padding-left:12px;
-                padding-top: 10px;
-
-                &.icon-everywhere {
-                  padding-left: 4px;
-                  padding-top: 4px;
-                  font-size:45px;
-                }
-              }
+              border: 0px solid green;
+              padding-top:-5px;
 
             }
-          }
 
-          .text {
-            border: 0px solid green;
-            padding-top:5px;
-            padding-left:10px;
-
-            &.I {
-              margin-left:67px;
-            }
-
-            &.O {
-              padding-right:-77px;
-              text-align:right;
-              margin-right:77px;
-            }
-
-            &.A {
-              color:#999;
-              font-style:italic;
-            }
-
-            .from-number {
-              color:#999;
-              font-size:11px;
-              margin-top:-3px;
-            }
-
-            .sent-at {
-              color:#999;
-              font-size:11px;
-              font-style:normal;
-              padding-bottom:5px;
-              margin-top:0px;
-
-              .glyph {
-                margin-right:2px;
-                font-size:12px;
-                margin-top:2px;
-              }
-            }
           }
         }
 
@@ -592,25 +439,77 @@
 
   :javascript
 
+    var page = 1
     $(document).ready(function() {
-      if ($('.non-msg').size() == 0) {
-        $('.show-events').hide()
-      } else {
+      // fetch our first chunk of history
+      $.get('/contact/history/{{contact.uuid}}/', function(data){
+        $('.history').append(data);
+      });
 
-        $('.show-events').live('click', function() {
-          toggleEventVisibility(true);
+      // when they click to load more, fetch more history
+      $('.load-more').live('click', function() {
+        $(this).css('visibility', 'hidden');
+        $('.since .date').text('One moment..');
+
+        page++
+        $.get('/contact/history/{{contact.uuid}}/?page=' + page, function(data){
+          $('.history tr:last').remove();
+          $('.history').append(data);
+          updateEventVisibility(false);
         });
+      });
+
+      // toggle whether to show all events
+      $('.show-events').live('click', function() {
+        toggleEventVisibility(true);
+      });
+
+
+      // configure the number of contact fields to show
+      var featuredMax = 4;
+      var featuredCount = $('.featured').size()
+      if (featuredCount < featuredMax) {
+        $('.normal').slice(0, featuredMax-featuredCount).removeClass('normal').addClass('featured')
       }
 
+      // wire up expanding the contact field list
       $('.contact-fields').live('click', function() {
-      if ($('.other-fields').is(':visible')) {
-        $('.other-fields').hide();
+        if ($(this).hasClass('expanded')) {
+          $('.normal').hide();
+          $(this).removeClass('expanded');
+        } else {
+          $(this).addClass('expanded');
+          $('.normal').css('display', 'inline-block').show();
+        }
+      })
+    });
+
+    // updates all events according to the current visibility setting
+    function updateEventVisibility(animate) {
+      if (window.all_events) {
+        if (animate) {
+          $('.history .non-msg').fadeIn({duration: 800});
+        } else {
+          $('.history .non-msg').show();
+        }
+        $('.show-events').text('Show Messages Only');
       } else {
-        $('.other-fields').show();
+        $('.history .non-msg').hide();
+        $('.show-events').text('Show All Events');
       }
-    })});
+    }
 
+    // hide or show non-message activity
+    function toggleEventVisibility(animate) {
+      if (window.all_events) {
+        pwindow.all_events = false;
+      } else {
+        window.all_events = true;
+      }
+      updateEventVisibility(animate);
+    }
 
+    // plays the audio recording for a message
     function playMessage (messageId) {
       var audio = $('audio#message-' + messageId)
       var parent = audio.parent();

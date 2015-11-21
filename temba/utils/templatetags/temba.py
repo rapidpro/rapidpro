@@ -23,6 +23,21 @@ def icon(o):
 def verbose_name_plural(object):
     return object._meta.verbose_name_plural
 
+@register.filter
+def format_seconds(seconds):
+    if not seconds:
+        return None
+
+    if seconds < 60:
+        return '%s sec' % seconds
+    minutes = seconds / 60
+    seconds = seconds % 60
+    if seconds >= 30:
+        minutes+=1
+
+    #return seconds
+    return '%s min' % minutes
+
 def lessblock(parser, token):
     args = token.split_contents()
     if len(args) != 1:

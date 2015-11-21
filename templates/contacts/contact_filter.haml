@@ -37,7 +37,7 @@
           -trans "Are you sure you want to delete this Contact Group?"
         %p
           %b {{ current_group }}
-          %p 
+          %p
             -trans "No contacts will be deleted. However, once this group is deleted, it will be gone forever. There is no way to undo this operation."
 
       %a#delete-form.posterize{href:'{% url "contacts.contactgroup_delete" current_group.pk %}'}
@@ -57,7 +57,7 @@
       modal.show();
     });
     {% endif %}
-    
+
     {% if org_perms.contacts.contactgroup_delete %}
     $(".delete-contactgroup").live('click', function(){
       modal = new ConfirmationModal($('.group-deletion > .title').html(), $('.group-deletion > .body').html());

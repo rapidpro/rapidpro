@@ -101,7 +101,7 @@ DROP FUNCTION IF EXISTS update_topup_used();
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0011_auto_20151103_1014'),
+        ('orgs', '0015_auto_20151027_1248'),
     ]
 
     operations = [

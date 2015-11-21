@@ -17,7 +17,9 @@ ACTIVITY_ICONS = {
     'FlowRun': 'icon-tree-2',
     'Broadcast': 'icon-bullhorn',
     'Incoming': 'icon-bubble-left',
-    'Outgoing': 'icon-bubble-right'
+    'Outgoing': 'icon-bubble-right',
+    'IVRCall': 'icon-phone',
+    'DTMF': 'icon-grid'
 }
 
 
@@ -64,6 +66,11 @@ def activity_icon(item):
     if name == 'Msg':
         if item.broadcast and item.broadcast.recipient_count > 1:
             name = 'Broadcast'
+        elif item.msg_type == 'V':
+            if item.direction == 'I':
+                name = 'DTMF'
+            else:
+                name = 'IVRCall'
         elif item.direction == 'I':
             name = 'Incoming'
         else:
