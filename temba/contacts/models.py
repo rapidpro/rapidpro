@@ -534,7 +534,7 @@ class Contact(TembaModel, SmartModel):
                 urns_for_scheme_counts[scheme] = count + 1
                 params["%s%d" % (scheme, count)] = path
 
-            analytics.track(user.username, 'temba.contact_created', params)
+            analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)

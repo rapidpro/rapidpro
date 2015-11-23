@@ -394,7 +394,7 @@ def sync(request, channel_id):
     print json.dumps(result, indent=2)
 
     # keep track of how long a sync takes
-    analytics.track(channel.created_by.username, "temba.relayer_sync", properties=dict(value=time.time() - start))
+    analytics.gauge('temba.relayer_sync', time.time() - start)
 
     return HttpResponse(json.dumps(result), content_type='application/javascript')
 
