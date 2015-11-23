@@ -93,7 +93,7 @@ def collect_message_metrics_task():
     Collects message metrics and sends them to our analytics.
     """
     from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, INITIALIZING
-    import analytics
+    from temba.utils import analytics
 
     r = get_redis_connection()
 
