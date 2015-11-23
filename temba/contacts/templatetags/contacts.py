@@ -18,6 +18,8 @@ ACTIVITY_ICONS = {
     'Broadcast': 'icon-bullhorn',
     'Incoming': 'icon-bubble-left',
     'Outgoing': 'icon-bubble-right',
+    'Failed': 'icon-bubble-notification',
+    'Delivered': 'icon-bubble-check',
     'IVRCall': 'icon-phone',
     'DTMF': 'icon-grid'
 }
@@ -75,9 +77,13 @@ def activity_icon(item):
             name = 'Incoming'
         else:
             name = 'Outgoing'
+            if hasattr(item, 'status'):
+                if item.status in ('F', 'E'):
+                    name = 'Failed'
+                else:
+                    name = 'Delivered'
 
-
-    return mark_safe('<span class="glyph %s"></span>' % ACTIVITY_ICONS.get(name, ''))
+    return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(name, '')))
 
 @register.filter
 def event_time(event):

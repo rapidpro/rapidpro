@@ -241,7 +241,7 @@
               color: @flat-darkwhite;
               padding: 5px;
 
-              &.icon-bubble-right {
+              &.icon-bubble-right, &.icon-bubble-check {
                 color: @color-status-green;
               }
 
@@ -251,6 +251,10 @@
 
               &.icon-bullhorn {
                 color: @color-status-green;
+              }
+
+              &.icon-bubble-notification {
+                color: @color-status-failed;
               }
             }
           }
@@ -502,7 +506,7 @@
     // hide or show non-message activity
     function toggleEventVisibility(animate) {
       if (window.all_events) {
-        pwindow.all_events = false;
+        window.all_events = false;
       } else {
         window.all_events = true;
       }

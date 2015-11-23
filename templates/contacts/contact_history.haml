@@ -12,6 +12,7 @@
               -if duration
                 ({{duration}})
 
+            // this is necessary to trigger ifchanged
             <!--{{call.pk}}-->
 
   %tr.item{class:'msg_{{item.msg_type}} {% if item.direction or item.recipient_count%}msg{%else%}non-msg hide{%endif%}'}
@@ -29,7 +30,12 @@
             .icon-nav-channels-inverted
       -else
         %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-          {{item|activity_icon}}
+          -with item.channellog_set.all.first as log
+            -if log
+              %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+                {{item|activity_icon}}
+            -else
+              {{item|activity_icon}}
 
     %td.details
       -if item.recipient_count
@@ -80,18 +86,10 @@
                 .sent-to
                   .summary
                     Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
-              .summary
-
-                -with message.get_flow_id as flow_id
-                  -if flow_id
-                    //Message from
-                    //%a{href:'{% url "flows.flow_editor" flow_id %}'}
-                    //  {{message.get_flow_name}}
 
             .activity-body
               .text
                 -if message.text == message.recording_url
-
                   .left-recording
                     Made a recording
                 -else

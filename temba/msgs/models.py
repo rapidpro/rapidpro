@@ -204,9 +204,6 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    sent_to = models.ManyToManyField(Contact, verbose_name=_("Sent to"), related_name="sent",
-                                     help_text=_("The contacts this broadcast was sent to"))
-
     purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
 
     @classmethod
@@ -216,15 +213,6 @@ class Broadcast(models.Model):
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
         return broadcast
-
-    def purge(self):
-        """
-        Removes all of the messages attached to this broadcast and sets the purged flag. This is part of
-        our data retention policy which removes old outbound messages from processed broadcasts.
-        """
-        self.msgs.all().delete()
-        self.purged = True
-        self.save(update_fields=['purged'])
 
     def update_contacts(self, contact_ids):
         """
