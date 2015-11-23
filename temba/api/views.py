@@ -2653,10 +2653,16 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         if not org.country:
             return []
 
-        queryset = self.model.objects.filter(Q(pk=org.country.pk) |
-                                             Q(parent=org.country) |
-                                             Q(parent__parent=org.country)).order_by('level', 'name')
-        return queryset.select_related('parent')
+        # TODO: modify to return where pk is org.country.pk or in_country = org.country.pk
+        result = org.country.get_descendants(include_self=True).filter(Q(pk=org.country.pk)).order_by('level', 'name')
+
+        return result.select_related('parent')
+
+        # queryset = self.model.objects.filter(Q(pk=org.country.pk) |
+        #                                      Q(parent=org.country) |
+        #                                      Q(parent__parent=org.country) |
+        #                                      Q(parent__parent__parent=org.country)).order_by('level', 'name')
+        # return queryset.select_related('parent')
 
     @classmethod
     def get_read_explorer(cls):
