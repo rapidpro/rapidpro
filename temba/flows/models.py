@@ -647,7 +647,7 @@ class Flow(TembaModel, SmartModel):
                 handled = True
 
         if handled:
-            analytics.track("System", "temba.flow_execution", properties=dict(value=time.time() - start_time))
+            analytics.gauge('temba.flow_execution', time.time() - start_time)
 
         return handled
 

@@ -1049,4 +1049,7 @@ SESSION_CACHE_ALIAS = "default"
 TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
 TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
-# SEGMENT_IO_KEY = "your segment.io key here"
+SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
+
+LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
+LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
