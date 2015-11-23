@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 import json
 import pytz
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.utils import timezone
@@ -398,6 +398,26 @@ class ContactTest(TembaTest):
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
         self.jim.release()
+
+    def create_campaign(self):
+
+        # create a campaign with a future event and add joe
+        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+        self.farmers = self.create_group("Farmers", [self.joe])
+        self.reminder_flow = self.create_flow()
+        self.planting_date = ContactField.get_or_create(self.org, 'planting_date', "Planting Date")
+        self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        # create af flow event
+        self.planting_reminder = CampaignEvent.create_flow_event(self.org, self.admin, self.campaign,
+                                                                 relative_to=self.planting_date, offset=0, unit='D',
+                                                                 flow=self.reminder_flow, delivery_hour=17)
+
+        # and a message event
+        self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
+                                           relative_to=self.planting_date, offset=7, unit='D',
+                                           message='Sent 7 days after planting date')
+
 
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
@@ -944,12 +964,62 @@ class ContactTest(TembaTest):
             response = json.loads(self.client.get("%s?search=1234" % reverse("contacts.contact_omnibox")).content)
             self.assertEquals(0, len(response['results']))
 
+    def test_history(self):
+
+        self.create_campaign()
+
+        # create some messages
+        i = 0
+        for i in range(5):
+            self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i)
+            i += 1
+
+        # start a joe flow
+        from temba.flows.models import FlowRun
+        self.reminder_flow.start([], [self.joe])
+
+        # create an event from the past
+        from temba.campaigns.models import EventFire
+        scheduled = timezone.now() - timedelta(days=5)
+        event = EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
+
+        # create a missed call
+        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
+
+        # fetch our contact history
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
+        self.assertEquals(9, len(activity))
+
+        # most recent thing is our missed call
+        self.assertTrue(isinstance(activity[0], Call))
+
+        # order should be most recent first
+        self.assertEquals('What is your favorite color?', activity[1].text)
+        self.assertTrue(isinstance(activity[2], FlowRun))
+
+        # then our five messages
+        for i in range (5):
+            self.assertEquals('Inbound message %d' % (4-i), activity[3 + i].text)
+
+        # then lastly is our event that happened 5 days ago
+        self.assertTrue(isinstance(activity[8], EventFire))
+
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
+
         i = 0
         for i in range(5):
             self.create_msg(direction='I', contact=self.joe, text="some msg no %d 2 send in sms language if u wish" % i)
             i += 1
+
+        from temba.campaigns.models import EventFire
+        self.create_campaign()
+        self.joe.set_field('planting_date', unicode(timezone.now() + timedelta(days=1)))
+        EventFire.update_campaign_events(self.campaign)
+
+        # should have two fires for each campaign event
+        self.assertEquals(2, EventFire.objects.all().count())
 
         # visit a contact detail page as a user but not belonging to this organization
         self.login(self.user1)
@@ -964,35 +1034,12 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
-        self.assertEquals(5, len(response.context['all_messages']))
+        upcoming = response.context['upcoming_events']
 
-        # lets create an incoming call from this contact
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_IN)
-
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEquals(6, len(response.context['all_messages']))
-        self.assertTrue(isinstance(response.context['all_messages'][0], Call))
-
-        # lets create a new sms then
-        self.create_msg(direction='I', contact=self.joe, text="I am the seventh message for now")
-
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEquals(7, len(response.context['all_messages']))
-        self.assertTrue(isinstance(response.context['all_messages'][0], Msg))
-
-        # lets create an outgoing call from this contact
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
-
-        # visit a contact detail page as an admin with the organization
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEquals(self.joe, response.context['object'])
-        self.assertEquals(8, len(response.context['all_messages']))
-        self.assertTrue(isinstance(response.context['all_messages'][0], Call))
-
-        # visit a contact detail page as a superuser
-        response = self.fetch_protected(read_url, self.superuser)
-        self.assertEquals(self.joe, response.context['object'])
-        self.assertEquals(8, len(response.context['all_messages']))
+        # should have upcoming events in order of last to fire
+        self.assertEquals(7, upcoming[0].event.offset)
+        self.assertEquals(0, upcoming[1].event.offset)
+        self.assertGreater(upcoming[0].scheduled, upcoming[1].scheduled)
 
         contact_no_name = self.create_contact(name=None, number="678")
         read_url = reverse('contacts.contact_read', args=[contact_no_name.uuid])
@@ -1002,6 +1049,7 @@ class ContactTest(TembaTest):
 
         # login as a manager from out of this organization
         self.login(self.manager1)
+
         # create kLab group, and add joe to the group
         kLab = self.create_group("kLab", [self.joe])
 
@@ -1010,7 +1058,7 @@ class ContactTest(TembaTest):
         response = self.client.post(read_url, post_data, follow=True)
 
         # this manager cannot operate on this organization
-        self.assertEquals(len(self.joe.user_groups.all()), 1)
+        self.assertEquals(len(self.joe.user_groups.all()), 2)
         self.client.logout()
 
         # login as a manager of kLab
@@ -1018,7 +1066,7 @@ class ContactTest(TembaTest):
 
         # remove this contact form kLab group
         response = self.client.post(read_url, post_data, follow=True)
-        self.assertFalse(self.joe.user_groups.all())
+        self.assertEqual(1, self.joe.user_groups.count())
 
         # try removing it again, should fail
         response = self.client.post(read_url, post_data, follow=True)

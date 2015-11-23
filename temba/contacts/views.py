@@ -559,27 +559,20 @@ class ContactCRUDL(SmartCRUDL):
             return contact
 
         def get_context_data(self, **kwargs):
-            from temba.channels.models import SEND
+            context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
 
             contact = self.object
             if not contact.is_active:
                 raise Http404("No active contact with that id")
 
-            def contact_cmp(a, b):
-                if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
-                    a.created_on = a.fired
+            # the users group membership
+            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
 
-                if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
-                    b.created_on = b.fired
-
-                if a.created_on == b.created_on:
-                    return 0
-                elif a.created_on < b.created_on:
-                    return -1
-                else:
-                    return 1
+            # upcoming scheduled events
+            context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')[:3].reverse()
 
             # divide contact's URNs into those we can send to, and those we can't
+            from temba.channels.models import SEND
             sendable_schemes = contact.org.get_schemes(SEND)
             sendable_urns = []
             unsendable_urns = []
@@ -588,33 +581,20 @@ class ContactCRUDL(SmartCRUDL):
                     sendable_urns.append(urn)
                 else:
                     unsendable_urns.append(urn)
-
-            context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
 
+            # lookup all of our contact fields
             contact_fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
             contact_fields = [ dict(label=f.label, value=contact.get_field_display(f.key), featured=f.show_in_table) for f in contact_fields if contact.get_field_display(f.key) ]
 
-            # add the contact's language to our fields if we have on
+            # stuff in the contact's language in the fields as well
             if contact.language:
                 lang = pycountry.languages.get(iso639_3_code=contact.language)
                 if lang:
                     contact_fields.append(dict(label='Language', value=lang.name, featured=True))
 
-            contact_fields = sorted(contact_fields, key=lambda field: field['label'])
-
-            context['contact_fields'] = contact_fields
-
-            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
-            upcoming_events = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')[:3]
-
-            context['upcoming_events'] = reversed(upcoming_events)
-            context['show_upcoming'] = len(upcoming_events)
-
-
-
-
+            context['contact_fields'] = sorted(contact_fields, key=lambda field: field['label'])
 
             return context
 
@@ -675,8 +655,12 @@ class ContactCRUDL(SmartCRUDL):
             return contact
 
         def get_context_data(self, *args, **kwargs):
+
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
 
+            from temba.ivr.models import IVRCall
+            from temba.flows.models import FlowRun, Flow
+            from temba.campaigns.models import EventFire
             def contact_cmp(a, b):
 
                 if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
@@ -694,28 +678,31 @@ class ContactCRUDL(SmartCRUDL):
 
             contact = self.get_object()
 
+            # determine our start and end time based on the page
             page = int(self.request.REQUEST.get('page', 1))
-            per_page = 90
+            days_per_page = 90
+            start_time = timezone.now() - timedelta(days=days_per_page * page)
+            end_time = timezone.now() - timedelta(days=days_per_page * (page-1))
+            context['start_time'] = start_time
 
-            start_time = timezone.now() - timedelta(days=per_page * page)
-            end_time = timezone.now() - timedelta(days=per_page * (page-1))
-
-            from temba.ivr.models import IVRCall
-            # broadcasts = Broadcast.objects.filter(contacts__in=[contact]).filter(purged=True).order_by('-created_on', '-id')
-            broadcasts = []
+            # all of our messages and broadcasts
+            broadcasts = Broadcast.objects.filter(contacts__in=[contact]).filter(purged=True).order_by('-created_on', '-id')
             text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED), created_on__lt=end_time, created_on__gt=start_time)
             text_messages = text_messages.exclude(broadcast__in=broadcasts).order_by('-created_on', '-id')
 
-            from temba.flows.models import FlowRun, Flow
-            from temba.campaigns.models import EventFire
-
+            # all of our runs and events
             runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
             fired = EventFire.objects.filter(contact=contact , scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
 
-            activity = chain(text_messages, broadcasts, runs, fired)
+            # missed calls
+            calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+
+            # now chain them all together in the same list and sort by time
+            activity = chain(text_messages, broadcasts, runs, fired, calls)
+
             activity = sorted(activity, cmp=contact_cmp, reverse=True)
             context['activity'] = activity
-            context['start_time'] = start_time
+
             return context
 
     class List(ContactActionMixin, ContactListView):

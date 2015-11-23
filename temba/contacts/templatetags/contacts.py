@@ -20,6 +20,7 @@ ACTIVITY_ICONS = {
     'Outgoing': 'icon-bubble-right',
     'Failed': 'icon-bubble-notification',
     'Delivered': 'icon-bubble-check',
+    'Call': 'icon-phone',
     'IVRCall': 'icon-phone',
     'DTMF': 'icon-grid'
 }

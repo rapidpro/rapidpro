@@ -49,12 +49,10 @@
               {{broadcast.text}}
       -elif item.call_type
         -with item as call
-          Phone call ({{call.duration|format_seconds}})
-          -for run in call.runs.all
-            {{run}}
-            -for msg in run.messages
-              .msg
-                {{msg}}
+          -if call.call_type == 'mt_miss'
+            Missed call
+          -else
+            Phone call ({{call.duration|format_seconds}})
 
       -elif item.flow
         -with item as run
