@@ -565,10 +565,10 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         with self.assertNumQueries(1):
-            self.assertEquals(250, self.org.get_low_credits_threshold())
+            self.assertEquals(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
-            self.assertEquals(250, self.org.get_low_credits_threshold())
+            self.assertEquals(150, self.org.get_low_credits_threshold())
 
         # we should have 1000 minus 10 credits for this org
         with self.assertNumQueries(4):
@@ -697,11 +697,11 @@ class OrgTest(TembaTest):
             self.assertEquals(99, self.org.get_credits_expiring_soon())
 
         with self.assertNumQueries(1):
-            self.assertEquals(25, self.org.get_low_credits_threshold())
+            self.assertEquals(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
             self.assertEquals(99, self.org.get_credits_expiring_soon())
-            self.assertEquals(25, self.org.get_low_credits_threshold())
+            self.assertEquals(15, self.org.get_low_credits_threshold())
 
         # some cedits expires but more credits will remain active
         later_active_topup = TopUp.create(self.admin, price=0, credits=200)
@@ -715,11 +715,11 @@ class OrgTest(TembaTest):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
 
         with self.assertNumQueries(1):
-            self.assertEquals(75, self.org.get_low_credits_threshold())
+            self.assertEquals(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
-            self.assertEquals(75, self.org.get_low_credits_threshold())
+            self.assertEquals(45, self.org.get_low_credits_threshold())
 
         # no expiring credits
         gift_topup.expires_on = five_week_ahead
@@ -731,11 +731,11 @@ class OrgTest(TembaTest):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
 
         with self.assertNumQueries(1):
-            self.assertEquals(75, self.org.get_low_credits_threshold())
+            self.assertEquals(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
-            self.assertEquals(75, self.org.get_low_credits_threshold())
+            self.assertEquals(45, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
         gift_topup.expires_on = yesterday
@@ -747,11 +747,11 @@ class OrgTest(TembaTest):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
 
         with self.assertNumQueries(1):
-            self.assertEquals(50, self.org.get_low_credits_threshold())
+            self.assertEquals(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
-            self.assertEquals(50, self.org.get_low_credits_threshold())
+            self.assertEquals(30, self.org.get_low_credits_threshold())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)

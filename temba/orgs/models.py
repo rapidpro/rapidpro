@@ -898,7 +898,7 @@ class Org(SmartModel):
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
         last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
-        return int(last_topup_credits * 0.25)
+        return int(last_topup_credits * 0.15)
 
     def get_credits_total(self):
         """
