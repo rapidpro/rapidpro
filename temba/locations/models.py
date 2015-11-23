@@ -4,6 +4,7 @@ from smartmin.models import SmartModel
 logger = logging.getLogger(__name__)
 
 from django.contrib.gis.db import models
+from mptt.models import MPTTModel, TreeForeignKey
 import geojson
 
 
@@ -12,7 +13,7 @@ STATE_LEVEL = 1
 DISTRICT_LEVEL = 2
 
 
-class AdminBoundary(models.Model):
+class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)
     """
@@ -28,8 +29,8 @@ class AdminBoundary(models.Model):
     in_country = models.CharField(max_length=15, null=True,
                                   help_text="The OSM id of this admin level's country id")
 
-    parent = models.ForeignKey('locations.AdminBoundary', null=True, related_name='children',
-                               help_text="The parent to this political boundary if any")
+    parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
+                            help_text="The parent to this political boundary if any")
 
     geometry = models.MultiPolygonField(null=True,
                                         help_text="The full geometry of this administrative boundary")
@@ -64,6 +65,7 @@ class AdminBoundary(models.Model):
         return AdminBoundary.get_geojson_dump([self.get_geojson_feature()])
 
     def get_children_geojson(self):
+        # TODO: update to iterate through children
         children = []
         for child in self.children.all():
             children.append(child.get_geojson_feature())
