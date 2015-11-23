@@ -93,7 +93,7 @@ def collect_message_metrics_task():
     Collects message metrics and sends them to our analytics.
     """
     from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, INITIALIZING
-    import analytics
+    from temba.utils import analytics
 
     r = get_redis_connection()
 
@@ -101,33 +101,30 @@ def collect_message_metrics_task():
     key = 'collect_message_metrics'
     if not r.get(key):
         with r.lock(key, timeout=900):
-            # we use our hostname as our source so we can filter these for different brands
-            context = dict(source=settings.HOSTNAME)
-
             # current # of queued messages (excluding Android)
             count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
                 exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
-            analytics.track('System', 'temba.current_outgoing_queued', properties=dict(value=count), context=context)
+            analytics.gauge('temba.current_outgoing_queued', count)
 
             # current # of initializing messages (excluding Android)
             count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-            analytics.track('System', 'temba.current_outgoing_initializing', properties=dict(value=count), context=context)
+            analytics.gauge('temba.current_outgoing_initializing', count)
 
             # current # of pending messages (excluding Android)
             count = Msg.objects.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-            analytics.track('System', 'temba.current_outgoing_pending', properties=dict(value=count), context=context)
+            analytics.gauge('temba.current_outgoing_pending', count)
 
             # current # of errored messages (excluding Android)
             count = Msg.objects.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-            analytics.track('System', 'temba.current_outgoing_errored', properties=dict(value=count), context=context)
+            analytics.gauge('temba.current_outgoing_errored', count)
 
             # current # of android outgoing messages waiting to be sent
             count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
-            analytics.track('System', 'temba.current_outgoing_android', properties=dict(value=count), context=context)
+            analytics.gauge('temba.current_outgoing_android', count)
 
             # current # of pending incoming messages that haven't yet been handled
             count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
-            analytics.track('System', 'temba.current_incoming_pending', properties=dict(value=count), context=context)
+            analytics.gauge('temba.current_incoming_pending', count)
 
             # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
             cache.set('last_cron', timezone.now())

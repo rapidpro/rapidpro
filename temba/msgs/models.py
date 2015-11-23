@@ -688,11 +688,11 @@ class Msg(models.Model):
 
         # record our handling latency for this object
         if msg.queued_on:
-            analytics.track("System", "temba.handling_latency", properties=dict(value=(msg.delivered_on - msg.queued_on).total_seconds()))
+            analytics.gauge('temba.handling_latency', (msg.delivered_on - msg.queued_on).total_seconds())
 
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
-        analytics.track("System", "temba.channel_handling_latency", properties=dict(value=(msg.delivered_on - msg.created_on).total_seconds()))
+        analytics.gauge('temba.channel_handling_latency', (msg.delivered_on - msg.created_on).total_seconds())
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -777,7 +777,7 @@ class Msg(models.Model):
                 Msg.objects.select_related('org').get(pk=msg.id).fail()
 
             if channel:
-                analytics.track("System", "temba.msg_failed_%s" % channel.channel_type.lower())
+                analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
         else:
             msg.status = ERRORED
             msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
@@ -794,7 +794,7 @@ class Msg(models.Model):
             pipe.execute()
 
             if channel:
-                analytics.track("System", "temba.msg_errored_%s" % channel.channel_type.lower())
+                analytics.gauge('temba.msg_errored_%s' % channel.channel_type.lower())
 
     @classmethod
     def mark_sent(cls, r, channel, msg, status, latency, external_id=None):
@@ -824,13 +824,13 @@ class Msg(models.Model):
 
         # hasattr needed here as queued_on being included is new, so some messages may not have the attribute after push
         if getattr(msg, 'queued_on', None):
-            analytics.track("System", "temba.sending_latency", properties=dict(value=(msg.sent_on - msg.queued_on).total_seconds()))
+            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
         else:
-            analytics.track("System", "temba.sending_latency", properties=dict(value=(msg.sent_on - msg.created_on).total_seconds()))
+            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.created_on).total_seconds())
 
         # logs that a message was sent for this channel type if our latency is known
         if latency > 0:
-            analytics.track("System", "temba.msg_sent_%s" % channel.channel_type.lower(), properties=dict(value=latency))
+            analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), latency)
 
     def as_json(self):
         return dict(direction=self.direction,
@@ -1065,7 +1065,7 @@ class Msg(models.Model):
         msg = Msg.objects.create(**msg_args)
 
         if channel:
-            analytics.track('System', 'temba.msg_incoming_%s' % channel.channel_type.lower())
+            analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
         if status == PENDING:
             msg.handle()
@@ -1177,7 +1177,7 @@ class Msg(models.Model):
             channel_id = channel.pk if channel else None
 
             if same_msg_count >= 10:
-                analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel_id))
+                analytics.gauge('temba.msg_loop_caught')
                 return None
 
             # be more aggressive about short codes for duplicate messages
@@ -1191,7 +1191,7 @@ class Msg(models.Model):
                                                     direction=OUTGOING,
                                                     created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
-                    analytics.track('System', "temba.msg_shortcode_loop_caught", dict(org=org.pk, channel=channel_id))
+                    analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
 
         # costs 1 credit to send a message
@@ -1205,7 +1205,7 @@ class Msg(models.Model):
 
         # track this if we have a channel
         if channel:
-            analytics.track('System', 'temba.msg_outgoing_%s' % channel.channel_type.lower())
+            analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1274,6 +1274,7 @@ class Msg(models.Model):
         self.status = SENT
         self.sent_on = timezone.now()
         self.save(update_fields=('status', 'sent_on'))
+
         Channel.track_status(self.channel, "Sent")
 
     def status_delivered(self):
@@ -1285,6 +1286,7 @@ class Msg(models.Model):
         if not self.sent_on:
             self.sent_on = timezone.now()
         self.save(update_fields=('status', 'delivered_on', 'sent_on'))
+
         Channel.track_status(self.channel, "Delivered")
 
     def archive(self):
@@ -1414,7 +1416,7 @@ class Call(SmartModel):
                                    created_by=user,
                                    modified_by=user)
 
-        analytics.track('System', 'temba.call_%s' % call.get_call_type_display().lower(), dict(channel_type=channel.get_channel_type_display()))
+        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower().replace(' ', '_'))
 
         WebHookEvent.trigger_call_event(call)
 
