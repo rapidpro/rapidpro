@@ -1416,7 +1416,7 @@ class Call(SmartModel):
                                    created_by=user,
                                    modified_by=user)
 
-        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower())
+        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower().replace(' ', '_'))
 
         WebHookEvent.trigger_call_event(call)
 
