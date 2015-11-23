@@ -1739,7 +1739,7 @@ class CreditAlert(SmartModel):
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
             elif org_low_credits:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            #elif org_credits_expiring > 0:
-            #    CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
+            elif org_credits_expiring > 0:
+               CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
 
 
