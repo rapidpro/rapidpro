@@ -2993,6 +2993,33 @@ class NexmoTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
+                # this hackery is so that we return a different thing on the second call as the first
+                def return_valid(url, params):
+                    called = getattr(return_valid, 'called', False)
+
+                    # on the first call we simulate Nexmo telling us to wait
+                    if not called:
+                        return_valid.called = True
+                        return MockResponse(200,
+                            json.dumps(dict(messages=[{'status': 1,
+                                       'error-text': 'Throughput Rate Exceeded - please wait [ 250 ] and retry'}])))
+
+                    # on the second, all is well
+                    else:
+                        return MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id':12}])),
+                                            method='POST')
+                mock.side_effect = return_valid
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # should be sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(SENT, msg.status)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
