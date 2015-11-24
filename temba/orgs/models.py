@@ -257,6 +257,8 @@ class Org(SmartModel):
             r.delete(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk)
             r.delete(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk)
             r.delete(ORG_ACTIVE_TOPUP_KEY % self.pk)
+            r.delete(ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk)
+            r.delete(ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk)
 
             for topup in self.topups.all():
                 r.delete(ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk))
@@ -866,9 +868,22 @@ class Org(SmartModel):
                                     self._calculate_credits_expiring_soon)
 
     def _calculate_credits_expiring_soon(self):
-        one_month_period = timezone.now() + timedelta(days=30)
-        expiring_topups = self.topups.filter(is_active=True, expires_on__lte=one_month_period).aggregate(Sum('credits')).get('credits__sum')
-        return expiring_topups if expiring_topups else 0
+        now = timezone.now()
+        one_month_period = now + timedelta(days=30)
+        expiring_topups_qs = self.topups.filter(is_active=True,
+                                                expires_on__lte=one_month_period).exclude(expires_on__lte=now)
+
+        used_credits = TopUpCredits.objects.filter(topup__in=expiring_topups_qs).aggregate(Sum('used')).get('used__sum')
+
+        expiring_topups_credits = expiring_topups_qs.aggregate(Sum('credits')).get('credits__sum')
+
+        more_valid_credits_qs = self.topups.filter(is_active=True, expires_on__gt=one_month_period)
+        more_valid_credits = more_valid_credits_qs.aggregate(Sum('credits')).get('credits__sum')
+
+        if more_valid_credits or not expiring_topups_credits:
+            return 0
+
+        return expiring_topups_credits - used_credits
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -881,8 +896,9 @@ class Org(SmartModel):
                                     self._calculate_low_credits_threshold)
 
     def _calculate_low_credits_threshold(self):
-        last_topup = self.topups.filter(is_active=True).last()
-        return int(last_topup.credits * 0.25)
+        now = timezone.now()
+        last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
+        return int(last_topup_credits * 0.15)
 
     def get_credits_total(self):
         """
@@ -1723,7 +1739,7 @@ class CreditAlert(SmartModel):
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
             elif org_low_credits:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            #elif org_credits_expiring > 0:
-            #    CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
+            elif org_credits_expiring > 0:
+               CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
 
 

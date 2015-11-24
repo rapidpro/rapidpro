@@ -565,10 +565,10 @@ class OrgTest(TembaTest):
         create_msgs(contact, 10)
 
         with self.assertNumQueries(1):
-            self.assertEquals(250, self.org.get_low_credits_threshold())
+            self.assertEquals(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
-            self.assertEquals(250, self.org.get_low_credits_threshold())
+            self.assertEquals(150, self.org.get_low_credits_threshold())
 
         # we should have 1000 minus 10 credits for this org
         with self.assertNumQueries(4):
@@ -681,6 +681,77 @@ class OrgTest(TembaTest):
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
+
+        # all top up expired
+        TopUp.objects.all().update(expires_on=yesterday)
+
+        # we have expiring credits, and no more active
+        gift_topup = TopUp.create(self.admin, price=0, credits=100)
+        next_week = timezone.now() + relativedelta(days=7)
+        gift_topup.expires_on = next_week
+        gift_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(99, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(15, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(99, self.org.get_credits_expiring_soon())
+            self.assertEquals(15, self.org.get_low_credits_threshold())
+
+        # some cedits expires but more credits will remain active
+        later_active_topup = TopUp.create(self.admin, price=0, credits=200)
+        five_week_ahead = timezone.now() + relativedelta(days=35)
+        later_active_topup.expires_on = five_week_ahead
+        later_active_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(45, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+            self.assertEquals(45, self.org.get_low_credits_threshold())
+
+        # no expiring credits
+        gift_topup.expires_on = five_week_ahead
+        gift_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(45, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+            self.assertEquals(45, self.org.get_low_credits_threshold())
+
+        # do not consider expired topup
+        gift_topup.expires_on = yesterday
+        gift_topup.save(update_fields=['expires_on'])
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+
+        with self.assertNumQueries(1):
+            self.assertEquals(30, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_credits_expiring_soon())
+            self.assertEquals(30, self.org.get_low_credits_threshold())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1503,36 +1574,36 @@ class CreditAlertTest(TembaTest):
                         # no alert since no expiring credits
                         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
-#                        mock_get_credits_exipiring_soon.return_value = 200
+                        mock_get_credits_exipiring_soon.return_value = 200
 
-#                        CreditAlert.check_org_credits()
+                        CreditAlert.check_org_credits()
 
                         # expiring credit alert created and email sent
-#                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-#                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
-#                        self.assertEquals(5, len(mail.outbox))
+                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEquals(5, len(mail.outbox))
 
                         # email sent
-#                        sent_email = mail.outbox[4]
-#                        self.assertEqual(len(sent_email.to), 1)
-#                        self.assertTrue('RapidPro account for Temba' in sent_email.body)
-#                        self.assertTrue('expiring credits in less than one month.' in sent_email.body)
+                        sent_email = mail.outbox[4]
+                        self.assertEqual(len(sent_email.to), 1)
+                        self.assertTrue('RapidPro account for Temba' in sent_email.body)
+                        self.assertTrue('expiring credits in less than one month.' in sent_email.body)
 
                         # no new alert if one is sent and no new email
-#                        CreditAlert.check_org_credits()
-#                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-#                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
-#                        self.assertEquals(5, len(mail.outbox))
+                        CreditAlert.check_org_credits()
+                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEquals(5, len(mail.outbox))
 
                         # reset alerts
-#                        CreditAlert.reset_for_org(self.org)
-#                        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+                        CreditAlert.reset_for_org(self.org)
+                        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
 
                         # can resend a new alert
-#                        CreditAlert.check_org_credits()
-#                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
-#                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
-#                        self.assertEquals(6, len(mail.outbox))
+                        CreditAlert.check_org_credits()
+                        self.assertEquals(1, CreditAlert.objects.filter(is_active=True, org=self.org,
+                                                                        alert_type=ORG_CREDIT_EXPIRING).count())
+                        self.assertEquals(6, len(mail.outbox))
 
 
 class UnreadCountTest(FlowFileTest):
