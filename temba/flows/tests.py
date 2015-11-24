@@ -210,11 +210,6 @@ class FlowTest(TembaTest):
         self.assertTrue('mutable' in response.context)
 
     def test_states(self):
-        # make sure to delete any old exports
-        from shutil import rmtree
-        export_dir = "%s/test_orgs/%d/results_exports/" % (settings.MEDIA_ROOT, self.org.pk)
-        rmtree(export_dir, ignore_errors=True)
-
         # set our flow
         self.flow.update(self.definition)
 
@@ -307,7 +302,7 @@ class FlowTest(TembaTest):
         # our message should have gotten a reply
         reply = Msg.objects.get(response_to=incoming)
         self.assertEquals(self.contact, reply.contact)
-        self.assertEquals("I love orange too! You said: orange which is category: orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
+        self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
         # should be high priority
         self.assertEquals(SMS_HIGH_PRIORITY, reply.priority)
@@ -398,66 +393,6 @@ class FlowTest(TembaTest):
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
         self.assertFalse(Flow.find_and_handle(extra))
 
-        # try exporting this flow
-        exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
-        self.assertEquals(302, exported.status_code)
-
-        self.login(self.admin)
-
-        # create a dummy export task so that we won't be able to export
-        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, host='test',
-                                                               created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk, follow=True)
-
-        self.assertContains(response, "already an export in progress")
-
-        # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
-
-        workbook = self.export_flow_results(self.flow)
-
-        self.assertEquals(3, len(workbook.sheets()))
-        entries = workbook.sheets()[0]
-        self.assertEquals(3, entries.nrows)
-        self.assertEquals(8, entries.ncols)
-
-        self.assertEqual(entries.cell(0, 0).value, "Phone")
-        self.assertEqual(entries.cell(0, 1).value, "Name")
-        self.assertEqual(entries.cell(0, 2).value, "Groups")
-        self.assertEqual(entries.cell(0, 3).value, "First Seen")
-        self.assertEqual(entries.cell(0, 4).value, "Last Seen")
-        self.assertEqual(entries.cell(0, 5).value, "color (Category) - Color Flow")
-        self.assertEqual(entries.cell(0, 6).value, "color (Value) - Color Flow")
-        self.assertEqual(entries.cell(0, 7).value, "color (Text) - Color Flow")
-
-        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
-        self.assertEqual(entries.cell(1, 1).value, "Eric")
-        self.assertEqual(entries.cell(1, 5).value, "Orange")
-        self.assertEqual(entries.cell(1, 6).value, "orange")
-        self.assertEqual(entries.cell(1, 7).value, "orange")
-
-        self.assertEqual(entries.cell(2, 0).value, "+250788383383")
-        self.assertEqual(entries.cell(2, 1).value, "Nic")
-        self.assertEqual(entries.cell(1, 5).value, "Orange")
-
-        messages = workbook.sheets()[2]
-        self.assertEquals(5, messages.nrows)
-        self.assertEquals(6, messages.ncols)
-
-        self.assertEqual(messages.cell(0, 0).value, "Phone")
-        self.assertEqual(messages.cell(0, 1).value, "Name")
-        self.assertEqual(messages.cell(0, 2).value, "Date")
-        self.assertEqual(messages.cell(0, 3).value, "Direction")
-        self.assertEqual(messages.cell(0, 4).value, "Message")
-        self.assertEqual(messages.cell(0, 5).value, "Channel")
-
-        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
-        self.assertEqual(messages.cell(1, 1).value, "Eric")
-        self.assertEqual(messages.cell(1, 3).value, "OUT")
-        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
-        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
-
         # try getting our results
         results = self.flow.get_results()
 
@@ -480,36 +415,147 @@ class FlowTest(TembaTest):
         self.assertEquals(uuid(5), color['node'])
         self.assertEquals(incoming.text, color['text'])
 
-    def test_export_results_with_surveyor_msgs(self):
+    def test_export_results(self):
+        # setup flow and start both contacts
         self.flow.update(self.definition)
-        self.flow.start([], [self.contact])
+        contact1_run1, contact2_run1 = self.flow.start([], [self.contact, self.contact2])
 
-        # no urn or channel
-        Msg.create_incoming(None, None, "Blue", org=self.org, contact=self.contact)
+        # simulate two runs each for two contacts...
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
+        Flow.find_and_handle(contact1_in1)
+
+        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+        Flow.find_and_handle(contact1_in2)
+
+        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
+        Flow.find_and_handle(contact2_in1)
+
+        contact1_run2, contact2_run2 = self.flow.start([], [self.contact, self.contact2], restart_participants=True)
+
+        contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
+        Flow.find_and_handle(contact1_in3)
+
+        # check can't export anonymously
+        exported = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk)
+        self.assertEquals(302, exported.status_code)
+
+        self.login(self.admin)
+
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, host='test',
+                                                               created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse('flows.flow_export_results') + "?ids=%d" % self.flow.pk, follow=True)
+
+        self.assertContains(response, "already an export in progress")
+
+        # ok, mark that one as finished and try again
+        blocking_export.is_finished = True
+        blocking_export.save()
 
         workbook = self.export_flow_results(self.flow)
+        tz = pytz.timezone(self.org.timezone)
 
-        self.assertEqual(len(workbook.sheets()), 3)
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.sheets()
 
-        entries = workbook.sheets()[0]
+        # check runs sheet...
+        self.assertEqual(sheet_runs.nrows, 5)  # header + 4 runs
+        self.assertEqual(sheet_runs.ncols, 8)
 
-        self.assertEqual(entries.cell(1, 0).value, "+250788382382")
-        self.assertEqual(entries.cell(1, 1).value, "Eric")
-        self.assertEqual(entries.cell(1, 5).value, "Blue")
+        self.assertExcelRow(sheet_runs, 0, ["Phone", "Name", "Groups", "First Seen", "Last Seen",
+                                            "color (Category) - Color Flow",
+                                            "color (Value) - Color Flow",
+                                            "color (Text) - Color Flow"])
 
-        messages = workbook.sheets()[2]
+        contact1_run1_rs = FlowStep.objects.filter(run=contact1_run1, step_type='R')
+        c1_run1_first = contact1_run1_rs.order_by('pk').first().arrived_on
+        c1_run1_last = contact1_run1_rs.order_by('-pk').first().arrived_on
 
-        self.assertEqual(messages.cell(1, 0).value, "+250788382382")
-        self.assertEqual(messages.cell(1, 1).value, "Eric")
-        self.assertEqual(messages.cell(1, 3).value, "OUT")
-        self.assertEqual(messages.cell(1, 4).value, "What is your favorite color?")
-        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
+        contact1_run2_rs = FlowStep.objects.filter(run=contact1_run2, step_type='R')
+        c1_run2_first = contact1_run2_rs.order_by('pk').first().arrived_on
+        c1_run2_last = contact1_run2_rs.order_by('-pk').first().arrived_on
 
-        self.assertEqual(messages.cell(2, 0).value, "")
-        self.assertEqual(messages.cell(2, 1).value, "Eric")
-        self.assertEqual(messages.cell(2, 3).value, "IN")
-        self.assertEqual(messages.cell(2, 4).value, "Blue")
-        self.assertEqual(messages.cell(2, 5).value, "")
+        self.assertExcelRow(sheet_runs, 1, ["+250788382382", "Eric", "", c1_run1_first, c1_run1_last,
+                                            "Orange", "orange", "orange"], tz)
+
+        self.assertExcelRow(sheet_runs, 2, ["+250788382382", "Eric", "", c1_run2_first, c1_run2_last,
+                                            "Blue", "blue", " blue "], tz)
+
+        contact2_run1_rs = FlowStep.objects.filter(run=contact2_run1, step_type='R')
+        c2_run1_first = contact2_run1_rs.order_by('pk').first().arrived_on
+        c2_run1_last = contact2_run1_rs.order_by('-pk').first().arrived_on
+
+        contact2_run2_rs = FlowStep.objects.filter(run=contact2_run2, step_type='R')
+        c2_run2_first = contact2_run2_rs.order_by('pk').first().arrived_on
+        c2_run2_last = contact2_run2_rs.order_by('-pk').first().arrived_on
+
+        self.assertExcelRow(sheet_runs, 3, ["+250788383383", "Nic", "", c2_run1_first, c2_run1_last,
+                                            "Other", "green", "green"], tz)
+
+        self.assertExcelRow(sheet_runs, 4, ["+250788383383", "Nic", "", c2_run2_first, c2_run2_last, "", "", ""], tz)
+
+        # check contacts sheet...
+        self.assertEqual(sheet_contacts.nrows, 3)  # header + 2 contacts
+        self.assertEqual(sheet_contacts.ncols, 8)
+
+        self.assertExcelRow(sheet_contacts, 0, ["Phone", "Name", "Groups", "First Seen", "Last Seen",
+                                                "color (Category) - Color Flow",
+                                                "color (Value) - Color Flow",
+                                                "color (Text) - Color Flow"])
+
+        self.assertExcelRow(sheet_contacts, 1, ["+250788382382", "Eric", "", c1_run1_first, c1_run2_last,
+                                                "Blue", "blue", " blue "], tz)
+
+        self.assertExcelRow(sheet_contacts, 2, ["+250788383383", "Nic", "", c2_run1_first, c2_run2_last,
+                                                "Other", "green", "green"], tz)
+
+        # check messages sheet...
+        self.assertEqual(sheet_msgs.nrows, 13)  # header + 12 messages
+        self.assertEqual(sheet_msgs.ncols, 6)
+
+        self.assertExcelRow(sheet_msgs, 0, ["Phone", "Name", "Date", "Direction", "Message", "Channel"])
+
+        contact1_out1 = Msg.objects.get(steps__run=contact1_run1, text="What is your favorite color?")
+        contact1_out2 = Msg.objects.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
+        contact1_out3 = Msg.objects.get(steps__run=contact1_run1, text__startswith="I love orange too")
+
+        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", contact1_out1.created_on, "OUT",
+                                            "What is your favorite color?", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 2, ["+250788382382", "Eric", contact1_in1.created_on, "IN",
+                                            "light beige", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 3, ["+250788382382", "Eric", contact1_out2.created_on, "OUT",
+                                            "That is a funny color. Try again.", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 4, ["+250788382382", "Eric", contact1_in2.created_on, "IN",
+                                            "orange", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 5, ["+250788382382", "Eric", contact1_out3.created_on, "OUT",
+                                            "I love orange too! You said: orange which is category: Orange You are: "
+                                            "0788 382 382 SMS: orange Flow: color: light beige\ncolor: orange",
+                                            "Test Channel"], tz)
+
+    def test_export_results_with_surveyor_msgs(self):
+        self.flow.update(self.definition)
+        run = self.flow.start([], [self.contact])[0]
+
+        # no urn or channel
+        in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
+
+        workbook = self.export_flow_results(self.flow)
+        tz = pytz.timezone(self.org.timezone)
+
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.sheets()
+
+        run1_rs = FlowStep.objects.filter(run=run, step_type='R')
+        run1_first = run1_rs.order_by('pk').first().arrived_on
+        run1_last = run1_rs.order_by('-pk').first().arrived_on
+
+        self.assertExcelRow(sheet_runs, 1, ["+250788382382", "Eric", "", run1_first, run1_last,
+                                            "Blue", "blue", "blue"], tz)
+
+        out1 = Msg.objects.get(steps__run=run, text="What is your favorite color?")
+
+        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", out1.created_on, "OUT",
+                                            "What is your favorite color?", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 2, ["", "Eric", in1.created_on, "IN", "blue", ""], tz)  # no channel or phone
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
@@ -609,7 +655,7 @@ class FlowTest(TembaTest):
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
@@ -666,7 +712,7 @@ class FlowTest(TembaTest):
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid=uuid(5))
@@ -3306,80 +3352,6 @@ class FlowsTest(FlowFileTest):
         chw = self.contact
         sms = Msg.objects.filter(contact=chw).order_by('-created_on')[0]
         self.assertEquals("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
-
-    def test_flow_export_results(self):
-        self.clear_storage()
-
-        mother_flow = self.get_flow('new_mother')
-        registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-
-        # start our test contact down the flow
-        self.assertEquals("What is her expected delivery date?",
-                          self.send_message(registration_flow, "Test Mother", contact=Contact.get_test_contact(self.admin)))
-
-        # then a real contact
-        self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
-        self.assertEquals("That doesn't look like a valid date, try again.", self.send_message(registration_flow, "NO"))
-        self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
-        self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
-
-        # export the flow
-        task = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
-        task.flows.add(registration_flow)
-        task.do_export()
-
-        task = ExportFlowResultsTask.objects.get(pk=task.id)
-
-        # read it back in, check values
-        from xlrd import open_workbook
-        filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
-
-        self.assertEquals(3, len(workbook.sheets()))
-        entries = workbook.sheets()[0]
-        self.assertEquals(2, entries.nrows)
-        self.assertEquals(14, entries.ncols)
-
-        # make sure our date hour is correct in our current timezone, we only look at hour as that
-        # is what changes per timezone
-        org_timezone = pytz.timezone(self.org.timezone)
-        org_now = timezone.now().astimezone(org_timezone)
-        self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 4).value, 0)[3])
-
-        # name category and value and raw
-        self.assertEquals("All Responses", entries.cell(1, 5).value)
-        self.assertEquals("Judy Pottier", entries.cell(1, 6).value)
-        self.assertEquals("Judy Pottier", entries.cell(1, 7).value)
-
-        # EDD category and value and raw
-        self.assertEquals("is a date", entries.cell(1, 8).value)
-        self.assertTrue(entries.cell(1, 9).value.startswith("31-01-2014"))
-        self.assertEquals("31.1.2014", entries.cell(1, 10).value)
-
-        # Phone category and value and raw
-        self.assertEquals("phone", entries.cell(1, 11).value)
-        self.assertEquals("+250788383383", entries.cell(1, 12).value)
-        self.assertEquals("0788 383 383", entries.cell(1, 13).value)
-
-        messages = workbook.sheets()[2]
-        self.assertEquals(10, messages.nrows)
-        self.assertEquals(6, messages.ncols)
-
-        self.assertEqual(messages.cell(0, 0).value, "Phone")
-        self.assertEqual(messages.cell(0, 1).value, "Name")
-        self.assertEqual(messages.cell(0, 2).value, "Date")
-        self.assertEqual(messages.cell(0, 3).value, "Direction")
-        self.assertEqual(messages.cell(0, 4).value, "Message")
-        self.assertEqual(messages.cell(0, 5).value, "Channel")
-
-        self.assertEqual(messages.cell(1, 0).value, "+12065552020")
-        self.assertEqual(messages.cell(1, 1).value, "Ben Haggerty")
-        self.assertEqual(messages.cell(1, 3).value, "OUT")
-        self.assertEqual(messages.cell(1, 4).value, "Thanks for registering a new mother, what is her name?")
-        self.assertEqual(messages.cell(1, 5).value, "Test Channel")
-
-        # assert the time is correct here as well
-        self.assertEquals(org_now.hour, xldate_as_tuple(entries.cell(1, 3).value, 0)[3])
 
     def test_flow_export(self):
         flow = self.get_flow('favorites')
