@@ -10,8 +10,6 @@ cache:
   directories:
   - $HOME/.cache/pip
 install:
-- pip uninstall setuptools
-- pip install setuptools==18.5
 - pip install --upgrade pip
 - pip --version
 - pip install -r pip-freeze.txt --upgrade
