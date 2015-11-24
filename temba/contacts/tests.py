@@ -2157,32 +2157,19 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers
-            self.assertEqual('UUID', sheet.cell(0, 0).value)
-            self.assertEqual('Name', sheet.cell(0, 1).value)
-            self.assertEqual('Phone', sheet.cell(0, 2).value)
-            self.assertEqual('Twitter handle', sheet.cell(0, 3).value)
-            self.assertEqual('First', sheet.cell(0, 4).value)
-            self.assertEqual('Second', sheet.cell(0, 5).value)
-            self.assertEqual('Third', sheet.cell(0, 6).value)
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter handle", "First", "Second", "Third"])
 
-            # first row should be adam
-            self.assertEquals(contact2.uuid, sheet.cell(1, 0).value)
-            self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
-            self.assertEquals('+12067799191', sheet.cell(1, 2).value)
-            self.assertEquals('adam', sheet.cell(1, 3).value)
-            self.assertFalse(sheet.cell(1, 4).value)
+            # first row should be Adam
+            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "adam", "", "", ""])
 
-            # second should be ben
-            self.assertEquals(contact.uuid, sheet.cell(2, 0).value)
-            self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
-            self.assertEqual('+12067799294', sheet.cell(2, 2).value)
-            self.assertEqual("One", sheet.cell(2, 4).value)
+            # second should be Ben
+            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "+12067799294", "", "One", "", ""])
 
             self.assertEqual(sheet.nrows, 3)  # no other contacts
 
         # more contacts do not increase the queries
-        contact3 = self.create_contact('Luol Deng', '+120788776655', twitter='deng')
-        contact4 = self.create_contact('Stephen', '+120788778899', twitter='stephen')
+        contact3 = self.create_contact('Luol Deng', '+12078776655', twitter='deng')
+        contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
 
         with self.assertNumQueries(32):
@@ -2193,36 +2180,13 @@ class ContactFieldTest(TembaTest):
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 
-            # check our headers have Twitter
-            self.assertEqual('UUID', sheet.cell(0, 0).value)
-            self.assertEqual('Name', sheet.cell(0, 1).value)
-            self.assertEqual('Phone', sheet.cell(0, 2).value)
-            self.assertEqual('Phone', sheet.cell(0, 3).value)
-            self.assertEqual('Twitter handle', sheet.cell(0, 4).value)
-            self.assertEqual('First', sheet.cell(0, 5).value)
-            self.assertEqual('Second', sheet.cell(0, 6).value)
-            self.assertEqual('Third', sheet.cell(0, 7).value)
+            # check our headers have 2 phone columns and Twitter
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter handle", "First", "Second", "Third"])
 
-            # first row should be adam
-            self.assertEquals(contact2.uuid, sheet.cell(1, 0).value)
-            self.assertEquals('Adam Sumner', sheet.cell(1, 1).value)
-            self.assertEquals('+12067799191', sheet.cell(1, 2).value)
-            self.assertFalse(sheet.cell(1, 3).value)
-            self.assertEquals('adam', sheet.cell(1, 4).value)
-            self.assertFalse(sheet.cell(1, 5).value)
-
-            # second should be ben
-            self.assertEquals(contact.uuid, sheet.cell(2, 0).value)
-            self.assertEquals('Ben Haggerty', sheet.cell(2, 1).value)
-            self.assertEqual('+12067799294', sheet.cell(2, 2).value)
-            self.assertEqual('+12062233445', sheet.cell(2, 3).value)
-            self.assertFalse(sheet.cell(2, 4).value)
-            self.assertEqual("One", sheet.cell(2, 5).value)
-
-            self.assertEquals(contact3.uuid, sheet.cell(3, 0).value)
-            self.assertEquals('Luol Deng', sheet.cell(3, 1).value)
-
-            self.assertEquals(contact4.uuid, sheet.cell(4, 0).value)
+            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "", "adam", "", "", ""])
+            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "+12067799294", "+12062233445", "", "One", "", ""])
+            self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "+12078776655", "", "deng", "", "", ""])
+            self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "+12078778899", "", "stephen", "", "", ""])
 
             self.assertEqual(sheet.nrows, 5)  # no other contacts
 
@@ -2323,4 +2287,22 @@ class ContactFieldTest(TembaTest):
 
         self.login(self.admin)
         response = self.client.get(contact_field_json_url)
-        self.assertEquals(len(json.loads(response.content)), 32)
+
+        response_json = json.loads(response.content)
+
+        self.assertEquals(len(response_json), 32)
+        self.assertEquals(response_json[0]['label'], 'First')
+        self.assertEquals(response_json[0]['key'], 'first')
+        self.assertEquals(response_json[1]['label'], 'label0')
+        self.assertEquals(response_json[1]['key'], 'key0')
+
+        ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
+
+        response = self.client.get(contact_field_json_url)
+        response_json = json.loads(response.content)
+
+        self.assertEquals(len(response_json), 32)
+        self.assertEquals(response_json[0]['label'], 'AAAA')
+        self.assertEquals(response_json[0]['key'], 'key0')
+        self.assertEquals(response_json[1]['label'], 'First')
+        self.assertEquals(response_json[1]['key'], 'first')

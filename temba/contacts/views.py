@@ -1086,7 +1086,9 @@ class ContactFieldCRUDL(SmartCRUDL):
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)
                 results.append(result)
-            return HttpResponse(json.dumps(results), content_type='application/javascript')
+
+            sorted_results = sorted(results, key=lambda k: k['label'].lower())
+            return HttpResponse(json.dumps(sorted_results), content_type='application/javascript')
 
     class Managefields(ModalMixin, OrgPermsMixin, SmartFormView):
         title = _("Manage Contact Fields")

@@ -3,7 +3,9 @@ from __future__ import absolute_import, unicode_literals
 import json
 import time
 import urlparse
+import regex
 from datetime import timedelta
+from time import sleep
 from uuid import uuid4
 from urllib import quote_plus
 
@@ -91,7 +93,7 @@ CHANNEL_SETTINGS = {
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
     ZENVIA: dict(scheme='tel', max_length=150),
     EXTERNAL: dict(max_length=160),
-    NEXMO: dict(scheme='tel', max_length=1600, max_tps=4),
+    NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
     INFOBIP: dict(scheme='tel', max_length=1600),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
@@ -1277,7 +1279,21 @@ class Channel(SmartModel):
 
         client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET])
         start = time.time()
-        (message_id, response) = client.send_message(channel.address,  msg.urn_path, text)
+
+        attempts = 0
+        response = None
+        while not response:
+            try:
+                (message_id, response) = client.send_message(channel.address,  msg.urn_path, text)
+            except SendException as e:
+                match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.response)
+
+                # this is a throughput failure, attempt to wait up to three times
+                if match and attempts < 3:
+                    sleep(float(match.group(1)) / 1000)
+                    attempts += 1
+                else:
+                    raise e
 
         Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=message_id)
 

@@ -2950,9 +2950,9 @@ class NexmoTest(TembaTest):
 
                 self.clear_cache()
 
-                # test some throttling by sending six messages right after another
+                # test some throttling by sending three messages right after another
                 start = time.time()
-                for i in range(6):
+                for i in range(3):
                     Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
                     r.delete(timezone.now().strftime(MSG_SENT_KEY))
 
@@ -2961,7 +2961,7 @@ class NexmoTest(TembaTest):
 
                 # assert we sent the messages out in a reasonable amount of time
                 end = time.time()
-                self.assertTrue(1.5 > end - start > 1, "Sending of six messages took: %f" % (end - start))
+                self.assertTrue(2.5 > end - start > 2, "Sending of three messages took: %f" % (end - start))
 
                 self.clear_cache()
 
@@ -2989,6 +2989,33 @@ class NexmoTest(TembaTest):
                                                      'text': u'Unicode \u263a',
                                                      'api_key': u'1234',
                                                      'type': 'unicode'})
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                # this hackery is so that we return a different thing on the second call as the first
+                def return_valid(url, params):
+                    called = getattr(return_valid, 'called', False)
+
+                    # on the first call we simulate Nexmo telling us to wait
+                    if not called:
+                        return_valid.called = True
+                        return MockResponse(200,
+                            json.dumps(dict(messages=[{'status': 1,
+                                       'error-text': 'Throughput Rate Exceeded - please wait [ 250 ] and retry'}])))
+
+                    # on the second, all is well
+                    else:
+                        return MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id':12}])),
+                                            method='POST')
+                mock.side_effect = return_valid
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # should be sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(SENT, msg.status)
 
                 self.clear_cache()
 
