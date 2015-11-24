@@ -16,13 +16,13 @@ ACTIVITY_ICONS = {
     'EventFire': 'icon-clock',
     'FlowRun': 'icon-tree-2',
     'Broadcast': 'icon-bullhorn',
-    'Incoming': 'icon-bubble-left',
+    'Incoming': 'icon-bubble-user',
     'Outgoing': 'icon-bubble-right',
     'Failed': 'icon-bubble-notification',
     'Delivered': 'icon-bubble-check',
     'Call': 'icon-phone',
     'IVRCall': 'icon-phone',
-    'DTMF': 'icon-grid'
+    'DTMF': 'icon-phone'
 }
 
 

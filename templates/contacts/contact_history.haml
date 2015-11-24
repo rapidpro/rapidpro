@@ -2,22 +2,7 @@
 
 -for item in activity
 
-  -ifchanged
-    -if item.msg_type == 'V'
-      -with item.steps.all.first.run.call as call
-        %tr{class:'end-call'}
-          %td{colspan:'3'}
-            Call ended
-            -with call.duration|format_seconds as duration
-              -if duration
-                ({{duration}})
-
-            // this is necessary to trigger ifchanged
-            <!--{{call.pk}}-->
-
-  %tr.item{class:'msg_{{item.msg_type}} {% if item.direction or item.recipient_count%}msg{%else%}non-msg hide{%endif%}'}
-    %td.created_on
-      {{item.created_on}}
+  %tr.item{class:'msg_{{item.msg_type}} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
 
     %td.icon
 
@@ -93,6 +78,8 @@
                 -else
                   {{message.text}}
 
+    %td.created_on
+      {{item.created_on|gmail_time}}
 
 
 %tr.since

@@ -73,8 +73,6 @@
     %table.activity.pending
       -for evt in upcoming_events
         %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
-          %td.created_on
-            {{evt.scheduled}}
           %td.icon
             -if evt.event.event_type == 'M'
               %span.glyph.icon-bubble-right
@@ -95,15 +93,12 @@
               -elif evt.event.event_type == 'F'
                 Start
                 %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
-
-  .pull-right
-    %a.show-events.btn.btn-secondary.btn-mini
-      Show All Events
+          %td.created_on
+            {{evt.scheduled|gmail_time}}
 
   .header
     Message History
   %table.activity.history
-
 
 
 -block post-content
@@ -142,18 +137,11 @@
 
         table.activity {
 
-          tr.item.msg_V.msg {
-              border-collapse: collapse;
-              border: 0px;
-              background: #f3f3f3;
-              padding: 5px;
-          }
-
           tr.since {
             border-bottom: none;
             td {
               text-align:center;
-              border-top: 3px solid @color-bg-grey + #555;
+              border-top: 1px solid @color-bg-grey + #555;
               padding-top:15px;
 
               .date {
@@ -189,10 +177,10 @@
 
 
             .icon {
-              width: 25px;
               .glyph.icon-bubble-right, .glyph.icon-tree-2 {
                 color: #ddd;
               }
+              text-align:center;
             }
 
             a {
@@ -216,8 +204,10 @@
             padding: 2px 20px;
 
             &.icon {
-              width: 25px;
+              width: 30px;
               padding: 2px 0px;
+              padding-left:10px;
+              text-align:center;
             }
 
             &.details {
@@ -226,14 +216,17 @@
           }
 
           .created_on {
-            width: 170px;
+            width: 100px;
             font-size:13px;
             line-height:13px;
             border: 0px solid;
+            text-align:right;
           }
 
           .icon {
             border: 0px solid;
+            text-align:center;
+
             .glyph {
               margin-top:16px;
               font-size:14px;
@@ -245,8 +238,8 @@
                 color: @color-status-green;
               }
 
-              &.icon-bubble-left {
-                color: @color-status-blue;
+              &.icon-bubble-user {
+                color: @color-primary;
               }
 
               &.icon-bullhorn {
@@ -388,16 +381,15 @@
 
 
         .contact-fields {
-          background: #f1f1f1;
+          // background: #f1f1f1;
 
           font-size: 12px;
           color: @color-font-grey;
-          .rounded-corners();
           border: 1px solid #f1f1f1;
           margin-bottom:15px;
 
           &.clickable:hover {
-            background: #f1f1f1 - #111;
+            background: #f1f1f1;
             cursor:pointer;
           }
 
@@ -459,21 +451,18 @@
         $.get('/contact/history/{{contact.uuid}}/?page=' + page, function(data){
           $('.history tr:last').remove();
           $('.history').append(data);
-          updateEventVisibility(false);
         });
       });
-
-      // toggle whether to show all events
-      $('.show-events').live('click', function() {
-        toggleEventVisibility(true);
-      });
-
 
       // configure the number of contact fields to show
       var featuredMax = 4;
       var featuredCount = $('.featured').size()
       if (featuredCount < featuredMax) {
         $('.normal').slice(0, featuredMax-featuredCount).removeClass('normal').addClass('featured')
+      }
+
+      if ($('.normal').size() == 0) {
+        $('.contact-fields').removeClass('clickable')
       }
 
       // wire up expanding the contact field list
@@ -487,31 +476,6 @@
         }
       })
     });
-
-    // updates all events according to the current visibility setting
-    function updateEventVisibility(animate) {
-      if (window.all_events) {
-        if (animate) {
-          $('.history .non-msg').fadeIn({duration: 800});
-        } else {
-          $('.history .non-msg').show();
-        }
-        $('.show-events').text('Show Messages Only');
-      } else {
-        $('.history .non-msg').hide();
-        $('.show-events').text('Show All Events');
-      }
-    }
-
-    // hide or show non-message activity
-    function toggleEventVisibility(animate) {
-      if (window.all_events) {
-        window.all_events = false;
-      } else {
-        window.all_events = true;
-      }
-      updateEventVisibility(animate);
-    }
 
     // plays the audio recording for a message
     function playMessage (messageId) {

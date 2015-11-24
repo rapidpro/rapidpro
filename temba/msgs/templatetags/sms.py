@@ -30,7 +30,7 @@ def as_icon(contact_event):
     if msg_type == 'V':
         icon = 'icon-phone'
     elif direction == 'I':
-        icon = 'icon-bubble-user green'
+        icon = 'icon-bubble-user primary'
     elif status in ['P', 'Q']:
         icon = 'icon-bubble-dots-2 green'
     elif status == 'D':
