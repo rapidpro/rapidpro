@@ -2950,9 +2950,9 @@ class NexmoTest(TembaTest):
 
                 self.clear_cache()
 
-                # test some throttling by sending six messages right after another
+                # test some throttling by sending three messages right after another
                 start = time.time()
-                for i in range(6):
+                for i in range(3):
                     Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
                     r.delete(timezone.now().strftime(MSG_SENT_KEY))
 
@@ -2961,7 +2961,7 @@ class NexmoTest(TembaTest):
 
                 # assert we sent the messages out in a reasonable amount of time
                 end = time.time()
-                self.assertTrue(1.5 > end - start > 1, "Sending of six messages took: %f" % (end - start))
+                self.assertTrue(2.5 > end - start > 2, "Sending of three messages took: %f" % (end - start))
 
                 self.clear_cache()
 
