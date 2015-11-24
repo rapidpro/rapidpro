@@ -2275,4 +2275,22 @@ class ContactFieldTest(TembaTest):
 
         self.login(self.admin)
         response = self.client.get(contact_field_json_url)
-        self.assertEquals(len(json.loads(response.content)), 32)
+
+        response_json = json.loads(response.content)
+
+        self.assertEquals(len(response_json), 32)
+        self.assertEquals(response_json[0]['label'], 'First')
+        self.assertEquals(response_json[0]['key'], 'first')
+        self.assertEquals(response_json[1]['label'], 'label0')
+        self.assertEquals(response_json[1]['key'], 'key0')
+
+        ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
+
+        response = self.client.get(contact_field_json_url)
+        response_json = json.loads(response.content)
+
+        self.assertEquals(len(response_json), 32)
+        self.assertEquals(response_json[0]['label'], 'AAAA')
+        self.assertEquals(response_json[0]['key'], 'key0')
+        self.assertEquals(response_json[1]['label'], 'First')
+        self.assertEquals(response_json[1]['key'], 'first')
