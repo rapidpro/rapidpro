@@ -101,7 +101,7 @@ ORG_CREDITS_PURCHASED_CACHE_KEY = 'org:%d:cache:credits_purchased'
 ORG_CREDITS_USED_CACHE_KEY = 'org:%d:cache:credits_used'
 ORG_ACTIVE_TOPUP_KEY = 'org:%d:cache:active_topup'
 ORG_ACTIVE_TOPUP_REMAINING = 'org:%d:cache:credits_remaining:%d'
-ORG_CREDIT_EXPIRING_CACHE_KEY = 'org:%d:cache:credits_expiring'
+ORG_CREDIT_EXPIRING_CACHE_KEY = 'org:%d:cache:credits_expiring_soon'
 ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = 'org:%d:cache:low_credits_threshold'
 
 ORG_LOCK_TTL = 60  # 1 minute
