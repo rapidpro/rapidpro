@@ -337,6 +337,8 @@ class Flow(TembaModel, SmartModel):
             if export_version < CURRENT_EXPORT_VERSION:
                 flow_spec = FlowRevision.migrate_definition(flow_spec, export_version)
 
+            FlowRevision.validate_flow_definition(flow_spec)
+
             flow_type = flow_spec.get('flow_type', Flow.FLOW)
             name = flow_spec['metadata']['name'][:64].strip()
 
@@ -2706,6 +2708,37 @@ class FlowRevision(SmartModel):
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
     @classmethod
+    def validate_flow_definition(cls, flow_spec):
+
+        non_localized_error = _('Malformed flow, encountered non-localized definition')
+
+        # should always have a base_language after migration
+        if 'base_language' not in flow_spec or not flow_spec['base_language']:
+            raise ValueError(non_localized_error)
+
+        # language should match values in definition
+        base_language = flow_spec['base_language']
+
+        def validate_localization(lang_dict):
+
+            # must be a dict
+            if not isinstance(lang_dict, dict):
+                raise ValueError(non_localized_error)
+
+            # and contain the base_language
+            if base_language not in lang_dict:
+                raise ValueError(non_localized_error)
+
+        for actionset in flow_spec['action_sets']:
+            for action in actionset['actions']:
+                if 'msg' in action and action['type'] != 'email':
+                    validate_localization(action['msg'])
+
+        for ruleset in flow_spec['rule_sets']:
+            for rule in ruleset['rules']:
+                validate_localization(rule['category'])
+
+    @classmethod
     def migrate_definition(cls, json_flow, version, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
@@ -2734,7 +2767,6 @@ class FlowRevision(SmartModel):
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
             definition = FlowRevision.migrate_definition(definition, self.spec_version, self.flow)
-
         return definition
 
     def as_json(self, include_definition=False):

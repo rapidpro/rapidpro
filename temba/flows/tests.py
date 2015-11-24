@@ -2632,6 +2632,19 @@ class FlowsTest(FlowFileTest):
         r = get_redis_connection()
         flow.clear_stats_cache()
 
+    def test_validate_flow_definition(self):
+
+        # base_language of null, but spec version 8
+        with self.assertRaises(ValueError):
+            self.get_flow('no_base_language_v8')
+
+        # base_language of 'eng' but non localized actions
+        with self.assertRaises(ValueError):
+            self.get_flow('non_localized_with_language')
+
+        with self.assertRaises(ValueError):
+            self.get_flow('non_localized_ruleset')
+
     def test_sms_forms(self):
         flow = self.get_flow('sms-form')
 
