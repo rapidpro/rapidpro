@@ -2,7 +2,7 @@ from django.conf.urls import patterns, include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
-from celery.signals import worker_ready
+from celery.signals import worker_process_init
 
 import logging
 
@@ -60,7 +60,7 @@ def init_analytics():
 init_analytics()
 
 
-@worker_ready.connect
+@worker_process_init.connect
 def configure_workers(sender=None, **kwargs):
     init_analytics()
 
