@@ -593,7 +593,8 @@ class ContactCRUDL(SmartCRUDL):
             for field in fields:
                 value = getattr(contact, '__field__%s' % field.key)
                 if value:
-                    contact_fields.append(dict(label=field.label, value=value.string_value, featured=field.show_in_table))
+                    display = Contact.get_field_display_for_value(field, value)
+                    contact_fields.append(dict(label=field.label, value=display, featured=field.show_in_table))
 
             # stuff in the contact's language in the fields as well
             if contact.language:
