@@ -659,7 +659,7 @@ class MsgTest(TembaTest):
         msg.status = 'E'
         self.assertHasClass(as_icon(msg), 'icon-bubble-notification red')
         msg.direction = 'I'
-        self.assertHasClass(as_icon(msg), 'icon-bubble-user green')
+        self.assertHasClass(as_icon(msg), 'icon-bubble-user primary')
 
         in_call = Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, "mo_call")
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
