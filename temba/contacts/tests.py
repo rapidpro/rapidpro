@@ -1681,6 +1681,13 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
 
+        # invalid label
+        post_data['column_country_label'] = '}{i$t0rY'  # supports only numbers, letters, hyphens
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, hypens")
+
+
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
