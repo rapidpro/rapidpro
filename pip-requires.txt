@@ -56,3 +56,4 @@ stop-words
 twython
 enum34
 plivo
+django-mptt

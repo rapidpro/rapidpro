@@ -2638,7 +2638,8 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
                             ]
                         ]
                     ]
-                }
+                },
+                "in_country": "R192787"
             },
             ...
         }
@@ -2654,8 +2655,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
             return []
 
         queryset = self.model.objects.filter(Q(pk=org.country.pk) |
-                                             Q(parent=org.country) |
-                                             Q(parent__parent=org.country)).order_by('level', 'name')
+                                             Q(in_country=org.country.osm_id)).order_by('level', 'name')
         return queryset.select_related('parent')
 
     @classmethod
