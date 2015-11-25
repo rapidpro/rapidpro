@@ -1244,15 +1244,10 @@ class FlowRunStartSerializer(WriteSerializer):
 
 
 class BoundarySerializer(serializers.ModelSerializer):
-
-    class RecursiveField(serializers.Serializer):
-        def to_native(self, value):
-            return self.parent.to_native(value)
-
     boundary = serializers.SerializerMethodField('get_boundary')
     parent = serializers.SerializerMethodField('get_parent')
     geometry = serializers.SerializerMethodField('get_geometry')
-    children = RecursiveField(many=True)
+    in_country = serializers.SerializerMethodField('get_country')
 
     def get_parent(self, obj):
         return obj.parent.osm_id if obj.parent else None
@@ -1263,9 +1258,12 @@ class BoundarySerializer(serializers.ModelSerializer):
     def get_boundary(self, obj):
         return obj.osm_id
 
+    def get_country(self, obj):
+        return obj.in_country if obj.in_country else None
+
     class Meta:
         model = AdminBoundary
-        fields = ('boundary', 'name', 'level', 'parent', 'geometry')
+        fields = ('boundary', 'name', 'level', 'parent', 'geometry', 'in_country')
 
 
 class FlowRunReadSerializer(serializers.ModelSerializer):
