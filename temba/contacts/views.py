@@ -584,9 +584,16 @@ class ContactCRUDL(SmartCRUDL):
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
 
+            # load our contacts values
+            Contact.bulk_cache_initialize(contact.org, [contact])
+
             # lookup all of our contact fields
-            contact_fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
-            contact_fields = [ dict(label=f.label, value=contact.get_field_display(f.key), featured=f.show_in_table) for f in contact_fields if contact.get_field_display(f.key) ]
+            contact_fields = []
+            fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
+            for field in fields:
+                value = getattr(contact, '__field__%s' % field.key)
+                if value:
+                    contact_fields.append(dict(label=field.label, value=value.string_value, featured=field.show_in_table))
 
             # stuff in the contact's language in the fields as well
             if contact.language:
@@ -594,7 +601,7 @@ class ContactCRUDL(SmartCRUDL):
                 if lang:
                     contact_fields.append(dict(label='Language', value=lang.name, featured=True))
 
-            context['contact_fields'] = sorted(contact_fields, key=lambda field: field['label'])
+            context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
 
             return context
 
