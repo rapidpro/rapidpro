@@ -636,8 +636,8 @@ class MsgTest(TembaTest):
 
             self.assertEquals(sheet.nrows, 4)
             self.assertExcelRow(sheet, 1, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", "Incoming", "hello 4", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 2, [msg4.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", "Incoming", "hello 2", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 3, [msg4.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", "Incoming", "hello 1", "label1"], pytz.UTC)
+            self.assertExcelRow(sheet, 2, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", "Incoming", "hello 2", ""], pytz.UTC)
+            self.assertExcelRow(sheet, 3, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", "Incoming", "hello 1", "label1"], pytz.UTC)
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
