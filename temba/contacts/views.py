@@ -1037,7 +1037,7 @@ class ManageFieldsForm(forms.Form):
                     if label.lower() in used_labels:
                         raise ValidationError(_("Field names must be unique"))
 
-                    elif label in Contact.RESERVED_FIELDS:
+                    elif label.lower() in Contact.RESERVED_FIELDS:
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
 

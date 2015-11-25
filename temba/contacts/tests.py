@@ -2042,6 +2042,10 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(another.label, "Updated Label")
         self.assertEqual(another.value_type, DATETIME)
 
+        for elt in Contact.RESERVED_FIELDS:
+            with self.assertRaises(Exception):
+                ContactField.get_or_create(self.org, elt, elt, value_type=TEXT)
+
     def test_contact_templatetag(self):
         self.joe.set_field('First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')
@@ -2216,6 +2220,10 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None,
                              "Field names can only contain letters, numbers and hypens")
+
+        post_data['label_2'] = 'Name'
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field name 'Name' is a reserved word")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

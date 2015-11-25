@@ -2047,6 +2047,14 @@ class ActionTest(TembaTest):
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Jen Newcomer", contact.name)
 
+        # throw exception for other reserved words except name and first_name
+        for word in Contact.RESERVED_FIELDS:
+            if word not in ['name', 'first_name']:
+                with self.assertRaises(Exception):
+                    test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
+                    test.value = "Jen"
+                    test.execute(run, None, sms)
+
         # we should strip whitespace
         run.contact = contact
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
