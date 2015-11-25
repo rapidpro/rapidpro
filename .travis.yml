@@ -12,7 +12,6 @@ cache:
 install:
 - pip install --upgrade pip
 - pip --version
-- easy_install -U setuptools==18.5
 - pip install -r pip-freeze.txt --upgrade
 - pip install coveralls
 - npm install
