@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 
-from celery.signals import celeryd_init
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
@@ -185,11 +184,6 @@ def check_messages_task():
                 print "** Found %d unhandled messages" % unhandled_count
                 for msg in unhandled_messages[:100]:
                     msg.handle()
-
-
-@celeryd_init.connect
-def configure_workers(sender=None, conf=None, **kwargs):
-    init_analytics()
 
 
 @task(track_started=True, name='export_sms_task')

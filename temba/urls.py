@@ -2,6 +2,7 @@ from django.conf.urls import patterns, include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
+from celery.signals import worker_ready
 
 import logging
 
@@ -55,8 +56,13 @@ def init_analytics():
     if librato_user and librato_token:
         init_librato(librato_user, librato_token)
 
-# and initialize them (in celery, the above will have to be called manually)
+# initialize our analytics (the signal below will initialize each worker)
 init_analytics()
+
+
+@worker_ready.connect
+def configure_workers(sender=None, **kwargs):
+    init_analytics()
 
 
 def track_user(self):  # pragma: no cover
