@@ -165,7 +165,7 @@ class Channel(SmartModel):
     gcm_id = models.CharField(verbose_name=_("GCM ID"), max_length=255, blank=True, null=True,
                               help_text=_("The registration id for using Google Cloud Messaging"))
 
-    uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=True, null=True, db_index=True,
+    uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=False, null=True, unique=True,
                             help_text=_("UUID for this channel"))
 
     claim_code = models.CharField(verbose_name=_("Claim Code"), max_length=16, blank=True, null=True, unique=True,
@@ -362,7 +362,7 @@ class Channel(SmartModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, uuid=nexmo_phone_number)
+        return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country):
@@ -419,8 +419,7 @@ class Channel(SmartModel):
 
             twilio_sid = twilio_phone.sid
 
-        return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number,
-                              uuid=twilio_sid, role=role)
+        return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, phone, username, api_key, is_shared=False):
@@ -442,7 +441,7 @@ class Channel(SmartModel):
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
         return Channel.create(user.get_org(), user, channel.country, NEXMO, name="Nexmo Sender",
-                              address=channel.address, role=SEND, parent=channel, uuid=nexmo_phone_number)
+                              address=channel.address, role=SEND, parent=channel, bod=nexmo_phone_number)
 
     @classmethod
     def add_call_channel(cls, org, user, channel):
@@ -472,27 +471,35 @@ class Channel(SmartModel):
         return channel
 
     @classmethod
-    def from_gcm_and_status_cmds(cls, gcm, status):
-        # gcm command must be the first one
+    def get_or_create_by_commands(cls, gcm, status):
+        """
+        Creates a new channel from the gcm and status commands sent during device registration
+        """
         gcm_id = gcm['gcm_id']
-        uuid = gcm.get('uuid', None)
-
+        uuid = gcm.get('uuid')
         country = status['cc']
         device = status['dev']
 
-        # look for any unclaimed channel
-        existing = Channel.objects.filter(gcm_id=gcm_id, uuid=uuid, org=None, is_active=True)
+        # look for existing channel with this device UUID
+        existing = Channel.objects.filter(uuid=uuid).first()
         if existing:
-            return existing[0]
-        else:
-            secret = random_string(64)
-            claim_code = random_string(9)
-            while Channel.objects.filter(claim_code=claim_code): # pragma: no cover
-                claim_code = random_string(9)
-            anon = User.objects.get(pk=-1)
+            if existing.gcm_id != gcm_id or existing.country != country or existing.device != device:
+                existing.gcm_id = gcm_id
+                existing.country = country
+                existing.device = device
+                existing.save(update_fields=('gcm_id', 'country', 'device'))
 
-            return Channel.create(None, anon, country, ANDROID, None, None, uuid=uuid,
-                                  gcm_id=gcm_id,  device=device, claim_code=claim_code, secret=secret)
+            return existing
+
+        # generate random secret and claim code
+        secret = random_string(64)
+        claim_code = random_string(9)
+        while Channel.objects.filter(claim_code=claim_code):  # pragma: no cover
+            claim_code = random_string(9)
+        anon = User.objects.get(pk=-1)
+
+        return Channel.create(None, anon, country, ANDROID, None, None, gcm_id=gcm_id, uuid=uuid,
+                              device=device, claim_code=claim_code, secret=secret)
 
     def has_sending_log(self):
         return self.channel_type != 'A'
@@ -742,15 +749,18 @@ class Channel(SmartModel):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
-    def claim(self, org, phone, user):
+    def claim(self, org, user, number):
+        """
+        Claims this channel for the given org/user
+        """
         if not self.country:
-            self.country = Channel.derive_country_from_phone(phone)
+            self.country = Channel.derive_country_from_phone(number)
 
         self.alert_email = user.email
         self.org = org
         self.is_active = True
         self.claim_code = None
-        self.address = phone
+        self.address = number
         self.save()
 
     def release(self, trigger_sync=True, notify_mage=True):
@@ -781,15 +791,12 @@ class Channel(SmartModel):
                 number_update_args['voice_application_sid'] = ""
 
             try:
-                client.phone_numbers.update(self.uuid,
-                                            **number_update_args)
-
-            except Exception as e:
+                client.phone_numbers.update(self.bod, **number_update_args)
+            except Exception:
                 if client:
                     matching = client.phone_numbers.list(phone_number=self.address)
                     if matching:
-                        client.phone_numbers.update(matching[0].sid,
-                                                    **number_update_args)
+                        client.phone_numbers.update(matching[0].sid, **number_update_args)
 
         # save off our gcm id so we can trigger a sync
         gcm_id = self.gcm_id

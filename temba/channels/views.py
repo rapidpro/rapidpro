@@ -398,8 +398,12 @@ def sync(request, channel_id):
 
     return HttpResponse(json.dumps(result), content_type='application/javascript')
 
+
 @disable_middleware
 def register(request):
+    """
+    Endpoint for Android devices registering with this server
+    """
     if request.method != 'POST':
         return HttpResponse(status=500, content=_('POST Required'))
 
@@ -407,11 +411,12 @@ def register(request):
     cmds = client_payload['cmds']
 
     # look up a channel with that id
-    channel = Channel.from_gcm_and_status_cmds(cmds[0], cmds[1])
+    channel = Channel.get_or_create_by_commands(cmds[0], cmds[1])
     cmd = channel.build_registration_command()
 
     result = dict(cmds=[cmd])
     return HttpResponse(json.dumps(result), content_type='application/javascript')
+
 
 class ClaimForm(forms.Form):
     claim_code = forms.CharField(max_length=12,
@@ -803,8 +808,8 @@ class ChannelCRUDL(SmartCRUDL):
                     pass
                 for channel in obj.get_delegate_channels():
                     channel.address = obj.address
-                    channel.uuid = e164_phone_number
-                    channel.save()
+                    channel.bod = e164_phone_number
+                    channel.save(update_fields=('address', 'bod'))
 
             if obj.channel_type == TWITTER:
                 # notify Mage so that it refreshes this channel
@@ -1441,18 +1446,9 @@ class ChannelCRUDL(SmartCRUDL):
                                                                  "same country (%s)" % other_countries.country)])
                 return self.form_invalid(form)
 
-            # clear any channels that are dupes of this gcm/uuid pair for this org
-            for dupe in Channel.objects.filter(gcm_id=self.object.gcm_id, uuid=self.object.uuid, org=org)\
-                                       .exclude(pk=self.object.pk).exclude(gcm_id=None).exclude(uuid=None):
-                dupe.is_active = False
-                dupe.gcm_id = None
-                dupe.uuid = None
-                dupe.claim_code = None
-                dupe.save()
-
             analytics.track(self.request.user.username, 'temba.channel_create')
 
-            self.object.claim(org, self.form.cleaned_data['phone_number'], self.request.user)
+            self.object.claim(org, self.request.user, self.form.cleaned_data['phone_number'])
             self.object.save()
 
             # make sure all contacts added before the channel are normalized
