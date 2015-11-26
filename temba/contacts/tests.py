@@ -1742,23 +1742,23 @@ class ContactTest(TembaTest):
 
     def test_fields(self):
         # set a field on joe
-        self.joe.set_field('1234-1234', 'Joe', label="Name")
-        self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
+        self.joe.set_field('abc_1234', 'Joe', label="Name")
+        self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
 
-        self.joe.set_field('1234-1234', None)
-        self.assertEquals(None, self.joe.get_field_raw('1234-1234'))
+        self.joe.set_field('abc_1234', None)
+        self.assertEquals(None, self.joe.get_field_raw('abc_1234'))
 
         # try storing an integer, should get turned into a string
-        self.joe.set_field('1234-1234', 1)
-        self.assertEquals('1', self.joe.get_field_raw('1234-1234'))
+        self.joe.set_field('abc_1234', 1)
+        self.assertEquals('1', self.joe.get_field_raw('abc_1234'))
 
         # we should have a field with the key
-        ContactField.objects.get(key='1234-1234', label="Name", org=self.joe.org)
+        ContactField.objects.get(key='abc_1234', label="Name", org=self.joe.org)
 
         # setting with a different label should update it
-        self.joe.set_field('1234-1234', 'Joe', label="First Name")
-        self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
-        ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
+        self.joe.set_field('abc_1234', 'Joe', label="First Name")
+        self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
+        ContactField.objects.get(key='abc_1234', label="First Name", org=self.joe.org)
 
     def test_serialize_field_value(self):
         registration_field = ContactField.get_or_create(self.org, 'registration_date', "Registration Date",
