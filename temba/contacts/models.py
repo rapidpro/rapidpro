@@ -142,8 +142,8 @@ class ContactField(models.Model):
                 if show_in_table is None:
                     show_in_table = False
 
-                if key in Contact.RESERVED_FIELDS:
-                    raise ValueError('Field key %s is a reserved field name' % key)
+                if not ContactField.is_valid_key(key):
+                    raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
 
                 field = ContactField.objects.create(org=org, key=key, label=label,
                                                     show_in_table=show_in_table, value_type=value_type)

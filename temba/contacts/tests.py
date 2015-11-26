@@ -2050,7 +2050,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(another.value_type, DATETIME)
 
         for elt in Contact.RESERVED_FIELDS:
-            with self.assertRaises(Exception):
+            with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, elt, elt, value_type=TEXT)
 
     def test_contact_templatetag(self):
