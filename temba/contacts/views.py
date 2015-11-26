@@ -1034,12 +1034,10 @@ class ManageFieldsForm(forms.Form):
                     if not ContactField.is_valid_label(label):
                         raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
 
-                    valid_label_gen_key = ContactField.is_valid_key(ContactField.make_key(label))
-
                     if label.lower() in used_labels:
                         raise ValidationError(_("Field names must be unique"))
 
-                    elif not valid_label_gen_key or valid_label_gen_key in Contact.RESERVED_FIELDS:
+                    elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
 
