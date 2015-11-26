@@ -666,7 +666,7 @@ class Org(SmartModel):
     def parse_decimal(self, decimal_string):
         try:
             return Decimal(decimal_string)
-        except:
+        except Exception:
             return None
 
     def find_boundary_by_name(self, name, level, parent):

@@ -365,7 +365,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         try:
             import os
             os.mkdir('screenshots')
-        except:
+        except Exception:
             pass
 
         super(BrowserTest, cls).setUpClass()

@@ -1035,7 +1035,7 @@ class Flow(TembaModel, SmartModel):
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
                 return default_storage.save(path, temp)
-            except:
+            except Exception:
                 # its okay if its no longer there, we'll remove the recording
                 return None
 
@@ -5349,7 +5349,7 @@ class NumericTest(Test):
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(run, context, decimal):
                     return 1, decimal
-            except:
+            except Exception:
                 pass
         return 0, None
 
@@ -5436,7 +5436,7 @@ class SimpleNumericTest(Test):
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(decimal, Decimal(test)):
                     return 1, decimal
-            except:
+            except Exception:
                 pass
         return 0, None
 
@@ -5558,7 +5558,7 @@ class RegexTest(Test):
                 # return all matched values
                 return True, return_match
 
-        except:
+        except Exception:
             import traceback
             traceback.print_exc()
 
