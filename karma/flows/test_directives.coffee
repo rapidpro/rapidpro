@@ -116,7 +116,7 @@ describe 'Directives:', ->
 
   describe 'Validate Type', ->
 
-    it 'should validate variables for numeric rules', ->
+    it 'should validate numbers and variables for numeric rules', ->
       ele = angular.element("<ng-form><input ng-model='rule.test._base' name='operand' ng-required='rule.category._base' ng-change='updateCategory(rule)' type='text' class='operand' validate-type='[[rule._config.type]]' /></ng-form>")
       scope = $rootScope.$new()
 
@@ -126,6 +126,19 @@ describe 'Directives:', ->
         verbose_name: 'has a number equal to'
         operands: 1
         localized: true
+
+      scope.rule =
+        _config: config
+        test: {_base:'12'}
+        type: 'eq'
+        category: {_base: 'Age'}
+
+
+      $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      expect(ele.html()).toMatch(/ng-valid-validate-type/)
 
       scope.rule =
         _config: config
@@ -139,4 +152,5 @@ describe 'Directives:', ->
       $timeout.flush()
 
       expect(ele.html()).toMatch(/ng-valid-validate-type/)
+
 

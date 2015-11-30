@@ -5,7 +5,7 @@ app = angular.module('temba.validation', [])
 #============================================================================
 REGEX_NUMBER = /^\-?\d+[\.\d+]*$/
 REGEX_ALPHANUM = /^[a-z\d\-_\s]+$/i
-REGEX_VARIABLE = /^[ ]*@.+$/gi
+REGEX_VARIABLE = /^[ ]*@.+$/i
 
 # simple numeric test
 app.directive "number", ->
