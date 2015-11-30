@@ -24,7 +24,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     Processes a single incoming message through our queue.
     """
     r = get_redis_connection()
-    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn').first()
+    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
     # somebody already handled this message, move on
     if not msg:
