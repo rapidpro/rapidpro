@@ -1,7 +1,9 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import requests
+
+from temba.utils import analytics
 
 
 class MageError(Exception):
@@ -82,6 +84,8 @@ def mage_handle_new_message(org, msg):
         msg.topup_id = org.decrement_credit()
         msg.save(update_fields=('topup_id',))
 
+    analytics.gauge('temba.msg_incoming_%s' % msg.channel.channel_type.lower())
+
 
 def mage_handle_new_contact(org, contact):
     """
@@ -89,3 +93,5 @@ def mage_handle_new_contact(org, contact):
     """
     # possible to have dynamic groups based on name
     contact.handle_update(attrs=('name',))
+
+    analytics.gauge('temba.contact_created')
