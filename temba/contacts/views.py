@@ -598,9 +598,13 @@ class ContactCRUDL(SmartCRUDL):
 
             # stuff in the contact's language in the fields as well
             if contact.language:
-                lang = pycountry.languages.get(iso639_3_code=contact.language)
+                try:
+                  lang = pycountry.languages.get(iso639_3_code=contact.language).name
+                except KeyError:
+                    lang = contact.language
+
                 if lang:
-                    contact_fields.append(dict(label='Language', value=lang.name, featured=True))
+                    contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
 

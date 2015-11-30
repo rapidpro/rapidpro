@@ -216,7 +216,7 @@
           }
 
           .created_on {
-            width: 100px;
+            width: 160px;
             font-size:13px;
             line-height:13px;
             border: 0px solid;
@@ -437,6 +437,14 @@
 
     var page = 1
     $(document).ready(function() {
+
+      $('.time').live('mouseover', function() {
+        $(this).children('.long').show();
+        $(this).children('.short').hide();
+      }).live('mouseleave', function() {
+        $(this).children('.short').show();
+        $(this).children('.long').hide();
+      });
       // fetch our first chunk of history
       $.get('/contact/history/{{contact.uuid}}/', function(data){
         $('.history').append(data);

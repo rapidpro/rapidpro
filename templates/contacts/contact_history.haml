@@ -79,7 +79,11 @@
                   {{message.text}}
 
     %td.created_on
-      {{item.created_on|gmail_time}}
+      %span.time
+        %span.short
+          {{item.created_on|gmail_time}}
+        %span.long.hide
+          {{item.created_on}}
 
 
 %tr.since

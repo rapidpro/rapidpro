@@ -1070,7 +1070,26 @@ class ContactTest(TembaTest):
 
         # try removing it again, should fail
         response = self.client.post(read_url, post_data, follow=True)
-        self.assertEquals(200, response.status_code);
+        self.assertEquals(200, response.status_code)
+
+    def test_read_language(self):
+
+        # this is a bogus
+        self.joe.language = 'zzz'
+        self.joe.save()
+        response = self.fetch_protected(reverse('contacts.contact_read', args=[self.joe.uuid]), self.admin)
+
+        # should just show the language code instead of the language name
+        self.assertContains(response, 'zzz')
+
+        self.joe.language = 'fra'
+        self.joe.save()
+        response = self.fetch_protected(reverse('contacts.contact_read', args=[self.joe.uuid]), self.admin)
+
+        # with a proper code, we should see the language
+        self.assertContains(response, 'French')
+
+
 
     def test_update_and_list(self):
         from temba.msgs.tasks import check_messages_task
