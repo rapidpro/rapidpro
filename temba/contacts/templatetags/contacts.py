@@ -32,7 +32,7 @@ def contact_field(contact, arg):
     value = contact.get_field_display(arg)
     if value:
         return value
-    else:
+    else:  # pragma: no cover
         return None
 
 @register.filter
@@ -55,7 +55,7 @@ def format_urn(urn_or_contact, org):
     elif isinstance(urn_or_contact, Contact):
         # will render contact's highest priority URN
         return urn_or_contact.get_urn_display(org=org)
-    else:
+    else:  # pragma: no cover
         raise ValueError('Must be a URN or contact')
 
 @register.filter
@@ -81,7 +81,7 @@ def activity_icon(item):
             if hasattr(item, 'status'):
                 if item.status in ('F', 'E'):
                     name = 'Failed'
-                else:
+                elif item.status == 'D':
                     name = 'Delivered'
 
     return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(name, '')))

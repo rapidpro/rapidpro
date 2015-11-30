@@ -1005,6 +1005,70 @@ class ContactTest(TembaTest):
         # then lastly is our event that happened 5 days ago
         self.assertTrue(isinstance(activity[8], EventFire))
 
+    def test_event_times(self):
+
+        self.create_campaign()
+
+        from temba.campaigns.models import CampaignEvent
+        from temba.contacts.templatetags.contacts import event_time
+
+        event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
+                                                   relative_to=self.planting_date, offset=7, unit='D',
+                                                   message='A message to send')
+
+        event.unit = 'D'
+        self.assertEquals("7 days after Planting Date", event_time(event))
+
+        event.unit = 'M'
+        self.assertEquals("7 minutes after Planting Date", event_time(event))
+
+        event.unit = 'H'
+        self.assertEquals("7 hours after Planting Date", event_time(event))
+
+        event.offset = -1
+        self.assertEquals("1 hour before Planting Date", event_time(event))
+
+        event.unit = 'D'
+        self.assertEquals("1 day before Planting Date", event_time(event))
+
+        event.unit = 'M'
+        self.assertEquals("1 minute before Planting Date", event_time(event))
+
+    def test_activity_icon(self):
+        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+1234'), "Inbound message")
+
+        from temba.contacts.templatetags.contacts import activity_icon
+
+        # inbound
+        self.assertEquals('<span class="glyph icon-bubble-user"></span>', activity_icon(msg))
+
+        # outgoing sent
+        msg.direction = 'O'
+        msg.status = 'S'
+        self.assertEquals('<span class="glyph icon-bubble-right"></span>', activity_icon(msg))
+
+        # outgoing delivered
+        msg.status = 'D'
+        self.assertEquals('<span class="glyph icon-bubble-check"></span>', activity_icon(msg))
+
+        # failed
+        msg.status = 'F'
+        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
+
+        # outgoing voice
+        msg.msg_type = 'V'
+        self.assertEquals('<span class="glyph icon-phone"></span>', activity_icon(msg))
+
+        # incoming voice
+        msg.direction = 'I'
+        self.assertEquals('<span class="glyph icon-phone"></span>', activity_icon(msg))
+
+        # simulate a broadcast to 5 people
+        from temba.msgs.models import Broadcast
+        msg.broadcast = Broadcast.create(self.org, self.admin, 'Test message', [])
+        msg.broadcast.recipient_count = 5
+        self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
+
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
 
@@ -1088,8 +1152,6 @@ class ContactTest(TembaTest):
 
         # with a proper code, we should see the language
         self.assertContains(response, 'French')
-
-
 
     def test_update_and_list(self):
         from temba.msgs.tasks import check_messages_task
