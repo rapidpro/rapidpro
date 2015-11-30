@@ -1865,7 +1865,7 @@ class ChannelClaimSerializer(WriteSerializer):
         if attrs.get('name', None):
             channel.name = attrs['name']
 
-        channel.claim(self.org, attrs['phone'], self.user)
+        channel.claim(self.org, self.user, attrs['phone'])
 
         if not settings.TESTING:  # pragma: no cover
             channel.trigger_sync()
