@@ -316,7 +316,7 @@ class ChannelTest(TembaTest):
         # list page now redirects to channel read page
         self.login(self.user)
         response = self.client.get(reverse('channels.channel_list'))
-        self.assertRedirect(response, reverse('channels.channel_read', args=[self.tel_channel.id]))
+        self.assertRedirect(response, reverse('channels.channel_read', args=[self.tel_channel.uuid]))
 
         # unless you're a superuser
         self.login(self.superuser)
@@ -589,11 +589,11 @@ class ChannelTest(TembaTest):
 
         # non-org users can't view our channels
         self.login(self.non_org_user)
-        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.id]))
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
         self.assertLoginRedirect(response)
 
         # org users can
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.user)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.user)
 
         self.assertEquals(len(response.context['source_stats']), len(SyncEvent.objects.values_list('power_source', flat=True).distinct()))
         self.assertEquals('AC',response.context['source_stats'][0][0])
@@ -609,8 +609,7 @@ class ChannelTest(TembaTest):
 
         self.assertTrue(len(response.context['latest_sync_events']) <= 5)
 
-        self.org.administrators.add(self.user)
-        response = self.fetch_protected(reverse('orgs.org_home'), self.user)
+        response = self.fetch_protected(reverse('orgs.org_home'), self.admin)
         self.assertNotContains(response, 'Enable Voice')
 
         # Add twilio credentials to make sure we can add calling for our android channel
@@ -620,7 +619,7 @@ class ChannelTest(TembaTest):
         self.org.config = json.dumps(config)
         self.org.save(update_fields=['config'])
 
-        response = self.fetch_protected(reverse('orgs.org_home'), self.user)
+        response = self.fetch_protected(reverse('orgs.org_home'), self.admin)
         self.assertTrue(self.org.is_connected_to_twilio())
         self.assertContains(response, 'Enable Voice')
 
@@ -638,12 +637,12 @@ class ChannelTest(TembaTest):
         # add a message, just sent so shouldn't be delayed
         msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message', created_on=two_hours_ago)
 
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.user)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.admin)
         self.assertIn('delayed_sync_event', response.context_data.keys())
         self.assertIn('unsent_msgs_count', response.context_data.keys())
 
         # with superuser
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
         self.assertEquals(200, response.status_code)
 
         # now that we can access the channel, which messages do we display in the chart?
@@ -669,7 +668,7 @@ class ChannelTest(TembaTest):
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'This incoming message will not be counted')
         Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
 
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
         self.assertEquals(200, response.status_code)
 
         # nothing should change since it's a test contact
@@ -688,7 +687,7 @@ class ChannelTest(TembaTest):
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
         # now we have an inbound message and two outbounds
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
         self.assertEquals(200, response.status_code)
         self.assertEquals(1, response.context['message_stats'][0]['data'][-1]['count'])
 
@@ -709,7 +708,7 @@ class ChannelTest(TembaTest):
         from temba.msgs.models import IVR
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'incoming ivr as a test contact', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
         # nothing should have changed
         self.assertEquals(2, len(response.context['message_stats']))
@@ -723,7 +722,7 @@ class ChannelTest(TembaTest):
         # now let's create an ivr interaction from a real contact
         Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn().path), 'incoming ivr', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
-        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.id]), self.superuser)
+        response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
         self.assertEquals(4, len(response.context['message_stats']))
         self.assertEquals(1, response.context['message_stats'][2]['data'][0]['count'])
@@ -752,10 +751,28 @@ class ChannelTest(TembaTest):
         self.assertEquals(401, response.status_code)
         self.assertEquals(3, json.loads(response.content)['error_id'])
 
-    def test_register_and_claim(self):
+    def test_claim(self):
+        # no access for regular users
+        self.login(self.user)
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertLoginRedirect(response)
+
+        # editor can access
+        self.login(self.editor)
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertEqual(200, response.status_code)
+
+        # as can admins
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, "
+                                                               "Sweden, United Kingdom or United States")
+
+    def test_register_and_claim_android(self):
         Channel.objects.all().delete()
 
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM001", uuid='uuid'),
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
                              dict(cmd='status', cc='RW', dev='Nexus')])
 
         # must be a post
@@ -772,7 +789,7 @@ class ChannelTest(TembaTest):
         self.assertIsNone(channel.alert_email)
         self.assertEqual(channel.country, 'RW')
         self.assertEqual(channel.device, 'Nexus')
-        self.assertEqual(channel.gcm_id, 'GCM001')
+        self.assertEqual(channel.gcm_id, 'GCM111')
         self.assertEqual(channel.uuid, 'uuid')
         self.assertTrue(channel.secret)
         self.assertTrue(channel.claim_code)
@@ -821,7 +838,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+250788123123')  # normalized
         self.assertEqual(channel.alert_email, self.admin.email)  # the logged-in user
-        self.assertEqual(channel.gcm_id, 'GCM001')
+        self.assertEqual(channel.gcm_id, 'GCM111')
         self.assertEqual(channel.uuid, 'uuid')
 
         # try having a device register again
@@ -833,12 +850,12 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+250788123123')
         self.assertEqual(channel.alert_email, self.admin.email)
-        self.assertEqual(channel.gcm_id, 'GCM001')
+        self.assertEqual(channel.gcm_id, 'GCM111')
         self.assertEqual(channel.uuid, 'uuid')
         self.assertEqual(channel.is_active, True)
 
         # try having a device register again with new GCM ID
-        reg_data['cmds'][0]['gcm_id'] = "GCM2222"
+        reg_data['cmds'][0]['gcm_id'] = "GCM222"
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
@@ -847,7 +864,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+250788123123')
         self.assertEqual(channel.alert_email, self.admin.email)
-        self.assertEqual(channel.gcm_id, 'GCM2222')
+        self.assertEqual(channel.gcm_id, 'GCM222')
         self.assertEqual(channel.uuid, 'uuid')
         self.assertEqual(channel.is_active, True)
 
@@ -860,7 +877,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+250788123124')
         self.assertEqual(channel.alert_email, self.admin.email)
-        self.assertEqual(channel.gcm_id, 'GCM2222')
+        self.assertEqual(channel.gcm_id, 'GCM222')
         self.assertEqual(channel.uuid, 'uuid')
         self.assertEqual(channel.is_active, True)
 
@@ -905,57 +922,43 @@ class ChannelTest(TembaTest):
         self.assertEqual(self.org.get_receive_channel(TEL_SCHEME), channel)
 
         # re-register device with country as US
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM2222", uuid='uuid'),
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM222", uuid='uuid'),
                               dict(cmd='status', cc='US', dev="Nexus 5")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
-
-        # TODO figure out if this is a problem
+        self.assertEqual(response.status_code, 200)
 
         # channel country and device updated
         channel.refresh_from_db()
         self.assertEqual(channel.country, 'US')
         self.assertEqual(channel.device, "Nexus 5")
         self.assertEqual(channel.org, self.org)
+        self.assertEqual(channel.gcm_id, "GCM222")
         self.assertEqual(channel.uuid, "uuid")
         self.assertTrue(channel.is_active)
 
+        # set back to RW...
+        channel.country = 'RW'
+        channel.save()
 
-
-        # create a US channel and try claiming it next to our RW channels
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM2222", uuid='uuid'),
-                              dict(cmd='status', cc='US', dev='Nexus')])
+#       # register another device with country as US
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
+                              dict(cmd='status', cc='US', dev="Nexus 5")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
 
-        channel = json.loads(response.content)['cmds'][0]
+        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
-        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.admin,
-                                        post_data=dict(claim_code=channel['relayer_claim_code'],
-                                                       phone_number="0788382382"),
-                                        failOnFormValidation=False)
-        self.assertEquals(200, response.status_code, "Claimed channels from two different countries")
-        self.assertContains(response, "you can only add numbers for the same country")
+        # try to claim it...
+        response = self.client.post(reverse('channels.channel_claim_android'),
+                                    dict(claim_code=claim_code, phone_number="0788382382"))
+        self.assertFormError(response, 'form', 'claim_code', "Sorry, you can only add numbers for the same country (RW)")
 
-        # but if we submit with a fully qualified Rwandan number it should work
-        response = self.fetch_protected(reverse('channels.channel_claim_android'), self.admin,
-                                        post_data=dict(claim_code=channel['relayer_claim_code'],
-                                                       phone_number="+250788382382"),
-                                        failOnFormValidation=False)
-
+        # but if we submit with a fully qualified RW number it should work
+        response = self.client.post(reverse('channels.channel_claim_android'),
+                                    dict(claim_code=claim_code, phone_number="+250788382382"))
         self.assertRedirect(response, reverse('public.public_welcome'))
 
-        # should be added with RW as a country
+        # should be added with RW as the country
         self.assertTrue(Channel.objects.get(address='+250788382382', country='RW', org=self.org))
-
-        response = self.fetch_protected(reverse('channels.channel_claim'), self.admin)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['twilio_countries'], "Belgium, Canada, Finland, Norway, Poland, Spain, "
-                                                                "Sweden, United Kingdom or United States")
-
-        # Test both old and new Cameroon phone format
-        number = phonenumbers.parse('+23761234567', 'CM')
-        self.assertTrue(phonenumbers.is_possible_number(number))
-        number = phonenumbers.parse('+237661234567', 'CM')
-        self.assertTrue(phonenumbers.is_possible_number(number))
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

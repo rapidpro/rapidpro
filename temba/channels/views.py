@@ -517,6 +517,18 @@ class ChannelCRUDL(SmartCRUDL):
     class Read(OrgObjPermsMixin, SmartReadView):
         exclude = ('id', 'is_active', 'created_by', 'modified_by', 'modified_on', 'gcm_id')
 
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            # overloaded to have uuid pattern instead of integer id
+            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
+
+        def get_object(self, queryset=None):
+            uuid = self.kwargs.get('uuid')
+            channel = Channel.objects.filter(uuid=uuid, is_active=True).first()
+            if channel is None:
+                raise Http404("No active channel with that UUID")
+            return channel
+
         def get_gear_links(self):
             links = []
 
@@ -746,7 +758,7 @@ class ChannelCRUDL(SmartCRUDL):
                 import traceback
                 traceback.print_exc(e)
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
-                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.pk]))
+                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 
     class Update(OrgObjPermsMixin, SmartUpdateView):
         success_message = ''
@@ -769,7 +781,7 @@ class ChannelCRUDL(SmartCRUDL):
             return super(ChannelCRUDL.Update, self).lookup_field_help(field, default=default)
 
         def get_success_url(self):
-            return reverse('channels.channel_read', args=[self.object.pk])
+            return reverse('channels.channel_read', args=[self.object.uuid])
 
         def get_form_class(self):
             channel_type = self.object.channel_type
@@ -1508,7 +1520,7 @@ class ChannelCRUDL(SmartCRUDL):
                 del self.request.session[SESSION_TWITTER_TOKEN]
                 del self.request.session[SESSION_TWITTER_SECRET]
 
-                return redirect(reverse('channels.channel_read', kwargs=dict(pk=channel.id)))
+                return redirect(reverse('channels.channel_read', args=[channel.uuid]))
 
             return response
 
@@ -1554,7 +1566,7 @@ class ChannelCRUDL(SmartCRUDL):
             if len(channels) == 0:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
             elif len(channels) == 1:
-                return HttpResponseRedirect(reverse('channels.channel_read', args=[channels[0].id]))
+                return HttpResponseRedirect(reverse('channels.channel_read', args=[channels[0].uuid]))
             else:
                 return super(ChannelCRUDL.List, self).pre_process(*args, **kwargs)
 

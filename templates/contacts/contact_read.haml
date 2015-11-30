@@ -62,7 +62,7 @@
                   .glyph.icon-user
                 -else
                   -if msg.direction == 'O' and msg.channel
-                    %a{href:'{% url "channels.channel_read" msg.channel.get_parent_channel.pk %}'}
+                    %a{href:'{% url "channels.channel_read" msg.channel.get_parent_channel.uuid %}'}
                       .glyph{class:'{{ msg.channel|channel_icon}}', title:'From: {{ msg.channel.get_address_display }}'}
                   -elif msg.direction == 'O'
                     %a{href:'#'}

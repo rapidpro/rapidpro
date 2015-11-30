@@ -1980,6 +1980,8 @@ class ContactURNTest(TembaTest):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
         self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", "KE"))
+        self.assertTrue(ContactURN.validate_urn('tel', "+23761234567", "CM"))  # old Cameroon format
+        self.assertTrue(ContactURN.validate_urn('tel', "+237661234567", "CM"))  # new Cameroon format
         self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", None))
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", None))  # assumed valid because no country
 
