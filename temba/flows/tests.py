@@ -3256,6 +3256,14 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(Flow.RULES_ENTRY, flow.entry_type)
         self.assertEquals("You've got to be kitten me", self.send_message(flow, "cats"))
 
+    def test_numeric_rule_allows_variables(self):
+        flow = self.get_flow('numeric-rule-allows-variables')
+
+        zinedine = self.create_contact('Zinedine', '+123456')
+        zinedine.set_field('age', 25)
+
+        self.assertEquals('Good count', self.send_message(flow, "35", contact=zinedine))
+
     def test_non_blocking_rule_first(self):
 
         flow = self.get_flow('non_blocking_rule_first')
