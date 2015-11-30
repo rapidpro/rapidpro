@@ -42,7 +42,7 @@ def format_seconds(seconds):
 
 def lessblock(parser, token):
     args = token.split_contents()
-    if len(args) != 1:
+    if len(args) != 1:  # pragma: no cover
         raise TemplateSyntaxError("lessblock tag takes no arguments, got: [%s]" % ",".join(args))
 
     nodelist = parser.parse(('endlessblock',))

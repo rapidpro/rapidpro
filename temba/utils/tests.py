@@ -5,6 +5,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import pytz
 
+from django.test.testcases import TestCase
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
@@ -171,6 +172,39 @@ class InitTest(TembaTest):
         self.assertEquals(0, percentage(100, 0))
         self.assertEquals(75, percentage(75, 100))
         self.assertEquals(76, percentage(759, 1000))
+
+
+class TemplateTagTest(TembaTest):
+
+    def test_icon(self):
+        from temba.campaigns.models import Campaign
+        from temba.triggers.models import Trigger
+        from temba.flows.models import Flow
+
+        campaign = Campaign.create(self.org, self.admin, 'Test Campaign', self.create_group('Test group', []))
+        flow = Flow.create(self.org, self.admin, 'Test Flow')
+        trigger = Trigger.objects.create(org=self.org, keyword='trigger', flow=flow, created_by=self.admin, modified_by=self.admin)
+
+        from temba.utils.templatetags.temba import icon
+
+        self.assertEquals('icon-instant', icon(campaign))
+        self.assertEquals('icon-feed', icon(trigger))
+        self.assertEquals('icon-tree', icon(flow))
+        self.assertEquals("", icon(None))
+
+    def test_format_seconds(self):
+        from temba.utils.templatetags.temba import format_seconds
+
+        self.assertIsNone(format_seconds(None))
+
+        # less than a minute
+        self.assertEquals("30 sec", format_seconds(30))
+
+        # round down
+        self.assertEquals("1 min", format_seconds(89))
+
+        # round up
+        self.assertEquals("2 min", format_seconds(100))
 
 
 class CacheTest(TembaTest):
