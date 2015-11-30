@@ -229,7 +229,7 @@ class TembaTest(SmartminTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
-    def update_destination_no_check(self, flow, node, destination, rule=None):
+    def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
         destination_type = ACTION_SET
@@ -345,7 +345,8 @@ class FlowFileTest(TembaTest):
 from selenium.webdriver.firefox.webdriver import WebDriver
 from HTMLParser import HTMLParser
 
-class MLStripper(HTMLParser):
+
+class MLStripper(HTMLParser):  # pragma: no cover
     def __init__(self):
         self.reset()
         self.fed = []
@@ -533,7 +534,7 @@ class MockRequestValidator(RequestValidator):
         return True
 
 
-class MockTwilioClient(TwilioClient):
+class MockTwilioClient(TwilioClient):  # pragma: no cover
 
     def __init__(self, sid, token):
         self.applications = MockTwilioClient.MockApplications()

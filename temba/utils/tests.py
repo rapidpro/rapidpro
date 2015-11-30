@@ -180,12 +180,11 @@ class TemplateTagTest(TembaTest):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
         from temba.flows.models import Flow
+        from temba.utils.templatetags.temba import icon
 
         campaign = Campaign.create(self.org, self.admin, 'Test Campaign', self.create_group('Test group', []))
         flow = Flow.create(self.org, self.admin, 'Test Flow')
         trigger = Trigger.objects.create(org=self.org, keyword='trigger', flow=flow, created_by=self.admin, modified_by=self.admin)
-
-        from temba.utils.templatetags.temba import icon
 
         self.assertEquals('icon-instant', icon(campaign))
         self.assertEquals('icon-feed', icon(trigger))

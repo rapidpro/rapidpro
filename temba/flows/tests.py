@@ -789,12 +789,7 @@ class FlowTest(TembaTest):
         return run
 
     def assertDateTest(self, expected_test, expected_value, test):
-        runs = FlowRun.objects.filter(contact=self.contact)
-        if runs:
-            run = runs[0]
-        else:
-            run = FlowRun.create(self.flow, self.contact)
-
+        run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.get_tzinfo()
         context = run.flow.build_message_context(run.contact, None)
 

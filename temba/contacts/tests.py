@@ -1853,14 +1853,11 @@ class ContactTest(TembaTest):
         self.assertEquals(field_dict['org'], self.org)
 
         # check that trying to save an extra field with a reserved name throws an exception
-        try:
+        with self.assertRaises(Exception):
             import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
                 dict(key='phone', header='phone', label='Phone')
             ])
             Contact.prepare_fields(field_dict, import_params)
-            self.fail("Expected exception from Contact.prepare_fields")
-        except Exception:
-            pass
 
     def test_fields(self):
         # set a field on joe

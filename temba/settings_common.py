@@ -857,7 +857,7 @@ BROKER_BACKEND = 'memory'
 #-----------------------------------------------------------------------------------
 # Django-Nose config
 #-----------------------------------------------------------------------------------
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+# TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 
 #-----------------------------------------------------------------------------------
 # Debug Toolbar
