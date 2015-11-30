@@ -153,4 +153,18 @@ describe 'Directives:', ->
 
       expect(ele.html()).toMatch(/ng-valid-validate-type/)
 
+      # should not match words
+      scope.rule =
+        _config: config
+        test: {_base:'old'}
+        type: 'eq'
+        category: {_base: 'Age'}
+
+
+      $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      expect(ele.html()).toMatch(/ng-invalid-validate-type/)
+
 
