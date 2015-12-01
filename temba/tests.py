@@ -6,26 +6,58 @@ import redis
 import shutil
 import string
 import time
+import logging
 
 from datetime import datetime
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.test import LiveServerTestCase
+from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, RULE_SET, ACTION_SET
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
 from xlrd import xldate_as_tuple
 from xlrd.sheet import XL_CELL_DATE
+
+
+
+
+class ExcludeTestRunner(DiscoverRunner):
+    def __init__(self, *args, **kwargs):
+        from django.conf import settings
+        settings.TESTING = True
+        south_log = logging.getLogger("south")
+        south_log.setLevel(logging.WARNING)
+        super(ExcludeTestRunner, self).__init__(*args, **kwargs)
+
+    def build_suite(self, *args, **kwargs):
+        suite = super(ExcludeTestRunner, self).build_suite(*args, **kwargs)
+        excluded = getattr(settings, 'TEST_EXCLUDE', [])
+        if not getattr(settings, 'RUN_ALL_TESTS', False):
+            tests = []
+            for case in suite:
+                pkg = case.__class__.__module__.split('.')[0]
+                if pkg not in excluded:
+                    tests.append(case)
+            suite._tests = tests
+
+        packages = set()
+        for case in suite._tests:
+            pkg = case.__class__.__module__.split('.')[0]
+            packages.add(pkg)
+
+        for pkg in packages:
+            print pkg
+        return suite
 
 
 def add_testing_flag_to_context(*args):
