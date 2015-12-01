@@ -26,9 +26,9 @@ before_script:
 - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 script:
 - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
-- coverage run --source="./temba" manage.py test --noinput --verbosity=2
+- coverage run manage.py test --noinput --verbosity=2
 after_success:
-- coverage report -m --omit="*/migrations/*,*/tests*,*__init__*,*settings*,*management/commands*" -i
+- coverage report -i
 - coveralls
 notifications:
   slack:
