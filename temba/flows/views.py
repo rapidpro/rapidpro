@@ -472,7 +472,7 @@ class FlowCRUDL(SmartCRUDL):
                     path = 'recordings/%d/%d' % (object.org.pk, object.pk)
                     if default_storage.exists(path):
                         default_storage.delete(path)
-                except:
+                except Exception:
                     pass
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
@@ -950,7 +950,7 @@ class FlowCRUDL(SmartCRUDL):
                         query_int = -1
                         try:
                             query_int = int(query)
-                        except:
+                        except Exception:
                             pass
 
                         runs = runs.filter(Q(contact__name__icontains=query) | Q(contact__id=query_int))

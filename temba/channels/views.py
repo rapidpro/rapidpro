@@ -441,7 +441,7 @@ class ClaimForm(forms.Form):
                 normalized = phonenumbers.parse(number, self.cleaned_data['channel'].country.code)
                 if not phonenumbers.is_possible_number(normalized):
                     raise forms.ValidationError(_("Invalid phone number, try again."))
-            except: # pragma: no cover
+            except Exception: # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
 
             number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
@@ -1109,7 +1109,7 @@ class ChannelCRUDL(SmartCRUDL):
                 try:
                     cleaned = phonenumbers.parse(number, None)
                     return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                except:
+                except Exception:
                     raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
 
         title = "Connect External Service"
@@ -1330,7 +1330,7 @@ class ChannelCRUDL(SmartCRUDL):
                     try:
                         cleaned = phonenumbers.parse(number, self.data['country'])
                         return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                    except:
+                    except Exception:
                         raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
                 else:
                     return number
@@ -1640,7 +1640,7 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             try:
                 client = org.get_twilio_client()
-            except:
+            except Exception:
                 client = None
 
             if client:
@@ -1790,7 +1790,7 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             try:
                 client = org.get_twilio_client()
-            except:
+            except Exception:
                 client = None
 
             if client:
@@ -1864,7 +1864,7 @@ class ChannelCRUDL(SmartCRUDL):
             org = Org.objects.get(pk=self.request.user.get_org().pk)
             try:
                 client = org.get_nexmo_client()
-            except:
+            except Exception:
                 client = None
 
             if client:
@@ -2068,7 +2068,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 if validation_response[0] != 200:
                     client = None
-            except:
+            except Exception:
                 client = None
 
             return client

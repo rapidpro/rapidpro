@@ -470,7 +470,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -478,7 +478,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         return queryset.order_by('-created_on').prefetch_related('urns', 'contacts', 'groups')
@@ -635,7 +635,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -643,7 +643,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         channels = self.request.QUERY_PARAMS.getlist('channel', None)
@@ -999,7 +999,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -1007,7 +1007,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         call_types = splitting_getlist(self.request, 'call_type')
@@ -1023,7 +1023,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             try:
                 channel = int(channel)
                 queryset = queryset.filter(channel_id=channel)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         return queryset
@@ -1177,7 +1177,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(last_seen__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -1185,7 +1185,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(last_seen__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         countries = splitting_getlist(self.request, 'country')
@@ -1463,7 +1463,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(modified_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -1471,7 +1471,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(modified_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
@@ -2051,7 +2051,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(modified_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -2059,7 +2059,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(modified_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         # it's faster to filter by contact group using a join than a subquery - especially for larger groups
@@ -2206,7 +2206,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -2214,7 +2214,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         return queryset.select_related('group').order_by('-created_on')
@@ -2380,7 +2380,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -2388,7 +2388,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         return queryset.select_related('campaign', 'flow').order_by('-created_on')
@@ -2792,7 +2792,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.QUERY_PARAMS.get('after', None)
@@ -2800,7 +2800,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except:
+            except Exception:
                 queryset = queryset.filter(pk=-1)
 
         label = self.request.QUERY_PARAMS.getlist('label', None)

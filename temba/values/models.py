@@ -391,7 +391,7 @@ class Value(models.Model):
         if cached is not None:
             try:
                 return json_to_dict(cached)
-            except:
+            except Exception:
                 # failed decoding, oh well, go calculate it instead
                 pass
 

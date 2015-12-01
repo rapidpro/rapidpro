@@ -392,7 +392,7 @@ class PhoneRequiredForm(forms.ModelForm):
                 normalized = phonenumbers.parse(tel, None)
                 if not phonenumbers.is_possible_number(normalized):
                     raise forms.ValidationError(_("Invalid phone number, try again."))
-            except:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
         return None
@@ -599,7 +599,7 @@ class OrgCRUDL(SmartCRUDL):
                     account = client.accounts.get(account_sid)
                     self.cleaned_data['account_sid'] = account.sid
                     self.cleaned_data['account_token'] = account.auth_token
-                except:
+                except Exception:
                     raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -660,7 +660,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = NexmoClient(api_key, api_secret)
                     client.get_numbers()
-                except:
+                except Exception:
                     raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -701,7 +701,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = plivo.RestAPI(auth_id, auth_token)
                     validation_response = client.get_account()
-                except:
+                except Exception:
                     raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
 
                 if validation_response[0] != 200:
