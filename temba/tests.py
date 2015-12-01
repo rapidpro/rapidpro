@@ -49,14 +49,6 @@ class ExcludeTestRunner(DiscoverRunner):
                 if pkg not in excluded:
                     tests.append(case)
             suite._tests = tests
-
-        packages = set()
-        for case in suite._tests:
-            pkg = case.__class__.__module__.split('.')[0]
-            packages.add(pkg)
-
-        for pkg in packages:
-            print pkg
         return suite
 
 
