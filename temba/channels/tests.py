@@ -773,7 +773,7 @@ class ChannelTest(TembaTest):
         Channel.objects.all().delete()
 
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
-                             dict(cmd='status', cc='RW', dev='Nexus')])
+                              dict(cmd='status', cc='RW', dev='Nexus')])
 
         # must be a post
         response = self.client.get(reverse('register'), content_type='application/json')
@@ -806,7 +806,9 @@ class ChannelTest(TembaTest):
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
+        channel = Channel.objects.get()
         response_json = json.loads(response.content)
+
         self.assertEqual(response_json, dict(cmds=[dict(cmd='reg',
                                                         relayer_claim_code=channel.claim_code,
                                                         relayer_secret=channel.secret,
@@ -833,19 +835,21 @@ class ChannelTest(TembaTest):
         self.assertTrue('success' in response.get('Location', None))
         self.assertRedirect(response, reverse('public.public_welcome'))
 
-        # and channel is updated with org details
+        # channel is updated with org details and claim code is now blank
         channel.refresh_from_db()
+        secret = channel.secret
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+250788123123')  # normalized
         self.assertEqual(channel.alert_email, self.admin.email)  # the logged-in user
         self.assertEqual(channel.gcm_id, 'GCM111')
         self.assertEqual(channel.uuid, 'uuid')
+        self.assertFalse(channel.claim_code)
 
         # try having a device register again
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
-        # should return same channel
+        # should return same channel but with a new claim code and secret
         channel.refresh_from_db()
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+250788123123')
@@ -853,8 +857,15 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.gcm_id, 'GCM111')
         self.assertEqual(channel.uuid, 'uuid')
         self.assertEqual(channel.is_active, True)
+        self.assertTrue(channel.claim_code)
+        # self.assertNotEqual(channel.secret, secret)
 
-        # try having a device register again with new GCM ID
+        # should be able to claim again
+        response = self.client.post(reverse('channels.channel_claim_android'),
+                                    dict(claim_code=channel.claim_code, phone_number="0788123123"))
+        self.assertRedirect(response, reverse('public.public_welcome'))
+
+        # try having a device register yet again with new GCM ID
         reg_data['cmds'][0]['gcm_id'] = "GCM222"
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)

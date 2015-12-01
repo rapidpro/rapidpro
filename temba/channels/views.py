@@ -411,7 +411,7 @@ def register(request):
     cmds = client_payload['cmds']
 
     # look up a channel with that id
-    channel = Channel.get_or_create_by_commands(cmds[0], cmds[1])
+    channel = Channel.get_or_create_android(cmds[0], cmds[1])
     cmd = channel.build_registration_command()
 
     result = dict(cmds=[cmd])

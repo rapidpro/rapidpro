@@ -471,35 +471,62 @@ class Channel(SmartModel):
         return channel
 
     @classmethod
-    def get_or_create_by_commands(cls, gcm, status):
+    def get_or_create_android(cls, gcm, status):
         """
-        Creates a new channel from the gcm and status commands sent during device registration
+        Creates a new Android channel from the gcm and status commands sent during device registration
         """
-        gcm_id = gcm['gcm_id']
+        gcm_id = gcm.get('gcm_id')
         uuid = gcm.get('uuid')
-        country = status['cc']
-        device = status['dev']
+        country = status.get('cc')
+        device = status.get('dev')
 
-        # look for existing channel with this device UUID
-        existing = Channel.objects.filter(uuid=uuid).first()
+        if not gcm_id or not uuid:
+            raise ValueError("Can't create Android channel without UUID and GCM ID")
+
+        # old versions of the Android app used non-random UUIDs so it's still possible to get a registration request
+        # with a channel UUID that's already in use
+
+        # look for existing active channel with this UUID
+        existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
+
+        # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
-            if existing.gcm_id != gcm_id or existing.country != country or existing.device != device:
-                existing.gcm_id = gcm_id
-                existing.country = country
-                existing.device = device
-                existing.save(update_fields=('gcm_id', 'country', 'device'))
+            existing.gcm_id = gcm_id
+            existing.claim_code = cls.generate_claim_code()
+            existing.secret = cls.generate_secret()
+            existing.country = country
+            existing.device = device
+            existing.save(update_fields=('gcm_id', 'secret', 'claim_code', 'country', 'device'))
 
             return existing
 
+        # if any inactive channel has this UUID, we can steal it
+        Channel.objects.filter(uuid=uuid, is_active=False).update(uuid=None)
+
         # generate random secret and claim code
-        secret = random_string(64)
-        claim_code = random_string(9)
-        while Channel.objects.filter(claim_code=claim_code):  # pragma: no cover
-            claim_code = random_string(9)
+        claim_code = cls.generate_claim_code()
+        secret = cls.generate_secret()
         anon = User.objects.get(pk=-1)
 
         return Channel.create(None, anon, country, ANDROID, None, None, gcm_id=gcm_id, uuid=uuid,
                               device=device, claim_code=claim_code, secret=secret)
+
+    @classmethod
+    def generate_claim_code(cls):
+        """
+        Generates a random and guaranteed unique claim code
+        """
+        code = random_string(9)
+        while cls.objects.filter(claim_code=code):  # pragma: no cover
+            code = random_string(9)
+        return code
+
+    @classmethod
+    def generate_secret(cls):
+        """
+        Generates a secret value used for command signing
+        """
+        return random_string(64)
 
     def has_sending_log(self):
         return self.channel_type != 'A'
@@ -668,15 +695,13 @@ class Channel(SmartModel):
     def build_registration_command(self):
         # create a claim code if we don't have one
         if not self.claim_code:
-            self.claim_code = random_string(9)
-            while Channel.objects.filter(claim_code=self.claim_code): # pragma: no cover
-                self.claim_code = random_string(9)
-            self.save()
+            self.claim_code = self.generate_claim_code()
+            self.save(update_fields=('claim_code',))
 
         # create a secret if we don't have one
         if not self.secret:
-            self.secret = random_string(64)
-            self.save()
+            self.secret = self.generate_secret()
+            self.save(update_fields=('secret',))
 
         # return our command
         return dict(cmd='reg',
@@ -764,7 +789,6 @@ class Channel(SmartModel):
         self.save()
 
     def release(self, trigger_sync=True, notify_mage=True):
-
         org = self.org
 
         # release any channels working on our behalf as well
@@ -777,7 +801,6 @@ class Channel(SmartModel):
 
             # remove the application
             client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
-
 
         # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
         if self.channel_type == TWILIO:
