@@ -600,6 +600,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Archived(BaseList):
         actions = ('restore',)
+        default_order = ('-created_on',)
 
         def derive_queryset(self, *args, **kwargs):
             return super(FlowCRUDL.Archived, self).derive_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
