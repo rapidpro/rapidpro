@@ -1546,15 +1546,15 @@ class OrgCRUDL(SmartCRUDL):
                 if len(initial) > 0:
                     for iso_code in initial:
                         if iso_code:
-                            lang = pycountry.languages.get(bibliographic=iso_code)
+                            lang = pycountry.languages.get(iso639_3_code=iso_code)
                             name = lang.name.split(';')[0]
-                            matches.append(dict(id=lang.bibliographic, text=name))
+                            matches.append(dict(id=lang.iso639_3_code, text=name))
 
                 if len(matches) == 0:
                     search = self.request.REQUEST.get('search', '').strip().lower()
                     for lang in pycountry.languages:
                         if len(search) == 0 or search in lang.name.lower():
-                            matches.append(dict(id=lang.bibliographic, text=lang.name))
+                            matches.append(dict(id=lang.iso639_3_code, text=lang.name))
 
                 results = dict(results=matches)
                 return build_json_response(results)
@@ -1573,7 +1573,7 @@ class OrgCRUDL(SmartCRUDL):
             # create new languages
             for iso_code in iso_codes:
                 if iso_code:
-                    lang = pycountry.languages.get(bibliographic=iso_code)
+                    lang = pycountry.languages.get(iso639_3_code=iso_code)
                     language = org.languages.filter(iso_code=iso_code).first()
                     if lang and not language:
                         # store up to the first semicolon as the name

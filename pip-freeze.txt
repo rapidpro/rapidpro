@@ -47,7 +47,7 @@ ply==3.4
 uservoice==0.0.19
 nose-perfdump==1.5
 geojson==1.0.7
-pycountry==1.6
+pycountry==1.18
 stop-words==2014.5.26
 twython==3.1.2
 rapidpro-expressions==1.1.3

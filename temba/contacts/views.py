@@ -29,7 +29,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
-from temba.utils import analytics, slugify_with
+from temba.utils import analytics, slugify_with, build_json_response
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
 
@@ -536,7 +536,6 @@ class ContactCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(json_result), content_type='application/json')
 
     class Read(OrgObjPermsMixin, SmartReadView):
-        refresh = 30000
         fields = ('name',)
 
         def derive_title(self):
@@ -560,24 +559,20 @@ class ContactCRUDL(SmartCRUDL):
             return contact
 
         def get_context_data(self, **kwargs):
-            from temba.channels.models import SEND
+            context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
 
             contact = self.object
             if not contact.is_active:
                 raise Http404("No active contact with that id")
 
-            def contact_cmp(a, b):
-                if a.__class__ == b.__class__:
-                    return a.pk - b.pk
-                else:
-                    if a.created_on == b.created_on:
-                        return 0
-                    elif a.created_on < b.created_on:
-                        return -1
-                    else:
-                        return 1
+            # the users group membership
+            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
+
+            # upcoming scheduled events
+            context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')[:3].reverse()
 
             # divide contact's URNs into those we can send to, and those we can't
+            from temba.channels.models import SEND
             sendable_schemes = contact.org.get_schemes(SEND)
             sendable_urns = []
             unsendable_urns = []
@@ -586,19 +581,33 @@ class ContactCRUDL(SmartCRUDL):
                     sendable_urns.append(urn)
                 else:
                     unsendable_urns.append(urn)
-
-            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on', '-id')
-            call_messages = Call.objects.filter(contact=contact.id).order_by('-created_on', '-id')
-            all_messages = chain(text_messages, call_messages)
-            all_messages = sorted(all_messages, cmp=contact_cmp, reverse=True)
-
-            context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
-            context['all_messages'] = all_messages
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
-            context['contact_fields'] = ContactField.objects.filter(org=contact.org, is_active=True).order_by('pk')
-            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
-            context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
+
+            # load our contacts values
+            Contact.bulk_cache_initialize(contact.org, [contact])
+
+            # lookup all of our contact fields
+            contact_fields = []
+            fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
+            for field in fields:
+                value = getattr(contact, '__field__%s' % field.key)
+                if value:
+                    display = Contact.get_field_display_for_value(field, value)
+                    contact_fields.append(dict(label=field.label, value=display, featured=field.show_in_table))
+
+            # stuff in the contact's language in the fields as well
+            if contact.language:
+                try:
+                  lang = pycountry.languages.get(iso639_3_code=contact.language).name
+                except KeyError:
+                    lang = contact.language
+
+                if lang:
+                    contact_fields.append(dict(label='Language', value=lang, featured=True))
+
+            context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
+
             return context
 
         def post(self, request, *args, **kwargs):
@@ -637,6 +646,76 @@ class ContactCRUDL(SmartCRUDL):
                                       js_class='contact-delete-button', href='#'))
 
             return links
+
+    class History(OrgObjPermsMixin, SmartReadView):
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            # overloaded to have uuid pattern instead of integer id
+            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
+
+        def get_object(self, queryset=None):
+            uuid = self.kwargs.get('uuid')
+            if self.request.user.is_superuser:
+                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
+            else:
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
+
+            if contact is None:
+                raise Http404("No active contact with that id")
+
+            return contact
+
+        def get_context_data(self, *args, **kwargs):
+
+            context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
+
+            from temba.ivr.models import IVRCall
+            from temba.flows.models import FlowRun, Flow
+            from temba.campaigns.models import EventFire
+            def contact_cmp(a, b):
+
+                if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
+                    a.created_on = a.fired
+
+                if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
+                    b.created_on = b.fired
+
+                if a.created_on == b.created_on:
+                    return 0
+                elif a.created_on < b.created_on:
+                    return -1
+                else:
+                    return 1
+
+            contact = self.get_object()
+
+            # determine our start and end time based on the page
+            page = int(self.request.REQUEST.get('page', 1))
+            days_per_page = 90
+            start_time = timezone.now() - timedelta(days=days_per_page * page)
+            end_time = timezone.now() - timedelta(days=days_per_page * (page-1))
+            context['start_time'] = start_time
+
+            # all of our messages and broadcasts
+            broadcasts = Broadcast.objects.filter(contacts__in=[contact]).filter(purged=True).order_by('-created_on', '-id')
+            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED), created_on__lt=end_time, created_on__gt=start_time)
+            text_messages = text_messages.exclude(broadcast__in=broadcasts).order_by('-created_on', '-id')
+
+            # all of our runs and events
+            runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+            fired = EventFire.objects.filter(contact=contact , scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+
+            # missed calls
+            calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+
+            # now chain them all together in the same list and sort by time
+            activity = chain(text_messages, broadcasts, runs, fired, calls)
+
+            activity = sorted(activity, cmp=contact_cmp, reverse=True)
+            context['activity'] = activity
+
+            return context
 
     class List(ContactActionMixin, ContactListView):
         title = _("Contacts")
@@ -847,48 +926,6 @@ class ContactCRUDL(SmartCRUDL):
                 obj.set_field(key, value)
 
             return obj
-
-    class History(Read):
-        """
-        Displays a history of events that happend on this contact, including messages, event fires, flow
-        starts etc, all in order of when they occurred.
-        """
-        template_name = 'contacts/contact_history.html'
-
-        def get_context_data(self, **kwargs):
-            from temba.campaigns.models import EventFire
-            from temba.flows.models import FlowStep, RULE_SET, ACTION_SET
-
-            context = super(ContactCRUDL.History, self).get_context_data(**kwargs)
-
-            # this will contain all our events as pairs of datetime->event
-            events = []
-
-            # first add all our messages
-            for msg in Msg.objects.filter(contact=self.object):
-                events.append((msg.created_on, msg))
-
-            # now add all our event fires
-            for ef in EventFire.objects.filter(contact=self.object).exclude(fired=None):
-                if ef.fired:
-                    events.append((ef.fired, ef))
-                else:
-                    events.append((ef.scheduled, ef))
-
-            # flow rule steps that got processed
-            for fs in FlowStep.objects.filter(contact=self.object, step_type=RULE_SET).exclude(left_on=None):
-                events.append((fs.left_on, fs))
-
-            # flow action steps that were found
-            for fs in FlowStep.objects.filter(contact=self.object, step_type=ACTION_SET):
-                events.append((fs.arrived_on, fs))
-
-            # sort by id first, then by pk
-            events = sorted(events, key=lambda event: event[1].id, reverse=True)
-            events = sorted(events, key=lambda event: event[0], reverse=True)
-
-            context['events'] = events
-            return context
 
     class Block(OrgPermsMixin, SmartUpdateView):
         """
