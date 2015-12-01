@@ -56,9 +56,9 @@ DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 INTERNAL_IPS = ('127.0.0.1',)
 
 #-----------------------------------------------------------------------------------
-# Load nose in development
+# Load development apps
 #-----------------------------------------------------------------------------------
-INSTALLED_APPS = INSTALLED_APPS + ('django_nose', 'storages')
+INSTALLED_APPS = INSTALLED_APPS + ('storages',)
 # INSTALLED_APPS = INSTALLED_APPS + ('debug_toolbar', )
 
 #-----------------------------------------------------------------------------------
