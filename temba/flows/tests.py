@@ -176,8 +176,14 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
-
         self.login(self.admin)
+
+        # add another flow
+        flow2 = self.get_flow('no-ruleset-flow')
+
+        # and archive it right off the bat
+        flow2.is_archived = True
+        flow2.save()
 
         # see our trigger on the list page
         response = self.client.get(reverse('flows.flow_list'))
@@ -189,9 +195,14 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'))
         self.assertNotContains(response, self.flow.name)
 
-        # unarchive it
         response = self.client.get(reverse('flows.flow_archived'), post_data)
         self.assertContains(response, self.flow.name)
+
+        # flow2 should appear before flow since it was created later
+        self.assertTrue(flow2, response.context['object_list'][0])
+        self.assertTrue(self.flow, response.context['object_list'][1])
+
+        # unarchive it
         post_data = dict(action='restore', objects=self.flow.pk)
         self.client.post(reverse('flows.flow_archived'), post_data)
         response = self.client.get(reverse('flows.flow_archived'), post_data)
