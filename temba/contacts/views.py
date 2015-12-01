@@ -352,15 +352,34 @@ class ContactCRUDL(SmartCRUDL):
             Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
             containing the column label and the names of the fields
             """
+
+            org = self.derive_org()
+
             column_controls = []
             for header in column_headers:
                 header_key = slugify_with(header)
 
-                include_field = forms.BooleanField(label=' ', required=False)
+                include_field = forms.ChoiceField(label=' ', required=True, choices=((None, "Select Include/Ignore"), (True, 'Include'), (False, 'Ignore')))
                 include_field_name = 'column_%s_include' % header_key
                 label_field = forms.CharField(label=' ', initial=header.title())
+
+
+                label_initial = ContactField.get_by_label(org, header.title())
+
+                label_field_initial = header.title()
+                if label_initial:
+                    label_field_initial = label_initial.label
+
+                label_field = forms.CharField( initial=label_field_initial,
+                                                     required=False, label=' ')
+
                 label_field_name = 'column_%s_label' % header_key
-                type_field = forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, required=True)
+
+                type_field_initial = None
+                if label_initial:
+                    type_field_initial = label_initial.value_type
+
+                type_field = forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, required=True, initial=type_field_initial)
                 type_field_name = 'column_%s_type' % header_key
 
                 fields = []
@@ -379,8 +398,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Customize, self).get_context_data(**kwargs)
+
+            org = self.derive_org()
+
             context['column_controls'] = self.column_controls
             context['task'] = self.get_object()
+
+            contact_fields = sorted([dict(id=elt['key'], text=elt['label']) for elt in ContactField.objects.filter(org=org, is_active=True).values('key', 'label')], key=lambda k: k['text'].lower())
+            context['contact_fields'] = json.dumps(contact_fields)
 
             return context
 
