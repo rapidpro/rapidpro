@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='broadcast',
             name='purged',
-            field=models.BooleanField(default=False, help_text='If the messages for this broadcast have been purged'),
+            field=models.BooleanField(null=True, help_text='If the messages for this broadcast have been purged'),
         ),
     ]
