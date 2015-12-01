@@ -55,6 +55,10 @@
        initSelection : function (element, callback) {
          var eltVal, data, d, _i, _len, _ref;
          eltVal = element.val();
+         if (eltVal.substring(0,7) == '[_NEW_]'){
+           eltVal = eltVal.substring(7);
+         }
+
          _ref = contactFields;
 
          for (_i = 0, _len =_ref.length; _i < _len; _i++) {
