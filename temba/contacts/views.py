@@ -325,12 +325,17 @@ class ContactCRUDL(SmartCRUDL):
 
         class CustomizeForm(forms.ModelForm):
             def clean(self):
+
+                used_labels = []
                 # don't allow users to specify field keys or labels
                 re_col_name_field = regex.compile(r'column_\w+_label', regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
-                        field_key = slugify_with(value)
+                        if field_label.startswith('[_NEW_]'):
+                            field_label = field_label[7:]
+
+                        field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
                             raise ValidationError(_("Field names can only contain letters, numbers, "
@@ -338,6 +343,12 @@ class ContactCRUDL(SmartCRUDL):
 
                         if field_key in Contact.RESERVED_FIELDS:
                             raise ValidationError(_("%s is a reserved name for contact fields") % value)
+
+                        if field_label in used_labels:
+                            raise ValidationError(_("%s should be used once") % field_label)
+
+                        used_labels.append(field_label)
+
                 return self.cleaned_data
 
             class Meta:
@@ -404,7 +415,7 @@ class ContactCRUDL(SmartCRUDL):
             context['column_controls'] = self.column_controls
             context['task'] = self.get_object()
 
-            contact_fields = sorted([dict(id=elt['key'], text=elt['label']) for elt in ContactField.objects.filter(org=org, is_active=True).values('key', 'label')], key=lambda k: k['text'].lower())
+            contact_fields = sorted([dict(id=elt['label'], text=elt['label']) for elt in ContactField.objects.filter(org=org, is_active=True).values('label')], key=lambda k: k['text'].lower())
             context['contact_fields'] = json.dumps(contact_fields)
 
             return context
@@ -424,8 +435,11 @@ class ContactCRUDL(SmartCRUDL):
 
             # enumerate the columns which the user has chosen to include as fields
             for column in self.column_controls:
-                if cleaned_data[column['include_field']]:
+                if cleaned_data[column['include_field']] != 'False':
                     label = cleaned_data[column['label_field']]
+                    if label.startswith("[_NEW_]"):
+                        label = label[7:]
+
                     label = label.strip()
                     value_type = cleaned_data[column['type_field']]
                     org = self.derive_org()
@@ -435,6 +449,7 @@ class ContactCRUDL(SmartCRUDL):
                     existing_field = ContactField.get_by_label(org, label)
                     if existing_field:
                         field_key = existing_field.key
+                        value_type = existing_field.value_type
 
                     extra_fields.append(dict(key=field_key, header=column['header'], label=label, type=value_type))
 

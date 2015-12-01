@@ -1606,7 +1606,7 @@ class ContactTest(TembaTest):
         post_data['column_vehicle_include'] = 'on'
         post_data['column_shoes_include'] = 'on'
 
-        post_data['column_country_label'] = 'Location'
+        post_data['column_country_label'] = '[_NEW_]Location'
         post_data['column_district_label'] = 'District'
         post_data['column_professional_status_label'] = 'Job and Projects'
         post_data['column_zip_code_label'] = 'Postal Code'
@@ -1620,7 +1620,18 @@ class ContactTest(TembaTest):
         post_data['column_zip_code_type'] = 'N'
         post_data['column_joined_type'] = 'D'
         post_data['column_vehicle_type'] = 'T'
-        post_data['column_shoes_type'] = 'T'
+        post_data['column_shoes_type'] = 'N'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertTrue(response.context['form'].errors)
+
+        post_data['column_country_include'] = True
+        post_data['column_professional_status_include'] = True
+        post_data['column_zip_code_include'] = True
+        post_data['column_joined_include'] = True
+        post_data['column_vehicle_include'] = True
+        post_data['column_shoes_include'] = True
+        post_data['column_district_include'] = False
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
@@ -1655,16 +1666,20 @@ class ContactTest(TembaTest):
         self.assertTrue(ContactField.objects.filter(org=self.org, label="Job and Projects"))
         self.assertTrue(ContactField.objects.filter(org=self.org, label="Location"))
 
+        # we never update existing contact fields labels or value types
+        self.assertTrue(ContactField.objects.filter(org=self.org, label="Shoes", value_type='T'))
+        self.assertFalse(ContactField.objects.filter(org=self.org, label="Shoes", value_type='N'))
+
         # import spreadsheet with extra columns again but check that giving column a reserved name gives validation error
         csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
         post_data = dict()
-        post_data['column_country_include'] = 'on'
-        post_data['column_professional_status_include'] = 'on'
-        post_data['column_zip_code_include'] = 'on'
-        post_data['column_joined_include'] = 'on'
+        post_data['column_country_include'] = True
+        post_data['column_professional_status_include'] = True
+        post_data['column_zip_code_include'] = True
+        post_data['column_joined_include'] = True
 
         post_data['column_country_label'] = 'Name'  # reserved when slugified to 'name'
         post_data['column_district_label'] = 'District'
@@ -1680,6 +1695,16 @@ class ContactTest(TembaTest):
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
+
+        post_data['column_joined_label'] = 'District'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, 'District should be used once')
+
+        post_data['column_joined_label'] = '[_NEW_]District'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, 'District should be used once')
 
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
