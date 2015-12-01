@@ -1810,6 +1810,13 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
 
+        # invalid label
+        post_data['column_country_label'] = '}{i$t0rY'  # supports only numbers, letters, hyphens
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, hypens")
+
+
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
@@ -1861,23 +1868,23 @@ class ContactTest(TembaTest):
 
     def test_fields(self):
         # set a field on joe
-        self.joe.set_field('1234-1234', 'Joe', label="Name")
-        self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
+        self.joe.set_field('abc_1234', 'Joe', label="Name")
+        self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
 
-        self.joe.set_field('1234-1234', None)
-        self.assertEquals(None, self.joe.get_field_raw('1234-1234'))
+        self.joe.set_field('abc_1234', None)
+        self.assertEquals(None, self.joe.get_field_raw('abc_1234'))
 
         # try storing an integer, should get turned into a string
-        self.joe.set_field('1234-1234', 1)
-        self.assertEquals('1', self.joe.get_field_raw('1234-1234'))
+        self.joe.set_field('abc_1234', 1)
+        self.assertEquals('1', self.joe.get_field_raw('abc_1234'))
 
         # we should have a field with the key
-        ContactField.objects.get(key='1234-1234', label="Name", org=self.joe.org)
+        ContactField.objects.get(key='abc_1234', label="Name", org=self.joe.org)
 
         # setting with a different label should update it
-        self.joe.set_field('1234-1234', 'Joe', label="First Name")
-        self.assertEquals('Joe', self.joe.get_field_raw('1234-1234'))
-        ContactField.objects.get(key='1234-1234', label="First Name", org=self.joe.org)
+        self.joe.set_field('abc_1234', 'Joe', label="First Name")
+        self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
+        ContactField.objects.get(key='abc_1234', label="First Name", org=self.joe.org)
 
     def test_serialize_field_value(self):
         registration_field = ContactField.get_or_create(self.org, 'registration_date', "Registration Date",
@@ -2168,6 +2175,10 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(another.label, "Updated Label")
         self.assertEqual(another.value_type, DATETIME)
 
+        for elt in Contact.RESERVED_FIELDS:
+            with self.assertRaises(ValueError):
+                ContactField.get_or_create(self.org, elt, elt, value_type=TEXT)
+
     def test_contact_templatetag(self):
         self.joe.set_field('First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')
@@ -2342,6 +2353,10 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None,
                              "Field names can only contain letters, numbers and hypens")
+
+        post_data['label_2'] = 'Name'
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field name 'Name' is a reserved word")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')
