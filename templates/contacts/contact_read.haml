@@ -94,7 +94,7 @@
                 Start
                 %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
           %td.created_on
-            {{evt.scheduled|gmail_time}}
+            {{evt.scheduled}}
 
   .header
     Message History
