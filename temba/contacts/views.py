@@ -4,9 +4,10 @@ import json
 import pycountry
 import regex
 import pytz
+import time
 
 from collections import OrderedDict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -608,7 +609,7 @@ class ContactCRUDL(SmartCRUDL):
                     contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
-
+            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -673,7 +674,7 @@ class ContactCRUDL(SmartCRUDL):
             from temba.flows.models import FlowRun, Flow
             from temba.campaigns.models import EventFire
 
-            def contact_cmp(a, b):
+            def activity_cmp(a, b):
 
                 if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
                     a.created_on = a.fired
@@ -692,38 +693,51 @@ class ContactCRUDL(SmartCRUDL):
 
             # determine our start and end time based on the page
             page = int(self.request.REQUEST.get('page', 1))
-
             msgs_per_page = 100
-            start_message = (page - 1) * msgs_per_page
-            end_message = page * msgs_per_page
+            start_time = None
 
-            # fetch the next 100 messages, grab one extra to see if we should show link for more
-            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')[start_message:end_message + 1]
+            # if we are just grabbing recent history use that window
+
+            recent_seconds = int(self.request.REQUEST.get('rs', 0))
+            recent = self.request.REQUEST.get('r', False)
+            context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
+
+            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')
+            if recent:
+                start_time = context['recent_date']
+                text_messages = text_messages.filter(created_on__gt=start_time)
+                context['recent'] = True
+
+            # other wise, just grab 100 messages within our page (and an extra marker, for determining more)
+            else:
+                start_message = (page - 1) * msgs_per_page
+                end_message = page * msgs_per_page
+                text_messages = text_messages[start_message:end_message+1]
 
             # ignore our lead message past the first page
             count = len(text_messages)
             first_message = 0
-            start_time = None
 
             # if we got an extra one at the end too, trim it off
             context['more'] = False
-            if count > msgs_per_page:
+            if count > msgs_per_page and not recent:
                 context['more'] = True
                 start_time = text_messages[count - 1].created_on
                 count -= 1
 
             # grab up to 100 messages from our first message
-            text_messages = text_messages[first_message:first_message+100]
+            if not recent_seconds:
+                text_messages = text_messages[first_message:first_message+100]
 
             activity = []
 
             if count > 0:
-                # if we dont know our start time, go back to the beginning
+                # if we don't know our start time, go back to the beginning
                 if not start_time:
                     start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
 
                 # if we don't know our stop time yet, assume the first message
-                if page == 0:
+                if page == 1:
                     end_time = timezone.now()
                 else:
                     end_time = text_messages[0].created_on
@@ -738,11 +752,9 @@ class ContactCRUDL(SmartCRUDL):
                 calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
 
                 # now chain them all together in the same list and sort by time
-                activity = chain(text_messages, runs, fired, calls)
-                activity = sorted(activity, cmp=contact_cmp, reverse=True)
+                activity = sorted(chain(text_messages, runs, fired, calls), cmp=activity_cmp, reverse=True)
 
             context['activity'] = activity
-
             return context
 
     class List(ContactActionMixin, ContactListView):

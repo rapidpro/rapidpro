@@ -1,6 +1,10 @@
 from __future__ import unicode_literals
 
+from datetime import datetime
+
+import pytz
 from django import template
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 from temba.contacts.models import Contact, ContactURN, FACEBOOK_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, URN_ANON_MASK
 from django.utils.translation import ugettext_lazy as _

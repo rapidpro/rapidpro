@@ -2,7 +2,7 @@
 
 -for item in activity
 
-  %tr.item{class:'msg_{{item.msg_type}} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
+  %tr.item{class:'msg_{{item.msg_type}} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
 
     %td.icon
 
@@ -85,10 +85,10 @@
         %span.long.hide
           {{item.created_on}}
 
-
-%tr.since
-  %td{colspan:3}
-    %span.loading
-    -if more
-      %a.btn.btn-tiny.btn-secondary.load-more
-        Load More
+-if not recent
+  %tr.since
+    %td{colspan:3}
+      %span.loading
+      -if more
+        %a.btn.btn-tiny.btn-secondary.load-more
+          Load More

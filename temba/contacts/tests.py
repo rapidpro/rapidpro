@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import time
 
 from datetime import datetime, date, timedelta
 from django.core.urlresolvers import reverse
@@ -991,8 +992,11 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
 
-        # 100 messages and one FlowRun, no event or call since they happened earlier
-        self.assertEquals(101, len(activity))
+        # even though there are no messages after it, should still see the recent call
+        self.assertTrue(isinstance(activity[0], Call))
+
+        # 100 messages, a call, and a flow run
+        self.assertEquals(102, len(activity))
         self.assertTrue(response.context['more'])
 
         # fetch page 2
@@ -1007,10 +1011,10 @@ class ContactTest(TembaTest):
         # most recent thing is a message followed by a flow run
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertTrue(isinstance(activity[0], Msg))
-        self.assertTrue(isinstance(activity[1], FlowRun))
+        self.assertTrue(isinstance(activity[1], Msg))
+        self.assertTrue(isinstance(activity[2], FlowRun))
 
-        # but if a new message comes in
+        # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
@@ -1020,7 +1024,28 @@ class ContactTest(TembaTest):
         self.assertTrue(isinstance(activity[0], Msg))
         self.assertTrue(isinstance(activity[1], Call))
 
+        # remove 50 messages
+        for i in range(50):
+            msgs[i].delete()
+
+        # add five more messages from eight days ago
+        for i in range(5):
+            self.create_msg(direction='I', contact=self.joe, text="Old Message", created_on=timezone.now() - timedelta(days=8))
+
+        # number of items on the first page should be 65 now
+        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.admin)
+        activity = response.context['activity']
+        self.assertEquals(65, len(activity))
+
+        recent_seconds = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
+        response = self.fetch_protected("%s?r=true&rs=%s" % (reverse('contacts.contact_history', args=[self.joe.uuid]), recent_seconds), self.admin)
+        activity = response.context['activity']
+
+        # with our recent flag on, should not see the 5 older messages
+        self.assertEquals(60, len(activity))
+
     def test_event_times(self):
+
 
         self.create_campaign()
 
