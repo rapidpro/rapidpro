@@ -20,6 +20,7 @@ from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.utils.email import link_components
+from temba.utils import languages
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
@@ -1272,6 +1273,48 @@ class OrgCRUDLTest(TembaTest):
 
 
 class LanguageTest(TembaTest):
+
+    def test_setting_language(self):
+        self.login(self.admin)
+
+        # update our org with some language settings
+        post_data = dict(primary_lang='fre', languages='hat,arc')
+        response = self.client.post(reverse('orgs.org_languages'), post_data)
+        self.assertEquals(302, response.status_code)
+        self.org.refresh_from_db()
+
+        self.assertEquals('French', self.org.primary_language.name)
+        self.assertIsNotNone(self.org.languages.filter(name='French'))
+
+        # everything after the paren should be stripped for aramaic
+        self.assertIsNotNone(self.org.languages.filter(name='Official Aramaic'))
+
+        # everything after the semi should be stripped for haitian
+        self.assertIsNotNone(self.org.languages.filter(name='Haitian'))
+
+        # check that the last load shows our new languages
+        response = self.client.get(reverse('orgs.org_languages'))
+        self.assertContains(response, 'fre')
+        self.assertContains(response, 'hat,arc')
+
+    def test_language_codes(self):
+        self.assertEquals('French', languages.get_language_name('fre'))
+        self.assertEquals('Creoles and pidgins, English based', languages.get_language_name('cpe'))
+
+        # should strip off anything after an open paren or semicolon
+        self.assertEquals('Official Aramaic', languages.get_language_name('arc'))
+        self.assertEquals('Haitian', languages.get_language_name('hat'))
+
+        # check that search returns results and in the proper order
+        matches = languages.search_language_names('Fre')
+        self.assertEquals(4, len(matches))
+        self.assertEquals('Creoles and pidgins, French-based', matches[0]['text'])
+        self.assertEquals('French', matches[1]['text'])
+        self.assertEquals('French, Middle (ca.1400-1600)', matches[2]['text'])
+        self.assertEquals('French, Old (842-ca.1400)', matches[3]['text'])
+
+        # try a language that doesn't exist
+        self.assertEquals(None, languages.get_language_name('klingon'))
 
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", esp="Hola")

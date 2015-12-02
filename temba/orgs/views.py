@@ -2,7 +2,6 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import plivo
-import pycountry
 import regex
 
 from collections import OrderedDict
@@ -34,7 +33,7 @@ from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient
 from temba.orgs.models import get_stripe_credentials
-from temba.utils import analytics, build_json_response
+from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
@@ -1538,26 +1537,22 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get(self, request, *args, **kwargs):
-            if 'search' in self.request.REQUEST or 'initial' in self.request.REQUEST:
 
+            if 'search' in self.request.REQUEST or 'initial' in self.request.REQUEST:
                 initial = self.request.REQUEST.get('initial', '').split(',')
                 matches = []
 
                 if len(initial) > 0:
                     for iso_code in initial:
                         if iso_code:
-                            lang = pycountry.languages.get(iso639_3_code=iso_code)
-                            name = lang.name.split(';')[0]
-                            matches.append(dict(id=lang.iso639_3_code, text=name))
+                            lang = languages.get_language_name(iso_code)
+                            matches.append(dict(id=iso_code, text=lang))
 
                 if len(matches) == 0:
                     search = self.request.REQUEST.get('search', '').strip().lower()
-                    for lang in pycountry.languages:
-                        if len(search) == 0 or search in lang.name.lower():
-                            matches.append(dict(id=lang.iso639_3_code, text=lang.name))
+                    matches += languages.search_language_names(search)
+                return build_json_response(dict(results=matches))
 
-                results = dict(results=matches)
-                return build_json_response(results)
             return super(OrgCRUDL.Languages, self).get(request, *args, **kwargs)
 
         def form_valid(self, form):
@@ -1573,12 +1568,11 @@ class OrgCRUDL(SmartCRUDL):
             # create new languages
             for iso_code in iso_codes:
                 if iso_code:
-                    lang = pycountry.languages.get(iso639_3_code=iso_code)
+                    name = languages.get_language_name(iso_code)
                     language = org.languages.filter(iso_code=iso_code).first()
-                    if lang and not language:
-                        # store up to the first semicolon as the name
-                        name = lang.name.split(';')[0]
 
+                    # if it doesn't exist yet, create it
+                    if name and not language:
                         language = org.languages.create(created_by=user, modified_by=user, iso_code=iso_code, name=name)
 
                     # store our primary language
