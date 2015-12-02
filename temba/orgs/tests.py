@@ -1274,6 +1274,29 @@ class OrgCRUDLTest(TembaTest):
 
 class LanguageTest(TembaTest):
 
+    def test_setting_language(self):
+        self.login(self.admin)
+
+        # update our org with some language settings
+        post_data = dict(primary_lang='fre', languages='hat,arc')
+        response = self.client.post(reverse('orgs.org_languages'), post_data)
+        self.assertEquals(302, response.status_code)
+        self.org.refresh_from_db()
+
+        self.assertEquals('French', self.org.primary_language.name)
+        self.assertIsNotNone(self.org.languages.filter(name='French'))
+
+        # everything after the paren should be stripped for aramaic
+        self.assertIsNotNone(self.org.languages.filter(name='Official Aramaic'))
+
+        # everything after the semi should be stripped for haitian
+        self.assertIsNotNone(self.org.languages.filter(name='Haitian'))
+
+        # check that the last load shows our new languages
+        response = self.client.get(reverse('orgs.org_languages'))
+        self.assertContains(response, 'fre')
+        self.assertContains(response, 'hat,arc')
+
     def test_language_codes(self):
         self.assertEquals('French', languages.get_language_name('fre'))
         self.assertEquals('Creoles and pidgins, English based', languages.get_language_name('cpe'))

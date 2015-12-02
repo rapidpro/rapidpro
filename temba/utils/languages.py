@@ -32,7 +32,7 @@ def search_language_names(query):
         query: Substring of a language name, 'Frenc'
 
     Returns:
-        A list of dicts showing the matches [{id:'fre', text='French'}]
+        A list of dicts showing the matches [{id:'fre', text:'French'}]
     """
     matches = []
     for lang in iso639.data:
