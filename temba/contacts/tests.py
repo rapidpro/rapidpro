@@ -970,7 +970,7 @@ class ContactTest(TembaTest):
 
         # create some messages
         msgs = []
-        for i in range(5):
+        for i in range(105):
             msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i))
             i += 1
 
@@ -990,18 +990,28 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
 
-        # we won't see our event because it happened before the last message in the list which determines our window
-        self.assertEquals(7, len(activity))
+        # 100 messages and one FlowRun, no event or call since they happened earlier
+        self.assertEquals(101, len(activity))
+        self.assertTrue(response.context['more'])
 
-        # but if a message arrived before the event..'
-        self.create_msg(direction='I', contact=self.joe, text="Older message", created_on=scheduled - timedelta(days=1))
-
-        # then it'll be included
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        # fetch page 2
+        response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertEquals(9, len(activity))
+        self.assertFalse(response.context['more'])
+
+        # six remaining messages
+        self.assertEquals(6, len(activity))
+
+        # create an earlier message to capture our event
+        self.create_msg(direction='I', contact=self.joe, text="Older message", created_on=scheduled - timedelta(days=1))
+        response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
+        self.assertEquals(8, len(activity))
+        self.assertTrue(isinstance(activity[6], EventFire))
 
         # most recent thing is a message followed by a flow run
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
         self.assertTrue(isinstance(activity[0], Msg))
         self.assertTrue(isinstance(activity[1], FlowRun))
 
@@ -1015,12 +1025,7 @@ class ContactTest(TembaTest):
         self.assertTrue(isinstance(activity[0], Msg))
         self.assertTrue(isinstance(activity[1], Call))
 
-        # then our five messages
-        for i in range(5):
-            self.assertEquals('Inbound message %d' % (4-i), activity[4 + i].text)
 
-        # then lastly is our event that happened 5 days ago
-        self.assertTrue(isinstance(activity[9], EventFire))
 
     def test_event_times(self):
 

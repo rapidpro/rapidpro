@@ -703,6 +703,7 @@ class ContactCRUDL(SmartCRUDL):
             count = len(text_messages)
 
             # if we got an extra one, trim it off
+            context['more'] = False
             if count > msgs_per_page:
                 context['more'] = True
                 text_messages = text_messages[0:100]
