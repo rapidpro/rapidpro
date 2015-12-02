@@ -6,7 +6,6 @@ import redis
 import shutil
 import string
 import time
-import logging
 
 from datetime import datetime
 from django.conf import settings
@@ -29,14 +28,10 @@ from xlrd import xldate_as_tuple
 from xlrd.sheet import XL_CELL_DATE
 
 
-
-
 class ExcludeTestRunner(DiscoverRunner):
     def __init__(self, *args, **kwargs):
         from django.conf import settings
         settings.TESTING = True
-        south_log = logging.getLogger("south")
-        south_log.setLevel(logging.WARNING)
         super(ExcludeTestRunner, self).__init__(*args, **kwargs)
 
     def build_suite(self, *args, **kwargs):
