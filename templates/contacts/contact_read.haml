@@ -99,6 +99,10 @@
   .header
     Message History
   %table.activity.history
+    %tr.since
+      %td{colspan:3}
+        %span.date
+          One moment..
 
 
 -block post-content
@@ -447,6 +451,7 @@
       });
       // fetch our first chunk of history
       $.get('/contact/history/{{contact.uuid}}/', function(data){
+        $('.history tr:last').remove();
         $('.history').append(data);
       });
 

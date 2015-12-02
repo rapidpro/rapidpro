@@ -667,12 +667,11 @@ class ContactCRUDL(SmartCRUDL):
             return contact
 
         def get_context_data(self, *args, **kwargs):
-
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
 
-            from temba.ivr.models import IVRCall
             from temba.flows.models import FlowRun, Flow
             from temba.campaigns.models import EventFire
+
             def contact_cmp(a, b):
 
                 if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
@@ -692,27 +691,41 @@ class ContactCRUDL(SmartCRUDL):
 
             # determine our start and end time based on the page
             page = int(self.request.REQUEST.get('page', 1))
-            days_per_page = 90
-            start_time = timezone.now() - timedelta(days=days_per_page * page)
-            end_time = timezone.now() - timedelta(days=days_per_page * (page-1))
-            context['start_time'] = start_time
 
-            # all of our messages and broadcasts
-            broadcasts = Broadcast.objects.filter(contacts__in=[contact]).filter(purged=True).order_by('-created_on', '-id')
-            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED), created_on__lt=end_time, created_on__gt=start_time)
-            text_messages = text_messages.exclude(broadcast__in=broadcasts).order_by('-created_on', '-id')
+            msgs_per_page = 100
+            start_message = (page - 1) * msgs_per_page
+            end_message = page * msgs_per_page
 
-            # all of our runs and events
-            runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
-            fired = EventFire.objects.filter(contact=contact , scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+            # fetch the next 100 messages, grab one extra to see if we should show link for more
+            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')[start_message:end_message + 1]
 
-            # missed calls
-            calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+            activity = []
+            count = len(text_messages)
 
-            # now chain them all together in the same list and sort by time
-            activity = chain(text_messages, broadcasts, runs, fired, calls)
+            # if we got an extra one, trim it off
+            if count > msgs_per_page:
+                context['more'] = True
+                text_messages = text_messages[0:100]
+                count -= 1
 
-            activity = sorted(activity, cmp=contact_cmp, reverse=True)
+            if count > 0:
+
+                # determine our start and end time
+                start_time = text_messages[count - 1].created_on
+                end_time = text_messages[0].created_on
+                context['start_time'] = start_time
+
+                # all of our runs and events
+                runs = FlowRun.objects.filter(contact=contact, created_on__lte=end_time, created_on__gte=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+                fired = EventFire.objects.filter(contact=contact, scheduled__lte=end_time, scheduled__gte=start_time).exclude(fired=None)
+
+                # missed calls
+                calls = Call.objects.filter(contact=contact, created_on__lte=end_time, created_on__gte=start_time)
+
+                # now chain them all together in the same list and sort by time
+                activity = chain(text_messages, runs, fired, calls)
+                activity = sorted(activity, cmp=contact_cmp, reverse=True)
+
             context['activity'] = activity
 
             return context
