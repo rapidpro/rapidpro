@@ -18,7 +18,7 @@ def get_language_name(iso_code):
         except NonExistentLanguageError:
             return None
 
-        # we only show up to the first semi
+        # we only show up to the first semi or paren
         lang = re.split(';|\(', lang)[0].strip()
         iso_codes[iso_code] = lang
 
