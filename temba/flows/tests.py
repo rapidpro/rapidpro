@@ -176,8 +176,14 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
-
         self.login(self.admin)
+
+        # add another flow
+        flow2 = self.get_flow('no-ruleset-flow')
+
+        # and archive it right off the bat
+        flow2.is_archived = True
+        flow2.save()
 
         # see our trigger on the list page
         response = self.client.get(reverse('flows.flow_list'))
@@ -189,9 +195,14 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'))
         self.assertNotContains(response, self.flow.name)
 
-        # unarchive it
         response = self.client.get(reverse('flows.flow_archived'), post_data)
         self.assertContains(response, self.flow.name)
+
+        # flow2 should appear before flow since it was created later
+        self.assertTrue(flow2, response.context['object_list'][0])
+        self.assertTrue(self.flow, response.context['object_list'][1])
+
+        # unarchive it
         post_data = dict(action='restore', objects=self.flow.pk)
         self.client.post(reverse('flows.flow_archived'), post_data)
         response = self.client.get(reverse('flows.flow_archived'), post_data)
@@ -789,12 +800,7 @@ class FlowTest(TembaTest):
         return run
 
     def assertDateTest(self, expected_test, expected_value, test):
-        runs = FlowRun.objects.filter(contact=self.contact)
-        if runs:
-            run = runs[0]
-        else:
-            run = FlowRun.create(self.flow, self.contact)
-
+        run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.get_tzinfo()
         context = run.flow.build_message_context(run.contact, None)
 
@@ -2047,6 +2053,14 @@ class ActionTest(TembaTest):
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Jen Newcomer", contact.name)
 
+        # throw exception for other reserved words except name and first_name
+        for word in Contact.RESERVED_FIELDS:
+            if word not in ['name', 'first_name']:
+                with self.assertRaises(Exception):
+                    test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
+                    test.value = "Jen"
+                    test.execute(run, None, sms)
+
         # we should strip whitespace
         run.contact = contact
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
@@ -3256,6 +3270,14 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(Flow.RULES_ENTRY, flow.entry_type)
         self.assertEquals("You've got to be kitten me", self.send_message(flow, "cats"))
 
+    def test_numeric_rule_allows_variables(self):
+        flow = self.get_flow('numeric-rule-allows-variables')
+
+        zinedine = self.create_contact('Zinedine', '+123456')
+        zinedine.set_field('age', 25)
+
+        self.assertEquals('Good count', self.send_message(flow, "35", contact=zinedine))
+
     def test_non_blocking_rule_first(self):
 
         flow = self.get_flow('non_blocking_rule_first')
@@ -4129,7 +4151,3 @@ class TriggerStartTest(FlowFileTest):
         self.assertEqual(contact.name, "Rudolph")
 
         self.assertLastResponse("Hi Rudolph, how old are you?")
-
-
-
-

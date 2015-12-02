@@ -184,7 +184,14 @@
                                 ={object.get_flow_name}
 
                       %td.value-icon.field_icon
-                        {{ object|as_icon }}
+
+
+                        -with object.channellog_set.all.first as log
+                          -if log
+                            %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+                              {{ object|as_icon }}
+                          -else
+                            {{ object|as_icon }}
 
                       %td.value-received.field_received
                         %nobr

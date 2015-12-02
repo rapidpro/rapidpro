@@ -392,7 +392,7 @@ class PhoneRequiredForm(forms.ModelForm):
                 normalized = phonenumbers.parse(tel, None)
                 if not phonenumbers.is_possible_number(normalized):
                     raise forms.ValidationError(_("Invalid phone number, try again."))
-            except:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
         return None
@@ -599,7 +599,7 @@ class OrgCRUDL(SmartCRUDL):
                     account = client.accounts.get(account_sid)
                     self.cleaned_data['account_sid'] = account.sid
                     self.cleaned_data['account_token'] = account.auth_token
-                except:
+                except Exception:
                     raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -660,7 +660,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = NexmoClient(api_key, api_secret)
                     client.get_numbers()
-                except:
+                except Exception:
                     raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -701,7 +701,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = plivo.RestAPI(auth_id, auth_token)
                     validation_response = client.get_account()
-                except:
+                except Exception:
                     raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
 
                 if validation_response[0] != 200:
@@ -1546,15 +1546,15 @@ class OrgCRUDL(SmartCRUDL):
                 if len(initial) > 0:
                     for iso_code in initial:
                         if iso_code:
-                            lang = pycountry.languages.get(bibliographic=iso_code)
+                            lang = pycountry.languages.get(iso639_3_code=iso_code)
                             name = lang.name.split(';')[0]
-                            matches.append(dict(id=lang.bibliographic, text=name))
+                            matches.append(dict(id=lang.iso639_3_code, text=name))
 
                 if len(matches) == 0:
                     search = self.request.REQUEST.get('search', '').strip().lower()
                     for lang in pycountry.languages:
                         if len(search) == 0 or search in lang.name.lower():
-                            matches.append(dict(id=lang.bibliographic, text=lang.name))
+                            matches.append(dict(id=lang.iso639_3_code, text=lang.name))
 
                 results = dict(results=matches)
                 return build_json_response(results)
@@ -1573,7 +1573,7 @@ class OrgCRUDL(SmartCRUDL):
             # create new languages
             for iso_code in iso_codes:
                 if iso_code:
-                    lang = pycountry.languages.get(bibliographic=iso_code)
+                    lang = pycountry.languages.get(iso639_3_code=iso_code)
                     language = org.languages.filter(iso_code=iso_code).first()
                     if lang and not language:
                         # store up to the first semicolon as the name
