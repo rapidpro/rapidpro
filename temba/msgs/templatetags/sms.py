@@ -15,19 +15,20 @@ register = template.Library()
 @register.filter
 def as_icon(contact_event):
     icon = 'icon-bubble-dots-2 green'
-    five_minutes_ago = timezone.now() - timedelta(minutes=5)
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
-    else:
+    elif hasattr(contact_event, 'call_type'):
         status = contact_event.call_type
+    else:
+        status = None
 
     if msg_type == 'V':
         icon = 'icon-phone'
     elif direction == 'I':
-        icon = 'icon-bubble-user green'
+        icon = 'icon-bubble-user primary'
     elif status in ['P', 'Q']:
         icon = 'icon-bubble-dots-2 green'
     elif status == 'D':

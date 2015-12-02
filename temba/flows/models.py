@@ -1035,7 +1035,7 @@ class Flow(TembaModel, SmartModel):
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
                 return default_storage.save(path, temp)
-            except:
+            except Exception:
                 # its okay if its no longer there, we'll remove the recording
                 return None
 
@@ -1223,9 +1223,7 @@ class Flow(TembaModel, SmartModel):
             message_context = dict(__default__='')
 
         run = self.runs.filter(contact=contact).order_by('-created_on').first()
-        run_context = dict(__default__='')
-        if run:
-            run_context.update(run.field_dict())
+        run_context = run.field_dict() if run else {}
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
         if contact:
@@ -2990,12 +2988,7 @@ class FlowRun(models.Model):
         self.save(update_fields=['fields'])
 
     def field_dict(self):
-        if self.fields:
-            extra = json.loads(self.fields)
-            extra['__default__'] = ", ".join("%s: %s" % (_, extra[_]) for _ in sorted(extra.keys()))
-            return extra
-        else:
-            return dict()
+        return json.loads(self.fields) if self.fields else {}
 
     def is_completed(self):
         """
@@ -5356,7 +5349,7 @@ class NumericTest(Test):
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(run, context, decimal):
                     return 1, decimal
-            except:
+            except Exception:
                 pass
         return 0, None
 
@@ -5443,7 +5436,7 @@ class SimpleNumericTest(Test):
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(decimal, Decimal(test)):
                     return 1, decimal
-            except:
+            except Exception:
                 pass
         return 0, None
 
@@ -5565,7 +5558,7 @@ class RegexTest(Test):
                 # return all matched values
                 return True, return_match
 
-        except:
+        except Exception:
             import traceback
             traceback.print_exc()
 

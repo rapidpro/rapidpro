@@ -176,8 +176,14 @@ class FlowTest(TembaTest):
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
 
     def test_flow_lists(self):
-
         self.login(self.admin)
+
+        # add another flow
+        flow2 = self.get_flow('no-ruleset-flow')
+
+        # and archive it right off the bat
+        flow2.is_archived = True
+        flow2.save()
 
         # see our trigger on the list page
         response = self.client.get(reverse('flows.flow_list'))
@@ -189,9 +195,14 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'))
         self.assertNotContains(response, self.flow.name)
 
-        # unarchive it
         response = self.client.get(reverse('flows.flow_archived'), post_data)
         self.assertContains(response, self.flow.name)
+
+        # flow2 should appear before flow since it was created later
+        self.assertTrue(flow2, response.context['object_list'][0])
+        self.assertTrue(self.flow, response.context['object_list'][1])
+
+        # unarchive it
         post_data = dict(action='restore', objects=self.flow.pk)
         self.client.post(reverse('flows.flow_archived'), post_data)
         response = self.client.get(reverse('flows.flow_archived'), post_data)
@@ -789,12 +800,7 @@ class FlowTest(TembaTest):
         return run
 
     def assertDateTest(self, expected_test, expected_value, test):
-        runs = FlowRun.objects.filter(contact=self.contact)
-        if runs:
-            run = runs[0]
-        else:
-            run = FlowRun.create(self.flow, self.contact)
-
+        run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.get_tzinfo()
         context = run.flow.build_message_context(run.contact, None)
 
@@ -2047,6 +2053,14 @@ class ActionTest(TembaTest):
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Jen Newcomer", contact.name)
 
+        # throw exception for other reserved words except name and first_name
+        for word in Contact.RESERVED_FIELDS:
+            if word not in ['name', 'first_name']:
+                with self.assertRaises(Exception):
+                    test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
+                    test.value = "Jen"
+                    test.execute(run, None, sms)
+
         # we should strip whitespace
         run.contact = contact
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
@@ -2375,21 +2389,16 @@ class FlowRunTest(TembaTest):
         new_values = dict(field1="value1", field2="value2")
         run.update_fields(new_values)
 
-        new_values['__default__'] = 'field1: value1, field2: value2'
-
         self.assertEquals(run.field_dict(), new_values)
 
         run.update_fields(dict(field2="new value2", field3="value3"))
         new_values['field2'] = "new value2"
         new_values['field3'] = "value3"
 
-        new_values['__default__'] = 'field1: value1, field2: new value2, field3: value3'
-
         self.assertEquals(run.field_dict(), new_values)
 
         run.update_fields(dict(field1=""))
         new_values['field1'] = ""
-        new_values['__default__'] = 'field1: , field2: new value2, field3: value3'
 
         self.assertEquals(run.field_dict(), new_values)
 
@@ -2535,7 +2544,7 @@ class WebhookTest(TembaTest):
 
                 # first do a GET
                 webhook.find_matching_rule(webhook_step, run, incoming)
-                self.assertEquals(dict(__default__='blank: , text: Get', text="Get", blank=""), run.field_dict())
+                self.assertEquals(dict(text="Get", blank=""), run.field_dict())
 
                 # assert our phone number got encoded
                 self.assertEquals("http://ordercheck.com/check_order.php?phone=%2B250788383383", get.call_args[0][0])
@@ -2544,7 +2553,7 @@ class WebhookTest(TembaTest):
                 webhook.webhook_action = "POST"
                 webhook.save()
                 webhook.find_matching_rule(webhook_step, run, incoming)
-                self.assertEquals(dict(__default__='blank: , text: Post', text="Post", blank=""), run.field_dict())
+                self.assertEquals(dict(text="Post", blank=""), run.field_dict())
 
                 self.assertEquals("http://ordercheck.com/check_order.php?phone=%2B250788383383", post.call_args[0][0])
 
@@ -2557,7 +2566,7 @@ class WebhookTest(TembaTest):
         run.save()
 
         rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
-                                       step_uuid=rules.uuid, arrived_on=timezone.now())
+                                            step_uuid=rules.uuid, arrived_on=timezone.now())
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid" }')
@@ -2567,7 +2576,7 @@ class WebhookTest(TembaTest):
 
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
-            self.assertEquals(dict(__default__='text: Valid', text="Valid"), run.field_dict())
+            self.assertEquals(dict(text="Valid"), run.field_dict())
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1001" }')
@@ -2576,10 +2585,10 @@ class WebhookTest(TembaTest):
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
-            self.assertEquals(dict(__default__='order_number: PX1001, text: Valid', text="Valid", order_number="PX1001"), run.field_dict())
+            self.assertEquals(dict(text="Valid", order_number="PX1001"), run.field_dict())
 
             message_context = self.flow.build_message_context(self.contact, incoming)
-            self.assertEquals(dict(text="Valid", order_number="PX1001", __default__='order_number: PX1001, text: Valid'), message_context['extra'])
+            self.assertEquals(dict(text="Valid", order_number="PX1001"), message_context['extra'])
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1002" }')
@@ -2588,10 +2597,10 @@ class WebhookTest(TembaTest):
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
-            self.assertEquals(dict(__default__='order_number: PX1002, text: Valid', text="Valid", order_number="PX1002"), run.field_dict())
+            self.assertEquals(dict(text="Valid", order_number="PX1002"), run.field_dict())
 
             message_context = self.flow.build_message_context(self.contact, incoming)
-            self.assertEquals(dict(text="Valid", order_number="PX1002", __default__='order_number: PX1002, text: Valid'), message_context['extra'])
+            self.assertEquals(dict(text="Valid", order_number="PX1002"), message_context['extra'])
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "asdfasdfasdf")
@@ -2605,7 +2614,7 @@ class WebhookTest(TembaTest):
             self.assertEquals("1001", incoming.text)
 
             message_context = self.flow.build_message_context(self.contact, incoming)
-            self.assertEquals({'__default__': ''}, message_context['extra'])
+            self.assertEquals({}, message_context['extra'])
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "12345")
@@ -2619,7 +2628,7 @@ class WebhookTest(TembaTest):
             self.assertEquals("1001", incoming.text)
 
             message_context = self.flow.build_message_context(self.contact, incoming)
-            self.assertEquals({'__default__': ''}, message_context['extra'])
+            self.assertEquals({}, message_context['extra'])
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(500, "Server Error")
@@ -3260,6 +3269,14 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('rules_first')
         self.assertEquals(Flow.RULES_ENTRY, flow.entry_type)
         self.assertEquals("You've got to be kitten me", self.send_message(flow, "cats"))
+
+    def test_numeric_rule_allows_variables(self):
+        flow = self.get_flow('numeric-rule-allows-variables')
+
+        zinedine = self.create_contact('Zinedine', '+123456')
+        zinedine.set_field('age', 25)
+
+        self.assertEquals('Good count', self.send_message(flow, "35", contact=zinedine))
 
     def test_non_blocking_rule_first(self):
 
@@ -4134,7 +4151,3 @@ class TriggerStartTest(FlowFileTest):
         self.assertEqual(contact.name, "Rudolph")
 
         self.assertLastResponse("Hi Rudolph, how old are you?")
-
-
-
-

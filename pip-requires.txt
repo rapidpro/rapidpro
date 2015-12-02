@@ -52,7 +52,7 @@ ply
 uservoice
 nose-perfdump
 geojson==1.0.7
-pycountry==1.6
+pycountry==1.18
 stop-words
 twython
 enum34

@@ -1417,7 +1417,7 @@ class Channel(SmartModel):
 
         try:
             response = requests.post(url, data=json.dumps(payload), headers=headers, timeout=5)
-        except:
+        except Exception:
             try:
                 # we failed to connect, try our backup URL
                 url = BACKUP_API_URL
@@ -1536,7 +1536,7 @@ class Channel(SmartModel):
             try:
                 if e.message and e.message.reason:
                     reason = e.message.reason
-            except:
+            except Exception:
                 pass
             raise SendException(u"Unable to send message: %s" % unicode(reason)[:64],
                                 url=masked_url,

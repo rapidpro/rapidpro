@@ -64,7 +64,7 @@ def fix_like_named_destinations(apps, schema_editor):
             if changed:
                 try:
                     flow.update(flow.as_json())
-                except:
+                except Exception:
                     print "Skipping backup of broken flow [%d] - %s - %s" % (flow.pk, flow.org.name, flow.name)
 
                 ruleset.set_rules(new_rules)

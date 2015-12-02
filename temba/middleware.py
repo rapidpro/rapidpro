@@ -51,7 +51,7 @@ class BrandingMiddleware(object):
         host = 'localhost'
         try:
             host = request.get_host()
-        except:
+        except Exception:
             traceback.print_exc()
 
         request.branding = BrandingMiddleware.get_branding_for_host(host)
