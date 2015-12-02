@@ -4,6 +4,7 @@ import json
 import pycountry
 import regex
 
+
 from collections import OrderedDict
 from datetime import timedelta
 from django import forms
@@ -29,7 +30,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
-from temba.utils import analytics, slugify_with, build_json_response
+from temba.utils import analytics, slugify_with, languages
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
 
@@ -598,16 +599,12 @@ class ContactCRUDL(SmartCRUDL):
 
             # stuff in the contact's language in the fields as well
             if contact.language:
-                try:
-                  lang = pycountry.languages.get(iso639_3_code=contact.language).name
-                except KeyError:
+                lang = languages.get_language_name(contact.language)
+                if not lang:
                     lang = contact.language
-
-                if lang:
-                    contact_fields.append(dict(label='Language', value=lang, featured=True))
+                contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
-
             return context
 
         def post(self, request, *args, **kwargs):
