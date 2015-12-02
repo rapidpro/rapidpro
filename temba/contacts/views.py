@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import pycountry
 import regex
+import pytz
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -699,29 +700,42 @@ class ContactCRUDL(SmartCRUDL):
             # fetch the next 100 messages, grab one extra to see if we should show link for more
             text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')[start_message:end_message + 1]
 
-            activity = []
+            # ignore our lead message past the first page
             count = len(text_messages)
+            first_message = 0
+            start_time = None
 
-            # if we got an extra one, trim it off
+            # if we got an extra one at the end too, trim it off
             context['more'] = False
             if count > msgs_per_page:
                 context['more'] = True
-                text_messages = text_messages[0:100]
+                start_time = text_messages[count - 1].created_on
                 count -= 1
 
-            if count > 0:
+            # grab up to 100 messages from our first message
+            text_messages = text_messages[first_message:first_message+100]
 
-                # determine our start and end time
-                start_time = text_messages[count - 1].created_on
-                end_time = text_messages[0].created_on
+            activity = []
+
+            if count > 0:
+                # if we dont know our start time, go back to the beginning
+                if not start_time:
+                    start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
+
+                # if we don't know our stop time yet, assume the first message
+                if page == 0:
+                    end_time = timezone.now()
+                else:
+                    end_time = text_messages[0].created_on
+
                 context['start_time'] = start_time
 
                 # all of our runs and events
-                runs = FlowRun.objects.filter(contact=contact, created_on__lte=end_time, created_on__gte=start_time).exclude(flow__flow_type=Flow.MESSAGE)
-                fired = EventFire.objects.filter(contact=contact, scheduled__lte=end_time, scheduled__gte=start_time).exclude(fired=None)
+                runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+                fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
 
                 # missed calls
-                calls = Call.objects.filter(contact=contact, created_on__lte=end_time, created_on__gte=start_time)
+                calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
 
                 # now chain them all together in the same list and sort by time
                 activity = chain(text_messages, runs, fired, calls)

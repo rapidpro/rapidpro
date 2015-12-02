@@ -88,10 +88,7 @@
 
 %tr.since
   %td{colspan:3}
-
-    %span.date
-      Activity since {{start_time}}
-    %p
-      -if more
-        %a.btn.btn-tiny.btn-secondary.load-more
-          Load More
+    %span.loading
+    -if more
+      %a.btn.btn-tiny.btn-secondary.load-more
+        Load More

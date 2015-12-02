@@ -101,7 +101,7 @@
   %table.activity.history
     %tr.since
       %td{colspan:3}
-        %span.date
+        %span.loading
           One moment..
 
 
@@ -458,7 +458,7 @@
       // when they click to load more, fetch more history
       $('.load-more').live('click', function() {
         $(this).css('visibility', 'hidden');
-        $('.since .date').text('One moment..');
+        $('.since .loading').text('One moment..');
 
         page++
         $.get('/contact/history/{{contact.uuid}}/?page=' + page, function(data){

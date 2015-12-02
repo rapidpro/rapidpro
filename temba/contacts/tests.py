@@ -980,6 +980,7 @@ class ContactTest(TembaTest):
 
         # create an event from the past
         from temba.campaigns.models import EventFire
+
         scheduled = timezone.now() - timedelta(days=5)
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
@@ -1000,13 +1001,7 @@ class ContactTest(TembaTest):
         self.assertFalse(response.context['more'])
 
         # six remaining messages
-        self.assertEquals(6, len(activity))
-
-        # create an earlier message to capture our event
-        self.create_msg(direction='I', contact=self.joe, text="Older message", created_on=scheduled - timedelta(days=1))
-        response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        activity = response.context['activity']
-        self.assertEquals(8, len(activity))
+        self.assertEquals(7, len(activity))
         self.assertTrue(isinstance(activity[6], EventFire))
 
         # most recent thing is a message followed by a flow run
@@ -1024,8 +1019,6 @@ class ContactTest(TembaTest):
         self.assertEquals('Newer message', activity[0].text)
         self.assertTrue(isinstance(activity[0], Msg))
         self.assertTrue(isinstance(activity[1], Call))
-
-
 
     def test_event_times(self):
 
