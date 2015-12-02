@@ -789,8 +789,9 @@ class Channel(SmartModel):
         self.save()
 
     def release(self, trigger_sync=True, notify_mage=True):
-        org = self.org
-
+        """
+        Releases this channel, removing it from the org and making it inactive
+        """
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
@@ -802,7 +803,7 @@ class Channel(SmartModel):
             # remove the application
             client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
 
-        # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
+        # if we are a Twilio channel, remove our sms application from Twilio to handle the incoming sms
         if self.channel_type == TWILIO:
             client = self.org.get_twilio_client()
             number_update_args = dict()
@@ -837,7 +838,7 @@ class Channel(SmartModel):
         Msg.objects.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
 
         # trigger the orphaned channel
-        if trigger_sync and self.channel_type == ANDROID: # pragma: no cover
+        if trigger_sync and self.channel_type == ANDROID:  # pragma: no cover
             self.trigger_sync(gcm_id)
 
         # clear our cache for this channel
@@ -850,21 +851,20 @@ class Channel(SmartModel):
 
         # if we just lost calling capabilities archive our voice flows
         if CALL in self.role:
-            if not org.get_schemes(CALL):
+            if not self.org.get_schemes(CALL):
                 # archive any IVR flows
                 from temba.flows.models import Flow
-                for flow in Flow.objects.filter(org=org, flow_type=Flow.VOICE):
+                for flow in Flow.objects.filter(org=self.org, flow_type=Flow.VOICE):
                     flow.archive()
 
         # if we just lost answering capabilities, archive our inbound call trigger
         if ANSWER in self.role:
-            if not org.get_schemes(ANSWER):
+            if not self.org.get_schemes(ANSWER):
                 from temba.triggers.models import Trigger
-                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=org, is_archived=False).update(is_archived=True)
+                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=self.org, is_archived=False).update(is_archived=True)
 
         from temba.triggers.models import Trigger
-        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
-
+        Trigger.objects.filter(channel=self, org=self.org).update(is_active=False)
 
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """

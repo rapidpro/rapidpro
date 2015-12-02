@@ -60,6 +60,29 @@ class ChannelTest(TembaTest):
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
 
+    def send_message(self, numbers, message, org=None, user=None):
+        if not org:
+            org = self.org
+
+        if not user:
+            user = self.user
+
+        group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
+        contacts = list()
+        for number in numbers:
+            contacts.append(Contact.get_or_create(org, user, name=None, urns=[(TEL_SCHEME, number)]))
+
+        group.contacts.add(*contacts)
+
+        broadcast = Broadcast.create(org, user, message, [group])
+        broadcast.send()
+
+        sms = Msg.objects.filter(broadcast=broadcast).order_by('text', 'pk')
+        if len(numbers) == 1:
+            return sms.first()
+        else:
+            return list(sms)
+
     def assertHasCommand(self, cmd_name, response):
         self.assertEquals(200, response.status_code)
         data = json.loads(response.content)
@@ -858,7 +881,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.uuid, 'uuid')
         self.assertEqual(channel.is_active, True)
         self.assertTrue(channel.claim_code)
-        # self.assertNotEqual(channel.secret, secret)
+        self.assertNotEqual(channel.secret, secret)
 
         # should be able to claim again
         response = self.client.post(reverse('channels.channel_claim_android'),
@@ -1239,28 +1262,41 @@ class ChannelTest(TembaTest):
                 self.assertEqual(config['oauth_token'], 'defgh')
                 self.assertEqual(config['oauth_token_secret'], '45678')
 
-    def send_message(self, numbers, message, org=None, user=None):
-        if not org:
-            org = self.org
+    def test_release(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
 
-        if not user:
-            user = self.user
+        # register and claim an Android channel
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
+                              dict(cmd='status', cc='RW', dev='Nexus')])
+        self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        android = Channel.objects.get()
+        self.client.post(reverse('channels.channel_claim_android'),
+                         dict(claim_code=android.claim_code, phone_number="0788123123"))
+        android.refresh_from_db()
 
-        group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
-        contacts = list()
-        for number in numbers:
-            contacts.append(Contact.get_or_create(org, user, name=None, urns=[(TEL_SCHEME, number)]))
+        # connect org to Nexmo and add bulk sender
+        with patch('temba.nexmo.NexmoClient.update_account') as connect:
+            connect.return_value = True
+            self.org.connect_nexmo('123', '456')
+            self.org.save()
 
-        group.contacts.add(*contacts)
+        claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android.pk
+        self.client.post(claim_nexmo_url, dict(connection='NX', channel=android.pk))
+        nexmo = Channel.objects.get(channel_type='NX')
 
-        broadcast = Broadcast.create(org, user, message, [group])
-        broadcast.send()
+        android.release()
 
-        sms = Msg.objects.filter(broadcast=broadcast).order_by('text', 'pk')
-        if len(numbers) == 1:
-            return sms.first()
-        else:
-            return list(sms)
+        # check that some details are cleared and channel is now in active
+        self.assertIsNone(android.org)
+        self.assertIsNone(android.gcm_id)
+        self.assertIsNone(android.secret)
+        self.assertFalse(android.is_active)
+
+        # Nexmo delegate should have been released as well
+        nexmo.refresh_from_db()
+        self.assertIsNone(nexmo.org)
+        self.assertFalse(nexmo.is_active)
 
     def test_unclaimed(self):
         response = self.sync(self.released_channel)
