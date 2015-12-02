@@ -822,7 +822,8 @@ class Channel(SmartModel):
                     if matching:
                         client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-        # save off our gcm id so we can trigger a sync
+        # save off our org and gcm id before nullifying
+        org = self.org
         gcm_id = self.gcm_id
 
         # remove all identifying bits from the client
@@ -851,20 +852,20 @@ class Channel(SmartModel):
 
         # if we just lost calling capabilities archive our voice flows
         if CALL in self.role:
-            if not self.org.get_schemes(CALL):
+            if not org.get_schemes(CALL):
                 # archive any IVR flows
                 from temba.flows.models import Flow
-                for flow in Flow.objects.filter(org=self.org, flow_type=Flow.VOICE):
+                for flow in Flow.objects.filter(org=org, flow_type=Flow.VOICE):
                     flow.archive()
 
         # if we just lost answering capabilities, archive our inbound call trigger
         if ANSWER in self.role:
-            if not self.org.get_schemes(ANSWER):
+            if not org.get_schemes(ANSWER):
                 from temba.triggers.models import Trigger
-                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=self.org, is_archived=False).update(is_archived=True)
+                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=org, is_archived=False).update(is_archived=True)
 
         from temba.triggers.models import Trigger
-        Trigger.objects.filter(channel=self, org=self.org).update(is_active=False)
+        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
 
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """
