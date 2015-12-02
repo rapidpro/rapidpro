@@ -255,8 +255,8 @@ class UpdateContactForm(ContactForm):
         # if they had a preference that has since been removed, make sure we show it
         if self.instance.language:
             if not self.instance.org.languages.filter(iso_code=self.instance.language).first():
-                lang = pycountry.languages.get(bibliographic=self.instance.language)
-                choices += [(self.instance.language, _("%s (Missing)") % lang.name)]
+                lang = languages.get_language_name(self.instance.language)
+                choices += [(self.instance.language, _("%s (Missing)") % lang)]
 
         choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
 
