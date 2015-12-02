@@ -370,7 +370,7 @@ class ContactCRUDL(SmartCRUDL):
             for header in column_headers:
                 header_key = slugify_with(header)
 
-                include_field = forms.ChoiceField(label=' ', required=True, choices=((None, "Select Include/Ignore"), (True, 'Include'), (False, 'Ignore')))
+                include_field = forms.BooleanField(label=' ', required=False, initial=True)
                 include_field_name = 'column_%s_include' % header_key
                 label_field = forms.CharField(label=' ', initial=header.title())
 
@@ -435,7 +435,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # enumerate the columns which the user has chosen to include as fields
             for column in self.column_controls:
-                if cleaned_data[column['include_field']] != 'False':
+                if cleaned_data[column['include_field']]:
                     label = cleaned_data[column['label_field']]
                     if label.startswith("[_NEW_]"):
                         label = label[7:]

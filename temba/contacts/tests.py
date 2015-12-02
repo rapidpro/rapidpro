@@ -1726,6 +1726,11 @@ class ContactTest(TembaTest):
         self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_customize', args=[response.context['task'].pk]))
         self.assertEquals(len(response.context['form'].fields.keys()), 21)
 
+        # all checkboxes should default to True
+        for key in response.context['form'].fields.keys():
+            if key.endswith('_include'):
+                self.assertTrue(response.context['form'].fields[key].initial)
+
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
         post_data = dict()
         post_data['column_country_include'] = 'on'
@@ -1750,17 +1755,6 @@ class ContactTest(TembaTest):
         post_data['column_joined_type'] = 'D'
         post_data['column_vehicle_type'] = 'T'
         post_data['column_shoes_type'] = 'N'
-
-        response = self.client.post(customize_url, post_data, follow=True)
-        self.assertTrue(response.context['form'].errors)
-
-        post_data['column_country_include'] = True
-        post_data['column_professional_status_include'] = True
-        post_data['column_zip_code_include'] = True
-        post_data['column_joined_include'] = True
-        post_data['column_vehicle_include'] = True
-        post_data['column_shoes_include'] = True
-        post_data['column_district_include'] = False
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertEquals(response.context['results'], dict(records=3, errors=0, creates=3, updates=0))
@@ -1805,10 +1799,10 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data, follow=True)
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
         post_data = dict()
-        post_data['column_country_include'] = True
-        post_data['column_professional_status_include'] = True
-        post_data['column_zip_code_include'] = True
-        post_data['column_joined_include'] = True
+        post_data['column_country_include'] = 'on'
+        post_data['column_professional_status_include'] = 'on'
+        post_data['column_zip_code_include'] = 'on'
+        post_data['column_joined_include'] = 'on'
 
         post_data['column_country_label'] = 'Name'  # reserved when slugified to 'name'
         post_data['column_district_label'] = 'District'

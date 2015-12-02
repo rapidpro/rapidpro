@@ -22,7 +22,7 @@
           %table
             -for column_control in column_controls
               %tr.custom-field
-                %td.field-include-selector
+                %td.field-include-checkbox
                   {% render_field column_control.include_field %}
                 %td.field-form-label
                   %div
@@ -46,6 +46,8 @@
   {{ block.super }}
   :javascript
     $(".smartmin-form select").select2({minimumResultsForSearch: 1, width: 'element', containerCssClass: "select2-custom-field-select" });
+
+    useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
 
     var contactFields = {{contact_fields|safe}};
     $('.smartmin-form .field-as-name input').select2({
@@ -121,9 +123,6 @@
     #customize-info {
       font-weight: bold;
     }
-    .field-include-selector  select {
-      width: 170px;
-    }
 
     .field-as-type select {
       width: 100px;
@@ -132,6 +131,13 @@
     .field-include-checkbox input {
       margin-bottom: 12px;
     }
+
+    .field-include-checkbox .glyph {
+      margin-top: -8px;
+    }
+
+
+
     .field-form-label div {
       margin-bottom: 7px;
       padding: 0 5px;
@@ -150,17 +156,4 @@
 
     .for-type {
       display: none;
-    }
-
-    .field-include-selector .control-group.error {
-      width: 175px;
-    }
-
-    .error .controls .select2-custom-field-select .select2-choice {
-      border: #952624 1px solid;
-      color: #952624;
-    }
-
-    .error .controls .select2-custom-field-select .select2-choice .select2-arrow {
-      border-color: #952624;
     }
