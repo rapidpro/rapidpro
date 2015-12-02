@@ -6,6 +6,7 @@ import regex
 import pytz
 import time
 
+
 from collections import OrderedDict
 from datetime import timedelta, datetime
 from django import forms
@@ -31,7 +32,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
-from temba.utils import analytics, slugify_with, build_json_response
+from temba.utils import analytics, slugify_with, languages
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
 
@@ -256,8 +257,8 @@ class UpdateContactForm(ContactForm):
         # if they had a preference that has since been removed, make sure we show it
         if self.instance.language:
             if not self.instance.org.languages.filter(iso_code=self.instance.language).first():
-                lang = pycountry.languages.get(bibliographic=self.instance.language)
-                choices += [(self.instance.language, _("%s (Missing)") % lang.name)]
+                lang = languages.get_language_name(self.instance.language)
+                choices += [(self.instance.language, _("%s (Missing)") % lang)]
 
         choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
 
@@ -600,13 +601,10 @@ class ContactCRUDL(SmartCRUDL):
 
             # stuff in the contact's language in the fields as well
             if contact.language:
-                try:
-                  lang = pycountry.languages.get(iso639_3_code=contact.language).name
-                except KeyError:
+                lang = languages.get_language_name(contact.language)
+                if not lang:
                     lang = contact.language
-
-                if lang:
-                    contact_fields.append(dict(label='Language', value=lang, featured=True))
+                contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
             context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))

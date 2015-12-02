@@ -39,6 +39,7 @@ django-timezones
 -e git+http://github.com/nyaruka/django-hstore.git#egg=django-hstore
 colorama
 isoweek==1.2.0
+iso639==0.1.1
 twilio
 pycrypto
 numpy
