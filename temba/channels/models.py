@@ -165,7 +165,7 @@ class Channel(SmartModel):
     gcm_id = models.CharField(verbose_name=_("GCM ID"), max_length=255, blank=True, null=True,
                               help_text=_("The registration id for using Google Cloud Messaging"))
 
-    uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=False, null=True, unique=True,
+    uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=False, null=False, unique=True,
                             help_text=_("UUID for this channel"))
 
     claim_code = models.CharField(verbose_name=_("Claim Code"), max_length=16, blank=True, null=True, unique=True,
