@@ -11,7 +11,7 @@ from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
-from stop_words import get_stop_words
+from stop_words import safe_get_stop_words
 
 TEXT = 'T'
 DECIMAL = 'N'
@@ -531,7 +531,15 @@ class Value(models.Model):
                 cursor.execute(custom_sql)
                 unclean_categories = get_dict_from_cursor(cursor)
                 categories = []
-                ignore_words = get_stop_words('english')
+
+                org_languages = [lang.name.lower() for lang in org.languages.filter(orgs=None).distinct()]
+
+                if 'english' not in org_languages:
+                    org_languages.append('english')
+
+                ignore_words = []
+                for lang in org_languages:
+                    ignore_words += safe_get_stop_words(lang)
 
                 for category in unclean_categories:
                     if len(category['label']) > 1 and category['label'] not in ignore_words and len(categories) < 100:

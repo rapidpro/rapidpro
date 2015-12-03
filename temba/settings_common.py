@@ -17,16 +17,6 @@ if TESTING:
     DEBUG = False
     TEMPLATE_DEBUG = False
 
-    # if nose's failfast is used, also skip migrations
-    if '--failfast' in sys.argv:
-        class DisableMigrations(object):
-            def __contains__(self, item):
-                return True
-            
-            def __getitem__(self, item):
-                return "notmigrations"
-        MIGRATION_MODULES = DisableMigrations()
-
 ADMINS = (
     ('RapidPro', 'code@yourdomain.io'),
 )
@@ -855,9 +845,10 @@ ANONYMOUS_USER_ID = -1
 BROKER_BACKEND = 'memory'
 
 #-----------------------------------------------------------------------------------
-# Django-Nose config
+# Our test runner is standard but with ability to exclude apps
 #-----------------------------------------------------------------------------------
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+TEST_RUNNER = 'temba.tests.ExcludeTestRunner'
+TEST_EXCLUDE = ('smartmin',)
 
 #-----------------------------------------------------------------------------------
 # Debug Toolbar
