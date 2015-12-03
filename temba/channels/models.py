@@ -793,31 +793,32 @@ class Channel(TembaModel, SmartModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
-        if self.channel_type == PLIVO:
-            import plivo
-            client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+        if not settings.DEBUG:
+            # only call out to external aggregator services if not in debug mode
 
-            # remove the application
-            client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
+            # delete Plivo application
+            if self.channel_type == PLIVO:
+                client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+                client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
 
-        # if we are a Twilio channel, remove our sms application from Twilio to handle the incoming sms
-        if self.channel_type == TWILIO:
-            client = self.org.get_twilio_client()
-            number_update_args = dict()
+            # delete Twilio SMS application
+            if self.channel_type == TWILIO:
+                client = self.org.get_twilio_client()
+                number_update_args = dict()
 
-            if not self.is_delegate_sender():
-                number_update_args['sms_application_sid'] = ""
+                if not self.is_delegate_sender():
+                    number_update_args['sms_application_sid'] = ""
 
-            if self.supports_ivr():
-                number_update_args['voice_application_sid'] = ""
+                if self.supports_ivr():
+                    number_update_args['voice_application_sid'] = ""
 
-            try:
-                client.phone_numbers.update(self.bod, **number_update_args)
-            except Exception:
-                if client:
-                    matching = client.phone_numbers.list(phone_number=self.address)
-                    if matching:
-                        client.phone_numbers.update(matching[0].sid, **number_update_args)
+                try:
+                    client.phone_numbers.update(self.bod, **number_update_args)
+                except Exception:
+                    if client:
+                        matching = client.phone_numbers.list(phone_number=self.address)
+                        if matching:
+                            client.phone_numbers.update(matching[0].sid, **number_update_args)
 
         # save off our org and gcm id before nullifying
         org = self.org
