@@ -36,6 +36,7 @@ from temba.orgs.models import get_stripe_credentials
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
+from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
@@ -424,7 +425,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
-               'plivo_connect', 'service', 'surveyor')
+               'plivo_connect', 'service', 'surveyor', 'twilio_account')
 
     model = Org
 
@@ -554,26 +555,6 @@ class OrgCRUDL(SmartCRUDL):
             context['singles'] = singles
 
             return context
-
-    class TwilioAccount(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        fields = ()
-        success_url = '@channels.channel_claim'
-        submit_button_name = "Disconnect Twilio"
-        success_message = "Twilio Account successfully disconnected."
-
-        def save(self, obj):
-            obj.remove_twilio_account()
-
-        def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.TwilioAccount, self).get_context_data(**kwargs)
-
-            org = self.get_object()
-            config = org.config_json()
-
-            context['config'] = config
-
-            return context
-
 
     class TwilioConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
@@ -1043,7 +1024,6 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('orgs.org_choose'))
 
             if org.get_org_surveyors().filter(username=self.request.user.username):
-                print reverse('orgs.org_surveyor')
                 return HttpResponseRedirect(reverse('orgs.org_surveyor'))
 
             return HttpResponseRedirect(self.get_success_url())
@@ -1421,6 +1401,10 @@ class OrgCRUDL(SmartCRUDL):
                 for channel in channels:
                     self.add_channel_section(formax, channel)
 
+                client = org.get_twilio_client()
+                if client:
+                    formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
+
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
 
@@ -1439,6 +1423,78 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
                 formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users', action='redirect')
+
+    class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        success_message = ''
+
+        class TwilioKeys(forms.ModelForm):
+            account_sid = forms.CharField(max_length=128, label=_("Account SID"), required=False)
+            account_token = forms.CharField(max_length=128, label=_("Account Token"), required=False)
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
+
+            def clean(self):
+                super(OrgCRUDL.TwilioAccount.TwilioKeys, self).clean()
+
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    account_sid = self.cleaned_data.get('account_sid', None)
+                    account_token = self.cleaned_data.get('account_token', None)
+
+                    if not account_sid:
+                        raise ValidationError(_("You must enter your Twilio Account SID"))
+
+                    if not account_token:
+                        raise ValidationError(_("You must enter your Twilio Account Token"))
+
+                    try:
+                        client = TwilioRestClient(account_sid, account_token)
+
+                        # get the actual primary auth tokens from twilio and use them
+                        account = client.accounts.get(account_sid)
+                        self.cleaned_data['account_sid'] = account.sid
+                        self.cleaned_data['account_token'] = account.auth_token
+                    except Exception:
+                        raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('account_sid', 'account_token', 'disconnect')
+
+        form_class = TwilioKeys
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.TwilioAccount, self).get_context_data(**kwargs)
+            client = self.object.get_twilio_client()
+            account_sid = client.auth[0]
+            sid_length = len(account_sid)
+            context['account_sid'] = '%s%s' % ('\u066D' * (sid_length - 16), account_sid[-16:])
+            return context
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
+            config = json.loads(self.object.config)
+            initial['account_sid'] = config['ACCOUNT_SID']
+            initial['account_token'] = config['ACCOUNT_TOKEN']
+            initial['disconnect'] = 'false'
+            return initial
+
+        def form_valid(self, form):
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+            if disconnect:
+                user = self.request.user
+                org = user.get_org()
+                org.remove_twilio_account()
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            else:
+                user = self.request.user
+                org = user.get_org()
+                account_sid = form.cleaned_data['account_sid']
+                account_token = form.cleaned_data['account_token']
+                org.connect_twilio(account_sid, account_token)
+
+                return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

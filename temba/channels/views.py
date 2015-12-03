@@ -729,13 +729,23 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.get_object()
 
             try:
+
+                channel.release(trigger_sync=self.request.META['SERVER_NAME'] != "testserver")
+
                 if channel.channel_type == TWILIO and not channel.is_delegate_sender():
                     messages.info(request, _("We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."))
                 else:
                     messages.info(request, _("Your phone number has been removed."))
 
-                channel.release(trigger_sync=self.request.META['SERVER_NAME'] != "testserver")
                 return HttpResponseRedirect(self.get_success_url())
+
+            except TwilioRestException as e:
+                if e.code == 20003:
+                    messages.error(request, _("We can no longer authenticate with your Twilio Account. To delete this channel please update your Twilio connection settings."))
+                else:
+                    messages.error(request, _("Twilio reported an error removing your channel (Twilio error %s). Please try again later." % e.code))
+                return HttpResponseRedirect(reverse("orgs.org_home"))
+
 
             except Exception as e:
                 import traceback
@@ -1775,27 +1785,22 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimTwilio(BaseClaimNumber):
 
+        def __init__(self, *args):
+            super(ChannelCRUDL.ClaimTwilio, self).__init__(*args)
+            self.account = None
+            self.client = None
+
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.ClaimTwilio, self).get_context_data(**kwargs)
-
-            org = self.request.user.get_org()
-
-            client = org.get_twilio_client()
-            account = client.accounts.get(org.config_json()[ACCOUNT_SID])
-            context['account_trial'] = account.type.lower() == 'trial'
-
+            context['account_trial'] = self.account.type.lower() == 'trial'
             return context
 
         def pre_process(self, *args, **kwargs):
             org = self.request.user.get_org()
             try:
-                client = org.get_twilio_client()
-            except Exception:
-                client = None
-
-            if client:
-                return None
-            else:
+                self.client = org.get_twilio_client()
+                self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
+            except TwilioRestException:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
         def get_search_countries_tuple(self):

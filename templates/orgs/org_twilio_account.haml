@@ -1,33 +1,37 @@
 -extends "smartmin/form.html"
 
--load compress temba smartmin
+-load compress temba smartmin i18n
 
 -block title-icon
   .title-icon
     %span.glyph.icon-twilio
 
+-block form-span
+
 -block title-text
   .title-text
     %h1 Disconnect Twilio
 
--block pre-form
-  .row
-    .span6.disconnect-help
-      -if config.ACCOUNT_SID and config.ACCOUNT_TOKEN
-        This account is connected to a Twilio account.
-        .account_details
-          .account_key
-            Account SID:
-          .account_value
-            {{ config.ACCOUNT_SID }}
+-block summary
+  -if object.is_connected_to_twilio
+    Connected to Twilio Account {{account_sid}}
+  -else
+    Disconnected from Twilio
 
-          .account_key
-            Application SID:
-          .account_value
-            {{ config.APPLICATION_SID }}
-      -else
-        This account is not connected to a Twilio account.
+-block post-form
+  -if object.is_connected_to_twilio and request.META.HTTP_X_FORMAX
+    If you no longer want it connected, you can
+    %a{href:'javascript:confirmTwilioDisconnect();'}
+      disconnect your Twilio Account
 
+  - if org_perms.channels.channel_delete
+    .disconnect-twilio.hide
+      .title
+        -trans "Disconnect Twilio"
+      .body
+        -blocktrans
+          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?
+    %a#disconnect-twilio-form.posterize{href:'{% url "orgs.org_twilio_account" %}?disconnect=true'}
 
 -block form-buttons
   .form-actions
@@ -36,3 +40,9 @@
     -else
       %a.btn.btn-primary{href:"{% url 'orgs.org_twilio_connect'%}"}
         Connect Twilio
+
+-block extra-script
+  :javascript
+    function confirmTwilioDisconnect() {
+      removalConfirmation("disconnect-twilio", "Disconnect");
+    }
