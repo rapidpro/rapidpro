@@ -23,7 +23,7 @@
       .contact-urn
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
-          %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\")"}><
+          %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, fetchRecentMessages)"}><
             {{urn|format_urn:user_org}}
         -else
           %span.contact-urn-path
@@ -94,11 +94,15 @@
                 Start
                 %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
           %td.created_on
-            {{evt.scheduled|gmail_time}}
+            {{evt.scheduled}}
 
   .header
     Message History
   %table.activity.history
+    %tr.since
+      %td{colspan:3}
+        %span.loading
+          One moment..
 
 
 -block post-content
@@ -435,7 +439,10 @@
 
   :javascript
 
-    var page = 1
+    var page = 1;
+    var refreshSeconds = 30;
+    var scheduledRefresh = null;
+
     $(document).ready(function() {
 
       $('.time').live('mouseover', function() {
@@ -446,17 +453,18 @@
         $(this).children('.long').hide();
       });
       // fetch our first chunk of history
-      $.get('/contact/history/{{contact.uuid}}/', function(data){
+      $.get('/contact/history/{{contact.uuid}}/?rs={{recent_seconds}}', function(data){
+        $('.history tr:last').remove();
         $('.history').append(data);
       });
 
       // when they click to load more, fetch more history
       $('.load-more').live('click', function() {
         $(this).css('visibility', 'hidden');
-        $('.since .date').text('One moment..');
+        $('.since .loading').text('One moment..');
 
         page++
-        $.get('/contact/history/{{contact.uuid}}/?page=' + page, function(data){
+        $.get('/contact/history/{{contact.uuid}}/?rs={{recent_seconds}}&page=' + page, function(data){
           $('.history tr:last').remove();
           $('.history').append(data);
         });
@@ -483,7 +491,19 @@
           $('.normal').css('display', 'inline-block').show();
         }
       })
+
+      // update messages every 30s
+      scheduledReresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
     });
+
+    function fetchRecentMessages(){
+      clearTimeout(scheduledRefresh);
+      $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_seconds}}', function(data){
+          $('.history tr.recent').remove();
+          $('.history').prepend(data);
+          scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
+      });
+    }
 
     // plays the audio recording for a message
     function playMessage (messageId) {
@@ -564,7 +584,7 @@
     $(".contact-send-button").on('click', function() {
       {% if contact_sendable_urns %}
       $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.id}}");
+      showComposeInitialized("c={{object.id}}", null, fetchRecentMessages);
       {% else %}
       modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
       modal.addClass('alert');
