@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import time
 
 from datetime import datetime, date, timedelta
 from django.core.urlresolvers import reverse
@@ -969,9 +970,9 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         # create some messages
-        i = 0
-        for i in range(5):
-            self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i)
+        msgs = []
+        for i in range(105):
+            msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i))
             i += 1
 
         # start a joe flow
@@ -980,8 +981,9 @@ class ContactTest(TembaTest):
 
         # create an event from the past
         from temba.campaigns.models import EventFire
+
         scheduled = timezone.now() - timedelta(days=5)
-        event = EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
+        EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # create a missed call
         Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
@@ -989,23 +991,61 @@ class ContactTest(TembaTest):
         # fetch our contact history
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertEquals(9, len(activity))
 
-        # most recent thing is our missed call
+        # even though there are no messages after it, should still see the recent call
         self.assertTrue(isinstance(activity[0], Call))
 
-        # order should be most recent first
-        self.assertEquals('What is your favorite color?', activity[1].text)
+        # 100 messages, a call, and a flow run
+        self.assertEquals(102, len(activity))
+        self.assertTrue(response.context['more'])
+
+        # fetch page 2
+        response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
+        self.assertFalse(response.context['more'])
+
+        # six remaining messages
+        self.assertEquals(7, len(activity))
+        self.assertTrue(isinstance(activity[6], EventFire))
+
+        # most recent thing is a message followed by a flow run
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
+        self.assertTrue(isinstance(activity[1], Msg))
         self.assertTrue(isinstance(activity[2], FlowRun))
 
-        # then our five messages
-        for i in range (5):
-            self.assertEquals('Inbound message %d' % (4-i), activity[3 + i].text)
+        # if a new message comes in
+        self.create_msg(direction='I', contact=self.joe, text="Newer message")
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
 
-        # then lastly is our event that happened 5 days ago
-        self.assertTrue(isinstance(activity[8], EventFire))
+        # now we'll see the message that just came in first, followed by the Call event
+        self.assertEquals('Newer message', activity[0].text)
+        self.assertTrue(isinstance(activity[0], Msg))
+        self.assertTrue(isinstance(activity[1], Call))
+
+        # remove 50 messages
+        for i in range(50):
+            msgs[i].delete()
+
+        # add five more messages from eight days ago
+        for i in range(5):
+            self.create_msg(direction='I', contact=self.joe, text="Old Message", created_on=timezone.now() - timedelta(days=8))
+
+        # number of items on the first page should be 65 now
+        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.admin)
+        activity = response.context['activity']
+        self.assertEquals(65, len(activity))
+
+        recent_seconds = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
+        response = self.fetch_protected("%s?r=true&rs=%s" % (reverse('contacts.contact_history', args=[self.joe.uuid]), recent_seconds), self.admin)
+        activity = response.context['activity']
+
+        # with our recent flag on, should not see the 5 older messages
+        self.assertEquals(60, len(activity))
 
     def test_event_times(self):
+
 
         self.create_campaign()
 
