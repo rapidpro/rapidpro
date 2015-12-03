@@ -1176,7 +1176,7 @@ class OrgCRUDLTest(TembaTest):
         # add a receive only tel channel
         Channel.create(self.org, self.user, 'RW', TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
 
-        self.org.refresh_from_db()
+        self.org = Org.objects.get(pk=self.org.pk)
         self.assertEqual(set(), self.org.get_schemes(SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
 
