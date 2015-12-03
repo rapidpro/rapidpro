@@ -34,7 +34,7 @@ from time import sleep
 from twilio.rest import TwilioRestClient
 from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
-from temba.utils.models import TembaModel
+from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from uuid import uuid4
 
@@ -126,7 +126,7 @@ TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
 YO_API_URL = 'http://smgw1.yo.co.ug:9100/sendsms'
 
 
-class Channel(TembaModel, SmartModel):
+class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
                     (TWILIO, "Twilio"),
                     (AFRICAS_TALKING, "Africa's Talking"),
@@ -228,7 +228,7 @@ class Channel(TembaModel, SmartModel):
         create_args.update(kwargs)
 
         if 'uuid' not in create_args:
-            create_args['uuid'] = str(uuid4())
+            create_args['uuid'] = generate_uuid()
 
         return cls.objects.create(**create_args)
 

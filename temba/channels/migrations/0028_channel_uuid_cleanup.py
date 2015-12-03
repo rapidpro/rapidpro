@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import temba.utils.models
+
 from collections import defaultdict
 from django.db import migrations, models
 from uuid import uuid4
@@ -12,22 +14,30 @@ def cleanup_channel_uuids(apps, schema_editor):
     channels fixes lack of uniqueness by randomizing UUIDs in the case of duplicates.
     """
     Channel = apps.get_model('channels', 'Channel')
-    updates_by_type = defaultdict(lambda: 0)
+    updates_by_type = defaultdict(int)
 
-    def set_random_uuids(channels):
-        for ch in channels:
-            Channel.objects.filter(pk=ch.pk).update(uuid=unicode(uuid4()))
-
+    # firstly deal with channels who potentially override UUID
     for channel in Channel.objects.filter(channel_type__in=('NX', 'T', 'EX')):
         # ignore external channels whose UUIDs look valid
         if channel.channel_type == 'EX' and channel.uuid and len(channel.uuid) == 36:
             continue
 
-        channel.bod = channel.uuid
-        channel.uuid = unicode(uuid4())
-        channel.save(update_fields=('bod', 'uuid'))
+        # put old UUID in BOD and generate new UUID
+        old_uuid = channel.uuid
+        new_uuid = unicode(uuid4())
+        Channel.objects.filter(pk=channel.pk).update(uuid=new_uuid, bod=old_uuid)
+
+        print 'Channel #%d: "%s" -> "%s" (old moved to BOD)' % (channel.pk, old_uuid if old_uuid else 'NULL', new_uuid)
 
         updates_by_type[channel.channel_type] += 1
+
+    def set_random_uuids(channels):
+        for ch in channels:
+            old_uuid = ch.uuid
+            new_uuid = unicode(uuid4())
+            Channel.objects.filter(pk=ch.pk).update(uuid=new_uuid)
+
+            print 'Channel #%d: "%s" -> "%s"' % (ch.pk, old_uuid if old_uuid else 'NULL', new_uuid)
 
     # random UUIDs on inactive Android channels
     inactive_android = list(Channel.objects.filter(channel_type='A', is_active=False))
@@ -53,7 +63,7 @@ def cleanup_channel_uuids(apps, schema_editor):
     set_random_uuids(null_uuids)
 
     if sum(updates_by_type.values()):
-        print "Fixed UUIDs on channels:"
+        print "Channel UUID cleanup summary:"
         print " - Nexmo: %d" % updates_by_type['NX']
         print " - Twilio: %d" % updates_by_type['T']
         print " - External: %d" % updates_by_type['EX']
@@ -75,6 +85,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='channel',
             name='uuid',
-            field=models.CharField(help_text='UUID for this channel', max_length=36, unique=True, null=False, verbose_name='UUID'),
+            field=models.CharField(default=temba.utils.models.generate_uuid, max_length=36, help_text='The unique identifier for this object', unique=True, verbose_name='Unique Identifier', db_index=True),
         ),
     ]

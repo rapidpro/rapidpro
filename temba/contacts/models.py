@@ -2,13 +2,11 @@ from __future__ import unicode_literals
 
 import datetime
 import json
-import time
-from urlparse import urlparse, urlunparse, ParseResult
-from uuid import uuid4
-
 import os
 import phonenumbers
 import regex
+import time
+
 from django.core.files import File
 from django.db import models
 from django.db.models import Count, Max
@@ -23,6 +21,8 @@ from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
+from urlparse import urlparse, urlunparse, ParseResult
+from uuid import uuid4
 
 
 # phone number for every org's test contact
@@ -164,7 +164,7 @@ class ContactField(models.Model):
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel):
+class Contact(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -1395,7 +1395,7 @@ class UserContactGroupManager(models.Manager):
         return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
-class ContactGroup(TembaModel, SmartModel):
+class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
 
     TYPE_ALL = 'A'
