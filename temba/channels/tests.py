@@ -138,9 +138,7 @@ class ChannelTest(TembaTest):
         mtn.save()
 
         # create a channel for Tigo too
-        tigo = Channel.objects.create(name="Tigo", org=self.org, country='RW',
-                                      channel_type='T', address="+250725551212",
-                                      created_by=self.user, modified_by=self.user, secret="11111", gcm_id="456")
+        tigo = Channel.create(self.org, self.user, 'RW', 'A', "Tigo", "+250725551212", secret="11111", gcm_id="456")
 
         # new contact on MTN should send with the MTN channel
         sms = self.send_message(['+250788382382'], "Sent to an MTN number")
@@ -287,9 +285,8 @@ class ChannelTest(TembaTest):
         self.assertHasCommand('rel', response)
 
         # create a channel
-        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
-                                         org=self.org, created_by=self.user, modified_by=self.user,
-                                         secret="12345", gcm_id="123")
+        channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
+                                 secret="12345", gcm_id="123")
 
         response = self.fetch_protected(reverse('channels.channel_delete', args=[channel.pk]), self.superuser)
         self.assertContains(response, 'Test Channel')
@@ -299,9 +296,9 @@ class ChannelTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_home"))
 
         # create a channel
-        channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
-                                         org=self.org, created_by=self.user, modified_by=self.user,
-                                         secret="12345", gcm_id="123")
+        channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
+                                 secret="12345", gcm_id="123")
+
         # add channel trigger
         from temba.triggers.models import Trigger
         Trigger.objects.create(org=self.org, flow=self.create_flow(), channel=channel,
@@ -389,9 +386,7 @@ class ChannelTest(TembaTest):
 
         # replace existing channels with a single Android device
         Channel.objects.update(is_active=False)
-        channel = Channel.objects.create(org=self.org, channel_type=ANDROID,
-                                         address="+250781112222", gcm_id="asdf", secret="asdf",
-                                         created_by=self.user, modified_by=self.user)
+        channel = Channel.create(self.org, self.user, None, ANDROID, None, "+250781112222", gcm_id="asdf", secret="asdf")
         channel.created_on = timezone.now() - timedelta(hours=2)
         channel.save()
 
@@ -806,86 +801,86 @@ class ChannelTest(TembaTest):
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(200, response.status_code)
 
-        channel = Channel.objects.get()
-        self.assertIsNone(channel.org)
-        self.assertIsNone(channel.address)
-        self.assertIsNone(channel.alert_email)
-        self.assertEqual(channel.country, 'RW')
-        self.assertEqual(channel.device, 'Nexus')
-        self.assertEqual(channel.gcm_id, 'GCM111')
-        self.assertEqual(channel.uuid, 'uuid')
-        self.assertTrue(channel.secret)
-        self.assertTrue(channel.claim_code)
-        self.assertEqual(channel.created_by.pk, -1)
+        android1 = Channel.objects.get()
+        self.assertIsNone(android1.org)
+        self.assertIsNone(android1.address)
+        self.assertIsNone(android1.alert_email)
+        self.assertEqual(android1.country, 'RW')
+        self.assertEqual(android1.device, 'Nexus')
+        self.assertEqual(android1.gcm_id, 'GCM111')
+        self.assertEqual(android1.uuid, 'uuid')
+        self.assertTrue(android1.secret)
+        self.assertTrue(android1.claim_code)
+        self.assertEqual(android1.created_by.pk, -1)
 
         # check channel JSON in response
         response_json = json.loads(response.content)
         self.assertEqual(response_json, dict(cmds=[dict(cmd='reg',
-                                                        relayer_claim_code=channel.claim_code,
-                                                        relayer_secret=channel.secret,
-                                                        relayer_id=channel.id)]))
+                                                        relayer_claim_code=android1.claim_code,
+                                                        relayer_secret=android1.secret,
+                                                        relayer_id=android1.id)]))
 
         # try registering again with same details
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
-        channel = Channel.objects.get()
+        android1 = Channel.objects.get()
         response_json = json.loads(response.content)
 
         self.assertEqual(response_json, dict(cmds=[dict(cmd='reg',
-                                                        relayer_claim_code=channel.claim_code,
-                                                        relayer_secret=channel.secret,
-                                                        relayer_id=channel.id)]))
+                                                        relayer_claim_code=android1.claim_code,
+                                                        relayer_secret=android1.secret,
+                                                        relayer_id=android1.id)]))
 
         # try to claim as non-admin
         self.login(self.user)
         response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=channel.claim_code, phone_number="0788123123"))
+                                    dict(claim_code=android1.claim_code, phone_number="0788123123"))
         self.assertLoginRedirect(response)
 
         # try to claim with an invalid phone number
         self.login(self.admin)
         response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=channel.claim_code, phone_number="078123"))
+                                    dict(claim_code=android1.claim_code, phone_number="078123"))
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'phone_number', "Invalid phone number, try again.")
 
         # claim our channel
         response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=channel.claim_code, phone_number="0788123123"))
+                                    dict(claim_code=android1.claim_code, phone_number="0788123123"))
 
         # redirect to welcome page
         self.assertTrue('success' in response.get('Location', None))
         self.assertRedirect(response, reverse('public.public_welcome'))
 
         # channel is updated with org details and claim code is now blank
-        channel.refresh_from_db()
-        secret = channel.secret
-        self.assertEqual(channel.org, self.org)
-        self.assertEqual(channel.address, '+250788123123')  # normalized
-        self.assertEqual(channel.alert_email, self.admin.email)  # the logged-in user
-        self.assertEqual(channel.gcm_id, 'GCM111')
-        self.assertEqual(channel.uuid, 'uuid')
-        self.assertFalse(channel.claim_code)
+        android1.refresh_from_db()
+        secret = android1.secret
+        self.assertEqual(android1.org, self.org)
+        self.assertEqual(android1.address, '+250788123123')  # normalized
+        self.assertEqual(android1.alert_email, self.admin.email)  # the logged-in user
+        self.assertEqual(android1.gcm_id, 'GCM111')
+        self.assertEqual(android1.uuid, 'uuid')
+        self.assertFalse(android1.claim_code)
 
         # try having a device register again
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
         # should return same channel but with a new claim code and secret
-        channel.refresh_from_db()
-        self.assertEqual(channel.org, self.org)
-        self.assertEqual(channel.address, '+250788123123')
-        self.assertEqual(channel.alert_email, self.admin.email)
-        self.assertEqual(channel.gcm_id, 'GCM111')
-        self.assertEqual(channel.uuid, 'uuid')
-        self.assertEqual(channel.is_active, True)
-        self.assertTrue(channel.claim_code)
-        self.assertNotEqual(channel.secret, secret)
+        android1.refresh_from_db()
+        self.assertEqual(android1.org, self.org)
+        self.assertEqual(android1.address, '+250788123123')
+        self.assertEqual(android1.alert_email, self.admin.email)
+        self.assertEqual(android1.gcm_id, 'GCM111')
+        self.assertEqual(android1.uuid, 'uuid')
+        self.assertEqual(android1.is_active, True)
+        self.assertTrue(android1.claim_code)
+        self.assertNotEqual(android1.secret, secret)
 
         # should be able to claim again
         response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=channel.claim_code, phone_number="0788123123"))
+                                    dict(claim_code=android1.claim_code, phone_number="0788123123"))
         self.assertRedirect(response, reverse('public.public_welcome'))
 
         # try having a device register yet again with new GCM ID
@@ -894,26 +889,46 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # should return same channel but with GCM updated
-        channel.refresh_from_db()
-        self.assertEqual(channel.org, self.org)
-        self.assertEqual(channel.address, '+250788123123')
-        self.assertEqual(channel.alert_email, self.admin.email)
-        self.assertEqual(channel.gcm_id, 'GCM222')
-        self.assertEqual(channel.uuid, 'uuid')
-        self.assertEqual(channel.is_active, True)
+        android1.refresh_from_db()
+        self.assertEqual(android1.org, self.org)
+        self.assertEqual(android1.address, '+250788123123')
+        self.assertEqual(android1.alert_email, self.admin.email)
+        self.assertEqual(android1.gcm_id, 'GCM222')
+        self.assertEqual(android1.uuid, 'uuid')
+        self.assertEqual(android1.is_active, True)
 
         # we can claim again with new phone number
         response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=channel.claim_code, phone_number="+250788123124"))
+                                    dict(claim_code=android1.claim_code, phone_number="+250788123124"))
         self.assertRedirect(response, reverse('public.public_welcome'))
 
-        channel.refresh_from_db()
-        self.assertEqual(channel.org, self.org)
-        self.assertEqual(channel.address, '+250788123124')
-        self.assertEqual(channel.alert_email, self.admin.email)
-        self.assertEqual(channel.gcm_id, 'GCM222')
-        self.assertEqual(channel.uuid, 'uuid')
-        self.assertEqual(channel.is_active, True)
+        android1.refresh_from_db()
+        self.assertEqual(android1.org, self.org)
+        self.assertEqual(android1.address, '+250788123124')
+        self.assertEqual(android1.alert_email, self.admin.email)
+        self.assertEqual(android1.gcm_id, 'GCM222')
+        self.assertEqual(android1.uuid, 'uuid')
+        self.assertEqual(android1.is_active, True)
+
+        # release and then register with same details and claim again
+        old_uuid = android1.uuid
+        android1.release()
+
+        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(reverse('channels.channel_claim_android'),
+                                    dict(claim_code=claim_code, phone_number="+250788123124"))
+        self.assertRedirect(response, reverse('public.public_welcome'))
+
+        android1.refresh_from_db()
+
+        self.assertNotEqual(android1.uuid, old_uuid)  # inactive channel now has new UUID
+
+        # and we have a new Android channel with our UUID
+        android2 = Channel.objects.get(is_active=True)
+        self.assertNotEqual(android2, android1)
+        self.assertEqual(android2.uuid, 'uuid')
 
         # try to claim a bogus channel
         response = self.client.post(reverse('channels.channel_claim_android'), dict(claim_code="Your Mom"))
@@ -922,17 +937,17 @@ class ChannelTest(TembaTest):
 
         # check our primary tel channel is the same as our outgoing
         default_sender = self.org.get_send_channel(TEL_SCHEME)
-        self.assertEqual(default_sender, channel)
+        self.assertEqual(default_sender, android2)
         self.assertEqual(default_sender, self.org.get_receive_channel(TEL_SCHEME))
         self.assertFalse(default_sender.is_delegate_sender())
 
         # try to claim a bulk Nexmo sender (without adding Nexmo account to org)
-        claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % channel.pk
-        response = self.client.post(claim_nexmo_url, dict(connection='NX', channel=channel.pk))
+        claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android2.pk
+        response = self.client.post(claim_nexmo_url, dict(connection='NX', channel=android2.pk))
         self.assertFormError(response, 'form', 'connection', "A connection to a Nexmo account is required")
 
         # send channel is still our Android device
-        self.assertEqual(self.org.get_send_channel(TEL_SCHEME), channel)
+        self.assertEqual(self.org.get_send_channel(TEL_SCHEME), android2)
         self.assertFalse(self.org.is_connected_to_nexmo())
 
         # now connect to nexmo
@@ -943,17 +958,17 @@ class ChannelTest(TembaTest):
         self.assertTrue(self.org.is_connected_to_nexmo())
 
         # now adding Nexmo bulk sender should work
-        response = self.client.post(claim_nexmo_url, dict(connection='NX', channel=channel.pk))
+        response = self.client.post(claim_nexmo_url, dict(connection='NX', channel=android2.pk))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         # new Nexmo channel created for delegated sending
         nexmo = self.org.get_send_channel(TEL_SCHEME)
         self.assertEqual(nexmo.channel_type, 'NX')
-        self.assertEqual(nexmo.parent, channel)
+        self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
 
         # receiving still job of our Android device
-        self.assertEqual(self.org.get_receive_channel(TEL_SCHEME), channel)
+        self.assertEqual(self.org.get_receive_channel(TEL_SCHEME), android2)
 
         # re-register device with country as US
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM222", uuid='uuid'),
@@ -962,17 +977,17 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # channel country and device updated
-        channel.refresh_from_db()
-        self.assertEqual(channel.country, 'US')
-        self.assertEqual(channel.device, "Nexus 5")
-        self.assertEqual(channel.org, self.org)
-        self.assertEqual(channel.gcm_id, "GCM222")
-        self.assertEqual(channel.uuid, "uuid")
-        self.assertTrue(channel.is_active)
+        android2.refresh_from_db()
+        self.assertEqual(android2.country, 'US')
+        self.assertEqual(android2.device, "Nexus 5")
+        self.assertEqual(android2.org, self.org)
+        self.assertEqual(android2.gcm_id, "GCM222")
+        self.assertEqual(android2.uuid, "uuid")
+        self.assertTrue(android2.is_active)
 
         # set back to RW...
-        channel.country = 'RW'
-        channel.save()
+        android2.country = 'RW'
+        android2.save()
 
 #       # register another device with country as US
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
@@ -1631,6 +1646,7 @@ class ChannelTest(TembaTest):
             if 'p_id' in response and response['p_id'] == p_id:
                 return response
 
+
 class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
@@ -1641,15 +1657,15 @@ class ChannelBatchTest(TembaTest):
         epoch = datetime_to_ms(now)
         self.assertEquals(ms_to_datetime(epoch), now)
 
+
 class SyncEventTest(SmartminTest):
 
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.tel_channel = Channel.objects.create(name="Test Channel", address="0785551212", org=self.org,
-                                                  created_by=self.user, modified_by=self.user, country='RW',
-                                                  secret="12345", gcm_id="123")
+        self.tel_channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
+                                          secret="12345", gcm_id="123")
 
     def test_sync_event_model(self):
         self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI",
@@ -1666,6 +1682,7 @@ class SyncEventTest(SmartminTest):
 
         # we shouldn't update country once the relayer is claimed
         self.assertEquals('RW', self.tel_channel.country)
+
 
 class ChannelAlertTest(TembaTest):
 

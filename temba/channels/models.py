@@ -3,16 +3,13 @@ from __future__ import absolute_import, unicode_literals
 import json
 import time
 import urlparse
-import regex
-from datetime import timedelta
-from time import sleep
-from uuid import uuid4
-from urllib import quote_plus
-
 import os
 import phonenumbers
 import plivo
+import regex
 import requests
+
+from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.db import models
@@ -33,9 +30,13 @@ from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
+from time import sleep
 from twilio.rest import TwilioRestClient
 from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.models import TembaModel
+from urllib import quote_plus
+from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -125,7 +126,7 @@ TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
 YO_API_URL = 'http://smgw1.yo.co.ug:9100/sendsms'
 
 
-class Channel(SmartModel):
+class Channel(TembaModel, SmartModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
                     (TWILIO, "Twilio"),
                     (AFRICAS_TALKING, "Africa's Talking"),
@@ -164,9 +165,6 @@ class Channel(SmartModel):
 
     gcm_id = models.CharField(verbose_name=_("GCM ID"), max_length=255, blank=True, null=True,
                               help_text=_("The registration id for using Google Cloud Messaging"))
-
-    uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=False, null=False, unique=True,
-                            help_text=_("UUID for this channel"))
 
     claim_code = models.CharField(verbose_name=_("Claim Code"), max_length=16, blank=True, null=True, unique=True,
                                   help_text=_("The token the user will us to claim this channel"))
@@ -232,7 +230,7 @@ class Channel(SmartModel):
         if 'uuid' not in create_args:
             create_args['uuid'] = str(uuid4())
 
-        return Channel.objects.create(**create_args)
+        return cls.objects.create(**create_args)
 
     @classmethod
     def derive_country_from_phone(cls, phone, country=None):
@@ -483,9 +481,6 @@ class Channel(SmartModel):
         if not gcm_id or not uuid:
             raise ValueError("Can't create Android channel without UUID and GCM ID")
 
-        # old versions of the Android app used non-random UUIDs so it's still possible to get a registration request
-        # with a channel UUID that's already in use
-
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
 
@@ -501,7 +496,9 @@ class Channel(SmartModel):
             return existing
 
         # if any inactive channel has this UUID, we can steal it
-        Channel.objects.filter(uuid=uuid, is_active=False).update(uuid=None)
+        for ch in Channel.objects.filter(uuid=uuid, is_active=False):
+            ch.uuid = unicode(uuid4())
+            ch.save(update_fields=('uuid',))
 
         # generate random secret and claim code
         claim_code = cls.generate_claim_code()

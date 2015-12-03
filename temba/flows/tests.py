@@ -1305,8 +1305,8 @@ class FlowTest(TembaTest):
         self.assertIn('flow_type', response.context['form'].fields)
 
         # add call channel
-        twilio = Channel.objects.create(name="Twilio", channel_type='T', address="0785553434", role="C", org=self.org,
-                                        created_by=self.user, modified_by=self.user, secret="56789", gcm_id="456")
+        twilio = Channel.create(self.org, self.user, None, 'T', "Twilio", "0785553434", role="C",
+                                secret="56789", gcm_id="456")
 
         response = self.client.get(reverse('flows.flow_create'))
         self.assertTrue(response.context['has_flows'])
