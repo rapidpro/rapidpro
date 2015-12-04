@@ -4029,6 +4029,30 @@ class DuplicateValueTest(FlowFileTest):
         self.assertEquals("Red", value.category)
 
 
+class ChannelSplitTest(FlowFileTest):
+
+    def setUp(self):
+        super(ChannelSplitTest, self).setUp()
+
+    def test_initial_channel_split(self):
+        flow = self.get_flow('channel-split')
+
+        # update our channel to have a 206 address
+        self.channel.address = '+12065551212'
+        self.channel.save()
+
+        # start our contact down the flow
+        flow.start([], [self.contact])
+
+        # check the message sent to them
+        msg = self.contact.msgs.last()
+        self.assertEqual("Your channel is +12065551212", msg.text)
+
+        # check the split
+        msg = self.contact.msgs.first()
+        self.assertEqual("206 Channel", msg.text)
+
+
 class WebhookLoopTest(FlowFileTest):
 
     def setUp(self):

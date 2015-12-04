@@ -1206,15 +1206,23 @@ class Flow(TembaModel, SmartModel):
         # our default value
         flow_context['__default__'] = "\n".join(values)
 
+        channel_context = None
+
+        # Figure out what the outgoing channel would be for this contact if we have one and populate it
+        # (msg channel will take precedence below if there is one)
+        if contact:
+            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by, contact, None)
+            scheme = contact_urn.scheme if contact_urn else TEL_SCHEME
+            channel = contact.org.get_send_channel(contact_urn=contact_urn, scheme=scheme)
+            channel_context = channel.build_message_context() if channel else None
+
         # add our message context
-        channel_context = dict()
         if msg:
             message_context = msg.build_message_context()
 
             # some fake channel deets for simulation
             if msg.contact.is_test:
                 channel_context = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
-            # where the message was sent to
             elif msg.channel:
                 channel_context = msg.channel.build_message_context()
         elif contact:
@@ -2512,7 +2520,6 @@ class RuleSet(models.Model):
             return rule, result.body
 
         else:
-
             # if it's a form field, construct an expression accordingly
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
                 config = self.config_json()
