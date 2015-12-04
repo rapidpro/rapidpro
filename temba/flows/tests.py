@@ -4052,6 +4052,22 @@ class ChannelSplitTest(FlowFileTest):
         msg = self.contact.msgs.first()
         self.assertEqual("206 Channel", msg.text)
 
+    def test_no_urn_channel_split(self):
+        flow = self.get_flow('channel-split')
+
+        # ok, remove the URN on our contact
+        self.contact.urns.all().update(contact=None)
+
+        # run the flow again
+        flow.start([], [self.contact])
+
+        # shouldn't have any messages sent, as they have no URN
+        self.assertFalse(self.contact.msgs.all())
+
+        # should have completed the flow though
+        run = FlowRun.objects.get(contact=self.contact)
+        self.assertFalse(run.is_active)
+
 
 class WebhookLoopTest(FlowFileTest):
 

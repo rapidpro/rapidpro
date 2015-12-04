@@ -1208,14 +1208,6 @@ class Flow(TembaModel, SmartModel):
 
         channel_context = None
 
-        # Figure out what the outgoing channel would be for this contact if we have one and populate it
-        # (msg channel will take precedence below if there is one)
-        if contact:
-            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by, contact, None)
-            scheme = contact_urn.scheme if contact_urn else TEL_SCHEME
-            channel = contact.org.get_send_channel(contact_urn=contact_urn, scheme=scheme)
-            channel_context = channel.build_message_context() if channel else None
-
         # add our message context
         if msg:
             message_context = msg.build_message_context()
@@ -1229,6 +1221,15 @@ class Flow(TembaModel, SmartModel):
             message_context = dict(__default__='', contact=contact_context)
         else:
             message_context = dict(__default__='')
+
+        # If we still don't know our channel and have a contact, derive the right channel to use
+        if not channel_context and contact:
+            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by, contact, None)
+
+            # only populate channel if this contact can actually be reached (ie, has a URN)
+            if contact_urn:
+                channel = contact.org.get_send_channel(contact_urn=contact_urn)
+                channel_context = channel.build_message_context() if channel else None
 
         run = self.runs.filter(contact=contact).order_by('-created_on').first()
         run_context = run.field_dict() if run else {}
