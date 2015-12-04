@@ -771,18 +771,18 @@ class Channel(TembaModel):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
-    def claim(self, org, user, number):
+    def claim(self, org, user, phone):
         """
         Claims this channel for the given org/user
         """
         if not self.country:
-            self.country = Channel.derive_country_from_phone(number)
+            self.country = Channel.derive_country_from_phone(phone)
 
         self.alert_email = user.email
         self.org = org
         self.is_active = True
         self.claim_code = None
-        self.address = number
+        self.address = phone
         self.save()
 
     def release(self, trigger_sync=True, notify_mage=True):

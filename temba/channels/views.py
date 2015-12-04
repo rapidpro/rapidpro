@@ -418,23 +418,21 @@ def register(request):
     return HttpResponse(json.dumps(result), content_type='application/javascript')
 
 
-class ClaimForm(forms.Form):
-    claim_code = forms.CharField(max_length=12,
-                                 help_text=_("The claim code from your Android phone"))
-    phone_number = forms.CharField(max_length=15,
-                                   help_text=_("The phone number of the phone"))
+class ClaimAndroidForm(forms.Form):
+    claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))
+    phone_number = forms.CharField(max_length=15, help_text=_("The phone number of the phone"))
 
     def clean_claim_code(self):
         claim_code = self.cleaned_data['claim_code']
         claim_code = claim_code.replace(' ', '').upper()
 
         # is there a channel with that claim?
-        channel = Channel.objects.filter(claim_code=claim_code, is_active=True)
+        channel = Channel.objects.filter(claim_code=claim_code, is_active=True).first()
 
         if not channel:
             raise forms.ValidationError(_("Invalid claim code, please check and try again."))
         else:
-            self.cleaned_data['channel'] = channel[0]
+            self.cleaned_data['channel'] = channel
 
         return claim_code
 
@@ -442,14 +440,21 @@ class ClaimForm(forms.Form):
         number = self.cleaned_data['phone_number']
 
         if 'channel' in self.cleaned_data:
+            channel = self.cleaned_data['channel']
+
+            # ensure number is valid for the channel's country
             try:
-                normalized = phonenumbers.parse(number, self.cleaned_data['channel'].country.code)
+                normalized = phonenumbers.parse(number, channel.country.code)
                 if not phonenumbers.is_possible_number(normalized):
                     raise forms.ValidationError(_("Invalid phone number, try again."))
-            except Exception: # pragma: no cover
+            except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
 
             number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
+
+            # ensure no other active channel has this number
+            if Channel.objects.filter(address=number, is_active=True).exclude(pk=channel.pk).exists():
+                raise forms.ValidationError(_("Another channel has this number. Please remove that channel first."))
 
         return number
 
@@ -1424,7 +1429,7 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimAndroid(OrgPermsMixin, SmartFormView):
         title = _("Register Android Phone")
         fields = ('claim_code', 'phone_number')
-        form_class = ClaimForm
+        form_class = ClaimAndroidForm
         title = _("Claim Channel")
 
         def get_success_url(self):
@@ -1436,7 +1441,7 @@ class ChannelCRUDL(SmartCRUDL):
             if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
-            self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code'])[0]
+            self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code']).first()
 
             country = self.object.country
             phone_country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'],

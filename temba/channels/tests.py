@@ -1001,7 +1001,12 @@ class ChannelTest(TembaTest):
                                     dict(claim_code=claim_code, phone_number="0788382382"))
         self.assertFormError(response, 'form', 'claim_code', "Sorry, you can only add numbers for the same country (RW)")
 
-        # but if we submit with a fully qualified RW number it should work
+        # try to claim it with number taken by other Android channel
+        response = self.client.post(reverse('channels.channel_claim_android'),
+                                    dict(claim_code=claim_code, phone_number="+250788123124"))
+        self.assertFormError(response, 'form', 'phone_number', "Another channel has this number. Please remove that channel first.")
+
+        # but if we submit with a new fully qualified RW number it should work
         response = self.client.post(reverse('channels.channel_claim_android'),
                                     dict(claim_code=claim_code, phone_number="+250788382382"))
         self.assertRedirect(response, reverse('public.public_welcome'))
