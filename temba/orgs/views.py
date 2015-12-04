@@ -1431,11 +1431,10 @@ class OrgCRUDL(SmartCRUDL):
         class TwilioKeys(forms.ModelForm):
             account_sid = forms.CharField(max_length=128, label=_("Account SID"), required=False)
             account_token = forms.CharField(max_length=128, label=_("Account Token"), required=False)
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
                 super(OrgCRUDL.TwilioAccount.TwilioKeys, self).clean()
-
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     account_sid = self.cleaned_data.get('account_sid', None)
                     account_token = self.cleaned_data.get('account_token', None)
@@ -1467,9 +1466,10 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.TwilioAccount, self).get_context_data(**kwargs)
             client = self.object.get_twilio_client()
-            account_sid = client.auth[0]
-            sid_length = len(account_sid)
-            context['account_sid'] = '%s%s' % ('\u066D' * (sid_length - 16), account_sid[-16:])
+            if client:
+                account_sid = client.auth[0]
+                sid_length = len(account_sid)
+                context['account_sid'] = '%s%s' % ('\u066D' * (sid_length - 16), account_sid[-16:])
             return context
 
         def derive_initial(self):
@@ -1488,12 +1488,12 @@ class OrgCRUDL(SmartCRUDL):
                 org.remove_twilio_account()
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             else:
+
                 user = self.request.user
                 org = user.get_org()
                 account_sid = form.cleaned_data['account_sid']
                 account_token = form.cleaned_data['account_token']
                 org.connect_twilio(account_sid, account_token)
-
                 return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
