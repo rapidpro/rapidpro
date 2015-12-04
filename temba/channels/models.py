@@ -263,7 +263,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
-        plivo_uuid = unicode(uuid4())
+        plivo_uuid = generate_uuid()
         app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
 
         client = plivo.RestAPI(auth_id, auth_token)
@@ -497,7 +497,7 @@ class Channel(TembaModel):
 
         # if any inactive channel has this UUID, we can steal it
         for ch in Channel.objects.filter(uuid=uuid, is_active=False):
-            ch.uuid = unicode(uuid4())
+            ch.uuid = generate_uuid()
             ch.save(update_fields=('uuid',))
 
         # generate random secret and claim code
