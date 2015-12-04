@@ -425,7 +425,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
-               'plivo_connect', 'service', 'surveyor', 'twilio_account')
+               'plivo_connect', 'service', 'surveyor')
 
     model = Org
 
@@ -1493,6 +1493,7 @@ class OrgCRUDL(SmartCRUDL):
                 org = user.get_org()
                 account_sid = form.cleaned_data['account_sid']
                 account_token = form.cleaned_data['account_token']
+
                 org.connect_twilio(account_sid, account_token)
                 return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
 

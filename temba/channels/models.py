@@ -822,7 +822,6 @@ class Channel(SmartModel):
         if CALL in self.role:
             if not org.get_schemes(CALL):
                 # archive any IVR flows
-
                 from temba.flows.models import Flow
                 for flow in Flow.objects.filter(org=org, flow_type=Flow.VOICE):
                     flow.archive()
