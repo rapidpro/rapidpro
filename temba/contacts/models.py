@@ -628,25 +628,28 @@ class Contact(TembaModel, SmartModel):
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)
 
                 if not is_valid:
-                    return None
+                    return None, "Invalid Phone number %s" % value
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
-                    return None
+                    return None, "Ignored test contact"
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
             # if this is an anonymous org
             if org.is_anon and search_contact:
-                return None
+                return None, "Other existing contact on anonymous organization"
 
             if not existing_contact:
                 existing_contact = search_contact
             elif search_contact is not None and existing_contact != search_contact:
-                return None
+                return None, "Other existing contact with %s of %s" % (urn_header, value)
 
             urns.append((urn_scheme, value))
 
         if not urns:
-            return None
+            error_str = "Missing any valid URNs"
+            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[1:])
+
+            return None, error_str
 
         # title case our name
         name = field_dict.get(Contact.NAME, None)
@@ -677,7 +680,7 @@ class Contact(TembaModel, SmartModel):
 
             contact.set_field(key, value)
 
-        return contact
+        return contact, ""
                 
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
