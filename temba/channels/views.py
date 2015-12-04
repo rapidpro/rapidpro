@@ -746,8 +746,7 @@ class ChannelCRUDL(SmartCRUDL):
                     messages.error(request, _("Twilio reported an error removing your channel (Twilio error %s). Please try again later." % e.code))
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
-
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 import traceback
                 traceback.print_exc(e)
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
@@ -890,6 +889,7 @@ class ChannelCRUDL(SmartCRUDL):
     class CreateCaller(OrgPermsMixin, SmartFormView):
         class CallerForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
+            channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
@@ -899,11 +899,18 @@ class ChannelCRUDL(SmartCRUDL):
             def clean_connection(self):
                 connection = self.cleaned_data['connection']
                 if connection == TWILIO and not self.org.is_connected_to_twilio():
-                    raise forms.ValidationError(_("A connection to a Nexmo account is required"))
+                    raise forms.ValidationError(_("A connection to a Twilio account is required"))
                 return connection
 
+            def clean_channel(self):
+                channel = self.cleaned_data['channel']
+                channel = self.org.channels.filter(pk=channel).first()
+                if not channel:
+                    raise forms.ValidationError(_("Sorry, a caller cannot be added for that number"))
+                return channel
+
         form_class = CallerForm
-        fields = ('connection', )
+        fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super(ChannelCRUDL.CreateCaller, self).get_form_kwargs(*args, **kwargs)
@@ -914,13 +921,7 @@ class ChannelCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # make sure they own the channel
-            channel = self.request.REQUEST.get('channel', None)
-            if channel:
-                channel = self.request.user.get_org().channels.filter(pk=channel).first()
-            if not channel:
-                raise forms.ValidationError(_("Sorry, a caller cannot be added for that number"))
-
+            channel = form.cleaned_data['channel']
             Channel.add_call_channel(org, user, channel)
             return super(ChannelCRUDL.CreateCaller, self).form_valid(form)
 
@@ -1693,32 +1694,32 @@ class ChannelCRUDL(SmartCRUDL):
 
             return supported_country_iso_codes
 
-        def get_search_countries_tuple(self):
+        def get_search_countries_tuple(self):  # pragma: no cover
             raise NotImplementedError('method "get_search_countries_tuple" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def get_supported_countries_tuple(self):
+        def get_supported_countries_tuple(self):  # pragma: no cover
             raise NotImplementedError('method "get_supported_countries_tuple" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def get_search_url(self):
+        def get_search_url(self):  # pragma: no cover
             raise NotImplementedError('method "get_search_url" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def get_claim_url(self):
+        def get_claim_url(self):  # pragma: no cover
             raise NotImplementedError('method "get_claim_url" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def get_existing_numbers(self, org):
+        def get_existing_numbers(self, org):  # pragma: no cover
             raise NotImplementedError('method "get_existing_numbers" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def is_valid_country(self, country_code):
+        def is_valid_country(self, country_code):  # pragma: no cover
 
             raise NotImplementedError('method "is_valid_country" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def claim_number(self, user, phone_number, country):
+        def claim_number(self, user, phone_number, country):  # pragma: no cover
             raise NotImplementedError('method "claim_number" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
