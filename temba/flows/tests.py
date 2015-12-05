@@ -4034,12 +4034,12 @@ class ChannelSplitTest(FlowFileTest):
     def setUp(self):
         super(ChannelSplitTest, self).setUp()
 
-    def test_initial_channel_split(self):
-        flow = self.get_flow('channel-split')
-
         # update our channel to have a 206 address
         self.channel.address = '+12065551212'
         self.channel.save()
+
+    def test_initial_channel_split(self):
+        flow = self.get_flow('channel_split')
 
         # start our contact down the flow
         flow.start([], [self.contact])
@@ -4053,7 +4053,7 @@ class ChannelSplitTest(FlowFileTest):
         self.assertEqual("206 Channel", msg.text)
 
     def test_no_urn_channel_split(self):
-        flow = self.get_flow('channel-split')
+        flow = self.get_flow('channel_split')
 
         # ok, remove the URN on our contact
         self.contact.urns.all().update(contact=None)
@@ -4067,6 +4067,16 @@ class ChannelSplitTest(FlowFileTest):
         # should have completed the flow though
         run = FlowRun.objects.get(contact=self.contact)
         self.assertFalse(run.is_active)
+
+    def test_no_urn_channel_split_first(self):
+        flow = self.get_flow('channel_split_rule_first')
+
+        # start our contact down the flow
+        flow.start([], [self.contact])
+
+        # check that the split was successful
+        msg = self.contact.msgs.first()
+        self.assertEqual("206 Channel", msg.text)
 
 
 class WebhookLoopTest(FlowFileTest):
