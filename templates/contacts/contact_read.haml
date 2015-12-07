@@ -50,11 +50,6 @@
 -block read-buttons
 
 -block content
-  :javascript
-
-
-
-
 
   -if contact_fields
     .contact-fields{class:'{% if fields %}clickable{%endif%}'}
@@ -66,10 +61,26 @@
             .contact-field-value
               {{field.value}}
 
+  -if scheduled_messages
+    .header
+      -trans "Scheduled messages"
+    %table.activity.pending
+      -for broadcast in scheduled_messages
+        %tr.item.msg
+          %td.icon
+            %span.glyph.icon-bubble-right
+
+          %td.details
+            .activity-scheduled
+              .activity-body
+                {{ broadcast.text }}
+          %td.created_on
+            {{broadcast.schedule.next_fire}}
+
 
   -if upcoming_events
     .header
-      Upcoming
+      -trans "Upcoming"
     %table.activity.pending
       -for evt in upcoming_events
         %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
@@ -91,18 +102,18 @@
                 .activity-body
                   {{evt.event.message}}
               -elif evt.event.event_type == 'F'
-                Start
+                -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
           %td.created_on
             {{evt.scheduled}}
 
   .header
-    Message History
+    -trans "Message History"
   %table.activity.history
     %tr.since
       %td{colspan:3}
         %span.loading
-          One moment..
+          -trans "One moment..."
 
 
 -block post-content

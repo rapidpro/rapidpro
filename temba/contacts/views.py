@@ -574,6 +574,8 @@ class ContactCRUDL(SmartCRUDL):
             # upcoming scheduled events
             context['upcoming_events'] = list(reversed(contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')[:3]))
 
+            context['scheduled_messages'] = contact.get_scheduled_messages()
+
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import SEND
             sendable_schemes = contact.org.get_schemes(SEND)

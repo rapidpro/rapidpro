@@ -242,6 +242,24 @@ class Contact(TembaModel, SmartModel):
         simulation = cls.get_simulation()
         return cls.objects.filter(is_test=simulation)
 
+    def get_scheduled_messages(self):
+        from temba.msgs.models import SystemLabel, get_unique_recipients
+        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
+
+        contact_scheduled_messages = []
+
+        contact_urns = self.get_urns()
+
+        for broadcast in scheduled_broadcasts:
+            if broadcast.has_pending_fire():
+                unique_urns, unique_contacts = get_unique_recipients(broadcast.urns.all(), broadcast.contacts.all(),
+                                                                     broadcast.groups.all())
+
+                if self in unique_contacts or set(contact_urns).intersection(unique_urns):
+                    contact_scheduled_messages.append(broadcast)
+
+        return contact_scheduled_messages
+
     def get_field(self, key):
         """
         Gets the (possibly cached) value of a contact field

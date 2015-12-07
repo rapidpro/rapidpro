@@ -18,7 +18,8 @@ from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, Language
 from temba.channels.models import Channel, TWITTER
-from temba.msgs.models import Msg, Call, Label, SystemLabel
+from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
+from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
@@ -1109,6 +1110,40 @@ class ContactTest(TembaTest):
         msg.broadcast.recipient_count = 5
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
 
+    def test_get_scheduled_messages(self):
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+
+        self.assertEqual(self.joe.get_scheduled_messages(), [])
+
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+
+        self.assertEqual(self.joe.get_scheduled_messages(), [])
+
+        broadcast.contacts.add(self.joe)
+
+        self.assertEqual(self.joe.get_scheduled_messages(), [])
+
+        schedule_time = timezone.now() + timedelta(days=2)
+        broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
+        broadcast.save()
+
+        self.assertEqual(self.joe.get_scheduled_messages(), [broadcast])
+
+        broadcast.contacts.remove(self.joe)
+        self.assertEqual(self.joe.get_scheduled_messages(), [])
+
+        broadcast.groups.add(self.just_joe)
+        self.assertEqual(self.joe.get_scheduled_messages(), [broadcast])
+
+        broadcast.groups.remove(self.just_joe)
+        self.assertEqual(self.joe.get_scheduled_messages(), [])
+
+        broadcast.urns.add(self.joe.get_urn())
+        self.assertEqual(self.joe.get_scheduled_messages(), [broadcast])
+
+        broadcast.schedule.reset()
+        self.assertEqual(self.joe.get_scheduled_messages(), [])
+
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
 
@@ -1126,6 +1161,12 @@ class ContactTest(TembaTest):
             self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
                                                relative_to=self.planting_date, offset=i+10, unit='D',
                                                message='Sent %d days after planting date' % (i+10))
+
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+        broadcast.contacts.add(self.joe)
+        schedule_time = timezone.now() + timedelta(days=2)
+        broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
+        broadcast.save()
 
         self.joe.set_field('planting_date', unicode(timezone.now() + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
@@ -1146,6 +1187,7 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
+        self.assertEquals([broadcast], response.context['scheduled_messages'])
         upcoming = response.context['upcoming_events']
 
         # should show the next three events to fire in reverse order
