@@ -1113,36 +1113,39 @@ class ContactTest(TembaTest):
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
-        self.assertEqual(self.joe.get_scheduled_messages(), [])
+        self.assertFalse(self.joe.get_scheduled_messages())
 
         broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
 
-        self.assertEqual(self.joe.get_scheduled_messages(), [])
+        self.assertFalse(self.joe.get_scheduled_messages())
 
         broadcast.contacts.add(self.joe)
 
-        self.assertEqual(self.joe.get_scheduled_messages(), [])
+        self.assertFalse(self.joe.get_scheduled_messages())
 
         schedule_time = timezone.now() + timedelta(days=2)
         broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
         broadcast.save()
 
-        self.assertEqual(self.joe.get_scheduled_messages(), [broadcast])
+        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
 
         broadcast.contacts.remove(self.joe)
-        self.assertEqual(self.joe.get_scheduled_messages(), [])
+        self.assertFalse(self.joe.get_scheduled_messages())
 
         broadcast.groups.add(self.just_joe)
-        self.assertEqual(self.joe.get_scheduled_messages(), [broadcast])
+        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
 
         broadcast.groups.remove(self.just_joe)
-        self.assertEqual(self.joe.get_scheduled_messages(), [])
+        self.assertFalse(self.joe.get_scheduled_messages())
 
         broadcast.urns.add(self.joe.get_urn())
-        self.assertEqual(self.joe.get_scheduled_messages(), [broadcast])
+        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
 
         broadcast.schedule.reset()
-        self.assertEqual(self.joe.get_scheduled_messages(), [])
+        self.assertFalse(self.joe.get_scheduled_messages())
 
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
@@ -1187,7 +1190,8 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
-        self.assertEquals([broadcast], response.context['scheduled_messages'])
+        self.assertEquals(1, len(response.context['scheduled_messages']))
+        self.assertTrue(broadcast in response.context['scheduled_messages'])
         upcoming = response.context['upcoming_events']
 
         # should show the next three events to fire in reverse order
