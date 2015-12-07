@@ -1,15 +1,6 @@
 -extends "smartmin/form.html"
 -load i18n
 
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $(function(){
-      $("#id_country").select2();
-      $("#id_method").select2({ minimumResultsForSearch: -1 });
-    });
-
 -block title
   .medium-help.icon-cog.float-left
 
@@ -28,9 +19,9 @@
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}</code> -
         %trans the message of the text being sent
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}</code> -
-        %trans the phone number you have configured for this service
+        %trans the phone number or address you have configured for this service
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}</code> -
-        %trans the E164 phone number this message is addressed to
+        %trans the E164 phone number, Twitter handle or external address that this message is addressed to
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}id{% templatetag closebrace %}{% templatetag closebrace %}</code> -
         %trans the unique id for this message
 
@@ -50,17 +41,60 @@
         After connecting your service we will provide URLs for the endpoints to call when you want to push a message to
         {{ brand }} or notify {{ brand }} of the delivery status of a message.
 
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      var schemeSelect = $('#id_scheme');
+
+      schemeSelect.select2({ minimumResultsForSearch: -1, width: '200px' });
+      $('#id_country').select2();
+      $('#id_method').select2({ minimumResultsForSearch: -1, width: '370px' });
+
+      schemeSelect.on('change', function() {
+        updateFormForScheme($(this).val());
+      });
+
+      updateFormForScheme(schemeSelect.val());
+    });
+
+    function updateFormForScheme(scheme) {
+      var numberCtrlGroup = $('#id_number').parents('.control-group');
+      var handleCtrlGroup = $('#id_handle').parents('.control-group');
+      var addressCtrlGroup = $('#id_address').parents('.control-group');
+      var countryCtrlGroup = $('#id_country').parents('.control-group');
+
+      if (scheme == 'tel') {
+        numberCtrlGroup.show();
+        handleCtrlGroup.hide();
+        addressCtrlGroup.hide();
+        countryCtrlGroup.show();
+      } else if (scheme == 'twitter') {
+        numberCtrlGroup.hide();
+        handleCtrlGroup.show();
+        addressCtrlGroup.hide();
+        countryCtrlGroup.hide();
+      } else if (scheme == 'ext') {
+        numberCtrlGroup.hide();
+        handleCtrlGroup.hide();
+        addressCtrlGroup.show();
+        countryCtrlGroup.hide();
+      }
+    }
+
 -block extra-style
   {{ block.super }}
 
   :css
-    #s2id_id_country {
-      width: 370px;
-    }
-
     .info {
       width: 800px;
       margin-bottom: 20px;
+    }
+
+    .help-block {
+      margin-left:150px;
+      margin-bottom:20px;
     }
 
     .medium-help {

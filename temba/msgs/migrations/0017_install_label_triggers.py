@@ -14,9 +14,6 @@ def populate_label_counts(apps, schema_editor):
         label.visible_count = label.msgs.filter(visibility='V', contact__is_test=False).count()
         label.save(update_fields=('visible_count',))
 
-    print
-    print "Pre-calculated counts for %d labels" % len(user_labels)
-
 
 class Migration(migrations.Migration):
 

@@ -52,10 +52,6 @@ def migrate_label_hierarchies(apps, schema_editor):
             else:
                 parent.delete()
 
-    print
-    print "Renamed %d labels with non-unique names" % rename_count
-    print "Converted %d parent labels to folders" % folder_count
-
 
 class Migration(migrations.Migration):
 

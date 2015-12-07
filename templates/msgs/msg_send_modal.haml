@@ -44,19 +44,20 @@
         -trans "Add Channel"
 
   %script{src:"{{ STATIC_URL }}scripts/at/xregexp-min.js"}
+  %script{src:"{{ STATIC_URL }}scripts/At.js/bower_components/Caret.js/dist/jquery.caret.js"}
+  %script{src:"{{ STATIC_URL }}scripts/At.js/dist/js/jquery.atwho.js"}
+  %script{src:"{{ STATIC_URL }}js/excellent.js"}
+
 
   -load compress
-  -compress js
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
 
-  %link{href:'{{ STATIC_URL }}scripts/at/jquery.atwho.css', rel:'stylesheet', type:'text/css'}
+  %link{href:'{{ STATIC_URL }}scripts/At.js/dist/css/jquery.atwho.css', rel:'stylesheet', type:'text/css'}
 
   :javascript
     $(document).ready(function() {
-      window.message_completions = {{completions|safe}};
-      initAtMessageText($('#id_text'));
+      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_text'));
       $("textarea").keyup(messageTextareaLengthCheck);
+
     });
 
     function formatResult(item) {

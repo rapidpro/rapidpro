@@ -5,6 +5,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, TEL_SCHEME, ContactURN
 from temba.flows.models import Flow, FlowStep, ActionLog, FlowRun
@@ -132,6 +133,7 @@ class IVRCall(SmartModel):
 
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()
+        from temba.ivr.clients import IVRException
         if client:
             try:
                 url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
@@ -154,11 +156,24 @@ class IVRCall(SmartModel):
 
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
-            except Exception:  # pragma: no cover
+            except IVRException as e:
+                self.status = FAILED
+                self.save()
+                if self.contact.is_test:
+                    run = FlowRun.objects.filter(call=self)
+                    ActionLog.create(run[0], "Call ended. %s" % e.message)
+
+            except Exception as e:  # pragma: no cover
                 import traceback
                 traceback.print_exc()
                 self.status = FAILED
                 self.save()
+
+                if self.contact.is_test:
+                    run = FlowRun.objects.filter(call=self)
+                    ActionLog.create(run[0], "Call ended.")
+
+
 
     def update_status(self, status, duration):
         """

@@ -93,7 +93,7 @@
     -if object.channel_type == 'A'
       .pull-right
 
-        -if not caller.is_delegate_caller and object.org.is_connected_to_twilio and user.is_beta
+        -if not caller.is_delegate_caller and object.org.is_connected_to_twilio
           %a.btn.btn-secondary.org-button.posterize{href:"{% url 'channels.channel_create_caller' %}?channel={{object.pk}}"}
             -trans "Enable Voice"
 
@@ -233,7 +233,7 @@
                 %td
                   %h4
                     -trans "Messages"
-                  {{ sms_count|intcomma }}
+                  {{ msg_count|intcomma }}
 
               -if ivr_count
                 %tr
@@ -245,7 +245,7 @@
                 %td
                   %h4
                     -trans "ERRORS"
-                  {{ channel_errors|length }}
+                  {{ channel.get_error_log_count|intcomma }}
 
                   -if 'S' in object.role
                     %a{ href:"{% url 'channels.channellog_list' %}?channel={{object.get_sender.id}}" }
@@ -268,25 +268,25 @@
               -trans "Incoming Text Messages"
             %th
               -trans "Outgoing Text Messages"
-            %th
-              -trans "Incoming IVR Messages"
-            %th
-              -trans "Outgoing IVR Messages"
+            -if ivr_count
+              %th
+                -trans "Incoming IVR Messages"
+              %th
+                -trans "Outgoing IVR Messages"
         %tbody
           -for month_data in message_stats_table
             %tr
               %td
                 = month_data.month_start|utc|date:"F Y"
               %td
-                = month_data.incoming_messages_count
+                = month_data.incoming_messages_count|intcomma
               %td
-                = month_data.outgoing_messages_count
-              %td
-                = month_data.incoming_ivr_count
-              %td
-                = month_data.outgoing_ivr_count
-
-
+                = month_data.outgoing_messages_count|intcomma
+              -if ivr_count
+                %td
+                  = month_data.incoming_ivr_count|intcomma
+                %td
+                  = month_data.outgoing_ivr_count|intcomma
 
   -if object.channel_type == 'A'
     %div.row
@@ -555,7 +555,8 @@
               }],
               plotOptions: {
               series: {
-                pointWidth: 25,
+                pointPadding: .1,
+                groupPadding: .1,
                 stacking: 'normal'
               }
               },

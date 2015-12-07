@@ -1,8 +1,7 @@
 from __future__ import unicode_literals
 
 from temba.msgs.handler import MessageHandler
-from .models import Trigger, CATCH_ALL_TRIGGER
-
+from .models import Trigger
 
 class TriggerHandler(MessageHandler):
     def __init__(self):
@@ -17,4 +16,4 @@ class CatchAllHandler(MessageHandler):
         super(CatchAllHandler, self).__init__('triggers')
 
     def handle(self, msg):
-        return Trigger.catch_triggers(msg, CATCH_ALL_TRIGGER)
+        return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)

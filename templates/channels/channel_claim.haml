@@ -88,6 +88,28 @@
                   code from {{link_start}}Africa's Talking{{link_end}} and connect it
                   in a few simple steps.
 
+    -if user_org.timezone == 'Africa/Kampala'
+      .claim-row.yo-channel{class:"{% if recommended_channel == 'yo' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://www.yo.co.ug/'>" as link_start and "</a>" as link_end
+            We recommend using Yo! in Uganda. Visit {{link_start}}their website{{link_end}} for details.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_yo' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Yo! Short Code"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans with brand.name as brand
+                  If you are based in Uganda, you can integrate {{ brand }} with Yo! to send
+                  and receive messages on your shortcode.
+
     -if user_org.timezone == 'Africa/Mogadishu'
       .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'shaqodoon' %}recommended{% endif %}"}
         .recommendation.hide
@@ -343,6 +365,26 @@
               %div
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
+
+    -if user_org.timezone == 'Asia/Karachi'
+      .claim-row.m3tech-channel{class:"{% if recommended_channel == 'm3tech' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using an M3 Tech phone number for SMS in your country, select this option to configure your number.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_m3tech' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "M3 Tech Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with <a href="http://m3techservice.com">M3 Tech</a> using their APIs.
 
     -if False
       .claim-row.verboice-channel

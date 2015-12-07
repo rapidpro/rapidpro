@@ -61,12 +61,12 @@
                 -if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss"
                   .glyph.icon-user
                 -else
-                  -if msg.direction == 'O' and msg.channel.get_parent_channel.pk
+                  -if msg.direction == 'O' and msg.channel
                     %a{href:'{% url "channels.channel_read" msg.channel.get_parent_channel.pk %}'}
                       .glyph{class:'{{ msg.channel|channel_icon}}', title:'From: {{ msg.channel.get_address_display }}'}
                   -elif msg.direction == 'O'
                     %a{href:'#'}
-                      .glyph{class:'icon-circle-2', title:'Failed - No channel'}
+                      .glyph{class:'icon-circle-2', title:'No channel'}
 
               .text{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%} {% if msg.visibility == "A" %}A{%endif%}'}
 

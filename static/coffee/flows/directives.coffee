@@ -145,34 +145,31 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
   link = (scope, element, attrs) ->
 
     scope.updateTranslationStatus = (action, baseLanguage, currentLanguage) ->
+
       action._missingTranslation = false
       # grab the appropriate translated version
 
-      if scope.$root.flow.base_language
-        if action.type in ['send', 'reply', 'say']
-          action._translation = action.msg[currentLanguage.iso_code]
+      iso_code = Flow.flow.base_language
+      if currentLanguage
+        iso_code = currentLanguage.iso_code
 
-          # translated recording for IVR
-          if action.recording
-            action._translation_recording = action.recording[currentLanguage.iso_code]
-            if action._translation_recording
-              action._translation_recording = window.recordingURL + action._translation_recording
+      if action.type in ['send', 'reply', 'say']
+        action._translation = action.msg[iso_code]
 
+        # translated recording for IVR
+        if action.recording
+          action._translation_recording = action.recording[iso_code]
+          if action._translation_recording
+            action._translation_recording = window.recordingURL + action._translation_recording
 
-          if action._translation is undefined
-            action._translation = action.msg[baseLanguage]
-            action._missingTranslation = true
-          else
-            action._missingTranslation = false
+        if action._translation is undefined
+          action._translation = action.msg[baseLanguage]
+          action._missingTranslation = true
         else
-          action._translation = null
           action._missingTranslation = false
       else
-        action._translation = action.msg
-        action._translation_recording = action.recording
-
-        if action._translation_recording
-          action._translation_recording = window.recordingURL + action._translation_recording
+        action._translation = null
+        action._missingTranslation = false
 
       Flow.updateTranslationStats()
 
@@ -181,13 +178,14 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
     scope.$watch (->scope.action.dirty), (current) ->
       if current
         scope.action.dirty = false
-        scope.updateTranslationStatus(scope.action, scope.$root.flow.base_language, scope.$root.language)
+        scope.updateTranslationStatus(scope.action, Flow.flow.base_language, Flow.language)
 
     scope.$watch (->scope.action), ->
-        scope.updateTranslationStatus(scope.action, scope.$root.flow.base_language, scope.$root.language)
+        scope.updateTranslationStatus(scope.action, Flow.flow.base_language, Flow.language)
 
-    scope.$watch (->scope.$root.language), ->
-      scope.updateTranslationStatus(scope.action, scope.$root.flow.base_language, scope.$root.language)
+    scope.$watch (->Flow.language), ->
+      scope.updateTranslationStatus(scope.action, Flow.flow.base_language, Flow.language)
+
 
   return {
     restrict: "A"
@@ -216,6 +214,25 @@ app.directive "actionName", [ "Flow", (Flow) ->
   }
 ]
 
+# display the name of the action with an optional icon
+app.directive "rulesetName", [ "Flow", (Flow) ->
+  link = (scope, element, attrs) ->
+    scope.$watch (->scope.ngModel), ->
+      if scope.ngModel
+        rulesetConfig = Flow.getRulesetConfig(scope.ngModel)
+        scope.name = rulesetConfig.name
+        if attrs['icon'] == "show"
+          scope.icon = rulesetConfig.icon
+  return {
+    template: '<span class="icon [[icon]]"></span><span>[[name]]</span>'
+    restrict: "C"
+    link: link
+    scope: {
+      ngModel: '='
+    }
+  }
+]
+
 #============================================================================
 # Directives for rules
 #============================================================================
@@ -226,12 +243,17 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
     Flow.replaceRuleset(scope.ruleset, false)
 
     scope.updateTranslationStatus = (ruleset, baseLanguage, currentLanguage) ->
+
+      iso_code = baseLanguage
+      if currentLanguage
+        iso_code = currentLanguage.iso_code
+
       for category in ruleset._categories
 
         category._missingTranslation = false
         if category.name
-          if scope.$root.flow.base_language
-            category._translation = category.name[currentLanguage.iso_code]
+          if baseLanguage
+            category._translation = category.name[iso_code]
 
             if category._translation is undefined
               category._translation = category.name[baseLanguage]
@@ -246,11 +268,11 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       Plumb.repaint(element)
 
     scope.$watch (->scope.ruleset), ->
-      scope.updateTranslationStatus(scope.ruleset, scope.$root.flow.base_language, scope.$root.language)
+      scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
       Plumb.updateConnections(scope.ruleset)
 
-    scope.$watch (->scope.$root.language), ->
-      scope.updateTranslationStatus(scope.ruleset, scope.$root.flow.base_language, scope.$root.language)
+    scope.$watch (->Flow.language), ->
+      scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
 
 
 

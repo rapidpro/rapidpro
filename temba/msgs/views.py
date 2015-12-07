@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from django import forms
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from django.contrib import messages
 from django.db import IntegrityError
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
@@ -17,11 +18,11 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFo
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, TEL_SCHEME
 from temba.formax import FormaxMixin
-from temba.orgs.models import OrgFolder
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, VISIBLE
+from temba.utils.expressions import get_function_listing
+from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
 
 
 def send_message_auto_complete_processor(request):
@@ -37,45 +38,22 @@ def send_message_auto_complete_processor(request):
             completions.append(dict(name="contact.%s" % str(field.key), display=unicode(_("Contact Field: %(label)s")) % {'label':field.label}))
 
         completions.insert(0, dict(name='contact', display=unicode(_("Contact Name"))))
-        completions.insert(1, dict(name='contact.name', display=unicode(_("Contact Name"))))
-        completions.insert(2, dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
-        completions.insert(3, dict(name='contact.tel', display=unicode(_("Contact Phone"))))
-        completions.insert(4, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
-        completions.insert(5, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
-        completions.insert(6, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
+        completions.insert(1, dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
+        completions.insert(2, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
+        completions.insert(3, dict(name='contact.language', display=unicode(_("Contact Language"))))
+        completions.insert(4, dict(name='contact.name', display=unicode(_("Contact Name"))))
+        completions.insert(5, dict(name='contact.tel', display=unicode(_("Contact Phone"))))
+        completions.insert(6, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
+        completions.insert(7, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
 
-        completions.insert(7, dict(name="date", display=unicode(_("Current Date and Time"))))
-        completions.insert(8, dict(name="date.now", display=unicode(_("Current Date and Time"))))
-        completions.insert(9, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
+        completions.insert(8, dict(name="date", display=unicode(_("Current Date and Time"))))
+        completions.insert(9, dict(name="date.now", display=unicode(_("Current Date and Time"))))
         completions.insert(10, dict(name="date.today", display=unicode(_("Current Date"))))
         completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
+        completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
-    return dict(completions=json.dumps(completions))
-
-
-def unread_msg_count_processor(request):
-    ctxt_data = dict()
-    user = request.user
-
-    if user.is_superuser or user.is_anonymous():
-        return ctxt_data
-
-    org = user.get_org()
-    if org:
-        msg_last_viewed = org.msg_last_viewed
-        unread_msg_count = Msg.get_unread_msg_count(user)
-
-        if request.path == reverse('msgs.msg_inbox'):
-            org.msg_last_viewed = timezone.now()
-            org.save()
-
-            unread_msg_count = 0
-            ctxt_data['msg_last_viewed'] = msg_last_viewed
-
-        if unread_msg_count:
-            ctxt_data['unread_msg_count'] = unread_msg_count
-
-    return ctxt_data
+    function_completions = get_function_listing()
+    return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
 
 
 class SendMessageForm(Form):
@@ -96,7 +74,7 @@ class SendMessageForm(Form):
         return valid
 
 
-class FolderListView(OrgPermsMixin, SmartListView):
+class MsgListView(OrgPermsMixin, SmartListView):
     """
     Base class for message list views with message folders and labels listed by the side
     """
@@ -107,12 +85,12 @@ class FolderListView(OrgPermsMixin, SmartListView):
     paginate_by = 100
 
     def pre_process(self, request, *args, **kwargs):
-        if hasattr(self, 'folder'):
+        if hasattr(self, 'system_label'):
             org = request.user.get_org()
-            self.queryset = org.get_folder_queryset(self.folder)
+            self.queryset = SystemLabel.get_queryset(org, self.system_label)
 
     def get_queryset(self, **kwargs):
-        queryset = super(FolderListView, self).get_queryset(**kwargs)
+        queryset = super(MsgListView, self).get_queryset(**kwargs)
 
         # if we are searching, limit to last 90
         if 'search' in self.request.REQUEST:
@@ -123,25 +101,27 @@ class FolderListView(OrgPermsMixin, SmartListView):
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
+        counts = SystemLabel.get_counts(org)
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'folder') and 'search' not in self.request.REQUEST:
-            org.patch_folder_queryset(self.object_list, self.folder, self.request)
+        if hasattr(self, 'system_label') and 'search' not in self.request.REQUEST:
+            self.object_list.count = lambda: counts[self.system_label]
 
-        context = super(FolderListView, self).get_context_data(**kwargs)
+        context = super(MsgListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=org.get_folder_count(OrgFolder.msgs_inbox), label=_("Inbox"), url=reverse('msgs.msg_inbox')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_archived), label=_("Archived"), url=reverse('msgs.msg_archived')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_outbox), label=_("Outbox"), url=reverse('msgs.broadcast_outbox')),
-                   dict(count=org.get_folder_count(OrgFolder.calls_all), label=_("Calls"), url=reverse('msgs.call_list')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_flows), label=_("Flows"), url=reverse('msgs.msg_flow')),
-                   dict(count=org.get_folder_count(OrgFolder.broadcasts_scheduled), label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
-                   dict(count=org.get_folder_count(OrgFolder.msgs_failed), label=_("Failed"), url=reverse('msgs.msg_failed'))]
+        folders = [dict(count=counts[SystemLabel.TYPE_INBOX], label=_("Inbox"), url=reverse('msgs.msg_inbox')),
+                   dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse('msgs.msg_flow')),
+                   dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
+                   dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
+                   dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
+                   dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('msgs.call_list')),
+                   dict(count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
+                   dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
         context['folders'] = folders
         context['labels'] = Label.get_hierarchy(org)
-        context['has_labels'] = Label.user_labels.filter(org=org).exists()
+        context['has_labels'] = Label.label_objects.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
         return context
@@ -168,9 +148,11 @@ class BroadcastForm(forms.ModelForm):
 
     class Meta:
         model = Broadcast
+        fields = '__all__'
+
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ('send', 'outbox', 'read', 'update', 'schedule_read', 'schedule_list')
+    actions = ('send', 'update', 'schedule_read', 'schedule_list')
     model = Broadcast
 
     class ScheduleRead(FormaxMixin, OrgObjPermsMixin, SmartReadView):
@@ -227,46 +209,14 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast.save()
             return broadcast
 
-    class Read(OrgObjPermsMixin, SmartReadView):
-        refresh = 10000
-
-        def get_context_data(self, **kwargs):
-            context = super(BroadcastCRUDL.Read, self).get_context_data(**kwargs)
-            context['msgs'] = self.object.get_messages_by_status()
-            context['msg_substitution_complete'] = self.object.get_messages_substitution_complete()
-            context['msg_substitution_incomplete'] = self.object.get_messages_substitution_incomplete()
-            context['msg_count'] = self.object.get_message_count()
-            context['msg_sending_count'] = self.object.get_message_sending_count()
-            context['msg_sent_count'] = self.object.get_message_sent_count()
-            context['msg_delivered_count'] = self.object.get_message_delivered_count()
-            context['msg_failed_count'] = self.object.get_message_failed_count()
-
-            return context
-
-    class Outbox(FolderListView):
-        title = _("Outbox")
-        fields = ('contacts', 'msgs', 'sent', 'status',)
-        search_fields = ('msgs__text__icontains', 'contacts__urns__path__icontains')
-        template_name = 'msgs/broadcast_outbox.haml'
-        default_order = ('-created_on')
-        folder = OrgFolder.broadcasts_outbox
-
-        def get_queryset(self, **kwargs):
-            qs = super(BroadcastCRUDL.Outbox, self).get_queryset(**kwargs)
-            
-            if 'search' in self.request.GET:  # searching is performed on related messages
-                qs = qs.distinct()
-
-            return qs.order_by('-created_on')
-
-    class ScheduleList(FolderListView):
+    class ScheduleList(MsgListView):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
         search_fields = ('text__icontains', 'contacts__urns__path__icontains')
         template_name = 'msgs/broadcast_schedule_list.haml'
         default_order = ('schedule__status', 'schedule__next_fire', '-created_on')
-        folder = OrgFolder.broadcasts_scheduled
+        system_label = SystemLabel.TYPE_SCHEDULED
 
         def get_queryset(self, **kwargs):
             qs = super(BroadcastCRUDL.ScheduleList, self).get_queryset(**kwargs)
@@ -382,7 +332,7 @@ class BaseActionForm(forms.Form):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'user_labels'
+    LABEL_CLASS_MANAGER = 'all_objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
@@ -499,7 +449,7 @@ class MsgActionForm(BaseActionForm):
 
     OBJECT_CLASS = Msg
     LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'user_labels'
+    LABEL_CLASS_MANAGER = 'label_objects'
 
     HAS_IS_ACTIVE = False
 
@@ -576,7 +526,7 @@ class ExportForm(Form):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ('inbox', 'flow', 'failed', 'filter', 'archived', 'test', 'export')
+    actions = ('inbox', 'flow', 'archived', 'outbox', 'sent', 'failed', 'filter', 'test', 'export')
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -607,7 +557,7 @@ class MsgCRUDL(SmartCRUDL):
 
             label = None
             if label_id:
-                label = Label.user_labels.get(pk=label_id)
+                label = Label.label_objects.get(pk=label_id)
 
             host = self.request.branding['host']
 
@@ -615,22 +565,34 @@ class MsgCRUDL(SmartCRUDL):
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
 
-            export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, host=host,
-                                                  label=label, start_date=start_date, end_date=end_date)
-            for group in groups:
-                export.groups.add(group)
+            # is there already an export taking place?
+            existing = ExportMessagesTask.objects.filter(org=org, is_finished=False,
+                                                         created_on__gt=timezone.now() - timedelta(hours=24))\
+                                                 .order_by('-created_on').first()
 
-            export_sms_task.delay(export.pk)
+            # if there is an existing export, don't allow it
+            if existing:
+                messages.info(self.request,
+                              _("There is already an export in progress, started by %s. You must wait "
+                                "for that export to complete before starting another." % existing.created_by.username))
 
-            from django.contrib import messages
-            if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                messages.info(self.request, _("We are preparing your export. ") +
-                                            _("We will e-mail you at %s when it is ready.") % self.request.user.username)
-
+            # otherwise, off we go
             else:
-                export = ExportMessagesTask.objects.get(id=export.pk)
-                dl_url = reverse('assets.download', kwargs=dict(type='message_export', identifier=export.pk))
-                messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, host=host,
+                                                           label=label, start_date=start_date, end_date=end_date)
+                for group in groups:
+                    export.groups.add(group)
+
+                export_sms_task.delay(export.pk)
+
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                    messages.info(self.request, _("We are preparing your export. ") +
+                                                _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+
+                else:
+                    export = ExportMessagesTask.objects.get(id=export.pk)
+                    dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
+                    messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
 
             try:
                 messages.success(self.request, self.derive_success_message())
@@ -688,10 +650,10 @@ class MsgCRUDL(SmartCRUDL):
             kwargs['org'] = self.request.user.get_org()
             return kwargs
 
-    class Inbox(MsgActionMixin, FolderListView):
+    class Inbox(MsgActionMixin, MsgListView):
         title = _("Inbox")
         template_name = 'msgs/message_box.haml'
-        folder = OrgFolder.msgs_inbox
+        system_label = SystemLabel.TYPE_INBOX
 
         def get_gear_links(self):
             links = []
@@ -711,10 +673,24 @@ class MsgCRUDL(SmartCRUDL):
             context['org'] = self.request.user.get_org()
             return context
 
-    class Archived(MsgActionMixin, FolderListView):
+    class Flow(MsgActionMixin, MsgListView):
+        title = _("Flow Messages")
+        template_name = 'msgs/message_box.haml'
+        system_label = SystemLabel.TYPE_FLOWS
+
+        def get_queryset(self, **kwargs):
+            qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
+            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(MsgCRUDL.Flow, self).get_context_data(*args, **kwargs)
+            context['actions'] = ['label']
+            return context
+
+    class Archived(MsgActionMixin, MsgListView):
         title = _("Archived")
         template_name = 'msgs/msg_archived.haml'
-        folder = OrgFolder.msgs_archived
+        system_label = SystemLabel.TYPE_ARCHIVED
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Archived, self).get_queryset(**kwargs)
@@ -725,25 +701,39 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['restore', 'label', 'delete']
             return context
 
-    class Flow(MsgActionMixin, FolderListView):
-        title = _("Flow Messages")
+    class Outbox(MsgActionMixin, MsgListView):
+        title = _("Outbox Messages")
         template_name = 'msgs/message_box.haml'
-        folder = OrgFolder.msgs_flows
+        system_label = SystemLabel.TYPE_OUTBOX
 
         def get_queryset(self, **kwargs):
-            qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
+            qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
-            context = super(MsgCRUDL.Flow, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['label',]
+            context = super(MsgCRUDL.Outbox, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
             return context
 
-    class Failed(MsgActionMixin, FolderListView):
+    class Sent(MsgActionMixin, MsgListView):
+        title = _("Sent Messages")
+        template_name = 'msgs/message_box.haml'
+        system_label = SystemLabel.TYPE_SENT
+
+        def get_queryset(self, **kwargs):
+            qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
+            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
+            return context
+
+    class Failed(MsgActionMixin, MsgListView):
         title = _("Failed Outgoing Messages")
         template_name = 'msgs/msg_failed.haml'
         success_message = ''
-        folder = OrgFolder.msgs_failed
+        system_label = SystemLabel.TYPE_FAILED
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
@@ -754,7 +744,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['resend']
             return context
 
-    class Filter(MsgActionMixin, FolderListView):
+    class Filter(MsgActionMixin, MsgListView):
         template_name = 'msgs/msg_filter.haml'
 
         def derive_title(self, *args, **kwargs):
@@ -803,11 +793,11 @@ class MsgCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<label_id>\d+)/$' % (path, action)
 
         def derive_label(self):
-            return Label.user_all.get(pk=self.kwargs['label_id'])
+            return Label.all_objects.get(pk=self.kwargs['label_id'])
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE, contact__is_test=False)
+            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
 
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
@@ -820,17 +810,18 @@ class BaseLabelForm(forms.ModelForm):
             raise forms.ValidationError("Name must not be blank or begin with punctuation")
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.user_all.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+        if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
             raise forms.ValidationError("Name must be unique")
 
         return name
 
     class Meta:
         model = Label
+        fields = '__all__'
 
 
 class LabelForm(BaseLabelForm):
-    folder = forms.ModelChoiceField(Label.user_folders.none(), required=False, label=_("Folder"))
+    folder = forms.ModelChoiceField(Label.folder_objects.none(), required=False, label=_("Folder"))
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -839,7 +830,7 @@ class LabelForm(BaseLabelForm):
 
         super(LabelForm, self).__init__(*args, **kwargs)
 
-        self.fields['folder'].queryset = Label.user_folders.filter(org=self.org)
+        self.fields['folder'].queryset = Label.folder_objects.filter(org=self.org)
 
 
 class FolderForm(BaseLabelForm):
@@ -860,7 +851,7 @@ class LabelCRUDL(SmartCRUDL):
         paginate_by = None
 
         def derive_queryset(self, **kwargs):
-            return Label.user_labels.filter(org=self.request.user.get_org())
+            return Label.label_objects.filter(org=self.request.user.get_org())
 
         def render_to_response(self, context, **response_kwargs):
             results = [dict(id=l.pk, text=l.name) for l in context['object_list']]
@@ -938,11 +929,11 @@ class CallCRUDL(SmartCRUDL):
     model = Call
     actions = ('list',)
 
-    class List(FolderListView):
+    class List(MsgListView):
         fields = ('call_type', 'contact', 'channel', 'time')
         default_order = '-time'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
-        folder = OrgFolder.calls_all
+        system_label = SystemLabel.TYPE_CALLS
 
         def get_queryset(self, **kwargs):
             qs = super(CallCRUDL.List, self).get_queryset(**kwargs)
@@ -950,3 +941,8 @@ class CallCRUDL(SmartCRUDL):
 
         def get_contact(self, obj):
             return obj.contact.get_display(self.org)
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(CallCRUDL.List, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
+            return context

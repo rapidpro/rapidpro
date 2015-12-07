@@ -1,0 +1,15 @@
+language: node_js
+node_js:
+  - "0.10"
+notifications:
+  email:
+    on_success: never # default: change
+    on_failure: change # default: always
+branches:
+  only:
+    - master
+    - stable
+before_script:
+  - npm install -g grunt-cli
+  - npm install -g bower
+  - bower install
