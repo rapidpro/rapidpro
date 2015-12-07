@@ -149,7 +149,7 @@
       %p
         -trans "Visit your account page to add credits at any time"
       %p
-        -url 'api' as api_url
+        -url 'api.v1' as api_url
         -blocktrans with name=brand.name
           {{name}} also offers a robust REST API to add SMS features to your own website. Have a look through the
           %a{href:'{{api_url}}'}
@@ -159,7 +159,7 @@
       %div
         %a.btn.workflow-btn{href:"{% url 'orgs.org_home' %}?open=webhook"}
           -trans "Add Web Hook"
-        %a.btn.workflow-btn{href:"{% url 'api' %}"}
+        %a.btn.workflow-btn{href:"{% url 'api.v1' %}"}
           -trans "API Documentation"
 
 -block extra-script

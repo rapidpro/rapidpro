@@ -6,7 +6,7 @@ from .views import FlowRunEndpoint
 
 
 urlpatterns = [
-    url(r'^/runs$', FlowRunEndpoint.as_view(), name='api.runs'),
+    url(r'^/runs$', FlowRunEndpoint.as_view(), name='api.v2.runs'),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'api'])

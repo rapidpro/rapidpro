@@ -173,8 +173,7 @@ ROOT_URLCONF = 'temba.urls'
 APP_URLS = []
 
 SITEMAP = ('public.public_index', 'public.video_list', 'public.public_blog',
-           'api', 'api.explorer', 'api.webhook', 'api.webhook_simulator',
-           'api.sms', 'api.flows', 'api.runs', 'api.calls', 'api.channels')
+           'api.v1', 'api.v1.explorer', 'api.webhook', 'api.webhook_simulator')
 
 INSTALLED_APPS = (
     'django.contrib.auth',

@@ -94,7 +94,7 @@
 
 -block post-fields
   .extra-formax-buttons
-    %a.btn{ href: '{% url "api" %}', style:'width: 60px;'}
+    %a.btn{ href: '{% url "api.v1" %}', style:'width: 60px;'}
       -trans "API Docs"
     %a.btn{ href: '{% url "api.log" %}', style:'width: 60px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
       -trans "API Log"

@@ -152,7 +152,7 @@ class APITest(TembaTest):
         self.assertEquals(403, response.status_code)
 
     def test_api_explorer(self):
-        url = reverse('api.explorer')
+        url = reverse('api.v1.explorer')
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
@@ -170,7 +170,7 @@ class APITest(TembaTest):
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_api_root(self):
-        url = reverse('api')
+        url = reverse('api.v1')
 
         # browse as HTML anonymously
         response = self.fetchHTML(url)
@@ -243,12 +243,12 @@ class APITest(TembaTest):
 
         self.login(self.admin)
 
-        response = self.client.get(reverse('api.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        response = self.client.get(reverse('api.v1.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
 
     def test_api_org(self):
-        url = reverse('api.org')
+        url = reverse('api.v1.org')
 
         # can't access, get 403
         self.assert403(url)
@@ -291,7 +291,7 @@ class APITest(TembaTest):
                                              anon=False))
 
     def test_api_flows(self):
-        url = reverse('api.flows')
+        url = reverse('api.v1.flows')
 
         # can't access, get 403
         self.assert403(url)
@@ -397,8 +397,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 2)
 
     def test_api_flow_definition(self):
-
-        url = reverse('api.flow_definition')
+        url = reverse('api.v1.flow_definition')
         self.login(self.admin)
 
         # load flow definition from test data
@@ -473,7 +472,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):
-        url = reverse('api.steps')
+        url = reverse('api.v1.steps')
 
         # can't access, get 403
         self.assert403(url)
@@ -705,7 +704,7 @@ class APITest(TembaTest):
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
     def test_api_results(self):
-        url = reverse('api.results')
+        url = reverse('api.v1.results')
 
         # can't access, get 403
         self.assert403(url)
@@ -768,7 +767,7 @@ class APITest(TembaTest):
             mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
 
     def test_api_runs(self):
-        url = reverse('api.runs')
+        url = reverse('api.v1.runs')
 
         # can't access, get 403
         self.assert403(url)
@@ -929,7 +928,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
     def test_api_channels(self):
-        url = reverse('api.channels')
+        url = reverse('api.v1.channels')
 
         # can't access, get 403
         self.assert403(url)
@@ -1089,7 +1088,7 @@ class APITest(TembaTest):
             self.assertEquals(204, response.status_code)
 
     def test_api_calls(self):
-        url = reverse('api.calls')
+        url = reverse('api.v1.calls')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1121,7 +1120,7 @@ class APITest(TembaTest):
         self.assertNotContains(response, "mt_miss")
 
     def test_api_contacts(self):
-        url = reverse('api.contacts')
+        url = reverse('api.v1.contacts')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1500,7 +1499,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
     def test_api_contacts_with_multiple_pages(self):
-        url = reverse('api.contacts')
+        url = reverse('api.v1.contacts')
 
         # bulk create more contacts than fits on one page
         contacts = []
@@ -1544,7 +1543,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 303)
 
     def test_api_fields(self):
-        url = reverse('api.contactfields')
+        url = reverse('api.v1.contactfields')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1622,7 +1621,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'key', "Field is invalid or a reserved name")
 
     def test_api_contact_actions(self):
-        url = reverse('api.contact_actions')
+        url = reverse('api.v1.contact_actions')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1745,7 +1744,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'action', "Invalid action name: like")
 
     def test_api_messages(self):
-        url = reverse('api.messages')
+        url = reverse('api.v1.messages')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1848,7 +1847,7 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
 
-        url = reverse('api.sms')
+        url = reverse('api.v1.sms')
 
         # search by deprecated phone field
         response = self.fetchJSON(url, "direction=O&status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
@@ -1986,7 +1985,7 @@ class APITest(TembaTest):
             self.assertNotContains(response, "250788123123")
 
     def test_api_messages_multiple_contacts(self):
-        url = reverse('api.messages')
+        url = reverse('api.v1.messages')
         self.login(self.admin)
 
         # add a broadcast
@@ -2017,7 +2016,7 @@ class APITest(TembaTest):
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
     def test_api_messages_invalid_contact(self):
-        url = reverse('api.messages')
+        url = reverse('api.v1.messages')
         self.login(self.admin)
 
         response = self.postJSON(url, dict(phone=['250788123123', '  '], text='test1'))
@@ -2033,7 +2032,7 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_api_messages_with_channel(self):
-        url = reverse('api.sms')
+        url = reverse('api.v1.sms')
         self.login(self.admin)
 
         # invalid channel id
@@ -2061,7 +2060,7 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_api_message_actions(self):
-        url = reverse('api.message_actions')
+        url = reverse('api.v1.message_actions')
 
         # 403 if not logged in
         self.assert403(url)
@@ -2149,7 +2148,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'action', "Invalid action name: like")
 
     def test_api_labels(self):
-        url = reverse('api.labels')
+        url = reverse('api.v1.labels')
 
         # login as administrator
         self.login(self.admin)
@@ -2203,8 +2202,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Junk")
 
     def test_api_authenticate(self):
-
-        url = reverse('api.authenticate')
+        url = reverse('api.v1.authenticate')
 
         # fetch our html docs
         self.assertEqual(self.fetchHTML(url).status_code, 200)
@@ -2238,15 +2236,15 @@ class APITest(TembaTest):
 
         # campaigns can be fetched by admin token
         client.credentials(**admin_token)
-        self.assertEqual(200, client.get(reverse('api.campaigns') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.campaigns') + '.json').status_code)
 
         # but not by an admin's surveyor token
         client.credentials(**surveyor_token)
-        self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+        self.assertEqual(403, client.get(reverse('api.v1.campaigns') + '.json').status_code)
 
         # but their surveyor token can get flows or contacts
-        self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
-        self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.flows') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
 
         # our surveyor can't login with an admin role
         response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content)
@@ -2258,13 +2256,13 @@ class APITest(TembaTest):
 
         # and can fetch flows, contacts, and fields, but not campaigns
         client.credentials(HTTP_AUTHORIZATION='Token ' + response[0]['token'])
-        self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
-        self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
-        self.assertEqual(200, client.get(reverse('api.contactfields') + '.json').status_code)
-        self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.flows') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.contactfields') + '.json').status_code)
+        self.assertEqual(403, client.get(reverse('api.v1.campaigns') + '.json').status_code)
 
     def test_api_broadcasts(self):
-        url = reverse('api.broadcasts')
+        url = reverse('api.v1.broadcasts')
 
         # login as administrator
         self.login(self.admin)
@@ -2379,7 +2377,7 @@ class APITest(TembaTest):
         self.assertEqual([b['text'] for b in response.json['results']], ["Hello 3", "Hello 1"])
 
     def test_api_campaigns(self):
-        url = reverse('api.campaigns')
+        url = reverse('api.v1.campaigns')
 
         # can't access, get 403
         self.assert403(url)
@@ -2491,7 +2489,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0]['uuid'], campaign2.uuid)
 
     def test_api_campaign_events(self):
-        url = reverse('api.campaignevents')
+        url = reverse('api.v1.campaignevents')
 
         # can't access, get 403
         self.assert403(url)
@@ -2611,7 +2609,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
     def test_api_groups(self):
-        url = reverse('api.contactgroups')
+        url = reverse('api.v1.contactgroups')
 
         # 403 if not logged in
         self.assert403(url)

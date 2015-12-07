@@ -12,7 +12,7 @@
   -block breadcrumbs
     %ul.breadcrumb
       %li
-        %a{href:"{% url 'api' %}"}
+        %a{href:"{% url 'api.v1' %}"}
           -blocktrans with brand.name as brand
             {{ brand }} API
         %span.divider &rsaquo;

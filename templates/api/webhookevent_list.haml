@@ -11,7 +11,7 @@
     WebHook URL: {{ user_org.get_webhook_url|default:"None Configured" }}
 
 -block above-bar
-  %a.btn.btn-primary{ href: '{% url "api" %}' } API Docs
+  %a.btn.btn-primary{ href: '{% url "api.v1" %}' } API Docs
 
 -block table
   %table.list-table.table.table-condensed

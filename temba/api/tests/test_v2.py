@@ -46,7 +46,7 @@ class APITest(TembaTest):
         self.assertEquals(403, response.status_code)
 
     def test_api_runs(self):
-        url = reverse('api.runs')
+        url = reverse('api.v2.runs')
 
         # can't access, get 403
         self.assert403(url)
