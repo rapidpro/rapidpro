@@ -28,7 +28,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value, DATETIME
 from urlparse import parse_qs
 from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
-from .v1.serializers import StringArrayField, PhoneArrayField, ChannelField
+from .v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField
 
 
 class APITest(TembaTest):
@@ -60,7 +60,7 @@ class APITest(TembaTest):
         super(APITest, self).tearDown()
         settings.SESSION_COOKIE_SECURE = False
 
-        connection.settings_dict['ATOMIC_REQUESTS'] = False
+        connection.settings_dict['ATOMIC_REQUESTS'] = True
 
     def fetchHTML(self, url, query=None):
         if query:
@@ -211,6 +211,12 @@ class APITest(TembaTest):
         self.assertEqual(response.xml.find('labels').text, 'https://testserver:80/api/v1/labels')
 
     def test_api_serializer_fields(self):
+        dict_field = StringDictField(source='test')
+
+        self.assertEqual(dict_field.from_native({'a': '123'}), {'a': '123'})
+        self.assertRaises(ValidationError, dict_field.from_native, [])  # must be a dict
+        self.assertRaises(ValidationError, dict_field.from_native, {123: '456'})  # keys and values must be strings
+
         strings_field = StringArrayField(source='test')
 
         self.assertEqual(strings_field.to_internal_value(['a', 'b', 'c']), ['a', 'b', 'c'])
