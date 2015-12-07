@@ -65,7 +65,6 @@ class AdminBoundary(MPTTModel, models.Model):
         return AdminBoundary.get_geojson_dump([self.get_geojson_feature()])
 
     def get_children_geojson(self):
-        # TODO: update to iterate through children
         children = []
         for child in self.children.all():
             children.append(child.get_geojson_feature())
