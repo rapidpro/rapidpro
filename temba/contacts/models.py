@@ -252,7 +252,7 @@ class Contact(TembaModel, SmartModel):
 
         scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
         scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
-        scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire__gt=now)
+        scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
         scheduled_broadcasts = scheduled_broadcasts.filter(
             Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
 
