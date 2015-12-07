@@ -76,7 +76,7 @@ class StringDictField(serializers.DictField):
         # enforce values must be strings, see https://github.com/tomchristie/django-rest-framework/pull/3394
         if isinstance(data, dict):
             for key, val in data.iteritems():
-                if not isinstance(val, basestring):
+                if not isinstance(key, basestring) or not isinstance(val, basestring):
                     raise serializers.ValidationError("Both keys and values must be strings")
 
         return super(StringDictField, self).to_internal_value(data)

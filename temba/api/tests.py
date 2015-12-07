@@ -213,9 +213,9 @@ class APITest(TembaTest):
     def test_api_serializer_fields(self):
         dict_field = StringDictField(source='test')
 
-        self.assertEqual(dict_field.from_native({'a': '123'}), {'a': '123'})
-        self.assertRaises(ValidationError, dict_field.from_native, [])  # must be a dict
-        self.assertRaises(ValidationError, dict_field.from_native, {123: '456'})  # keys and values must be strings
+        self.assertEqual(dict_field.to_internal_value({'a': '123'}), {'a': '123'})
+        self.assertRaises(ValidationError, dict_field.to_internal_value, [])  # must be a dict
+        self.assertRaises(ValidationError, dict_field.to_internal_value, {123: '456'})  # keys and values must be strings
 
         strings_field = StringArrayField(source='test')
 
