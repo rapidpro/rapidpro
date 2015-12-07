@@ -4363,10 +4363,10 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id):
-                group = ContactGroup.user_groups.get(org=org, id=group_id)
-            elif ContactGroup.user_groups.filter(org=org, name=group_name):
-                group = ContactGroup.user_groups.get(org=org, name=group_name)
+            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
+                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
+            elif ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True):
+                group = ContactGroup.user_groups.get(org=org, name=group_name, is_active=True)
             else:
                 group = ContactGroup.create(org, org.get_user(), group_name)
 
