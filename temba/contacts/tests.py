@@ -1119,11 +1119,19 @@ class ContactTest(TembaTest):
 
         from temba.campaigns.models import EventFire
         self.create_campaign()
+
+        # create more events
+        from temba.campaigns.models import CampaignEvent
+        for i in range(5):
+            self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
+                                               relative_to=self.planting_date, offset=i+10, unit='D',
+                                               message='Sent %d days after planting date' % (i+10))
+
         self.joe.set_field('planting_date', unicode(timezone.now() + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
 
-        # should have two fires for each campaign event
-        self.assertEquals(2, EventFire.objects.all().count())
+        # should have seven fires, one for each campaign event
+        self.assertEquals(7, EventFire.objects.all().count())
 
         # visit a contact detail page as a user but not belonging to this organization
         self.login(self.user1)
@@ -1140,9 +1148,13 @@ class ContactTest(TembaTest):
         self.assertEquals(self.joe, response.context['object'])
         upcoming = response.context['upcoming_events']
 
-        # should have upcoming events in order of last to fire
-        self.assertEquals(7, upcoming[0].event.offset)
-        self.assertEquals(0, upcoming[1].event.offset)
+        # should show the next three events to fire in reverse order
+        self.assertEquals(3, len(upcoming))
+
+        self.assertEquals(10, upcoming[0].event.offset)
+        self.assertEquals(7, upcoming[1].event.offset)
+        self.assertEquals(0, upcoming[2].event.offset)
+
         self.assertGreater(upcoming[0].scheduled, upcoming[1].scheduled)
 
         contact_no_name = self.create_contact(name=None, number="678")

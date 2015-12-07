@@ -34,6 +34,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
+from twilio import TwilioException, TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
@@ -92,16 +93,57 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
+    def test_deactivate(self):
+        self.login(self.admin)
+        self.tel_channel.is_active = False
+        self.tel_channel.save()
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        self.assertEquals(404, response.status_code)
+
     def test_delegate_channels(self):
+
+        self.login(self.admin)
 
         # we don't support IVR yet
         self.assertFalse(self.org.supports_ivr())
 
+        # pretend we are connected to twiliko
+        self.org.config = json.dumps(dict(ACCOUNT_SID='AccountSid', ACCOUNT_TOKEN='AccountToken', APPLICATION_SID='AppSid'))
+        self.org.save()
+
         # add a delegate caller
-        Channel.add_call_channel(self.org, self.user, self.tel_channel)
+        post_data = dict(channel=self.tel_channel.pk, connection='T')
+        response = self.client.post(reverse('channels.channel_create_caller'), post_data)
 
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
+
+        # should now have the option to disable
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        self.assertContains(response, 'Disable Voice Calls')
+
+        # try adding a caller for an invalid channel
+        response = self.client.post('%s?channel=20000' % reverse('channels.channel_create_caller'))
+        self.assertEquals(200, response.status_code)
+        self.assertEquals('Sorry, a caller cannot be added for that number', response.context['form'].errors['channel'][0])
+
+        # disable our twilio connection
+        self.org.remove_twilio_account()
+        self.assertFalse(self.org.supports_ivr())
+
+        # we should lose our caller
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        self.assertNotContains(response, 'Disable Voice Calls')
+
+        # now try and add it back without a twilio connection
+        response = self.client.post(reverse('channels.channel_create_caller'), post_data)
+
+        # shouldn't have added, so no ivr yet
+        self.assertFalse(self.assertFalse(self.org.supports_ivr()))
+
+        self.assertEquals('A connection to a Twilio account is required', response.context['form'].errors['connection'][0])
+
 
     def test_get_channel_type_name(self):
         self.assertEquals(self.tel_channel.get_channel_type_name(), "Android Phone")
@@ -854,6 +896,11 @@ class ChannelTest(TembaTest):
         self.assertTrue(self.org.get_send_channel(TEL_SCHEME).is_delegate_sender())
         self.assertFalse(self.org.get_receive_channel(TEL_SCHEME).is_delegate_sender())
 
+        # reading our nexmo channel should now offer a disconnect option
+        nexmo = self.org.channels.filter(channel_type='NX').first()
+        response = self.client.get(reverse('channels.channel_read', args=[nexmo.pk]))
+        self.assertContains(response, 'Disable Bulk Sending')
+
         # create a US channel and try claiming it next to our RW channels
         post_data = json.dumps(dict(cmds=[dict(cmd="gcm", gcm_id="claim_test", uuid='uuid'),
                                           dict(cmd='status', cc='US', dev='Nexus')]))
@@ -981,6 +1028,28 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='T', org=self.org)
+
+
+        twilio_channel = self.org.channels.all().first()
+        self.assertEquals('T', twilio_channel.channel_type)
+
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:
+
+            # our twilio channel removal should fail on bad auth
+            mock_numbers.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
+            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+            self.assertIsNotNone(self.org.channels.all().first())
+
+            # or other arbitrary twilio errors
+            mock_numbers.side_effect = TwilioRestException(400, 'http://twilio', msg='Twilio Error', code=123)
+            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+            self.assertIsNotNone(self.org.channels.all().first())
+
+            # now lets be successful
+            mock_numbers.side_effect = None
+            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+            self.assertIsNone(self.org.channels.all().first())
+
 
     def test_claim_nexmo(self):
         self.login(self.admin)
@@ -2407,6 +2476,19 @@ class ExternalTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
+
+        # view the log item for our send
+        self.login(self.admin)
+        log_item = ChannelLog.objects.all().order_by('created_on').first()
+        response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
+        self.assertEquals(response.context['object'].description, 'Successfully delivered')
+
+        # make sure we can't see it as anon
+        self.org.is_anon = True
+        self.org.save()
+
+        response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
+        self.assertEquals(302, response.status_code)
 
 
 class YoTest(TembaTest):

@@ -4029,6 +4029,56 @@ class DuplicateValueTest(FlowFileTest):
         self.assertEquals("Red", value.category)
 
 
+class ChannelSplitTest(FlowFileTest):
+
+    def setUp(self):
+        super(ChannelSplitTest, self).setUp()
+
+        # update our channel to have a 206 address
+        self.channel.address = '+12065551212'
+        self.channel.save()
+
+    def test_initial_channel_split(self):
+        flow = self.get_flow('channel_split')
+
+        # start our contact down the flow
+        flow.start([], [self.contact])
+
+        # check the message sent to them
+        msg = self.contact.msgs.last()
+        self.assertEqual("Your channel is +12065551212", msg.text)
+
+        # check the split
+        msg = self.contact.msgs.first()
+        self.assertEqual("206 Channel", msg.text)
+
+    def test_no_urn_channel_split(self):
+        flow = self.get_flow('channel_split')
+
+        # ok, remove the URN on our contact
+        self.contact.urns.all().update(contact=None)
+
+        # run the flow again
+        flow.start([], [self.contact])
+
+        # shouldn't have any messages sent, as they have no URN
+        self.assertFalse(self.contact.msgs.all())
+
+        # should have completed the flow though
+        run = FlowRun.objects.get(contact=self.contact)
+        self.assertFalse(run.is_active)
+
+    def test_no_urn_channel_split_first(self):
+        flow = self.get_flow('channel_split_rule_first')
+
+        # start our contact down the flow
+        flow.start([], [self.contact])
+
+        # check that the split was successful
+        msg = self.contact.msgs.first()
+        self.assertEqual("206 Channel", msg.text)
+
+
 class WebhookLoopTest(FlowFileTest):
 
     def setUp(self):
