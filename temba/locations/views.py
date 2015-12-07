@@ -75,6 +75,12 @@ class BoundaryCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
 
+            def update_boundary_aliases(boundary):
+                level_boundary = AdminBoundary.objects.filter(osm_id=boundary['osm_id']).first()
+                if level_boundary:
+                    boundary_aliases = boundary.get('aliases', '')
+                    update_aliases(level_boundary, boundary_aliases)
+
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
                 BoundaryAlias.objects.filter(
@@ -102,28 +108,26 @@ class BoundaryCRUDL(SmartCRUDL):
                     update_aliases(state_boundary, state_aliases)
                     if 'children' in state:
                         for district in state['children']:
-                            district_boundary = AdminBoundary.objects.filter(
-                                osm_id=district['osm_id']).first()
-                            district_aliases = district.get('aliases', '')
-                            update_aliases(district_boundary, district_aliases)
+                            update_boundary_aliases(district)
+                            if 'children' in district:
+                                for ward in district['children']:
+                                    update_boundary_aliases(ward)
 
             return build_json_response(json_list)
 
         def get(self, request, *args, **kwargs):
             tops = list(AdminBoundary.objects.filter(
                 parent__osm_id=self.get_object().osm_id).order_by('name'))
-            children = AdminBoundary.objects.filter(Q(parent__osm_id__in=[
+
+            tops_children = AdminBoundary.objects.filter(Q(parent__osm_id__in=[
                                                     boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
 
-            boundaries = []
-            for top in tops:
-                boundaries.append(top.as_json())
+            boundaries = [top.as_json() for top in tops]
 
             current_top = None
             match = ''
-            for child in children:
+            for child in tops_children:
                 child = child.as_json()
-
                 # find the appropriate top if necessary
                 if not current_top or current_top['osm_id'] != child['parent_osm_id']:
                     for top in boundaries:
@@ -131,13 +135,23 @@ class BoundaryCRUDL(SmartCRUDL):
                             current_top = top
                             match = '%s %s' % (
                                 current_top['name'], current_top['aliases'])
+                            current_top['match'] = match
 
                 children = current_top.get('children', [])
-                child['match'] = '%s %s %s %s' % (child['name'], child['aliases'], current_top[
-                                                  'name'], current_top['aliases'])
+                child['match'] = '%s %s' % (child['name'], child['aliases'])
+
+                child_children = list(AdminBoundary.objects.filter(Q(parent__osm_id=child['osm_id'])).order_by('name'))
+                sub_children = child.get('children', [])
+                for sub_child in child_children:
+                    sub_child = sub_child.as_json()
+                    sub_child['match'] = '%s %s %s %s %s' % (sub_child['name'], sub_child['aliases'], child['name'], child['aliases'], match)
+
+                    sub_children.append(sub_child)
+                    child['match'] = '%s %s %s' % (child['match'], sub_child['name'], sub_child['aliases'])
+
+                child['children'] = sub_children
                 children.append(child)
-                match = '%s %s %s' % (match, child['name'], child['aliases'])
                 current_top['children'] = children
-                current_top['match'] = match
+                current_top['match'] = '%s %s' % (current_top['match'], child['match'])
 
             return build_json_response(boundaries)
