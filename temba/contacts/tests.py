@@ -1165,13 +1165,8 @@ class ContactTest(TembaTest):
                                                relative_to=self.planting_date, offset=i+10, unit='D',
                                                message='Sent %d days after planting date' % (i+10))
 
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
-        broadcast.contacts.add(self.joe)
-        schedule_time = timezone.now() + timedelta(days=2)
-        broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
-        broadcast.save()
-
-        self.joe.set_field('planting_date', unicode(timezone.now() + timedelta(days=1)))
+        now = timezone.now()
+        self.joe.set_field('planting_date', unicode(now + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
@@ -1190,18 +1185,40 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
-        self.assertEquals(1, len(response.context['scheduled_messages']))
-        self.assertTrue(broadcast in response.context['scheduled_messages'])
         upcoming = response.context['upcoming_events']
 
         # should show the next three events to fire in reverse order
         self.assertEquals(3, len(upcoming))
 
-        self.assertEquals(10, upcoming[0].event.offset)
-        self.assertEquals(7, upcoming[1].event.offset)
-        self.assertEquals(0, upcoming[2].event.offset)
+        self.assertEquals("Sent 10 days after planting date", upcoming[0]['message'])
+        self.assertEquals("Sent 7 days after planting date", upcoming[1]['message'])
+        self.assertEquals(None, upcoming[2]['message'])
+        self.assertEquals(self.reminder_flow.pk, upcoming[2]['flow_id'])
+        self.assertEquals(self.reminder_flow.name, upcoming[2]['flow_name'])
 
-        self.assertGreater(upcoming[0].scheduled, upcoming[1].scheduled)
+        self.assertGreater(upcoming[0]['scheduled'], upcoming[1]['scheduled'])
+
+        # add a scheduled broadcast
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+        broadcast.contacts.add(self.joe)
+        schedule_time = now + timedelta(days=5)
+        broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
+        broadcast.save()
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        upcoming = response.context['upcoming_events']
+
+        # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
+        self.assertEquals(3, len(upcoming))
+
+        self.assertEquals("Sent 7 days after planting date", upcoming[0]['message'])
+        self.assertEquals("Hello", upcoming[1]['message'])
+        self.assertEquals(None, upcoming[2]['message'])
+        self.assertEquals(self.reminder_flow.pk, upcoming[2]['flow_id'])
+        self.assertEquals(self.reminder_flow.name, upcoming[2]['flow_name'])
+
+        self.assertGreater(upcoming[0]['scheduled'], upcoming[1]['scheduled'])
 
         contact_no_name = self.create_contact(name=None, number="678")
         read_url = reverse('contacts.contact_read', args=[contact_no_name.uuid])

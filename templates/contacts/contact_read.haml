@@ -61,33 +61,16 @@
             .contact-field-value
               {{field.value}}
 
-  -if scheduled_messages
-    .header
-      -trans "Scheduled messages"
-    %table.activity.pending
-      -for broadcast in scheduled_messages
-        %tr.item.msg
-          %td.icon
-            %span.glyph.icon-bubble-right
-
-          %td.details
-            .activity-scheduled
-              .activity-body
-                {{ broadcast.text }}
-          %td.created_on
-            {{broadcast.schedule.next_fire}}
-
-
   -if upcoming_events
     .header
       -trans "Upcoming"
     %table.activity.pending
       -for evt in upcoming_events
-        %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
+        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
           %td.icon
-            -if evt.event.event_type == 'M'
+            -if evt.event_type == 'M'
               %span.glyph.icon-bubble-right
-            -elif evt.event.event_type == 'F'
+            -elif evt.event_type == 'F'
               %span.glyph.icon-tree-2
             -else
               %span.glyph.icon-clock
@@ -96,14 +79,14 @@
 
             .activity-scheduled
 
-              -if evt.event.event_type == 'M'
+              -if evt.event_type == 'M'
                 //.summary
                 //  Scheduled {{evt.event.campaign}} message
                 .activity-body
-                  {{evt.event.message}}
-              -elif evt.event.event_type == 'F'
+                  {{evt.message}}
+              -elif evt.event_type == 'F'
                 -trans "Start"
-                %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
+                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_id %}" }= evt.flow_name
           %td.created_on
             {{evt.scheduled}}
 
