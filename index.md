@@ -15,10 +15,9 @@ how you can [contribute]({{site.baseurl}}/contribute/) to RapidPro yourself.
 
 RapidPro is an Open Source platform that allows anyone to build interactive messaging
 systems using an easy visual interface. A video is worth a thousand words and
-this brief video introduction of [TextIt](https://textit.in/) (a service
- powered by RapidPro) will give you an idea of what is possible.
+this brief video introduction will give you an idea of what is possible.
 
-<iframe src="//player.vimeo.com/video/72253940" width="700" height="400" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+<iframe width="700" height="400" src="https://www.youtube.com/embed/WcFhpSFhFug" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
 
 ## Features
 
