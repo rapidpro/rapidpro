@@ -8,6 +8,7 @@ from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebH
 
 urlpatterns = [
     url(r'^api/v1', include('temba.api.v1.urls')),
+    url(r'^api/v2', include('temba.api.v2.urls')),
 
     url(r'^webhooks', include([
         url(r'^/log/$', WebHookEventListView.as_view(), name='api.log'),
