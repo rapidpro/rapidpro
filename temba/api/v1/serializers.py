@@ -403,7 +403,7 @@ class ContactWriteSerializer(WriteSerializer):
                 normalized = phonenumbers.parse(value, None)
                 if not phonenumbers.is_possible_number(normalized):
                     raise serializers.ValidationError("Invalid phone number: '%s'" % value)
-            except:  # pragma: no cover
+            except Exception:
                 raise serializers.ValidationError("Invalid phone number: '%s'" % value)
 
             self.urn_tuples = [(TEL_SCHEME, phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164))]
@@ -470,6 +470,9 @@ class ContactWriteSerializer(WriteSerializer):
         if data.get('group_uuids') is not None and data.get('groups') is not None:
             raise serializers.ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
+        if self.org.is_anon and self.instance:
+            raise serializers.ValidationError("Cannot update contacts on anonymous organizations, can only create")
+
         if self.urn_tuples is not None:
             urns_strings = ["%s:%s" % u for u in self.urn_tuples]
             urn_query = Q(pk__lt=0)
@@ -502,9 +505,6 @@ class ContactWriteSerializer(WriteSerializer):
         name = self.validated_data.get('name')
         fields = self.validated_data.get('fields')
         language = self.validated_data.get('language')
-
-        if self.org.is_anon and self.instance:
-            raise serializers.ValidationError("Cannot update contacts on anonymous organizations, can only create")
 
         changed = []
 
