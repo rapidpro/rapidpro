@@ -860,17 +860,29 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
 
+        self.channel.is_active = True
+        self.channel.save()
+
+        with AnonymousOrg(self.org):
+            # anon orgs can't start flows by phone
+            response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+            self.assertResponseError(response, 'phone', "Cannot start flows by phone for anonymous organizations")
+
+            # but can start them by contact UUID
+            response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
+            self.assertEquals(201, response.status_code)
+
         # now test fetching them instead.....
 
         # no filtering
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 9)  # all the runs
+        self.assertResultCount(response, 10)  # all the runs
 
         flow.start([], [Contact.get_test_contact(self.user)])  # create a run for a test contact
 
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 9)  # test contact's run not included
+        self.assertResultCount(response, 10)  # test contact's run not included
 
         # filter by run id
         response = self.fetchJSON(url, "run=%d" % run.pk)
@@ -884,12 +896,12 @@ class APITest(TembaTest):
 
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
 
         # filter by flow UUID
         response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
 
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
         self.assertNotContains(response, flow_copy.uuid)
 
         # filter by phone (deprecated)
@@ -900,7 +912,7 @@ class APITest(TembaTest):
 
         # filter by contact UUID
         response = self.fetchJSON(url, "contact=" + contact.uuid)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
@@ -914,13 +926,13 @@ class APITest(TembaTest):
 
         # filter by group name
         response = self.fetchJSON(url, "group=Players")
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
         # filter by group UUID
         response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
