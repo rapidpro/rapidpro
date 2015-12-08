@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
         # our new domain is more specific
         new_bucket_domain = 'https://' + settings.AWS_BUCKET_DOMAIN
 
-        for msg in Msg.all_messages.filter(direction='I', msg_type='V').exclude(recording_url=None):
+        for msg in Msg.objects.filter(direction='I', msg_type='V').exclude(recording_url=None):
             # if our recording URL is on our old bucket
             if msg.recording_url.find(old_bucket_domain) >= 0:
                 # rename it to our new bucket
