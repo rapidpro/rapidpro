@@ -3322,6 +3322,18 @@ class FlowsTest(FlowFileTest):
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
 
+    def test_group_send(self):
+        # create an inactive group with the same name, to test that this doesn't blow up our import
+        group = ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
+        group.is_active = False
+        group.save()
+
+        # and create another as well
+        ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
+
+        # this could blow up due to illegal lookup for more than one contact group
+        self.get_flow('group-send-flow')
+
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
         registration_flow = self.get_flow('mama_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
