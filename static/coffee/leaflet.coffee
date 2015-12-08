@@ -181,7 +181,7 @@ app.directive "leaflet", ["$http", ($http) ->
               highlightFeature(scope.layerMap[id])
 
 
-    loadAdminLevel = (osmId, highlightOsmIds, level) ->
+    loadAdminLevel = (osmId, highlightOsmIds) ->
 
       if not osmId
         return
