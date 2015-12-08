@@ -76,7 +76,8 @@ class BoundaryCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
 
             def update_boundary_aliases(boundary):
-                level_boundary = AdminBoundary.objects.filter(osm_id=boundary['osm_id']).first()
+                level_boundary = AdminBoundary.objects.filter(
+                    osm_id=boundary['osm_id']).first()
                 if level_boundary:
                     boundary_aliases = boundary.get('aliases', '')
                     update_aliases(level_boundary, boundary_aliases)
@@ -120,7 +121,7 @@ class BoundaryCRUDL(SmartCRUDL):
                 parent__osm_id=self.get_object().osm_id).order_by('name'))
 
             tops_children = AdminBoundary.objects.filter(Q(parent__osm_id__in=[
-                                                    boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
+                boundary.osm_id for boundary in tops])).order_by('parent__osm_id', 'name')
 
             boundaries = [top.as_json() for top in tops]
 
@@ -140,18 +141,22 @@ class BoundaryCRUDL(SmartCRUDL):
                 children = current_top.get('children', [])
                 child['match'] = '%s %s' % (child['name'], child['aliases'])
 
-                child_children = list(AdminBoundary.objects.filter(Q(parent__osm_id=child['osm_id'])).order_by('name'))
+                child_children = list(AdminBoundary.objects.filter(
+                    Q(parent__osm_id=child['osm_id'])).order_by('name'))
                 sub_children = child.get('children', [])
                 for sub_child in child_children:
                     sub_child = sub_child.as_json()
-                    sub_child['match'] = '%s %s %s %s %s' % (sub_child['name'], sub_child['aliases'], child['name'], child['aliases'], match)
+                    sub_child['match'] = '%s %s %s %s %s' % (sub_child['name'], sub_child[
+                                                             'aliases'], child['name'], child['aliases'], match)
 
                     sub_children.append(sub_child)
-                    child['match'] = '%s %s %s' % (child['match'], sub_child['name'], sub_child['aliases'])
+                    child['match'] = '%s %s %s' % (child['match'], sub_child[
+                                                   'name'], sub_child['aliases'])
 
                 child['children'] = sub_children
                 children.append(child)
                 current_top['children'] = children
-                current_top['match'] = '%s %s' % (current_top['match'], child['match'])
+                current_top['match'] = '%s %s' % (
+                    current_top['match'], child['match'])
 
             return build_json_response(boundaries)
