@@ -1663,6 +1663,27 @@ class ContactTest(TembaTest):
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
+        contact = self.create_contact(name="Bob", number='+250788111111')
+        contact.uuid = 'uuid-1111'
+        contact.save()
+
+        # import contact with uuid will force update if existing contactfor the uuid
+        csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data, follow=True)
+        self.assertIsNotNone(response.context['task'])
+        self.assertIsNotNone(response.context['group'])
+        self.assertFalse(response.context['show_form'])
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
+                                                            creates=2, updates=1))
+
+        self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+        self.assertEquals(0, Contact.objects.filter(name='Bob').count())
+        self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
 
         # import sample contact spreadsheet with valid headers
         csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')

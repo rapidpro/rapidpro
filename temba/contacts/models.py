@@ -449,7 +449,7 @@ class Contact(TembaModel, SmartModel):
 
         # if we were passed in a UUID, look it up by that
         if uuid:
-            contact = Contact.objects.get(org=org, is_active=True, uuid=uuid)
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=uuid).first()
 
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
@@ -592,6 +592,10 @@ class Contact(TembaModel, SmartModel):
         org = field_dict['org']
         del field_dict['org']
 
+        uuid = field_dict.get('uuid', None)
+        if uuid:
+            del field_dict['uuid']
+
         country = org.get_country_code()
         urns = []
 
@@ -664,7 +668,7 @@ class Contact(TembaModel, SmartModel):
             language = None  # ignore anything that's not a 3-letter code
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns, language=language)
+        contact = Contact.get_or_create(org, field_dict['created_by'], name, uuid=uuid, urns=urns, language=language)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
