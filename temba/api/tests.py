@@ -8,13 +8,14 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.db import connection
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from mock import patch
 from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
 from temba.channels.models import Channel, SyncEvent
@@ -27,7 +28,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value, DATETIME
 from urlparse import parse_qs
 from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
-from .v1.serializers import DictionaryField, IntegerArrayField, StringArrayField, PhoneArrayField, ChannelField, FlowField
+from .v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField
 
 
 class APITest(TembaTest):
@@ -52,9 +53,14 @@ class APITest(TembaTest):
         settings.SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_HTTPS', 'https')
         settings.SESSION_COOKIE_SECURE = True
 
+        # this is needed to prevent REST framework from rolling back transaction created around each unit test
+        connection.settings_dict['ATOMIC_REQUESTS'] = False
+
     def tearDown(self):
         super(APITest, self).tearDown()
         settings.SESSION_COOKIE_SECURE = False
+
+        connection.settings_dict['ATOMIC_REQUESTS'] = True
 
     def fetchHTML(self, url, query=None):
         if query:
@@ -205,52 +211,31 @@ class APITest(TembaTest):
         self.assertEqual(response.xml.find('labels').text, 'https://testserver:80/api/v1/labels')
 
     def test_api_serializer_fields(self):
-        dict_field = DictionaryField(source='test')
+        dict_field = StringDictField(source='test')
 
-        self.assertEqual(dict_field.from_native({'a': '123'}), {'a': '123'})
-        self.assertRaises(ValidationError, dict_field.from_native, [])  # must be a dict
-        self.assertRaises(ValidationError, dict_field.from_native, {123: '456'})  # keys and values must be strings
-        self.assertRaises(ValidationError, dict_field.to_native, {})  # not writable
-
-        ints_field = IntegerArrayField(source='test')
-
-        self.assertEqual(ints_field.from_native([1, 2, 3]), [1, 2, 3])
-        self.assertEqual(ints_field.from_native(123), [123])  # convert single number to array
-        self.assertRaises(ValidationError, ints_field.from_native, {})  # must be a list
-        self.assertRaises(ValidationError, ints_field.from_native, ['x'])  # items must be ints or longs
-        self.assertRaises(ValidationError, ints_field.to_native, [])  # not writable
+        self.assertEqual(dict_field.to_internal_value({'a': '123'}), {'a': '123'})
+        self.assertRaises(ValidationError, dict_field.to_internal_value, [])  # must be a dict
+        self.assertRaises(ValidationError, dict_field.to_internal_value, {123: '456'})  # keys and values must be strings
 
         strings_field = StringArrayField(source='test')
 
-        self.assertEqual(strings_field.from_native(['a', 'b', 'c']), ['a', 'b', 'c'])
-        self.assertEqual(strings_field.from_native('abc'), ['abc'])  # convert single string to array
-        self.assertRaises(ValidationError, strings_field.from_native, {})  # must be a list
-        self.assertRaises(ValidationError, strings_field.from_native, [123])  # items must be strings
-        self.assertRaises(ValidationError, strings_field.to_native, [])  # not writable
+        self.assertEqual(strings_field.to_internal_value(['a', 'b', 'c']), ['a', 'b', 'c'])
+        self.assertEqual(strings_field.to_internal_value('abc'), ['abc'])  # convert single string to array
+        self.assertRaises(ValidationError, strings_field.to_internal_value, {})  # must be a list
 
         phones_field = PhoneArrayField(source='test')
 
-        self.assertEqual(phones_field.from_native(['123', '234']), [('tel', '123'), ('tel', '234')])
-        self.assertEqual(phones_field.from_native('123'), [('tel', '123')])  # convert single string to array
-        self.assertRaises(ValidationError, phones_field.from_native, {})  # must be a list
-        self.assertRaises(ValidationError, phones_field.from_native, [123])  # items must be strings
-        self.assertRaises(ValidationError, phones_field.from_native, ['123'] * 101)  # 100 items max
-        self.assertRaises(ValidationError, phones_field.to_native, [])  # not writable
-
-        flow_field = FlowField(source='test')
-
-        flow = self.create_flow()
-        self.assertEqual(flow_field.from_native(flow.pk), flow)
-        flow.is_active = False
-        flow.save()
-        self.assertRaises(ValidationError, flow_field.from_native, flow.pk)
+        self.assertEqual(phones_field.to_internal_value(['123', '234']), [('tel', '123'), ('tel', '234')])
+        self.assertEqual(phones_field.to_internal_value('123'), [('tel', '123')])  # convert single string to array
+        self.assertRaises(ValidationError, phones_field.to_internal_value, {})  # must be a list
+        self.assertRaises(ValidationError, phones_field.to_internal_value, ['123'] * 101)  # 100 items max
 
         channel_field = ChannelField(source='test')
 
-        self.assertEqual(channel_field.from_native(self.channel.pk), self.channel)
+        self.assertEqual(channel_field.to_internal_value(self.channel.pk), self.channel)
         self.channel.is_active = False
         self.channel.save()
-        self.assertRaises(ValidationError, channel_field.from_native, self.channel.pk)
+        self.assertRaises(ValidationError, channel_field.to_internal_value, self.channel.pk)
 
     @override_settings(REST_HANDLE_EXCEPTIONS=True)
     @patch('temba.api.v1.views.FieldEndpoint.get_queryset')
@@ -699,13 +684,13 @@ class APITest(TembaTest):
             data['revision'] = 3
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
-            self.assertEquals("No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'", response.json['steps'][0])
+            self.assertResponseError(response, 'non_field_errors', "No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'")
 
             # this version doesn't exist
             data['revision'] = 12
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
-            self.assertEquals('Invalid revision: 12', response.json['steps'][0])
+            self.assertResponseError(response, 'non_field_errors', "Invalid revision: 12")
 
             # this one exists and has our node
             data['revision'] = 2
@@ -875,17 +860,29 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
 
+        self.channel.is_active = True
+        self.channel.save()
+
+        with AnonymousOrg(self.org):
+            # anon orgs can't start flows by phone
+            response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+            self.assertResponseError(response, 'phone', "Cannot start flows by phone for anonymous organizations")
+
+            # but can start them by contact UUID
+            response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
+            self.assertEquals(201, response.status_code)
+
         # now test fetching them instead.....
 
         # no filtering
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 9)  # all the runs
+        self.assertResultCount(response, 10)  # all the runs
 
         flow.start([], [Contact.get_test_contact(self.user)])  # create a run for a test contact
 
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 9)  # test contact's run not included
+        self.assertResultCount(response, 10)  # test contact's run not included
 
         # filter by run id
         response = self.fetchJSON(url, "run=%d" % run.pk)
@@ -899,12 +896,12 @@ class APITest(TembaTest):
 
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
 
         # filter by flow UUID
         response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
 
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
         self.assertNotContains(response, flow_copy.uuid)
 
         # filter by phone (deprecated)
@@ -915,7 +912,7 @@ class APITest(TembaTest):
 
         # filter by contact UUID
         response = self.fetchJSON(url, "contact=" + contact.uuid)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
@@ -929,13 +926,13 @@ class APITest(TembaTest):
 
         # filter by group name
         response = self.fetchJSON(url, "group=Players")
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
         # filter by group UUID
         response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
@@ -1084,12 +1081,23 @@ class APITest(TembaTest):
         self.assertTrue(channel2.is_active)
         self.assertFalse(channel.is_active)
 
-        # test removing Twitter channel with Mage client disabled
+        # test with Twitter channel
+        twitter = Channel.create(self.org, self.user, None, 'TT', name="@billy_bob")
+        response = self.fetchJSON(url, "relayer=%d" % twitter.pk)
+        self.assertEqual(response.json['results'], [{'pending_message_count': 0,
+                                                     'name': '@billy_bob',
+                                                     'phone': None,
+                                                     'country': None,
+                                                     'relayer': twitter.pk,
+                                                     'power_status': None,
+                                                     'power_source': None,
+                                                     'power_level': -1,
+                                                     'network_type': None,
+                                                     'last_seen': datetime_to_json_date(twitter.last_seen)}])
+
+        # check that removing Twitter channel notifies mage
         with patch('temba.utils.mage.MageClient._request') as mock:
             mock.return_value = ""
-
-            # create a Twitter channel and delete it
-            twitter = Channel.create(self.org, self.user, None, 'TT')
             response = self.deleteJSON(url, "id=%d" % twitter.pk)
             self.assertEquals(204, response.status_code)
 
@@ -1187,12 +1195,12 @@ class APITest(TembaTest):
         # try to update the language to something longer than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='ENGRISH'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "Ensure this value has at most 3 characters (it has 7).")
+        self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
 
         # try to update the language to something shorter than 3-letters
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='X'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'language', "Ensure this value has at least 3 characters (it has 1).")
+        self.assertResponseError(response, 'language', "Ensure this field has at least 3 characters.")
 
         # now try 'eng' for English
         response = self.postJSON(url, dict(name='Snoop Dog', urns=['tel:+250788123456'], language='eng'))
@@ -1211,6 +1219,18 @@ class APITest(TembaTest):
         self.assertEquals("Eminem", contact.name)
         self.assertEquals('eng', contact.language)
         self.assertEquals(self.org, contact.org)
+
+        # try to update with an unparseable phone number
+        response = self.postJSON(url, dict(name='Eminem', phone='nope'))
+        self.assertResponseError(response, 'phone', "Invalid phone number: 'nope'")
+
+        # try to update with an with an invalid phone number
+        response = self.postJSON(url, dict(name='Eminem', phone='+120012301'))
+        self.assertResponseError(response, 'phone', "Invalid phone number: '+120012301'")
+
+        # try to update with both phone and urns field
+        response = self.postJSON(url, dict(name='Eminem', phone='+250788123456', urns=['tel:+250788123456']))
+        self.assertResponseError(response, 'non_field_errors', "Cannot provide both urns and phone parameters together")
 
         # update the contact using uuid, URNs will remain the same
         response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
@@ -1234,9 +1254,23 @@ class APITest(TembaTest):
         self.assertEquals('eng', contact.language)
         self.assertEquals(self.org, contact.org)
 
+        # try to update a contact using an invalid UUID
+        response = self.postJSON(url, dict(name="Mathers", uuid='nope', urns=['tel:+250788123456']))
+        self.assertResponseError(response, 'uuid', "Unable to find contact with UUID: nope")
+
+        # try to update a contact using an invalid URN
+        response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid, urns=['uh:nope']))
+        self.assertResponseError(response, 'urns', "Invalid URN: 'uh:nope'")
+
+        with AnonymousOrg(self.org):
+            # anon orgs can't update contacts
+            response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
+            self.assertResponseError(response, 'non_field_errors', "Cannot update contacts on anonymous organizations, can only create")
+
         # finally try clearing our language
         response = self.postJSON(url, dict(phone='+250788123456', language=None))
         self.assertEquals(201, response.status_code)
+
         contact = Contact.objects.get()
         self.assertEquals(None, contact.language)
 
@@ -1256,7 +1290,7 @@ class APITest(TembaTest):
 
         # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
-        self.assertResponseError(response, 'groups', "Invalid group name: '  '")
+        self.assertResponseError(response, 'groups', "This field may not be blank.")
 
         # try to post a new group with invalid name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["+People"]))
@@ -1288,6 +1322,10 @@ class APITest(TembaTest):
         # specifying both groups and group_uuids should return error
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
         self.assertEquals(400, response.status_code)
+
+        # specifying invalid group_uuid should return error
+        response = self.postJSON(url, dict(phone='+250788123456', group_uuids=['nope']))
+        self.assertResponseError(response, 'group_uuids', "Unable to find contact group with uuid: nope")
 
         # can't add a contact to a group if they're blocked
         contact.block()
@@ -1331,9 +1369,16 @@ class APITest(TembaTest):
         self.assertEquals("IL", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
 
         drdre = Contact.objects.get()
+
+        # add another contact
         jay_z = self.create_contact("Jay-Z", number="123555")
         ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
         jay_z.set_field('registration_date', "2014-12-31 03:04:00")
+
+        # try to update using URNs from two different contacts
+        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123555']))
+        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
         # fetch all with blank query
         self.clear_cache()
@@ -1599,8 +1644,7 @@ class APITest(TembaTest):
         # create with invalid label
         response = self.postJSON(url, dict(label='!@#', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'label',
-                                 "Invalid Field label: Field labels can only contain letters, numbers and hypens")
+        self.assertResponseError(response, 'label', "Field can only contain letters, numbers and hypens")
 
         # create with label that would be an invalid key
         response = self.postJSON(url, dict(label='Name', value_type='T'))
@@ -1617,7 +1661,7 @@ class APITest(TembaTest):
         # create with invalid key specified
         response = self.postJSON(url, dict(key='name', label='Real Name', value_type='T'))
         self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'key', "Field key is invalid or is a reserved name")
+        self.assertResponseError(response, 'key', "Field is invalid or a reserved name")
 
     def test_api_contact_actions(self):
         url = reverse('api.contact_actions')
@@ -1654,6 +1698,11 @@ class APITest(TembaTest):
         flow.start([], [contact1, contact2, contact3])
         runs = FlowRun.objects.filter(flow=flow)
 
+        # try adding more contacts to group than this endpoint is allowed to operate on at one time
+        response = self.postJSON(url, dict(contacts=[unicode(x) for x in range(101)],
+                                           action='add', group="Testers"))
+        self.assertResponseError(response, 'contacts', "Maximum of 100 contacts allowed")
+
         # try adding all contacts to a group
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
                                                      contact5.uuid, test_contact.uuid],
@@ -1661,7 +1710,7 @@ class APITest(TembaTest):
 
         # error reporting that the deleted and test contacts are invalid
         self.assertResponseError(response, 'contacts',
-                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+                                 "Some UUIDs are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
 
         # try adding a blocked contact to a group
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
@@ -1685,6 +1734,10 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact2, contact3})
 
+        # try adding with invalid group UUID
+        response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid='nope'))
+        self.assertResponseError(response, 'group_uuid', "No such group with UUID: nope")
+
         # remove contact 2 from group by its name
         response = self.postJSON(url, dict(contacts=[contact2.uuid], action='remove', group='Testers'))
         self.assertEqual(response.status_code, 204)
@@ -1698,15 +1751,17 @@ class APITest(TembaTest):
         # try to add to group without specifying a group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add'))
         self.assertResponseError(response, 'non_field_errors', "For action add you should also specify group or group_uuid")
-        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group=''))
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add'))
         self.assertResponseError(response, 'non_field_errors', "For action add you should also specify group or group_uuid")
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group=''))
+        self.assertResponseError(response, 'group', "This field may not be blank.")
 
         # try to block all contacts
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
                                                      contact5.uuid, test_contact.uuid],
                                            action='block'))
         self.assertResponseError(response, 'contacts',
-                                 "Some contacts are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
+                                 "Some UUIDs are invalid: %s, %s" % (contact5.uuid, test_contact.uuid))
 
         # block all valid contacts
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
@@ -2096,6 +2151,10 @@ class APITest(TembaTest):
         self.assertEquals(204, response.status_code)
         self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
+        # try to label with an invalid UUID
+        response = self.postJSON(url, dict(messages=[msg1.pk], action='label', label_uuid='nope'))
+        self.assertResponseError(response, 'label_uuid', "No such label with UUID: nope")
+
         # remove label from message 2 by name
         response = self.postJSON(url, dict(messages=[msg2.pk], action='unlabel', label='Test'))
         self.assertEquals(204, response.status_code)
@@ -2110,7 +2169,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label'))
         self.assertResponseError(response, 'non_field_errors', "For action label you should also specify label or label_uuid")
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='label', label=''))
-        self.assertResponseError(response, 'non_field_errors', "For action label you should also specify label or label_uuid")
+        self.assertResponseError(response, 'label', "This field may not be blank.")
 
         # archive all messages
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))
@@ -2183,6 +2242,10 @@ class APITest(TembaTest):
         # can't update name to something already used
         response = self.postJSON(url, dict(uuid=screened.uuid, name='Junk'))
         self.assertEquals(400, response.status_code)
+
+        # can't update if UUID is invalid
+        response = self.postJSON(url, dict(uuid='nope', name='Junk'))
+        self.assertResponseError(response, 'uuid', "No such message label with UUID: nope")
 
         # now fetch all labels
         response = self.fetchJSON(url)
@@ -2258,7 +2321,6 @@ class APITest(TembaTest):
         self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
         self.assertEqual(200, client.get(reverse('api.contactfields') + '.json').status_code)
         self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
-
 
     def test_api_broadcasts(self):
         url = reverse('api.broadcasts')
@@ -2527,6 +2589,11 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, "Time to go to the clinic")
         self.assertEqual(event1.flow, message_flow)
 
+        # try to create event with invalid campaign id
+        response = self.postJSON(url, dict(campaign=-123, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'campaign', "No campaign with id -123")
+
         # create by campaign UUID and flow UUID
         color_flow = self.create_flow()
         response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
@@ -2541,6 +2608,11 @@ class APITest(TembaTest):
         self.assertEqual(event2.relative_to.label, "EDD")
         self.assertEqual(event2.delivery_hour, 9)
         self.assertEqual(event2.message, None)
+
+        # try to create event with invalid campaign UUID
+        response = self.postJSON(url, dict(campaign_uuid='nope', unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, flow_uuid=color_flow.uuid))
+        self.assertResponseError(response, 'campaign_uuid', "No campaign with UUID nope")
 
         # update an event by id (deprecated)
         response = self.postJSON(url, dict(event=event1.pk, unit='D', offset=30, relative_to="EDD",
@@ -2557,6 +2629,11 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, "Time to go to the clinic. Thanks")
         self.assertEqual(event1.flow, message_flow)
 
+        # try tp update an event by invalid id
+        response = self.postJSON(url, dict(event=-123, unit='D', offset=30, relative_to="EDD",
+                                           delivery_hour=-1, message="Time to go to the clinic. Thanks"))
+        self.assertResponseError(response, 'event', "No event with id -123")
+
         # update an event by UUID
         other_flow = Flow.copy(color_flow, self.user)
         response = self.postJSON(url, dict(uuid=event2.uuid, unit='W', offset=3, relative_to="EDD",
@@ -2572,6 +2649,11 @@ class APITest(TembaTest):
         self.assertEqual(event2.delivery_hour, 5)
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, other_flow)
+
+        # try tp update an event by invalid UUID
+        response = self.postJSON(url, dict(uuid='nope', unit='D', offset=30, relative_to="EDD",
+                                           delivery_hour=-1, message="Time to go to the clinic. Thanks"))
+        self.assertResponseError(response, 'uuid', "No event with UUID nope")
 
         # try to specify campaign when updating event (not allowed)
         response = self.postJSON(url, dict(uuid=event2.uuid, campaign_uuid=campaign.uuid, unit='D', offset=3,
