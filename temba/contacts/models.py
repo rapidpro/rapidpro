@@ -193,7 +193,7 @@ class Contact(TembaModel, SmartModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
+                       'created_by', 'modified_by', 'org', UUID, 'groups', 'external'] + [c[0] for c in URN_SCHEME_CHOICES]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -595,7 +595,7 @@ class Contact(TembaModel, SmartModel):
         country = org.get_country_code()
         urns = []
 
-        possible_urn_headers = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        possible_urn_headers = ['phone', 'external'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
         existing_contact = None
         for urn_header in possible_urn_headers:
@@ -611,6 +611,9 @@ class Contact(TembaModel, SmartModel):
             urn_scheme = urn_header
             if urn_header == 'phone':
                 urn_scheme = TEL_SCHEME
+
+            if urn_header.strip().lower() == 'external':
+                urn_scheme = EXTERNAL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
 
@@ -647,7 +650,7 @@ class Contact(TembaModel, SmartModel):
 
         if not urns:
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[1:])
+            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[2:])
 
             raise SmartImportRowError(error_str)
 
@@ -746,7 +749,7 @@ class Contact(TembaModel, SmartModel):
         Contact.validate_import_header(headers)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header not in Contact.RESERVED_FIELDS]
+        return [header for header in headers if header.strip().lower() not in [l.lower() for l in Contact.RESERVED_FIELDS]]
 
     @classmethod
     def validate_import_header(cls, header):
@@ -1181,8 +1184,8 @@ URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, FACEBOOK_SCHEME}  # schemes tha
 
 URN_SCHEMES_EXPORT_FIELDS = {
     TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-    TWITTER_SCHEME: dict(label='Twitter handle', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-    EXTERNAL_SCHEME: dict(label='External identifier', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+    TWITTER_SCHEME: dict(label='Twitter', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+    EXTERNAL_SCHEME: dict(label='External', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
 }
 
 

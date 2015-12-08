@@ -12,7 +12,7 @@ from django.utils import timezone
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, SmartImportRowError
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
@@ -1841,6 +1841,9 @@ class ContactTest(TembaTest):
         self.assertEquals(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
         self.assertEquals(contact1.get_field_raw('wears'), 'Nike')  # existing field was looked up by label & stripped
 
+        self.assertEquals(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
+        self.assertEquals(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
+
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=DATETIME)
         contact1 = Contact.objects.all().order_by('name')[0]
@@ -2337,7 +2340,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter handle", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter", "First", "Second", "Third"])
 
             # first row should be Adam
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "adam", "", "", ""])
@@ -2361,7 +2364,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter handle", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter", "First", "Second", "Third"])
 
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "", "adam", "", "", ""])
             self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "+12067799294", "+12062233445", "", "One", "", ""])
