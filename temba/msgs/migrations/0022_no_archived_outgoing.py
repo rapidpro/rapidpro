@@ -6,7 +6,7 @@ from django.db import models, migrations
 
 def fix_archived_outgoing(apps, schema_editor):
     Msg = apps.get_model('msgs', 'Msg')
-    wonky = Msg.objects.filter(direction='O', visibility='A')
+    wonky = Msg.all_messages.filter(direction='O', visibility='A')
     updated = wonky.update(visibility='V')
     if updated:
         print "Fixed %d outgoing messages that were archived" % updated

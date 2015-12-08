@@ -17,6 +17,7 @@ class CampaignActionForm(BaseActionForm):
                        ('restore', "Restore Campaigns"))
 
     OBJECT_CLASS = Campaign
+    OBJECT_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = True
 
     class Meta:

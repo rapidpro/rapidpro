@@ -108,7 +108,7 @@ class TwilioHandler(View):
             status = request.POST.get('SmsStatus', None)
 
             # get the SMS
-            sms = Msg.objects.select_related('channel').get(id=smsId)
+            sms = Msg.all_messages.select_related('channel').get(id=smsId)
 
             # validate this request is coming from twilio
             org = sms.org
@@ -182,7 +182,7 @@ class AfricasTalkingHandler(View):
             external_id = request.POST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % external_id, status=404)
 
@@ -241,7 +241,7 @@ class ZenviaHandler(View):
             sms_id = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=sms_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
 
@@ -312,7 +312,7 @@ class ExternalHandler(View):
             sms_pk = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=sms_pk).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
 
@@ -398,7 +398,7 @@ class InfobipHandler(View):
         status = message.get('status')
 
         # look up the message
-        sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+        sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
         if not sms:
             return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -473,7 +473,7 @@ class Hub9Handler(View):
         # delivery reports
         if action == 'delivered':
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=external_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -526,7 +526,7 @@ class HighConnectionHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=msg_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -589,7 +589,7 @@ class BlackmynaHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, external_id=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -705,7 +705,7 @@ class NexmoHandler(View):
             external_id = request.REQUEST['messageId']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=200)
 
@@ -806,7 +806,7 @@ class VumiHandler(View):
             status = body['event_type']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel')
 
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
@@ -854,7 +854,7 @@ class VumiHandler(View):
                                       date=gmt_date)
 
             # use an update so there is no race with our handling
-            Msg.objects.filter(pk=sms.id).update(external_id=body['message_id'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=body['message_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -889,7 +889,7 @@ class KannelHandler(View):
             sms_id = self.request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -938,7 +938,7 @@ class KannelHandler(View):
                                       request.REQUEST['message'],
                                       date=gmt_date)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -979,7 +979,7 @@ class ClickatellHandler(View):
             sms_id = self.request.REQUEST['apiMsgId']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1057,7 +1057,7 @@ class ClickatellHandler(View):
                                       text,
                                       date=gmt_date)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1107,7 +1107,7 @@ class PlivoHandler(View):
                 sms_id = request.REQUEST['ParentMessageUUID']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1165,7 +1165,7 @@ class PlivoHandler(View):
                                       (TEL_SCHEME, request.REQUEST['From']),
                                       request.REQUEST['Text'])
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
 
             return HttpResponse("SMS accepted: %d" % sms.id)
         else:
@@ -1198,7 +1198,7 @@ class MageHandler(View):
             except ValueError:
                 return JsonResponse(dict(error="Invalid message_id"), status=400)
 
-            msg = Msg.objects.select_related('org').get(pk=msg_id)
+            msg = Msg.all_messages.select_related('org').get(pk=msg_id)
 
             push_task(msg.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
                       dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))

@@ -192,7 +192,7 @@ class TembaTest(SmartminTest):
         if not kwargs['contact'].is_test:
             kwargs['topup_id'] = kwargs['org'].decrement_credit()
 
-        return Msg.objects.create(**kwargs)
+        return Msg.all_messages.create(**kwargs)
 
     def create_flow(self, uuid_start=None):
         flow = Flow.create(self.org, self.admin, "Color Flow")
@@ -307,7 +307,7 @@ class FlowFileTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
 
     def assertLastResponse(self, message):
-        response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
+        response = Msg.all_messages.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
@@ -340,7 +340,7 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
@@ -352,7 +352,7 @@ class FlowFileTest(TembaTest):
 
             else:
                 # assert we got no reply
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
                 self.assertFalse(replies)
 
             return None

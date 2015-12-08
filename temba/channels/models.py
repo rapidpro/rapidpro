@@ -679,7 +679,7 @@ class Channel(SmartModel):
 
     def get_latest_sent_message(self):
         # all message states that are successfully sent
-        messages = self.msgs.filter(status__in=['S', 'D']).exclude(sent_on=None).order_by('-sent_on')
+        messages = self.msgs.filter(status__in=['S', 'D'], purged=False).exclude(sent_on=None).order_by('-sent_on')
 
         # only outgoing messages
         messages = messages.filter(direction='O')
@@ -732,7 +732,7 @@ class Channel(SmartModel):
 
     def get_unsent_messages(self):
         # all message states that are incomplete
-        messages = self.msgs.filter(status__in=['P', 'Q'])
+        messages = self.msgs.filter(status__in=['P', 'Q'], purged=False)
 
         # only outgoing messages on real contacts
         messages = messages.filter(direction='O', contact__is_test=False)
@@ -804,7 +804,7 @@ class Channel(SmartModel):
 
         # mark any messages in sending mode as failed for this channel
         from temba.msgs.models import Msg
-        Msg.objects.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
+        Msg.current_messages.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == ANDROID: # pragma: no cover
@@ -1866,7 +1866,7 @@ class Channel(SmartModel):
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
 
-        pending = Msg.objects.filter(org=org, direction=OUTGOING)\
+        pending = Msg.current_messages.filter(org=org, direction=OUTGOING)\
                              .filter(Q(status=PENDING) |
                                      Q(status=QUEUED, queued_on__lte=hours_ago) |
                                      Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
@@ -1998,7 +1998,7 @@ class Channel(SmartModel):
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
-            Msg.objects.filter(pk=msg.id).update(msg_count=len(parts))
+            Msg.all_messages.filter(pk=msg.id).update(msg_count=len(parts))
 
     @classmethod
     def track_status(cls, channel, status):
@@ -2336,13 +2336,13 @@ class Alert(SmartModel):
         for alert in Alert.objects.filter(alert_type=ALERT_SMS, ended_on=None):
             # are there still queued messages?
 
-            if not Msg.objects.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
+            if not Msg.current_messages.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
                 alert.ended_on = timezone.now()
                 alert.save()
 
         # now look for channels that have many unsent messages
-        queued_messages = Msg.objects.filter(status__in=['Q', 'P'], contact__is_test=False).order_by('channel', 'created_on').exclude(created_on__gte=thirty_minutes_ago).exclude(created_on__lte=day_ago).exclude(channel=None).values('channel').annotate(latest_queued=Max('created_on'))
-        sent_messages = Msg.objects.filter(status__in=['S', 'D'], contact__is_test=False).exclude(created_on__lte=day_ago).exclude(channel=None).order_by('channel', 'sent_on').values('channel').annotate(latest_sent=Max('sent_on'))
+        queued_messages = Msg.current_messages.filter(status__in=['Q', 'P'], contact__is_test=False).order_by('channel', 'created_on').exclude(created_on__gte=thirty_minutes_ago).exclude(created_on__lte=day_ago).exclude(channel=None).values('channel').annotate(latest_queued=Max('created_on'))
+        sent_messages = Msg.current_messages.filter(status__in=['S', 'D'], contact__is_test=False).exclude(created_on__lte=day_ago).exclude(channel=None).order_by('channel', 'sent_on').values('channel').annotate(latest_sent=Max('sent_on'))
 
         channels = dict()
         for queued in queued_messages:
@@ -2415,7 +2415,7 @@ class Alert(SmartModel):
 
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
                        last_seen=self.channel.last_seen, sync=self.sync_event)
-        context['unsent_count'] = Msg.objects.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
+        context['unsent_count'] = Msg.current_messages.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
         context['subject'] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, branding)

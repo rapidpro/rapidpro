@@ -519,7 +519,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
 
         # but his messages are unchanged
-        self.assertEqual(2, Msg.objects.filter(contact=self.joe, visibility='V').count())
+        self.assertEqual(2, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
@@ -567,8 +567,8 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_FAILED: 0})
 
         # joe's messages should be inactive, blank and have no labels
-        self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
-        self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
+        self.assertEqual(0, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
+        self.assertEqual(0, Msg.all_messages.filter(contact=self.joe).exclude(text="").count())
         self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
 
         msg_counts = SystemLabel.get_counts(self.org)

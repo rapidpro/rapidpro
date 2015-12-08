@@ -313,7 +313,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.objects.filter(pk=cmd['msg_id'],
+                        msg = Msg.all_messages.filter(pk=cmd['msg_id'],
                                                  org=channel.org)
                         if msg:
                             msg = msg[0]

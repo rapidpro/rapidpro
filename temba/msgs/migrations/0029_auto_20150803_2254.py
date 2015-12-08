@@ -49,12 +49,12 @@ def populate_system_labels(apps, schema_editor):
 
     # these should be consistent with those returned from SystemLabel.get_queryset
     SYSLABEL_QUERYSETS = {
-        'I': Msg.objects.filter(direction='I', visibility='V', msg_type='I').exclude(contact__is_test=True),
-        'W': Msg.objects.filter(direction='I', visibility='V', msg_type='F').exclude(contact__is_test=True),
-        'A': Msg.objects.filter(direction='I', visibility='A').exclude(contact__is_test=True),
-        'O': Msg.objects.filter(direction='O', visibility='V', status__in=('P', 'Q')).exclude(contact__is_test=True),
-        'S': Msg.objects.filter(direction='O', visibility='V', status__in=('W', 'S', 'D')).exclude(contact__is_test=True),
-        'X': Msg.objects.filter(direction='O', visibility='V', status='F').exclude(contact__is_test=True),
+        'I': Msg.all_messages.filter(direction='I', visibility='V', msg_type='I').exclude(contact__is_test=True),
+        'W': Msg.all_messages.filter(direction='I', visibility='V', msg_type='F').exclude(contact__is_test=True),
+        'A': Msg.all_messages.filter(direction='I', visibility='A').exclude(contact__is_test=True),
+        'O': Msg.all_messages.filter(direction='O', visibility='V', status__in=('P', 'Q')).exclude(contact__is_test=True),
+        'S': Msg.all_messages.filter(direction='O', visibility='V', status__in=('W', 'S', 'D')).exclude(contact__is_test=True),
+        'X': Msg.all_messages.filter(direction='O', visibility='V', status='F').exclude(contact__is_test=True),
         'E': Broadcast.objects.all().exclude(schedule=None).exclude(contacts__is_test=True),
         'C': Call.objects.filter(is_active=True).exclude(contact__is_test=True)
     }
