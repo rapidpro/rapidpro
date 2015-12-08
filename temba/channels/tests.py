@@ -2411,12 +2411,16 @@ class AfricasTalkingTest(TembaTest):
 
 class ExternalTest(TembaTest):
 
-    def test_status(self):
-        # change our channel to an aggregator channel
+    def setUp(self):
+        super(ExternalTest, self).setUp()
+
         self.channel.channel_type = 'EX'
-        self.channel.uuid = 'asdf-asdf-asdf-asdf'
+        self.channel.uuid = '1dfc66a8-7791-46b5-bafc-ed42f6577dd1'
+        self.channel.address = '+250788123123'
+        self.channel.country = 'BR'
         self.channel.save()
 
+    def test_status(self):
         # ok, what happens with an invalid uuid?
         data = dict(id="-1")
         response = self.client.post(reverse('api.external_handler', args=['sent', 'not-real-uuid']), data)
@@ -2447,13 +2451,13 @@ class ExternalTest(TembaTest):
         assertStatus(sms, 'sent', SENT)
         assertStatus(sms, 'failed', FAILED)
 
-    def test_receive(self):
-        # change our channel to an external channel
-        self.channel.channel_type = 'EX'
-        self.channel.uuid = 'asdf-asdf-asdf-asdf'
-        self.channel.country = 'BR'
-        self.channel.save()
+        # check when called with phone number rather than UUID
+        response = self.client.post(reverse('api.external_handler', args=['sent', '250788123123']), {'id': sms.pk})
+        self.assertEquals(200, response.status_code)
+        sms.refresh_from_db()
+        self.assertEqual(sms.status, SENT)
 
+    def test_receive(self):
         data = {'from': '5511996458779', 'text': 'Hello World!'}
         callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
         response = self.client.post(callback_url, data)
@@ -2488,7 +2492,6 @@ class ExternalTest(TembaTest):
         self.assertEquals(18, sms.created_on.hour)
 
     def test_receive_external(self):
-        self.channel.channel_type = 'EX'
         self.channel.scheme = 'ext'
         self.channel.save()
 
@@ -2988,11 +2991,9 @@ class NexmoTest(TembaTest):
     def setUp(self):
         super(NexmoTest, self).setUp()
 
-        # change our channel to an aggregator channel
+        # change our channel to Nexmo
         self.channel.channel_type = 'NX'
-
-        # on nexmo, the channel uuid is actually the nexmo number
-        self.channel.uuid = '250788123123'
+        self.channel.uuid = '2659444c-d8fa-4935-b374-e0e07a1cdd5a'
         self.channel.address = '+250788123123'
         self.channel.save()
 

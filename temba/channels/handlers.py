@@ -298,12 +298,17 @@ class ExternalHandler(View):
         from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
 
         action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True,
-                                         channel_type=self.get_channel_type()).exclude(org=None).first()
+        # some external channels that have been added as bulk relayers had UUID set to their phone number
+        uuid_or_address = kwargs['uuid']
+        if len(uuid_or_address) == 36:
+            channel_q = Q(uuid=uuid_or_address)
+        else:
+            channel_q = Q(address=uuid_or_address) | Q(address=('+' + uuid_or_address))
+
+        channel = Channel.objects.filter(channel_q).filter(is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+            return HttpResponse("Channel with uuid or address %s not found." % uuid_or_address, status=400)
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
