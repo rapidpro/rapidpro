@@ -2993,6 +2993,7 @@ class NexmoTest(TembaTest):
 
         # on nexmo, the channel uuid is actually the nexmo number
         self.channel.uuid = '250788123123'
+        self.channel.address = '+250788123123'
         self.channel.save()
 
         self.nexmo_uuid = str(uuid.uuid4())
@@ -3077,7 +3078,7 @@ class NexmoTest(TembaTest):
             r = get_redis_connection()
 
             with patch('requests.get') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status':0, 'message-id':12}])), method='POST')
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])), method='POST')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -3106,7 +3107,7 @@ class NexmoTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status':0, 'message-id':12}])), method='POST')
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])), method='POST')
 
                 sms.text = u"Unicode ☺"
                 sms.save()
@@ -3122,7 +3123,7 @@ class NexmoTest(TembaTest):
 
                 # assert that we were called with unicode
                 mock.assert_called_once_with('https://rest.nexmo.com/sms/json',
-                                             params={'from': u'250785551212',
+                                             params={'from': u'250788123123',
                                                      'api_secret': u'1234',
                                                      'status-report-req': 1,
                                                      'to': u'250788383383',

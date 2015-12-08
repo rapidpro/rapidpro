@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -690,7 +691,8 @@ class NexmoHandler(View):
         channel_number = request.REQUEST['to']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=channel_number, is_active=True, channel_type=NEXMO).exclude(org=None).first()
+        address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
+        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type=NEXMO).exclude(org=None).first()
 
         # make sure we got one, and that it matches the key for our org
         org_uuid = None
