@@ -1953,6 +1953,7 @@ class ChannelAlertTest(TembaTest):
         post_data['shortcode'] = '5259'
         post_data['username'] = 'temba'
         post_data['api_key'] = 'asdf-asdf-asdf-asdf-asdf'
+        post_data['country'] = 'KE'
 
         response = self.client.post(reverse('channels.channel_claim_africas_talking'), post_data)
 

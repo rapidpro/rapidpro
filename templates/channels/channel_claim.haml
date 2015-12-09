@@ -65,13 +65,13 @@
                   code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
                   in a few simple steps.
 
-    -if user_org.timezone == 'Africa/Nairobi'
+    -if user_org.timezone == 'Africa/Nairobi' or user_org.timezone == 'Africa/Kampala'
       .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-            We recommend using an Africa's Talking shortcode in Kenya. Visit {{link_start}}their website{{link_end}} for details.
+            We recommend using an Africa's Talking shortcode in Kenya or Uganda. Visit {{link_start}}their website{{link_end}} for details.
 
         .row
           .span3
@@ -84,7 +84,7 @@
             .claim-description
               %div
                 -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-                  If you are based in Kenya, you can purchase a short
+                  If you are based in Kenya or Uganda, you can purchase a short
                   code from {{link_start}}Africa's Talking{{link_end}} and connect it
                   in a few simple steps.
 
