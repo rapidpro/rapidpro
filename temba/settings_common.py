@@ -977,7 +977,8 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework_xml.renderers.XMLRenderer',
     ),
-    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler'
+    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler',
+    'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
