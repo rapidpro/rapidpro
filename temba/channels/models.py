@@ -423,10 +423,10 @@ class Channel(SmartModel):
                               uuid=twilio_sid, role=role)
 
     @classmethod
-    def add_africas_talking_channel(cls, org, user, phone, username, api_key, is_shared=False):
+    def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
         config = dict(username=username, api_key=api_key, is_shared=is_shared)
 
-        return Channel.create(org, user, 'KE', AFRICAS_TALKING,
+        return Channel.create(org, user, country, AFRICAS_TALKING,
                               name="Africa's Talking: %s" % phone, address=phone, config=config)
 
     @classmethod
