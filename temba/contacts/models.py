@@ -451,54 +451,62 @@ class Contact(TembaModel, SmartModel):
         if uuid:
             contact = Contact.objects.filter(org=org, is_active=True, uuid=uuid).first()
 
+        # figure out which URNs already exist and who they belong to
+        existing_owned_urns = dict()
+        existing_orphan_urns = dict()
+        urns_to_create = dict()
+        for scheme, path in urns:
+            if not scheme or not path:
+                raise ValueError(_("URN cannot have empty scheme or path"))
+
+            norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
+            norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
+            existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+
+            if existing_urn:
+                if existing_urn.contact:
+                    existing_owned_urns[(scheme, path)] = existing_urn
+                    if contact and contact != existing_urn.contact:
+                        raise ValueError(_("Provided URNs belong to different existing contacts"))
+                    else:
+                        contact = existing_urn.contact
+                else:
+                    existing_orphan_urns[(scheme, path)] = existing_urn
+
+                # update this URN's channel
+                if incoming_channel and existing_urn.channel != incoming_channel:
+                    existing_urn.channel = incoming_channel
+                    existing_urn.save(update_fields=['channel'])
+            else:
+                urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
+
+        # URNs correspond to one contact so update and return that
+        if contact:
+            # update contact name if provided
+            updated_attrs = dict()
+            if name:
+                contact.name = name
+                updated_attrs[Contact.NAME] = name
+            if language:
+                contact.language = language
+                updated_attrs[Contact.LANGUAGE] = language
+
+            if updated_attrs:
+                contact.save(update_fields=updated_attrs)
+
+            # optimization when all urns already exist on the contact; do not lock
+            if not urns_to_create and not existing_orphan_urns:
+                contact.urn_objects = existing_owned_urns
+
+                # handle group and campaign updates
+                contact.handle_update(attrs=updated_attrs.keys())
+                return contact
+
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
 
-            # figure out which URNs already exist and who they belong to
-            existing_owned_urns = dict()
-            existing_orphan_urns = dict()
-            urns_to_create = dict()
-            for scheme, path in urns:
-                if not scheme or not path:
-                    raise ValueError(_("URN cannot have empty scheme or path"))
-
-                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-                existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
-
-                if existing_urn:
-                    if existing_urn.contact:
-                        existing_owned_urns[(scheme, path)] = existing_urn
-                        if contact and contact != existing_urn.contact:
-                            raise ValueError(_("Provided URNs belong to different existing contacts"))
-                        else:
-                            contact = existing_urn.contact
-                    else:
-                        existing_orphan_urns[(scheme, path)] = existing_urn
-
-                    # update this URN's channel
-                    if incoming_channel and existing_urn.channel != incoming_channel:
-                        existing_urn.channel = incoming_channel
-                        existing_urn.save(update_fields=['channel'])
-                else:
-                    urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
-
-            # URNs correspond to one contact so update and return that
-            if contact:
-                # update contact name if provided
-                updated_attrs = dict()
-                if name:
-                    contact.name = name
-                    updated_attrs[Contact.NAME] = name
-                if language:
-                    contact.language = language
-                    updated_attrs[Contact.LANGUAGE] = language
-
-                if updated_attrs:
-                    contact.save(update_fields=updated_attrs)
-
-            # otherwise create new contact with all URNs
-            else:
+            # no contact so far create a new contact with all URNs
+            if not contact:
                 updated_attrs = dict(org=org, name=name, language=language, is_test=is_test,
                                      created_by=user, modified_by=user)
                 contact = Contact.objects.create(**updated_attrs)
