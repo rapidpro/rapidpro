@@ -2814,11 +2814,12 @@ class KannelTest(TembaTest):
 
                 # assert verify was set to true
                 self.assertTrue(mock.call_args[1]['verify'])
+                self.assertEquals('+250788383383', mock.call_args[1]['params']['to'])
 
                 self.clear_cache()
 
             self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
-                                                  encoding=SMART_ENCODING,
+                                                  encoding=SMART_ENCODING, use_national=True,
                                                   send_url='http://foo/', verify_ssl=False))
             self.channel.save()
 
@@ -2838,6 +2839,7 @@ class KannelTest(TembaTest):
 
                 # assert verify was set to true
                 self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
+                self.assertEquals('788383383', mock.call_args[1]['params']['to'])
                 self.assertFalse('coding' in mock.call_args[1]['params'])
                 self.clear_cache()
 

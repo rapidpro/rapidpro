@@ -65,6 +65,7 @@ PASSWORD = 'password'
 KEY = 'key'
 API_ID = 'api_id'
 VERIFY_SSL = 'verify_ssl'
+USE_NATIONAL = 'use_national'
 ENCODING = 'encoding'
 
 DEFAULT_ENCODING = 'D'  # we just pass the text down to the endpoint
@@ -887,6 +888,13 @@ class Channel(SmartModel):
         payload['to'] = msg.urn_path
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
+
+        # should our to actually be in national format?
+        use_national = channel.config.get(USE_NATIONAL, False)
+        if use_national:
+            # parse and remap our 'to' address
+            parsed = phonenumbers.parse(msg.urn_path)
+            payload['to'] = str(parsed.national_number)
 
         # figure out if we should send encoding or do any of our own substitution
         encoding = channel.config.get(ENCODING, DEFAULT_ENCODING)
