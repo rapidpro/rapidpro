@@ -486,16 +486,6 @@
 :javascript
 
   {% if org_perms.channels.channel_delete %}
-    function removalConfirmation(removal, buttonName) {
-        modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
-        modal.addClass('alert');
-        modal.setListeners({onPrimary: function(){
-          $('#' + removal + '-form').click();
-        }}, false);
-        modal.setPrimaryButton(buttonName);
-        modal.show();
-    }
-
     $(".remove-channel").live('click', function(){ removalConfirmation("deletion", "Remove")});
     $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", "Disable Bulk Sending")});
     $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", "Disable Voice Calling")});

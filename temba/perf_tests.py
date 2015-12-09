@@ -419,7 +419,6 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         msg = Msg.create_outgoing(self.org, self.admin, contact, "This is a test message")
         msg = dict_to_struct('MockMsg', msg.as_task_json())
 
-
         with SegmentProfiler("Channel Log inserts (10,000)", self, force_profile=True):
             for i in range(10000):
                 ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",

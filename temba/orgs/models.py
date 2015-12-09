@@ -1156,8 +1156,6 @@ class Org(SmartModel):
                            cc_type=charge.card.type,
                            cc_name=charge.card.name)
 
-            print context
-
             from temba.middleware import BrandingMiddleware
             branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
 

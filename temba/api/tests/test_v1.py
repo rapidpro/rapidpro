@@ -858,17 +858,29 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
         self.assertEquals(201, response.status_code)
 
+        self.channel.is_active = True
+        self.channel.save()
+
+        with AnonymousOrg(self.org):
+            # anon orgs can't start flows by phone
+            response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+            self.assertResponseError(response, 'phone', "Cannot start flows by phone for anonymous organizations")
+
+            # but can start them by contact UUID
+            response = self.postJSON(url, dict(flow_uuid=flow.uuid, contact=contact.uuid))
+            self.assertEquals(201, response.status_code)
+
         # now test fetching them instead.....
 
         # no filtering
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
-        self.assertResultCount(response, 9)  # all the runs
+        self.assertResultCount(response, 10)  # all the runs
 
         flow.start([], [Contact.get_test_contact(self.user)])  # create a run for a test contact
 
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 9)  # test contact's run not included
+        self.assertResultCount(response, 10)  # test contact's run not included
 
         # filter by run id
         response = self.fetchJSON(url, "run=%d" % run.pk)
@@ -882,12 +894,12 @@ class APITest(TembaTest):
 
         # filter by flow id (deprecated)
         response = self.fetchJSON(url, "flow=%d" % flow.pk)
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
 
         # filter by flow UUID
         response = self.fetchJSON(url, "flow_uuid=%s" % flow.uuid)
 
-        self.assertResultCount(response, 8)
+        self.assertResultCount(response, 9)
         self.assertNotContains(response, flow_copy.uuid)
 
         # filter by phone (deprecated)
@@ -898,7 +910,7 @@ class APITest(TembaTest):
 
         # filter by contact UUID
         response = self.fetchJSON(url, "contact=" + contact.uuid)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
@@ -912,13 +924,13 @@ class APITest(TembaTest):
 
         # filter by group name
         response = self.fetchJSON(url, "group=Players")
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
         # filter by group UUID
         response = self.fetchJSON(url, "group_uuids=%s" % players.uuid)
-        self.assertResultCount(response, 7)
+        self.assertResultCount(response, 8)
         self.assertContains(response, contact.uuid)
         self.assertNotContains(response, self.joe.uuid)
 
@@ -1206,6 +1218,18 @@ class APITest(TembaTest):
         self.assertEquals('eng', contact.language)
         self.assertEquals(self.org, contact.org)
 
+        # try to update with an unparseable phone number
+        response = self.postJSON(url, dict(name='Eminem', phone='nope'))
+        self.assertResponseError(response, 'phone', "Invalid phone number: 'nope'")
+
+        # try to update with an with an invalid phone number
+        response = self.postJSON(url, dict(name='Eminem', phone='+120012301'))
+        self.assertResponseError(response, 'phone', "Invalid phone number: '+120012301'")
+
+        # try to update with both phone and urns field
+        response = self.postJSON(url, dict(name='Eminem', phone='+250788123456', urns=['tel:+250788123456']))
+        self.assertResponseError(response, 'non_field_errors', "Cannot provide both urns and phone parameters together")
+
         # update the contact using uuid, URNs will remain the same
         response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
         self.assertEquals(201, response.status_code)
@@ -1227,6 +1251,19 @@ class APITest(TembaTest):
         self.assertEquals("Mathers", contact.name)
         self.assertEquals('eng', contact.language)
         self.assertEquals(self.org, contact.org)
+
+        # try to update a contact using an invalid UUID
+        response = self.postJSON(url, dict(name="Mathers", uuid='nope', urns=['tel:+250788123456']))
+        self.assertResponseError(response, 'uuid', "Unable to find contact with UUID: nope")
+
+        # try to update a contact using an invalid URN
+        response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid, urns=['uh:nope']))
+        self.assertResponseError(response, 'urns', "Invalid URN: 'uh:nope'")
+
+        with AnonymousOrg(self.org):
+            # anon orgs can't update contacts
+            response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
+            self.assertResponseError(response, 'non_field_errors', "Cannot update contacts on anonymous organizations, can only create")
 
         # finally try clearing our language
         response = self.postJSON(url, dict(phone='+250788123456', language=None))
@@ -1283,6 +1320,10 @@ class APITest(TembaTest):
         # specifying both groups and group_uuids should return error
         response = self.postJSON(url, dict(phone='+250788123456', groups=[artists.name], group_uuids=[artists.uuid]))
         self.assertEquals(400, response.status_code)
+
+        # specifying invalid group_uuid should return error
+        response = self.postJSON(url, dict(phone='+250788123456', group_uuids=['nope']))
+        self.assertResponseError(response, 'group_uuids', "Unable to find contact group with uuid: nope")
 
         # can't add a contact to a group if they're blocked
         contact.block()
@@ -1655,6 +1696,11 @@ class APITest(TembaTest):
         flow.start([], [contact1, contact2, contact3])
         runs = FlowRun.objects.filter(flow=flow)
 
+        # try adding more contacts to group than this endpoint is allowed to operate on at one time
+        response = self.postJSON(url, dict(contacts=[unicode(x) for x in range(101)],
+                                           action='add', group="Testers"))
+        self.assertResponseError(response, 'contacts', "Maximum of 100 contacts allowed")
+
         # try adding all contacts to a group
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid,
                                                      contact5.uuid, test_contact.uuid],
@@ -1685,6 +1731,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid=group.uuid))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact2, contact3})
+
+        # try adding with invalid group UUID
+        response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid='nope'))
+        self.assertResponseError(response, 'group_uuid', "No such group with UUID: nope")
 
         # remove contact 2 from group by its name
         response = self.postJSON(url, dict(contacts=[contact2.uuid], action='remove', group='Testers'))
@@ -2099,6 +2149,10 @@ class APITest(TembaTest):
         self.assertEquals(204, response.status_code)
         self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
+        # try to label with an invalid UUID
+        response = self.postJSON(url, dict(messages=[msg1.pk], action='label', label_uuid='nope'))
+        self.assertResponseError(response, 'label_uuid', "No such label with UUID: nope")
+
         # remove label from message 2 by name
         response = self.postJSON(url, dict(messages=[msg2.pk], action='unlabel', label='Test'))
         self.assertEquals(204, response.status_code)
@@ -2186,6 +2240,10 @@ class APITest(TembaTest):
         # can't update name to something already used
         response = self.postJSON(url, dict(uuid=screened.uuid, name='Junk'))
         self.assertEquals(400, response.status_code)
+
+        # can't update if UUID is invalid
+        response = self.postJSON(url, dict(uuid='nope', name='Junk'))
+        self.assertResponseError(response, 'uuid', "No such message label with UUID: nope")
 
         # now fetch all labels
         response = self.fetchJSON(url)
@@ -2528,6 +2586,11 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, "Time to go to the clinic")
         self.assertEqual(event1.flow, message_flow)
 
+        # try to create event with invalid campaign id
+        response = self.postJSON(url, dict(campaign=-123, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'campaign', "No campaign with id -123")
+
         # create by campaign UUID and flow UUID
         color_flow = self.create_flow()
         response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
@@ -2542,6 +2605,11 @@ class APITest(TembaTest):
         self.assertEqual(event2.relative_to.label, "EDD")
         self.assertEqual(event2.delivery_hour, 9)
         self.assertEqual(event2.message, None)
+
+        # try to create event with invalid campaign UUID
+        response = self.postJSON(url, dict(campaign_uuid='nope', unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, flow_uuid=color_flow.uuid))
+        self.assertResponseError(response, 'campaign_uuid', "No campaign with UUID nope")
 
         # update an event by id (deprecated)
         response = self.postJSON(url, dict(event=event1.pk, unit='D', offset=30, relative_to="EDD",
@@ -2558,6 +2626,11 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, "Time to go to the clinic. Thanks")
         self.assertEqual(event1.flow, message_flow)
 
+        # try tp update an event by invalid id
+        response = self.postJSON(url, dict(event=-123, unit='D', offset=30, relative_to="EDD",
+                                           delivery_hour=-1, message="Time to go to the clinic. Thanks"))
+        self.assertResponseError(response, 'event', "No event with id -123")
+
         # update an event by UUID
         other_flow = Flow.copy(color_flow, self.user)
         response = self.postJSON(url, dict(uuid=event2.uuid, unit='W', offset=3, relative_to="EDD",
@@ -2573,6 +2646,11 @@ class APITest(TembaTest):
         self.assertEqual(event2.delivery_hour, 5)
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, other_flow)
+
+        # try tp update an event by invalid UUID
+        response = self.postJSON(url, dict(uuid='nope', unit='D', offset=30, relative_to="EDD",
+                                           delivery_hour=-1, message="Time to go to the clinic. Thanks"))
+        self.assertResponseError(response, 'uuid', "No event with UUID nope")
 
         # try to specify campaign when updating event (not allowed)
         response = self.postJSON(url, dict(uuid=event2.uuid, campaign_uuid=campaign.uuid, unit='D', offset=3,
