@@ -34,6 +34,18 @@ class FlowRunReadSerializer(ReadSerializer):
         else:
             return []
 
+    def get_steps(self, obj):
+        steps = []
+        for step in obj.steps.all():
+            steps.append(dict(type=step.step_type,
+                              node=step.step_uuid,
+                              arrived_on=step.arrived_on,
+                              left_on=step.left_on,
+                              text=step.get_text(),
+                              value=unicode(step.rule_value)))
+
+        return steps
+
     class Meta:
         model = FlowRun
         fields = ('id', 'flow', 'contact', 'completed', 'values', 'steps',

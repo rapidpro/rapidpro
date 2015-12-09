@@ -78,8 +78,6 @@ class APITest(TembaTest):
             response = self.fetchJSON(url)
             self.assertEqual(response.status_code, 200)
 
-            import pdb; pdb.set_trace()
-
             next_url = response.json['next']
 
             response = self.fetchJSON(next_url)
