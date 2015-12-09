@@ -291,7 +291,7 @@ class Channel(SmartModel):
         plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
 
         if plivo_response_status != 200:
-            plivo_response_status, plivo_number = client.buy_phone_number(params=dict(number=plivo_number))
+            plivo_response_status, plivo_response = client.buy_phone_number(params=dict(number=plivo_number))
 
             if plivo_response_status != 201:
                 raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
