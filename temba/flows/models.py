@@ -4651,7 +4651,7 @@ class SaveToContactAction(Action):
         field = json_obj.get(cls.FIELD)
         value = json_obj.get(cls.VALUE)
 
-        if label.startswith('[_NEW_]'):
+        if label and label.startswith('[_NEW_]'):
             label = label[7:]
 
         # create our contact field if necessary
