@@ -1165,6 +1165,52 @@ class ChannelTest(TembaTest):
                 self.assertFalse(PLIVO_AUTH_ID in self.client.session)
                 self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
+        # delete existing channels
+        Channel.objects.all().delete()
+
+        with patch('temba.channels.views.plivo.RestAPI.get_account') as mock_plivo_get_account:
+            with patch('temba.channels.views.plivo.RestAPI.create_application') as mock_plivo_create_application:
+
+                with patch('temba.channels.models.plivo.RestAPI.get_number') as mock_plivo_get_number:
+                    with patch('temba.channels.models.plivo.RestAPI.buy_phone_number') as mock_plivo_buy_phone_number:
+                        mock_plivo_get_account.return_value = (200, MockResponse(200, json.dumps(dict())))
+
+                        mock_plivo_create_application.return_value = (200, dict(app_id='app-id'))
+
+                        mock_plivo_get_number.return_value = (400, MockResponse(400, json.dumps(dict())))
+
+
+
+                        mock_plivo_buy_phone_number.return_value = (201, MockResponse(201,
+                                                                        json.dumps({'status': 'fulfilled',
+                                                                                    'message': 'created',
+                                                                                    'numbers': [{'status': 'Success',
+                                                                                                 'number': '27816855210'
+                                                                                              }],
+                                                                                    'api_id': '4334c747-9e83-11e5-9147-22000acb8094'})))
+
+                        # claim it the US number
+                        session = self.client.session
+                        session[PLIVO_AUTH_ID] = 'auth-id'
+                        session[PLIVO_AUTH_TOKEN] = 'auth-token'
+                        session.save()
+
+                        self.assertTrue(PLIVO_AUTH_ID in self.client.session)
+                        self.assertTrue(PLIVO_AUTH_TOKEN in self.client.session)
+
+                        response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1440', country='US'))
+                        self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                        # make sure it is actually connected
+                        channel = Channel.objects.get(channel_type='PL', org=self.org)
+                        self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
+                                                          PLIVO_AUTH_TOKEN: 'auth-token',
+                                                          PLIVO_APP_ID: 'app-id'})
+                        self.assertEquals(channel.address, "+16062681440")
+                        # no more credential in the session
+                        self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+                        self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+
     def test_claim_twitter(self):
         self.login(self.admin)
 
