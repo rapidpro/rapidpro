@@ -11,7 +11,7 @@ from django.core.files import File
 from django.db import models
 from django.db.models import Count, Max
 from django.utils.translation import ugettext, ugettext_lazy as _
-from smartmin.models import SmartModel
+from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
@@ -628,25 +628,28 @@ class Contact(TembaModel):
                 (normalized, is_valid) = ContactURN.normalize_number(value, country)
 
                 if not is_valid:
-                    return None
+                    raise SmartImportRowError("Invalid Phone number %s" % value)
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
-                    return None
+                    raise SmartImportRowError("Ignored test contact")
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
             # if this is an anonymous org
             if org.is_anon and search_contact:
-                return None
+                raise SmartImportRowError("Other existing contact on anonymous organization")
 
             if not existing_contact:
                 existing_contact = search_contact
             elif search_contact is not None and existing_contact != search_contact:
-                return None
+                raise SmartImportRowError("Other existing contact with %s of %s" % (urn_header, value))
 
             urns.append((urn_scheme, value))
 
         if not urns:
-            return None
+            error_str = "Missing any valid URNs"
+            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[1:])
+
+            raise SmartImportRowError(error_str)
 
         # title case our name
         name = field_dict.get(Contact.NAME, None)

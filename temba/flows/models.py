@@ -1206,21 +1206,30 @@ class Flow(TembaModel):
         # our default value
         flow_context['__default__'] = "\n".join(values)
 
+        channel_context = None
+
         # add our message context
-        channel_context = dict()
         if msg:
             message_context = msg.build_message_context()
 
             # some fake channel deets for simulation
             if msg.contact.is_test:
                 channel_context = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
-            # where the message was sent to
             elif msg.channel:
                 channel_context = msg.channel.build_message_context()
         elif contact:
             message_context = dict(__default__='', contact=contact_context)
         else:
             message_context = dict(__default__='')
+
+        # If we still don't know our channel and have a contact, derive the right channel to use
+        if not channel_context and contact:
+            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by, contact, None)
+
+            # only populate channel if this contact can actually be reached (ie, has a URN)
+            if contact_urn:
+                channel = contact.org.get_send_channel(contact_urn=contact_urn)
+                channel_context = channel.build_message_context() if channel else None
 
         run = self.runs.filter(contact=contact).order_by('-created_on').first()
         run_context = run.field_dict() if run else {}
@@ -2512,7 +2521,6 @@ class RuleSet(models.Model):
             return rule, result.body
 
         else:
-
             # if it's a form field, construct an expression accordingly
             if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
                 config = self.config_json()
@@ -4363,10 +4371,10 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id):
-                group = ContactGroup.user_groups.get(org=org, id=group_id)
-            elif ContactGroup.user_groups.filter(org=org, name=group_name):
-                group = ContactGroup.user_groups.get(org=org, name=group_name)
+            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
+                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
+            elif ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True):
+                group = ContactGroup.user_groups.get(org=org, name=group_name, is_active=True)
             else:
                 group = ContactGroup.create(org, org.get_user(), group_name)
 

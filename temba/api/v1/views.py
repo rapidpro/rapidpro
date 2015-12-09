@@ -6,11 +6,10 @@ import urllib
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.core.paginator import Paginator
 from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import generics, mixins, status
+from rest_framework import generics, mixins, status, pagination
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -29,11 +28,12 @@ from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, 
 from temba.values.models import Value
 from ..models import ApiPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
-from .serializers import CallSerializer, CampaignSerializer
-from .serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
+from .serializers import CallSerializer, CampaignReadSerializer, CampaignWriteSerializer
+from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
 from .serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
-from .serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowDefinitionWriteSerializer
+from .serializers import FlowReadSerializer, FlowWriteSerializer
+from .serializers import FlowRunReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer
 from .serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from .serializers import LabelReadSerializer, LabelWriteSerializer
 from .serializers import ChannelClaimSerializer, ChannelReadSerializer
@@ -262,6 +262,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
+    pagination_class = pagination.PageNumberPagination
     cache_counts = False
 
     def get(self, request, *args, **kwargs):
@@ -274,30 +275,10 @@ class ListAPIMixin(mixins.ListModelMixin):
         else:
             return super(ListAPIMixin, self).list(request, *args, **kwargs)
 
-    class FixedCountPaginator(Paginator):
-        """
-        Paginator class which looks for fixed count stored as an attribute on the queryset, and uses that as it's total
-        count value if it exists, rather than calling count() on the queryset that may require an expensive db hit.
-        """
-        def __init__(self, queryset, *args, **kwargs):
-            self.fixed_count = getattr(queryset, 'fixed_count', None)
-
-            super(ListAPIMixin.FixedCountPaginator, self).__init__(queryset, *args, **kwargs)
-
-        def _get_count(self):
-            if self.fixed_count is not None:
-                return self.fixed_count
-            else:
-                return super(ListAPIMixin.FixedCountPaginator, self)._get_count()
-
-        count = property(_get_count)
-
-    paginator_class = FixedCountPaginator
-
-    def paginate_queryset(self, queryset, page_size=None):
+    def paginate_queryset(self, queryset):
         if self.cache_counts:
             # total counts can be expensive so we let some views cache counts based on the query parameters
-            query_params = self.request.QUERY_PARAMS.copy()
+            query_params = self.request.query_params.copy()
             if 'page' in query_params:
                 del query_params['page']
 
@@ -308,25 +289,25 @@ class ListAPIMixin(mixins.ListModelMixin):
             count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
 
             # only try to use cached count for pages other than the first
-            if int(self.request.QUERY_PARAMS.get('page', 1)) != 1:
+            if int(self.request.query_params.get('page', 1)) != 1:
                 cached_count = cache.get(count_key)
                 if cached_count is not None:
-                    queryset.fixed_count = int(cached_count)
+                    queryset.count = lambda: int(cached_count)  # monkey patch the queryset count() method
 
-            page = super(ListAPIMixin, self).paginate_queryset(queryset)
+            object_list = self.paginator.paginate_queryset(queryset, self.request, view=self)
+
+            # actual count (cached or calculated) is stored on the Django paginator rather than the REST paginator
+            actual_count = int(self.paginator.page.paginator.count)
 
             # reset the cached value
-            cache.set(count_key, page.paginator.count, REQUEST_COUNT_CACHE_TTL)
+            cache.set(count_key, actual_count, REQUEST_COUNT_CACHE_TTL)
         else:
-            page = super(ListAPIMixin, self).paginate_queryset(queryset)
-
-        # convert to list to ensure these will be the objects which get serialized
-        page.object_list = list(page.object_list)
+            object_list = self.paginator.paginate_queryset(queryset, self.request, view=self)
 
         # give views a chance to prepare objects for serialization
-        self.prepare_for_serialization(page.object_list)
+        self.prepare_for_serialization(object_list)
 
-        return page
+        return object_list
 
     def prepare_for_serialization(self, object_list):
         """
@@ -346,11 +327,11 @@ class CreateAPIMixin(object):
     def post(self, request, *args, **kwargs):
         user = request.user
         context = self.get_serializer_context()
-        serializer = self.write_serializer_class(user=user, data=request.DATA, context=context)
+        serializer = self.write_serializer_class(user=user, data=request.data, context=context)
 
         if serializer.is_valid():
-            serializer.save()
-            return self.render_write_response(serializer.object, context)
+            output = serializer.save()
+            return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -465,7 +446,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             statuses = [status.upper() for status in statuses]
             queryset = queryset.filter(status__in=statuses)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -473,7 +454,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -626,11 +607,11 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if phones:
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        urns = self.request.QUERY_PARAMS.getlist('urn', None)
+        urns = self.request.query_params.getlist('urn', None)
         if urns:
             queryset = queryset.filter(contact__urns__urn__in=urns)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -638,7 +619,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -646,7 +627,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        channels = self.request.QUERY_PARAMS.getlist('channel', None)
+        channels = self.request.query_params.getlist('channel', None)
         if channels:
             queryset = queryset.filter(channel__id__in=channels)
 
@@ -654,7 +635,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if contact_uuids:
             queryset = queryset.filter(contact__uuid__in=contact_uuids)
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
+        groups = self.request.query_params.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
                                        contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
@@ -669,7 +650,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(msg_type__in=types)
 
         labels_included, labels_required, labels_excluded = [], [], []
-        for label in self.request.QUERY_PARAMS.getlist('label', []):
+        for label in self.request.query_params.getlist('label', []):
             if label.startswith('+'):
                 labels_required.append(label[1:])
             elif label.startswith('-'):
@@ -684,7 +665,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         for label in labels_excluded:
             queryset = queryset.exclude(labels__name=label)
 
-        text = self.request.QUERY_PARAMS.get('text', None)
+        text = self.request.query_params.get('text', None)
         if text:
             queryset = queryset.filter(text__icontains=text)
 
@@ -696,7 +677,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
 
-        archived = self.request.QUERY_PARAMS.get('archived', None)
+        archived = self.request.query_params.get('archived', None)
         if archived is not None:
             visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
             queryset = queryset.filter(visibility=visibility)
@@ -798,9 +779,10 @@ class MessageBulkActionEndpoint(BaseAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.serializer_class(user=user, data=request.DATA)
+        serializer = self.serializer_class(user=user, data=request.data)
 
         if serializer.is_valid():
+            serializer.save()
             return Response('', status=status.HTTP_204_NO_CONTENT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -907,11 +889,11 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = self.model.label_objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
-        name = self.request.QUERY_PARAMS.get('name', None)
+        name = self.request.query_params.get('name', None)
         if name:
             queryset = queryset.filter(name__icontains=name)
 
-        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        uuids = self.request.query_params.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -994,7 +976,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -1002,7 +984,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -1018,7 +1000,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
         if phones:
             queryset = queryset.filter(contact__urns__path__in=phones)
 
-        channel = self.request.QUERY_PARAMS.get('relayer', None)
+        channel = self.request.query_params.get('relayer', None)
         if channel:
             try:
                 channel = int(channel)
@@ -1172,7 +1154,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         if phones:
             queryset = queryset.filter(address__in=phones)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -1180,7 +1162,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -1288,11 +1270,11 @@ class GroupEndpoint(ListAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = self.model.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        name = self.request.QUERY_PARAMS.get('name', None)
+        name = self.request.query_params.get('name', None)
         if name:
             queryset = queryset.filter(name__icontains=name)
 
-        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        uuids = self.request.query_params.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -1428,8 +1410,8 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = self.get_base_queryset(request)
 
         # to make it harder for users to delete all their contacts by mistake, we require them to filter by UUID or urns
-        uuids = request.QUERY_PARAMS.getlist('uuid', None)
-        urns = request.QUERY_PARAMS.getlist('urns', None)
+        uuids = request.query_params.getlist('uuid', None)
+        urns = request.query_params.getlist('urns', None)
 
         if not (uuids or urns):
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -1450,7 +1432,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
 
         # if they pass in deleted=true then only return deleted contacts
-        if str_to_bool(request.QUERY_PARAMS.get('deleted', '')):
+        if str_to_bool(request.query_params.get('deleted', '')):
             return queryset.filter(is_active=False)
         else:
             return queryset.filter(is_active=True)
@@ -1458,7 +1440,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_queryset(self):
         queryset = self.get_base_queryset(self.request)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -1466,7 +1448,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -1478,21 +1460,21 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         if phones:
             queryset = queryset.filter(urns__path__in=phones, urns__scheme=TEL_SCHEME)
 
-        urns = self.request.QUERY_PARAMS.getlist('urns', None)
+        urns = self.request.query_params.getlist('urns', None)
         if urns:
             queryset = queryset.filter(urns__urn__in=urns)
 
-        groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
+        groups = self.request.query_params.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(all_groups__name__in=groups,
                                        all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
+        group_uuids = self.request.query_params.getlist('group_uuids', None)
         if group_uuids:
             queryset = queryset.filter(all_groups__uuid__in=group_uuids,
                                        all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        uuids = self.request.query_params.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -1662,7 +1644,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True)
 
-        key = self.request.QUERY_PARAMS.get('key', None)
+        key = self.request.query_params.get('key', None)
         if key:
             queryset = queryset.filter(key__icontains=key)
 
@@ -1732,9 +1714,10 @@ class ContactBulkActionEndpoint(BaseAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.serializer_class(user=user, data=request.DATA)
+        serializer = self.serializer_class(user=user, data=request.data)
 
         if serializer.is_valid():
+            serializer.save()
             return Response('', status=status.HTTP_204_NO_CONTENT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1808,7 +1791,7 @@ class FlowResultsEndpoint(BaseAPIView):
 
         ruleset, contact_field = None, None
 
-        ruleset_id_or_uuid = self.request.QUERY_PARAMS.get('ruleset', None)
+        ruleset_id_or_uuid = self.request.query_params.get('ruleset', None)
         if ruleset_id_or_uuid:
             try:
                 ruleset = RuleSet.objects.filter(flow__org=org, pk=int(ruleset_id_or_uuid)).first()
@@ -1818,7 +1801,7 @@ class FlowResultsEndpoint(BaseAPIView):
             if not ruleset:
                 return Response(dict(ruleset=["No ruleset found with that UUID or id"]), status=status.HTTP_400_BAD_REQUEST)
 
-        field = self.request.QUERY_PARAMS.get('contact_field', None)
+        field = self.request.query_params.get('contact_field', None)
         if field:
             contact_field = ContactField.get_by_label(org, field)
             if not contact_field:
@@ -1827,7 +1810,7 @@ class FlowResultsEndpoint(BaseAPIView):
         if (not ruleset and not contact_field) or (ruleset and contact_field):
             return Response(dict(non_field_errors=["You must specify either a ruleset or contact field"]), status=status.HTTP_400_BAD_REQUEST)
 
-        segment = self.request.QUERY_PARAMS.get('segment', None)
+        segment = self.request.query_params.get('segment', None)
         if segment:
             try:
                 segment = json.loads(segment)
@@ -2046,7 +2029,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if runs:
             queryset = queryset.filter(pk__in=runs)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -2054,7 +2037,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -2187,13 +2170,13 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     permission = 'campaigns.campaign_api'
     model = Campaign
-    serializer_class = CampaignSerializer
+    serializer_class = CampaignReadSerializer
     write_serializer_class = CampaignWriteSerializer
 
     def get_queryset(self):
         queryset = Campaign.get_campaigns(self.request.user.get_org())
 
-        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        uuids = self.request.query_params.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
@@ -2201,7 +2184,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -2209,7 +2192,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -2344,7 +2327,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     """
     permission = 'campaigns.campaignevent_api'
     model = CampaignEvent
-    serializer_class = CampaignEventSerializer
+    serializer_class = CampaignEventReadSerializer
     write_serializer_class = CampaignEventWriteSerializer
 
     def destroy(self, request, *args, **kwargs):
@@ -2375,7 +2358,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
         if campaign_ids:
             queryset = queryset.filter(campaign__pk__in=campaign_ids)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -2383,7 +2366,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -2696,7 +2679,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
     """
     permission = 'flows.flow_api'
     model = Flow
-    write_serializer_class = FlowDefinitionWriteSerializer
+    write_serializer_class = FlowWriteSerializer
 
     def get(self, request, *args, **kwargs):
 
@@ -2779,15 +2762,15 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
-        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        uuids = self.request.query_params.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
-        ids = self.request.QUERY_PARAMS.getlist('flow', None)  # deprecated, use uuid
+        ids = self.request.query_params.getlist('flow', None)  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
-        before = self.request.QUERY_PARAMS.get('before', None)
+        before = self.request.query_params.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
@@ -2795,7 +2778,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        after = self.request.QUERY_PARAMS.get('after', None)
+        after = self.request.query_params.get('after', None)
         if after:
             try:
                 after = json_date_to_datetime(after)
@@ -2803,15 +2786,15 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        label = self.request.QUERY_PARAMS.getlist('label', None)
+        label = self.request.query_params.getlist('label', None)
         if label:
             queryset = queryset.filter(labels__name__in=label)
 
-        archived = self.request.QUERY_PARAMS.get('archived', None)
+        archived = self.request.query_params.get('archived', None)
         if archived is not None:
             queryset = queryset.filter(is_archived=str_to_bool(archived))
 
-        flow_type = self.request.QUERY_PARAMS.getlist('type', None)
+        flow_type = self.request.query_params.getlist('type', None)
         if flow_type:
             queryset = queryset.filter(flow_type__in=flow_type)
 

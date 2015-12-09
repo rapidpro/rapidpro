@@ -75,6 +75,19 @@
                           Failed to import {{ error_count }} contact due to missing or invalid phone number
                           -plural
                             Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
+
+                      .import-result
+                        .well.well-small
+                          %strong
+                            -blocktrans count results.error_messages as error_count
+                              Error description
+                              -plural
+                                Errors description
+                          %br
+                            - for error_message in results.error_messages
+                              Row {{ error_message.line }}: {{ error_message.error }}
+                              %br
+
                   - else
                     %p
                       -blocktrans
@@ -172,6 +185,10 @@
     font-size: 28px;
     margin: 0px 20px;
     line-height: 22px;
+  }
+
+  #import-message .import-result .well {
+    font-size: 14px;
   }
 
   #import-message .import-result a {
