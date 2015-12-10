@@ -117,16 +117,17 @@ class PublicTest(SmartminTest):
     def test_sitemaps(self):
         sitemap_url = reverse('public.sitemaps')
 
-        # get the count of items, we are expecting only 8 items for now. We have no video item yet.
+        # get the count of items, we are expecting only 6 items for now. We have no video item yet.
         response = self.client.get(sitemap_url)
-        self.assertEquals(len(response.context['urlset']), 8)
+        self.assertEquals(len(response.context['urlset']), 6)
 
         # add a video on the item, we will now have 14 items
         Video.objects.create(name="Item14", summary="Unicorn", description="Video of unicorns", vimeo_id="1234",
                              order=0, created_by=self.superuser, modified_by=self.superuser)
 
         response = self.client.get(sitemap_url)
-        self.assertEquals(len(response.context['urlset']), 9)
+        self.assertEquals(len(response.context['urlset']), 7)
+
 
 class VideoCRUDLTest(_CRUDLTest):
 

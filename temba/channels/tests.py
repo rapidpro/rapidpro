@@ -3982,7 +3982,7 @@ class TwilioTest(TembaTest):
         sms = Msg.objects.get()
 
         # now update the status via a callback
-        twilio_url = "%s?action=callback&id=%d" % (twilio_url, sms.id)
+        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms.id
         post_data['SmsStatus'] = 'sent'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
@@ -3998,8 +3998,8 @@ class TwilioTest(TembaTest):
         contact.send("outgoing message", self.admin)
         sms = Msg.objects.get()
 
-        # now update the status via a callback
-        twilio_url = "%s?action=callback&id=%d" % (twilio_url, sms.id)
+        # now update the status via a callback (also test old api/v1 URL)
+        twilio_url = reverse('api.twilio_handler') + "?action=callback&id=%d" % sms.id
         post_data['SmsStatus'] = 'failed'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
