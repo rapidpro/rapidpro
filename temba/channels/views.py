@@ -38,7 +38,7 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       EXTERNAL: "icon-channel-external",
@@ -967,15 +967,21 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             url = forms.URLField(max_length=1024, label=_("Send URL"),
-                                 help_text=_("The publicly accessible URL for your Kannel instance for sending. ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
+                                 help_text=_("The publicly accessible URL for your Kannel instance for sending. "
+                                             "ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
             username = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The username to use to authenticate to Kannel, if left blank we will generate one for you"))
+                                       help_text=_("The username to use to authenticate to Kannel, if left blank we "
+                                                   "will generate one for you"))
             password = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The password to use to authenticate to Kannel, if left blank we will generate one for you"))
+                                       help_text=_("The password to use to authenticate to Kannel, if left blank we "
+                                                   "will generate one for you"))
             encoding = forms.ChoiceField(ENCODING_CHOICES, label=_("Encoding"),
                                          help_text=_("What encoding to use for outgoing messages"))
             verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
                                             help_text=_("Whether to verify the SSL connection (recommended)"))
+            use_national = forms.BooleanField(initial=False, required=False, label=_("Use National Numbers"),
+                                              help_text=_("Use only the national number (no country code) when "
+                                                          "sending (not recommended)"))
 
         title = _("Connect Kannel Service")
         success_url = "id@channels.channel_configuration"
@@ -990,7 +996,9 @@ class ChannelCRUDL(SmartCRUDL):
             number = data['number']
             role = SEND + RECEIVE
 
-            config = {SEND_URL: url, VERIFY_SSL: data.get('verify_ssl'),
+            config = {SEND_URL: url,
+                      VERIFY_SSL: data.get('verify_ssl', False),
+                      USE_NATIONAL: data.get('use_national', False),
                       USERNAME: data.get('username', None), PASSWORD: data.get('password', None),
                       ENCODING: data.get('encoding', DEFAULT_ENCODING)}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, KANNEL,
@@ -1373,6 +1381,7 @@ class ChannelCRUDL(SmartCRUDL):
         class ATClaimForm(forms.Form):
             shortcode = forms.CharField(max_length=6, min_length=1,
                                         help_text=_("Your short code on Africa's Talking"))
+            country = forms.ChoiceField(choices=(('KE', _("Kenya")), ('UG', _("Uganda"))))
             is_shared = forms.BooleanField(initial=False, required=False,
                                            help_text=_("Whether this short code is shared with others"))
             username = forms.CharField(max_length=32,
@@ -1381,7 +1390,7 @@ class ChannelCRUDL(SmartCRUDL):
                                       help_text=_("Your api key, should be 64 characters"))
 
         title = _("Connect Africa's Talking Account")
-        fields = ('shortcode', 'is_shared', 'username', 'api_key')
+        fields = ('shortcode', 'country', 'is_shared', 'username', 'api_key')
         form_class = ATClaimForm
         success_url = "id@channels.channel_configuration"
 
@@ -1393,6 +1402,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
             self.object = Channel.add_africas_talking_channel(org, self.request.user,
+                                                              country=data['country'],
                                                               phone=data['shortcode'], username=data['username'],
                                                               api_key=data['api_key'], is_shared=data['is_shared'])
 

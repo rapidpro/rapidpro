@@ -1961,11 +1961,16 @@ class APITest(TembaTest):
         # add some incoming messages and a flow message
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test3")
-        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4")
+        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4 (سلم)")
 
         flow = self.create_flow()
         flow.start([], [contact])
         msg5 = Msg.objects.get(msg_type='F')
+
+        # check encoding
+        response = self.fetchJSON(url, "id=%d" % msg4.pk)
+        self.assertIn('\\u0633\\u0644\\u0645', response.content)
+        self.assertEqual(response.json['results'][0]['text'], "test4 (\u0633\u0644\u0645)")
 
         # search by type
         response = self.fetchJSON(url, "type=F")

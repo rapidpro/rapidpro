@@ -2139,6 +2139,11 @@ class ActionTest(TembaTest):
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
 
+        self.assertFalse(ContactField.objects.filter(org=self.org, label='Ecole'))
+        SaveToContactAction.from_json(self.org, dict(type='save', label="[_NEW_]Ecole", value='@step'))
+        field = ContactField.objects.get(org=self.org, key="ecole")
+        self.assertEquals("Ecole", field.label)
+
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
 
