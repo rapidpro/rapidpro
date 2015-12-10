@@ -10,16 +10,17 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
-from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, JsonResponse
+from temba.triggers.models import Trigger
+from temba.utils import analytics, JsonResponse, json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -96,7 +97,7 @@ class TwilioHandler(View):
                     response.hangup()
 
                     # if they have a missed call trigger, fire that off
-                    Trigger.catch_triggers(contact, MISSED_CALL_TRIGGER)
+                    Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
                     return HttpResponse(unicode(response))
@@ -373,7 +374,8 @@ class ExternalHandler(View):
         action = kwargs['action'].lower()
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True,
+                                         channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -402,13 +404,20 @@ class ExternalHandler(View):
 
         # this is a new incoming message
         elif action == 'received':
-            if not request.REQUEST.get('from', None):
-                return HttpResponse("Missing 'from' parameter, invalid call.", status=400)
+            sender = request.REQUEST.get('from', request.REQUEST.get('sender', None))
+            if not sender:
+                return HttpResponse("Missing 'from' or 'sender' parameter, invalid call.", status=400)
 
-            if not 'text' in request.REQUEST:
-                return HttpResponse("Missing 'text' parameter, invalid call.", status=400)
+            text = request.REQUEST.get('text', request.REQUEST.get('message', None))
+            if text is None:
+                return HttpResponse("Missing 'text' or 'message' parameter, invalid call.", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['from']), request.REQUEST['text'])
+            # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
+            date = request.REQUEST.get('date', request.REQUEST.get('time', None))
+            if date:
+                date = json_date_to_datetime(date)
+
+            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -421,9 +430,15 @@ class ShaqodoonHandler(ExternalHandler):
     Overloaded external channel for accepting Shaqodoon messages
     """
     def get_channel_type(self):
-        from temba.channels.models import SHAQODOON
         return SHAQODOON
 
+
+class YoHandler(ExternalHandler):
+    """
+    Overloaded external channel for accepting Yo! Messages.
+    """
+    def get_channel_type(self):
+        return YO
 
 class InfobipHandler(View):
 
@@ -714,6 +729,15 @@ class SMSCentralHandler(View):
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
+
+
+class M3TechHandler(ExternalHandler):
+    """
+    Exposes our API for handling and receiving messages, same as external handlers.
+    """
+    def get_channel_type(self):
+        from temba.channels.models import M3TECH
+        return M3TECH
 
 
 class NexmoHandler(View):
@@ -1086,8 +1110,11 @@ class ClickatellHandler(View):
                 return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
 
             # dates come in the format "2014-04-18 03:54:20" GMT+2
-            sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
-            gmt_date = pytz.timezone('Europe/Berlin').localize(sms_date)
+            sms_date = parse_datetime(request.REQUEST['timestamp'])
+
+            # Posix makes this timezone name back-asswards:
+            # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
+            gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
             text = request.REQUEST['text']
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn

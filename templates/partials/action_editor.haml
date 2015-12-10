@@ -7,7 +7,7 @@
   %p
     -blocktrans
       When somebody arrives at this point in your flow
-  %select{ng-change:"updateActionForm(config)", ng-model:"config",ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
+  %select{ng-change:"updateActionForm(config)", ng-model:"config", ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}><
       %span{auto-complete:"",sms:"action.msg",data-message:"message"}><
@@ -53,7 +53,7 @@
         -blocktrans
           Set the preferred language for the contact.
 
-      %select{ng-model:"action.lang",style:"height:34px",name:"lang",ng-options:"lang.iso_code as lang.name for lang in languages",required:"",class:"language",select2:""}
+      %select{ng-model:"action.lang",style:"height:34px",name:"lang",ng-options:"lang.iso_code as lang.name for lang in languages", required:"", class:"language", select2:""}
       %button{ng-click:"saveLanguage(action_editor.lang)",class:"submit hide"}
         -trans "Ok"
 

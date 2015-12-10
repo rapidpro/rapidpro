@@ -37,17 +37,12 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
 
-        self.tel_mtn = Channel.objects.create(org=self.org, name="MTN", channel_type="A", role="SR",
-                                              address="+250780000000", secret="12345", gcm_id="123",
-                                              created_by=self.user, modified_by=self.user)
-        self.tel_tigo = Channel.objects.create(org=self.org, name="Tigo", channel_type="A", role="SR",
-                                               address="+250720000000", secret="23456", gcm_id="234",
-                                               created_by=self.user, modified_by=self.user)
-        self.tel_bulk = Channel.objects.create(org=self.org, name="Nexmo", channel_type="NX", role="S",
-                                               parent=self.tel_tigo, secret="34567",
-                                               created_by=self.user, modified_by=self.user)
-        self.twitter = Channel.objects.create(org=self.org, name="Twitter", channel_type="TT", role="SR",
-                                              created_by=self.user, modified_by=self.user)
+        self.tel_mtn = Channel.create(self.org, self.user, 'RW', 'A', name="MTN", address="+250780000000",
+                                      secret="12345", gcm_id="123")
+        self.tel_tigo = Channel.create(self.org, self.user, 'RW', 'A', name="Tigo", address="+250720000000",
+                                       secret="23456", gcm_id="234")
+        self.tel_bulk = Channel.create(self.org, self.user, 'RW', 'NX', name="Nexmo", parent=self.tel_tigo)
+        self.twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob")
 
         # for generating tuples of scheme, path and channel
         generate_tel_mtn = lambda num: (TEL_SCHEME, "+25078%07d" % (num + 1), self.tel_mtn)

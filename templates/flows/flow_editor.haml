@@ -33,8 +33,9 @@
   %script{type:'text/javascript', src:'{{ STATIC_URL }}js/dom.jsPlumb-1.7.5.js'}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}angular/sortable.js'}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}angular/ui-bootstrap-tpls-0.11.0.js'}
-  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.caret.min.js'}
-  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/jquery.atwho.js'}
+  %script{src:"{{ STATIC_URL }}scripts/At.js/bower_components/Caret.js/dist/jquery.caret.js"}
+  %script{src:"{{ STATIC_URL }}scripts/At.js/dist/js/jquery.atwho.js"}
+  %script{src:"{{ STATIC_URL }}js/excellent.js"}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}scripts/autosize/jquery.autosize-min.js'}
   %script{type:'text/javascript', src:'{{ STATIC_URL }}scripts/angular-elastic-2.4.0/angular-elastic.js'}
 
@@ -46,7 +47,10 @@
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
+    window.flow_type = '{{object.flow_type}}';
     window.recordingURL = '{{recording_url}}';
+
+    $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations
 
     // Editing the flow
@@ -173,26 +177,23 @@
         %br
         -trans "Simulator"
 
-  #version-mask{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
-    .buttons.pull-right
-      .btn.btn-danger{ng-click:'apply()'}
-        Revert
-      .btn.btn-secondary{ng-click:'cancel()'}
-        Cancel
-
-  #versions{ng-controller:'VersionController', ng-show:'showVersions', ng-cloak:''}
+  #revision-mask{ng-show:'showRevisions', ng-cloak:''}
+  #revisions.draggable{ng-controller:'RevisionController', ng-show:'showRevisions', ng-cloak:''}
     %h4
       Revision History
-    .version{ng-repeat:'version in versions()', ng-class:'{selected:version.selected}'}
+      .close.icon-close{ng-click:'cancel()'}
 
+    .choices
+      .revision{ng-repeat:'revision in revisions()', ng-class:'{selected:revision.selected}'}
+        .revert.btn.btn-tiny.btn-primary{ng-click:'apply()', ng-show:'revision.selected'}
+          Revert
 
-      <a ng-click='showVersion(version)' href='#'>[[version.created_on|date:'medium']]</a>
-      .author
-        .name
-          [[version.user.name]]
-        .email
-          [[version.user.email]]
-
+        <a ng-click='showRevision(revision)' href='javascript:void(0);'>[[revision.created_on|date:'medium']]</a>
+        .author
+          .name
+            [[revision.user.name]]
+          .email
+            [[revision.user.email]]
 
   #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:'', ng-init:"init()"}
     -include "flows/simulator.html"
@@ -204,6 +205,8 @@
       %h2
         -if flow.flow_type == 'V'
           .icon-phone
+        -elif flow.flow_type == 'S'
+          .icon-channel-android
         {{ flow.name }}
 
       #pending{ng-show:'pending == "S" || pending == "P"'}
@@ -282,7 +285,7 @@
                   Send Message
                 .summary
                   %span.translation
-                    Click here to send a message
+                    Click here to add a message
 
         // Empty rule node shown while dragging
         .ghost.rules.node.rule-node.hide
@@ -350,10 +353,14 @@
 
                   [[action.name]]
 
+
                 // messages with translations
                 %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
 
                   [[action._translation]]
+
+                  .missing{ng-hide:'action._translation'}
+                    -trans "Click here to add a message"
 
                   %span.recording{ng-show:'action.type=="say"'}
 

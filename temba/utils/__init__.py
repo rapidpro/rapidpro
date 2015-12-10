@@ -5,6 +5,8 @@ import json
 import pytz
 import random
 import datetime
+import locale
+import resource
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -15,6 +17,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django.http import HttpResponse
+from itertools import islice, chain
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 
@@ -36,15 +39,27 @@ INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
                             'GMT': '',
                             'UTC': ''}
 
+
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
+    """
+    Formats a datetime or date as a string
+    :param date_obj: the datetime or date
+    :param format: the format (defaults to ISO8601)
+    :param ms: whether to include microseconds
+    :param tz: the timezone to localize in
+    :return: the formatted date string
+    """
     if not date_obj:
         return None
 
-    if date_obj.year < 1900:
-        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
-
     if not tz:
         tz = timezone.utc
+
+    if type(date_obj) == datetime.date:
+        date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
+
+    if date_obj.year < 1900:
+        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
 
     if isinstance(date_obj, datetime.datetime):
         date_obj = timezone.localtime(date_obj, tz)
@@ -433,3 +448,26 @@ def splitting_getlist(request, name, default=None):
     else:
         return vals
 
+def chunk_list(iterable, size):
+    """
+    Splits a very large list into evenly sized chunks.
+    Returns an iterator of lists that are no more than the size passed in.
+    """
+    source_iter = iter(iterable)
+    while True:
+        chunk_iter = islice(source_iter, size)
+        yield chain([chunk_iter.next()], chunk_iter)
+
+
+def print_max_mem_usage(msg=None):
+    """
+    Prints the maximum RAM used by the process thus far.
+    """
+    if msg is None:
+        msg = "Max usage: "
+
+    locale.setlocale(locale.LC_ALL, '')
+    print
+    print "=" * 80
+    print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
+    print "=" * 80

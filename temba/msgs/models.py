@@ -2,31 +2,33 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import pytz
-import regex
 import time
 import traceback
-
 from datetime import datetime, timedelta
+from uuid import uuid4
+
+import pytz
+import regex
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
+from temba_expressions.evaluator import EvaluationContext, DateStyle
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
-from temba.orgs.models import Org, OrgEvent, TopUp, Language, UNREAD_INBOX_MSGS
+from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.temba_email import send_temba_email
-from temba.utils import get_datetime_format, datetime_to_str, analytics
+from temba.utils.email import send_template_email
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
-from temba.utils.parser import evaluate_template, EvaluationContext
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from .handler import MessageHandler
 
@@ -210,6 +212,26 @@ class Broadcast(models.Model):
         broadcast.update_recipients(recipients)
         return broadcast
 
+    def update_contacts(self, contact_ids):
+        """
+        Optimization for broadcasts that only contain contacts. Updates our contacts according to the passed in
+        queryset or array.
+        """
+        self.urns.clear()
+        self.groups.clear()
+        self.contacts.clear()
+
+        # get our through model
+        RelatedModel = self.contacts.through
+
+        # clear called automatically by django
+        for chunk in chunk_list(contact_ids, 1000):
+            bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
+            RelatedModel.objects.bulk_create(bulk_contacts)
+
+        self.recipient_count = len(contact_ids)
+        self.save(update_fields=('recipient_count',))
+
     def update_recipients(self, recipients):
         """
         Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a
@@ -326,6 +348,10 @@ class Broadcast(models.Model):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
+        # ignore mock messages
+        if response_to and not response_to.id:
+            response_to = None
+
         # cannot ask for sending by us AND specify a created on, blow up in that case
         if trigger_send and created_on:
             raise Exception("Cannot trigger send and specify a created_on, breaks creating batches")
@@ -354,11 +380,14 @@ class Broadcast(models.Model):
             priority = SMS_BULK_PRIORITY
 
         # determine our preferred languages
-        preferred_languages = []
+        org_languages = {l.iso_code for l in self.org.languages.all()}
+        other_preferred_languages = []
+
         if self.org.primary_language:
-            preferred_languages.append(self.org.primary_language.iso_code)
+            other_preferred_languages.append(self.org.primary_language.iso_code)
+
         if base_language:
-            preferred_languages.append(base_language)
+            other_preferred_languages.append(base_language)
 
         # if they didn't pass in a created on, create one ourselves
         if not created_on:
@@ -373,8 +402,16 @@ class Broadcast(models.Model):
             text_translations = json.loads(self.language_dict)
 
         for recipient in recipients:
+            contact = recipient if isinstance(recipient, Contact) else recipient.contact
+
+            # if contact has a language and it's a valid org language, it has priority
+            if contact.language and contact.language in org_languages:
+                preferred_languages = [contact.language] + other_preferred_languages
+            else:
+                preferred_languages = other_preferred_languages
+
             # find the right text to send
-            text = Language.get_localized_text(self.text, text_translations, preferred_languages, contact=recipient)
+            text = Language.get_localized_text(text_translations, preferred_languages, self.text)
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -505,7 +542,7 @@ class Msg(models.Model):
                                 related_name='msgs', verbose_name=_("Contact"),
                                 help_text=_("The contact this message is communicating with"))
 
-    contact_urn = models.ForeignKey(ContactURN,
+    contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this message is communicating with"))
 
@@ -573,37 +610,46 @@ class Msg(models.Model):
                                     help_text=_("The url for any recording associated with this message"))
 
     @classmethod
-    def send_messages(cls, msgs):
+    def send_messages(cls, all_msgs):
         """
         Adds the passed in messages to our sending queue, this will also update the status of the message to
         queued.
         :return:
         """
-        # build our id list
-        msg_ids = set([m.id for m in msgs])
+        # we send in chunks of 1,000 to help with contention
+        for msg_chunk in chunk_list(all_msgs, 1000):
+            # create a temporary list of our chunk so we can iterate more than once
+            msgs = [msg for msg in msg_chunk]
 
-        queued_on = timezone.now()
+            # build our id list
+            msg_ids = set([m.id for m in msgs])
 
-        # update them to queued
-        send_messages = Msg.objects.filter(id__in=msg_ids)
-        send_messages = send_messages.exclude(channel__channel_type=ANDROID).exclude(msg_type=IVR).exclude(topup=None).exclude(contact__is_test=True)
-        send_messages.update(status=QUEUED, queued_on=queued_on)
+            with transaction.atomic():
+                queued_on = timezone.now()
 
-        # now push each onto our queue
-        for msg in msgs:
-            # skip over non-android channels, messages with no top up and test contacts
-            if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and msg.topup and not msg.contact.is_test:
-                # serialize the model to a dictionary
-                msg.queued_on = queued_on
-                task = msg.as_task_json()
+                # update them to queued
+                send_messages = Msg.objects.filter(id__in=msg_ids)\
+                                           .exclude(channel__channel_type=ANDROID)\
+                                           .exclude(msg_type=IVR)\
+                                           .exclude(topup=None)\
+                                           .exclude(contact__is_test=True)
+                send_messages.update(status=QUEUED, queued_on=queued_on)
 
-                task_priority = DEFAULT_PRIORITY
-                if msg.priority == SMS_BULK_PRIORITY:
-                    task_priority = LOW_PRIORITY
-                elif msg.priority == SMS_HIGH_PRIORITY:
-                    task_priority = HIGH_PRIORITY
+                # now push each onto our queue
+                for msg in msgs:
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
+                            msg.topup and not msg.contact.is_test:
+                        # serialize the model to a dictionary
+                        msg.queued_on = queued_on
+                        task = msg.as_task_json()
 
-                push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                        task_priority = DEFAULT_PRIORITY
+                        if msg.priority == SMS_BULK_PRIORITY:
+                            task_priority = LOW_PRIORITY
+                        elif msg.priority == SMS_HIGH_PRIORITY:
+                            task_priority = HIGH_PRIORITY
+
+                        push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
 
     @classmethod
     def process_message(cls, msg):
@@ -834,7 +880,8 @@ class Msg(models.Model):
             return parts
 
     def reply(self, text, user, trigger_send=False, message_context=None):
-        return self.contact.send(text, user, trigger_send=trigger_send, response_to=self, message_context=message_context)
+        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                 response_to=self if self.id else None)
 
     def update(self, cmd):
         """
@@ -964,7 +1011,7 @@ class Msg(models.Model):
         return self.text
 
     @classmethod
-    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None,
+    def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, recording_url=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
@@ -980,8 +1027,11 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
-        contact_urn = contact.urn_objects[urn]
+        if not contact:
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact_urn = contact.urn_objects[urn]
+        else:
+            contact_urn = None
 
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
@@ -1026,7 +1076,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, contact, message_context, org=None, url_encode=False):
+    def substitute_variables(cls, text, contact, message_context, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1035,15 +1085,14 @@ class Msg(models.Model):
         Returns a tuple of the substituted text and whether there were are substitution failures.
         """
         # shortcut for cases where there is no way we would substitute anything as there are no variables
-        # TODO remove check for '@' when we deprecate that style of expression
-        if not text or (text.find('@') < 0 and text.find('=') < 0):
-            return text, False
+        if not text or text.find('@') < 0:
+            return text, []
 
         if contact:
             message_context['contact'] = contact.build_message_context()
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
-        if 'step' not in message_context or not 'contact' in message_context['step']:
+        if 'step' not in message_context or 'contact' not in message_context['step']:
             message_context['step'] = dict(contact=message_context['contact'])
 
         if not org:
@@ -1064,12 +1113,11 @@ class Msg(models.Model):
 
         message_context['date'] = date_context
 
-        context = EvaluationContext(message_context, dict(tz=tz, dayfirst=dayfirst))
+        date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
+        context = EvaluationContext(message_context, tz, date_style)
 
-        evaluated, errors = evaluate_template(text, context, url_encode)
-
-        # currently we throw away the actual error messages from the parser
-        return evaluated, (len(errors) > 0)
+        # returns tuple of output and errors
+        return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
@@ -1082,19 +1130,24 @@ class Msg(models.Model):
         # for IVR messages we need a channel that can call
         role = CALL if msg_type == IVR else SEND
 
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+        if status != SENT:
+            # if message will be sent, resolve the recipient to a contact and URN
+            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
-        if not contact_urn:
-            raise UnreachableException("No suitable URN found for contact")
+            if not contact_urn:
+                raise UnreachableException("No suitable URN found for contact")
 
-        if not channel:
-            if msg_type == IVR:
-                channel = org.get_call_channel()
-            else:
-                channel = org.get_send_channel(contact_urn=contact_urn)
+            if not channel:
+                if msg_type == IVR:
+                    channel = org.get_call_channel()
+                else:
+                    channel = org.get_send_channel(contact_urn=contact_urn)
 
-            if not channel and not contact.is_test:
-                raise ValueError("No suitable channel available for this org")
+                if not channel and not contact.is_test:
+                    raise ValueError("No suitable channel available for this org")
+        else:
+            # if message has already been sent, recipient must be a tuple of contact and URN
+            contact, contact_urn = recipient
 
         # no creation date?  set it to now
         if not created_on:
@@ -1104,7 +1157,7 @@ class Msg(models.Model):
         if not message_context:
             message_context = dict()
 
-        (text, has_template_error) = Msg.substitute_variables(text, contact, message_context, org=org)
+        (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
@@ -1121,18 +1174,24 @@ class Msg(models.Model):
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
 
+            channel_id = channel.pk if channel else None
+
             if same_msg_count >= 10:
-                analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel.pk))
+                analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel_id))
                 return None
 
             # be more aggressive about short codes for duplicate messages
             # we don't want machines talking to each other
             tel = contact.raw_tel()
             if tel and len(tel) < 6:
-                same_msg_count = Msg.objects.filter(contact_urn=contact_urn, contact__is_test=False, channel=channel, text=text,
-                                                    direction=OUTGOING, created_on__gte=created_on - timedelta(hours=24)).count()
+                same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
+                                                    contact__is_test=False,
+                                                    channel=channel,
+                                                    text=text,
+                                                    direction=OUTGOING,
+                                                    created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
-                    analytics.track('System', "temba.msg_shortcode_loop_caught", dict(org=org.pk, channel=channel.pk))
+                    analytics.track('System', "temba.msg_shortcode_loop_caught", dict(org=org.pk, channel=channel_id))
                     return None
 
         # costs 1 credit to send a message
@@ -1161,7 +1220,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         recording_url=recording_url,
-                        has_template_error=has_template_error)
+                        has_template_error=len(errors) > 0)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1177,7 +1236,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.get_scheme()} if channel else org.get_schemes(role)
+        resolved_schemes = {channel.scheme} if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1302,20 +1361,7 @@ class Msg(models.Model):
     class Meta:
         ordering = ['-created_on', '-pk']
 
-
-CALL_OUT = 'mt_call'
-CALL_OUT_MISSED = 'mt_miss'
-CALL_IN = 'mo_call'
-CALL_IN_MISSED = 'mo_miss'
-
-CALL_TYPES = (('unk', _("Unknown Call Type")),
-              (CALL_IN, _("Incoming Call")),
-              (CALL_IN_MISSED, _("Missed Incoming Call")),
-              (CALL_OUT, _("Outgoing Call")),
-              (CALL_OUT_MISSED, _("Missed Outgoing Call")))
-
 class Call(SmartModel):
-
     """
     Call represents a inbound, outobound, or missed call on an Android Channel. When such an event occurs
     on an Android Phone with the Channel application installed, the calls are relayed to the server much
@@ -1323,6 +1369,17 @@ class Call(SmartModel):
 
     Note: These are not related to calls made for voice-based flows.
     """
+    TYPE_UNKNOWN = 'unk'
+    TYPE_OUT = 'mt_call'
+    TYPE_OUT_MISSED = 'mt_miss'
+    TYPE_IN = 'mo_call'
+    TYPE_IN_MISSED = 'mo_miss'
+
+    CALL_TYPES = ((TYPE_UNKNOWN, _("Unknown Call Type")),
+                  (TYPE_IN, _("Incoming Call")),
+                  (TYPE_IN_MISSED, _("Missed Incoming Call")),
+                  (TYPE_OUT, _("Outgoing Call")),
+                  (TYPE_OUT_MISSED, _("Missed Outgoing Call")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
 
@@ -1340,7 +1397,7 @@ class Call(SmartModel):
     @classmethod
     def create_call(cls, channel, phone, date, duration, call_type, user=None):
         from temba.api.models import WebHookEvent
-        from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
+        from temba.triggers.models import Trigger
 
         if not user:
             user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
@@ -1361,8 +1418,8 @@ class Call(SmartModel):
 
         WebHookEvent.trigger_call_event(call)
 
-        if call_type == CALL_IN_MISSED:
-            Trigger.catch_triggers(call, MISSED_CALL_TRIGGER)
+        if call_type == Call.TYPE_IN_MISSED:
+            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL, channel)
 
         return call
 
@@ -1619,6 +1676,40 @@ class Label(TembaModel, SmartModel):
         unique_together = ('org', 'name')
 
 
+class MsgIterator(object):
+    """
+    Queryset wrapper to chunk queries and reduce in-memory footprint
+    """
+    def __init__(self, ids, order_by=None, select_related=None, prefetch_related=None, max_obj_num=1000):
+        self._ids = ids
+        self._order_by = order_by
+        self._select_related = select_related
+        self._prefetch_related = prefetch_related
+        self._generator = self._setup()
+        self.max_obj_num = max_obj_num
+
+    def _setup(self):
+        for i in xrange(0, len(self._ids), self.max_obj_num):
+            chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
+
+            if self._order_by:
+                chunk_queryset = chunk_queryset.order_by(*self._order_by)
+
+            if self._select_related:
+                chunk_queryset = chunk_queryset.select_related(*self._select_related)
+
+            if self._prefetch_related:
+                chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
+
+            for obj in chunk_queryset:
+                yield obj
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        return self._generator.next()
+
 class ExportMessagesTask(SmartModel):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
@@ -1628,16 +1719,23 @@ class ExportMessagesTask(SmartModel):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
-
     org = models.ForeignKey(Org, help_text=_("The organization of the user."))
-    groups = models.ManyToManyField(ContactGroup, null=True)
+
+    groups = models.ManyToManyField(ContactGroup)
+
     label = models.ForeignKey(Label, null=True)
+
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
+
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
     host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
+
     task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export is finished running"))
+
+    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
+
+    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
 
     def start_export(self):
         """
@@ -1662,8 +1760,7 @@ class ExportMessagesTask(SmartModel):
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
 
-        all_messages = Msg.get_messages(self.org).order_by('-created_on').select_related('contact', 'contact_urn')
-        all_messages = all_messages.prefetch_related(Prefetch('labels', queryset=Label.label_objects.order_by('name')))
+        all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
         if self.start_date:
             start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
@@ -1679,52 +1776,69 @@ class ExportMessagesTask(SmartModel):
         if self.label:
             all_messages = all_messages.filter(labels=self.label)
 
-        all_messages = list(all_messages)
+        all_message_ids = [m['id'] for m in all_messages.values('id')]
 
         messages_sheet_number = 1
 
-        if not all_messages:
-            current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        for col in range(len(fields)):
+            field = fields[col]
+            current_messages_sheet.write(0, col, unicode(field))
 
-        while all_messages:
-            if len(all_messages) >= 65535:
-                messages = all_messages[:65535]
-                all_messages = all_messages[65535:]
+        row = 1
+        processed = 0
+        start = time.time()
+
+        prefetch = Prefetch('labels', queryset=Label.label_objects.order_by('name'))
+        for msg in MsgIterator(all_message_ids,
+                               order_by=[''
+                                         '-created_on'],
+                               select_related=['contact', 'contact_urn'],
+                               prefetch_related=[prefetch]):
+
+            if row >= 65535:
+                messages_sheet_number += 1
+                current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+                for col in range(len(fields)):
+                    field = fields[col]
+                    current_messages_sheet.write(0, col, unicode(field))
+                row = 1
+
+            contact_name = msg.contact.name if msg.contact.name else ''
+            created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
+            msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
+
+            # only show URN path if org isn't anon and there is a URN
+            if self.org.is_anon:
+                urn_path = msg.contact.anon_identifier
+            elif msg.contact_urn:
+                urn_path = msg.contact_urn.get_display(org=self.org, full=True)
             else:
-                messages = all_messages
-                all_messages = None
+                urn_path = ''
 
-            current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+            urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            for col in range(len(fields)):
-                field = fields[col]
-                current_messages_sheet.write(0, col, unicode(field))
+            current_messages_sheet.write(row, 0, created_on, date_style)
+            current_messages_sheet.write(row, 1, urn_path)
+            current_messages_sheet.write(row, 2, urn_scheme)
+            current_messages_sheet.write(row, 3, contact_name)
+            current_messages_sheet.write(row, 4, msg.get_direction_display())
+            current_messages_sheet.write(row, 5, msg.text)
+            current_messages_sheet.write(row, 6, msg_labels)
+            row += 1
+            processed += 1
 
-            row = 1
-            for msg in messages:
-                contact_name = msg.contact.name if msg.contact.name else ''
-                created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
-                msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
-
-                if self.org.is_anon:
-                    contact_urn = msg.contact.anon_identifier
-                else:
-                    contact_urn = msg.contact_urn.get_display(org=self.org, full=True)
-
-                current_messages_sheet.write(row, 0, created_on, date_style)
-                current_messages_sheet.write(row, 1, contact_urn)
-                current_messages_sheet.write(row, 2, msg.contact_urn.scheme)
-                current_messages_sheet.write(row, 3, contact_name)
-                current_messages_sheet.write(row, 4, msg.get_direction_display())
-                current_messages_sheet.write(row, 5, msg.text)
-                current_messages_sheet.write(row, 6, msg_labels)
-                row += 1
-
-            messages_sheet_number += 1
+            if processed % 10000 == 0:
+                current_messages_sheet.flush_row_data()
+                print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
+                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
+
+        self.uuid = str(uuid4())
+        self.save(update_fields=['uuid'])
 
         # save as file asset associated with this task
         from temba.assets.models import AssetType
@@ -1744,4 +1858,4 @@ class ExportMessagesTask(SmartModel):
         import gc
         gc.collect()
 
-        send_temba_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)

@@ -7,13 +7,15 @@ import time
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from temba.orgs.models import Language
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.schedules.models import Schedule
-from temba.msgs.models import Msg, INCOMING, Call, CALL_IN_MISSED
+from temba.msgs.models import Msg, INCOMING, Call
 from temba.channels.models import SEND, CALL, ANSWER, RECEIVE
 from temba.tests import TembaTest
-from .models import Trigger, MISSED_CALL_TRIGGER, CATCH_ALL_TRIGGER, INBOUND_CALL_TRIGGER
+from .models import Trigger
+from temba.triggers.views import DefaultTriggerForm, RegisterTriggerForm
 
 
 class TriggerTest(TembaTest):
@@ -170,7 +172,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict(flow=guitarist_flow.pk)
         response = self.client.post(reverse('triggers.trigger_inbound_call'), post_data)
-        trigger = Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER).first()
+        trigger = Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).first()
         self.assertIsNotNone(trigger)
 
         # pretend we are getting a call from somebody
@@ -188,7 +190,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict(flow=bassist_flow.pk, groups=[bassists.pk])
         response = self.client.post(reverse('triggers.trigger_inbound_call'), post_data)
-        self.assertEquals(2, Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER).count())
+        self.assertEquals(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).count())
 
         self.assertEquals(bassist_flow.pk, Trigger.find_flow_for_inbound_call(mike).pk)
         self.assertEquals(guitarist_flow.pk, Trigger.find_flow_for_inbound_call(trey).pk)
@@ -198,7 +200,7 @@ class TriggerTest(TembaTest):
 
         # we no longer have voice flows or inbound call triggers that arent archived
         self.assertEquals(0, Flow.objects.filter(flow_type=Flow.VOICE, is_archived=False).count())
-        self.assertEquals(0, Trigger.objects.filter(trigger_type=INBOUND_CALL_TRIGGER, is_archived=False).count())
+        self.assertEquals(0, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
 
     def test_trigger_schedule(self):
         self.login(self.admin)
@@ -398,6 +400,45 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("contacts.contactgroup_delete", args=[group.pk]))
         self.assertTrue(Trigger.objects.get(pk=trigger.pk).is_active)
 
+        # try creating a join group on an org with a language
+        language = Language.create(self.org, self.admin, "Klingon", 'kli')
+        self.org.primary_language = language
+        self.org.save()
+
+        # now create another group trigger
+        group = self.create_group(name='Lang Group', contacts=[])
+        post_data = dict(keyword='join_lang', action_join_group=group.pk, response='Thanks for joining')
+        response = self.client.post(reverse("triggers.trigger_register"), data=post_data)
+        self.assertEquals(200, response.status_code)
+
+        # confirm our objects
+        flow = Flow.objects.filter(flow_type=Flow.FLOW).order_by('-pk').first()
+        trigger = Trigger.objects.get(keyword='join_lang', flow=flow)
+        self.assertEquals('Join Lang Group', trigger.flow.name)
+
+    def test_trigger_form(self):
+
+        for form in (DefaultTriggerForm, RegisterTriggerForm):
+
+            trigger_form = form(self.admin)
+            pick = self.get_flow('pick_a_number')
+            favorites = self.get_flow('favorites')
+            self.assertEquals(2, trigger_form.fields['flow'].choices.queryset.all().count())
+
+            # now change to a single message type
+            pick.flow_type = Flow.MESSAGE
+            pick.save()
+
+            # our flow should no longer be an option
+            trigger_form = form(self.admin)
+            choices = trigger_form.fields['flow'].choices
+            self.assertEquals(1, choices.queryset.all().count())
+            self.assertIsNone(choices.queryset.filter(pk=pick.pk).first())
+
+            pick.delete()
+            favorites.delete()
+
+
     def test_unicode_trigger(self):
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
@@ -449,13 +490,13 @@ class TriggerTest(TembaTest):
 
     def test_missed_call_trigger(self):
         self.login(self.admin)
-        missed_call_trigger = Trigger.get_triggers_of_type(self.org, MISSED_CALL_TRIGGER).first()
+        missed_call_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_MISSED_CALL).first()
         flow = self.create_flow()
         contact = self.create_contact("Ali", "250788739305")
 
         self.assertFalse(missed_call_trigger)
 
-        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, CALL_IN_MISSED)
+        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, Call.TYPE_IN_MISSED)
         self.assertEquals(1, Call.objects.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
@@ -469,14 +510,14 @@ class TriggerTest(TembaTest):
         response = self.client.post(trigger_url, post_data)
         trigger =  Trigger.objects.all().order_by('-pk')[0]
 
-        self.assertEquals(trigger.trigger_type, MISSED_CALL_TRIGGER)
+        self.assertEquals(trigger.trigger_type, Trigger.TYPE_MISSED_CALL)
         self.assertEquals(trigger.flow.pk, flow.pk)
 
-        missed_call_trigger = Trigger.get_triggers_of_type(self.org, MISSED_CALL_TRIGGER).first()
+        missed_call_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_MISSED_CALL).first()
 
         self.assertEquals(missed_call_trigger.pk, trigger.pk)
 
-        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, CALL_IN_MISSED)
+        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, Call.TYPE_IN_MISSED)
         self.assertEquals(2, Call.objects.all().count())
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
@@ -497,23 +538,23 @@ class TriggerTest(TembaTest):
 
             response = self.client.post(trigger_url, post_data)
             self.assertEquals(i+2, Trigger.objects.all().count())
-            self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=MISSED_CALL_TRIGGER).count())
+            self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
 
         # even unarchiving we only have one acive trigger at a time
-        triggers = Trigger.objects.filter(trigger_type=MISSED_CALL_TRIGGER, is_archived=True)
-        active_trigger = Trigger.objects.get(trigger_type=MISSED_CALL_TRIGGER, is_archived=False)
+        triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
+        active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
 
         post_data = dict()
         post_data['action'] = 'restore'
         post_data['objects'] = [_.pk for _ in triggers]
 
         response = self.client.post(reverse("triggers.trigger_archived"), post_data)
-        self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=MISSED_CALL_TRIGGER).count())
-        self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=MISSED_CALL_TRIGGER)[0].pk)
+        self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
+        self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0].pk)
 
     def test_catch_all_trigger(self):
         self.login(self.admin)
-        catch_all_trigger = Trigger.get_triggers_of_type(self.org, CATCH_ALL_TRIGGER).first()
+        catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
         flow = self.create_flow()
 
         contact = self.create_contact("Ali", "250788739305")
@@ -521,7 +562,7 @@ class TriggerTest(TembaTest):
         # make our first message echo back the original message
         action_set = ActionSet.objects.get(uuid=flow.entry_uuid)
         actions = action_set.as_json()['actions']
-        actions[0]['msg'] = 'Echo: @step.value'
+        actions[0]['msg']['base'] = 'Echo: @step.value'
         action_set.set_actions_dict(actions)
         action_set.save()
 
@@ -541,10 +582,10 @@ class TriggerTest(TembaTest):
         response = self.client.post(trigger_url, post_data)
         trigger = Trigger.objects.all().order_by('-pk')[0]
 
-        self.assertEquals(trigger.trigger_type, CATCH_ALL_TRIGGER)
+        self.assertEquals(trigger.trigger_type, Trigger.TYPE_CATCH_ALL)
         self.assertEquals(trigger.flow.pk, flow.pk)
 
-        catch_all_trigger = Trigger.get_triggers_of_type(self.org, CATCH_ALL_TRIGGER).first()
+        catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
 
         self.assertEquals(catch_all_trigger.pk, trigger.pk)
 
@@ -569,19 +610,19 @@ class TriggerTest(TembaTest):
             post_data = dict(flow=flow.pk)
             response = self.client.post(trigger_url, post_data)
             self.assertEquals(i+2, Trigger.objects.all().count())
-            self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=CATCH_ALL_TRIGGER).count())
+            self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
 
         # even unarchiving we only have one acive trigger at a time
-        triggers = Trigger.objects.filter(trigger_type=CATCH_ALL_TRIGGER, is_archived=True)
-        active_trigger = Trigger.objects.get(trigger_type=CATCH_ALL_TRIGGER, is_archived=False)
+        triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, is_archived=True)
+        active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_CATCH_ALL, is_archived=False)
 
         post_data = dict()
         post_data['action'] = 'restore'
         post_data['objects'] = [_.pk for _ in triggers]
 
         response = self.client.post(reverse("triggers.trigger_archived"), post_data)
-        self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=CATCH_ALL_TRIGGER).count())
-        self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=CATCH_ALL_TRIGGER)[0].pk)
+        self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
+        self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL)[0].pk)
 
     def test_update(self):
 

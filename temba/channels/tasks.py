@@ -32,22 +32,19 @@ def send_msg_task():
     """
     logger = send_msg_task.get_logger()
 
-    try:
-        # pop off the next task
-        task = pop_task(SEND_MSG_TASK)
+    # pop off the next task
+    task = pop_task(SEND_MSG_TASK)
 
-        # it is possible we have no message to send, if so, just return
-        if not task:
-            return
+    # it is possible we have no message to send, if so, just return
+    if not task:
+        return
 
-        msg = dict_to_struct('MockMsg', task, datetime_fields=['delivered_on', 'sent_on', 'created_on',
-                             'queued_on', 'next_attempt'])
+    msg = dict_to_struct('MockMsg', task, datetime_fields=['delivered_on', 'sent_on', 'created_on',
+                         'queued_on', 'next_attempt'])
 
-        # send it off
-        Channel.send_message(msg)
+    # send it off
+    Channel.send_message(msg)
 
-    except Exception as e:
-        logger.exception("Error sending msg: %d" % msg.id)
 
 @task(track_started=True, name='check_channels_task')
 def check_channels_task():

@@ -2,7 +2,6 @@ import json
 from django.core.urlresolvers import reverse
 from temba.tests import TembaTest
 
-
 class Locationtest(TembaTest):
 
     def test_boundaries(self):
@@ -63,8 +62,7 @@ class Locationtest(TembaTest):
 
         # update our alias for kigali
         response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
-                                    json.dumps(
-                                        [dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")]),
+                                    json.dumps([dict(osm_id=self.state1.osm_id, aliases="kigs\nkig ")]),
                                     content_type='application/json')
 
         self.assertEquals(200, response.status_code)

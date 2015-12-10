@@ -25,19 +25,20 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
 from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
-from temba.utils import analytics, non_atomic_when_eager
+from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount
+from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       EXTERNAL: "icon-channel-external",
@@ -147,12 +148,13 @@ PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
                              ('NO', _('Norway')),
                              ('PK', _('Pakistan')),
                              ('PL', _('Poland')),
+                             ('ZA', _('South Africa')),
                              ('SE', _('Sweden')),
                              ('CH', _('Switzerland')),
                              ('GB', _('United Kingdom')),
                              ('US', _('United States')))
 
-PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 46, 41, 44]
+PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 27, 46, 41, 44]
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
@@ -462,9 +464,14 @@ class UpdateChannelForm(forms.ModelForm):
         model = Channel
         fields = 'name', 'address', 'country', 'alert_email'
         config_fields = []
-        readonly = 'address', 'country'
-        labels = {'address': _('Number')}
-        helps = {'address': _('Phone number of this service')}
+        readonly = ('address', 'country',)
+        labels = {'address': _('Address')}
+        helps = {'address': _('The number or address of this channel')}
+
+
+class UpdateNexmoForm(UpdateChannelForm):
+    class Meta(UpdateChannelForm.Meta):
+        readonly = ('country',)
 
 
 class UpdateAndroidForm(UpdateChannelForm):
@@ -474,7 +481,6 @@ class UpdateAndroidForm(UpdateChannelForm):
 
 
 class UpdateTwitterForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         fields = 'name', 'address', 'alert_email'
         readonly = ('address',)
@@ -489,7 +495,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral')
+               'claim_blackmyna', 'claim_smscentral', 'claim_m3tech', 'claim_yo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -762,10 +768,12 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_form_class(self):
             channel_type = self.object.channel_type
-            scheme = self.object.get_scheme()
+            scheme = self.object.scheme
 
             if channel_type == ANDROID:
                 return UpdateAndroidForm
+            elif channel_type == NEXMO:
+                return UpdateNexmoForm
             elif scheme == TWITTER_SCHEME:
                 return UpdateTwitterForm
             else:
@@ -786,7 +794,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # update our delegate channels with the new number
-            if not obj.parent and obj.get_scheme() == TEL_SCHEME:
+            if not obj.parent and obj.scheme == TEL_SCHEME:
                 e164_phone_number = None
                 try:
                     parsed = phonenumbers.parse(obj.address, None)
@@ -869,9 +877,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse('orgs.org_home')
 
-
     class CreateCaller(OrgPermsMixin, SmartFormView):
-
         class CallerForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
 
@@ -955,6 +961,8 @@ class ChannelCRUDL(SmartCRUDL):
                                        help_text=_("The username to use to authenticate to Kannel, if left blank we will generate one for you"))
             password = forms.CharField(max_length=64, required=False,
                                        help_text=_("The password to use to authenticate to Kannel, if left blank we will generate one for you"))
+            encoding = forms.ChoiceField(ENCODING_CHOICES, label=_("Encoding"),
+                                         help_text=_("What encoding to use for outgoing messages"))
             verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
                                             help_text=_("Whether to verify the SSL connection (recommended)"))
 
@@ -972,7 +980,8 @@ class ChannelCRUDL(SmartCRUDL):
             role = SEND + RECEIVE
 
             config = {SEND_URL: url, VERIFY_SSL: data.get('verify_ssl'),
-                      USERNAME: data.get('username', None), PASSWORD: data.get('password', None)}
+                      USERNAME: data.get('username', None), PASSWORD: data.get('password', None),
+                      ENCODING: data.get('encoding', DEFAULT_ENCODING)}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, KANNEL,
                                                               config, role=role, parent=None)
 
@@ -995,20 +1004,31 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
+            scheme = forms.ChoiceField(choices=URN_SCHEME_CHOICES, label=_("URN Type"),
+                                       help_text=_("The type of URNs handled by this channel"))
 
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting"))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"), required=False,
+                                     help_text=_("The phone number or that this channel will send from"))
+
+            handle = forms.CharField(max_length=32, min_length=1, label=_("Handle"), required=False,
+                                     help_text=_("The Twitter handle that this channel will send from"))
+
+            address = forms.CharField(max_length=64, min_length=1, label=_("Address"), required=False,
+                                      help_text=_("The external address that this channel will send from"))
+
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), required=False,
                                         help_text=_("The country this phone number is used in"))
+
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will call when sending messages, with variable substitutions"))
+
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
-
 
         class EXSendClaimForm(forms.Form):
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will POST to when sending messages, with variable substitutions"))
+
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
 
@@ -1016,7 +1036,6 @@ class ChannelCRUDL(SmartCRUDL):
         success_url = "id@channels.channel_configuration"
 
         def get_form_class(self):
-
             if self.request.REQUEST.get('role', None) == 'S':
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
@@ -1025,7 +1044,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception("No org for this user, cannot claim")
 
             data = form.cleaned_data
@@ -1033,15 +1052,22 @@ class ChannelCRUDL(SmartCRUDL):
             if self.request.REQUEST.get('role', None) == 'S':
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
-
-                country = receive.country
-                number = receive.address
                 role = SEND
-
+                scheme = TEL_SCHEME
+                address = receive.address
+                country = receive.country
             else:
-                country = data['country']
-                number = data['number']
                 role = SEND + RECEIVE
+                scheme = data['scheme']
+                if scheme == TEL_SCHEME:
+                    address = data['number']
+                    country = data['country']
+                elif scheme == TWITTER_SCHEME:
+                    address = data['handle']
+                    country = None
+                else:
+                    address = data['address']
+                    country = None
 
             # see if there is a parent channel we are adding a delegate for
             channel = self.request.REQUEST.get('channel', None)
@@ -1050,8 +1076,8 @@ class ChannelCRUDL(SmartCRUDL):
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
             config = {SEND_URL: data['url'], SEND_METHOD: data['method']}
-            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, EXTERNAL,
-                                                              config, role=role, parent=channel)
+            self.object = Channel.add_config_external_channel(org, self.request.user, country, address, EXTERNAL,
+                                                              config, role, scheme, parent=channel)
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()
@@ -1125,12 +1151,34 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect SMSCentral")
         channel_type = SMSCENTRAL
 
+    class ClaimM3tech(ClaimAuthenticatedExternal):
+        title = _("Connect M3 Tech")
+        channel_type = M3TECH
+
+    class ClaimYo(ClaimAuthenticatedExternal):
+        class YoClaimForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The phone number or short code you are connecting with country code. "
+                                                 "ex: +250788123124"))
+            username = forms.CharField(label=_("Account Number"),
+                                       help_text=_("Your Yo! account YBS account number"))
+            password = forms.CharField(label=_("Gateway Password"),
+                                       help_text=_("Your Yo! SMS Gateway password"))
+
+        title = _("Connect Yo!")
+        template_name = 'channels/channel_claim_yo.html'
+        channel_type = YO
+        form_class = YoClaimForm
+
     class ClaimVerboice(ClaimAuthenticatedExternal):
         class VerboiceClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
+                                     help_text=_("The phone number with country code or short code you are connecting. "
+                                                 "ex: +250788123124 or 15543"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username provided by the provider to use their API"))
             password = forms.CharField(label=_("Password"),
@@ -1578,6 +1626,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_phone_number(self):
                 phone = self.cleaned_data['phone_number']
+
+                # short code should not be formatted
+                if len(phone) <= 6:
+                    return phone
+
                 phone = phonenumbers.parse(phone, self.cleaned_data['country'])
                 return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
@@ -1680,11 +1733,14 @@ class ChannelCRUDL(SmartCRUDL):
                 form._errors['phone_number'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
                 return self.form_invalid(form)
 
-            phone = phonenumbers.parse(data['phone_number'])
-            if not self.is_valid_country(phone.country_code):
-                form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
-                                                                   "You can still deploy in any country using your own SIM card and an Android phone.")])
-                return self.form_invalid(form)
+            # no number parse for short codes
+            if len(data['phone_number']) > 6:
+                phone = phonenumbers.parse(data['phone_number'])
+                if not self.is_valid_country(phone.country_code):
+                    form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
+                                                                       "You can still deploy in any country using your "
+                                                                       "own SIM card and an Android phone.")])
+                    return self.form_invalid(form)
 
             # don't add the same number twice to the same account
             existing = org.channels.filter(is_active=True, address=data['phone_number']).first()
@@ -1742,7 +1798,6 @@ class ChannelCRUDL(SmartCRUDL):
             else:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
-
         def get_search_countries_tuple(self):
             return TWILIO_SEARCH_COUNTRIES
 
@@ -1759,12 +1814,18 @@ class ChannelCRUDL(SmartCRUDL):
             client = org.get_twilio_client()
             if client:
                 twilio_account_numbers = client.phone_numbers.list()
+                twilio_short_codes = client.sms.short_codes.list()
 
             numbers = []
             for number in twilio_account_numbers:
                 parsed = phonenumbers.parse(number.phone_number, None)
                 numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
                                     country=region_code_for_number(parsed)))
+
+            org_country = timezone_to_country_code(org.timezone)
+            for number in twilio_short_codes:
+                numbers.append(dict(number=number.short_code, country=org_country))
+
             return numbers
 
         def is_valid_country(self, country_code):

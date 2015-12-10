@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import hmac
 import json
+from django.db.models import Q
 import requests
 import uuid
 
@@ -16,7 +17,7 @@ from smartmin.models import SmartModel
 from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel, TEMBA_HEADERS
-from temba.msgs.models import CALL_OUT, CALL_OUT_MISSED, CALL_IN, CALL_IN_MISSED
+from temba.msgs.models import Call
 from temba.utils import datetime_to_str, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
@@ -44,10 +45,10 @@ CATEGORIZE = 'categorize'
 EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (SMS_SENT, "Outgoing SMS Sent"),
                  (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (CALL_OUT, "Outgoing Call"),
-                 (CALL_OUT_MISSED, "Missed Outgoing Call"),
-                 (CALL_IN, "Incoming Call"),
-                 (CALL_IN_MISSED, "Missed Incoming Call"),
+                 (Call.TYPE_OUT, "Outgoing Call"),
+                 (Call.TYPE_OUT_MISSED, "Missed Outgoing Call"),
+                 (Call.TYPE_IN, "Incoming Call"),
+                 (Call.TYPE_IN_MISSED, "Missed Incoming Call"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))
@@ -80,7 +81,7 @@ class WebHookEvent(SmartModel):
         deliver_event_task.delay(self.id)
 
     @classmethod
-    def trigger_flow_event(cls, webhook_url, flow, run, node, contact, event, action='POST'):
+    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST'):
         org = flow.org
         api_user = get_api_user()
 
@@ -128,7 +129,7 @@ class WebHookEvent(SmartModel):
                     flow=flow.id,
                     run=run.id,
                     text=text,
-                    step=unicode(node.uuid),
+                    step=unicode(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
@@ -351,12 +352,12 @@ class WebHookEvent(SmartModel):
         try:
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+
             # some hosts deny generic user agents, use Temba as our user agent
-            headers = TEMBA_HEADERS
+            headers = TEMBA_HEADERS.copy()
 
             # also include any user-defined headers
             headers.update(self.org.get_webhook_headers())
-
 
             s = requests.Session()
             prepped = requests.Request('POST', self.org.get_webhook_url(),
@@ -476,9 +477,39 @@ class APIToken(models.Model):
     Our API token, ties in orgs
     """
     key = models.CharField(max_length=40, primary_key=True)
+
     user = models.ForeignKey(User, related_name='api_tokens')
+
     org = models.ForeignKey(Org, related_name='api_tokens')
+
     created = models.DateTimeField(auto_now_add=True)
+
+    role = models.ForeignKey(Group)
+
+    @classmethod
+    def get_orgs_for_role(cls, user, role):
+        """
+        Gets all the orgs the user can login to with the given role. Also
+        takes a single character role (A, E, S, etc) and maps it to a UserGroup.
+        """
+
+        if role == 'A':
+            valid_orgs = Org.objects.filter(administrators__in=[user])
+            role = Group.objects.get(name='Administrators')
+        elif role == 'E':
+            # admins can authenticate as editors
+            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
+            role = Group.objects.get(name='Editors')
+        elif role == 'S':
+            # admins and editors can authenticate as surveyors
+            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
+            role = Group.objects.get(name='Surveyors')
+        else:
+            # can't authenticate via the api as anything else
+            valid_orgs = []
+            role = None
+
+        return valid_orgs, role
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -493,7 +524,7 @@ class APIToken(models.Model):
         return self.key
 
     class Meta:
-        unique_together = ('user', 'org')
+        unique_together = ('user', 'org', 'role')
 
 
 def get_or_create_api_token(user):
@@ -507,13 +538,15 @@ def get_or_create_api_token(user):
     if not org:
         org = Org.get_org(user)
 
+    role = user.get_role()
+
     if org:
-        tokens = APIToken.objects.filter(user=user, org=org)
+        tokens = APIToken.objects.filter(user=user, org=org, role=role)
 
         if tokens:
             return str(tokens[0])
         else:
-            token = APIToken.objects.create(user=user, org=org)
+            token = APIToken.objects.create(user=user, org=org, role=role)
             return str(token)
     else:
         return None
