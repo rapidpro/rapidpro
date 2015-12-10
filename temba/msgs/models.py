@@ -616,7 +616,7 @@ class Msg(models.Model):
     recording_url = models.URLField(null=True, blank=True, max_length=255,
                                     help_text=_("The url for any recording associated with this message"))
 
-    purged = models.NullBooleanField(default=False, help_text="If this message has been purged")
+    purged = models.BooleanField(default=False, help_text="If this message has been purged")
 
     all_messages = models.Manager()
     current_messages = CurrentMessagesManager()
