@@ -1088,7 +1088,8 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, contact, message_context, org=None, url_encode=False, partial_vars=False):
+    def substitute_variables(cls, text, contact, message_context,
+                             org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1168,6 +1169,10 @@ class Msg(models.Model):
         # substitute variables in the text messages
         if not message_context:
             message_context = dict()
+
+        # make sure 'channel' is populated if we have a channel
+        if channel:
+            message_context['channel'] = channel.build_message_context()
 
         (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 

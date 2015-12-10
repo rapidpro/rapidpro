@@ -898,7 +898,7 @@ class Org(SmartModel):
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
         last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
-        return int(last_topup_credits * 0.15)
+        return int(last_topup_credits * 0.15) if last_topup_credits else 0
 
     def get_credits_total(self):
         """
@@ -1155,8 +1155,6 @@ class Org(SmartModel):
                            cc_last4=charge.card.last4,
                            cc_type=charge.card.type,
                            cc_name=charge.card.name)
-
-            print context
 
             from temba.middleware import BrandingMiddleware
             branding = BrandingMiddleware.get_branding_for_host(self.org.brand)

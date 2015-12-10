@@ -2139,6 +2139,11 @@ class ActionTest(TembaTest):
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
 
+        self.assertFalse(ContactField.objects.filter(org=self.org, label='Ecole'))
+        SaveToContactAction.from_json(self.org, dict(type='save', label="[_NEW_]Ecole", value='@step'))
+        field = ContactField.objects.get(org=self.org, key="ecole")
+        self.assertEquals("Ecole", field.label)
+
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
 
@@ -3322,6 +3327,18 @@ class FlowsTest(FlowFileTest):
         sms = Msg.all_messages.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
 
+    def test_group_send(self):
+        # create an inactive group with the same name, to test that this doesn't blow up our import
+        group = ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
+        group.is_active = False
+        group.save()
+
+        # and create another as well
+        ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
+
+        # this could blow up due to illegal lookup for more than one contact group
+        self.get_flow('group-send-flow')
+
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
         registration_flow = self.get_flow('mama_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
@@ -4027,6 +4044,56 @@ class DuplicateValueTest(FlowFileTest):
         # we should now still have only one value, but the category should be Red now
         value = Value.objects.get(run=run)
         self.assertEquals("Red", value.category)
+
+
+class ChannelSplitTest(FlowFileTest):
+
+    def setUp(self):
+        super(ChannelSplitTest, self).setUp()
+
+        # update our channel to have a 206 address
+        self.channel.address = '+12065551212'
+        self.channel.save()
+
+    def test_initial_channel_split(self):
+        flow = self.get_flow('channel_split')
+
+        # start our contact down the flow
+        flow.start([], [self.contact])
+
+        # check the message sent to them
+        msg = self.contact.msgs.last()
+        self.assertEqual("Your channel is +12065551212", msg.text)
+
+        # check the split
+        msg = self.contact.msgs.first()
+        self.assertEqual("206 Channel", msg.text)
+
+    def test_no_urn_channel_split(self):
+        flow = self.get_flow('channel_split')
+
+        # ok, remove the URN on our contact
+        self.contact.urns.all().update(contact=None)
+
+        # run the flow again
+        flow.start([], [self.contact])
+
+        # shouldn't have any messages sent, as they have no URN
+        self.assertFalse(self.contact.msgs.all())
+
+        # should have completed the flow though
+        run = FlowRun.objects.get(contact=self.contact)
+        self.assertFalse(run.is_active)
+
+    def test_no_urn_channel_split_first(self):
+        flow = self.get_flow('channel_split_rule_first')
+
+        # start our contact down the flow
+        flow.start([], [self.contact])
+
+        # check that the split was successful
+        msg = self.contact.msgs.first()
+        self.assertEqual("206 Channel", msg.text)
 
 
 class WebhookLoopTest(FlowFileTest):

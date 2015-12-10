@@ -196,7 +196,7 @@ def export_sms_task(id):
         export_task.start_export()
 
 
-@task(track_started=True, name="handle_event_task", time_limit=90, soft_time_limit=60)
+@task(track_started=True, name="handle_event_task", time_limit=180, soft_time_limit=120)
 def handle_event_task():
     """
     Priority queue task that handles both event fires (when fired) and new incoming

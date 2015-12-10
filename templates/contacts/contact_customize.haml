@@ -6,8 +6,8 @@
 - block import-status
   %p#customize-info
     -trans "Hold up!"
-  %p 
-    -blocktrans 
+  %p
+    -blocktrans
       We noticed your file contains some extra columns, you can add these as custom fields on
       your contact by selecting them below.
   %p
@@ -30,13 +30,13 @@
                     -trans "column as"
                 %td.field-as-name
                   {% render_field column_control.label_field %}
-                %td.field-form-label
+                %td.field-form-label.for-type
                   %div
                     -blocktrans
                       of type
-                %td.field-as-type
+                %td.field-as-type.for-type
                   {% render_field column_control.type_field %}
-                
+
       .form-buttons
         %input.btn.btn-primary{type:"submit", value:"Add Fields"}
         %a.btn{onclick:"javascript:history.go(-1)"}
@@ -45,24 +45,115 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    $(".smartmin-form select").select2({minimumResultsForSearch: -1, width: 'element'});
+    $(".smartmin-form select").select2({minimumResultsForSearch: 1, width: 'element', containerCssClass: "select2-custom-field-select" });
+
+    useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
+
+    var contactFields = {{contact_fields|safe}};
+    $('.smartmin-form .field-as-name input').select2({
+       data:contactFields,
+       width: 'element',
+       minimumInputSearch: 0,
+       initSelection : function (element, callback) {
+         var eltVal, data, d, _i, _len, _ref;
+         eltVal = element.val();
+         if (eltVal.substring(0,7) == '[_NEW_]'){
+           eltVal = eltVal.substring(7);
+         }
+
+         _ref = contactFields;
+
+         for (_i = 0, _len =_ref.length; _i < _len; _i++) {
+           d = _ref[_i];
+           if (d.text == eltVal) {
+             data = d;
+             break;
+           }
+         }
+
+         if (!data) {
+           data = {id:"[_NEW_]" + eltVal, text:gettext('New field') + ': ' + eltVal};
+           $(element).parents('.custom-field').children('.for-type').show();
+         }
+
+         callback(data);
+       },
+
+       query: function(query) {
+          var d, data, _i, _len, _ref;
+          data = {
+            results: []
+          };
+          _ref = this['data'];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            d = _ref[_i];
+            if (d.text) {
+              if (!query.term || d.text.toLowerCase().indexOf(query.term.toLowerCase().strip()) !== -1) {
+                data.results.push({
+                  id: d.id,
+                  text: d.text
+                });
+              }
+            }
+          }
+          if (query.term && data.results.length === 0 && query.term.strip().length > 0 && /^[a-zA-Z0-9-][a-zA-Z0-9- ]*$/.test(query.term.strip())) {
+            data.results.push({
+              id: '[_NEW_]' + query.term,
+              text: gettext('New field') + ': ' + query.term
+            });
+          }
+          return query.callback(data);
+        }
+    });
+
+    $('.smartmin-form .field-as-name input').on('change', function(event) {
+      var val = $(this).val()
+      if (val.substring(0, 7) != '[_NEW_]') {
+         $(this).parents('.custom-field').children('.for-type').hide();
+      } else {
+         $(this).parents('.custom-field').children('.for-type').show();
+      }
+
+    })
+
+
 
 -block extra-style
   :css
     #customize-info {
       font-weight: bold;
     }
+
+    .field-as-type select {
+      width: 100px;
+    }
+
     .field-include-checkbox input {
       margin-bottom: 12px;
     }
+
+    .field-include-checkbox .glyph {
+      margin-top: -8px;
+    }
+
+
+
     .field-form-label div {
       margin-bottom: 7px;
       padding: 0 5px;
+      margin-top: 12px;
     }
     .field-as-name input {
       width: 200px;
     }
-    .field-as-type {
+    .field-as-type, .field-as-name {
       vertical-align: top;
     }
-      
+
+    .field-form-label {
+      vertical-align: text-top;
+    }
+
+    .for-type {
+      display: none;
+    }

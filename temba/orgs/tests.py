@@ -754,24 +754,40 @@ class OrgTest(TembaTest):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
             self.assertEquals(30, self.org.get_low_credits_threshold())
 
+        TopUp.objects.all().update(is_active=False)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(1):
+            self.assertEquals(0, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_low_credits_threshold())
+
+
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_connect(self):
-        connect_url = reverse("orgs.org_twilio_connect")
-
-        self.login(self.admin)
-        self.admin.set_org(self.org)
-
-        response = self.client.get(connect_url)
-        self.assertEquals(200, response.status_code)
-        self.assertTrue(response.context['form'])
-        self.assertEquals(len(response.context['form'].fields.keys()), 3)
-        self.assertIn('account_sid', response.context['form'].fields.keys())
-        self.assertIn('account_token', response.context['form'].fields.keys())
 
         with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
             with patch('temba.tests.MockTwilioClient.MockApplications.list') as mock_apps_list:
+
+                org = self.org
+
+                connect_url = reverse("orgs.org_twilio_connect")
+
+                self.login(self.admin)
+                self.admin.set_org(self.org)
+
+                response = self.client.get(connect_url)
+                self.assertEquals(200, response.status_code)
+                self.assertTrue(response.context['form'])
+                self.assertEquals(len(response.context['form'].fields.keys()), 3)
+                self.assertIn('account_sid', response.context['form'].fields.keys())
+                self.assertIn('account_token', response.context['form'].fields.keys())
+
+
                 mock_get.return_value = MockTwilioClient.MockAccount('Full')
                 mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
                                                                                            self.org.pk))]
@@ -780,9 +796,8 @@ class OrgTest(TembaTest):
                 post_data['account_sid'] = "AccountSid"
                 post_data['account_token'] = "AccountToken"
 
-                response = self.client.post(connect_url, post_data)
-
-                org = Org.objects.get(pk=self.org.pk)
+                self.client.post(connect_url, post_data)
+                org.refresh_from_db()
                 self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
                 self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
                 self.assertTrue(org.config_json()['APPLICATION_SID'])
@@ -791,27 +806,49 @@ class OrgTest(TembaTest):
                 with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
                     mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
 
-                    response = self.client.post(connect_url, post_data)
-
-                    org = Org.objects.get(pk=self.org.pk)
+                    self.client.post(connect_url, post_data)
+                    org.refresh_from_db()
                     self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
                     self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
                     self.assertTrue(org.config_json()['APPLICATION_SID'])
 
-        twilio_account_url = reverse('orgs.org_twilio_account')
-        response = self.client.get(twilio_account_url)
-        self.assertEquals("AccountSid", response.context['config']['ACCOUNT_SID'])
+                    twilio_account_url = reverse('orgs.org_twilio_account')
+                    response = self.client.get(twilio_account_url)
+                    self.assertEquals("AccountSid", response.context['account_sid'])
 
-        response = self.client.post(twilio_account_url, dict(), follow=True)
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals(org.config_json()['ACCOUNT_SID'],"" )
-        self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "")
-        self.assertEquals(org.config_json()['APPLICATION_SID'], "")
+                    org.refresh_from_db()
+                    config = org.config_json()
+                    self.assertEquals('AccountSid', config['ACCOUNT_SID'])
+                    self.assertEquals('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
 
-        # we should not update any other field
-        response = self.client.post(twilio_account_url, dict(name="DO NOT CHANGE ME"), follow=True)
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEquals(org.name, "Temba")
+                    # post without a sid or token, should get a form validation error
+                    response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
+                    self.assertEquals('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
+                                      response.context['form'].errors['__all__'].as_json())
+
+                    # all our twilio creds should remain the same
+                    org.refresh_from_db()
+                    config = org.config_json()
+                    self.assertEquals(config['ACCOUNT_SID'], "AccountSid")
+                    self.assertEquals(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
+                    self.assertEquals(config['APPLICATION_SID'], "TwilioTestSid")
+
+                    # now try with all required fields, and a bonus field we shouldn't change
+                    self.client.post(twilio_account_url, dict(account_sid='AccountSid',
+                                                              account_token='SecondaryToken',
+                                                              disconnect='false',
+                                                              name='DO NOT CHANGE ME'), follow=True)
+                    # name shouldn't change
+                    org.refresh_from_db() 
+                    self.assertEquals(org.name, "Temba")
+
+                    # now disconnect our twilio connection
+                    self.assertTrue(org.is_connected_to_twilio())
+                    self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
+
+                    org.refresh_from_db()
+                    self.assertFalse(org.is_connected_to_twilio())
+
 
     def test_connect_nexmo(self):
         self.login(self.admin)

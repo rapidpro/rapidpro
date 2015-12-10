@@ -1,4 +1,4 @@
--e git+https://github.com/nyaruka/smartmin.git@e14f017c1e208a13aa7a844a30379d97e8ce57ea#egg=smartmin
+-e git+https://github.com/nyaruka/smartmin.git@f41ad33a4799ada55c2296d8e51914e33c5ee4d9#egg=smartmin
 Django==1.8.5
 coverage==4.0.3
 django-celery==3.1.16
@@ -20,7 +20,8 @@ BeautifulSoup==3.2.1
 xlutils==1.7.1
 phonenumbers==7.1.0
 django-countries==3.0.1
-djangorestframework==2.4.5
+djangorestframework==3.3.1
+djangorestframework-xml==1.2.0
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools==0.6.1
 requests==1.2.3
@@ -48,7 +49,7 @@ geojson==1.0.7
 pycountry==1.18
 stop-words==2015.2.23.1
 twython==3.1.2
-rapidpro-expressions==1.1.4
+rapidpro-expressions==1.1.5
 ## The following requirements were added by pip --freeze:
 Django-Select2==4.2.2
 Jinja2==2.7.3

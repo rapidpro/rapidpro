@@ -473,7 +473,7 @@ class MsgActionMixin(SmartListView):
             response = form.execute()
 
             # shouldn't get in here in normal operation
-            if response and 'error' in response:  # pragma: no-cover
+            if response and 'error' in response:  # pragma: no cover
                 return HttpResponse(json.dumps(response), content_type='application/json', status=400)
 
         return self.get(request, *args, **kwargs)

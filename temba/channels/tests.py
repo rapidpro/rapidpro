@@ -34,6 +34,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
+from twilio import TwilioException, TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
@@ -92,16 +93,57 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
+    def test_deactivate(self):
+        self.login(self.admin)
+        self.tel_channel.is_active = False
+        self.tel_channel.save()
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        self.assertEquals(404, response.status_code)
+
     def test_delegate_channels(self):
+
+        self.login(self.admin)
 
         # we don't support IVR yet
         self.assertFalse(self.org.supports_ivr())
 
+        # pretend we are connected to twiliko
+        self.org.config = json.dumps(dict(ACCOUNT_SID='AccountSid', ACCOUNT_TOKEN='AccountToken', APPLICATION_SID='AppSid'))
+        self.org.save()
+
         # add a delegate caller
-        Channel.add_call_channel(self.org, self.user, self.tel_channel)
+        post_data = dict(channel=self.tel_channel.pk, connection='T')
+        response = self.client.post(reverse('channels.channel_create_caller'), post_data)
 
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
+
+        # should now have the option to disable
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        self.assertContains(response, 'Disable Voice Calls')
+
+        # try adding a caller for an invalid channel
+        response = self.client.post('%s?channel=20000' % reverse('channels.channel_create_caller'))
+        self.assertEquals(200, response.status_code)
+        self.assertEquals('Sorry, a caller cannot be added for that number', response.context['form'].errors['channel'][0])
+
+        # disable our twilio connection
+        self.org.remove_twilio_account()
+        self.assertFalse(self.org.supports_ivr())
+
+        # we should lose our caller
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        self.assertNotContains(response, 'Disable Voice Calls')
+
+        # now try and add it back without a twilio connection
+        response = self.client.post(reverse('channels.channel_create_caller'), post_data)
+
+        # shouldn't have added, so no ivr yet
+        self.assertFalse(self.assertFalse(self.org.supports_ivr()))
+
+        self.assertEquals('A connection to a Twilio account is required', response.context['form'].errors['connection'][0])
+
 
     def test_get_channel_type_name(self):
         self.assertEquals(self.tel_channel.get_channel_type_name(), "Android Phone")
@@ -854,6 +896,11 @@ class ChannelTest(TembaTest):
         self.assertTrue(self.org.get_send_channel(TEL_SCHEME).is_delegate_sender())
         self.assertFalse(self.org.get_receive_channel(TEL_SCHEME).is_delegate_sender())
 
+        # reading our nexmo channel should now offer a disconnect option
+        nexmo = self.org.channels.filter(channel_type='NX').first()
+        response = self.client.get(reverse('channels.channel_read', args=[nexmo.pk]))
+        self.assertContains(response, 'Disable Bulk Sending')
+
         # create a US channel and try claiming it next to our RW channels
         post_data = json.dumps(dict(cmds=[dict(cmd="gcm", gcm_id="claim_test", uuid='uuid'),
                                           dict(cmd='status', cc='US', dev='Nexus')]))
@@ -982,6 +1029,28 @@ class ChannelTest(TembaTest):
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='T', org=self.org)
 
+
+        twilio_channel = self.org.channels.all().first()
+        self.assertEquals('T', twilio_channel.channel_type)
+
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:
+
+            # our twilio channel removal should fail on bad auth
+            mock_numbers.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
+            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+            self.assertIsNotNone(self.org.channels.all().first())
+
+            # or other arbitrary twilio errors
+            mock_numbers.side_effect = TwilioRestException(400, 'http://twilio', msg='Twilio Error', code=123)
+            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+            self.assertIsNotNone(self.org.channels.all().first())
+
+            # now lets be successful
+            mock_numbers.side_effect = None
+            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+            self.assertIsNone(self.org.channels.all().first())
+
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
@@ -1095,6 +1164,52 @@ class ChannelTest(TembaTest):
                 # no more credential in the session
                 self.assertFalse(PLIVO_AUTH_ID in self.client.session)
                 self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+
+        # delete existing channels
+        Channel.objects.all().delete()
+
+        with patch('temba.channels.views.plivo.RestAPI.get_account') as mock_plivo_get_account:
+            with patch('temba.channels.views.plivo.RestAPI.create_application') as mock_plivo_create_application:
+
+                with patch('temba.channels.models.plivo.RestAPI.get_number') as mock_plivo_get_number:
+                    with patch('temba.channels.models.plivo.RestAPI.buy_phone_number') as mock_plivo_buy_phone_number:
+                        mock_plivo_get_account.return_value = (200, MockResponse(200, json.dumps(dict())))
+
+                        mock_plivo_create_application.return_value = (200, dict(app_id='app-id'))
+
+                        mock_plivo_get_number.return_value = (400, MockResponse(400, json.dumps(dict())))
+
+
+
+                        mock_plivo_buy_phone_number.return_value = (201, MockResponse(201,
+                                                                        json.dumps({'status': 'fulfilled',
+                                                                                    'message': 'created',
+                                                                                    'numbers': [{'status': 'Success',
+                                                                                                 'number': '27816855210'
+                                                                                              }],
+                                                                                    'api_id': '4334c747-9e83-11e5-9147-22000acb8094'})))
+
+                        # claim it the US number
+                        session = self.client.session
+                        session[PLIVO_AUTH_ID] = 'auth-id'
+                        session[PLIVO_AUTH_TOKEN] = 'auth-token'
+                        session.save()
+
+                        self.assertTrue(PLIVO_AUTH_ID in self.client.session)
+                        self.assertTrue(PLIVO_AUTH_TOKEN in self.client.session)
+
+                        response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1440', country='US'))
+                        self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                        # make sure it is actually connected
+                        channel = Channel.objects.get(channel_type='PL', org=self.org)
+                        self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
+                                                          PLIVO_AUTH_TOKEN: 'auth-token',
+                                                          PLIVO_APP_ID: 'app-id'})
+                        self.assertEquals(channel.address, "+16062681440")
+                        # no more credential in the session
+                        self.assertFalse(PLIVO_AUTH_ID in self.client.session)
+                        self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
     def test_claim_twitter(self):
         self.login(self.admin)
@@ -1327,13 +1442,17 @@ class ChannelTest(TembaTest):
             dict(cmd="call", phone="+250788383383", type='mo', dur=5, ts=date),
 
             # a new incoming message
-            dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date)])
+            dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date),
+
+            # an incoming message from an empty contact
+            dict(cmd="mo_sms", phone="", msg="This is spam", p_id="2", ts=date)])
+
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
 
         # new batch, our ack and our claim command for new org
-        self.assertEquals(2, len(json.loads(response.content)['cmds']))
+        self.assertEquals(3, len(json.loads(response.content)['cmds']))
 
         # check that our messages were updated accordingly
         self.assertEqual(2, Msg.all_messages.filter(channel=self.tel_channel, status='S', direction='O').count())
@@ -1341,8 +1460,11 @@ class ChannelTest(TembaTest):
         self.assertEqual(1, Msg.all_messages.filter(channel=self.tel_channel, status='E', direction='O').count())
         self.assertEqual(1, Msg.all_messages.filter(channel=self.tel_channel, status='F', direction='O').count())
 
-        # we should now have a new incoming message
-        self.assertEqual(1, Msg.all_messages.filter(direction='I').count())
+        # we should now have two incoming messages
+        self.assertEqual(2, Msg.all_messages.filter(direction='I').count())
+
+        # one of them should have an empty 'tel'
+        self.assertTrue(Msg.all_messages.filter(direction='I', contact_urn__path='empty'))
 
         # We should now have one sync
         self.assertEquals(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
@@ -1838,6 +1960,7 @@ class ChannelAlertTest(TembaTest):
         post_data['shortcode'] = '5259'
         post_data['username'] = 'temba'
         post_data['api_key'] = 'asdf-asdf-asdf-asdf-asdf'
+        post_data['country'] = 'KE'
 
         response = self.client.post(reverse('channels.channel_claim_africas_talking'), post_data)
 
@@ -2408,6 +2531,19 @@ class ExternalTest(TembaTest):
         finally:
             settings.SEND_MESSAGES = False
 
+        # view the log item for our send
+        self.login(self.admin)
+        log_item = ChannelLog.objects.all().order_by('created_on').first()
+        response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
+        self.assertEquals(response.context['object'].description, 'Successfully delivered')
+
+        # make sure we can't see it as anon
+        self.org.is_anon = True
+        self.org.save()
+
+        response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
+        self.assertEquals(302, response.status_code)
+
 
 class YoTest(TembaTest):
     def setUp(self):
@@ -2732,11 +2868,12 @@ class KannelTest(TembaTest):
 
                 # assert verify was set to true
                 self.assertTrue(mock.call_args[1]['verify'])
+                self.assertEquals('+250788383383', mock.call_args[1]['params']['to'])
 
                 self.clear_cache()
 
             self.channel.config = json.dumps(dict(username='kannel-user', password='kannel-pass',
-                                                  encoding=SMART_ENCODING,
+                                                  encoding=SMART_ENCODING, use_national=True,
                                                   send_url='http://foo/', verify_ssl=False))
             self.channel.save()
 
@@ -2756,6 +2893,7 @@ class KannelTest(TembaTest):
 
                 # assert verify was set to true
                 self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
+                self.assertEquals('788383383', mock.call_args[1]['params']['to'])
                 self.assertFalse('coding' in mock.call_args[1]['params'])
                 self.clear_cache()
 
