@@ -403,7 +403,7 @@ class Contact(TembaModel, SmartModel):
         return existing[0].contact if existing else None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False):
+    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
         """
         Gets or creates a contact with the given URNs
         """
@@ -464,7 +464,7 @@ class Contact(TembaModel, SmartModel):
             existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
 
             if existing_urn:
-                if existing_urn.contact:
+                if existing_urn.contact and not force_urn_update:
                     existing_owned_urns[(scheme, path)] = existing_urn
                     if contact and contact != existing_urn.contact:
                         raise ValueError(_("Provided URNs belong to different existing contacts"))
@@ -472,6 +472,8 @@ class Contact(TembaModel, SmartModel):
                         contact = existing_urn.contact
                 else:
                     existing_orphan_urns[(scheme, path)] = existing_urn
+                    if not contact and existing_urn.contact:
+                        contact = existing_urn.contact
 
                 # update this URN's channel
                 if incoming_channel and existing_urn.channel != incoming_channel:
@@ -609,7 +611,6 @@ class Contact(TembaModel, SmartModel):
 
         possible_urn_headers = ['phone', 'external'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
-        existing_contact = None
         for urn_header in possible_urn_headers:
 
             value = None
@@ -653,11 +654,6 @@ class Contact(TembaModel, SmartModel):
             if org.is_anon and search_contact:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
-            if not existing_contact:
-                existing_contact = search_contact
-            elif search_contact is not None and existing_contact != search_contact:
-                raise SmartImportRowError("Other existing contact with %s of %s" % (urn_header, value))
-
             urns.append((urn_scheme, value))
 
         if not urns:
@@ -676,7 +672,7 @@ class Contact(TembaModel, SmartModel):
             language = None  # ignore anything that's not a 3-letter code
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, field_dict['created_by'], name, uuid=uuid, urns=urns, language=language)
+        contact = Contact.get_or_create(org, field_dict['created_by'], name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
