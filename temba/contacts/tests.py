@@ -1047,7 +1047,6 @@ class ContactTest(TembaTest):
 
     def test_event_times(self):
 
-
         self.create_campaign()
 
         from temba.campaigns.models import CampaignEvent
@@ -1187,16 +1186,16 @@ class ContactTest(TembaTest):
         self.assertEquals(self.joe, response.context['object'])
         upcoming = response.context['upcoming_events']
 
-        # should show the next three events to fire in reverse order
-        self.assertEquals(3, len(upcoming))
+        # should show the next seven events to fire in reverse order
+        self.assertEquals(7, len(upcoming))
 
-        self.assertEquals("Sent 10 days after planting date", upcoming[0]['message'])
-        self.assertEquals("Sent 7 days after planting date", upcoming[1]['message'])
-        self.assertEquals(None, upcoming[2]['message'])
-        self.assertEquals(self.reminder_flow.pk, upcoming[2]['flow_id'])
-        self.assertEquals(self.reminder_flow.name, upcoming[2]['flow_name'])
+        self.assertEquals("Sent 10 days after planting date", upcoming[4]['message'])
+        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
+        self.assertEquals(None, upcoming[6]['message'])
+        self.assertEquals(self.reminder_flow.pk, upcoming[6]['flow_id'])
+        self.assertEquals(self.reminder_flow.name, upcoming[6]['flow_name'])
 
-        self.assertGreater(upcoming[0]['scheduled'], upcoming[1]['scheduled'])
+        self.assertGreater(upcoming[4]['scheduled'], upcoming[5]['scheduled'])
 
         # add a scheduled broadcast
         broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
@@ -1210,15 +1209,15 @@ class ContactTest(TembaTest):
         upcoming = response.context['upcoming_events']
 
         # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
-        self.assertEquals(3, len(upcoming))
+        self.assertEquals(8, len(upcoming))
 
-        self.assertEquals("Sent 7 days after planting date", upcoming[0]['message'])
-        self.assertEquals("Hello", upcoming[1]['message'])
-        self.assertEquals(None, upcoming[2]['message'])
-        self.assertEquals(self.reminder_flow.pk, upcoming[2]['flow_id'])
-        self.assertEquals(self.reminder_flow.name, upcoming[2]['flow_name'])
+        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
+        self.assertEquals("Hello", upcoming[6]['message'])
+        self.assertEquals(None, upcoming[7]['message'])
+        self.assertEquals(self.reminder_flow.pk, upcoming[7]['flow_id'])
+        self.assertEquals(self.reminder_flow.name, upcoming[7]['flow_name'])
 
-        self.assertGreater(upcoming[0]['scheduled'], upcoming[1]['scheduled'])
+        self.assertGreater(upcoming[6]['scheduled'], upcoming[7]['scheduled'])
 
         contact_no_name = self.create_contact(name=None, number="678")
         read_url = reverse('contacts.contact_read', args=[contact_no_name.uuid])

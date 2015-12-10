@@ -572,8 +572,8 @@ class ContactCRUDL(SmartCRUDL):
             context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
 
             # event fires
-            event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')[:3]
-            scheduled_messages = contact.get_scheduled_messages()[:3]
+            event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
+            scheduled_messages = contact.get_scheduled_messages()
 
             merged_upcoming_events = []
             for fire in event_fires:
@@ -582,11 +582,11 @@ class ContactCRUDL(SmartCRUDL):
                                                    scheduled=fire.scheduled))
 
             for sched_broadcast in scheduled_messages:
-                merged_upcoming_events.append(dict(event_type='M', message=sched_broadcast.text, flow_id=None,
+                merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M', message=sched_broadcast.text, flow_id=None,
                                                    flow_name=None, scheduled=sched_broadcast.schedule.next_fire))
 
             # upcoming scheduled events
-            context['upcoming_events'] = list(sorted(merged_upcoming_events, key=lambda k: k['scheduled'], reverse=True))[-3:]
+            context['upcoming_events'] = sorted(merged_upcoming_events, key=lambda k: k['scheduled'], reverse=True)
 
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import SEND
