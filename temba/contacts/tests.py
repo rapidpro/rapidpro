@@ -1112,7 +1112,6 @@ class ContactTest(TembaTest):
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
 
-        i = 0
         for i in range(5):
             self.create_msg(direction='I', contact=self.joe, text="some msg no %d 2 send in sms language if u wish" % i)
             i += 1

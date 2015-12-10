@@ -1,16 +1,22 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+from itertools import izip
+
 import os
 import redis
 import shutil
 import string
 import time
+import re
 
 from datetime import datetime
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.db import DEFAULT_DB_ALIAS
+from django.db.models import Manager
+from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
@@ -26,6 +32,7 @@ from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
 from xlrd import xldate_as_tuple
 from xlrd.sheet import XL_CELL_DATE
+import inspect
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -58,6 +65,11 @@ def uuid(val):
 class TembaTest(SmartminTest):
 
     def setUp(self):
+
+        # if we are super verbose, turn on debug for sql queries
+        if self.get_verbosity() > 2:
+            settings.DEBUG = True
+
         self.clear_cache()
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
@@ -106,6 +118,47 @@ class TembaTest(SmartminTest):
 
         # reset our simulation to False
         Contact.set_simulation(False)
+
+    def get_verbosity(self):
+        for s in reversed(inspect.stack()):
+            options = s[0].f_locals.get('options')
+            if isinstance(options, dict):
+                return int(options['verbosity'])
+        return 1
+
+    def explain(self, query):
+        cursor = connection.cursor()
+        cursor.execute('explain %s' % query)
+        plan = cursor.fetchall()
+        indexes = []
+        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', unicode(plan), re.DOTALL):
+            index = match.group(1).strip()
+            table = match.group(2).strip()
+            indexes.append((table, index))
+
+        indexes = sorted(indexes, key=lambda i: i[0])
+        return indexes
+
+    def tearDown(self):
+
+        if self.get_verbosity() > 2:
+            details = []
+            for query in connection.queries:
+                query = query['sql']
+                if 'SAVEPOINT' not in query:
+                    indexes = self.explain(query)
+                    details.append(dict(query=query, indexes=indexes))
+
+            for stat in details:
+                print
+                print stat['query']
+                for table, index in stat['indexes']:
+                    print '  Index Used: %s.%s' % (table, index)
+
+                if not len(stat['indexes']):
+                    print '  No Index Used'
+
+            settings.DEBUG = False
 
     def clear_cache(self):
         """

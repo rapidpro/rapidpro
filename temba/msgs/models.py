@@ -505,9 +505,9 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class CurrentMessages(models.Manager):
+class CurrentMessagesManager(models.Manager):
     def get_queryset(self):
-        return Msg.all_messages.filter(purged=False)
+        return super(CurrentMessagesManager, self).get_queryset().filter(purged=False)
 
 
 class Msg(models.Model):
@@ -619,7 +619,7 @@ class Msg(models.Model):
     purged = models.NullBooleanField(default=False, help_text="If this message has been purged")
 
     all_messages = models.Manager()
-    current_messages = CurrentMessages()
+    current_messages = CurrentMessagesManager()
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -640,7 +640,7 @@ class Msg(models.Model):
                 queued_on = timezone.now()
 
                 # update them to queued
-                send_messages = Msg.all_messages.filter(id__in=msg_ids)\
+                send_messages = Msg.current_messages.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=ANDROID)\
                                            .exclude(msg_type=IVR)\
                                            .exclude(topup=None)\
@@ -730,7 +730,7 @@ class Msg(models.Model):
         probably be confusing to go out.
         """
         one_week_ago = timezone.now() - timedelta(days=7)
-        failed_messages = Msg.all_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
+        failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
                                              status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
@@ -750,7 +750,7 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.all_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
+            unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
                                               contact__is_test=False, created_on__gt=org.msg_last_viewed, labels=None).count()
 
             cache.set(key, unread_count, 900)
@@ -786,7 +786,7 @@ class Msg(models.Model):
             if isinstance(msg, Msg):
                 msg.fail()
             else:
-                Msg.all_messages.select_related('org').get(pk=msg.id).fail()
+                Msg.current_messages.select_related('org').get(pk=msg.id).fail()
 
             if channel:
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
@@ -1175,13 +1175,13 @@ class Msg(models.Model):
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
-            same_msgs = Msg.all_messages.filter(contact_urn=contact_urn,
-                                           contact__is_test=False,
-                                           channel=channel,
-                                           recording_url=recording_url,
-                                           text=text,
-                                           direction=OUTGOING,
-                                           created_on__gte=created_on - timedelta(minutes=10))
+            same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
+                                                    contact__is_test=False,
+                                                    channel=channel,
+                                                    recording_url=recording_url,
+                                                    text=text,
+                                                    direction=OUTGOING,
+                                                    created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1196,12 +1196,12 @@ class Msg(models.Model):
             # we don't want machines talking to each other
             tel = contact.raw_tel()
             if tel and len(tel) < 6:
-                same_msg_count = Msg.all_messages.filter(contact_urn=contact_urn,
-                                                    contact__is_test=False,
-                                                    channel=channel,
-                                                    text=text,
-                                                    direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(hours=24)).count()
+                same_msg_count = Msg.current_messages.filter(contact_urn=contact_urn,
+                                                             contact__is_test=False,
+                                                             channel=channel,
+                                                             text=text,
+                                                             direction=OUTGOING,
+                                                             created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
@@ -1493,14 +1493,15 @@ class SystemLabel(models.Model):
         Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
         trigger used to maintain the label counts.
         """
+        # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.current_messages.filter(direction=INCOMING, visibility=ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.current_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
             qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
@@ -1637,6 +1638,7 @@ class Label(TembaModel, SmartModel):
         return queryset.filter(labels=self)
 
     def get_messages(self):
+        # TODO: consider purpose built indexes
         return self.filter_messages(Msg.all_messages.all())
 
     def get_visible_count(self):
@@ -1723,6 +1725,7 @@ class MsgIterator(object):
 
     def next(self):
         return self._generator.next()
+
 
 class ExportMessagesTask(SmartModel):
     """
