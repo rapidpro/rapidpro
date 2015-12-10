@@ -323,7 +323,10 @@ def sync(request, channel_id):
                     elif keyword == 'mo_sms':
                         date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
 
-                        msg = Msg.create_incoming(channel, (TEL_SCHEME, cmd['phone']), cmd['msg'], date=date)
+                        # it is possible to receive spam SMS messages from no number on some carriers
+                        tel = cmd['phone'] if cmd['phone'] else 'empty'
+
+                        msg = Msg.create_incoming(channel, (TEL_SCHEME, tel), cmd['msg'], date=date)
                         if msg:
                             extra = dict(msg_id=msg.id)
                             handled = True
