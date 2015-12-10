@@ -1,11 +1,8 @@
 from __future__ import absolute_import, unicode_literals
 
-from django.db.models import Prefetch
 from django.db.transaction import non_atomic_requests
-from rest_framework import generics, mixins, pagination, filters
+from rest_framework import generics, mixins, pagination
 from rest_framework.response import Response
-from temba.flows.models import FlowRun, FlowStep, RuleSet
-from .serializers import FlowRunReadSerializer
 from ..models import ApiPermission, SSLPermission
 
 
@@ -39,27 +36,4 @@ class ListAPIMixin(mixins.ListModelMixin):
             return super(ListAPIMixin, self).list(request, *args, **kwargs)
 
 
-class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
-    """
-    This endpoint allows you to list and start flow runs.  TODO...
-
-    """
-    permission = 'flows.flow_api'
-    model = FlowRun
-    serializer_class = FlowRunReadSerializer
-    pagination_class = ModifiedOnCursorPagination
-
-    def get_queryset(self):
-        org = self.request.user.get_org()
-        queryset = self.model.objects.filter(org=org)
-
-        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-
-        rulesets_prefetch = Prefetch('flow__rule_sets',
-                                     queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
-                                     to_attr='ruleset_prefetch')
-
-        # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
-
-        return queryset
+# TODO add API views
