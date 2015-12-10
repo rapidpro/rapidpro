@@ -57,6 +57,7 @@ VERBOICE = 'VB'
 VUMI = 'VM'
 ZENVIA = 'ZV'
 YO = 'YO'
+START = 'ST'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -108,7 +109,8 @@ CHANNEL_SETTINGS = {
     BLACKMYNA: dict(scheme='tel', max_length=1600),
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
-    YO: dict(scheme='tel', max_length=1600)
+    YO: dict(scheme='tel', max_length=1600),
+    START: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -145,6 +147,7 @@ class Channel(SmartModel):
                     (HIGH_CONNECTION, "High Connection"),
                     (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
+                    (START, "Start Mobile"),
                     (YO, "Yo!"),
                     (M3TECH, "M3 Tech"))
 
