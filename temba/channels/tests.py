@@ -1442,13 +1442,17 @@ class ChannelTest(TembaTest):
             dict(cmd="call", phone="+250788383383", type='mo', dur=5, ts=date),
 
             # a new incoming message
-            dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date)])
+            dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date),
+
+            # an incoming message from an empty contact
+            dict(cmd="mo_sms", phone="", msg="This is spam", p_id="2", ts=date)])
+
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
 
         # new batch, our ack and our claim command for new org
-        self.assertEquals(2, len(json.loads(response.content)['cmds']))
+        self.assertEquals(3, len(json.loads(response.content)['cmds']))
 
         # check that our messages were updated accordingly
         self.assertEqual(2, Msg.objects.filter(channel=self.tel_channel, status='S', direction='O').count())
@@ -1456,8 +1460,11 @@ class ChannelTest(TembaTest):
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status='E', direction='O').count())
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status='F', direction='O').count())
 
-        # we should now have a new incoming message
-        self.assertEqual(1, Msg.objects.filter(direction='I').count())
+        # we should now have two incoming messages
+        self.assertEqual(2, Msg.objects.filter(direction='I').count())
+
+        # one of them should have an empty 'tel'
+        self.assertTrue(Msg.objects.filter(direction='I', contact_urn__path='empty'))
 
         # We should now have one sync
         self.assertEquals(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
