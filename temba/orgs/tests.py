@@ -754,6 +754,17 @@ class OrgTest(TembaTest):
             self.assertEquals(0, self.org.get_credits_expiring_soon())
             self.assertEquals(30, self.org.get_low_credits_threshold())
 
+        TopUp.objects.all().update(is_active=False)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.org.apply_topups()
+
+        with self.assertNumQueries(1):
+            self.assertEquals(0, self.org.get_low_credits_threshold())
+
+        with self.assertNumQueries(0):
+            self.assertEquals(0, self.org.get_low_credits_threshold())
+
+
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)

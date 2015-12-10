@@ -20,7 +20,8 @@ BeautifulSoup==3.2.1
 xlutils==1.7.1
 phonenumbers==7.1.0
 django-countries==3.0.1
-djangorestframework==2.4.5
+djangorestframework==3.3.1
+djangorestframework-xml==1.2.0
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools==0.6.1
 requests==1.2.3

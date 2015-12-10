@@ -971,13 +971,14 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'temba.api.authentication.APITokenAuthentication',
     ),
-    'PAGINATE_BY': 250,
+    'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
         'temba.api.renderers.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.XMLRenderer',
+        'rest_framework_xml.renderers.XMLRenderer',
     ),
-    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler'
+    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler',
+    'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 

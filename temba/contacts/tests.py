@@ -2324,7 +2324,6 @@ class ContactFieldTest(TembaTest):
         self.clear_storage()
 
         self.login(self.admin)
-        self.user = self.admin
 
         flow = self.create_flow()
 
