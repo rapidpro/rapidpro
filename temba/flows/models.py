@@ -2670,12 +2670,6 @@ class ActionSet(models.Model):
     def set_actions_dict(self, json_dict):
         self.actions = json.dumps(json_dict)
 
-    def set_actions(self, actions):
-        actions_dict = []
-        for action in actions:
-            actions_dict.append(action.as_json())
-        self.set_actions_dict(actions_dict)
-
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 

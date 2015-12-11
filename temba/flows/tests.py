@@ -3155,11 +3155,15 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_contacts())
 
     def test_destination_type(self):
-
         flow = self.get_flow('pick_a_number')
 
         # our start points to a ruleset
         start = ActionSet.objects.get(flow=flow, y=0)
+
+        # test our description
+        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}", start.get_description())
+
+        # assert our destination
         self.assertEquals(RULE_SET, start.destination_type)
 
         # and that ruleset points to an actionset
