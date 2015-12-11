@@ -451,6 +451,35 @@ class Contact(TembaModel, SmartModel):
         if uuid:
             contact = Contact.objects.filter(org=org, is_active=True, uuid=uuid).first()
 
+            # if contact already exists try to figured if it has all the urn to skip the lock
+            if contact:
+                contact_has_all_urns = True
+                contact_urns = contact.get_urns()
+                contact_urns_values = contact_urns.values('scheme', 'path')
+                if len(urns) <= len(contact_urns_values):
+                    for urn_tuple in urns:
+                        if urn_tuple not in contact_urns_values:
+                            contact_has_all_urns = False
+
+                    if contact_has_all_urns:
+                        # update contact name if provided
+                        updated_attrs = dict()
+                        if name:
+                            contact.name = name
+                            updated_attrs[Contact.NAME] = name
+                        if language:
+                            contact.language = language
+                            updated_attrs[Contact.LANGUAGE] = language
+
+                        if updated_attrs:
+                            contact.save(update_fields=updated_attrs)
+
+                        contact.urn_objects = contact_urns
+
+                        # handle group and campaign updates
+                        contact.handle_update(attrs=updated_attrs.keys())
+                        return contact
+
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
 
