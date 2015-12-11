@@ -3731,46 +3731,6 @@ class FlowLabel(models.Model):
 
         return FlowLabel.objects.create(name=base, org=org, parent=parent)
 
-    @classmethod
-    def generate_label(cls, org, text, fallback):
-
-        # TODO: POS tagging might be better here using nltk
-        # tags = nltk.pos_tag(nltk.word_tokenize(str(obj.question).lower()))
-
-        # remove punctuation and split into words
-        words = unidecode(text).lower().translate(maketrans("", ""), punctuation)
-        words = words.split(' ')
-
-        # now look for some label candidates based on word length
-        labels = []
-        take_next = False
-        for word in words:
-
-            # ignore stop words
-            if word.lower() in STOP_WORDS:
-                continue
-
-            if not labels:
-                labels.append(word)
-                take_next = True
-            elif len(word) == len(labels[0]):
-                labels.append(word)
-                take_next = True
-            elif len(word) > len(labels[0]):
-                labels = [word]
-                take_next = True
-            elif take_next:
-                labels.append(word)
-                take_next = False
-
-        label = " ".join(labels)
-
-        if not label:
-            label = fallback
-
-        label = FlowLabel.create_unique(label, org)
-        return label
-
     def toggle_label(self, flows, add):
         changed = []
 
