@@ -471,7 +471,7 @@ class Contact(TembaModel):
             if contact:
                 contact_has_all_urns = True
                 contact_urns = contact.get_urns()
-                contact_urns_values = contact_urns.values('scheme', 'path')
+                contact_urns_values = contact_urns.values_list('scheme', 'path')
                 if len(urns) <= len(contact_urns_values):
                     for scheme, path in urns:
                         norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
@@ -496,6 +496,10 @@ class Contact(TembaModel):
                         # handle group and campaign updates
                         contact.handle_update(attrs=updated_attrs.keys())
                         return contact
+
+        # For test purpose
+        if contact and contact.uuid == 'uuid-4444':
+            raise Exception('This test should have used the code for optimization above')
 
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
