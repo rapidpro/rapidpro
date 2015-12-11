@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import plivo
 import regex
+import logging
 
 from collections import OrderedDict
 from datetime import datetime
@@ -395,7 +396,6 @@ class PhoneRequiredForm(forms.ModelForm):
             except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
-        return None
 
     class Meta:
         model = UserSettings
@@ -431,31 +431,50 @@ class OrgCRUDL(SmartCRUDL):
 
     class Import(InferOrgMixin, OrgPermsMixin, SmartFormView):
 
-        success_message = _("Import successful")
-
-        def get_success_url(self):
-            return reverse('orgs.org_home')
-
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_('The import file'))
             update = forms.BooleanField(help_text=_('Update all flows and campaigns'), required=False)
 
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs['org']
+                del kwargs['org']
+                super(OrgCRUDL.Import.FlowImportForm, self).__init__(*args, **kwargs)
+
+            def clean_import_file(self):
+                from temba.orgs.models import EARLIEST_IMPORT_VERSION
+
+                # make sure they have purchased credits
+                if not self.org.has_added_credits():
+                    raise ValidationError("Sorry, import is a premium feature")
+
+                # check that it isn't too old
+                data = self.cleaned_data['import_file'].read()
+                json_data = json.loads(data)
+                if json_data.get('version', 0) < EARLIEST_IMPORT_VERSION:
+                    raise ValidationError('This file is no longer valid. Please export a new version and try again.')
+
+                return data
+
+        success_message = _("Import successful")
         form_class = FlowImportForm
+
+        def get_success_url(self):
+            return reverse('orgs.org_home')
+
+        def get_form_kwargs(self):
+            kwargs = super(OrgCRUDL.Import, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
 
         def form_valid(self, form):
             try:
-                # block import based on number of credits
                 org = self.request.user.get_org()
-                if not org.has_added_credits():
-                    form._errors['import_file'] = form.error_class([_("Sorry, import is a premium feature")])
-                    return self.form_invalid(form)
-
-                data = json.loads(form['import_file'].value().read())
+                data = json.loads(form.cleaned_data['import_file'])
                 org.import_app(data, self.request.user, self.request.branding['link'])
-            except ValueError as e:
-                form._errors['import_file'] = form.error_class([_("This file is no longer valid. Please export a new version and try again.")])
-                return self.form_invalid(form)
             except Exception as e:
+                # this is an unexpected error, report it to sentry
+                logger = logging.getLogger(__name__)
+                logger.error('Exception on app import: %s' % unicode(e), exc_info=True)
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 
 from context_processors import GroupPermWrapper
+from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.contrib.auth.models import User, Group
@@ -19,6 +20,7 @@ from temba.middleware import BrandingMiddleware
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Label, Msg, INCOMING
+from temba.orgs.models import UserSettings
 from temba.utils.email import link_components
 from temba.utils import languages
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
@@ -178,6 +180,17 @@ class OrgTest(TembaTest):
         # check that our user settings have changed
         settings = self.admin.get_settings()
         self.assertEquals('pt-br', settings.language)
+
+    def test_usersettings(self):
+        self.login(self.admin)
+
+        post_data = dict(tel='+250788382382')
+        self.client.post(reverse('orgs.usersettings_phone'), post_data)
+        self.assertEquals('+250 788 382 382', UserSettings.objects.get(user=self.admin).get_tel_formatted())
+
+        post_data = dict(tel='bad number')
+        response = self.client.post(reverse('orgs.usersettings_phone'), post_data)
+        self.assertEquals(response.context['form'].errors['tel'][0], 'Invalid phone number, try again.')
 
     def test_webhook_headers(self):
         update_url = reverse('orgs.org_webhook')
@@ -1403,6 +1416,39 @@ class BulkExportTest(TembaTest):
         self.import_file('start-missing-flow-from-actionset')
         self.assertIsNotNone(Flow.objects.filter(name='Start Missing Flow').first())
         self.assertIsNone(Flow.objects.filter(name='Missing Flow').first())
+
+    def test_import(self):
+
+        self.login(self.admin)
+
+        # try importing without having purchased credits
+        post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
+        response = self.client.post(reverse('orgs.org_import'), post_data)
+        self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
+
+        # now purchase some credits and try again
+        TopUp.objects.create(org=self.org, price=0, credits=10000,
+                             expires_on=timezone.now() + timedelta(days=30),
+                             created_by=self.admin, modified_by=self.admin)
+
+        # force our cache to reload
+        self.org.get_credits_total(force_dirty=True)
+        self.assertTrue(self.org.has_added_credits())
+
+        # now try again with purchased credits, but our file is too old
+        post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
+        response = self.client.post(reverse('orgs.org_import'), post_data)
+        self.assertEquals(response.context['form'].errors['import_file'][0], 'This file is no longer valid. Please export a new version and try again.')
+
+        # simulate an unexpected exception during import
+        with patch('temba.triggers.models.Trigger.import_triggers') as validate:
+            validate.side_effect = Exception('Unexpected Error')
+            post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
+            response = self.client.post(reverse('orgs.org_import'), post_data)
+            self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, your import file is invalid.')
+
+            # trigger import failed, new flows that were added should get rolled back
+            self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
     def test_export_import(self):
 
