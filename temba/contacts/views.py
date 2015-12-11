@@ -597,7 +597,7 @@ class ContactCRUDL(SmartCRUDL):
                 contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
 
             if contact is None:
-                raise Http404("No active contact with that id")
+                raise Http404("No active contact with that UUID")
 
             return contact
 

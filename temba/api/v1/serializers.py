@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import phonenumbers
@@ -1716,7 +1716,7 @@ class ChannelClaimSerializer(WriteSerializer):
         if name:
             self.instance.name = name
 
-        self.instance.claim(self.org, phone, self.user)
+        self.instance.claim(self.org, self.user, phone)
 
         if not settings.TESTING:  # pragma: no cover
             self.instance.trigger_sync()
