@@ -821,24 +821,34 @@ class FlowTest(TembaTest):
         self.sms = sms
 
         # test State lookups
-        test = HasStateTest()
-        test = HasStateTest.from_json(self.org, test.as_json())
+        state_test = HasStateTest()
+        state_test = HasStateTest.from_json(self.org, state_test.as_json())
 
         sms.text = "Kigali City"
-        self.assertTest(True, AdminBoundary.objects.get(name="Kigali City"), test)
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali City"), state_test)
 
         sms.text = "Seattle"
-        self.assertTest(False, None, test)
+        self.assertTest(False, None, state_test)
 
         # now District lookups
-        test = HasDistrictTest("Kigali City")
-        test = HasDistrictTest.from_json(self.org, test.as_json())
+        district_test = HasDistrictTest("Kigali City")
+        district_test = HasDistrictTest.from_json(self.org, district_test.as_json())
 
         sms.text = "Kigali"
-        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), test)
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), district_test)
 
         sms.text = "Rwamagana"
-        self.assertTest(False, None, test)
+        self.assertTest(False, None, district_test)
+
+        # remove our org country, should no longer match things
+        self.org.country = None
+        self.org.save()
+
+        sms.text = "Kigali City"
+        self.assertTest(False, None, state_test)
+
+        sms.text = "Kigali"
+        self.assertTest(False, None, district_test)
 
     def test_tests(self):
         sms = self.create_msg(contact=self.contact, text="GReen is my favorite!")
