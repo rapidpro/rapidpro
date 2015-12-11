@@ -497,10 +497,6 @@ class Contact(TembaModel):
                         contact.handle_update(attrs=updated_attrs.keys())
                         return contact
 
-        # For test purpose
-        if contact and contact.uuid == 'uuid-4444':
-            raise Exception('This test should have used the code for optimization above')
-
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
 

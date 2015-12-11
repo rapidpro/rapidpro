@@ -1733,15 +1733,18 @@ class ContactTest(TembaTest):
         contact2.uuid = 'uuid-4444'
         contact2.save()
 
-        # import contact with uuid will force update if existing contact for the uuid
-        csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertIsNotNone(response.context['task'])
-        self.assertIsNotNone(response.context['group'])
-        self.assertFalse(response.context['show_form'])
-        self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
-                                                            creates=2, updates=2))
+        with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+            # import contact with uuid will force update if existing contact for the uuid
+            csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
+            post_data = dict(csv_file=csv_file)
+            response = self.client.post(import_url, post_data, follow=True)
+            self.assertIsNotNone(response.context['task'])
+            self.assertIsNotNone(response.context['group'])
+            self.assertFalse(response.context['show_form'])
+            self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
+                                                                creates=2, updates=2))
+
+            self.assertEquals(mock_lock.call_count, 3)
 
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
         self.assertEquals(0, Contact.objects.filter(name='Bob').count())
