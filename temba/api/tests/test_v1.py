@@ -246,6 +246,27 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
 
+    def test_api_authentication(self):
+        url = reverse('api.v1.org') + '.json'
+
+        # can't fetch endpoint with invalid token
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token 1234567890")
+        self.assertEqual(response.status_code, 403)
+
+        # can fetch endpoint with valid token
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        self.assertEqual(response.status_code, 200)
+
+        # but not if user is inactive
+        self.admin.is_active = False
+        self.admin.save()
+
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        self.assertEqual(response.status_code, 403)
+
     def test_api_org(self):
         url = reverse('api.v1.org')
 
