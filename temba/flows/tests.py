@@ -21,6 +21,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING, Call
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
@@ -34,7 +35,7 @@ from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision,
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
-from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
+from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest, HasStateTest, HasDistrictTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
@@ -814,6 +815,30 @@ class FlowTest(TembaTest):
             expected_tz = expected_value.astimezone(tz)
             expected_value = expected_value.replace(hour=expected_tz.hour).replace(day=expected_tz.day).replace(month=expected_tz.month)
             self.assertTrue(abs((expected_value - str_to_datetime(tuple[1], tz=timezone.utc)).total_seconds()) < 60)
+
+    def test_location_tests(self):
+        sms = self.create_msg(contact=self.contact, text="")
+        self.sms = sms
+
+        # test State lookups
+        test = HasStateTest()
+        test = HasStateTest.from_json(self.org, test.as_json())
+
+        sms.text = "Kigali City"
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali City"), test)
+
+        sms.text = "Seattle"
+        self.assertTest(False, None, test)
+
+        # now District lookups
+        test = HasDistrictTest("Kigali City")
+        test = HasDistrictTest.from_json(self.org, test.as_json())
+
+        sms.text = "Kigali"
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), test)
+
+        sms.text = "Rwamagana"
+        self.assertTest(False, None, test)
 
     def test_tests(self):
         sms = self.create_msg(contact=self.contact, text="GReen is my favorite!")
