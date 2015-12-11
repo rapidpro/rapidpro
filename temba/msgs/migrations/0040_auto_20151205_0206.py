@@ -20,13 +20,26 @@ def non_atomic_migration(func):
 
 @non_atomic_migration
 def initialize_data(apps, schema_editor):
+
     Msg = apps.get_model("msgs", "Msg")
     max_pk = Msg.objects.aggregate(Max('pk'))['pk__max']
     if max_pk is not None:
+        print "Populating msg purged field.."
         for offset in range(0, max_pk+1, BATCH_SIZE):
             print 'On %d of %d' % (offset, max_pk)
-
             (Msg.objects
+             .filter(pk__gte=offset)
+             .filter(pk__lt=offset+BATCH_SIZE)
+             .filter(purged__isnull=True)
+             .update(purged=False))
+
+    Broadcast = apps.get_model("msgs", "Broadcast")
+    max_pk = Broadcast.objects.aggregate(Max('pk'))['pk__max']
+    if max_pk is not None:
+        print "Populating broadcast purged field.."
+        for offset in range(0, max_pk+1, BATCH_SIZE):
+            print 'On %d of %d' % (offset, max_pk)
+            (Broadcast.objects
              .filter(pk__gte=offset)
              .filter(pk__lt=offset+BATCH_SIZE)
              .filter(purged__isnull=True)

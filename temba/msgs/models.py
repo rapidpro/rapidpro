@@ -204,7 +204,7 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    purged = models.NullBooleanField(default=False, help_text="If the messages for this broadcast have been purged")
+    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
 
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
