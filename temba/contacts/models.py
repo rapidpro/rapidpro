@@ -457,8 +457,9 @@ class Contact(TembaModel, SmartModel):
                 contact_urns = contact.get_urns()
                 contact_urns_values = contact_urns.values('scheme', 'path')
                 if len(urns) <= len(contact_urns_values):
-                    for urn_tuple in urns:
-                        if urn_tuple not in contact_urns_values:
+                    for scheme, path in urns:
+                        norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
+                        if (norm_scheme, norm_path) not in contact_urns_values:
                             contact_has_all_urns = False
 
                     if contact_has_all_urns:
