@@ -28,7 +28,7 @@
 
       -for channel in object.get_delegate_channels
 
-        %a{href:"{% url 'channels.channel_read' channel.pk%}"}
+        %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
           .icon{class:'{{ channel|channel_icon }}'}
 
           -if channel.is_delegate_sender
