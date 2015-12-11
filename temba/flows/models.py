@@ -3586,20 +3586,6 @@ class FlowStep(models.Model):
         # optimize lookups
         return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
 
-    @classmethod
-    def get_step_messages(cls, steps):
-        messages = None
-        for step in steps:
-            step_messages = step.messages.all()
-            if not messages:
-                messages = step_messages
-            else:
-                messages = messages | step_messages
-
-        if messages:
-            return messages.order_by('created_on')
-        return messages
-
     def release(self):
         if not self.contact.is_test:
             self.run.flow.remove_visits_for_step(self)
