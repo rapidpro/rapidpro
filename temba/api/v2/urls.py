@@ -5,8 +5,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 
 
 urlpatterns = [
+    # TODO
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'api'])
-
-# TODO add API URLs

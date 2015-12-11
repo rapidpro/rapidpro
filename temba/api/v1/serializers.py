@@ -770,12 +770,12 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
     def validate_unit(self, value):
         if value not in ["M", "H", "D", "W"]:
-            raise serializers.ValidationError("Unit must be one of M, H, D or W for Minute, Hour, Day or Week")
+            raise serializers.ValidationError("Must be one of M, H, D or W for Minute, Hour, Day or Week")
         return value
 
     def validate_delivery_hour(self, value):
         if value < -1 or value > 23:
-            raise serializers.ValidationError("Delivery hour must be either -1 (for same hour) or 0-23")
+            raise serializers.ValidationError("Must be either -1 (for same hour) or 0-23")
         return value
 
     def validate_flow(self, value):
@@ -790,6 +790,15 @@ class CampaignEventWriteSerializer(WriteSerializer):
             self.flow_obj = Flow.objects.filter(uuid=value, is_active=True, org=self.org).first()
             if not self.flow_obj:
                 raise serializers.ValidationError("No flow with UUID %s" % value)
+        return value
+
+    def validate_relative_to(self, value):
+        # ensure field either exists or can be created
+        relative_to = ContactField.get_by_label(self.org, value)
+        if not relative_to:
+            key = ContactField.make_key(value)
+            if not ContactField.is_valid_key(key):
+                raise serializers.ValidationError(_("Cannot create contact field with key '%s'") % key)
         return value
 
     def validate(self, data):
@@ -818,8 +827,6 @@ class CampaignEventWriteSerializer(WriteSerializer):
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
             key = ContactField.make_key(relative_to_label)
-            if not ContactField.is_valid_key(key):
-                raise serializers.ValidationError(_("Cannot create contact field with key '%s'") % key)
             relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
 
         if self.instance:

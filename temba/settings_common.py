@@ -175,9 +175,7 @@ APP_URLS = []
 SITEMAP = ('public.public_index',
            'public.public_blog',
            'public.video_list',
-           'api',
-           'api.webhook',
-           'api.webhook_simulator')
+           'api')
 
 INSTALLED_APPS = (
     'django.contrib.auth',

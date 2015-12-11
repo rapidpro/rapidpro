@@ -1960,7 +1960,7 @@ class APITest(TembaTest):
 
         # add some incoming messages and a flow message
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
-        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test3")
+        msg3 = Msg.create_incoming(self.channel, None, "test3", contact=self.joe)  # no URN
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4 (سلم)")
 
         flow = self.create_flow()
@@ -2553,6 +2553,7 @@ class APITest(TembaTest):
 
     def test_api_campaign_events(self):
         url = reverse('api.v1.campaignevents')
+        color_flow = self.create_flow()
 
         # can't access, get 403
         self.assert403(url)
@@ -2575,34 +2576,48 @@ class APITest(TembaTest):
         mothers = ContactGroup.get_or_create(self.org, self.admin, "Expecting Mothers")
         campaign = Campaign.create(self.org, self.admin, "MAMA Reminders", mothers)
 
-        # create by campaign id (deprecated)
+        # create by campaign id and flow id (deprecated)
         response = self.postJSON(url, dict(campaign=campaign.pk, unit='W', offset=5, relative_to="EDD",
-                                           delivery_hour=-1, message="Time to go to the clinic"))
+                                           delivery_hour=-1, flow=color_flow.pk))
         self.assertEqual(response.status_code, 201)
 
         event1 = CampaignEvent.objects.get()
-        message_flow = Flow.objects.get()
-        self.assertEqual(event1.event_type, MESSAGE_EVENT)
+        self.assertEqual(event1.event_type, FLOW_EVENT)
         self.assertEqual(event1.campaign, campaign)
         self.assertEqual(event1.offset, 5)
         self.assertEqual(event1.unit, 'W')
         self.assertEqual(event1.relative_to.label, "EDD")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, "Time to go to the clinic")
-        self.assertEqual(event1.flow, message_flow)
+        self.assertEqual(event1.message, None)
+        self.assertEqual(event1.flow, color_flow)
 
-        # try to create event with invalid campaign id
+        # try to create event with invalid campaign id and invalid flow id
         response = self.postJSON(url, dict(campaign=-123, unit='D', offset=3, relative_to="EDD",
-                                           delivery_hour=9, message="Time to go to the clinic"))
+                                           delivery_hour=9, flow=-234))
         self.assertResponseError(response, 'campaign', "No campaign with id -123")
+        self.assertResponseError(response, 'flow', "No flow with id -234")
+
+        # try to create event with invalid time unit
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='X', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'unit', "Must be one of M, H, D or W for Minute, Hour, Day or Week")
+
+        # try to create event with invalid delivery hour
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=-2, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'delivery_hour', "Must be either -1 (for same hour) or 0-23")
+
+        # try to create event with invalid contact field
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='D', offset=3, relative_to="@!#!$",
+                                           delivery_hour=-2, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'relative_to', "Cannot create contact field with key ''")
 
         # create by campaign UUID and flow UUID
-        color_flow = self.create_flow()
         response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
                                            delivery_hour=9, flow_uuid=color_flow.uuid))
         self.assertEqual(response.status_code, 201)
 
-        event2 = CampaignEvent.objects.get(flow=color_flow)
+        event2 = CampaignEvent.objects.order_by('-pk').first()
         self.assertEqual(event2.event_type, FLOW_EVENT)
         self.assertEqual(event2.campaign, campaign)
         self.assertEqual(event2.offset, 3)
@@ -2610,18 +2625,47 @@ class APITest(TembaTest):
         self.assertEqual(event2.relative_to.label, "EDD")
         self.assertEqual(event2.delivery_hour, 9)
         self.assertEqual(event2.message, None)
+        self.assertEqual(event2.flow, color_flow)
 
-        # try to create event with invalid campaign UUID
+        # try to create event with invalid campaign UUID and invalid flow UUID
         response = self.postJSON(url, dict(campaign_uuid='nope', unit='D', offset=3, relative_to="EDD",
-                                           delivery_hour=9, flow_uuid=color_flow.uuid))
+                                           delivery_hour=9, flow_uuid='nope'))
         self.assertResponseError(response, 'campaign_uuid', "No campaign with UUID nope")
+        self.assertResponseError(response, 'flow_uuid', "No flow with UUID nope")
+
+        # create an event for a message flow
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic"))
+        self.assertEqual(response.status_code, 201)
+
+        message_flow1 = Flow.objects.exclude(pk=color_flow.pk).get()
+        event3 = CampaignEvent.objects.order_by('-pk').first()
+        self.assertEqual(event3.event_type, MESSAGE_EVENT)
+        self.assertEqual(event3.campaign, campaign)
+        self.assertEqual(event3.offset, 3)
+        self.assertEqual(event3.unit, 'D')
+        self.assertEqual(event3.relative_to.label, "EDD")
+        self.assertEqual(event3.delivery_hour, 9)
+        self.assertEqual(event3.message, "Time to go to the clinic")
+        self.assertEqual(event3.flow, message_flow1)
+
+        # try to create event without flow or message
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9))
+        self.assertResponseError(response, 'non_field_errors', "Must specify either a flow or a message for the event")
+
+        # try to create event with both flow and message
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, flow_uuid=color_flow.uuid, message="Time to go"))
+        self.assertResponseError(response, 'non_field_errors', "Events cannot have both a message and a flow")
 
         # update an event by id (deprecated)
         response = self.postJSON(url, dict(event=event1.pk, unit='D', offset=30, relative_to="EDD",
                                            delivery_hour=-1, message="Time to go to the clinic. Thanks"))
         self.assertEqual(response.status_code, 201)
 
-        event1 = CampaignEvent.objects.get(pk=event1.pk)
+        message_flow2 = Flow.objects.exclude(pk__in=[color_flow.pk, message_flow1.pk]).get()
+        event1.refresh_from_db()
         self.assertEqual(event1.event_type, MESSAGE_EVENT)
         self.assertEqual(event1.campaign, campaign)
         self.assertEqual(event1.offset, 30)
@@ -2629,7 +2673,17 @@ class APITest(TembaTest):
         self.assertEqual(event1.relative_to.label, "EDD")
         self.assertEqual(event1.delivery_hour, -1)
         self.assertEqual(event1.message, "Time to go to the clinic. Thanks")
-        self.assertEqual(event1.flow, message_flow)
+        self.assertEqual(event1.flow, message_flow2)
+
+        # update an event that is already a message event with a new message
+        response = self.postJSON(url, dict(event=event3.pk, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic. NOW!"))
+        self.assertEqual(response.status_code, 201)
+
+        event3.refresh_from_db()
+        self.assertEqual(event3.event_type, MESSAGE_EVENT)
+        self.assertEqual(event3.message, "Time to go to the clinic. NOW!")
+        self.assertEqual(event3.flow, message_flow1)
 
         # try tp update an event by invalid id
         response = self.postJSON(url, dict(event=-123, unit='D', offset=30, relative_to="EDD",
@@ -2642,7 +2696,7 @@ class APITest(TembaTest):
                                            delivery_hour=5, flow_uuid=other_flow.uuid))
         self.assertEqual(response.status_code, 201)
 
-        event2 = CampaignEvent.objects.get(pk=event2.pk)
+        event2.refresh_from_db()
         self.assertEqual(event2.event_type, FLOW_EVENT)
         self.assertEqual(event2.campaign, campaign)
         self.assertEqual(event2.offset, 3)
@@ -2664,21 +2718,21 @@ class APITest(TembaTest):
 
         # fetch all events
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 2)
-        self.assertEqual(response.json['results'][0]['uuid'], event2.uuid)
+        self.assertResultCount(response, 3)
+        self.assertEqual(response.json['results'][0]['uuid'], event3.uuid)
         self.assertEqual(response.json['results'][0]['campaign_uuid'], campaign.uuid)
         self.assertEqual(response.json['results'][0]['campaign'], campaign.pk)
         self.assertEqual(response.json['results'][0]['relative_to'], "EDD")
         self.assertEqual(response.json['results'][0]['offset'], 3)
-        self.assertEqual(response.json['results'][0]['unit'], 'W')
-        self.assertEqual(response.json['results'][0]['delivery_hour'], 5)
-        self.assertEqual(response.json['results'][0]['flow_uuid'], other_flow.uuid)
-        self.assertEqual(response.json['results'][0]['flow'], other_flow.pk)
-        self.assertEqual(response.json['results'][0]['message'], None)
-        self.assertEqual(response.json['results'][1]['uuid'], event1.uuid)
-        self.assertEqual(response.json['results'][1]['flow_uuid'], None)
-        self.assertEqual(response.json['results'][1]['flow'], None)
-        self.assertEqual(response.json['results'][1]['message'], "Time to go to the clinic. Thanks")
+        self.assertEqual(response.json['results'][0]['unit'], 'D')
+        self.assertEqual(response.json['results'][0]['delivery_hour'], 9)
+        self.assertEqual(response.json['results'][0]['flow_uuid'], None)
+        self.assertEqual(response.json['results'][0]['flow'], None)
+        self.assertEqual(response.json['results'][0]['message'], "Time to go to the clinic. NOW!")
+        self.assertEqual(response.json['results'][1]['uuid'], event2.uuid)
+        self.assertEqual(response.json['results'][1]['flow_uuid'], other_flow.uuid)
+        self.assertEqual(response.json['results'][1]['flow'], other_flow.pk)
+        self.assertEqual(response.json['results'][1]['message'], None)
 
         # delete event by UUID
         response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
