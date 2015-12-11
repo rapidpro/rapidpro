@@ -1384,7 +1384,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm('channels.channel_read'):
                 from temba.channels.views import get_channel_icon
                 icon = get_channel_icon(channel.channel_type)
-                formax.add_section('channel', reverse('channels.channel_read', args=[channel.pk]), icon=icon, action='link')
+                formax.add_section('channel', reverse('channels.channel_read', args=[channel.uuid]), icon=icon, action='link')
 
         def derive_formax_sections(self, formax, context):
 

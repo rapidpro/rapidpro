@@ -144,9 +144,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.org.initialize()
 
         self.user.set_org(self.org)
-        self.channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
-                                              org=self.org, created_by=self.user, modified_by=self.user,
-                                              secret="12345", gcm_id="123")
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
+                                      secret="12345", gcm_id="123")
 
         self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
         self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
@@ -2204,6 +2203,8 @@ class ContactURNTest(TembaTest):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
         self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", "KE"))
+        self.assertTrue(ContactURN.validate_urn('tel', "+23761234567", "CM"))  # old Cameroon format
+        self.assertTrue(ContactURN.validate_urn('tel', "+237661234567", "CM"))  # new Cameroon format
         self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", None))
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", None))  # assumed valid because no country
 
@@ -2240,8 +2241,8 @@ class ContactFieldTest(TembaTest):
         self.user.set_org(self.org)
         self.admin.set_org(self.org)
 
-        self.channel = Channel.objects.create(name="Test Channel", address="0785551212",
-                                              org=self.org, created_by=self.admin, modified_by=self.admin, secret="12345", gcm_id="123")
+        self.channel = Channel.create(self.org, self.admin, None, 'A', "Test Channel", "0785551212",
+                                      secret="12345", gcm_id="123")
 
         self.joe = self.create_contact(name="Joe Blow", number="123")
         self.frank = self.create_contact(name="Frank Smith", number="1234")

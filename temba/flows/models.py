@@ -139,7 +139,7 @@ def edit_distance(s1, s2): # pragma: no cover
     return d[lenstr1-1,lenstr2-1]
 
 
-class Flow(TembaModel, SmartModel):
+class Flow(TembaModel):
     UUID = 'uuid'
     ENTRY = 'entry'
     RULE_SETS = 'rule_sets'
