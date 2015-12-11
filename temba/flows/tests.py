@@ -3161,7 +3161,7 @@ class FlowsTest(FlowFileTest):
         start = ActionSet.objects.get(flow=flow, y=0)
 
         # test our description
-        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}", start.get_description())
+        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}\n", start.get_description())
 
         # assert our destination
         self.assertEquals(RULE_SET, start.destination_type)
