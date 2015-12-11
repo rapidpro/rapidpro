@@ -27,7 +27,7 @@ Please check on your {{ channel_type }} to make sure it has sufficient credit an
 {% blocktrans with channel_name=channel.get_name %}
    You can check the current status of {{ channel_name }} by visiting its status page at:
 {% endblocktrans %}
-   {{ branding.link }}/channels/channel/read/{{ channel.id }}/
+   {{ branding.link }}/channels/channel/read/{{ channel.uuid }}/
 
 {% trans "Thanks," %}
 

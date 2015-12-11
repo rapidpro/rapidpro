@@ -119,7 +119,7 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
         self.tel_channel.is_active = False
         self.tel_channel.save()
-        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.pk]))
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
         self.assertEquals(404, response.status_code)
 
     def test_delegate_channels(self):
