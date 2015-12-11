@@ -625,7 +625,7 @@ class Contact(TembaModel, SmartModel):
             if urn_header == 'phone':
                 urn_scheme = TEL_SCHEME
 
-            if urn_header.strip().lower() == 'external':
+            if urn_header == 'external':
                 urn_scheme = EXTERNAL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
@@ -757,7 +757,7 @@ class Contact(TembaModel, SmartModel):
         Contact.validate_import_header(headers)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header.strip().lower() not in [l.lower() for l in Contact.RESERVED_FIELDS]]
+        return [header for header in headers if header.strip().lower() not in Contact.RESERVED_FIELDS]
 
     @classmethod
     def validate_import_header(cls, header):
