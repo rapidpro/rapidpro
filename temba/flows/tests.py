@@ -4218,3 +4218,40 @@ class TriggerStartTest(FlowFileTest):
         self.assertEqual(contact.name, "Rudolph")
 
         self.assertLastResponse("Hi Rudolph, how old are you?")
+
+
+class FlowBatchTest(FlowFileTest):
+
+    def setUp(self):
+        super(FlowBatchTest, self).setUp()
+        from temba.flows import models as flow_models
+        self.orig_batch_size = flow_models.START_FLOW_BATCH_SIZE
+        flow_models.START_FLOW_BATCH_SIZE = 10
+
+    def tearDown(self):
+        super(FlowBatchTest, self).tearDown()
+        from temba.flows import models as flow_models
+        flow_models.START_FLOW_BATCH_SIZE = self.orig_batch_size
+
+    def test_flow_batch_start(self):
+        """
+        Tests starting a flow for a group of contacts
+        """
+        flow = self.get_flow('favorites')
+
+        # create 10 contacts
+        contacts = []
+        for i in range(11):
+            contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
+
+        # start our flow, this will take two batches
+        flow.start([], contacts)
+
+        # ensure 11 flow runs were created
+        self.assertEquals(11, FlowRun.objects.all().count())
+
+        # ensure 11 outgoing messages were created
+        self.assertEquals(11, Msg.objects.all().count())
+
+        # but only one broadcast
+        self.assertEquals(1, Broadcast.objects.all().count())
