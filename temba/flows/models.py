@@ -3606,13 +3606,6 @@ class FlowStep(models.Model):
 
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
 
-    def response_to(self):
-        if self.messages.all():
-            msg = self.messages.all().first()
-            previous = self.run.contact.messages.filter(direction=OUTGOING, pk__lt=msg.pk).order_by('-pk').first()
-            if previous:
-                return previous.text
-
     def get_text(self):
         msg = self.messages.all().first()
         return msg.text if msg else None
