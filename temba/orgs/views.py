@@ -1563,19 +1563,6 @@ class OrgCRUDL(SmartCRUDL):
                 del kwargs['org']
                 super(OrgCRUDL.Languages.LanguagesForm, self).__init__(*args, **kwargs)
 
-            def clean(self):
-
-                # don't allow them to remove languages which are a base_language for a flow
-                old_languages = [lang.iso_code for lang in self.org.languages.all()]
-
-                new_languages = set(self.cleaned_data.get('languages', '').split(',') + self.cleaned_data.get('primary_lang', '').split(','))
-
-                for new_lang in new_languages:
-                    if new_lang in old_languages:
-                        old_languages.remove(new_lang)
-
-                return super(OrgCRUDL.Languages.LanguagesForm, self).clean()
-
             class Meta:
                 model = Org
                 fields = ('primary_lang', 'languages')
@@ -1670,7 +1657,7 @@ class OrgCRUDL(SmartCRUDL):
             self.org = self.derive_org()
             return self.request.user.has_perm('orgs.org_country') or self.has_org_perm('orgs.org_country')
 
-    class ClearCache(SmartUpdateView):
+    class ClearCache(SmartUpdateView): # pragma: no cover
         fields = ('id',)
         success_message = None
         success_url = 'id@orgs.org_update'

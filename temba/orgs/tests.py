@@ -162,6 +162,10 @@ class OrgTest(TembaTest):
         # and that we have 999 credits left on our topup
         self.assertContains(response, "1 of 1,000 Credits Used")
 
+        # our receipt should show that the topup was free
+        response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
+        self.assertContains(response, '$0.00')
+
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
         login_url = reverse('users.user_login')
@@ -800,14 +804,27 @@ class OrgTest(TembaTest):
                 self.assertIn('account_sid', response.context['form'].fields.keys())
                 self.assertIn('account_token', response.context['form'].fields.keys())
 
-
                 mock_get.return_value = MockTwilioClient.MockAccount('Full')
                 mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
                                                                                            self.org.pk))]
 
+                # try posting without an account token
                 post_data = dict()
                 post_data['account_sid'] = "AccountSid"
+                response = self.client.post(connect_url, post_data)
+                self.assertEquals(response.context['form'].errors['account_token'][0], 'This field is required.')
+
+                # now add the account token and try again
                 post_data['account_token'] = "AccountToken"
+
+                # but with an unexpected exception
+                with patch('temba.tests.MockTwilioClient.__init__') as mock:
+                    mock.side_effect = Exception('Unexpected')
+                    response = self.client.post(connect_url, post_data)
+                    print response.context['form'].errors
+                    self.assertEquals('The Twilio account SID and Token seem invalid. '
+                                      'Please check them again and retry.',
+                                      response.context['form'].errors['__all__'][0])
 
                 self.client.post(connect_url, post_data)
                 org.refresh_from_db()
@@ -1309,7 +1326,13 @@ class OrgCRUDLTest(TembaTest):
         self.assertEquals(self.csrep, contact.created_by)
 
         # make sure we can manage topups as well
+        TopUp.objects.create(org=self.org, price=100, credits=1000, expires_on=timezone.now() + timedelta(days=30),
+                             created_by=self.admin, modified_by=self.admin)
+
         response = self.client.get(reverse('orgs.topup_manage') + "?org=%d" % self.org.id)
+
+        # i'd buy that for a dollar!
+        self.assertContains(response, '$1.00')
         self.assertNotRedirect(response, '/users/login/')
 
         # ok, now end our session
@@ -1343,8 +1366,34 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(reverse('orgs.org_languages'))
+        self.assertEquals('Haitian and Official Aramaic', response.context['languages'])
         self.assertContains(response, 'fre')
         self.assertContains(response, 'hat,arc')
+
+        # three translation languages
+        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat,arc,spa'))
+        response = self.client.get(reverse('orgs.org_languages'))
+        self.assertEquals('Haitian, Official Aramaic and Spanish', response.context['languages'])
+
+        # one translation language
+        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat'))
+        response = self.client.get(reverse('orgs.org_languages'))
+        self.assertEquals('Haitian', response.context['languages'])
+
+        # remove our primary language
+        self.client.post(reverse('orgs.org_languages'), dict())
+        self.org.refresh_from_db()
+        self.assertIsNone(self.org.primary_language)
+
+        # search languages
+        response = self.client.get('%s?search=fre' % reverse('orgs.org_languages'))
+        results = json.loads(response.content)['results']
+        self.assertEquals(4, len(results))
+
+        # initial should do a match on code only
+        response = self.client.get('%s?initial=fre' % reverse('orgs.org_languages'))
+        results = json.loads(response.content)['results']
+        self.assertEquals(1, len(results))
 
     def test_language_codes(self):
         self.assertEquals('French', languages.get_language_name('fre'))
