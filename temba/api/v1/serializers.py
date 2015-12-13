@@ -474,16 +474,17 @@ class ContactWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Cannot update contacts on anonymous organizations, can only create")
 
         if self.urn_tuples is not None:
-            urns_strings = ["%s:%s" % u for u in self.urn_tuples]
-            urn_query = Q(pk__lt=0)
-            for urn_string in urns_strings:
-                urn_query |= Q(urns__urn__iexact=urn_string, urns__org=self.org)
+            # look up these URNs, keeping track of the contacts that are connected to them
+            urn_contacts = set()
+            for urn_tuple in self.urn_tuples:
+                urn = ContactURN.objects.filter(org=self.org, urn__exact="%s:%s" % urn_tuple).first()
+                if urn and urn.contact:
+                    urn_contacts.add(urn.contact)
 
-            urn_contacts = Contact.objects.filter(org=self.org).filter(urn_query).distinct()
             if len(urn_contacts) > 1:
                 raise serializers.ValidationError(_("URNs are used by multiple contacts"))
 
-            contact_by_urns = urn_contacts[0] if len(urn_contacts) > 0 else None
+            contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
 
             if self.instance and contact_by_urns != self.instance:
                 raise serializers.ValidationError(_("URNs are used by other contacts"))
