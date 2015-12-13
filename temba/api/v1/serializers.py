@@ -477,7 +477,7 @@ class ContactWriteSerializer(WriteSerializer):
             urns_strings = ["%s:%s" % u for u in self.urn_tuples]
             urn_query = Q(pk__lt=0)
             for urn_string in urns_strings:
-                urn_query |= Q(urns__urn__iexact=urn_string)
+                urn_query |= Q(urns__urn__iexact=urn_string, urns__org=self.org)
 
             urn_contacts = Contact.objects.filter(org=self.org).filter(urn_query).distinct()
             if len(urn_contacts) > 1:
