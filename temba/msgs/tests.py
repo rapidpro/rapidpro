@@ -225,7 +225,7 @@ class MsgTest(TembaTest):
             msg.send()
 
         # can't create outgoing messages against an unassigned channel
-        unassigned_channel = Channel.objects.create(created_by=self.admin, modified_by=self.admin, secret="67890", gcm_id="456")
+        unassigned_channel = Channel.create(None, self.admin, None, 'A', None, secret="67890", gcm_id="456")
 
         with self.assertRaises(Exception):
             Msg.create_incoming(unassigned_channel, (TEL_SCHEME, "250788382382"), "No dice")
@@ -879,8 +879,7 @@ class BroadcastTest(TembaTest):
         for channel in Channel.objects.all():
             channel.release(notify_mage=False)
 
-        Channel.objects.create(org=self.org, channel_type="A", secret="12345", gcm_id="123",
-                               created_by=self.user, modified_by=self.user)
+        Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
 
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
@@ -1505,11 +1504,8 @@ class CallTest(SmartminTest):
 
         self.user.set_org(self.org)
 
-
-        self.channel = Channel.objects.create(name="Test Channel", address="0785551212",
-                                              org=self.org, created_by=self.user, modified_by=self.user,
-                                              secret="12345", gcm_id="123")
-
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
+                                      secret="12345", gcm_id="123")
 
     def test_call_model(self):
         now = timezone.now()

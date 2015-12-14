@@ -2,16 +2,15 @@ from __future__ import unicode_literals
 
 import datetime
 import json
-import time
-from urlparse import urlparse, urlunparse, ParseResult
-from uuid import uuid4
-
 import os
 import phonenumbers
 import regex
+import time
+
 from django.core.files import File
 from django.db import models
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
+from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
@@ -23,6 +22,8 @@ from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
+from urlparse import urlparse, urlunparse, ParseResult
+from uuid import uuid4
 
 
 # phone number for every org's test contact
@@ -164,7 +165,7 @@ class ContactField(models.Model):
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
-class Contact(TembaModel, SmartModel):
+class Contact(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
 
@@ -241,6 +242,21 @@ class Contact(TembaModel, SmartModel):
     def all(cls):
         simulation = cls.get_simulation()
         return cls.objects.filter(is_test=simulation)
+
+    def get_scheduled_messages(self):
+        from temba.msgs.models import SystemLabel
+
+        contact_urns = self.get_urns()
+        contact_groups = self.user_groups.all()
+        now = timezone.now()
+
+        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
+        scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
+        scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
+        scheduled_broadcasts = scheduled_broadcasts.filter(
+            Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
+
+        return scheduled_broadcasts.order_by('schedule__next_fire')
 
     def get_field(self, key):
         """
@@ -1398,7 +1414,7 @@ class UserContactGroupManager(models.Manager):
         return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
-class ContactGroup(TembaModel, SmartModel):
+class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
 
     TYPE_ALL = 'A'

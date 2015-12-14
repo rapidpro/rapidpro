@@ -119,7 +119,7 @@
                           -if obj.channel
                             on
                             %span.attn
-                              %a{href:'{%url "channels.channel_read" obj.channel.pk%}'}= obj.channel
+                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
                         -if obj.schedule
                           -trans "The"

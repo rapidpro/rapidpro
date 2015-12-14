@@ -1211,15 +1211,14 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(set(), self.org.get_schemes(RECEIVE))
 
         # add a receive only tel channel
-        Channel.objects.create(name="Nexmo", channel_type=TWILIO, address="0785551212", role="R", org=self.org,
-                               created_by=self.user, modified_by=self.user, secret="45678", gcm_id="123")
-        self.org = Org.objects.get(pk=self.org.id)
+        Channel.create(self.org, self.user, 'RW', TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+
+        self.org = Org.objects.get(pk=self.org.pk)
         self.assertEqual(set(), self.org.get_schemes(SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
 
         # add a send/receive tel channel
-        Channel.objects.create(name="Twilio", channel_type=TWILIO, address="0785553434", role="SR", org=self.org,
-                               created_by=self.user, modified_by=self.user, secret="56789", gcm_id="456")
+        Channel.create(self.org, self.user, 'RW', TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
         self.org = Org.objects.get(pk=self.org.id)
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))

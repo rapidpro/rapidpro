@@ -10,7 +10,7 @@ This email is to announce that your android phone battery low reported last time
 {% blocktrans with channel_name=channel.get_name %}
    You can check the current status of your {{ channel_name }} by visiting its
 {% endblocktrans %}
-   {{ branding.link }}/channels/channel/read/{{ channel.id }}/
+   {{ branding.link }}/channels/channel/read/{{ channel.uuid }}/
                                                                                                     
 {% trans "Thanks!" %}
 
