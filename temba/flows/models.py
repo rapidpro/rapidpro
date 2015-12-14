@@ -1408,7 +1408,7 @@ class Flow(TembaModel):
             # mark any current runs as no longer active
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
             self.remove_active_for_run_ids([r['id'] for r in previous_runs.values('id')])
-            previous_runs.update(is_active=False)
+            previous_runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_RESTARTED)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
@@ -1690,9 +1690,6 @@ class Flow(TembaModel):
 
         if not arrived_on:
             arrived_on = timezone.now()
-
-        # if we were previously marked complete, activate again
-        run.set_completed(False)
 
         if not is_start:
             # we have activity, update our expires on date accordingly
@@ -2936,36 +2933,36 @@ class FlowRun(models.Model):
         # lastly delete ourselves
         self.delete()
 
-    def set_completed(self, complete=True, final_step=None, completed_on=None):
+    def set_completed(self, final_step=None, completed_on=None):
         """
-        Mark a run as complete. Runs can become incomplete at a later
-        data if they re-engage with an updated flow.
+        Mark a run as complete
         """
-        if complete:
-            if self.contact.is_test:
-                ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
+        if self.contact.is_test:
+            ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
 
-            now = timezone.now()
+        now = timezone.now()
 
-            # mark that we left this step
-            if final_step:
-                final_step.left_on = completed_on if completed_on else now
-                final_step.save(update_fields=['left_on'])
-                self.flow.remove_active_for_step(final_step)
+        if not completed_on:
+            completed_on = now
 
-            # mark this flow as inactive
-            self.is_active = False
-            self.modified_on = now
-            self.save(update_fields=['modified_on', 'is_active'])
+        # mark that we left this step
+        if final_step:
+            final_step.left_on = completed_on
+            final_step.save(update_fields=['left_on'])
+            self.flow.remove_active_for_step(final_step)
+
+        # mark this flow as inactive
+        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        self.exited_on = completed_on
+        self.modified_on = now
+        self.is_active = False
+        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         r = get_redis_connection()
         if not self.contact.is_test:
             with self.flow.lock_on(FlowLock.participation):
                 key = self.flow.get_stats_cache_key(FlowStatsCache.runs_completed_count)
-                if complete:
-                    r.sadd(key, self.pk)
-                else:
-                    r.srem(key, self.pk)
+                r.sadd(key, self.pk)
 
     def update_expiration(self, point_in_time):
         """
@@ -3010,19 +3007,7 @@ class FlowRun(models.Model):
         return json.loads(self.fields) if self.fields else {}
 
     def is_completed(self):
-        """
-        Whether this run has reached the terminal node in the flow
-        """
-        terminal_nodes = self.flow.get_terminal_nodes()
-        category_nodes = self.flow.get_category_nodes()
-
-        for step in self.steps.all():
-            if step.step_uuid in terminal_nodes:
-                return True
-            elif step.step_uuid in category_nodes and step.left_on is None and step.rule_uuid is not None:
-                return True
-
-        return False
+        return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
