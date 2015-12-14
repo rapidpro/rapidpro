@@ -36,7 +36,7 @@ from temba.utils.email import send_template_email, is_valid_address
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
-from temba.utils.models import TembaModel
+from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
 from twilio import twiml
@@ -2785,6 +2785,13 @@ class FlowRevision(SmartModel):
 
 
 class FlowRun(models.Model):
+    EXIT_TYPE_COMPLETED = 'C'
+    EXIT_TYPE_RESTARTED = 'R'
+    EXIT_TYPE_EXPIRED = 'E'
+    EXIT_TYPE_CHOICES = ((EXIT_TYPE_COMPLETED, _("Completed")),
+                         (EXIT_TYPE_RESTARTED, _("Restarted")),
+                         (EXIT_TYPE_EXPIRED, _("Expired")))
+
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
     flow = models.ForeignKey(Flow, related_name='runs')
@@ -2803,14 +2810,17 @@ class FlowRun(models.Model):
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
 
-    expires_on = models.DateTimeField(null=True,
-                                      help_text=_("When this flow run will expire"))
-
-    expired_on = models.DateTimeField(null=True,
-                                      help_text=_("When this flow run expired"))
-
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text=_("When this flow run was last updated"))
+
+    exited_on = models.DateTimeField(null=True,
+                                     help_text=_("When the contact exited this flow run"))
+
+    exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES,
+                                 help_text=_("Why the contact exited this flow run"))
+
+    expires_on = models.DateTimeField(null=True,
+                                      help_text=_("When this flow run will expire"))
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
@@ -2895,7 +2905,8 @@ class FlowRun(models.Model):
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         batches = [runs[i:i + batch_size] for i in range(0, len(runs), batch_size)]
         for batch in batches:
-            FlowRun.objects.filter(id__in=[f['id'] for f in batch]).update(is_active=False, expired_on=timezone.now())
+            run_objs = FlowRun.objects.filter(id__in=[f['id'] for f in batch])
+            run_objs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_EXPIRED)
 
     def release(self):
 
@@ -3027,41 +3038,6 @@ class FlowRun(models.Model):
                 self.voice_response.say(text)
 
         return msg
-
-
-class FlowStepIterator(object):
-    """
-    Queryset wrapper to chunk queries and reduce in-memory footprint
-    """
-    def __init__(self, ids, order_by=None, select_related=None, prefetch_related=None, max_obj_num=1000):
-        self._ids = ids
-        self._order_by = order_by
-        self._select_related = select_related
-        self._prefetch_related = prefetch_related
-        self._generator = self._setup()
-        self.max_obj_num = max_obj_num
-
-    def _setup(self):
-        for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = FlowStep.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
-
-            if self._order_by:
-                chunk_queryset = chunk_queryset.order_by(*self._order_by)
-
-            if self._select_related:
-                chunk_queryset = chunk_queryset.select_related(*self._select_related)
-
-            if self._prefetch_related:
-                chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
-
-            for obj in chunk_queryset:
-                yield obj
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        return self._generator.next()
 
 
 class ExportFlowResultsTask(SmartModel):
@@ -3240,12 +3216,12 @@ class ExportFlowResultsTask(SmartModel):
             urn_display_cache[contact.pk] = urn_display
             return urn_display
 
-        for run_step in FlowStepIterator(step_ids,
-                                         order_by=['contact', 'run', 'arrived_on', 'pk'],
-                                         select_related=['run', 'contact'],
-                                         prefetch_related=['messages__contact_urn',
-                                                           'messages__channel',
-                                                           'contact__all_groups']):
+        for run_step in ChunkIterator(FlowStep, step_ids,
+                                      order_by=['contact', 'run', 'arrived_on', 'pk'],
+                                      select_related=['run', 'contact'],
+                                      prefetch_related=['messages__contact_urn',
+                                                        'messages__channel',
+                                                        'contact__all_groups']):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:
