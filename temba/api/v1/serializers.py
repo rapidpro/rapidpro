@@ -1137,7 +1137,7 @@ class FlowRunReadSerializer(ReadSerializer):
         return steps
 
     def get_expired_on(self, obj):
-        return format_v1_datetime(self.exited_on) if self.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+        return format_v1_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
     class Meta:
         model = FlowRun
@@ -1253,7 +1253,7 @@ class FlowRunWriteSerializer(WriteSerializer):
             final_step = step_objs[len(step_objs) - 1] if step_objs else None
             completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
 
-            run.set_completed(True, final_step, completed_on=completed_on)
+            run.set_completed(final_step, completed_on=completed_on)
         else:
             run.modified_on = timezone.now()
             run.save(update_fields=('modified_on',))
