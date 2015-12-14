@@ -166,7 +166,7 @@ class OrgTest(TembaTest):
         with patch('stripe.Charge.retrieve') as stripe:
             stripe.return_value = ''
             response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
-            self.assertContains(response, '$0.00')
+            self.assertContains(response, 'Receipt')
 
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
@@ -848,7 +848,6 @@ class OrgTest(TembaTest):
                 with patch('temba.tests.MockTwilioClient.__init__') as mock:
                     mock.side_effect = Exception('Unexpected')
                     response = self.client.post(connect_url, post_data)
-                    print response.context['form'].errors
                     self.assertEquals('The Twilio account SID and Token seem invalid. '
                                       'Please check them again and retry.',
                                       response.context['form'].errors['__all__'][0])
