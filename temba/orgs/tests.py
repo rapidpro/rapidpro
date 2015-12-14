@@ -166,6 +166,7 @@ class OrgTest(TembaTest):
         with patch('stripe.Charge.retrieve') as stripe:
             stripe.return_value = ''
             response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
+            print response.content
             self.assertContains(response, 'Receipt')
 
     def test_user_update(self):
