@@ -21,6 +21,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING, Call
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
@@ -34,7 +35,7 @@ from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision,
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
-from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
+from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest, HasStateTest, HasDistrictTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
@@ -814,6 +815,40 @@ class FlowTest(TembaTest):
             expected_tz = expected_value.astimezone(tz)
             expected_value = expected_value.replace(hour=expected_tz.hour).replace(day=expected_tz.day).replace(month=expected_tz.month)
             self.assertTrue(abs((expected_value - str_to_datetime(tuple[1], tz=timezone.utc)).total_seconds()) < 60)
+
+    def test_location_tests(self):
+        sms = self.create_msg(contact=self.contact, text="")
+        self.sms = sms
+
+        # test State lookups
+        state_test = HasStateTest()
+        state_test = HasStateTest.from_json(self.org, state_test.as_json())
+
+        sms.text = "Kigali City"
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali City"), state_test)
+
+        sms.text = "Seattle"
+        self.assertTest(False, None, state_test)
+
+        # now District lookups
+        district_test = HasDistrictTest("Kigali City")
+        district_test = HasDistrictTest.from_json(self.org, district_test.as_json())
+
+        sms.text = "Kigali"
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), district_test)
+
+        sms.text = "Rwamagana"
+        self.assertTest(False, None, district_test)
+
+        # remove our org country, should no longer match things
+        self.org.country = None
+        self.org.save()
+
+        sms.text = "Kigali City"
+        self.assertTest(False, None, state_test)
+
+        sms.text = "Kigali"
+        self.assertTest(False, None, district_test)
 
     def test_tests(self):
         sms = self.create_msg(contact=self.contact, text="GReen is my favorite!")
@@ -3120,11 +3155,15 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_contacts())
 
     def test_destination_type(self):
-
         flow = self.get_flow('pick_a_number')
 
         # our start points to a ruleset
         start = ActionSet.objects.get(flow=flow, y=0)
+
+        # test our description
+        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}\n", start.get_description())
+
+        # assert our destination
         self.assertEquals(RULE_SET, start.destination_type)
 
         # and that ruleset points to an actionset
@@ -4218,3 +4257,41 @@ class TriggerStartTest(FlowFileTest):
         self.assertEqual(contact.name, "Rudolph")
 
         self.assertLastResponse("Hi Rudolph, how old are you?")
+
+
+class FlowBatchTest(FlowFileTest):
+
+    def setUp(self):
+        super(FlowBatchTest, self).setUp()
+        from temba.flows import models as flow_models
+        self.orig_batch_size = flow_models.START_FLOW_BATCH_SIZE
+        flow_models.START_FLOW_BATCH_SIZE = 10
+
+    def tearDown(self):
+        super(FlowBatchTest, self).tearDown()
+        from temba.flows import models as flow_models
+        flow_models.START_FLOW_BATCH_SIZE = self.orig_batch_size
+
+    def test_flow_batch_start(self):
+        """
+        Tests starting a flow for a group of contacts
+        """
+        flow = self.get_flow('favorites')
+
+        # create 10 contacts
+        contacts = []
+        for i in range(11):
+            contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
+
+        # start our flow, this will take two batches
+        flow.start([], contacts)
+
+        # ensure 11 flow runs were created
+        self.assertEquals(11, FlowRun.objects.all().count())
+
+        # ensure 11 outgoing messages were created
+        self.assertEquals(11, Msg.objects.all().count())
+
+        # but only one broadcast
+        self.assertEquals(1, Broadcast.objects.all().count())
+
