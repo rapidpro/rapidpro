@@ -1203,7 +1203,6 @@ class OrgCRUDL(SmartCRUDL):
             invitation = self.get_invitation()
             if invitation:
                 return invitation.org
-            return None
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Join, self).get_context_data(**kwargs)

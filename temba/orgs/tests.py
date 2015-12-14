@@ -163,8 +163,10 @@ class OrgTest(TembaTest):
         self.assertContains(response, "1 of 1,000 Credits Used")
 
         # our receipt should show that the topup was free
-        response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
-        self.assertContains(response, '$0.00')
+        with patch('stripe.Charge.retrieve') as stripe:
+            stripe.return_value = ''
+            response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
+            self.assertContains(response, '$0.00')
 
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
@@ -391,13 +393,16 @@ class OrgTest(TembaTest):
 
     @patch('temba.utils.email.send_temba_email')
     def test_join(self, mock_send_temba_email):
-        editor_invitation = Invitation.objects.create(org=self.org,
-                                                      user_group="E",
-                                                      email="norkans7@gmail.com",
-                                                      host='app.rapidpro.io',
-                                                      created_by=self.admin,
-                                                      modified_by=self.admin)
 
+        def create_invite(group):
+            return Invitation.objects.create(org=self.org,
+                                             user_group=group,
+                                             email="norkans7@gmail.com",
+                                             host='app.rapidpro.io',
+                                             created_by=self.admin,
+                                             modified_by=self.admin)
+
+        editor_invitation = create_invite('E')
         editor_invitation.send_invitation()
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -433,6 +438,28 @@ class OrgTest(TembaTest):
 
         self.assertIn(self.invited_editor, self.org.editors.all())
         self.assertFalse(Invitation.objects.get(pk=editor_invitation.pk).is_active)
+
+        roles = (('V', self.org.viewers), ('S', self.org.surveyors),
+                 ('A', self.org.administrators), ('E', self.org.editors))
+
+        # test it for each role
+        for role in roles:
+            invite = create_invite(role[0])
+            user = self.create_user('User%s' % role[0])
+            self.login(user)
+            response = self.client.post(reverse('orgs.org_join', args=[invite.secret]), follow=True)
+            self.assertEqual(200, response.status_code)
+            self.assertIsNotNone(role[1].filter(pk=user.pk).first())
+
+        # try an expired invite
+        invite = create_invite('S')
+        invite.is_active = False
+        invite.save()
+        expired_user = self.create_user("InvitedExpired")
+        self.login(expired_user)
+        response = self.client.post(reverse('orgs.org_join', args=[invite.secret]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertIsNone(self.org.surveyors.filter(pk=expired_user.pk).first())
 
     def test_create_login(self):
         admin_invitation = Invitation.objects.create(org=self.org,
