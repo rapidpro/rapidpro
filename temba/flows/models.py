@@ -27,10 +27,9 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils.email import send_template_email, is_valid_address
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
@@ -40,7 +39,6 @@ from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
 from twilio import twiml
-from unidecode import unidecode
 from uuid import uuid4
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
