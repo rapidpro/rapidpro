@@ -20,13 +20,13 @@ def populate_exit_type(apps, schema_editor):
     FlowStep = apps.get_model('flows', 'FlowStep')
     ActionSet = apps.get_model('flows', 'ActionSet')
 
-    # grab ids of remaining inactive runs which may have been completed or restarted
+    # grab ids of all inactive runs
     exited_run_ids = [r['pk'] for r in FlowRun.objects.filter(is_active=False, exit_type=None).values('pk')]
 
     if not exited_run_ids:
         return
 
-    print "Fetched ids of %d potentially completed or stopped runs" % len(exited_run_ids)
+    print "Fetched ids of %d potentially expired, completed or stopped runs" % len(exited_run_ids)
 
     # grab UUIDs of all terminal action sets for quick lookups
     terminal_nodes = set([n['uuid'] for n in ActionSet.objects.filter(destination=None).values('uuid')])
@@ -41,6 +41,7 @@ def populate_exit_type(apps, schema_editor):
     for batch_ids in chunk_list(exited_run_ids, 1000):
         completed_ids = []
         stopped_ids = []
+        expired_ids = []
 
         for run in FlowRun.objects.filter(pk__in=batch_ids).prefetch_related(steps_prefetch):
             # get last step in this run
@@ -49,16 +50,20 @@ def populate_exit_type(apps, schema_editor):
 
             if last_step and step_is_terminal(last_step, terminal_nodes):
                 completed_ids.append(run.pk)
+            elif run.expired_on:
+                expired_ids.append(run.pk)
             else:
                 stopped_ids.append(run.pk)
 
-        # update our batches of completed/stopped, using modified_on as approximate exited_on
+        # update our batches of completed/stopped/expired, using modified_on as approximate exited_on
         if completed_ids:
             FlowRun.objects.filter(pk__in=completed_ids).update(exited_on=F('modified_on'), exit_type='C')
         if stopped_ids:
             FlowRun.objects.filter(pk__in=stopped_ids).update(exited_on=F('modified_on'), exit_type='S')
+        if expired_ids:
+            FlowRun.objects.filter(pk__in=expired_ids).update(exit_type='E')
 
-        num_updated += len(completed_ids) + len(stopped_ids)
+        num_updated += len(completed_ids) + len(stopped_ids) + len(expired_ids)
 
         print " > Updated %d of %d runs" % (num_updated, len(exited_run_ids))
 
