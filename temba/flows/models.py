@@ -10,7 +10,7 @@ import time
 import urllib2
 import xlwt
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -19,7 +19,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Q, Count, QuerySet
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -33,7 +33,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel, ChunkIterator
@@ -1405,10 +1405,9 @@ class Flow(TembaModel):
             # exclude anybody who has already participated in the flow
             all_contacts = all_contacts.exclude(pk__in=[r['contact'] for r in self.runs.all().values('contact')])
         else:
-            # mark any current runs as no longer active
+            # stop any runs still active for these contacts
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            self.remove_active_for_run_ids([r['id'] for r in previous_runs.values('id')])
-            previous_runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_RESTARTED)
+            FlowRun.bulk_exit(previous_runs, FlowRun.EXIT_TYPE_STOPPED)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
@@ -2783,10 +2782,10 @@ class FlowRevision(SmartModel):
 
 class FlowRun(models.Model):
     EXIT_TYPE_COMPLETED = 'C'
-    EXIT_TYPE_RESTARTED = 'R'
+    EXIT_TYPE_STOPPED = 'S'
     EXIT_TYPE_EXPIRED = 'E'
     EXIT_TYPE_CHOICES = ((EXIT_TYPE_COMPLETED, _("Completed")),
-                         (EXIT_TYPE_RESTARTED, _("Restarted")),
+                         (EXIT_TYPE_STOPPED, _("Stopped")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
@@ -2871,42 +2870,39 @@ class FlowRun(models.Model):
             return unicode(fields), count+1
 
     @classmethod
-    def do_expire_runs(cls, runs, batch_size=1000):
+    def bulk_exit(cls, runs, exit_type, exited_on=None):
         """
-        Expires a set of runs
+        Exits (expires, stops) runs in bulk
         """
-        # let's optimize by only selecting what we need and loading the actual ids
-        runs = list(runs.order_by('flow').values('id', 'flow'))
+        if isinstance(runs, list):
+            runs = [{'id': r.pk, 'flow': r.flow_id} for r in runs]
+        else:
+            runs = list(runs.values('id', 'flow'))  # select only what we need...
 
-        # remove activity for each run, batched by flow
-        last_flow = None
-        expired_runs = []
-
+        # organize runs by flow
+        runs_by_flow = defaultdict(list)
         for run in runs:
-            if run['flow'] != last_flow:
-                if expired_runs:
-                    flow = Flow.objects.filter(id=last_flow).first()
-                    if flow:
-                        flow.remove_active_for_run_ids(expired_runs)
-                expired_runs = []
-            expired_runs.append(run['id'])
-            last_flow = run['flow']
+            runs_by_flow[run['flow']].append(run['id'])
 
-        # same thing for our last batch if we have one
-        if expired_runs:
-            flow = Flow.objects.filter(id=last_flow).first()
+        # for each flow, remove activity for all runs
+        for flow_id, run_ids in runs_by_flow.iteritems():
+            flow = Flow.objects.filter(id=flow_id).first()
             if flow:
-                flow.remove_active_for_run_ids(expired_runs)
+                flow.remove_active_for_run_ids(run_ids)
 
-        # finally, update our db with the new expirations
+        modified_on = timezone.now()
+        if not exited_on:
+            exited_on = modified_on
+
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        batches = [runs[i:i + batch_size] for i in range(0, len(runs), batch_size)]
-        for batch in batches:
-            run_objs = FlowRun.objects.filter(id__in=[f['id'] for f in batch])
-            run_objs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_EXPIRED)
+        for batch in chunk_list(runs, 1000):
+            run_objs = FlowRun.objects.filter(pk__in=[r['id'] for r in batch])
+            run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
 
     def release(self):
-
+        """
+        Permanently deletes this flow run
+        """
         # remove each of our steps. we do this one at a time
         # so we can decrement the activity properly
         for step in self.steps.all():
@@ -2983,12 +2979,12 @@ class FlowRun(models.Model):
                 self.expire()
 
     def expire(self):
-        self.do_expire_runs(FlowRun.objects.filter(pk=self.pk))
+        self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
 
     @classmethod
     def expire_all_for_contacts(cls, contacts):
-        runs = cls.objects.filter(is_active=True, contact__in=contacts)
-        cls.do_expire_runs(runs)
+        contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
+        cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
 
     def update_fields(self, field_map):
         # validate our field

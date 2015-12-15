@@ -2909,7 +2909,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, active[color.uuid])
 
         # go expire them all
-        FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True), batch_size=4)
+        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
 
         # should all be expired
         (active, visited) = flow.get_activity()
@@ -3006,7 +3006,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(cga_flow.get_activity()[0]))
 
         # expire the first contact's runs
-        FlowRun.do_expire_runs(FlowRun.objects.filter(contact=self.contact))
+        FlowRun.bulk_exit(FlowRun.objects.filter(contact=self.contact), FlowRun.EXIT_TYPE_EXPIRED)
 
         # no active runs for our contact
         self.assertEquals(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
