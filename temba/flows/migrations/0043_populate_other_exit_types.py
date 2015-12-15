@@ -47,7 +47,7 @@ def populate_exit_type(apps, schema_editor):
             steps = list(run.steps.all())
             last_step = steps[len(steps) - 1] if len(steps) > 0 else None
 
-            if not last_step or step_is_terminal(last_step, terminal_nodes):
+            if last_step and step_is_terminal(last_step, terminal_nodes):
                 completed_ids.append(run.pk)
             else:
                 stopped_ids.append(run.pk)
