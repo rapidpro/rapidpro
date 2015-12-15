@@ -174,19 +174,21 @@ class TembaTest(SmartminTest):
         """
         shutil.rmtree('media/test_orgs', ignore_errors=True)
 
-    def import_file(self, file, site='http://rapidpro.io', substitutions=None):
+    def import_file(self, filename, site='http://rapidpro.io', substitutions=None):
+        data = self.get_import_json(filename, substitutions=substitutions)
+        self.org.import_app(json.loads(data), self.admin, site=site)
 
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+    def get_import_json(self, filename, substitutions=None):
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename), 'r+')
         data = handle.read()
         handle.close()
 
         if substitutions:
-            for k,v in substitutions.iteritems():
-                print 'Replacing "%s" with "%s"' % (k,v)
+            for k, v in substitutions.iteritems():
+                print 'Replacing "%s" with "%s"' % (k, v)
                 data = data.replace(k, str(v))
 
-        # import all our bits
-        self.org.import_app(json.loads(data), self.admin, site=site)
+        return data
 
     def get_flow(self, filename, substitutions=None):
         last_flow = Flow.objects.all().order_by('-pk').first()
@@ -197,10 +199,8 @@ class TembaTest(SmartminTest):
 
         return Flow.objects.all().order_by('-created_on').first()
 
-    def get_flow_json(self, file):
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
-        data = handle.read()
-        handle.close()
+    def get_flow_json(self, filename, substitutions=None):
+        data = self.get_import_json(filename, substitutions=substitutions)
         return json.loads(data)['flows'][0]
 
     def create_secondary_org(self):

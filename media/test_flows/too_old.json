@@ -1,0 +1,58 @@
+{
+  "campaigns": [],
+  "version": 2,
+  "site": "http://rapidpro.io",
+  "flows": [
+    {
+      "definition": {
+        "rule_sets": [],
+        "entr": "d2ed3c4c-c4d0-4f54-b0b0-6eaa5afd33f8",
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 100,
+            "destination": null,
+            "uuid": "d2ed3c4c-c4d0-4f54-b0b0-6eaa5afd33f8",
+            "actions": [
+              {
+                "msg": "You've been registered as a new mother, congratulations on having sex at least once. Your CHW is @extra.contact.phone",
+                "type": "reply"
+              },
+              {
+                "field": "chw",
+                "type": "save",
+                "value": "@extra.contact.tel_e164",
+                "label": "CHW"
+              },
+              {
+                "field": "expected_delivery_date",
+                "type": "save",
+                "value": "@extra.flow.edd",
+                "label": "Expected Delivery Date"
+              },
+              {
+                "field": "name",
+                "type": "save",
+                "value": "@extra.flow.name",
+                "label": "Contact Name"
+              },
+              {
+                "type": "add_group",
+                "groups": [
+                  "Expecting Mothers"
+                ]
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "notes": []
+        }
+      },
+      "flow_type": "F",
+      "name": "New Mother",
+      "id": 1500
+    }
+  ],
+  "triggers": []
+}
