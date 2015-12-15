@@ -4290,7 +4290,7 @@ class FlowBatchTest(FlowFileTest):
         self.assertEquals(11, FlowRun.objects.all().count())
 
         # ensure 11 outgoing messages were created
-        self.assertEquals(11, Msg.objects.all().count())
+        self.assertEquals(11, Msg.all_messages.all().count())
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
