@@ -15,6 +15,7 @@ from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
+from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -1119,6 +1120,20 @@ class BroadcastTest(TembaTest):
         self.assertFalse(sms_to_frank.has_template_error)
         self.assertEquals(sms_to_kevin.text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
         self.assertFalse(sms_to_kevin.has_template_error)
+
+    def test_purge(self):
+        broadcast = Broadcast.create(self.org, self.user, "I think I'm going to purge",
+                                     [self.joe_and_frank, self.kevin, self.lucy])
+
+        broadcast.send(trigger_send=False)
+        broadcast.created_on = timezone.now() - timedelta(days=100)
+        broadcast.save()
+
+        purge_broadcasts_task()
+
+        broadcast.refresh_from_db()
+        self.assertTrue(broadcast.purged)
+        self.assertEquals(4, len(broadcast.msgs.filter(purged=True)))
 
 
 class BroadcastCRUDLTest(TembaTest):

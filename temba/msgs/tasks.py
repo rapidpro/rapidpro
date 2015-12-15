@@ -11,7 +11,7 @@ from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.urls import init_analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
-from .models import Msg, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT, FIRE_EVENT
+from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT, FIRE_EVENT
 from temba.utils.queues import pop_task
 import time
 
@@ -234,3 +234,26 @@ def handle_event_task():
 
     else:
         raise Exception("Unexpected event type: %s" % event_task)
+
+
+@task(track_started=True, name='purge_broadcasts_task', time_limit=900, soft_time_limit=900)
+def purge_broadcasts_task():
+    """
+    Looks for broadcasts older than 90 days and marks their messages as purged
+    """
+
+    r = get_redis_connection()
+
+    # 90 days ago
+    purge_date = timezone.now() - timedelta(days=90)
+    key = 'purge_broadcasts_task'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+
+            # determine which broadcasts are old
+            broadcasts = Broadcast.objects.filter(created_on__lt=purge_date, purged=False)
+
+            for broadcast in broadcasts:
+                broadcast.msgs.filter(purged=False).update(purged=True)
+                broadcast.purged = True
+                broadcast.save(update_fields=['purged'])
