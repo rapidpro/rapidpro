@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.http import HttpRequest
 from django.test.utils import override_settings
@@ -20,7 +21,7 @@ from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.utils.email import link_components
-from temba.utils import languages
+from temba.utils import languages, dict_to_struct
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
@@ -1788,3 +1789,111 @@ class EmailContextProcessorsTest(SmartminTest):
             # we have the domain of rapipro.io brand
             self.assertTrue('app.rapidpro.io' in sent_email.body)
 
+class TestStripeCredits(TembaTest):
+
+    @patch('stripe.Customer.create')
+    @patch('stripe.Charge.create')
+    @override_settings(SEND_EMAILS=True)
+    def test_add_credits(self, charge_create, customer_create):
+        customer_create.return_value = dict_to_struct('Customer', dict(id='stripe-cust-1'))
+        charge_create.return_value = \
+            dict_to_struct('Charge', dict(id='stripe-charge-1',
+                                          card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
+
+        self.org.add_credits('2000', 'stripe-token', self.admin)
+        self.assertTrue(2000, self.org.get_credits_total())
+
+        # assert we saved our charge info
+        topup = self.org.topups.last()
+        self.assertEqual('stripe-charge-1', topup.stripe_charge)
+
+        # and we saved our stripe customer info
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-1', org.stripe_customer)
+
+        # assert we sent our confirmation emai
+        self.assertEqual(1, len(mail.outbox))
+        email = mail.outbox[0]
+        self.assertEquals("RapidPro Receipt", email.subject)
+        self.assertTrue('Rudolph' in email.body)
+        self.assertTrue('Visa' in email.body)
+        self.assertTrue('$20' in email.body)
+
+    @patch('stripe.Customer.create')
+    def test_add_credits_fail(self, customer_create):
+        customer_create.side_effect = ValueError("Invalid customer token")
+
+        with self.assertRaises(ValidationError):
+            self.org.add_credits('2000', 'stripe-token', self.admin)
+
+        # assert no email was sent
+        self.assertEqual(0, len(mail.outbox))
+
+        # and no topups created
+        self.assertEqual(1, self.org.topups.all().count())
+        self.assertEqual(1000, self.org.get_credits_total())
+
+    def test_add_credits_invalid_bundle(self):
+
+        with self.assertRaises(ValidationError):
+            self.org.add_credits('-10', 'stripe-token', self.admin)
+
+        # assert no email was sent
+        self.assertEqual(0, len(mail.outbox))
+
+        # and no topups created
+        self.assertEqual(1, self.org.topups.all().count())
+        self.assertEqual(1000, self.org.get_credits_total())
+
+    @patch('stripe.Customer.retrieve')
+    @patch('stripe.Charge.create')
+    @override_settings(SEND_EMAILS=True)
+    def test_add_credits_existing_customer(self, charge_create, customer_retrieve):
+        self.org.stripe_customer = 'stripe-cust-1'
+        self.org.save()
+
+        class MockCard(object):
+            def __init__(self):
+                self.id = 'stripe-card-1'
+
+            def delete(self):
+                pass
+
+        class MockCards(object):
+            def all(self):
+                return dict_to_struct('MockCardData', dict(data=[MockCard(), MockCard()]))
+
+            def create(self, card):
+                return MockCard()
+
+        class MockCustomer(object):
+            def __init__(self):
+                self.id = 'stripe-cust-1'
+                self.cards = MockCards()
+
+            def save(self):
+                pass
+
+        customer_retrieve.return_value = MockCustomer()
+        charge_create.return_value = \
+            dict_to_struct('Charge', dict(id='stripe-charge-1',
+                                          card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
+
+        self.org.add_credits('2000', 'stripe-token', self.admin)
+        self.assertTrue(2000, self.org.get_credits_total())
+
+        # assert we saved our charge info
+        topup = self.org.topups.last()
+        self.assertEqual('stripe-charge-1', topup.stripe_charge)
+
+        # and we saved our stripe customer info
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-1', org.stripe_customer)
+
+        # assert we sent our confirmation emai
+        self.assertEqual(1, len(mail.outbox))
+        email = mail.outbox[0]
+        self.assertEquals("RapidPro Receipt", email.subject)
+        self.assertTrue('Rudolph' in email.body)
+        self.assertTrue('Visa' in email.body)
+        self.assertTrue('$20' in email.body)

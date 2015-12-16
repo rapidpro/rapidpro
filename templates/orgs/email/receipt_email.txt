@@ -21,7 +21,7 @@ Credits: {{ credits }}
 Amount: USD ${{ amount }}
 
 Charge Details
-Name: {{ event.cc_name }}
+Name: {{ cc_name }}
 Credit Card: {{ cc_type }} X{{ cc_last4 }}
 
 {% endblocktrans %}
