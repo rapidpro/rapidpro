@@ -45,7 +45,7 @@ REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
 
 
 class ApiExplorerView(SmartTemplateView):
-    template_name = "api/api_explorer.html"
+    template_name = "api/v1/api_explorer.html"
 
     def get_context_data(self, **kwargs):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
