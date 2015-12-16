@@ -3,10 +3,12 @@ from __future__ import unicode_literals
 from django.conf.urls import include, url
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
+from django.views.generic import RedirectView
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
 
 
 urlpatterns = [
+    url(r'^api/$', RedirectView.as_view(pattern_name='api.v1', permanent=False), name='api'),
     url(r'^api/v1', include('temba.api.v1.urls')),
     url(r'^api/v2', include('temba.api.v2.urls')),
 

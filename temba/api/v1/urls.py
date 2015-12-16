@@ -11,7 +11,7 @@ from .views import ChannelEndpoint, CampaignEndpoint, CampaignEventEndpoint, Bou
 
 
 urlpatterns = [
-    url(r'^$', api, name='api'),
+    url(r'^/$', api, name='api.v1'),
     url(r'^/explorer/$', ApiExplorerView.as_view(), name='api.v1.explorer'),
     url(r'^/authenticate$', AuthenticateEndpoint.as_view(), name='api.v1.authenticate'),
     url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.v1.broadcasts'),
