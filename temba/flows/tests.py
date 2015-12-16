@@ -2922,14 +2922,12 @@ class FlowsTest(FlowFileTest):
         assertInResponse(response, 'function_completions', 'ABS')
         assertInResponse(response, 'function_completions', 'YEAR')
 
-    def test_expiration(self):
+    def test_bulk_exit(self):
         flow = self.get_flow('favorites')
         color = RuleSet.objects.get(label='Color', flow=flow)
         self.clear_activity(flow)
 
-        contacts = []
-        for i in range(6):
-            contacts.append(self.create_contact("Run Contact %d" % i, "+25078838338%d" % i))
+        contacts = [self.create_contact("Run Contact %d" % i, "+25078838338%d" % i) for i in range(6)]
 
         # add our contacts to the flow
         for contact in contacts:
@@ -2943,16 +2941,27 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(6, active[color.uuid])
 
-        # go expire them all
+        # expire them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
 
         # should all be expired
         (active, visited) = flow.get_activity()
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
-        self.assertEquals(6, FlowRun.objects.filter(is_active=False).count())
+        self.assertEquals(6, FlowRun.objects.filter(is_active=False, exit_type='E').exclude(exited_on=None).count())
         self.assertEquals(6, flow.get_total_runs())
         self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(0, len(active))
+
+        # start all contacts in the flow again
+        for contact in contacts:
+            self.send_message(flow, 'chartreuse', contact=contact, restart_participants=True)
+
+        self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
+
+        # stop them all
+        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_STOPPED)
+
+        self.assertEqual(6, FlowRun.objects.filter(is_active=False, exit_type='S').exclude(exited_on=None).count())
 
     def test_activity(self):
 
