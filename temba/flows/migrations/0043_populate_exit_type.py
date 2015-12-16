@@ -50,7 +50,7 @@ def populate_exit_type(apps, schema_editor):
 
             if last_step and step_is_terminal(last_step, terminal_nodes):
                 completed_ids.append(run.pk)
-            elif run.expired_on:
+            elif run.exited_on:
                 expired_ids.append(run.pk)
             else:
                 stopped_ids.append(run.pk)
