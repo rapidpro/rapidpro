@@ -169,7 +169,7 @@ class APITest(TembaTest):
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_api_root(self):
-        url = reverse('api')
+        url = reverse('api.v1')
 
         # browse as HTML anonymously
         response = self.fetchHTML(url)
