@@ -1085,7 +1085,7 @@ class Org(SmartModel):
             traceback.print_exc()
             return None
 
-    def add_credits(self, bundle, token, user): # pragma: no cover
+    def add_credits(self, bundle, token, user):
         # look up our bundle
         if not bundle in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
@@ -1158,7 +1158,7 @@ class Org(SmartModel):
                            cc_name=charge.card.name)
 
             from temba.middleware import BrandingMiddleware
-            branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
+            branding = BrandingMiddleware.get_branding_for_host(self.brand)
 
             subject = _("%(name)s Receipt") % branding
             template = "orgs/email/receipt_email"
