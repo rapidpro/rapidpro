@@ -2566,7 +2566,7 @@ class ExternalTest(TembaTest):
         assertStatus(sms, 'failed', FAILED)
 
         # check when called with phone number rather than UUID
-        response = self.client.post(reverse('api.external_handler', args=['sent', '250788123123']), {'id': sms.pk})
+        response = self.client.post(reverse('handlers.external_handler', args=['sent', '250788123123']), {'id': sms.pk})
         self.assertEquals(200, response.status_code)
         sms.refresh_from_db()
         self.assertEqual(sms.status, SENT)
@@ -4139,7 +4139,7 @@ class TwilioTest(TembaTest):
         sms = Msg.objects.get()
 
         # now update the status via a callback (also test old api/v1 URL)
-        twilio_url = reverse('api.twilio_handler') + "?action=callback&id=%d" % sms.id
+        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms.id
         post_data['SmsStatus'] = 'failed'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
