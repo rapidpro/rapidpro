@@ -1185,11 +1185,12 @@ class Flow(TembaModel):
         flow_context = dict()
 
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        tz = pytz.timezone(self.org.timezone)
 
         # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
         def value_wrapper(value):
             values = dict(text=value['text'],
-                          time=datetime_to_str(value['time'], format=date_format),
+                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
                           category=self.get_localized_text(value['category'], contact),
                           value=unicode(value['rule_value']))
             values['__default__'] = unicode(value['rule_value'])

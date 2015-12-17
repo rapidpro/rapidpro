@@ -319,22 +319,6 @@ class FlowTest(TembaTest):
         # should be high priority
         self.assertEquals(SMS_HIGH_PRIORITY, reply.priority)
 
-        # message context again
-        context = self.flow.build_message_context(self.contact, incoming)
-        self.assertTrue(context['flow'])
-        self.assertEquals("orange", str(context['flow']['color']['__default__']))
-        self.assertEquals("color: orange", context['flow']['__default__'])
-        self.assertEquals("Orange", context['flow']['color']['category'])
-        self.assertEquals("orange", context['flow']['color']['text'])
-
-        # should have the time this value was collected
-        self.assertTrue(context['flow']['color']['time'])
-
-        self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
-        self.assertEquals(self.channel.get_address_display(), context['channel']['tel'])
-        self.assertEquals(self.channel.get_name(), context['channel']['name'])
-        self.assertEquals(self.channel.get_address_display(), context['channel']['__default__'])
-
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
         self.assertTrue(step.left_on)
@@ -358,9 +342,21 @@ class FlowTest(TembaTest):
 
         # check what our message context looks like now
         context = self.flow.build_message_context(self.contact, incoming)
-        self.assertEquals('orange', context['flow']['color']['value'])
-        self.assertEquals('Orange', context['flow']['color']['category'])
-        self.assertEquals('orange', context['flow']['color']['text'])
+        self.assertTrue(context['flow'])
+        self.assertEqual("color: orange", context['flow']['__default__'])
+        self.assertEqual("orange", unicode(context['flow']['color']['__default__']))
+        self.assertEqual("orange", unicode(context['flow']['color']['value']))
+        self.assertEqual("Orange", context['flow']['color']['category'])
+        self.assertEqual("orange", context['flow']['color']['text'])
+
+        # value time should be in org format and timezone
+        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        self.assertEqual(val_time, context['flow']['color']['time'])
+
+        self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
+        self.assertEquals(self.channel.get_address_display(), context['channel']['tel'])
+        self.assertEquals(self.channel.get_name(), context['channel']['name'])
+        self.assertEquals(self.channel.get_address_display(), context['channel']['__default__'])
 
         # change our step instead be decimal
         step.rule_value = '10'
