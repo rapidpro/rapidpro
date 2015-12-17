@@ -194,7 +194,7 @@ class Contact(TembaModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in URN_SCHEME_CHOICES]
+                       'created_by', 'modified_by', 'org', UUID, 'groups', 'external'] + [c[0] for c in URN_SCHEME_CHOICES]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -419,7 +419,7 @@ class Contact(TembaModel):
         return existing[0].contact if existing else None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False):
+    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
         """
         Gets or creates a contact with the given URNs
         """
@@ -465,7 +465,37 @@ class Contact(TembaModel):
 
         # if we were passed in a UUID, look it up by that
         if uuid:
-            contact = Contact.objects.get(org=org, is_active=True, uuid=uuid)
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=uuid).first()
+
+            # if contact already exists try to figured if it has all the urn to skip the lock
+            if contact:
+                contact_has_all_urns = True
+                contact_urns = contact.get_urns()
+                contact_urns_values = contact_urns.values_list('scheme', 'path')
+                if len(urns) <= len(contact_urns_values):
+                    for scheme, path in urns:
+                        norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
+                        if (norm_scheme, norm_path) not in contact_urns_values:
+                            contact_has_all_urns = False
+
+                    if contact_has_all_urns:
+                        # update contact name if provided
+                        updated_attrs = dict()
+                        if name:
+                            contact.name = name
+                            updated_attrs[Contact.NAME] = name
+                        if language:
+                            contact.language = language
+                            updated_attrs[Contact.LANGUAGE] = language
+
+                        if updated_attrs:
+                            contact.save(update_fields=updated_attrs)
+
+                        contact.urn_objects = contact_urns
+
+                        # handle group and campaign updates
+                        contact.handle_update(attrs=updated_attrs.keys())
+                        return contact
 
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
@@ -483,7 +513,7 @@ class Contact(TembaModel):
                 existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
 
                 if existing_urn:
-                    if existing_urn.contact:
+                    if existing_urn.contact and not force_urn_update:
                         existing_owned_urns[(scheme, path)] = existing_urn
                         if contact and contact != existing_urn.contact:
                             raise ValueError(_("Provided URNs belong to different existing contacts"))
@@ -491,6 +521,8 @@ class Contact(TembaModel):
                             contact = existing_urn.contact
                     else:
                         existing_orphan_urns[(scheme, path)] = existing_urn
+                        if not contact and existing_urn.contact:
+                            contact = existing_urn.contact
 
                     # update this URN's channel
                     if incoming_channel and existing_urn.channel != incoming_channel:
@@ -608,12 +640,15 @@ class Contact(TembaModel):
         org = field_dict['org']
         del field_dict['org']
 
+        uuid = field_dict.get('uuid', None)
+        if uuid:
+            del field_dict['uuid']
+
         country = org.get_country_code()
         urns = []
 
-        possible_urn_headers = ['phone'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        possible_urn_headers = ['phone', 'external'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
-        existing_contact = None
         for urn_header in possible_urn_headers:
 
             value = None
@@ -627,6 +662,9 @@ class Contact(TembaModel):
             urn_scheme = urn_header
             if urn_header == 'phone':
                 urn_scheme = TEL_SCHEME
+
+            if urn_header == 'external':
+                urn_scheme = EXTERNAL_SCHEME
 
             if urn_scheme == TEL_SCHEME:
 
@@ -654,16 +692,11 @@ class Contact(TembaModel):
             if org.is_anon and search_contact:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
-            if not existing_contact:
-                existing_contact = search_contact
-            elif search_contact is not None and existing_contact != search_contact:
-                raise SmartImportRowError("Other existing contact with %s of %s" % (urn_header, value))
-
             urns.append((urn_scheme, value))
 
         if not urns:
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[1:])
+            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[2:])
 
             raise SmartImportRowError(error_str)
 
@@ -677,7 +710,7 @@ class Contact(TembaModel):
             language = None  # ignore anything that's not a 3-letter code
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, field_dict['created_by'], name, urns=urns, language=language)
+        contact = Contact.get_or_create(org, field_dict['created_by'], name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
@@ -762,7 +795,7 @@ class Contact(TembaModel):
         Contact.validate_import_header(headers)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header not in Contact.RESERVED_FIELDS]
+        return [header for header in headers if header.strip().lower() not in Contact.RESERVED_FIELDS]
 
     @classmethod
     def validate_import_header(cls, header):
@@ -1197,8 +1230,8 @@ URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, FACEBOOK_SCHEME}  # schemes tha
 
 URN_SCHEMES_EXPORT_FIELDS = {
     TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-    TWITTER_SCHEME: dict(label='Twitter handle', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-    EXTERNAL_SCHEME: dict(label='External identifier', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+    TWITTER_SCHEME: dict(label='Twitter', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+    EXTERNAL_SCHEME: dict(label='External', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
 }
 
 
