@@ -18,7 +18,7 @@ from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import dict_to_struct
+from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
@@ -1070,20 +1070,23 @@ class BroadcastTest(TembaTest):
         self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
     def test_message_context(self):
-
         ContactField.objects.create(org=self.org, label="Superhero Name", key="superhero_name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
         self.joe.set_field('superhero_name', 'batman')
         self.joe.save()
 
-        sms = Msg.objects.get()
+        msg = Msg.objects.get()
+        context = msg.build_message_context()
 
-        context = sms.build_message_context()
-        self.assertEquals("keyword remainder-remainder", context['value'])
-        self.assertTrue(context['time'])
-        self.assertEquals("Joe Blow", context['contact']['__default__'])
-        self.assertEquals("batman", context['contact']['superhero_name'])
+        self.assertEqual(context['__default__'], "keyword remainder-remainder")
+        self.assertEqual(context['value'], "keyword remainder-remainder")
+        self.assertEqual(context['contact']['__default__'], "Joe Blow")
+        self.assertEqual(context['contact']['superhero_name'], "batman")
+
+        # time should be in org format and timezone
+        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        self.assertEqual(msg_time, context['time'])
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, "sector", "sector")

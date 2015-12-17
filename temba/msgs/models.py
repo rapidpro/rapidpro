@@ -940,15 +940,15 @@ class Msg(models.Model):
                       dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
 
     def build_message_context(self):
-        message_context = dict()
-        message_context['__default__'] = self.text
+        date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        tz = pytz.timezone(self.org.timezone)
 
-        message_context['contact'] = self.contact.build_message_context()
-
-        message_context['value'] = self.text
-        message_context['time'] = self.created_on
-
-        return message_context
+        return {
+            '__default__': self.text,
+            'value': self.text,
+            'contact': self.contact.build_message_context(),
+            'time': datetime_to_str(self.created_on, format=date_format, tz=tz)
+        }
 
     def resend(self):
         """
