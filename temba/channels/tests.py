@@ -1868,10 +1868,10 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.external_handler', args=['sent', channel.uuid]))
-        self.assertContains(response, reverse('api.external_handler', args=['delivered', channel.uuid]))
-        self.assertContains(response, reverse('api.external_handler', args=['failed', channel.uuid]))
-        self.assertContains(response, reverse('api.external_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('handlers.external_handler', args=['sent', channel.uuid]))
+        self.assertContains(response, reverse('handlers.external_handler', args=['delivered', channel.uuid]))
+        self.assertContains(response, reverse('handlers.external_handler', args=['failed', channel.uuid]))
+        self.assertContains(response, reverse('handlers.external_handler', args=['received', channel.uuid]))
 
         # test substitution in our url
         self.assertEquals('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
@@ -1920,8 +1920,8 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.clickatell_handler', args=['status', channel.uuid]))
-        self.assertContains(response, reverse('api.clickatell_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('handlers.clickatell_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('handlers.clickatell_handler', args=['receive', channel.uuid]))
 
     def test_high_connection(self):
         from temba.channels.models import HIGH_CONNECTION
@@ -1956,7 +1956,7 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.hcnx_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
 
     def test_shaqodoon(self):
         from temba.channels.models import SHAQODOON
@@ -1996,7 +1996,7 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.shaqodoon_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('handlers.shaqodoon_handler', args=['received', channel.uuid]))
 
     def test_kannel(self):
         from temba.channels.models import KANNEL
@@ -2041,7 +2041,7 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # our configuration page should list our receive URL
-        self.assertContains(response, reverse('api.kannel_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('handlers.kannel_handler', args=['receive', channel.uuid]))
 
     def test_zenvia(self):
         Channel.objects.all().delete()
@@ -2083,8 +2083,8 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.zenvia_handler', args=['status', channel.uuid]))
-        self.assertContains(response, reverse('api.zenvia_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('handlers.zenvia_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('handlers.zenvia_handler', args=['receive', channel.uuid]))
 
     def test_claim_africa(self):
         Channel.objects.all().delete()
@@ -2116,8 +2116,8 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.africas_talking_handler', args=['callback', channel.uuid]))
-        self.assertContains(response, reverse('api.africas_talking_handler', args=['delivery', channel.uuid]))
+        self.assertContains(response, reverse('handlers.africas_talking_handler', args=['callback', channel.uuid]))
+        self.assertContains(response, reverse('handlers.africas_talking_handler', args=['delivery', channel.uuid]))
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
@@ -2206,10 +2206,10 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.m3tech_handler', args=['received', channel.uuid]))
-        self.assertContains(response, reverse('api.m3tech_handler', args=['sent', channel.uuid]))
-        self.assertContains(response, reverse('api.m3tech_handler', args=['failed', channel.uuid]))
-        self.assertContains(response, reverse('api.m3tech_handler', args=['delivered', channel.uuid]))
+        self.assertContains(response, reverse('handlers.m3tech_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('handlers.m3tech_handler', args=['sent', channel.uuid]))
+        self.assertContains(response, reverse('handlers.m3tech_handler', args=['failed', channel.uuid]))
+        self.assertContains(response, reverse('handlers.m3tech_handler', args=['delivered', channel.uuid]))
 
     def test_infobip(self):
         Channel.objects.all().delete()
@@ -2241,8 +2241,8 @@ class ChannelAlertTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('api.infobip_handler', args=['received', channel.uuid]))
-        self.assertContains(response, reverse('api.infobip_handler', args=['delivered', channel.uuid]))
+        self.assertContains(response, reverse('handlers.infobip_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('handlers.infobip_handler', args=['delivered', channel.uuid]))
 
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
@@ -2421,12 +2421,12 @@ class AfricasTalkingTest(TembaTest):
     def test_delivery(self):
         # ok, what happens with an invalid uuid?
         post_data = dict(id="external1", status="Success")
-        response = self.client.post(reverse('api.africas_talking_handler', args=['delivery', 'not-real-uuid']), post_data)
+        response = self.client.post(reverse('handlers.africas_talking_handler', args=['delivery', 'not-real-uuid']), post_data)
 
         self.assertEquals(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id
-        delivery_url = reverse('api.africas_talking_handler', args=['delivery', self.channel.uuid])
+        delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
         response = self.client.post(delivery_url, post_data)
 
         self.assertEquals(404, response.status_code)
@@ -2454,7 +2454,8 @@ class AfricasTalkingTest(TembaTest):
 
     def test_callback(self):
         post_data = {'from': "0788123123", 'text': "Hello World"}
-        callback_url = reverse('api.africas_talking_handler', args=['callback', self.channel.uuid])
+        callback_url = reverse('handlers.africas_talking_handler', args=['callback', self.channel.uuid])
+
         response = self.client.post(callback_url, post_data)
 
         self.assertEquals(200, response.status_code)
@@ -2536,12 +2537,12 @@ class ExternalTest(TembaTest):
     def test_status(self):
         # ok, what happens with an invalid uuid?
         data = dict(id="-1")
-        response = self.client.post(reverse('api.external_handler', args=['sent', 'not-real-uuid']), data)
+        response = self.client.post(reverse('handlers.external_handler', args=['sent', 'not-real-uuid']), data)
 
         self.assertEquals(400, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1
-        delivery_url = reverse('api.external_handler', args=['sent', self.channel.uuid])
+        delivery_url = reverse('handlers.external_handler', args=['sent', self.channel.uuid])
         response = self.client.post(delivery_url, data)
 
         self.assertEquals(400, response.status_code)
@@ -2555,7 +2556,7 @@ class ExternalTest(TembaTest):
         data['id'] = sms.pk
 
         def assertStatus(sms, status, assert_status):
-            response = self.client.post(reverse('api.external_handler', args=[status, self.channel.uuid]), data)
+            response = self.client.post(reverse('handlers.external_handler', args=[status, self.channel.uuid]), data)
             self.assertEquals(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
@@ -2565,14 +2566,14 @@ class ExternalTest(TembaTest):
         assertStatus(sms, 'failed', FAILED)
 
         # check when called with phone number rather than UUID
-        response = self.client.post(reverse('api.external_handler', args=['sent', '250788123123']), {'id': sms.pk})
+        response = self.client.post(reverse('handlers.external_handler', args=['sent', '250788123123']), {'id': sms.pk})
         self.assertEquals(200, response.status_code)
         sms.refresh_from_db()
         self.assertEqual(sms.status, SENT)
 
     def test_receive(self):
         data = {'from': '5511996458779', 'text': 'Hello World!'}
-        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('handlers.external_handler', args=['received', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -2594,7 +2595,7 @@ class ExternalTest(TembaTest):
 
         # receive with a date
         data = {'from': '5511996458779', 'text': 'Hello World!', 'date': '2012-04-23T18:25:43.511Z'}
-        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('handlers.external_handler', args=['received', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -2609,7 +2610,7 @@ class ExternalTest(TembaTest):
         self.channel.save()
 
         data = {'from': 'lynch24', 'text': 'Beast Mode!'}
-        callback_url = reverse('api.external_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('handlers.external_handler', args=['received', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -2683,7 +2684,7 @@ class YoTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
-        callback_url = reverse('api.yo_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('handlers.yo_handler', args=['received', self.channel.uuid])
         response = self.client.get(callback_url + "?sender=252788123123&message=Hello+World")
 
         self.assertEquals(200, response.status_code)
@@ -2775,7 +2776,7 @@ class ShaqodoonTest(TembaTest):
 
     def test_receive(self):
         data = {'from': '252788123456', 'text': 'Hello World!'}
-        callback_url = reverse('api.shaqodoon_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('handlers.shaqodoon_handler', args=['received', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -2840,7 +2841,7 @@ class M3TechTest(TembaTest):
 
     def test_receive(self):
         data = {'from': '252788123456', 'text': 'Hello World!'}
-        callback_url = reverse('api.m3tech_handler', args=['received', self.channel.uuid])
+        callback_url = reverse('handlers.m3tech_handler', args=['received', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -2922,11 +2923,11 @@ class KannelTest(TembaTest):
     def test_status(self):
         # ok, what happens with an invalid uuid?
         data = dict(id="-1", status="4")
-        response = self.client.post(reverse('api.kannel_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.post(reverse('handlers.kannel_handler', args=['status', 'not-real-uuid']), data)
         self.assertEquals(400, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1
-        delivery_url = reverse('api.kannel_handler', args=['status', self.channel.uuid])
+        delivery_url = reverse('handlers.kannel_handler', args=['status', self.channel.uuid])
         response = self.client.post(delivery_url, data)
         self.assertEquals(400, response.status_code)
 
@@ -2939,7 +2940,7 @@ class KannelTest(TembaTest):
         data['id'] = sms.pk
         def assertStatus(sms, status, assert_status):
             data['status'] = status
-            response = self.client.post(reverse('api.kannel_handler', args=['status', self.channel.uuid]), data)
+            response = self.client.post(reverse('handlers.kannel_handler', args=['status', self.channel.uuid]), data)
             self.assertEquals(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
@@ -2950,7 +2951,7 @@ class KannelTest(TembaTest):
 
     def test_receive(self):
         data = {'sender': '0788383383', 'message': 'Hello World!', 'id':'external1', 'ts':int(calendar.timegm(time.gmtime()))}
-        callback_url = reverse('api.kannel_handler', args=['receive', self.channel.uuid])
+        callback_url = reverse('handlers.kannel_handler', args=['receive', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -3121,13 +3122,13 @@ class NexmoTest(TembaTest):
     def test_status(self):
         # ok, what happens with an invalid uuid and number
         data = dict(to='250788123111', messageId='external1')
-        response = self.client.get(reverse('api.nexmo_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('handlers.nexmo_handler', args=['status', 'not-real-uuid']), data)
         self.assertEquals(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1, should return 200
         # these are probably multipart message callbacks, which we don't track
         data = dict(to='250788123123', messageId='-1')
-        delivery_url = reverse('api.nexmo_handler', args=['status', self.nexmo_uuid])
+        delivery_url = reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid])
         response = self.client.get(delivery_url, data)
         self.assertEquals(200, response.status_code)
 
@@ -3142,7 +3143,7 @@ class NexmoTest(TembaTest):
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
-            response = self.client.get(reverse('api.nexmo_handler', args=['status', self.nexmo_uuid]), data)
+            response = self.client.get(reverse('handlers.nexmo_handler', args=['status', self.nexmo_uuid]), data)
             self.assertEquals(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
@@ -3155,7 +3156,7 @@ class NexmoTest(TembaTest):
 
     def test_receive(self):
         data = dict(to='250788123123', msisdn='250788111222', text='Hello World!', messageId='external1')
-        callback_url = reverse('api.nexmo_handler', args=['receive', self.nexmo_uuid])
+        callback_url = reverse('handlers.nexmo_handler', args=['receive', self.nexmo_uuid])
         response = self.client.get(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -3310,7 +3311,7 @@ class VumiTest(TembaTest):
                     delivery_status='failed',
                     user_message_id=sms.external_id)
 
-        callback_url = reverse('api.vumi_handler', args=['event', self.channel.uuid])
+        callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
 
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEquals(200, response.status_code)
@@ -3381,7 +3382,7 @@ class VumiTest(TembaTest):
                             message_type='event',
                             delivery_status='failed',
                             user_message_id=msg.external_id)
-                callback_url = reverse('api.vumi_handler', args=['event', self.channel.uuid])
+                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
                 self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
                 # get the message again
@@ -3464,12 +3465,12 @@ class ZenviaTest(TembaTest):
     def test_status(self):
         # ok, what happens with an invalid uuid?
         data = dict(id="-1", status="500")
-        response = self.client.get(reverse('api.zenvia_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('handlers.zenvia_handler', args=['status', 'not-real-uuid']), data)
 
         self.assertEquals(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id -1
-        delivery_url = reverse('api.zenvia_handler', args=['status', self.channel.uuid])
+        delivery_url = reverse('handlers.zenvia_handler', args=['status', self.channel.uuid])
         response = self.client.get(delivery_url, data)
 
         self.assertEquals(404, response.status_code)
@@ -3499,7 +3500,7 @@ class ZenviaTest(TembaTest):
         data = {'from': '5511996458779', 'date': '31/07/2013 14:45:00'}
         encoded_message = "?msg=H%E9llo World%21"
 
-        callback_url = reverse('api.zenvia_handler', args=['receive', self.channel.uuid]) + encoded_message
+        callback_url = reverse('handlers.zenvia_handler', args=['receive', self.channel.uuid]) + encoded_message
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -3564,7 +3565,7 @@ class InfobipTest(TembaTest):
         data = {'receiver': '2347030767144', 'sender': '2347030767143', 'text': 'Hello World' }
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -3581,7 +3582,7 @@ class InfobipTest(TembaTest):
         data['receiver'] = '2347030767145'
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         # should get 404 as the channel wasn't found
@@ -3596,7 +3597,7 @@ class InfobipTest(TembaTest):
         # mark it as delivered
         base_body = '<DeliveryReport><message id="254021015120766124" sentdate="2014/02/10 16:12:07" ' \
                     ' donedate="2014/02/10 16:13:00" status="STATUS" gsmerror="0" price="0.65" /></DeliveryReport>'
-        delivery_url = reverse('api.infobip_handler', args=['delivered', self.channel.uuid])
+        delivery_url = reverse('handlers.infobip_handler', args=['delivered', self.channel.uuid])
 
         # assert our SENT status
         response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'SENT'), content_type='application/xml')
@@ -3669,7 +3670,7 @@ class BlackmynaTest(TembaTest):
         data = {'to': '1212', 'from': '+977788123123', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -3686,7 +3687,7 @@ class BlackmynaTest(TembaTest):
         data['to'] = '1515'
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         # should get 400 as the channel wasn't found
@@ -3754,11 +3755,11 @@ class BlackmynaTest(TembaTest):
     def test_status(self):
         # an invalid uuid
         data = dict(id='-1', status='10')
-        response = self.client.get(reverse('api.blackmyna_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('handlers.blackmyna_handler', args=['status', 'not-real-uuid']), data)
         self.assertEquals(400, response.status_code)
 
         # a valid uuid, but invalid data
-        status_url = reverse('api.blackmyna_handler', args=['status', self.channel.uuid])
+        status_url = reverse('handlers.blackmyna_handler', args=['status', self.channel.uuid])
         response = self.client.get(status_url, dict())
         self.assertEquals(400, response.status_code)
 
@@ -3806,7 +3807,7 @@ class SMSCentralTest(TembaTest):
         data = {'mobile': '+977788123123', 'message': 'Hello World', 'telco': 'Ncell'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.smscentral_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.smscentral_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -3820,7 +3821,7 @@ class SMSCentralTest(TembaTest):
         self.assertEquals("Hello World", sms.text)
 
         # try it with an invalid channel
-        callback_url = reverse('api.smscentral_handler', args=['receive', '1234-asdf']) + "?" + encoded_message
+        callback_url = reverse('handlers.smscentral_handler', args=['receive', '1234-asdf']) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         # should get 400 as the channel wasn't found
@@ -3889,7 +3890,7 @@ class Hub9Test(TembaTest):
         data = {'userid': 'testusr', 'password': 'test', 'original':'6289881134560', 'sendto':'6289881134567', 'message': 'Hello World'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -3906,7 +3907,7 @@ class Hub9Test(TembaTest):
         data['sendto'] = '6289881131111'
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         # should get 404 as the channel wasn't found
@@ -3916,7 +3917,7 @@ class Hub9Test(TembaTest):
         data = {'userid': 'testusr', 'password': 'test', 'original':'62811999374', 'sendto':'6289881134567', 'message': 'Hello Jakarta'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -3981,7 +3982,7 @@ class HighConnectionTest(TembaTest):
         # http://localhost:8000/api/v1/hcnx/receive/asdf-asdf-asdf-asdf/?FROM=+33610346460&TO=5151&MESSAGE=Hello+World
         data = {'FROM': '+33610346460', 'TO': '5151', 'MESSAGE': 'Hello World', 'RECEPTION_DATE': '2015-04-02T14:26:06'}
 
-        callback_url = reverse('api.hcnx_handler', args=['receive', self.channel.uuid])
+        callback_url = reverse('handlers.hcnx_handler', args=['receive', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
         self.assertEquals(200, response.status_code)
@@ -3996,7 +3997,7 @@ class HighConnectionTest(TembaTest):
         self.assertEquals(14, msg.created_on.astimezone(pytz.utc).hour)
 
         # try it with an invalid receiver, should fail as UUID isn't known
-        callback_url = reverse('api.hcnx_handler', args=['receive', uuid.uuid4()])
+        callback_url = reverse('handlers.hcnx_handler', args=['receive', uuid.uuid4()])
         response = self.client.post(callback_url, data)
 
         # should get 400 as the channel wasn't found
@@ -4013,7 +4014,7 @@ class HighConnectionTest(TembaTest):
         data = {'ret_id': msg.id, 'status': '6'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.hcnx_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.hcnx_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -4078,7 +4079,7 @@ class TwilioTest(TembaTest):
         self.channel.org.save()
 
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
-        twilio_url = reverse('api.twilio_handler')
+        twilio_url = reverse('handlers.twilio_handler')
 
         try:
             response = self.client.post(twilio_url, post_data)
@@ -4089,7 +4090,7 @@ class TwilioTest(TembaTest):
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/api/v1/twilio/', post_data)
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(201, response.status_code)
@@ -4105,7 +4106,7 @@ class TwilioTest(TembaTest):
         # try with non-normalized number
         post_data['To'] = '0785551212'
         post_data['ToCountry'] = 'RW'
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/api/v1/twilio/', post_data)
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
         self.assertEquals(201, response.status_code)
 
@@ -4121,7 +4122,7 @@ class TwilioTest(TembaTest):
         sms = Msg.objects.get()
 
         # now update the status via a callback
-        twilio_url = "%s?action=callback&id=%d" % (twilio_url, sms.id)
+        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms.id
         post_data['SmsStatus'] = 'sent'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
@@ -4137,8 +4138,8 @@ class TwilioTest(TembaTest):
         contact.send("outgoing message", self.admin)
         sms = Msg.objects.get()
 
-        # now update the status via a callback
-        twilio_url = "%s?action=callback&id=%d" % (twilio_url, sms.id)
+        # now update the status via a callback (also test old api/v1 URL)
+        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms.id
         post_data['SmsStatus'] = 'failed'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
@@ -4248,7 +4249,7 @@ class ClickatellTest(TembaTest):
         encoded_message = urlencode(data)
         encoded_message += "&text=%00m%00e%00x%00i%00c%00o%00+%00k%00+%00m%00i%00s%00+%00p%00a%00p%00a%00s%00+%00n%00o%00+%00t%00e%00n%00%ED%00a%00+%00d%00i%00n%00e%00r%00o%00+%00p%00a%00r%00a%00+%00c%00o%00m%00p%00r%00a%00r%00n%00o%00s%00+%00l%00o%00+%00q%00+%00q%00u%00e%00r%00%ED%00a%00m%00o%00s%00.%00."
         encoded_message += "&charset=UTF-16BE"
-        receive_url = reverse('api.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
+        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
 
         response = self.client.get(receive_url)
 
@@ -4275,7 +4276,7 @@ class ClickatellTest(TembaTest):
                 'moMsgId': 'id1234'}
 
         encoded_message = urlencode(data)
-        receive_url = reverse('api.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
+        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
 
         response = self.client.get(receive_url)
 
@@ -4306,7 +4307,7 @@ class ClickatellTest(TembaTest):
         data = {'apiMsgId': 'id1234', 'status': '001'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         self.assertEquals(200, response.status_code)
@@ -4325,7 +4326,7 @@ class ClickatellTest(TembaTest):
         data = {'apiMsgId': 'id1234', 'status': '004'}
         encoded_message = urlencode(data)
 
-        callback_url = reverse('api.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
+        callback_url = reverse('handlers.clickatell_handler', args=['status', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
         # load our message
@@ -4387,11 +4388,11 @@ class PlivoTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383383")
 
     def test_receive(self):
-        response = self.client.get(reverse('api.plivo_handler', args=['receive', 'not-real-uuid']), dict())
+        response = self.client.get(reverse('handlers.plivo_handler', args=['receive', 'not-real-uuid']), dict())
         self.assertEquals(400, response.status_code)
 
         data = dict(MessageUUID="msg-uuid", Text="Hey, there", To="254788383383", From="254788383383")
-        receive_url = reverse('api.plivo_handler', args=['receive', self.channel.uuid])
+        receive_url = reverse('handlers.plivo_handler', args=['receive', self.channel.uuid])
         response = self.client.get(receive_url, data)
         self.assertEquals(400, response.status_code)
 
@@ -4409,11 +4410,11 @@ class PlivoTest(TembaTest):
     def test_status(self):
         # an invalid uuid
         data = dict(MessageUUID="-1", Status="delivered", From=self.channel.address.lstrip('+'), To="254788383383")
-        response = self.client.get(reverse('api.plivo_handler', args=['status', 'not-real-uuid']), data)
+        response = self.client.get(reverse('handlers.plivo_handler', args=['status', 'not-real-uuid']), data)
         self.assertEquals(400, response.status_code)
 
         # a valid uuid, but invalid data
-        delivery_url = reverse('api.plivo_handler', args=['status', self.channel.uuid])
+        delivery_url = reverse('handlers.plivo_handler', args=['status', self.channel.uuid])
         response = self.client.get(delivery_url, dict())
         self.assertEquals(400, response.status_code)
 
@@ -4673,7 +4674,7 @@ class MageHandlerTest(TembaTest):
                                   channel=self.channel, contact=contact, contact_urn=contact_urn)
 
     def test_handle_message(self):
-        url = reverse('api.mage_handler', args=['handle_message'])
+        url = reverse('handlers.mage_handler', args=['handle_message'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
 
         msg_counts = SystemLabel.get_counts(self.org)
@@ -4766,7 +4767,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(400, response.status_code)
 
     def test_follow_notification(self):
-        url = reverse('api.mage_handler', args=['follow_notification'])
+        url = reverse('handlers.mage_handler', args=['follow_notification'])
         headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
 
         flow = self.create_flow()

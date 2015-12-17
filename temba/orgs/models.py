@@ -17,7 +17,7 @@ import regex
 import stripe
 from dateutil.relativedelta import relativedelta
 from django.core.urlresolvers import reverse
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from django.conf import settings
@@ -279,6 +279,7 @@ class Org(SmartModel):
         else:
             return 0
 
+    @transaction.atomic
     def import_app(self, data, user, site=None):
         from temba.flows.models import Flow
         from temba.campaigns.models import Campaign
@@ -482,8 +483,8 @@ class Org(SmartModel):
         # update the mo and dl URL for our account
         client = NexmoClient(api_key, api_secret)
 
-        mo_path = reverse('api.nexmo_handler', args=['receive', nexmo_uuid])
-        dl_path = reverse('api.nexmo_handler', args=['status', nexmo_uuid])
+        mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
+        dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
 
         from temba.settings import TEMBA_HOST
         client.update_account('http://%s%s' % (TEMBA_HOST, mo_path), 'http://%s%s' % (TEMBA_HOST, dl_path))
@@ -503,7 +504,7 @@ class Org(SmartModel):
         if apps:
             temba_app = apps[0]
         else:
-            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.twilio_handler')
+            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
 
             # the the twiml to run when the voice app fails
             fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
@@ -900,12 +901,12 @@ class Org(SmartModel):
         last_topup_credits = self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum('credits')).get('credits__sum')
         return int(last_topup_credits * 0.15) if last_topup_credits else 0
 
-    def get_credits_total(self):
+    def get_credits_total(self, force_dirty=False):
         """
         Gets the total number of credits purchased or assigned to this org
         """
         return get_cacheable_result(ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, ORG_CREDITS_CACHE_TTL,
-                                    self._calculate_credits_total)
+                                    self._calculate_credits_total, force_dirty=force_dirty)
 
     def get_purchased_credits(self):
         """
@@ -1084,7 +1085,7 @@ class Org(SmartModel):
             traceback.print_exc()
             return None
 
-    def add_credits(self, bundle, token, user): # pragma: no cover
+    def add_credits(self, bundle, token, user):
         # look up our bundle
         if not bundle in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
@@ -1157,7 +1158,7 @@ class Org(SmartModel):
                            cc_name=charge.card.name)
 
             from temba.middleware import BrandingMiddleware
-            branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
+            branding = BrandingMiddleware.get_branding_for_host(self.brand)
 
             subject = _("%(name)s Receipt") % branding
             template = "orgs/email/receipt_email"

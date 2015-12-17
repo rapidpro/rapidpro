@@ -439,7 +439,7 @@ class IVRTests(FlowFileTest):
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
                          From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('api.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
 
         call = IVRCall.objects.all().first()

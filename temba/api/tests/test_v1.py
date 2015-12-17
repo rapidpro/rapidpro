@@ -22,13 +22,12 @@ from temba.channels.models import Channel, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
 from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED, VISIBLE, ARCHIVED, DELETED
-from temba.orgs.models import Org, Language, ALL_EVENTS
-from temba.tests import MockResponse, TembaTest, AnonymousOrg
+from temba.orgs.models import Org, Language
+from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value, DATETIME
-from urlparse import parse_qs
-from .models import WebHookEvent, WebHookResult, APIToken, SMS_RECEIVED
-from .v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
+from ..models import APIToken
+from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
 
 
 class APITest(TembaTest):
@@ -152,7 +151,7 @@ class APITest(TembaTest):
         self.assertEquals(403, response.status_code)
 
     def test_api_explorer(self):
-        url = reverse('api.explorer')
+        url = reverse('api.v1.explorer')
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
@@ -170,7 +169,7 @@ class APITest(TembaTest):
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_api_root(self):
-        url = reverse('api')
+        url = reverse('api.v1')
 
         # browse as HTML anonymously
         response = self.fetchHTML(url)
@@ -249,12 +248,33 @@ class APITest(TembaTest):
 
         self.login(self.admin)
 
-        response = self.client.get(reverse('api.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        response = self.client.get(reverse('api.v1.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
 
+    def test_api_authentication(self):
+        url = reverse('api.v1.org') + '.json'
+
+        # can't fetch endpoint with invalid token
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token 1234567890")
+        self.assertEqual(response.status_code, 403)
+
+        # can fetch endpoint with valid token
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        self.assertEqual(response.status_code, 200)
+
+        # but not if user is inactive
+        self.admin.is_active = False
+        self.admin.save()
+
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        self.assertEqual(response.status_code, 403)
+
     def test_api_org(self):
-        url = reverse('api.org')
+        url = reverse('api.v1.org')
 
         # can't access, get 403
         self.assert403(url)
@@ -297,7 +317,7 @@ class APITest(TembaTest):
                                              anon=False))
 
     def test_api_flows(self):
-        url = reverse('api.flows')
+        url = reverse('api.v1.flows')
 
         # can't access, get 403
         self.assert403(url)
@@ -403,8 +423,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 2)
 
     def test_api_flow_definition(self):
-
-        url = reverse('api.flow_definition')
+        url = reverse('api.v1.flow_definition')
         self.login(self.admin)
 
         # load flow definition from test data
@@ -479,7 +498,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
     def test_api_steps(self):
-        url = reverse('api.steps')
+        url = reverse('api.v1.steps')
 
         # can't access, get 403
         self.assert403(url)
@@ -615,7 +634,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
-        
+
         # check value
         value = Value.objects.get(org=self.org)
         self.assertEqual(value.contact, self.joe)
@@ -711,7 +730,7 @@ class APITest(TembaTest):
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
     def test_api_results(self):
-        url = reverse('api.results')
+        url = reverse('api.v1.results')
 
         # can't access, get 403
         self.assert403(url)
@@ -774,7 +793,7 @@ class APITest(TembaTest):
             mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
 
     def test_api_runs(self):
-        url = reverse('api.runs')
+        url = reverse('api.v1.runs')
 
         # can't access, get 403
         self.assert403(url)
@@ -947,7 +966,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 0)
 
     def test_api_channels(self):
-        url = reverse('api.channels')
+        url = reverse('api.v1.channels')
 
         # can't access, get 403
         self.assert403(url)
@@ -1107,7 +1126,7 @@ class APITest(TembaTest):
             self.assertEquals(204, response.status_code)
 
     def test_api_calls(self):
-        url = reverse('api.calls')
+        url = reverse('api.v1.calls')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1139,7 +1158,7 @@ class APITest(TembaTest):
         self.assertNotContains(response, "mt_miss")
 
     def test_api_contacts(self):
-        url = reverse('api.contacts')
+        url = reverse('api.v1.contacts')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1547,7 +1566,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
     def test_api_contacts_with_multiple_pages(self):
-        url = reverse('api.contacts')
+        url = reverse('api.v1.contacts')
 
         # bulk create more contacts than fits on one page
         contacts = []
@@ -1591,7 +1610,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 303)
 
     def test_api_fields(self):
-        url = reverse('api.contactfields')
+        url = reverse('api.v1.contactfields')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1669,7 +1688,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'key', "Field is invalid or a reserved name")
 
     def test_api_contact_actions(self):
-        url = reverse('api.contact_actions')
+        url = reverse('api.v1.contact_actions')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1801,7 +1820,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'action', "Invalid action name: like")
 
     def test_api_messages(self):
-        url = reverse('api.messages')
+        url = reverse('api.v1.messages')
 
         # 403 if not logged in
         self.assert403(url)
@@ -1904,7 +1923,7 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "test1")
 
-        url = reverse('api.sms')
+        url = reverse('api.v1.sms')
 
         # search by deprecated phone field
         response = self.fetchJSON(url, "direction=O&status=Q&before=2030-01-01T00:00:00.000&after=2010-01-01T00:00:00.000&phone=%%2B250788123123&channel=%d" % self.channel.pk)
@@ -1967,7 +1986,7 @@ class APITest(TembaTest):
 
         # add some incoming messages and a flow message
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
-        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test3")
+        msg3 = Msg.create_incoming(self.channel, None, "test3", contact=self.joe)  # no URN
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4 (سلم)")
 
         flow = self.create_flow()
@@ -2047,7 +2066,7 @@ class APITest(TembaTest):
             self.assertNotContains(response, "250788123123")
 
     def test_api_messages_multiple_contacts(self):
-        url = reverse('api.messages')
+        url = reverse('api.v1.messages')
         self.login(self.admin)
 
         # add a broadcast
@@ -2078,7 +2097,7 @@ class APITest(TembaTest):
         self.assertJSON(response, 'urn', 'tel:+250788123124')
 
     def test_api_messages_invalid_contact(self):
-        url = reverse('api.messages')
+        url = reverse('api.v1.messages')
         self.login(self.admin)
 
         response = self.postJSON(url, dict(phone=['250788123123', '  '], text='test1'))
@@ -2094,7 +2113,7 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_api_messages_with_channel(self):
-        url = reverse('api.sms')
+        url = reverse('api.v1.sms')
         self.login(self.admin)
 
         # invalid channel id
@@ -2122,7 +2141,7 @@ class APITest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_api_message_actions(self):
-        url = reverse('api.message_actions')
+        url = reverse('api.v1.message_actions')
 
         # 403 if not logged in
         self.assert403(url)
@@ -2214,7 +2233,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'action', "Invalid action name: like")
 
     def test_api_labels(self):
-        url = reverse('api.labels')
+        url = reverse('api.v1.labels')
 
         # login as administrator
         self.login(self.admin)
@@ -2272,8 +2291,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Junk")
 
     def test_api_authenticate(self):
-
-        url = reverse('api.authenticate')
+        url = reverse('api.v1.authenticate')
 
         # fetch our html docs
         self.assertEqual(self.fetchHTML(url).status_code, 200)
@@ -2307,15 +2325,15 @@ class APITest(TembaTest):
 
         # campaigns can be fetched by admin token
         client.credentials(**admin_token)
-        self.assertEqual(200, client.get(reverse('api.campaigns') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.campaigns') + '.json').status_code)
 
         # but not by an admin's surveyor token
         client.credentials(**surveyor_token)
-        self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+        self.assertEqual(403, client.get(reverse('api.v1.campaigns') + '.json').status_code)
 
         # but their surveyor token can get flows or contacts
-        self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
-        self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.flows') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
 
         # our surveyor can't login with an admin role
         response = json.loads(self.client.post(url, dict(email='Surveyor', password='Surveyor', role='A')).content)
@@ -2327,13 +2345,13 @@ class APITest(TembaTest):
 
         # and can fetch flows, contacts, and fields, but not campaigns
         client.credentials(HTTP_AUTHORIZATION='Token ' + response[0]['token'])
-        self.assertEqual(200, client.get(reverse('api.flows') + '.json').status_code)
-        self.assertEqual(200, client.get(reverse('api.contacts') + '.json').status_code)
-        self.assertEqual(200, client.get(reverse('api.contactfields') + '.json').status_code)
-        self.assertEqual(403, client.get(reverse('api.campaigns') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.flows') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
+        self.assertEqual(200, client.get(reverse('api.v1.contactfields') + '.json').status_code)
+        self.assertEqual(403, client.get(reverse('api.v1.campaigns') + '.json').status_code)
 
     def test_api_broadcasts(self):
-        url = reverse('api.broadcasts')
+        url = reverse('api.v1.broadcasts')
 
         # login as administrator
         self.login(self.admin)
@@ -2448,7 +2466,7 @@ class APITest(TembaTest):
         self.assertEqual([b['text'] for b in response.json['results']], ["Hello 3", "Hello 1"])
 
     def test_api_campaigns(self):
-        url = reverse('api.campaigns')
+        url = reverse('api.v1.campaigns')
 
         # can't access, get 403
         self.assert403(url)
@@ -2560,7 +2578,8 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0]['uuid'], campaign2.uuid)
 
     def test_api_campaign_events(self):
-        url = reverse('api.campaignevents')
+        url = reverse('api.v1.campaignevents')
+        color_flow = self.create_flow()
 
         # can't access, get 403
         self.assert403(url)
@@ -2583,34 +2602,48 @@ class APITest(TembaTest):
         mothers = ContactGroup.get_or_create(self.org, self.admin, "Expecting Mothers")
         campaign = Campaign.create(self.org, self.admin, "MAMA Reminders", mothers)
 
-        # create by campaign id (deprecated)
+        # create by campaign id and flow id (deprecated)
         response = self.postJSON(url, dict(campaign=campaign.pk, unit='W', offset=5, relative_to="EDD",
-                                           delivery_hour=-1, message="Time to go to the clinic"))
+                                           delivery_hour=-1, flow=color_flow.pk))
         self.assertEqual(response.status_code, 201)
 
         event1 = CampaignEvent.objects.get()
-        message_flow = Flow.objects.get()
-        self.assertEqual(event1.event_type, MESSAGE_EVENT)
+        self.assertEqual(event1.event_type, FLOW_EVENT)
         self.assertEqual(event1.campaign, campaign)
         self.assertEqual(event1.offset, 5)
         self.assertEqual(event1.unit, 'W')
         self.assertEqual(event1.relative_to.label, "EDD")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, "Time to go to the clinic")
-        self.assertEqual(event1.flow, message_flow)
+        self.assertEqual(event1.message, None)
+        self.assertEqual(event1.flow, color_flow)
 
-        # try to create event with invalid campaign id
+        # try to create event with invalid campaign id and invalid flow id
         response = self.postJSON(url, dict(campaign=-123, unit='D', offset=3, relative_to="EDD",
-                                           delivery_hour=9, message="Time to go to the clinic"))
+                                           delivery_hour=9, flow=-234))
         self.assertResponseError(response, 'campaign', "No campaign with id -123")
+        self.assertResponseError(response, 'flow', "No flow with id -234")
+
+        # try to create event with invalid time unit
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='X', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'unit', "Must be one of M, H, D or W for Minute, Hour, Day or Week")
+
+        # try to create event with invalid delivery hour
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=-2, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'delivery_hour', "Must be either -1 (for same hour) or 0-23")
+
+        # try to create event with invalid contact field
+        response = self.postJSON(url, dict(campaign=campaign.pk, unit='D', offset=3, relative_to="@!#!$",
+                                           delivery_hour=-2, message="Time to go to the clinic"))
+        self.assertResponseError(response, 'relative_to', "Cannot create contact field with key ''")
 
         # create by campaign UUID and flow UUID
-        color_flow = self.create_flow()
         response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
                                            delivery_hour=9, flow_uuid=color_flow.uuid))
         self.assertEqual(response.status_code, 201)
 
-        event2 = CampaignEvent.objects.get(flow=color_flow)
+        event2 = CampaignEvent.objects.order_by('-pk').first()
         self.assertEqual(event2.event_type, FLOW_EVENT)
         self.assertEqual(event2.campaign, campaign)
         self.assertEqual(event2.offset, 3)
@@ -2618,18 +2651,47 @@ class APITest(TembaTest):
         self.assertEqual(event2.relative_to.label, "EDD")
         self.assertEqual(event2.delivery_hour, 9)
         self.assertEqual(event2.message, None)
+        self.assertEqual(event2.flow, color_flow)
 
-        # try to create event with invalid campaign UUID
+        # try to create event with invalid campaign UUID and invalid flow UUID
         response = self.postJSON(url, dict(campaign_uuid='nope', unit='D', offset=3, relative_to="EDD",
-                                           delivery_hour=9, flow_uuid=color_flow.uuid))
+                                           delivery_hour=9, flow_uuid='nope'))
         self.assertResponseError(response, 'campaign_uuid', "No campaign with UUID nope")
+        self.assertResponseError(response, 'flow_uuid', "No flow with UUID nope")
+
+        # create an event for a message flow
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic"))
+        self.assertEqual(response.status_code, 201)
+
+        message_flow1 = Flow.objects.exclude(pk=color_flow.pk).get()
+        event3 = CampaignEvent.objects.order_by('-pk').first()
+        self.assertEqual(event3.event_type, MESSAGE_EVENT)
+        self.assertEqual(event3.campaign, campaign)
+        self.assertEqual(event3.offset, 3)
+        self.assertEqual(event3.unit, 'D')
+        self.assertEqual(event3.relative_to.label, "EDD")
+        self.assertEqual(event3.delivery_hour, 9)
+        self.assertEqual(event3.message, "Time to go to the clinic")
+        self.assertEqual(event3.flow, message_flow1)
+
+        # try to create event without flow or message
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9))
+        self.assertResponseError(response, 'non_field_errors', "Must specify either a flow or a message for the event")
+
+        # try to create event with both flow and message
+        response = self.postJSON(url, dict(campaign_uuid=campaign.uuid, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, flow_uuid=color_flow.uuid, message="Time to go"))
+        self.assertResponseError(response, 'non_field_errors', "Events cannot have both a message and a flow")
 
         # update an event by id (deprecated)
         response = self.postJSON(url, dict(event=event1.pk, unit='D', offset=30, relative_to="EDD",
                                            delivery_hour=-1, message="Time to go to the clinic. Thanks"))
         self.assertEqual(response.status_code, 201)
 
-        event1 = CampaignEvent.objects.get(pk=event1.pk)
+        message_flow2 = Flow.objects.exclude(pk__in=[color_flow.pk, message_flow1.pk]).get()
+        event1.refresh_from_db()
         self.assertEqual(event1.event_type, MESSAGE_EVENT)
         self.assertEqual(event1.campaign, campaign)
         self.assertEqual(event1.offset, 30)
@@ -2637,7 +2699,17 @@ class APITest(TembaTest):
         self.assertEqual(event1.relative_to.label, "EDD")
         self.assertEqual(event1.delivery_hour, -1)
         self.assertEqual(event1.message, "Time to go to the clinic. Thanks")
-        self.assertEqual(event1.flow, message_flow)
+        self.assertEqual(event1.flow, message_flow2)
+
+        # update an event that is already a message event with a new message
+        response = self.postJSON(url, dict(event=event3.pk, unit='D', offset=3, relative_to="EDD",
+                                           delivery_hour=9, message="Time to go to the clinic. NOW!"))
+        self.assertEqual(response.status_code, 201)
+
+        event3.refresh_from_db()
+        self.assertEqual(event3.event_type, MESSAGE_EVENT)
+        self.assertEqual(event3.message, "Time to go to the clinic. NOW!")
+        self.assertEqual(event3.flow, message_flow1)
 
         # try tp update an event by invalid id
         response = self.postJSON(url, dict(event=-123, unit='D', offset=30, relative_to="EDD",
@@ -2650,7 +2722,7 @@ class APITest(TembaTest):
                                            delivery_hour=5, flow_uuid=other_flow.uuid))
         self.assertEqual(response.status_code, 201)
 
-        event2 = CampaignEvent.objects.get(pk=event2.pk)
+        event2.refresh_from_db()
         self.assertEqual(event2.event_type, FLOW_EVENT)
         self.assertEqual(event2.campaign, campaign)
         self.assertEqual(event2.offset, 3)
@@ -2672,21 +2744,21 @@ class APITest(TembaTest):
 
         # fetch all events
         response = self.fetchJSON(url)
-        self.assertResultCount(response, 2)
-        self.assertEqual(response.json['results'][0]['uuid'], event2.uuid)
+        self.assertResultCount(response, 3)
+        self.assertEqual(response.json['results'][0]['uuid'], event3.uuid)
         self.assertEqual(response.json['results'][0]['campaign_uuid'], campaign.uuid)
         self.assertEqual(response.json['results'][0]['campaign'], campaign.pk)
         self.assertEqual(response.json['results'][0]['relative_to'], "EDD")
         self.assertEqual(response.json['results'][0]['offset'], 3)
-        self.assertEqual(response.json['results'][0]['unit'], 'W')
-        self.assertEqual(response.json['results'][0]['delivery_hour'], 5)
-        self.assertEqual(response.json['results'][0]['flow_uuid'], other_flow.uuid)
-        self.assertEqual(response.json['results'][0]['flow'], other_flow.pk)
-        self.assertEqual(response.json['results'][0]['message'], None)
-        self.assertEqual(response.json['results'][1]['uuid'], event1.uuid)
-        self.assertEqual(response.json['results'][1]['flow_uuid'], None)
-        self.assertEqual(response.json['results'][1]['flow'], None)
-        self.assertEqual(response.json['results'][1]['message'], "Time to go to the clinic. Thanks")
+        self.assertEqual(response.json['results'][0]['unit'], 'D')
+        self.assertEqual(response.json['results'][0]['delivery_hour'], 9)
+        self.assertEqual(response.json['results'][0]['flow_uuid'], None)
+        self.assertEqual(response.json['results'][0]['flow'], None)
+        self.assertEqual(response.json['results'][0]['message'], "Time to go to the clinic. NOW!")
+        self.assertEqual(response.json['results'][1]['uuid'], event2.uuid)
+        self.assertEqual(response.json['results'][1]['flow_uuid'], other_flow.uuid)
+        self.assertEqual(response.json['results'][1]['flow'], other_flow.pk)
+        self.assertEqual(response.json['results'][1]['message'], None)
 
         # delete event by UUID
         response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
@@ -2700,7 +2772,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
     def test_api_groups(self):
-        url = reverse('api.contactgroups')
+        url = reverse('api.v1.contactgroups')
 
         # 403 if not logged in
         self.assert403(url)
@@ -2756,436 +2828,3 @@ class APITest(TembaTest):
         # fetch filtering by UUID list
         response = self.fetchJSON(url, "uuid=%s&uuid=%s" % (just_joe.uuid, just_frank.uuid))
         self.assertResultCount(response, 2)
-
-
-class WebHookTest(TembaTest):
-
-    def setUp(self):
-        super(WebHookTest, self).setUp()
-        self.joe = self.create_contact("Joe Blow", "0788123123")
-        settings.SEND_WEBHOOKS = True
-
-    def tearDown(self):
-        super(WebHookTest, self).tearDown()
-        settings.SEND_WEBHOOKS = False
-
-    def assertStringContains(self, test, str):
-        self.assertTrue(str.find(test) >= 0, "'%s' not found in '%s'" % (test, str))
-
-    def setupChannel(self):
-        org = self.channel.org
-        org.webhook = u'{"url": "http://fake.com/webhook.php"}'
-        org.webhook_events = ALL_EVENTS
-        org.save()
-
-        self.channel.address = "+250788123123"
-        self.channel.save()
-
-    def test_call_deliveries(self):
-        self.setupChannel()
-        now = timezone.now()
-        call = Call.objects.create(org=self.org,
-                                   channel=self.channel,
-                                   contact=self.joe,
-                                   call_type=Call.TYPE_IN_MISSED,
-                                   time=now,
-                                   created_by=self.admin,
-                                   modified_by=self.admin)
-
-        self.setupChannel()
-
-        with patch('requests.Session.send') as mock:
-            # clear out which events we listen for, we still shouldnt be notified though we have a webhook
-            self.channel.org.webhook_events = 0
-            self.channel.org.save()
-
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_call_event(call)
-            self.assertFalse(WebHookEvent.objects.all())
-
-        self.setupChannel()
-
-        with patch('requests.Session.send') as mock:
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event
-            WebHookEvent.trigger_call_event(call)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('C', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertStringContains("not JSON", result.message)
-            self.assertEquals(200, result.status_code)
-            self.assertEquals("Hello World", result.body)
-
-            self.assertTrue(mock.called)
-            args = mock.call_args_list[0][0]
-            prepared_request = args[0]
-            self.assertEquals(self.channel.org.get_webhook_url(), prepared_request.url)
-
-            data = parse_qs(prepared_request.body)
-            self.assertEquals('+250788123123', data['phone'][0])
-            self.assertEquals(call.pk, int(data['call'][0]))
-            self.assertEquals(0, int(data['duration'][0]))
-            self.assertEquals(call.call_type, data['event'][0])
-            self.assertTrue('time' in data)
-            self.assertEquals(self.channel.pk, int(data['channel'][0]))
-
-    def test_alarm_deliveries(self):
-        sync_event = SyncEvent.objects.create(channel=self.channel,
-                                              power_source='AC',
-                                              power_status='CHARGING',
-                                              power_level=85,
-                                              network_type='WIFI',
-                                              pending_message_count=5,
-                                              retry_message_count=4,
-                                              incoming_command_count=0,
-                                              created_by=self.admin,
-                                              modified_by=self.admin)
-
-        self.setupChannel()
-
-        with patch('requests.Session.send') as mock:
-            # clear out which events we listen for, we still shouldnt be notified though we have a webhook
-            self.channel.org.webhook_events = 0
-            self.channel.org.save()
-
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_channel_alarm(sync_event)
-            self.assertFalse(WebHookEvent.objects.all())
-
-        self.setupChannel()
-
-        with patch('requests.Session.send') as mock:
-            now = timezone.now()
-            mock.return_value = MockResponse(200, "")
-
-            # trigger an event
-            WebHookEvent.trigger_channel_alarm(sync_event)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('C', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertEquals(200, result.status_code)
-            self.assertEquals("", result.body)
-
-            self.assertTrue(mock.called)
-            args = mock.call_args_list[0][0]
-            prepared_request = args[0]
-            self.assertEquals(self.channel.org.get_webhook_url(), prepared_request.url)
-
-            data = parse_qs(prepared_request.body)
-            self.assertEquals(self.channel.pk, int(data['channel'][0]))
-            self.assertEquals(85, int(data['power_level'][0]))
-            self.assertEquals('AC', data['power_source'][0])
-            self.assertEquals('CHARGING', data['power_status'][0])
-            self.assertEquals('WIFI', data['network_type'][0])
-            self.assertEquals(5, int(data['pending_message_count'][0]))
-            self.assertEquals(4, int(data['retry_message_count'][0]))
-
-    def test_flow_event(self):
-        self.setupChannel()
-
-        org = self.channel.org
-        org.save()
-
-        from temba.flows.models import ActionSet, WebhookAction, Flow
-        flow = self.create_flow()
-
-        # replace our uuid of 4 with the right thing
-        actionset = ActionSet.objects.get(x=4)
-        actionset.set_actions_dict([WebhookAction(org.get_webhook_url()).as_json()])
-        actionset.save()
-
-        with patch('requests.Session.send') as mock:
-            # run a user through this flow
-            flow.start([], [self.joe])
-
-            # have joe reply with mauve, which will put him in the other category that triggers the API Action
-            sms = self.create_msg(contact=self.joe, direction='I', status='H', text="Mauve")
-
-            mock.return_value = MockResponse(200, "{}")
-            Flow.find_and_handle(sms)
-
-            # should have one event created
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('C', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("successfully", result.message)
-            self.assertEquals(200, result.status_code)
-
-            self.assertTrue(mock.called)
-
-            args = mock.call_args_list[0][0]
-            prepared_request = args[0]
-            self.assertStringContains(self.channel.org.get_webhook_url(), prepared_request.url)
-
-            data = parse_qs(prepared_request.body)
-            self.assertEquals(self.channel.pk, int(data['channel'][0]))
-            self.assertEquals(actionset.uuid, data['step'][0])
-            self.assertEquals(flow.pk, int(data['flow'][0]))
-
-            values = json.loads(data['values'][0])
-
-            self.assertEquals('Other', values[0]['category']['base'])
-            self.assertEquals('color', values[0]['label'])
-            self.assertEquals('Mauve', values[0]['text'])
-            self.assertTrue(values[0]['time'])
-            self.assertTrue(data['time'])
-
-    def test_event_deliveries(self):
-        sms = self.create_msg(contact=self.joe, direction='I', status='H', text="I'm gonna pop some tags")
-
-        with patch('requests.Session.send') as mock:
-            now = timezone.now()
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            self.assertFalse(WebHookEvent.objects.all())
-
-        self.setupChannel()
-
-        with patch('requests.Session.send') as mock:
-            # clear out which events we listen for, we still shouldnt be notified though we have a webhook
-            self.channel.org.webhook_events = 0
-            self.channel.org.save()
-
-            now = timezone.now()
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            self.assertFalse(WebHookEvent.objects.all())
-
-        self.setupChannel()
-
-        with patch('requests.Session.send') as mock:
-            # remove all the org users
-            self.org.administrators.clear()
-            self.org.editors.clear()
-            self.org.viewers.clear()
-
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('F', event.status)
-            self.assertEquals(0, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("No active user", result.message)
-            self.assertEquals(0, result.status_code)
-
-            self.assertFalse(mock.called)
-
-            # what if they send weird json back?
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
-
-        # add ad manager back in
-        self.org.administrators.add(self.admin)
-        self.admin.set_org(self.org)
-
-        with patch('requests.Session.send') as mock:
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('C', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertStringContains("not JSON", result.message)
-            self.assertEquals(200, result.status_code)
-
-            self.assertTrue(mock.called)
-
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
-
-        with patch('requests.Session.send') as mock:
-            # valid json, but not our format
-            bad_json = '{ "thrift_shops": ["Goodwill", "Value Village"] }'
-            mock.return_value = MockResponse(200, bad_json)
-
-            next_retry_earliest = timezone.now() + timedelta(minutes=4)
-            next_retry_latest = timezone.now() + timedelta(minutes=6)
-
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('C', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            self.assertTrue(mock.called)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertStringContains("ignoring", result.message)
-            self.assertEquals(200, result.status_code)
-            self.assertEquals(bad_json, result.body)
-
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
-
-        with patch('requests.Session.send') as mock:
-            mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
-
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('C', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertEquals(200, result.status_code)
-
-            self.assertTrue(mock.called)
-
-            broadcast = Broadcast.objects.get()
-            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=[(TEL_SCHEME, "+250788123123")],
-                                            incoming_channel=self.channel)
-            self.assertTrue("I am success", broadcast.text)
-            self.assertTrue(contact, broadcast.contacts.all())
-
-            self.assertTrue(mock.called)
-            args = mock.call_args_list[0][0]
-            prepared_request = args[0]
-            self.assertEquals(self.org.get_webhook_url(), prepared_request.url)
-
-            data = parse_qs(prepared_request.body)
-            self.assertEquals(self.joe.get_urn(TEL_SCHEME).path, data['phone'][0])
-            self.assertEquals(sms.pk, int(data['sms'][0]))
-            self.assertEquals(self.channel.pk, int(data['channel'][0]))
-            self.assertEquals(SMS_RECEIVED, data['event'][0])
-            self.assertEquals("I'm gonna pop some tags", data['text'][0])
-            self.assertTrue('time' in data)
-
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
-
-        with patch('requests.Session.send') as mock:
-            mock.return_value = MockResponse(500, "I am error")
-
-            next_attempt_earliest = timezone.now() + timedelta(minutes=4)
-            next_attempt_latest = timezone.now() + timedelta(minutes=6)
-
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
-
-            self.assertEquals('E', event.status)
-            self.assertEquals(1, event.try_count)
-            self.assertTrue(event.next_attempt)
-            self.assertTrue(next_attempt_earliest < event.next_attempt and next_attempt_latest > event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("Error", result.message)
-            self.assertEquals(500, result.status_code)
-            self.assertEquals("I am error", result.body)
-
-            # make sure things become failures after three retries
-            event.try_count = 2
-            event.deliver()
-            event.save()
-
-            self.assertTrue(mock.called)
-
-            self.assertEquals('F', event.status)
-            self.assertEquals(3, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertStringContains("Error", result.message)
-            self.assertEquals(500, result.status_code)
-            self.assertEquals("I am error", result.body)
-            self.assertEquals("http://fake.com/webhook.php", result.url)
-            self.assertTrue(result.data.find("pop+some+tags") > 0)
-
-            # check out our api log
-            response = self.client.get(reverse('api.log'))
-            self.assertRedirect(response, reverse('users.user_login'))
-
-            response = self.client.get(reverse('api.log_read', args=[event.pk]))
-            self.assertRedirect(response, reverse('users.user_login'))
-
-            WebHookEvent.objects.all().delete()
-            WebHookResult.objects.all().delete()
-
-        # add a webhook header to the org
-        self.channel.org.webhook = u'{"url": "http://fake.com/webhook.php", "headers": {"X-My-Header": "foobar", "Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, "method": "POST"}'
-        self.channel.org.save()
-
-        # check that our webhook settings have saved
-        self.assertEquals('http://fake.com/webhook.php', self.channel.org.get_webhook_url())
-        self.assertDictEqual({'X-My-Header': 'foobar', 'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}, self.channel.org.get_webhook_headers())
-
-        with patch('requests.Session.send') as mock:
-            mock.return_value = MockResponse(200, "Boom")
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
-
-            result = WebHookResult.objects.get()
-            # both headers should be in the json-encoded url string
-            self.assertStringContains('X-My-Header: foobar', result.request)
-            self.assertStringContains('Authorization: Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==', result.request)
-
-    def test_webhook(self):
-        response = self.client.get(reverse('api.webhook'))
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "Simulator")
-
-        response = self.client.get(reverse('api.webhook_simulator'))
-        self.assertEquals(200, response.status_code)
-        self.assertContains(response, "Log in")
-
-        self.login(self.admin)
-        response = self.client.get(reverse('api.webhook_simulator'))
-        self.assertEquals(200, response.status_code)
-        self.assertNotContains(response, "Log in")
-
-    def test_tunnel(self):
-        response = self.client.post(reverse('api.webhook_tunnel'), dict())
-        self.assertEquals(302, response.status_code)
-
-        self.login(self.non_org_user)
-
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
-
-            response = self.client.post(reverse('api.webhook_tunnel'),
-                                        dict(url="http://webhook.url/", data="phone=250788383383&values=foo&bogus=2"))
-            self.assertEquals(200, response.status_code)
-            self.assertContains(response, "I am success")
-            self.assertTrue('values' in mock.call_args[1]['data'])
-            self.assertTrue('phone' in mock.call_args[1]['data'])
-            self.assertFalse('bogus' in mock.call_args[1]['data'])
-
-            response = self.client.post(reverse('api.webhook_tunnel'), dict())
-            self.assertEquals(400, response.status_code)
-            self.assertTrue(response.content.find("Must include") >= 0)
