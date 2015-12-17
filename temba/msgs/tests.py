@@ -214,10 +214,12 @@ class MsgTest(TembaTest):
         self.assertIsNone(must_return_none)
 
     def test_create_incoming(self):
-
         Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "It's going well")
         Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "My name is Frank")
         msg = Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "Yes, 3.")
+
+        self.assertEqual(msg.text, "Yes, 3.")
+        self.assertEqual(unicode(msg), "Yes, 3.")
 
         # Can't send incoming messages
         with self.assertRaises(Exception):

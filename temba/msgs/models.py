@@ -316,9 +316,6 @@ class Broadcast(models.Model):
     def get_message_failed_count(self):
         return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
 
-    def get_first_message(self):
-        return self.get_messages().first()
-
     def get_sync_commands(self, channel):
         """
         Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
@@ -355,8 +352,8 @@ class Broadcast(models.Model):
             response_to = None
 
         # cannot ask for sending by us AND specify a created on, blow up in that case
-        if trigger_send and created_on:
-            raise Exception("Cannot trigger send and specify a created_on, breaks creating batches")
+        if trigger_send and created_on:  # pragma: no cover
+            raise ValueError("Cannot trigger send and specify a created_on, breaks creating batches")
 
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
@@ -669,12 +666,12 @@ class Msg(models.Model):
             for handler in handlers:
                 try:
                     start = None
-                    if settings.DEBUG:
+                    if settings.DEBUG:  # pragma: no cover
                         start = time.time()
 
                     handled = handler.handle(msg)
 
-                    if start:
+                    if start:  # pragma: no cover
                         print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk)
 
                     if handled:
