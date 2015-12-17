@@ -10,7 +10,7 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.channels.models import Channel, KANNEL
+from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
@@ -19,6 +19,7 @@ from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct
+from temba.utils.expressions import get_function_listing
 from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
 from xlrd import open_workbook
@@ -125,22 +126,20 @@ class MsgTest(TembaTest):
 
         response = self.client.get(outbox_url)
 
-        # all you get is only one item inside completions
+        # check our completions JSON and functions JSON
         self.assertEquals(response.context['completions'], json.dumps(completions))
+        self.assertEquals(response.context['function_completions'], json.dumps(get_function_listing()))
 
-        # lets add one extra contactfield
-        field = ContactField.objects.create(org=self.org, label="Sector", key='sector')
-        completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
-        response = self.client.get(outbox_url)
-
-        # now we have two items inside completions
-        self.assertTrue(json.loads(response.context['completions']), completions)
-
-        # OK one last time, add another extra contactfield
+        # add some contact fields
         field = ContactField.objects.create(org=self.org, label="Cell", key='cell')
         completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Cell"))
+
+        field = ContactField.objects.create(org=self.org, label="Sector", key='sector')
+        completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
+
         response = self.client.get(outbox_url)
 
+        # contact fields are included at the end in alphabetical order
         self.assertEquals(response.context['completions'], json.dumps(completions))
 
     def test_create_outgoing(self):
