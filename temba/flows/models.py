@@ -466,7 +466,7 @@ class Flow(TembaModel):
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
                                       text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
         else:
-            msg = Msg(contact=call.contact, text='', id=0)
+            msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
         # find out where we last left off
         step = run.steps.all().order_by('-arrived_on').first()
@@ -1185,11 +1185,12 @@ class Flow(TembaModel):
         flow_context = dict()
 
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        tz = pytz.timezone(self.org.timezone)
 
         # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
         def value_wrapper(value):
             values = dict(text=value['text'],
-                          time=datetime_to_str(value['time'], format=date_format),
+                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
                           category=self.get_localized_text(value['category'], contact),
                           value=unicode(value['rule_value']))
             values['__default__'] = unicode(value['rule_value'])
@@ -1640,7 +1641,7 @@ class Flow(TembaModel):
 
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
 
-                    msg = Msg(contact=contact, text='', id=0)
+                    msg = Msg(org=self.org, contact=contact, text='', id=0)
                     Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
                                             is_test_contact=contact.is_test)
 
@@ -1657,7 +1658,7 @@ class Flow(TembaModel):
                 # if we didn't get an incoming message, see if we need to evaluate it passively
                 elif not entry_rules.is_pause():
                     # create an empty placeholder message
-                    msg = Msg(contact=contact, text='', id=0)
+                    msg = Msg(org=self.org, contact=contact, text='', id=0)
                     Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
