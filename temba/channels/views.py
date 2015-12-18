@@ -38,7 +38,7 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       EXTERNAL: "icon-channel-external",
@@ -508,7 +508,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_m3tech', 'claim_yo')
+               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1194,6 +1194,10 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimSmscentral(ClaimAuthenticatedExternal):
         title = _("Connect SMSCentral")
         channel_type = SMSCENTRAL
+
+    class ClaimStart(ClaimAuthenticatedExternal):
+        title = _("Connect Start")
+        channel_type = START
 
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")

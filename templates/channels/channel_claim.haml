@@ -343,6 +343,21 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs.
 
+    -if user_org.timezone == 'Europe/Kiev'
+      .claim-row.start-channel
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_start' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Start Mobile Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
+
     -if False
       .claim-row.infobip-channel
         .recommendation.hide
