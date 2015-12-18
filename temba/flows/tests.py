@@ -21,6 +21,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING, Call
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
@@ -34,7 +35,7 @@ from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision,
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
-from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
+from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest, HasStateTest, HasDistrictTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
@@ -318,22 +319,6 @@ class FlowTest(TembaTest):
         # should be high priority
         self.assertEquals(SMS_HIGH_PRIORITY, reply.priority)
 
-        # message context again
-        context = self.flow.build_message_context(self.contact, incoming)
-        self.assertTrue(context['flow'])
-        self.assertEquals("orange", str(context['flow']['color']['__default__']))
-        self.assertEquals("color: orange", context['flow']['__default__'])
-        self.assertEquals("Orange", context['flow']['color']['category'])
-        self.assertEquals("orange", context['flow']['color']['text'])
-
-        # should have the time this value was collected
-        self.assertTrue(context['flow']['color']['time'])
-
-        self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
-        self.assertEquals(self.channel.get_address_display(), context['channel']['tel'])
-        self.assertEquals(self.channel.get_name(), context['channel']['name'])
-        self.assertEquals(self.channel.get_address_display(), context['channel']['__default__'])
-
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
         self.assertTrue(step.left_on)
@@ -357,9 +342,21 @@ class FlowTest(TembaTest):
 
         # check what our message context looks like now
         context = self.flow.build_message_context(self.contact, incoming)
-        self.assertEquals('orange', context['flow']['color']['value'])
-        self.assertEquals('Orange', context['flow']['color']['category'])
-        self.assertEquals('orange', context['flow']['color']['text'])
+        self.assertTrue(context['flow'])
+        self.assertEqual("color: orange", context['flow']['__default__'])
+        self.assertEqual("orange", unicode(context['flow']['color']['__default__']))
+        self.assertEqual("orange", unicode(context['flow']['color']['value']))
+        self.assertEqual("Orange", context['flow']['color']['category'])
+        self.assertEqual("orange", context['flow']['color']['text'])
+
+        # value time should be in org format and timezone
+        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        self.assertEqual(val_time, context['flow']['color']['time'])
+
+        self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
+        self.assertEquals(self.channel.get_address_display(), context['channel']['tel'])
+        self.assertEquals(self.channel.get_name(), context['channel']['name'])
+        self.assertEquals(self.channel.get_address_display(), context['channel']['__default__'])
 
         # change our step instead be decimal
         step.rule_value = '10'
@@ -814,6 +811,40 @@ class FlowTest(TembaTest):
             expected_tz = expected_value.astimezone(tz)
             expected_value = expected_value.replace(hour=expected_tz.hour).replace(day=expected_tz.day).replace(month=expected_tz.month)
             self.assertTrue(abs((expected_value - str_to_datetime(tuple[1], tz=timezone.utc)).total_seconds()) < 60)
+
+    def test_location_tests(self):
+        sms = self.create_msg(contact=self.contact, text="")
+        self.sms = sms
+
+        # test State lookups
+        state_test = HasStateTest()
+        state_test = HasStateTest.from_json(self.org, state_test.as_json())
+
+        sms.text = "Kigali City"
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali City"), state_test)
+
+        sms.text = "Seattle"
+        self.assertTest(False, None, state_test)
+
+        # now District lookups
+        district_test = HasDistrictTest("Kigali City")
+        district_test = HasDistrictTest.from_json(self.org, district_test.as_json())
+
+        sms.text = "Kigali"
+        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), district_test)
+
+        sms.text = "Rwamagana"
+        self.assertTest(False, None, district_test)
+
+        # remove our org country, should no longer match things
+        self.org.country = None
+        self.org.save()
+
+        sms.text = "Kigali City"
+        self.assertTest(False, None, state_test)
+
+        sms.text = "Kigali"
+        self.assertTest(False, None, district_test)
 
     def test_tests(self):
         sms = self.create_msg(contact=self.contact, text="GReen is my favorite!")
@@ -1305,8 +1336,8 @@ class FlowTest(TembaTest):
         self.assertIn('flow_type', response.context['form'].fields)
 
         # add call channel
-        twilio = Channel.objects.create(name="Twilio", channel_type='T', address="0785553434", role="C", org=self.org,
-                                        created_by=self.user, modified_by=self.user, secret="56789", gcm_id="456")
+        twilio = Channel.create(self.org, self.user, None, 'T', "Twilio", "0785553434", role="C",
+                                secret="56789", gcm_id="456")
 
         response = self.client.get(reverse('flows.flow_create'))
         self.assertTrue(response.context['has_flows'])
@@ -3120,11 +3151,15 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_contacts())
 
     def test_destination_type(self):
-
         flow = self.get_flow('pick_a_number')
 
         # our start points to a ruleset
         start = ActionSet.objects.get(flow=flow, y=0)
+
+        # test our description
+        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}\n", start.get_description())
+
+        # assert our destination
         self.assertEquals(RULE_SET, start.destination_type)
 
         # and that ruleset points to an actionset
@@ -4218,3 +4253,41 @@ class TriggerStartTest(FlowFileTest):
         self.assertEqual(contact.name, "Rudolph")
 
         self.assertLastResponse("Hi Rudolph, how old are you?")
+
+
+class FlowBatchTest(FlowFileTest):
+
+    def setUp(self):
+        super(FlowBatchTest, self).setUp()
+        from temba.flows import models as flow_models
+        self.orig_batch_size = flow_models.START_FLOW_BATCH_SIZE
+        flow_models.START_FLOW_BATCH_SIZE = 10
+
+    def tearDown(self):
+        super(FlowBatchTest, self).tearDown()
+        from temba.flows import models as flow_models
+        flow_models.START_FLOW_BATCH_SIZE = self.orig_batch_size
+
+    def test_flow_batch_start(self):
+        """
+        Tests starting a flow for a group of contacts
+        """
+        flow = self.get_flow('favorites')
+
+        # create 10 contacts
+        contacts = []
+        for i in range(11):
+            contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
+
+        # start our flow, this will take two batches
+        flow.start([], contacts)
+
+        # ensure 11 flow runs were created
+        self.assertEquals(11, FlowRun.objects.all().count())
+
+        # ensure 11 outgoing messages were created
+        self.assertEquals(11, Msg.objects.all().count())
+
+        # but only one broadcast
+        self.assertEquals(1, Broadcast.objects.all().count())
+

@@ -323,7 +323,10 @@ def sync(request, channel_id):
                     elif keyword == 'mo_sms':
                         date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
 
-                        msg = Msg.create_incoming(channel, (TEL_SCHEME, cmd['phone']), cmd['msg'], date=date)
+                        # it is possible to receive spam SMS messages from no number on some carriers
+                        tel = cmd['phone'] if cmd['phone'] else 'empty'
+
+                        msg = Msg.create_incoming(channel, (TEL_SCHEME, tel), cmd['msg'], date=date)
                         if msg:
                             extra = dict(msg_id=msg.id)
                             handled = True
@@ -398,8 +401,12 @@ def sync(request, channel_id):
 
     return HttpResponse(json.dumps(result), content_type='application/javascript')
 
+
 @disable_middleware
 def register(request):
+    """
+    Endpoint for Android devices registering with this server
+    """
     if request.method != 'POST':
         return HttpResponse(status=500, content=_('POST Required'))
 
@@ -407,29 +414,28 @@ def register(request):
     cmds = client_payload['cmds']
 
     # look up a channel with that id
-    channel = Channel.from_gcm_and_status_cmds(cmds[0], cmds[1])
+    channel = Channel.get_or_create_android(cmds[0], cmds[1])
     cmd = channel.build_registration_command()
 
     result = dict(cmds=[cmd])
     return HttpResponse(json.dumps(result), content_type='application/javascript')
 
-class ClaimForm(forms.Form):
-    claim_code = forms.CharField(max_length=12,
-                                 help_text=_("The claim code from your Android phone"))
-    phone_number = forms.CharField(max_length=15,
-                                   help_text=_("The phone number of the phone"))
+
+class ClaimAndroidForm(forms.Form):
+    claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))
+    phone_number = forms.CharField(max_length=15, help_text=_("The phone number of the phone"))
 
     def clean_claim_code(self):
         claim_code = self.cleaned_data['claim_code']
         claim_code = claim_code.replace(' ', '').upper()
 
         # is there a channel with that claim?
-        channel = Channel.objects.filter(claim_code=claim_code, is_active=True)
+        channel = Channel.objects.filter(claim_code=claim_code, is_active=True).first()
 
         if not channel:
             raise forms.ValidationError(_("Invalid claim code, please check and try again."))
         else:
-            self.cleaned_data['channel'] = channel[0]
+            self.cleaned_data['channel'] = channel
 
         return claim_code
 
@@ -437,14 +443,21 @@ class ClaimForm(forms.Form):
         number = self.cleaned_data['phone_number']
 
         if 'channel' in self.cleaned_data:
+            channel = self.cleaned_data['channel']
+
+            # ensure number is valid for the channel's country
             try:
-                normalized = phonenumbers.parse(number, self.cleaned_data['channel'].country.code)
+                normalized = phonenumbers.parse(number, channel.country.code)
                 if not phonenumbers.is_possible_number(normalized):
                     raise forms.ValidationError(_("Invalid phone number, try again."))
-            except Exception: # pragma: no cover
+            except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
 
             number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
+
+            # ensure no other active channel has this number
+            if Channel.objects.filter(address=number, is_active=True).exclude(pk=channel.pk).exists():
+                raise forms.ValidationError(_("Another channel has this number. Please remove that channel first."))
 
         return number
 
@@ -511,6 +524,18 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         exclude = ('id', 'is_active', 'created_by', 'modified_by', 'modified_on', 'gcm_id')
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            # overloaded to have uuid pattern instead of integer id
+            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
+
+        def get_object(self, queryset=None):
+            uuid = self.kwargs.get('uuid')
+            channel = Channel.objects.filter(uuid=uuid, is_active=True).first()
+            if channel is None:
+                raise Http404("No active channel with that UUID")
+            return channel
 
         def get_gear_links(self):
             links = []
@@ -750,7 +775,7 @@ class ChannelCRUDL(SmartCRUDL):
                 import traceback
                 traceback.print_exc(e)
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
-                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.pk]))
+                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 
     class Update(OrgObjPermsMixin, SmartUpdateView):
         success_message = ''
@@ -773,7 +798,7 @@ class ChannelCRUDL(SmartCRUDL):
             return super(ChannelCRUDL.Update, self).lookup_field_help(field, default=default)
 
         def get_success_url(self):
-            return reverse('channels.channel_read', args=[self.object.pk])
+            return reverse('channels.channel_read', args=[self.object.uuid])
 
         def get_form_class(self):
             channel_type = self.object.channel_type
@@ -812,8 +837,8 @@ class ChannelCRUDL(SmartCRUDL):
                     pass
                 for channel in obj.get_delegate_channels():
                     channel.address = obj.address
-                    channel.uuid = e164_phone_number
-                    channel.save()
+                    channel.bod = e164_phone_number
+                    channel.save(update_fields=('address', 'bod'))
 
             if obj.channel_type == TWITTER:
                 # notify Mage so that it refreshes this channel
@@ -1428,7 +1453,7 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimAndroid(OrgPermsMixin, SmartFormView):
         title = _("Register Android Phone")
         fields = ('claim_code', 'phone_number')
-        form_class = ClaimForm
+        form_class = ClaimAndroidForm
         title = _("Claim Channel")
 
         def get_success_url(self):
@@ -1440,7 +1465,7 @@ class ChannelCRUDL(SmartCRUDL):
             if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
-            self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code'])[0]
+            self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code']).first()
 
             country = self.object.country
             phone_country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'],
@@ -1462,18 +1487,9 @@ class ChannelCRUDL(SmartCRUDL):
                                                                  "same country (%s)" % other_countries.country)])
                 return self.form_invalid(form)
 
-            # clear any channels that are dupes of this gcm/uuid pair for this org
-            for dupe in Channel.objects.filter(gcm_id=self.object.gcm_id, uuid=self.object.uuid, org=org)\
-                                       .exclude(pk=self.object.pk).exclude(gcm_id=None).exclude(uuid=None):
-                dupe.is_active = False
-                dupe.gcm_id = None
-                dupe.uuid = None
-                dupe.claim_code = None
-                dupe.save()
-
             analytics.track(self.request.user.username, 'temba.channel_create')
 
-            self.object.claim(org, self.form.cleaned_data['phone_number'], self.request.user)
+            self.object.claim(org, self.request.user, self.form.cleaned_data['phone_number'])
             self.object.save()
 
             # make sure all contacts added before the channel are normalized
@@ -1533,7 +1549,7 @@ class ChannelCRUDL(SmartCRUDL):
                 del self.request.session[SESSION_TWITTER_TOKEN]
                 del self.request.session[SESSION_TWITTER_SECRET]
 
-                return redirect(reverse('channels.channel_read', kwargs=dict(pk=channel.id)))
+                return redirect(reverse('channels.channel_read', args=[channel.uuid]))
 
             return response
 
@@ -1579,7 +1595,7 @@ class ChannelCRUDL(SmartCRUDL):
             if len(channels) == 0:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
             elif len(channels) == 1:
-                return HttpResponseRedirect(reverse('channels.channel_read', args=[channels[0].id]))
+                return HttpResponseRedirect(reverse('channels.channel_read', args=[channels[0].uuid]))
             else:
                 return super(ChannelCRUDL.List, self).pre_process(*args, **kwargs)
 

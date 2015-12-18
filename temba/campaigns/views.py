@@ -64,7 +64,7 @@ class CampaignCRUDL(SmartCRUDL):
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
             queryset = super(CampaignCRUDL.OrgMixin, self).derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated():
+            if not self.request.user.is_authenticated():  # pragma: no cover
                 return queryset.exclude(pk__gt=0)
             else:
                 return queryset.filter(org=self.request.user.get_org())

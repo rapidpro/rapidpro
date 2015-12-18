@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import plivo
 import regex
+import logging
 
 from collections import OrderedDict
 from datetime import datetime
@@ -395,7 +396,6 @@ class PhoneRequiredForm(forms.ModelForm):
             except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
-        return None
 
     class Meta:
         model = UserSettings
@@ -431,31 +431,50 @@ class OrgCRUDL(SmartCRUDL):
 
     class Import(InferOrgMixin, OrgPermsMixin, SmartFormView):
 
-        success_message = _("Import successful")
-
-        def get_success_url(self):
-            return reverse('orgs.org_home')
-
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_('The import file'))
             update = forms.BooleanField(help_text=_('Update all flows and campaigns'), required=False)
 
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs['org']
+                del kwargs['org']
+                super(OrgCRUDL.Import.FlowImportForm, self).__init__(*args, **kwargs)
+
+            def clean_import_file(self):
+                from temba.orgs.models import EARLIEST_IMPORT_VERSION
+
+                # make sure they have purchased credits
+                if not self.org.has_added_credits():
+                    raise ValidationError("Sorry, import is a premium feature")
+
+                # check that it isn't too old
+                data = self.cleaned_data['import_file'].read()
+                json_data = json.loads(data)
+                if json_data.get('version', 0) < EARLIEST_IMPORT_VERSION:
+                    raise ValidationError('This file is no longer valid. Please export a new version and try again.')
+
+                return data
+
+        success_message = _("Import successful")
         form_class = FlowImportForm
+
+        def get_success_url(self):
+            return reverse('orgs.org_home')
+
+        def get_form_kwargs(self):
+            kwargs = super(OrgCRUDL.Import, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
 
         def form_valid(self, form):
             try:
-                # block import based on number of credits
                 org = self.request.user.get_org()
-                if not org.has_added_credits():
-                    form._errors['import_file'] = form.error_class([_("Sorry, import is a premium feature")])
-                    return self.form_invalid(form)
-
-                data = json.loads(form['import_file'].value().read())
+                data = json.loads(form.cleaned_data['import_file'])
                 org.import_app(data, self.request.user, self.request.branding['link'])
-            except ValueError as e:
-                form._errors['import_file'] = form.error_class([_("This file is no longer valid. Please export a new version and try again.")])
-                return self.form_invalid(form)
             except Exception as e:
+                # this is an unexpected error, report it to sentry
+                logger = logging.getLogger(__name__)
+                logger.error('Exception on app import: %s' % unicode(e), exc_info=True)
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 
@@ -1184,7 +1203,6 @@ class OrgCRUDL(SmartCRUDL):
             invitation = self.get_invitation()
             if invitation:
                 return invitation.org
-            return None
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Join, self).get_context_data(**kwargs)
@@ -1384,7 +1402,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm('channels.channel_read'):
                 from temba.channels.views import get_channel_icon
                 icon = get_channel_icon(channel.channel_type)
-                formax.add_section('channel', reverse('channels.channel_read', args=[channel.pk]), icon=icon, action='link')
+                formax.add_section('channel', reverse('channels.channel_read', args=[channel.uuid]), icon=icon, action='link')
 
         def derive_formax_sections(self, formax, context):
 
@@ -1544,19 +1562,6 @@ class OrgCRUDL(SmartCRUDL):
                 del kwargs['org']
                 super(OrgCRUDL.Languages.LanguagesForm, self).__init__(*args, **kwargs)
 
-            def clean(self):
-
-                # don't allow them to remove languages which are a base_language for a flow
-                old_languages = [lang.iso_code for lang in self.org.languages.all()]
-
-                new_languages = set(self.cleaned_data.get('languages', '').split(',') + self.cleaned_data.get('primary_lang', '').split(','))
-
-                for new_lang in new_languages:
-                    if new_lang in old_languages:
-                        old_languages.remove(new_lang)
-
-                return super(OrgCRUDL.Languages.LanguagesForm, self).clean()
-
             class Meta:
                 model = Org
                 fields = ('primary_lang', 'languages')
@@ -1651,7 +1656,7 @@ class OrgCRUDL(SmartCRUDL):
             self.org = self.derive_org()
             return self.request.user.has_perm('orgs.org_country') or self.has_org_perm('orgs.org_country')
 
-    class ClearCache(SmartUpdateView):
+    class ClearCache(SmartUpdateView): # pragma: no cover
         fields = ('id',)
         success_message = None
         success_url = 'id@orgs.org_update'

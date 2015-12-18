@@ -139,7 +139,7 @@ def edit_distance(s1, s2): # pragma: no cover
     return d[lenstr1-1,lenstr2-1]
 
 
-class Flow(TembaModel, SmartModel):
+class Flow(TembaModel):
     UUID = 'uuid'
     ENTRY = 'entry'
     RULE_SETS = 'rule_sets'
@@ -466,7 +466,7 @@ class Flow(TembaModel, SmartModel):
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
                                       text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
         else:
-            msg = Msg(contact=call.contact, text='', id=0)
+            msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
         # find out where we last left off
         step = run.steps.all().order_by('-arrived_on').first()
@@ -1185,11 +1185,12 @@ class Flow(TembaModel, SmartModel):
         flow_context = dict()
 
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        tz = pytz.timezone(self.org.timezone)
 
         # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
         def value_wrapper(value):
             values = dict(text=value['text'],
-                          time=datetime_to_str(value['time'], format=date_format),
+                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
                           category=self.get_localized_text(value['category'], contact),
                           value=unicode(value['rule_value']))
             values['__default__'] = unicode(value['rule_value'])
@@ -1640,7 +1641,7 @@ class Flow(TembaModel, SmartModel):
 
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
 
-                    msg = Msg(contact=contact, text='', id=0)
+                    msg = Msg(org=self.org, contact=contact, text='', id=0)
                     Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
                                             is_test_contact=contact.is_test)
 
@@ -1657,7 +1658,7 @@ class Flow(TembaModel, SmartModel):
                 # if we didn't get an incoming message, see if we need to evaluate it passively
                 elif not entry_rules.is_pause():
                     # create an empty placeholder message
-                    msg = Msg(contact=contact, text='', id=0)
+                    msg = Msg(org=self.org, contact=contact, text='', id=0)
                     Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
@@ -2632,14 +2633,6 @@ class ActionSet(models.Model):
     def get(cls, flow, uuid):
         return ActionSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
 
-    def get_reply_message(self):
-        actions = self.get_actions()
-
-        if len(actions) == 1 and isinstance(actions[0], ReplyAction):
-            return actions[0].msg
-
-        return None
-
     def get_step_type(self):
         return ACTION_SET
 
@@ -2677,12 +2670,6 @@ class ActionSet(models.Model):
 
     def set_actions_dict(self, json_dict):
         self.actions = json.dumps(json_dict)
-
-    def set_actions(self, actions):
-        actions_dict = []
-        for action in actions:
-            actions_dict.append(action.as_json())
-        self.set_actions_dict(actions_dict)
 
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
@@ -3594,20 +3581,6 @@ class FlowStep(models.Model):
         # optimize lookups
         return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
 
-    @classmethod
-    def get_step_messages(cls, steps):
-        messages = None
-        for step in steps:
-            step_messages = step.messages.all()
-            if not messages:
-                messages = step_messages
-            else:
-                messages = messages | step_messages
-
-        if messages:
-            return messages.order_by('created_on')
-        return messages
-
     def release(self):
         if not self.contact.is_test:
             self.run.flow.remove_visits_for_step(self)
@@ -3627,13 +3600,6 @@ class FlowStep(models.Model):
             self.rule_decimal_value = value
 
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
-
-    def response_to(self):
-        if self.messages.all():
-            msg = self.messages.all().first()
-            previous = self.run.contact.messages.filter(direction=OUTGOING, pk__lt=msg.pk).order_by('-pk').first()
-            if previous:
-                return previous.text
 
     def get_text(self):
         msg = self.messages.all().first()
@@ -3759,46 +3725,6 @@ class FlowLabel(models.Model):
             count += 1
 
         return FlowLabel.objects.create(name=base, org=org, parent=parent)
-
-    @classmethod
-    def generate_label(cls, org, text, fallback):
-
-        # TODO: POS tagging might be better here using nltk
-        # tags = nltk.pos_tag(nltk.word_tokenize(str(obj.question).lower()))
-
-        # remove punctuation and split into words
-        words = unidecode(text).lower().translate(maketrans("", ""), punctuation)
-        words = words.split(' ')
-
-        # now look for some label candidates based on word length
-        labels = []
-        take_next = False
-        for word in words:
-
-            # ignore stop words
-            if word.lower() in STOP_WORDS:
-                continue
-
-            if not labels:
-                labels.append(word)
-                take_next = True
-            elif len(word) == len(labels[0]):
-                labels.append(word)
-                take_next = True
-            elif len(word) > len(labels[0]):
-                labels = [word]
-                take_next = True
-            elif take_next:
-                labels.append(word)
-                take_next = False
-
-        label = " ".join(labels)
-
-        if not label:
-            label = fallback
-
-        label = FlowLabel.create_unique(label, org)
-        return label
 
     def toggle_label(self, flows, add):
         changed = []

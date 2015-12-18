@@ -3,16 +3,13 @@ from __future__ import absolute_import, unicode_literals
 import json
 import time
 import urlparse
-import regex
-from datetime import timedelta
-from time import sleep
-from uuid import uuid4
-from urllib import quote_plus
-
 import os
 import phonenumbers
 import plivo
+import regex
 import requests
+
+from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.db import models
@@ -33,9 +30,13 @@ from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
+from time import sleep
 from twilio.rest import TwilioRestClient
 from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.models import TembaModel, generate_uuid
+from urllib import quote_plus
+from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -128,7 +129,7 @@ TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
 YO_API_URL = 'http://smgw1.yo.co.ug:9100/sendsms'
 
 
-class Channel(SmartModel):
+class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
                     (TWILIO, "Twilio"),
                     (AFRICAS_TALKING, "Africa's Talking"),
@@ -168,9 +169,6 @@ class Channel(SmartModel):
 
     gcm_id = models.CharField(verbose_name=_("GCM ID"), max_length=255, blank=True, null=True,
                               help_text=_("The registration id for using Google Cloud Messaging"))
-
-    uuid = models.CharField(verbose_name=_("UUID"), max_length=36, blank=True, null=True, db_index=True,
-                            help_text=_("UUID for this channel"))
 
     claim_code = models.CharField(verbose_name=_("Claim Code"), max_length=16, blank=True, null=True, unique=True,
                                   help_text=_("The token the user will us to claim this channel"))
@@ -234,9 +232,9 @@ class Channel(SmartModel):
         create_args.update(kwargs)
 
         if 'uuid' not in create_args:
-            create_args['uuid'] = str(uuid4())
+            create_args['uuid'] = generate_uuid()
 
-        return Channel.objects.create(**create_args)
+        return cls.objects.create(**create_args)
 
     @classmethod
     def derive_country_from_phone(cls, phone, country=None):
@@ -269,12 +267,12 @@ class Channel(SmartModel):
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
-        plivo_uuid = unicode(uuid4())
+        plivo_uuid = generate_uuid()
         app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
 
         client = plivo.RestAPI(auth_id, auth_token)
 
-        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler', args=['receive', plivo_uuid])
+        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
         answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
 
         plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
@@ -342,7 +340,7 @@ class Channel(SmartModel):
                                       "Note that you can only claim numbers after adding credit to your Nexmo account.") + "\n" +
                                       str(e))
 
-        mo_path = reverse('api.nexmo_handler', args=['receive', org_uuid])
+        mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
 
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
@@ -366,7 +364,7 @@ class Channel(SmartModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, uuid=nexmo_phone_number)
+        return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country):
@@ -396,7 +394,7 @@ class Channel(SmartModel):
             if short_codes:
                 short_code = short_codes[0]
                 twilio_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.twilio_handler')
+                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
                 client.sms.short_codes.update(twilio_sid, sms_url=app_url)
 
                 role = SEND+RECEIVE
@@ -423,8 +421,7 @@ class Channel(SmartModel):
 
             twilio_sid = twilio_phone.sid
 
-        return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number,
-                              uuid=twilio_sid, role=role)
+        return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
@@ -446,7 +443,7 @@ class Channel(SmartModel):
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
         return Channel.create(user.get_org(), user, channel.country, NEXMO, name="Nexmo Sender",
-                              address=channel.address, role=SEND, parent=channel, uuid=nexmo_phone_number)
+                              address=channel.address, role=SEND, parent=channel, bod=nexmo_phone_number)
 
     @classmethod
     def add_call_channel(cls, org, user, channel):
@@ -476,27 +473,61 @@ class Channel(SmartModel):
         return channel
 
     @classmethod
-    def from_gcm_and_status_cmds(cls, gcm, status):
-        # gcm command must be the first one
-        gcm_id = gcm['gcm_id']
-        uuid = gcm.get('uuid', None)
+    def get_or_create_android(cls, gcm, status):
+        """
+        Creates a new Android channel from the gcm and status commands sent during device registration
+        """
+        gcm_id = gcm.get('gcm_id')
+        uuid = gcm.get('uuid')
+        country = status.get('cc')
+        device = status.get('dev')
 
-        country = status['cc']
-        device = status['dev']
+        if not gcm_id or not uuid:
+            raise ValueError("Can't create Android channel without UUID and GCM ID")
 
-        # look for any unclaimed channel
-        existing = Channel.objects.filter(gcm_id=gcm_id, uuid=uuid, org=None, is_active=True)
+        # look for existing active channel with this UUID
+        existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
+
+        # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
-            return existing[0]
-        else:
-            secret = random_string(64)
-            claim_code = random_string(9)
-            while Channel.objects.filter(claim_code=claim_code): # pragma: no cover
-                claim_code = random_string(9)
-            anon = User.objects.get(pk=-1)
+            existing.gcm_id = gcm_id
+            existing.claim_code = cls.generate_claim_code()
+            existing.secret = cls.generate_secret()
+            existing.country = country
+            existing.device = device
+            existing.save(update_fields=('gcm_id', 'secret', 'claim_code', 'country', 'device'))
 
-            return Channel.create(None, anon, country, ANDROID, None, None, uuid=uuid,
-                                  gcm_id=gcm_id,  device=device, claim_code=claim_code, secret=secret)
+            return existing
+
+        # if any inactive channel has this UUID, we can steal it
+        for ch in Channel.objects.filter(uuid=uuid, is_active=False):
+            ch.uuid = generate_uuid()
+            ch.save(update_fields=('uuid',))
+
+        # generate random secret and claim code
+        claim_code = cls.generate_claim_code()
+        secret = cls.generate_secret()
+        anon = User.objects.get(pk=-1)
+
+        return Channel.create(None, anon, country, ANDROID, None, None, gcm_id=gcm_id, uuid=uuid,
+                              device=device, claim_code=claim_code, secret=secret)
+
+    @classmethod
+    def generate_claim_code(cls):
+        """
+        Generates a random and guaranteed unique claim code
+        """
+        code = random_string(9)
+        while cls.objects.filter(claim_code=code):  # pragma: no cover
+            code = random_string(9)
+        return code
+
+    @classmethod
+    def generate_secret(cls):
+        """
+        Generates a secret value used for command signing
+        """
+        return random_string(64)
 
     def has_sending_log(self):
         return self.channel_type != 'A'
@@ -665,15 +696,13 @@ class Channel(SmartModel):
     def build_registration_command(self):
         # create a claim code if we don't have one
         if not self.claim_code:
-            self.claim_code = random_string(9)
-            while Channel.objects.filter(claim_code=self.claim_code): # pragma: no cover
-                self.claim_code = random_string(9)
-            self.save()
+            self.claim_code = self.generate_claim_code()
+            self.save(update_fields=('claim_code',))
 
         # create a secret if we don't have one
         if not self.secret:
-            self.secret = random_string(64)
-            self.save()
+            self.secret = self.generate_secret()
+            self.save(update_fields=('secret',))
 
         # return our command
         return dict(cmd='reg',
@@ -746,7 +775,10 @@ class Channel(SmartModel):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
-    def claim(self, org, phone, user):
+    def claim(self, org, user, phone):
+        """
+        Claims this channel for the given org/user
+        """
         if not self.country:
             self.country = Channel.derive_country_from_phone(phone)
 
@@ -758,44 +790,42 @@ class Channel(SmartModel):
         self.save()
 
     def release(self, trigger_sync=True, notify_mage=True):
-
-        org = self.org
-
+        """
+        Releases this channel, removing it from the org and making it inactive
+        """
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
-        if self.channel_type == PLIVO:
-            import plivo
-            client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+        if not settings.DEBUG:
+            # only call out to external aggregator services if not in debug mode
 
-            # remove the application
-            client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
+            # delete Plivo application
+            if self.channel_type == PLIVO:
+                client = plivo.RestAPI(self.config_json()[PLIVO_AUTH_ID], self.config_json()[PLIVO_AUTH_TOKEN])
+                client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
 
+            # delete Twilio SMS application
+            if self.channel_type == TWILIO:
+                client = self.org.get_twilio_client()
+                number_update_args = dict()
 
-        # if we are a twilio channel, remove our sms application from twilio to handle the incoming sms
-        if self.channel_type == TWILIO:
-            client = self.org.get_twilio_client()
-            number_update_args = dict()
+                if not self.is_delegate_sender():
+                    number_update_args['sms_application_sid'] = ""
 
-            if not self.is_delegate_sender():
-                number_update_args['sms_application_sid'] = ""
+                if self.supports_ivr():
+                    number_update_args['voice_application_sid'] = ""
 
-            if self.supports_ivr():
-                number_update_args['voice_application_sid'] = ""
+                try:
+                    client.phone_numbers.update(self.bod, **number_update_args)
+                except Exception:
+                    if client:
+                        matching = client.phone_numbers.list(phone_number=self.address)
+                        if matching:
+                            client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-            try:
-                client.phone_numbers.update(self.uuid,
-                                            **number_update_args)
-
-            except Exception as e:
-                if client:
-                    matching = client.phone_numbers.list(phone_number=self.address)
-                    if matching:
-                        client.phone_numbers.update(matching[0].sid,
-                                                    **number_update_args)
-
-        # save off our gcm id so we can trigger a sync
+        # save off our org and gcm id before nullifying
+        org = self.org
         gcm_id = self.gcm_id
 
         # remove all identifying bits from the client
@@ -811,7 +841,7 @@ class Channel(SmartModel):
         Msg.objects.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
 
         # trigger the orphaned channel
-        if trigger_sync and self.channel_type == ANDROID: # pragma: no cover
+        if trigger_sync and self.channel_type == ANDROID:  # pragma: no cover
             self.trigger_sync(gcm_id)
 
         # clear our cache for this channel
@@ -838,7 +868,6 @@ class Channel(SmartModel):
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
-
 
     def trigger_sync(self, gcm_id=None):  # pragma: no cover
         """
@@ -879,7 +908,7 @@ class Channel(SmartModel):
         from temba.msgs.models import Msg, WIRED
 
         # build our callback dlr url, kannel will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s?id=%d&status=%%d' % (settings.HOSTNAME, reverse('api.kannel_handler', args=['status', channel.uuid]), msg.id)
+        dlr_url = 'https://%s%s?id=%d&status=%%d' % (settings.HOSTNAME, reverse('handlers.kannel_handler', args=['status', channel.uuid]), msg.id)
         dlr_mask = 31
 
         # build our payload
@@ -1073,8 +1102,8 @@ class Channel(SmartModel):
             'to': msg.urn_path,
             'ret_id': msg.id,
             'datacoding': 8,
-            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['status', channel.uuid])),
-            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('api.hcnx_handler', args=['receive', channel.uuid]))
+            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
+            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
         }
 
         # build our send URL
@@ -1758,7 +1787,7 @@ class Channel(SmartModel):
         url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[PLIVO_AUTH_ID]
 
         client = plivo.RestAPI(channel.config[PLIVO_AUTH_ID], channel.config[PLIVO_AUTH_TOKEN])
-        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.plivo_handler',
+        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler',
                                                                        args=['status', channel.uuid])
 
         payload = {'src': channel.address.lstrip('+'),

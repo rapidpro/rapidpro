@@ -50,11 +50,6 @@
 -block read-buttons
 
 -block content
-  :javascript
-
-
-
-
 
   -if contact_fields
     .contact-fields{class:'{% if fields %}clickable{%endif%}'}
@@ -66,17 +61,22 @@
             .contact-field-value
               {{field.value}}
 
-
   -if upcoming_events
     .header
-      Upcoming
+      -trans "Upcoming"
+
+      -if upcoming_events|length > 3
+        %a.pull-right.btn.btn-tiny.show-all
+          Show All
+
     %table.activity.pending
       -for evt in upcoming_events
-        %tr.item{class:"{% if evt.event.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
+
+        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%} {%if forloop.counter <= upcoming_events|length|add:-3%}hide hidden-upcoming{%endif%}"}
           %td.icon
-            -if evt.event.event_type == 'M'
+            -if evt.event_type == 'M'
               %span.glyph.icon-bubble-right
-            -elif evt.event.event_type == 'F'
+            -elif evt.event_type == 'F'
               %span.glyph.icon-tree-2
             -else
               %span.glyph.icon-clock
@@ -85,24 +85,33 @@
 
             .activity-scheduled
 
-              -if evt.event.event_type == 'M'
+              -if evt.event_type == 'M'
                 //.summary
                 //  Scheduled {{evt.event.campaign}} message
                 .activity-body
-                  {{evt.event.message}}
-              -elif evt.event.event_type == 'F'
-                Start
-                %a.href{ href: "{% url 'flows.flow_editor' evt.event.flow.pk %}" }= evt.event.flow.name
+                  {{evt.message}}
+
+
+
+              -elif evt.event_type == 'F'
+                -trans "Start"
+                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_id %}" }= evt.flow_name
           %td.created_on
             {{evt.scheduled}}
 
+            .repeats
+              -if evt.repeat_period == 'D'
+                -trans 'repeats daily'
+              -elif evt.repeat_period == 'W'
+                -trans 'repeats weekly'
+
   .header
-    Message History
+    -trans "Message History"
   %table.activity.history
     %tr.since
       %td{colspan:3}
         %span.loading
-          One moment..
+          -trans "One moment..."
 
 
 -block post-content
@@ -137,6 +146,10 @@
           font-size:14px;
           border-bottom: 1px solid #d9d9d9;
           margin-top: 10px;
+          .show-all {
+            margin-top:-8px;
+            margin-right:-8px;
+          }
         }
 
         table.activity {
@@ -173,7 +186,7 @@
 
           &.pending {
 
-            color: #ddd;
+            color: #ccc;
 
             tr.non-msg {
               background: inherit;
@@ -225,6 +238,10 @@
             line-height:13px;
             border: 0px solid;
             text-align:right;
+
+            .repeats {
+              font-size:90%;
+            }
           }
 
           .icon {
@@ -444,6 +461,11 @@
     var scheduledRefresh = null;
 
     $(document).ready(function() {
+
+      $('.show-all').live('click', function() {
+        $(this).hide();
+        $('.hidden-upcoming').slideDown()
+      });
 
       $('.time').live('mouseover', function() {
         $(this).children('.long').show();

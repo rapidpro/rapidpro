@@ -128,14 +128,17 @@ class Trigger(SmartModel):
                     trigger = trigger.filter(groups__in=groups)
 
                 trigger = trigger.first()
-
-                channel = trigger_spec.get('channel', None)  # older exports won't have a channel
-
                 if trigger:
                     trigger.is_archived = False
                     trigger.flow = flow
                     trigger.save()
                 else:
+
+                    # if we have a channel resolve it
+                    channel = trigger_spec.get('channel', None)  # older exports won't have a channel
+                    if channel:
+                        channel = Channel.objects.filter(pk=channel.pk, org=org).first()
+
                     trigger = Trigger.objects.create(org=org, trigger_type=trigger_spec['trigger_type'],
                                                      keyword=trigger_spec['keyword'], flow=flow,
                                                      created_by=user, modified_by=user,
@@ -156,10 +159,10 @@ class Trigger(SmartModel):
             start_msg = entity
         elif isinstance(entity, Call) or isinstance(entity, IVRCall):
             contact = entity.contact
-            start_msg = Msg(contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
-            start_msg = Msg(contact=contact, channel=channel, created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
         else:
             raise ValueError("Entity must be of type msg, call or contact")
 

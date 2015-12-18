@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
 import phonenumbers
@@ -474,16 +474,17 @@ class ContactWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Cannot update contacts on anonymous organizations, can only create")
 
         if self.urn_tuples is not None:
-            urns_strings = ["%s:%s" % u for u in self.urn_tuples]
-            urn_query = Q(pk__lt=0)
-            for urn_string in urns_strings:
-                urn_query |= Q(urns__urn__iexact=urn_string)
+            # look up these URNs, keeping track of the contacts that are connected to them
+            urn_contacts = set()
+            for urn_tuple in self.urn_tuples:
+                urn = ContactURN.objects.filter(org=self.org, urn__exact="%s:%s" % urn_tuple).first()
+                if urn and urn.contact:
+                    urn_contacts.add(urn.contact)
 
-            urn_contacts = Contact.objects.filter(org=self.org).filter(urn_query).distinct()
             if len(urn_contacts) > 1:
                 raise serializers.ValidationError(_("URNs are used by multiple contacts"))
 
-            contact_by_urns = urn_contacts[0] if len(urn_contacts) > 0 else None
+            contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
 
             if self.instance and contact_by_urns != self.instance:
                 raise serializers.ValidationError(_("URNs are used by other contacts"))
@@ -770,12 +771,12 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
     def validate_unit(self, value):
         if value not in ["M", "H", "D", "W"]:
-            raise serializers.ValidationError("Unit must be one of M, H, D or W for Minute, Hour, Day or Week")
+            raise serializers.ValidationError("Must be one of M, H, D or W for Minute, Hour, Day or Week")
         return value
 
     def validate_delivery_hour(self, value):
         if value < -1 or value > 23:
-            raise serializers.ValidationError("Delivery hour must be either -1 (for same hour) or 0-23")
+            raise serializers.ValidationError("Must be either -1 (for same hour) or 0-23")
         return value
 
     def validate_flow(self, value):
@@ -790,6 +791,15 @@ class CampaignEventWriteSerializer(WriteSerializer):
             self.flow_obj = Flow.objects.filter(uuid=value, is_active=True, org=self.org).first()
             if not self.flow_obj:
                 raise serializers.ValidationError("No flow with UUID %s" % value)
+        return value
+
+    def validate_relative_to(self, value):
+        # ensure field either exists or can be created
+        relative_to = ContactField.get_by_label(self.org, value)
+        if not relative_to:
+            key = ContactField.make_key(value)
+            if not ContactField.is_valid_key(key):
+                raise serializers.ValidationError(_("Cannot create contact field with key '%s'") % key)
         return value
 
     def validate(self, data):
@@ -818,8 +828,6 @@ class CampaignEventWriteSerializer(WriteSerializer):
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
             key = ContactField.make_key(relative_to_label)
-            if not ContactField.is_valid_key(key):
-                raise serializers.ValidationError(_("Cannot create contact field with key '%s'") % key)
             relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
 
         if self.instance:
@@ -1709,7 +1717,7 @@ class ChannelClaimSerializer(WriteSerializer):
         if name:
             self.instance.name = name
 
-        self.instance.claim(self.org, phone, self.user)
+        self.instance.claim(self.org, self.user, phone)
 
         if not settings.TESTING:  # pragma: no cover
             self.instance.trigger_sync()

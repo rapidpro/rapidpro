@@ -12,13 +12,14 @@ from django.utils import timezone
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, SmartImportRowError
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, Language
 from temba.channels.models import Channel, TWITTER
-from temba.msgs.models import Msg, Call, Label, SystemLabel
+from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
+from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
@@ -144,9 +145,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.org.initialize()
 
         self.user.set_org(self.org)
-        self.channel = Channel.objects.create(name="Test Channel", address="0785551212", country='RW',
-                                              org=self.org, created_by=self.user, modified_by=self.user,
-                                              secret="12345", gcm_id="123")
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
+                                      secret="12345", gcm_id="123")
 
         self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
         self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
@@ -1046,7 +1046,6 @@ class ContactTest(TembaTest):
 
     def test_event_times(self):
 
-
         self.create_campaign()
 
         from temba.campaigns.models import CampaignEvent
@@ -1109,6 +1108,43 @@ class ContactTest(TembaTest):
         msg.broadcast.recipient_count = 5
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
 
+    def test_get_scheduled_messages(self):
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+
+        self.assertFalse(self.joe.get_scheduled_messages())
+
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+
+        self.assertFalse(self.joe.get_scheduled_messages())
+
+        broadcast.contacts.add(self.joe)
+
+        self.assertFalse(self.joe.get_scheduled_messages())
+
+        schedule_time = timezone.now() + timedelta(days=2)
+        broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
+        broadcast.save()
+
+        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
+
+        broadcast.contacts.remove(self.joe)
+        self.assertFalse(self.joe.get_scheduled_messages())
+
+        broadcast.groups.add(self.just_joe)
+        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
+
+        broadcast.groups.remove(self.just_joe)
+        self.assertFalse(self.joe.get_scheduled_messages())
+
+        broadcast.urns.add(self.joe.get_urn())
+        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
+
+        broadcast.schedule.reset()
+        self.assertFalse(self.joe.get_scheduled_messages())
+
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
 
@@ -1127,7 +1163,8 @@ class ContactTest(TembaTest):
                                                relative_to=self.planting_date, offset=i+10, unit='D',
                                                message='Sent %d days after planting date' % (i+10))
 
-        self.joe.set_field('planting_date', unicode(timezone.now() + timedelta(days=1)))
+        now = timezone.now()
+        self.joe.set_field('planting_date', unicode(now + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
@@ -1148,14 +1185,38 @@ class ContactTest(TembaTest):
         self.assertEquals(self.joe, response.context['object'])
         upcoming = response.context['upcoming_events']
 
-        # should show the next three events to fire in reverse order
-        self.assertEquals(3, len(upcoming))
+        # should show the next seven events to fire in reverse order
+        self.assertEquals(7, len(upcoming))
 
-        self.assertEquals(10, upcoming[0].event.offset)
-        self.assertEquals(7, upcoming[1].event.offset)
-        self.assertEquals(0, upcoming[2].event.offset)
+        self.assertEquals("Sent 10 days after planting date", upcoming[4]['message'])
+        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
+        self.assertEquals(None, upcoming[6]['message'])
+        self.assertEquals(self.reminder_flow.pk, upcoming[6]['flow_id'])
+        self.assertEquals(self.reminder_flow.name, upcoming[6]['flow_name'])
 
-        self.assertGreater(upcoming[0].scheduled, upcoming[1].scheduled)
+        self.assertGreater(upcoming[4]['scheduled'], upcoming[5]['scheduled'])
+
+        # add a scheduled broadcast
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+        broadcast.contacts.add(self.joe)
+        schedule_time = now + timedelta(days=5)
+        broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
+        broadcast.save()
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        upcoming = response.context['upcoming_events']
+
+        # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
+        self.assertEquals(8, len(upcoming))
+
+        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
+        self.assertEquals("Hello", upcoming[6]['message'])
+        self.assertEquals(None, upcoming[7]['message'])
+        self.assertEquals(self.reminder_flow.pk, upcoming[7]['flow_id'])
+        self.assertEquals(self.reminder_flow.name, upcoming[7]['flow_name'])
+
+        self.assertGreater(upcoming[6]['scheduled'], upcoming[7]['scheduled'])
 
         contact_no_name = self.create_contact(name=None, number="678")
         read_url = reverse('contacts.contact_read', args=[contact_no_name.uuid])
@@ -1615,6 +1676,7 @@ class ContactTest(TembaTest):
         self.assertEquals(3, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Update").count())
 
+
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
         self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
         self.assertEquals(0, Contact.objects.filter(name='Jennifer Newcomer').count())
@@ -1660,6 +1722,36 @@ class ContactTest(TembaTest):
         self.assertTrue(response.context['show_form'])
         self.assertFalse(response.context['task'])
         self.assertEquals(response.context['group'], None)
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+        contact = self.create_contact(name="Bob", number='+250788111111')
+        contact.uuid = 'uuid-1111'
+        contact.save()
+
+        contact2 = self.create_contact(name='Kobe', number='+250788383396')
+        contact2.uuid = 'uuid-4444'
+        contact2.save()
+
+        with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+            # import contact with uuid will force update if existing contact for the uuid
+            csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
+            post_data = dict(csv_file=csv_file)
+            response = self.client.post(import_url, post_data, follow=True)
+            self.assertIsNotNone(response.context['task'])
+            self.assertIsNotNone(response.context['group'])
+            self.assertFalse(response.context['show_form'])
+            self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
+                                                                creates=2, updates=2))
+
+            self.assertEquals(mock_lock.call_count, 3)
+
+        self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+        self.assertEquals(0, Contact.objects.filter(name='Bob').count())
+        self.assertEquals(0, Contact.objects.filter(name='Jeff').count())
+        self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
+        self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -1731,17 +1823,15 @@ class ContactTest(TembaTest):
         csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_conflicts.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
-        self.assertEquals(response.context['results'], dict(records=1, errors=1, creates=0, updates=1,
-                                                            error_messages=[dict(line=2,
-                                                                                 error="Other existing contact with "
-                                                                                       "twitter of nyaruka")]))
+        self.assertEquals(response.context['results'], dict(records=2, errors=0, creates=0, updates=2,
+                                                            error_messages=[]))
 
         self.assertEquals(3, Contact.objects.all().count())
         self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
-        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(0, Contact.objects.filter(name='Textit').count())
         self.assertEquals(0, Contact.objects.filter(name='Nyaruka').count())
         self.assertEquals(1, Contact.objects.filter(name='Kigali').count())
-        self.assertEquals(0, Contact.objects.filter(name='Klab').count())
+        self.assertEquals(1, Contact.objects.filter(name='Klab').count())
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -1840,6 +1930,9 @@ class ContactTest(TembaTest):
 
         self.assertEquals(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
         self.assertEquals(contact1.get_field_raw('wears'), 'Nike')  # existing field was looked up by label & stripped
+
+        self.assertEquals(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
+        self.assertEquals(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=DATETIME)
@@ -2204,6 +2297,8 @@ class ContactURNTest(TembaTest):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
         self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", "KE"))
+        self.assertTrue(ContactURN.validate_urn('tel', "+23761234567", "CM"))  # old Cameroon format
+        self.assertTrue(ContactURN.validate_urn('tel', "+237661234567", "CM"))  # new Cameroon format
         self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", None))
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", None))  # assumed valid because no country
 
@@ -2240,8 +2335,8 @@ class ContactFieldTest(TembaTest):
         self.user.set_org(self.org)
         self.admin.set_org(self.org)
 
-        self.channel = Channel.objects.create(name="Test Channel", address="0785551212",
-                                              org=self.org, created_by=self.admin, modified_by=self.admin, secret="12345", gcm_id="123")
+        self.channel = Channel.create(self.org, self.admin, None, 'A', "Test Channel", "0785551212",
+                                      secret="12345", gcm_id="123")
 
         self.joe = self.create_contact(name="Joe Blow", number="123")
         self.frank = self.create_contact(name="Frank Smith", number="1234")
@@ -2336,7 +2431,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter handle", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter", "First", "Second", "Third"])
 
             # first row should be Adam
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "adam", "", "", ""])
@@ -2360,7 +2455,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter handle", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter", "First", "Second", "Third"])
 
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "", "adam", "", "", ""])
             self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "+12067799294", "+12062233445", "", "One", "", ""])

@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -297,12 +298,17 @@ class ExternalHandler(View):
         from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
 
         action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True,
-                                         channel_type=self.get_channel_type()).exclude(org=None).first()
+        # some external channels that have been added as bulk relayers had UUID set to their phone number
+        uuid_or_address = kwargs['uuid']
+        if len(uuid_or_address) == 36:
+            channel_q = Q(uuid=uuid_or_address)
+        else:
+            channel_q = Q(address=uuid_or_address) | Q(address=('+' + uuid_or_address))
+
+        channel = Channel.objects.filter(channel_q).filter(is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+            return HttpResponse("Channel with uuid or address %s not found." % uuid_or_address, status=400)
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
@@ -690,7 +696,8 @@ class NexmoHandler(View):
         channel_number = request.REQUEST['to']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=channel_number, is_active=True, channel_type=NEXMO).exclude(org=None).first()
+        address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
+        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type=NEXMO).exclude(org=None).first()
 
         # make sure we got one, and that it matches the key for our org
         org_uuid = None

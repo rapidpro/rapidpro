@@ -13,5 +13,5 @@ urlpatterns += [
     url(r'^handlers/stripe/$', StripeHandler.as_view(), name='handlers.stripe_handler'),
 
     # for backwards compatibility
-    url(r'^api/v1/stripe/$', StripeHandler.as_view(), name='api.stripe_handler')
+    url(r'^api/v1/stripe/$', StripeHandler.as_view())
 ]
