@@ -1222,3 +1222,47 @@ class MageHandler(View):
             fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact), queue='handler')
 
         return JsonResponse(dict(error=None))
+
+
+class StartHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(StartHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.channels.models import START
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=START).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        # Parse our raw body, it should be XML that looks something like:
+        # <message>
+        #   <service type="sms" timestamp="1450450974" auth="AAAFFF" request_id="15"/>
+        #   <from>+12788123123</from>
+        #   <to>1515</to>
+        #   <body content-type="content-type" encoding="encoding">hello world</body>
+        # </message>
+        try:
+            message = ET.fromstring(request.body)
+        except ET.ParseError as e:
+            message = None
+
+        service = message.find('service') if message is not None else None
+        external_id = service.get('request_id') if service is not None else None
+        sender_el = message.find('from') if message is not None else None
+        text_el = message.find('body') if message is not None else None
+
+        # validate all the appropriate fields are there
+        if external_id is None or sender_el is None or text_el is None:
+            return HttpResponse("Missing parameters, must have 'request_id', 'to' and 'body'", status=400)
+
+        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text_el.text)
+
+        # Start expects an XML response
+        xml_response = """<answer type="async"><state>Accepted</state></answer>"""
+        return HttpResponse(xml_response)
