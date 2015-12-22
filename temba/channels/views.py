@@ -425,6 +425,10 @@ class ClaimAndroidForm(forms.Form):
     claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))
     phone_number = forms.CharField(max_length=15, help_text=_("The phone number of the phone"))
 
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs.pop('org')
+        super(ClaimAndroidForm, self).__init__(*args, **kwargs)
+
     def clean_claim_code(self):
         claim_code = self.cleaned_data['claim_code']
         claim_code = claim_code.replace(' ', '').upper()
@@ -456,7 +460,7 @@ class ClaimAndroidForm(forms.Form):
             number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
 
             # ensure no other active channel has this number
-            if Channel.objects.filter(address=number, is_active=True).exclude(pk=channel.pk).exists():
+            if self.org.channels.filter(address=number, is_active=True).exclude(pk=channel.pk).exists():
                 raise forms.ValidationError(_("Another channel has this number. Please remove that channel first."))
 
         return number
@@ -1459,6 +1463,11 @@ class ChannelCRUDL(SmartCRUDL):
         fields = ('claim_code', 'phone_number')
         form_class = ClaimAndroidForm
         title = _("Claim Channel")
+
+        def get_form_kwargs(self):
+            kwargs = super(ChannelCRUDL.ClaimAndroid, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
 
         def get_success_url(self):
             return "%s?success" % reverse('public.public_welcome')

@@ -1034,7 +1034,7 @@ class ChannelTest(TembaTest):
         android2.country = 'RW'
         android2.save()
 
-#       # register another device with country as US
+        # register another device with country as US
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
                               dict(cmd='status', cc='US', dev="Nexus 5")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
@@ -1051,7 +1051,11 @@ class ChannelTest(TembaTest):
                                     dict(claim_code=claim_code, phone_number="+250788123124"))
         self.assertFormError(response, 'form', 'phone_number', "Another channel has this number. Please remove that channel first.")
 
-        # but if we submit with a new fully qualified RW number it should work
+        # create channel in another org
+        self.create_secondary_org()
+        Channel.create(self.org2, self.admin2, 'RW', 'A', "", "+250788382382")
+
+        # can claim it with this number, and because it's a fully qualified RW number, doesn't matter that channel is US
         response = self.client.post(reverse('channels.channel_claim_android'),
                                     dict(claim_code=claim_code, phone_number="+250788382382"))
         self.assertRedirect(response, reverse('public.public_welcome'))
