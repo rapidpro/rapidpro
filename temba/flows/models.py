@@ -3509,14 +3509,19 @@ class FlowStep(models.Model):
         # generate the messages for this step
         msgs = []
         if node.is_ruleset():
+            incoming = None
             if node.is_pause():
-                incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                               msg_type=FLOW, status=HANDLED, date=arrived_on,
-                                               channel=None, urn=None)
+                # if a msg was sent to this ruleset, create it
+                if json_obj['rule']:
+                    # if we received a message
+                    incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
+                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                   channel=None, urn=None)
             else:
                 incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
-            msgs.append(incoming)
+            if incoming:
+                msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
@@ -3527,7 +3532,8 @@ class FlowStep(models.Model):
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
-        if node.is_ruleset():
+        # if a rule was picked on this ruleset
+        if node.is_ruleset() and json_obj['rule']:
             rule_uuid = json_obj['rule']['uuid']
             rule_value = json_obj['rule']['value']
             rule_category = json_obj['rule']['category']
