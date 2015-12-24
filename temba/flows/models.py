@@ -4830,6 +4830,7 @@ class Test(object):
                 DateBeforeTest.TYPE: DateBeforeTest,
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
+                HasWardTest.TYPE: HasWardTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest
@@ -5147,6 +5148,7 @@ class HasDistrictTest(Test):
     TYPE = 'district'
     TEST = 'test'
 
+
     def __init__(self, state):
         self.state = state
 
@@ -5172,6 +5174,57 @@ class HasDistrictTest(Test):
             district = org.parse_location(text, 2, parent)
             if district:
                 return 1, district
+
+        district = org.parse_location(text, 2)
+
+        if district:
+            return 1, district
+
+        return 0, None
+
+
+class HasWardTest(Test):
+    TYPE = 'ward'
+    STATE = 'state'
+    DISTRICT = 'district'
+    TEST = 'test'
+
+
+    def __init__(self, state=None, district=None):
+        self.state = state
+        self.district = district
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):
+        return dict(type=self.TYPE, state=self.state, district=self.district)
+
+    def evaluate(self, run, sms, context, text):
+
+        # if they removed their country since adding the rule
+        org = run.flow.org
+        if not org.country:
+            return 0, None
+
+        # evaluate our district in case it has a replacement variable
+        if self.district and self.state:
+            district_, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
+            state_, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
+            if district_ and state_:
+                state = org.parse_location(state_, 1)
+                district = org.parse_location(district_, 2, state)
+                if district:
+                    ward = org.parse_location(text, 3, district)
+                    if ward:
+                        return 1, ward
+                    return 0, None
+
+
+        ward = org.parse_location(text, 3)
+        if ward:
+            return 1, ward
 
         return 0, None
 
