@@ -22,7 +22,7 @@ from temba.orgs.models import Org, OrgLock
 from temba.temba_email import send_temba_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str
 from temba.utils.models import TembaModel
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
+from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE, WARD
 from urlparse import urlparse, urlunparse, ParseResult
 
 # don't allow custom contact fields with these keys
@@ -145,8 +145,8 @@ class ContactField(models.Model):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
-    def get_state_field(cls, org):
-        return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
+    def get_field(cls, org, type):
+        return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
     def __unicode__(self):
         return "%s" % self.label
@@ -289,7 +289,6 @@ class Contact(TembaModel, SmartModel):
 
     def set_field(self, key, value, label=None):
         from temba.values.models import Value
-
         # make sure this field exists
         field = ContactField.get_or_create(self.org, key, label)
 
@@ -303,8 +302,18 @@ class Contact(TembaModel, SmartModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == DISTRICT:
-                state_field = ContactField.get_state_field(self.org)
+            if field.value_type == WARD:
+                state_field = ContactField.get_field(self.org, STATE)
+                district_field = ContactField.get_field(self.org, DISTRICT)
+                if state_field and district_field:
+                    state_value = self.get_field(state_field.key)
+                    if state_value:
+                        district_value = self.get_field(district_field.key)
+                        if district_value:
+                            loc_value = self.org.parse_location(value, 3, district_value)
+
+            elif field.value_type == DISTRICT:
+                state_field = ContactField.get_field(self.org, STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
