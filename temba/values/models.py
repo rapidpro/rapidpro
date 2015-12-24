@@ -17,12 +17,14 @@ DECIMAL = 'N'
 DATETIME = 'D'
 STATE = 'S'
 DISTRICT = 'I'
+WARD = 'W'
 
 VALUE_TYPE_CHOICES = ((TEXT, "Text"),
                       (DECIMAL, "Numeric"),
                       (DATETIME, "Date & Time"),
                       (STATE, "State"),
-                      (DISTRICT, "District"))
+                      (DISTRICT, "District"),
+                      (WARD, "Ward"))
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
 CONTACT_KEY = 'vsd::vsc%d'
@@ -281,7 +283,7 @@ class Value(models.Model):
                 categories = cls._filtered_values_to_categories(contacts, values, 'date_value',
                                                                 return_contacts=return_contacts)
 
-            elif contact_field.value_type in [STATE, DISTRICT]:
+            elif contact_field.value_type in [STATE, DISTRICT, WARD]:
                 values = values.values('location_value__osm_id', 'contact')
                 categories = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                 return_contacts=return_contacts)
@@ -456,8 +458,8 @@ class Value(models.Model):
                 field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if field.value_type not in [STATE, DISTRICT]:
-                    raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
+                if field.value_type not in [STATE, DISTRICT, WARD]:
+                    raise ValueError(_("Cannot segment on location for field that is not a State or District or Ward type"))
 
                 # make sure our org has a country for location based responses
                 if not org.country:
@@ -478,9 +480,12 @@ class Value(models.Model):
                 if not parent_osm_id and field.value_type == DISTRICT:
                     raise ValueError(_("You must specify a parent state to segment results by district"))
 
+                if not parent_osm_id and field.value_type == WARD:
+                    raise ValueError(_("You must specify a parent state to segment results by ward"))
+
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
-                if parent and field.value_type == DISTRICT:
+                if parent and (field.value_type == DISTRICT or field.value_type == WARD):
                     location_filters = [filters, dict(location=field.pk, boundary=[b.osm_id for b in boundaries])]
                 else:
                     location_filters = filters
