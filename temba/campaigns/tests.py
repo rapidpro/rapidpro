@@ -47,6 +47,9 @@ class CampaignTest(TembaTest):
         flow3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
         self.assertEqual(flow3.name, "Reminders 3")
 
+        self.create_secondary_org()
+        self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
+
     def test_get_sorted_events(self):
         # create a campaign
         campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
