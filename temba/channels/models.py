@@ -36,6 +36,7 @@ from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
+from xml.sax.saxutils import quoteattr, escape
 from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
@@ -58,6 +59,7 @@ VERBOICE = 'VB'
 VUMI = 'VM'
 ZENVIA = 'ZV'
 YO = 'YO'
+START = 'ST'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -109,7 +111,8 @@ CHANNEL_SETTINGS = {
     BLACKMYNA: dict(scheme='tel', max_length=1600),
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
-    YO: dict(scheme='tel', max_length=1600)
+    YO: dict(scheme='tel', max_length=1600),
+    START: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -146,6 +149,7 @@ class Channel(TembaModel):
                     (HIGH_CONNECTION, "High Connection"),
                     (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
+                    (START, "Start Mobile"),
                     (YO, "Yo!"),
                     (M3TECH, "M3 Tech"))
 
@@ -1194,6 +1198,60 @@ class Channel(TembaModel):
                                response_status=response.status_code)
 
     @classmethod
+    def send_start_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        post_body = u"""
+          <message>
+            <service id='single' source=$$FROM$$ />
+            <to>$$TO$$</to>
+            <body content-type='plain/text' encoding='plain'>$$BODY$$</body>
+          </message>"
+        """
+        post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
+        post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
+        post_body = post_body.replace("$$BODY$$", escape(msg.text))
+
+        url = 'http://bulk.startmobile.com.ua/clients.php'
+
+        start = time.time()
+        try:
+            headers = {'Content-Type': 'application/xml'}
+            headers.update(TEMBA_HEADERS)
+
+            response = requests.post(url,
+                                     data=post_body,
+                                     headers=headers,
+                                     auth=(channel.config[USERNAME], channel.config[PASSWORD]),
+                                     timeout=30)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=post_body,
+                                response='',
+                                response_status=503)
+
+        if (response.status_code != 200 and response.status_code != 201) or response.text.find("error") >= 0:
+            raise SendException("Error Sending Message",
+                                method='POST',
+                                url=url,
+                                request=post_body,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=post_body,
+                               response=response.text,
+                               response_status=response.status_code)
+
+
+    @classmethod
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
@@ -1960,6 +2018,7 @@ class Channel(TembaModel):
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       BLACKMYNA: Channel.send_blackmyna_message,
                       SMSCENTRAL: Channel.send_smscentral_message,
+                      START: Channel.send_start_message,
                       M3TECH: Channel.send_m3tech_message,
                       YO: Channel.send_yo_message}
 

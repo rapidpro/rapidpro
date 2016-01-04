@@ -20,7 +20,7 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
 from temba.channels.models import Channel, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet
+from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
 from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED, VISIBLE, ARCHIVED, DELETED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
@@ -497,6 +497,67 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name="Hello World", definition=definition, flow_type='X', version=6))
         self.assertEqual(response.status_code, 400)
 
+    def test_api_steps_empty(self):
+        url = reverse('api.v1.steps')
+        self.login(self.surveyor)
+
+        flow = self.create_flow()
+
+        # remove our entry node
+        ActionSet.objects.get(uuid=flow.entry_uuid).delete()
+
+        # and set our entry to be our ruleset
+        flow.entry_type = RULE_SET
+        flow.entry_uuid = RuleSet.objects.get().uuid
+        flow.save()
+
+        # post that someone arrived at this ruleset, but never replied
+        data = dict(flow=flow.uuid,
+                    revision=1,
+                    contact=self.joe.uuid,
+                    started='2015-08-25T11:09:29.088Z',
+                    steps=[
+                        dict(node=flow.entry_uuid,
+                             arrived_on='2015-08-25T11:09:30.088Z',
+                             actions=[],
+                             rule=None)
+                    ],
+                    completed=False)
+
+        reponse = None
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            response = self.postJSON(url, data)
+
+        run = FlowRun.objects.get()
+        self.assertEqual(run.flow, flow)
+        self.assertEqual(run.contact, self.joe)
+        self.assertEqual(run.created_on, datetime(2015, 8, 25, 11, 9, 29, 88000, pytz.UTC))
+        self.assertEqual(run.modified_on, datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
+        self.assertEqual(run.is_active, True)
+        self.assertEqual(run.is_completed(), False)
+
+        steps = list(run.steps.order_by('pk'))
+        self.assertEqual(len(steps), 1)
+        self.assertEqual(steps[0].step_uuid, flow.entry_uuid)
+        self.assertEqual(steps[0].step_type, 'R')
+        self.assertEqual(steps[0].rule_uuid, None)
+        self.assertEqual(steps[0].rule_category, None)
+        self.assertEqual(steps[0].rule_value, None)
+        self.assertEqual(steps[0].rule_decimal_value, None)
+        self.assertEqual(steps[0].arrived_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
+        self.assertEqual(steps[0].left_on, None)
+        self.assertEqual(steps[0].next_uuid, None)
+
+        # check flow stats
+        self.assertEqual(flow.get_total_runs(), 1)
+        self.assertEqual(flow.get_total_contacts(), 1)
+        self.assertEqual(flow.get_completed_runs(), 0)
+
+        # check flow activity
+        self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
+
+
+
     def test_api_steps(self):
         url = reverse('api.v1.steps')
 
@@ -525,12 +586,7 @@ class APITest(TembaTest):
         # point one of our nodes to it
         definition['action_sets'][1]['destination'] = new_node_uuid
 
-        print json.dumps(definition, indent=5)
-        print flow.version_number
-
         flow.update(definition)
-
-
         data = dict(flow=flow.uuid,
                     revision=2,
                     contact=self.joe.uuid,

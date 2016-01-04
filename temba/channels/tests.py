@@ -1034,7 +1034,7 @@ class ChannelTest(TembaTest):
         android2.country = 'RW'
         android2.save()
 
-#       # register another device with country as US
+        # register another device with country as US
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
                               dict(cmd='status', cc='US', dev="Nexus 5")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
@@ -1051,7 +1051,11 @@ class ChannelTest(TembaTest):
                                     dict(claim_code=claim_code, phone_number="+250788123124"))
         self.assertFormError(response, 'form', 'phone_number', "Another channel has this number. Please remove that channel first.")
 
-        # but if we submit with a new fully qualified RW number it should work
+        # create channel in another org
+        self.create_secondary_org()
+        Channel.create(self.org2, self.admin2, 'RW', 'A', "", "+250788382382")
+
+        # can claim it with this number, and because it's a fully qualified RW number, doesn't matter that channel is US
         response = self.client.post(reverse('channels.channel_claim_android'),
                                     dict(claim_code=claim_code, phone_number="+250788382382"))
         self.assertRedirect(response, reverse('public.public_welcome'))
@@ -4801,3 +4805,104 @@ class MageHandlerTest(TembaTest):
         # check contact count updated
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
+
+
+class StartMobileTest(TembaTest):
+
+    def setUp(self):
+        super(StartMobileTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'UA', 'ST', None, '1212',
+                                      config=dict(username='st-user', password='st-password'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_received(self):
+        body = """
+        <message>
+        <service type="sms" timestamp="1450450974" auth="asdfasdf" request_id="msg1"/>
+        <from>+250788123123</from>
+        <to>1515</to>
+        <body content-type="content-type" encoding="utf8">Hello World</body>
+        </message>
+        """
+        callback_url = reverse('handlers.start_handler', args=['receive', self.channel.uuid])
+        response = self.client.post(callback_url, content_type='application/xml', data=body)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.objects.get()
+        self.assertEquals('+250788123123', sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("Hello World", sms.text)
+
+        # try it with an invalid body
+        response = self.client.post(callback_url, content_type='application/xml', data="invalid body")
+
+        # should get a 400, as the body is invalid
+        self.assertEquals(400, response.status_code)
+
+        # try it with an invalid channel
+        callback_url = reverse('handlers.start_handler', args=['receive', '1234-asdf'])
+        response = self.client.post(callback_url, content_type='application/xml', data=body)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+977788123123")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
+                self.clear_cache()
+
+            # return 400
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+                self.clear_cache()
+
+            # return invalid XML
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "<error>This is an error</error>", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+                self.clear_cache()
+
+        finally:
+            settings.SEND_MESSAGES = False
