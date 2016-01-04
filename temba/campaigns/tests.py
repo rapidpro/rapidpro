@@ -6,14 +6,15 @@ from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet
 from temba.tests import TembaTest
 from temba.campaigns.tasks import check_campaigns_task
-from .models import Campaign, CampaignEvent, EventFire, DAYS, HOURS
+from .models import Campaign, CampaignEvent, EventFire
 from django.utils import timezone
 from datetime import timedelta
 
-class ScheduleTest(TembaTest):
+
+class CampaignTest(TembaTest):
 
     def setUp(self):
-        super(ScheduleTest, self).setUp()
+        super(CampaignTest, self).setUp()
 
         self.farmer1 = self.create_contact("Rob Jasper", "+250788111111")
         self.farmer2 = self.create_contact("Mike Gordon", "+250788222222")
@@ -35,6 +36,16 @@ class ScheduleTest(TembaTest):
         self.planting_date = ContactField.get_or_create(self.org, 'planting_date', "Planting Date")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
+
+    def test_get_unique_name(self):
+        flow1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(flow1.name, "Reminders")
+
+        flow2 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(flow2.name, "Reminders 2")
+
+        flow3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(flow3.name, "Reminders 3")
 
     def test_get_sorted_events(self):
         # create a campaign

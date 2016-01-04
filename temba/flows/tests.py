@@ -71,6 +71,16 @@ class FlowTest(TembaTest):
         filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         return open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
+    def test_get_unique_name(self):
+        flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
+        self.assertEqual(flow1.name, "Sheep Poll")
+
+        flow2 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
+        self.assertEqual(flow2.name, "Sheep Poll 2")
+
+        flow3 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
+        self.assertEqual(flow3.name, "Sheep Poll 3")
+
     def test_flow_get_results_queries(self):
 
         contact3 = self.create_contact('George', '+250788382234')

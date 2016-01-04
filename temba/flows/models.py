@@ -257,7 +257,7 @@ class Flow(TembaModel):
         """
         base_language = org.primary_language.iso_code if org.primary_language else 'base'
 
-        name = Flow.get_unique_name('Join %s' % group.name, org)
+        name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
 
         uuid = unicode(uuid4())
@@ -350,7 +350,7 @@ class Flow(TembaModel):
                     flow = Flow.objects.filter(org=org, id=flow_spec['metadata']['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
-                        flow.name = Flow.get_unique_name(name, org, ignore=flow)
+                        flow.name = Flow.get_unique_name(org, name, ignore=flow)
                         flow.save(update_fields=['name', 'expires_after_minutes'])
 
                 # if it's not of our world, let's try by name
@@ -359,7 +359,7 @@ class Flow(TembaModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
-                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type,
+                    flow = Flow.create(org, user, Flow.get_unique_name(org, name), flow_type=flow_type,
                                        expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, flow_spec=flow_spec))
@@ -424,11 +424,6 @@ class Flow(TembaModel):
             return RuleSet.get(flow, uuid)
         else:
             return ActionSet.get(flow, uuid)
-
-    @classmethod
-    def get_org_responses_since(cls, org, since):
-        rule_ids = [r.uuid for r in RuleSet.objects.filter(flow__is_active=True, flow__org=org).order_by('uuid')]
-        return FlowStep.objects.filter(contact__is_test=False, step_uuid__in=rule_ids, left_on__gte=since).count()
 
     @classmethod
     def handle_call(cls, call, user_response=None, hangup=False):
@@ -544,7 +539,10 @@ class Flow(TembaModel):
                                     (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
 
     @classmethod
-    def get_unique_name(cls, base_name, org, ignore=None):
+    def get_unique_name(cls, org, base_name, ignore=None):
+        """
+        Generates a unique flow name based on the given base name
+        """
         name = base_name[:64].strip()
 
         count = 2
@@ -553,7 +551,7 @@ class Flow(TembaModel):
             if ignore:
                 flows = flows.exclude(pk=ignore.pk)
 
-            if flows.first() is None:
+            if not flows.exists():
                 break
 
             name = '%s %d' % (base_name[:59].strip(), count)
