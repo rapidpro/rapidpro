@@ -6,12 +6,13 @@ import phonenumbers
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.values.models import VALUE_TYPE_CHOICES
@@ -167,7 +168,10 @@ class MsgReadSerializer(serializers.ModelSerializer):
     def get_urn(self, obj):
         if obj.org.is_anon:
             return None
-        return obj.contact_urn.urn
+        elif obj.contact_urn:
+            return obj.contact_urn.urn
+        else:
+            return None
 
     def get_contact_uuid(self, obj):
         return obj.contact.uuid
@@ -322,49 +326,72 @@ class ContactGroupReadSerializer(serializers.ModelSerializer):
 
 
 class ContactReadSerializer(serializers.ModelSerializer):
-    name = serializers.Field(source='name')
+    name = serializers.SerializerMethodField('get_name')
     uuid = serializers.Field(source='uuid')
-    language = serializers.Field(source='language')
+    language = serializers.SerializerMethodField('get_language')
     group_uuids = serializers.SerializerMethodField('get_group_uuids')
     urns = serializers.SerializerMethodField('get_urns')
     fields = serializers.SerializerMethodField('get_contact_fields')
     phone = serializers.SerializerMethodField('get_tel')  # deprecated, use urns
     groups = serializers.SerializerMethodField('get_groups')  # deprecated, use group_uuids
+    blocked = serializers.SerializerMethodField('is_blocked')
+    failed = serializers.SerializerMethodField('is_failed')
+
+    def get_name(self, obj):
+        return obj.name if obj.is_active else None
+
+    def get_language(self, obj):
+        return obj.language if obj.is_active else None
+
+    def is_blocked(self, obj):
+        return obj.is_blocked if obj.is_active else None
+
+    def is_failed(self, obj):
+        return obj.is_failed if obj.is_active else None
 
     def get_groups(self, obj):
+        if not obj.is_active:
+            return []
+
         groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
         return [_.name for _ in groups]
 
     def get_group_uuids(self, obj):
+        if not obj.is_active:
+            return []
+
         groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
         return [_.uuid for _ in groups]
 
     def get_urns(self, obj):
-        if obj.org.is_anon:
-            return dict()
+        if obj.org.is_anon or not obj.is_active:
+            return []
 
         return [urn.urn for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
-        for contact_field in self.context['contact_fields']:
+        if not obj.is_active:
+            return fields
 
+        for contact_field in self.context['contact_fields']:
             value = obj.get_field(contact_field.key)
             fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
         return fields
 
     def get_tel(self, obj):
-        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, full=True)
+        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, full=True) if obj.is_active else None
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields', 'modified_on', 'phone', 'groups')
+        fields = ('uuid', 'name', 'language', 'group_uuids', 'urns', 'fields',
+                  'blocked', 'failed', 'modified_on', 'phone', 'groups')
 
 
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
     name = serializers.CharField(required=False, max_length=64)
-    language = serializers.CharField(required=False, max_length=4)
+    language = serializers.CharField(required=False, min_length=3, max_length=3)
     urns = StringArrayField(required=False)
     group_uuids = StringArrayField(required=False)
     fields = DictionaryField(required=False)
@@ -372,54 +399,38 @@ class ContactWriteSerializer(WriteSerializer):
     groups = StringArrayField(required=False)  # deprecated, use group_uuids
 
     def validate(self, attrs):
-        urns = attrs.get('urns', [])
-        phone = attrs.get('phone', None)
-        uuid = attrs.get('uuid', None)
+        contact = attrs.get('contact')
+        urns = attrs.get('urn_objs', [])
+        groups = attrs.get('group_objs')
 
-        if (not urns and not phone and not uuid) or (urns and phone):
-            raise ValidationError("Must provide either urns, phone or uuid but only one of each")
+        if attrs.get('urns') is not None and attrs.get('phone') is not None:
+            raise ValidationError("Cannot provide both urns and phone parameters together")
 
-        if attrs.get('group_uuids', []) and attrs.get('groups', []):
+        if attrs.get('group_uuids') is not None and attrs.get('groups') is not None:
             raise ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
-        if uuid:
-            if phone:
-                urns = [(TEL_SCHEME, attrs['phone'])]
+        if urns:
+            urns_strings = ["%s:%s" % u for u in urns]
+            urn_query = Q(pk__lt=0)
+            for urn_string in urns_strings:
+                urn_query |= Q(urns__urn__iexact=urn_string)
 
-            if urns:
-                urns_strings = ["%s:%s" % u for u in urns]
-                urn_query = Q(pk__lt=0)
-                for urn_string in urns_strings:
-                    urn_query |= Q(urns__urn__iexact=urn_string)
+            urn_contacts = Contact.objects.filter(org=self.org).filter(urn_query).distinct()
+            if len(urn_contacts) > 1:
+                raise ValidationError(_("URNs %s are used by multiple contacts") % urns_strings)
 
-                other_contacts = Contact.objects.filter(org=self.org)
-                other_contacts = other_contacts.filter(urn_query).distinct()
-                other_contacts = other_contacts.exclude(uuid=uuid)
-                if other_contacts:
-                    if phone:
-                        raise ValidationError(_("phone %s is used by another contact") % phone)
-                    raise ValidationError(_("URNs %s are used by other contacts") % urns_strings)
+            contact_by_urns = urn_contacts[0] if len(urn_contacts) > 0 else None
 
-        return attrs
+            if contact and contact_by_urns != contact:
+                raise ValidationError(_("URNs %s are used by other contacts") % urns_strings)
+        else:
+            contact_by_urns = None
 
-    def validate_language(self, attrs, source):
-        if 'language' in attrs:
-            language = attrs.get(source, None)
-            supported_languages = [l.iso_code for l in self.user.get_org().languages.all()]
+        contact = contact or contact_by_urns
 
-            if language:
-                # no languages configured
-                if not supported_languages:
-                    raise ValidationError(_("You do not have any languages configured for your organization."))
-
-                # is it one of the languages on this org?
-                if not language.lower() in supported_languages:
-                    raise ValidationError(_("Language code '%s' is not one of supported for organization. (%s)") %
-                                          (language, ",".join(supported_languages)))
-
-                attrs['language'] = language.lower()
-            else:
-                attrs['language'] = None
+        # if contact is blocked, they can't be added to groups
+        if contact and contact.is_blocked and groups:
+            raise ValidationError("Cannot add blocked contact to groups")
 
         return attrs
 
@@ -429,6 +440,8 @@ class ContactWriteSerializer(WriteSerializer):
             contact = Contact.objects.filter(org=self.org, uuid=uuid, is_active=True).first()
             if not contact:
                 raise ValidationError("Unable to find contact with UUID: %s" % uuid)
+
+            attrs['contact'] = contact
 
         return attrs
 
@@ -443,7 +456,7 @@ class ContactWriteSerializer(WriteSerializer):
                 raise ValidationError("Invalid phone number: '%s'" % phone)
 
             phone = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
-            attrs['phone'] = phone
+            attrs['urn_objs'] = [(TEL_SCHEME, phone)]
         return attrs
 
     def validate_urns(self, attrs, source):
@@ -465,7 +478,7 @@ class ContactWriteSerializer(WriteSerializer):
 
                 urns.append((norm_scheme, norm_path))
 
-        attrs['urns'] = urns
+        attrs['urn_objs'] = urns
         return attrs
 
     def validate_fields(self, attrs, source):
@@ -490,9 +503,9 @@ class ContactWriteSerializer(WriteSerializer):
             for name in group_names:
                 if not ContactGroup.is_valid_name(name):
                     raise ValidationError(_("Invalid group name: '%s'") % name)
-                groups.append(name)
+                groups.append(ContactGroup.get_or_create(self.org, self.user, name))
 
-            attrs['groups'] = groups
+            attrs['group_objs'] = groups
         return attrs
 
     def validate_group_uuids(self, attrs, source):
@@ -506,7 +519,7 @@ class ContactWriteSerializer(WriteSerializer):
 
                 groups.append(group)
 
-            attrs['group_uuids'] = groups
+            attrs['group_objs'] = groups
         return attrs
 
     def restore_object(self, attrs, instance=None):
@@ -516,28 +529,17 @@ class ContactWriteSerializer(WriteSerializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        if self.org.is_anon:
-            raise ValidationError("Cannot update contacts on anonymous organizations")
+        contact = attrs.get('contact')
+        urns = attrs.get('urn_objs', None)
 
-        uuid = attrs.get('uuid', None)
-        if uuid:
-            contact = Contact.objects.get(uuid=uuid, org=self.org, is_active=True)
+        if self.org.is_anon and contact:
+            raise ValidationError("Cannot update contacts on anonymous organizations, can only create")
 
-        urns = attrs.get('urns', None)
-        phone = attrs.get('phone', None)
-
-        # user didn't specify either urns or phone, stick to what already exists
-        if urns is None and phone is None:
-            urns = [(u.scheme, u.path) for u in contact.urns.all()]
-
-        # user only specified phone, build our urns from it
-        if phone:
-            urns = [(TEL_SCHEME, attrs['phone'])]
-
-        if uuid:
-            contact.update_urns(urns)
+        if contact:
+            if urns is not None:
+                contact.update_urns(urns)
         else:
-            contact = Contact.get_or_create(self.org, self.user, urns=urns, uuid=uuid)
+            contact = Contact.get_or_create(self.org, self.user, urns=urns)
 
         changed = []
 
@@ -547,7 +549,7 @@ class ContactWriteSerializer(WriteSerializer):
             changed.append('name')
 
         if 'language' in attrs:
-            contact.language = attrs['language']
+            contact.language = attrs['language'].lower() if attrs['language'] else None
             changed.append('language')
 
         # save our contact if it changed
@@ -556,7 +558,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our fields
         fields = attrs.get('fields', None)
-        if not fields is None:
+        if fields is not None:
             for key, value in fields.items():
                 existing_by_key = ContactField.objects.filter(org=self.org, key__iexact=key, is_active=True).first()
                 if existing_by_key:
@@ -568,16 +570,9 @@ class ContactWriteSerializer(WriteSerializer):
                 if existing_by_label:
                     contact.set_field(existing_by_label.key, value)
 
-        # update our groups by UUID or name (deprecated)
-        group_uuids = attrs.get('group_uuids', None)
-        group_names = attrs.get('groups', None)
-
-        if not group_uuids is None:
-            contact.update_groups(group_uuids)
-
-        elif not group_names is None:
-            # by name creates groups if necessary
-            groups = [ContactGroup.get_or_create(self.org, self.user, name) for name in group_names]
+        # update our contact's groups
+        groups = attrs.get('group_objs')
+        if groups is not None:
             contact.update_groups(groups)
 
         return contact
@@ -599,27 +594,31 @@ class ContactFieldWriteSerializer(WriteSerializer):
     value_type = serializers.CharField(required=True)
 
     def validate_key(self, attrs, source):
-        key = attrs.get(source, '')
-        if key:
-            # if key is specified, then we're updating a field, so key must exist
-            if not ContactField.objects.filter(org=self.org, key=key).exists():
-                raise ValidationError("No such contact field key")
+        key = attrs.get(source, None)
+        if key and not ContactField.is_valid_key(key):
+            raise ValidationError("Field key is invalid or is a reserved name")
+        return attrs
+
+    def validate_label(self, attrs, source):
+        label = attrs.get(source, None)
+        if label and not ContactField.is_valid_label(label):
+            raise ValidationError("Invalid Field label: Field labels can only contain letters, numbers and hypens")
         return attrs
 
     def validate_value_type(self, attrs, source):
         value_type = attrs.get(source, '')
-        if value_type:
-            if not value_type in [t for t, label in VALUE_TYPE_CHOICES]:
-                raise ValidationError("Invalid field value type")
+        if value_type and value_type not in [t for t, label in VALUE_TYPE_CHOICES]:
+            raise ValidationError("Invalid field value type")
         return attrs
 
     def validate(self, attrs):
-
         key = attrs.get('key', None)
         label = attrs.get('label')
 
         if not key:
-            key = ContactField.api_make_key(label)
+            key = ContactField.make_key(label)
+            if not ContactField.is_valid_key(key):
+                raise ValidationError(_("Generated key for '%s' is invalid or a reserved name") % label)
 
         attrs['key'] = key
         return attrs
@@ -645,17 +644,37 @@ class ContactBulkActionSerializer(WriteSerializer):
     group_uuid = serializers.CharField(required=False)
 
     def validate(self, attrs):
-        group_provided = attrs.get('group', None) or attrs.get('group_uuid', None)
-        if attrs['action'] in ('add', 'remove') and not group_provided:
+        contacts = attrs.get('contacts', [])
+        action = attrs.get('action')
+        group_provided = attrs.get('group') or attrs.get('group_uuid')
+
+        if action in ('add', 'remove') and not group_provided:
             raise ValidationError("For action %s you should also specify group or group_uuid" % attrs['action'])
-        elif attrs['action'] in ('block', 'unblock', 'expire', 'delete') and group_provided:
+        elif action in ('block', 'unblock', 'expire', 'delete') and group_provided:
             raise ValidationError("For action %s you should not specify group or group_uuid" % attrs['action'])
+
+        if action == 'add':
+            # if adding to a group, check for blocked contacts
+            blocked_uuids = {c.uuid for c in contacts if c.is_blocked}
+            if blocked_uuids:
+                raise ValidationError("Blocked cannot be added to groups: %s" % ', '.join(blocked_uuids))
+
         return attrs
 
     def validate_contacts(self, attrs, source):
-        contacts = attrs.get(source, [])
-        if len(contacts) > MAX_BULK_ACTION_ITEMS:
+        contact_uuids = attrs.get(source, [])
+        if len(contact_uuids) > MAX_BULK_ACTION_ITEMS:
             raise ValidationError("Maximum of %d contacts allowed" % MAX_BULK_ACTION_ITEMS)
+
+        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
+
+        # check for UUIDs that didn't resolve to a valid contact
+        if len(contacts) != len(contact_uuids):
+            fetched_uuids = {c.uuid for c in contacts}
+            invalid_uuids = [u for u in contact_uuids if u not in fetched_uuids]
+            raise ValidationError("Some contacts are invalid: %s" % ', '.join(invalid_uuids))
+
+        attrs['contacts'] = contacts
         return attrs
 
     def validate_action(self, attrs, source):
@@ -686,10 +705,8 @@ class ContactBulkActionSerializer(WriteSerializer):
         if instance:  # pragma: no cover
             raise ValidationError("Invalid operation")
 
-        contact_uuids = attrs['contacts']
+        contacts = attrs['contacts']
         action = attrs['action']
-
-        contacts = Contact.objects.filter(org=self.org, is_test=False, is_active=True, uuid__in=contact_uuids)
 
         if action == 'add':
             attrs['group'].update_contacts(contacts, add=True)
@@ -869,7 +886,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
         # ensure contact field exists
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
-            key = ContactField.api_make_key(relative_to_label)
+            key = ContactField.make_key(relative_to_label)
+            if not ContactField.is_valid_key(key):
+                raise ValidationError(_("Cannot create contact field with key '%s'") % key)
             relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
 
         if event:
@@ -1005,6 +1024,103 @@ class CampaignWriteSerializer(WriteSerializer):
         return campaign
 
 
+class FlowDefinitionWriteSerializer(WriteSerializer):
+    version = serializers.WritableField(required=True)
+    metadata = serializers.WritableField(required=False)
+    base_language = serializers.WritableField(required=False)
+    flow_type = serializers.WritableField(required=False)
+    action_sets = serializers.WritableField(required=False)
+    rule_sets = serializers.WritableField(required=False)
+    entry = serializers.WritableField(required=False)
+
+    # old versions had different top level elements
+    uuid = serializers.WritableField(required=False)
+    definition = serializers.WritableField(required=False)
+    name = serializers.WritableField(required=False)
+    id = serializers.WritableField(required=False)
+
+    def validate_version(self, attrs, source):
+        version = attrs.get(source)
+        from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
+        if version > CURRENT_EXPORT_VERSION or version < EARLIEST_IMPORT_VERSION:
+            raise ValidationError("Flow version %s not supported" % version)
+        return attrs
+
+    def validate_name(self, attrs, source):
+        version = attrs.get('version')
+        if version < 7:
+            name = attrs.get(source)
+            if not name:
+                raise ValidationError("This field is required for version %s" % version)
+        return attrs
+
+    def validate_metadata(self, attrs, source):
+
+        # only required starting at version 7
+        version = attrs.get('version')
+        if version >= 7:
+            metadata = attrs.get(source)
+            if metadata:
+                if 'name' not in metadata:
+                    raise ValidationError("Name is missing from metadata")
+
+                uuid = metadata.get('uuid', None)
+                if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+                    raise ValidationError("No such flow with UUID: %s" % uuid)
+            else:
+                raise ValidationError("This field is required for version %s" % version)
+
+        return attrs
+
+    def validate_flow_type(self, attrs, source):
+        flow_type = attrs.get(source, None)
+
+        if flow_type and flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
+            raise ValidationError("Invalid flow type: %s" % flow_type)
+
+        return attrs
+
+    def validate_definition(self, attrs, source):
+        definition = attrs.get(source, None)
+        version = attrs.get('version')
+        if version < 7 and not definition:
+            attrs['definition'] = dict(action_sets=[], rule_sets=[])
+        return attrs
+
+    def restore_object(self, flow_json, instance=None):
+        """
+        Update our flow
+        """
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        # first, migrate our definition forward if necessary
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        from temba.flows.models import FlowRevision
+        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
+        if version < CURRENT_EXPORT_VERSION:
+            flow_json = FlowRevision.migrate_definition(flow_json, version, CURRENT_EXPORT_VERSION)
+
+        # previous to version 7, uuid could be supplied on the outer element
+        uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
+        name = flow_json.get('metadata').get('name')
+
+        if uuid:
+            flow = Flow.objects.get(org=self.org, uuid=uuid)
+            flow.name = name
+
+            flow_type = flow_json.get('flow_type', None)
+            if flow_type:
+                flow.flow_type = flow_type
+
+            flow.save()
+        else:
+            flow_type = flow_json.get('flow_type', Flow.FLOW)
+            flow = Flow.create(self.org, self.user, name, flow_type)
+
+        flow.update(flow_json, self.user, force=True)
+        return flow
+
 class FlowReadSerializer(serializers.ModelSerializer):
     uuid = serializers.Field(source='uuid')
     archived = serializers.Field(source='is_archived')
@@ -1060,52 +1176,6 @@ class FlowReadSerializer(serializers.ModelSerializer):
         model = Flow
         fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
                   'created_on', 'flow')
-
-
-class FlowWriteSerializer(WriteSerializer):
-    uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=True)
-    flow_type = serializers.CharField(required=True)
-    definition = serializers.WritableField(required=False)
-
-    def validate_uuid(self, attrs, source):
-        uuid = attrs.get(source, None)
-
-        if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
-            raise ValidationError("No such flow with UUID: %s" % uuid)
-        return attrs
-
-    def validate_flow_type(self, attrs, source):
-        flow_type = attrs.get(source, None)
-
-        if flow_type not in [choice[0] for choice in Flow.FLOW_TYPES]:
-            raise ValidationError("Invalid flow type: %s" % flow_type)
-        return attrs
-
-    def restore_object(self, attrs, instance=None):
-        """
-        Update our flow
-        """
-        if instance:  # pragma: no cover
-            raise ValidationError("Invalid operation")
-
-        uuid = attrs.get('uuid', None)
-        name = attrs['name']
-        flow_type = attrs['flow_type']
-        definition = attrs.get('definition', None)
-
-        if uuid:
-            flow = Flow.objects.get(org=self.org, uuid=uuid)
-            flow.name = name
-            flow.flow_type = flow_type
-            flow.save()
-        else:
-            flow = Flow.create(self.org, self.user, name, flow_type)
-
-        if definition:
-            flow.update(definition, self.user, force=True)
-
-        return flow
 
 
 class FlowRunStartSerializer(WriteSerializer):
@@ -1243,6 +1313,135 @@ class FlowRunStartSerializer(WriteSerializer):
             return []
 
 
+class FlowRunWriteSerializer(WriteSerializer):
+    flow = serializers.CharField(required=True, max_length=36)
+    contact = serializers.CharField(required=True, max_length=36)
+    started = serializers.DateTimeField(required=True)
+    completed = serializers.BooleanField(required=False)
+    steps = serializers.WritableField()
+
+    revision = serializers.IntegerField(required=False) # for backwards compatibility
+    version = serializers.IntegerField(required=False) # for backwards compatibility
+
+    def validate_steps(self, attrs, source):
+
+        class VersionNode:
+            def __init__(self, node, is_ruleset):
+                self.node = node
+                self.uuid = node['uuid']
+                self.ruleset = is_ruleset
+
+            def is_ruleset(self):
+                return self.ruleset
+
+            def is_pause(self):
+                from temba.flows.models import RuleSet
+                return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
+
+            def get_step_type(self):
+                from temba.flows.models import RULE_SET, ACTION_SET
+                if self.is_ruleset():
+                    return RULE_SET
+                else:
+                    return ACTION_SET
+
+        steps = attrs.get(source)
+        flow = attrs.get('flow')
+        revision = attrs.get('revision', attrs.get('version'))
+
+        if not revision:
+            raise ValidationError("Missing 'revision' field")
+
+        flow_revision = flow.revisions.filter(revision=revision).first()
+
+        if not flow_revision:
+            raise ValidationError("Invalid revision: %s" % revision)
+
+        definition = json.loads(flow_revision.definition)
+
+        # make sure we are operating off a current spec
+        from temba.flows.models import FlowRevision, CURRENT_EXPORT_VERSION
+        definition = FlowRevision.migrate_definition(definition, flow.version_number, CURRENT_EXPORT_VERSION)
+
+        for step in steps:
+            node_obj = None
+            key = 'rule_sets' if 'rule' in step else 'action_sets'
+            for json_node in definition[key]:
+                if json_node['uuid'] == step['node']:
+                    node_obj = VersionNode(json_node, 'rule' in step)
+                    break
+
+            if not node_obj:
+                raise ValidationError("No such node with UUID %s in flow '%s'" % (step['node'], flow.name))
+            else:
+                step['node'] = node_obj
+
+        return attrs
+
+    def validate_flow(self, attrs, source):
+        flow_uuid = attrs.get(source, None)
+        if flow_uuid:
+            flow = Flow.objects.get(uuid=flow_uuid)
+            if flow.is_archived:
+                raise ValidationError("You cannot start an archived flow.")
+
+            # do they have permission to use this flow?
+            if self.org != flow.org:
+                raise ValidationError("Invalid UUID '%s' - flow does not exist." % flow.uuid)
+
+            attrs['flow'] = flow
+        return attrs
+
+    def validate_contact(self, attrs, source):
+        contact_uuid = attrs.get(source, None)
+        if contact_uuid:
+            contact = Contact.objects.filter(uuid=contact_uuid, org=self.org, is_active=True).first()
+            if not contact:
+                raise ValidationError(_("Unable to find contact with uuid: %s") % contact_uuid)
+
+            attrs['contact'] = contact
+        return attrs
+
+    def save(self):
+        pass
+
+    def restore_object(self, attrs, instance=None):
+        if instance:  # pragma: no cover
+            raise ValidationError("Invalid operation")
+
+        flow = attrs['flow']
+        contact = attrs.get('contact')
+        started = attrs['started']
+        steps = attrs.get('steps', [])
+        completed = attrs.get('completed', False)
+
+        # look for previous run with this contact and flow
+        run = FlowRun.objects.filter(org=self.org, contact=contact,
+                                     flow=flow, created_on=started).order_by('-modified_on').first()
+
+        if not run:
+            run = FlowRun.create(flow, contact, created_on=started)
+            flow.update_start_counts([contact])
+
+        step_objs = []
+        previous_rule = None
+        for step in steps:
+            step_obj = FlowStep.from_json(step, flow, run, previous_rule)
+            previous_rule = step_obj.rule_uuid
+            step_objs.append(step_obj)
+
+        if completed:
+            final_step = step_objs[len(step_objs) - 1] if step_objs else None
+            completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
+
+            run.set_completed(True, final_step, completed_on=completed_on)
+        else:
+            run.modified_on = timezone.now()
+            run.save(update_fields=('modified_on',))
+
+        return run
+
+
 class BoundarySerializer(serializers.ModelSerializer):
     boundary = serializers.SerializerMethodField('get_boundary')
     parent = serializers.SerializerMethodField('get_parent')
@@ -1264,6 +1463,18 @@ class BoundarySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminBoundary
         fields = ('boundary', 'name', 'level', 'parent', 'geometry', 'in_country')
+
+
+class AliasSerializer(BoundarySerializer):
+
+    aliases = serializers.SerializerMethodField('get_aliases')
+
+    def get_aliases(self, obj):
+        return [alias.name for alias in obj.aliases.all()]
+
+    class Meta:
+        model = AdminBoundary
+        fields = ('boundary', 'name', 'level', 'parent', 'aliases')
 
 
 class FlowRunReadSerializer(serializers.ModelSerializer):

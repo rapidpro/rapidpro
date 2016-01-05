@@ -9,11 +9,11 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.channels.models import Channel
+from temba.channels.models import Channel, KANNEL
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, CALL_IN
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -245,6 +245,15 @@ class MsgTest(TembaTest):
         # should have no messages but marked as sent
         self.assertEquals(0, broadcast.msgs.all().count())
         self.assertEquals(SENT, broadcast.status)
+
+    def test_update_contacts(self):
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+
+        # update the contacts using contact ids
+        broadcast.update_contacts([self.joe.id])
+
+        broadcast.refresh_from_db()
+        self.assertEquals(1, broadcast.recipient_count)
 
     def test_outbox(self):
         self.login(self.admin)
@@ -486,7 +495,6 @@ class MsgTest(TembaTest):
 
     def test_failed(self):
         from temba.msgs.tasks import check_messages_task
-
         failed_url = reverse('msgs.msg_failed')
 
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
@@ -546,16 +554,17 @@ class MsgTest(TembaTest):
         check_messages_task()
         self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
-    @patch('temba.temba_email.send_multipart_email')
-    def test_message_export(self, mock_send_multipart_email):
+    @patch('temba.utils.email.send_temba_email')
+    def test_message_export(self, mock_send_temba_email):
         self.clear_storage()
         self.login(self.admin)
 
-        # create 3 messages - add label to second, and archive the third
+        # create some messages...
         joe_urn = (TEL_SCHEME, self.joe.get_urn(TEL_SCHEME).path)
         msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
         msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
         msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
+        msg4 = Msg.create_incoming(None, None, "hello 4", org=self.org, contact=self.joe)  # like a surveyor message
 
         # label first message
         label = Label.get_or_create(self.org, self.user, "label1")
@@ -571,27 +580,31 @@ class MsgTest(TembaTest):
         response = self.client.post(reverse('msgs.msg_export'), follow=True)
         self.assertContains(response, "already an export in progress")
 
-        # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
+        # perform the export manually, assert how many queries
+        self.assertNumQueries(7, lambda: blocking_export.do_export())
 
-        # request export of all messages
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
-        self.assertEquals(sheet.nrows, 3)  # msg3 not included as it's archived
-        self.assertEquals(sheet.cell(1, 1).value, '123')
-        self.assertEquals(sheet.cell(1, 2).value, 'tel')
+        self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
+        self.assertEquals(sheet.cell(1, 1).value, "")
+        self.assertEquals(sheet.cell(1, 2).value, "")
         self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
         self.assertEquals(sheet.cell(1, 4).value, "Incoming")
-        self.assertEquals(sheet.cell(1, 5).value, "hello 2")
+        self.assertEquals(sheet.cell(1, 5).value, "hello 4")
         self.assertEquals(sheet.cell(1, 6).value, "")
+        self.assertEquals(sheet.cell(2, 1).value, '123')
+        self.assertEquals(sheet.cell(2, 2).value, 'tel')
+        self.assertEquals(sheet.cell(2, 3).value, "Joe Blow")
+        self.assertEquals(sheet.cell(2, 4).value, "Incoming")
+        self.assertEquals(sheet.cell(2, 5).value, "hello 2")
+        self.assertEquals(sheet.cell(2, 6).value, "")
 
-        email_args = mock_send_multipart_email.call_args[0]  # all positional args
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "Your messages export is ready")
         self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
@@ -608,7 +621,7 @@ class MsgTest(TembaTest):
         self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
         task = ExportMessagesTask.objects.get()
 
-        filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+        filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
@@ -627,14 +640,17 @@ class MsgTest(TembaTest):
             self.client.post(reverse('msgs.msg_export'))
             task = ExportMessagesTask.objects.get()
 
-            filename = "%s/test_orgs/%d/message_exports/%d.xls" % (settings.MEDIA_ROOT, self.org.pk, task.pk)
+            filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 
-            self.assertEquals(sheet.nrows, 3)
-            self.assertEquals(sheet.cell(1, 1).value, '%010d' % self.joe.pk)
-            self.assertEquals(sheet.cell(1, 2).value, 'tel')
+            self.assertEquals(sheet.nrows, 4)
+            self.assertEquals(sheet.cell(1, 1).value, "%010d" % self.joe.pk)
+            self.assertEquals(sheet.cell(1, 2).value, "")
             self.assertEquals(sheet.cell(1, 3).value, "Joe Blow")
+            self.assertEquals(sheet.cell(2, 1).value, "%010d" % self.joe.pk)
+            self.assertEquals(sheet.cell(2, 2).value, "tel")
+            self.assertEquals(sheet.cell(2, 3).value, "Joe Blow")
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
@@ -759,7 +775,7 @@ class BroadcastTest(TembaTest):
         self.lucy = self.create_contact(name="Lucy M", twitter="lucy")
 
         # a Twitter channel
-        self.twitter = Channel.objects.create(org=self.org, channel_type='TT', created_by=self.user, modified_by=self.user)
+        self.twitter = Channel.create(self.org, self.user, None, 'TT')
 
     def test_broadcast_model(self):
 
@@ -851,12 +867,9 @@ class BroadcastTest(TembaTest):
         Broadcast.objects.all()[0].delete()
 
         # test when we have many channels
-        Channel.objects.create(org=self.org, channel_type="A", secret="123456", gcm_id="1234",
-                               created_by=self.user, modified_by=self.user)
-        Channel.objects.create(org=self.org, channel_type="A", secret="12345", gcm_id="123",
-                               created_by=self.user, modified_by=self.user)
-        Channel.objects.create(org=self.org, channel_type="TT",
-                               created_by=self.user, modified_by=self.user)
+        Channel.create(self.org, self.user, None, "A", secret="123456", gcm_id="1234")
+        Channel.create(self.org, self.user, None, "A", secret="12345", gcm_id="123")
+        Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
@@ -996,37 +1009,36 @@ class BroadcastTest(TembaTest):
         ContactField.get_or_create(self.org, 'dob', "Date of birth", False, DATETIME)
         self.joe.set_field('dob', "28/5/1981")
 
-        self.assertEquals(("Hello World", False), Msg.substitute_variables("Hello World", self.joe, dict()))
-        self.assertEquals(("Hello World Joe", False), Msg.substitute_variables("Hello World @contact.first_name", self.joe, dict()))
-        self.assertEquals(("Hello World Joe Blow", False), Msg.substitute_variables("Hello World @contact", self.joe, dict()))
-        self.assertEquals(("Hello World: Well", False), Msg.substitute_variables("Hello World: @flow.water_source", self.joe, dict(flow=dict(water_source="Well"))))
-        self.assertEquals(("Hello World: Well  Boil: @flow.boil", True), Msg.substitute_variables("Hello World: @flow.water_source  Boil: @flow.boil", self.joe, dict(flow=dict(water_source="Well"))))
+        self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))
+        self.assertEquals(("Hello World Joe", []), Msg.substitute_variables("Hello World @contact.first_name", self.joe, dict()))
+        self.assertEquals(("Hello World Joe Blow", []), Msg.substitute_variables("Hello World @contact", self.joe, dict()))
+        self.assertEquals(("Hello World: Well", []), Msg.substitute_variables("Hello World: @flow.water_source", self.joe, dict(flow=dict(water_source="Well"))))
+        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]), Msg.substitute_variables("Hello World: @flow.water_source  Boil: @flow.boil", self.joe, dict(flow=dict(water_source="Well"))))
 
-        self.assertEquals(("Hello Joe", False), Msg.substitute_variables("Hello @contact.first_name|notthere", self.joe, dict()))
-        self.assertEquals(("Hello joe", False), Msg.substitute_variables("Hello @contact.first_name|lower_case", self.joe, dict()))
-        self.assertEquals(("Hello Joe", False), Msg.substitute_variables("Hello @contact.first_name|lower_case|capitalize", self.joe, dict()))
-        self.assertEquals(("Hello Joe", False), Msg.substitute_variables("Hello @contact|first_word", self.joe, dict()))
-        self.assertEquals(("Hello Blow", False), Msg.substitute_variables("Hello @contact|remove_first_word|title_case", self.joe, dict()))
-        self.assertEquals(("Hello Joe Blow", False), Msg.substitute_variables("Hello @contact|title_case", self.joe, dict()))
-        self.assertEquals(("Hello JOE", False), Msg.substitute_variables("Hello @contact.first_name|upper_case", self.joe, dict()))
-        self.assertEquals(("Hello 3", False), Msg.substitute_variables("Hello @contact.goats", self.joe, dict()))
+        self.assertEquals(("Hello joe", []), Msg.substitute_variables("Hello @(LOWER(contact.first_name))", self.joe, dict()))
+        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(PROPER(LOWER(contact.first_name)))", self.joe, dict()))
+        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(first_word(contact))", self.joe, dict()))
+        self.assertEquals(("Hello Blow", []), Msg.substitute_variables("Hello @(Proper(remove_first_word(contact)))", self.joe, dict()))
+        self.assertEquals(("Hello Joe Blow", []), Msg.substitute_variables("Hello @(PROPER(contact))", self.joe, dict()))
+        self.assertEquals(("Hello JOE", []), Msg.substitute_variables("Hello @(UPPER(contact.first_name))", self.joe, dict()))
+        self.assertEquals(("Hello 3", []), Msg.substitute_variables("Hello @(contact.goats)", self.joe, dict()))
 
-        self.assertEquals(("Email is: foo@bar.com", False),
-                          Msg.substitute_variables("Email is: @flow.sms|remove_first_word", self.joe, dict(flow=dict(sms="Join foo@bar.com"))))
-        self.assertEquals(("Email is: foo@@bar.com", False),
-                          Msg.substitute_variables("Email is: @flow.sms|remove_first_word", self.joe, dict(flow=dict(sms="Join foo@@bar.com"))))
+        self.assertEquals(("Email is: foo@bar.com", []),
+                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@bar.com"))))
+        self.assertEquals(("Email is: foo@@bar.com", []),
+                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@@bar.com"))))
 
         # check date variables
         text, errors = Msg.substitute_variables("Today is @date.today", self.joe, dict())
-        self.assertEquals(errors, False)
+        self.assertEquals(errors, [])
         self.assertRegexpMatches(text, "Today is \d\d-\d\d-\d\d\d\d")
 
         text, errors = Msg.substitute_variables("Today is @date.now", self.joe, dict())
-        self.assertEquals(errors, False)
+        self.assertEquals(errors, [])
         self.assertRegexpMatches(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
         text, errors = Msg.substitute_variables("Your DOB is @contact.dob", self.joe, dict())
-        self.assertEquals(errors, False)
+        self.assertEquals(errors, [])
         # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
         self.assertRegexpMatches(text, "Your DOB is 28-05-1981 \d\d:\d\d")
 
@@ -1034,38 +1046,38 @@ class BroadcastTest(TembaTest):
         self.joe.name = u"شاملیدل عمومی"
         self.joe.save()
 
-        self.assertEquals((u"شاملیدل", False), Msg.substitute_variables("@contact|first_word", self.joe, dict()))
-        self.assertEquals((u"عمومی", False), Msg.substitute_variables("@contact|remove_first_word|title_case", self.joe, dict()))
+        self.assertEquals((u"شاملیدل", []), Msg.substitute_variables("@(first_word(contact))", self.joe, dict()))
+        self.assertEquals((u"عمومی", []), Msg.substitute_variables("@(proper(remove_first_word(contact)))", self.joe, dict()))
 
         # credit card
         self.joe.name = '1234567890123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", False), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # phone number
         self.joe.name = '123456789012'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", False), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # triplets
         self.joe.name = '123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6", False), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # soc security
         self.joe.name = '123456789'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", False), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # regular number, street address, etc
         self.joe.name = '12345'
         self.joe.save()
-        self.assertEquals(("1,2,3,4,5", False), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1,2,3,4,5", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
         # regular number, street address, etc
         self.joe.name = '123'
         self.joe.save()
-        self.assertEquals(("1,2,3", False), Msg.substitute_variables("@contact|read_digits", self.joe, dict()))
+        self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
     def test_message_context(self):
 
@@ -1619,10 +1631,8 @@ class BroadcastLanguageTest(TembaTest):
 
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
-        eng = Language.objects.create(org=self.org, name="English", iso_code='eng',
-                                      created_by=self.admin, modified_by=self.admin)
-        fre = Language.objects.create(org=self.org, name="French", iso_code='fre',
-                                      created_by=self.admin, modified_by=self.admin)
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -1641,36 +1651,6 @@ class BroadcastLanguageTest(TembaTest):
         self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
 
-    def test_localization(self):
-        text_translations = dict(eng="Hello", esp="Hola")
-
-        # null case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", None, None))
-
-        # simple text case
-        self.assertEquals("Hello", Language.get_localized_text("Hi", "Hello", ['esp']))
-
-        # simple dictionary case
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['eng']))
-
-        # missing language case
-        self.assertEquals("Hi", Language.get_localized_text("Hi", text_translations, ['fre']))
-
-        # secondary option
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp']))
-
-        # missing preference on contact
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.francois))
-
-        # no contact preference
-        self.assertEquals("Hola", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.greg))
-
-        # has a matching preference
-        self.wilbert.language = 'eng'
-        self.wilbert.save()
-
-        self.assertEquals("Hello", Language.get_localized_text("Hi", text_translations, ['fre', 'esp'], contact=self.wilbert))
-
 
 class SystemLabelTest(TembaTest):
     def test_get_counts(self):
@@ -1685,7 +1665,7 @@ class SystemLabelTest(TembaTest):
         msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
-        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, CALL_IN)
+        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                                   schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
@@ -1698,7 +1678,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        Call.create_call(self.channel, "0783835002", timezone.now(), 10, CALL_IN)
+        Call.create_call(self.channel, "0783835002", timezone.now(), 10, Call.TYPE_IN)
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 

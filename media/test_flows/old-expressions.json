@@ -1,0 +1,118 @@
+{
+  "version": 7, 
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng", 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": "a32d0ebb-57aa-452e-bd8d-ae5febee4440", 
+            "uuid": "a26285b1-134b-421b-9853-af0f26d13777", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Hi @contact.name|upper_case. Today is =(date.now)"
+                }, 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 350, 
+            "x": 164, 
+            "destination": null, 
+            "uuid": "054d9e01-8e68-4f6d-9cf3-44407256670e", 
+            "actions": [
+              {
+                "type": "add_group", 
+                "groups": [
+                  "=flow.response_1.category"
+                ]
+              }, 
+              {
+                "msg": {
+                  "eng": "Was @contact.name|lower_case|title_case."
+                }, 
+                "variables": [
+                  {
+                    "id": "=flow.response_1.category"
+                  }
+                ], 
+                "type": "send", 
+                "groups": [], 
+                "contacts": []
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2015-09-23T07:54:10.928652Z", 
+        "entry": "a26285b1-134b-421b-9853-af0f26d13777", 
+        "rule_sets": [
+          {
+            "uuid": "a32d0ebb-57aa-452e-bd8d-ae5febee4440", 
+            "webhook_action": "GET", 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "All Responses"
+                }, 
+                "destination": "028c71a3-0696-4d98-8ff3-0dc700811124", 
+                "uuid": "bf879f78-aff8-4c64-9326-e92f677af5cf", 
+                "destination_type": "R"
+              }
+            ], 
+            "webhook": "http://example.com/query.php?contact=@contact.name|upper_case", 
+            "ruleset_type": "webhook", 
+            "label": "Response 1", 
+            "operand": "=(step.value)",
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 134, 
+            "x": 237, 
+            "config": {}
+          }, 
+          {
+            "uuid": "028c71a3-0696-4d98-8ff3-0dc700811124", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "All Responses"
+                }, 
+                "destination": "054d9e01-8e68-4f6d-9cf3-44407256670e", 
+                "uuid": "35ba932c-d45a-4cf5-bd0b-41fd9b80cc27", 
+                "destination_type": "A"
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "expression", 
+            "label": "Response 2", 
+            "operand": "@step.value|time_delta:\"3\"",
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 240, 
+            "x": 203, 
+            "config": {}
+          }
+        ], 
+        "type": "F", 
+        "metadata": {}
+      }, 
+      "expires": 10080, 
+      "id": 31427, 
+      "flow_type": "F", 
+      "name": "Old Expressions"
+    }
+  ], 
+  "triggers": []
+}

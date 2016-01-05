@@ -149,36 +149,27 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       action._missingTranslation = false
       # grab the appropriate translated version
 
-      if Flow.flow.base_language
+      iso_code = Flow.flow.base_language
+      if currentLanguage
+        iso_code = currentLanguage.iso_code
 
-        iso_code = Flow.flow.base_language
-        if currentLanguage
-          iso_code = currentLanguage.iso_code
+      if action.type in ['send', 'reply', 'say']
+        action._translation = action.msg[iso_code]
 
-        if action.type in ['send', 'reply', 'say']
-          action._translation = action.msg[iso_code]
+        # translated recording for IVR
+        if action.recording
+          action._translation_recording = action.recording[iso_code]
+          if action._translation_recording
+            action._translation_recording = window.recordingURL + action._translation_recording
 
-          # translated recording for IVR
-          if action.recording
-            action._translation_recording = action.recording[iso_code]
-            if action._translation_recording
-              action._translation_recording = window.recordingURL + action._translation_recording
-
-
-          if action._translation is undefined
-            action._translation = action.msg[baseLanguage]
-            action._missingTranslation = true
-          else
-            action._missingTranslation = false
+        if action._translation is undefined
+          action._translation = action.msg[baseLanguage]
+          action._missingTranslation = true
         else
-          action._translation = null
           action._missingTranslation = false
       else
-        action._translation = action.msg
-        action._translation_recording = action.recording
-
-        if action._translation_recording
-          action._translation_recording = window.recordingURL + action._translation_recording
+        action._translation = null
+        action._missingTranslation = false
 
       Flow.updateTranslationStats()
 

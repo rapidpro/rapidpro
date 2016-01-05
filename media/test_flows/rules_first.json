@@ -1,95 +1,120 @@
 {
-  "campaigns": [],
-  "version": 3,
-  "site": "http://rapidpro.io",
+  "version": 7,
   "flows": [
     {
-      "definition": {
-        "rule_sets": [
-          {
-            "uuid": "e02c6b80-e1bc-4d5d-a060-9e0a17ccfcd4",
-            "response_type": "C",
-            "rules": [
-              {
-                "test": {
-                  "test": "Cats",
-                  "type": "contains_any"
-                },
-                "category": "Cats",
-                "destination": "2a9b17b9-7c46-4b24-9e46-53a8fe060781",
-                "uuid": "a806788f-ebfc-4515-a849-164fc9245d5d"
+      "version": 7,
+      "base_language": "base",
+      "action_sets": [
+        {
+          "y": 161,
+          "x": 114,
+          "destination": null,
+          "uuid": "0fa491db-a447-4940-a7c8-c682f0e9ae3b",
+          "actions": [
+            {
+              "msg": {
+                "base": "You've got to be kitten me"
               },
-              {
-                "test": {
-                  "test": "Dogs",
-                  "type": "contains_any"
-                },
-                "category": "Dogs",
-                "destination": "9d3216b5-a5f9-41ea-b0fb-de27409b41a7",
-                "uuid": "95ef3d80-90ad-43c6-93ee-84fe0539e2f4"
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 160,
+          "x": 342,
+          "destination": null,
+          "uuid": "29825823-69e3-47d7-a139-90c4851de0a3",
+          "actions": [
+            {
+              "msg": {
+                "base": "Raise the woof!"
               },
-              {
-                "test": {
-                  "test": "true",
-                  "type": "true"
-                },
-                "category": "Other",
-                "destination": "6548a40d-5cd7-436b-82c1-e93ea8991ffa",
-                "uuid": "608ba565-2477-49ff-84b8-45eab0bcc2c8"
-              }
-            ],
-            "label": "Animal",
-            "operand": "@step.value",
-            "y": 0,
-            "x": 260
-          }
-        ],
-        "action_sets": [
-          {
-            "y": 161,
-            "x": 114,
-            "destination": null,
-            "uuid": "2a9b17b9-7c46-4b24-9e46-53a8fe060781",
-            "actions": [
-              {
-                "msg": "You've got to be kitten me",
-                "type": "reply"
-              }
-            ]
-          },
-          {
-            "y": 160,
-            "x": 342,
-            "destination": null,
-            "uuid": "9d3216b5-a5f9-41ea-b0fb-de27409b41a7",
-            "actions": [
-              {
-                "msg": "Raise the woof!",
-                "type": "reply"
-              }
-            ]
-          },
-          {
-            "y": 100,
-            "x": 602,
-            "destination": "e02c6b80-e1bc-4d5d-a060-9e0a17ccfcd4",
-            "uuid": "6548a40d-5cd7-436b-82c1-e93ea8991ffa",
-            "actions": [
-              {
-                "msg": "Is that even an animal?",
-                "type": "reply"
-              }
-            ]
-          }
-        ],
-        "metadata": {
-          "notes": []
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 100,
+          "x": 602,
+          "destination": "737527ae-ade5-4b55-944a-94a67b79cec5",
+          "uuid": "8e89b350-4b96-480c-b4e5-31f38f40bfe5",
+          "actions": [
+            {
+              "msg": {
+                "base": "Is that even an animal?"
+              },
+              "type": "reply"
+            }
+          ]
         }
-      },
+      ],
+      "last_saved": "2015-09-15T02:38:14.494272Z",
+      "entry": "737527ae-ade5-4b55-944a-94a67b79cec5",
+      "rule_sets": [
+        {
+          "uuid": "737527ae-ade5-4b55-944a-94a67b79cec5",
+          "webhook_action": null,
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "base": "Cats"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "base": "Cats"
+              },
+              "destination": "0fa491db-a447-4940-a7c8-c682f0e9ae3b",
+              "uuid": "be41b657-cbfa-433a-9ffe-4fbcaf7fe15e",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": {
+                  "base": "Dogs"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "base": "Dogs"
+              },
+              "destination": "29825823-69e3-47d7-a139-90c4851de0a3",
+              "uuid": "f1b8745b-beb3-4431-9e8e-01a214f20e3e",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": "8e89b350-4b96-480c-b4e5-31f38f40bfe5",
+              "uuid": "a329fbaa-49cf-4a5e-8e12-8df801344715",
+              "destination_type": "A"
+            }
+          ],
+          "webhook": null,
+          "ruleset_type": "wait_message",
+          "label": "Animal",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 260,
+          "config": {}
+        }
+      ],
       "flow_type": "F",
-      "name": "Rules First",
-      "id": 2600
+      "metadata": {
+        "notes": [],
+        "expires": 720,
+        "id": 35560,
+        "name": "Rules First"
+      }
     }
-  ],
+  ], 
   "triggers": []
 }

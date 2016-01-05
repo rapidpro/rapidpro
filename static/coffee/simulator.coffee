@@ -1,5 +1,6 @@
 window.simulation = false
 moving_sim = false
+level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
 
 window.updateSimulator = (data) ->
 
@@ -9,9 +10,11 @@ window.updateSimulator = (data) ->
   $('.simulator-body').data('message-count', data.messages.length)
   while i < data.messages.length
     msg = data.messages[i]
-    direction = (if (msg.direction is "O") then "from" else "to")
     model = (if (msg.model is "msg") then "imsg" else "ilog")
-    $(".simulator-body").append "<div class=\"" + model + " " + direction + "\">" + msg.text + "</div>"
+    level = (if msg.level? then level_classes[msg.level] else "")
+    direction = (if (msg.direction is "O") then "from" else "to")
+
+    $(".simulator-body").append "<div class=\"" + model + " " + level + " " + direction + "\">" + msg.text + "</div>"
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""

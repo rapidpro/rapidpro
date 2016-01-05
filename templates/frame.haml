@@ -79,8 +79,10 @@
     -compress js
       %script{src:"{{ STATIC_URL }}js/omnibox.js"}
       %script{src:"{{ STATIC_URL }}js/temba.js"}
+      %script{src:"{{ STATIC_URL }}js/excellent.js"}
       %script{src:"{{ STATIC_URL }}coffee/temba.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:'text/coffeescript'}
+      %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
 
     -include "includes/frame_top.html"
@@ -250,33 +252,7 @@
 
 
     -block modals
-
-      #modal-template.modal.hide{data-dismiss:'modal'}
-
-        #onConfirm.hide
-
-        .modal-header
-          %button.pull-right.close{type:'button', aria-hidden:'true'}
-            &times;
-          %h3
-            .icon
-            %span#modal-title
-              Uh oh!
-
-        .modal-body
-          .fetched-content
-            #modal-message
-            .form
-          .loader
-            %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
-
-        .modal-footer
-          %button.btn.tertiary.pull-left.hide
-            Tertiary
-          %button.btn.btn-primary.primary
-            Ok
-          %button.btn.secondary.hide
-            Cancel
+      -include 'modal.haml'
 
     -block extra-script
 

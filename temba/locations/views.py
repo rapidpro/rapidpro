@@ -88,7 +88,7 @@ class BoundaryCRUDL(SmartCRUDL):
                     boundary=boundary, org=org).delete()
                 for new_alias in new_aliases.split('\n'):
                     if new_alias:
-                        BoundaryAlias.objects.create(boundary=boundary, org=org, name=new_alias,
+                        BoundaryAlias.objects.create(boundary=boundary, org=org, name=new_alias.strip(),
                                                      created_by=self.request.user, modified_by=self.request.user)
 
             # try to parse our body

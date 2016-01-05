@@ -1,16 +1,16 @@
 {
-  "dependencies": {
+  "devDependencies": {
     "coffee-script": "1.9.3",
-    "jasmine-core" : "2.2.0",
-    "karma" : "0.12.31",
-    "karma-chrome-launcher" : "0.1.7",
-    "karma-coffee-preprocessor" : "0.2.1",
-    "karma-coverage" : "0.2.7",
-    "karma-coveralls" : "0.1.5",
-    "karma-jasmine" : "0.3.5",
-    "karma-mocha" : "0.1.10",
-    "karma-phantomjs-launcher" : "0.1.4",
-    "karma-ng-html2js-preprocessor" : "0.1.2",
-    "mocha" : "2.1.0"
+    "jasmine-core": "2.2.0",
+    "karma": "0.12.31",
+    "karma-chrome-launcher": "0.1.7",
+    "karma-coffee-preprocessor": "0.2.1",
+    "karma-coverage": "0.2.7",
+    "karma-coveralls": "0.1.5",
+    "karma-jasmine": "0.3.5",
+    "karma-mocha": "0.1.10",
+    "karma-ng-html2js-preprocessor": "^0.1.1",
+    "karma-phantomjs-launcher": "0.1.4",
+    "mocha": "2.1.0"
   }
 }

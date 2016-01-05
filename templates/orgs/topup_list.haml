@@ -99,10 +99,7 @@
           ${{ topup.dollars }}
 
       .topup-credits
-        {{ topup.used|intcomma }}
-        -trans "of"
-        {{ topup.credits|intcomma }}
-        -trans " Credits Used"
+        {{ topup.get_used|intcomma }} {% trans "of" %} {{ topup.credits|intcomma }} {% trans "Credits Used" %}
 
       .topup-expires
         -if topup.expires_on < now

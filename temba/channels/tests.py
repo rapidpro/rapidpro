@@ -26,9 +26,9 @@ from mock import Mock
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Msg, Broadcast, Call, IVR
-from temba.channels.models import Channel, ChannelCount, SyncEvent, Alert
+from temba.channels.models import Channel, ChannelCount, SyncEvent, Alert, SMART_ENCODING, ENCODING
 from temba.channels.models import ALERT_DISCONNECTED, ALERT_SMS, TWILIO, ANDROID, TWITTER
-from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID
+from temba.channels.models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, ENCODING, SMART_ENCODING
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.orgs.models import FREE_PLAN
@@ -43,20 +43,14 @@ class ChannelTest(TembaTest):
 
         self.channel.delete()
 
-        self.tel_channel = Channel.objects.create(name="Test Channel", org=self.org, country='RW',
-                                                  channel_type="A", address="+250785551212", role="SR",
-                                                  secret="12345", gcm_id="123",
-                                                  created_by=self.user, modified_by=self.user)
+        self.tel_channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                                          role="SR", secret="12345", gcm_id="123")
 
-        self.twitter_channel = Channel.objects.create(name="Twitter Channel", org=self.org,
-                                                      channel_type="TT", address="billy_bob", role="SR",
-                                                      secret="78901",
-                                                      created_by=self.user, modified_by=self.user)
+        self.twitter_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
+                                              address="billy_bob", role="SR", scheme='twitter')
 
-        self.released_channel = Channel.objects.create(name="Released Channel",
-                                                       channel_type="NX",
-                                                       created_by=self.user, modified_by=self.user,
-                                                       secret=None, gcm_id="000")
+        self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
+                                               secret=None, gcm_id="000")
 
     def assertHasCommand(self, cmd_name, response):
         self.assertEquals(200, response.status_code)
@@ -101,19 +95,10 @@ class ChannelTest(TembaTest):
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
-    def test_schemes(self):
-        self.assertEquals(self.tel_channel.get_scheme(), TEL_SCHEME)
-        self.assertEquals(self.twitter_channel.get_scheme(), TWITTER_SCHEME)
-        self.assertEquals(self.released_channel.get_scheme(), TEL_SCHEME)
-
-        self.assertIn('A', Channel.types_for_scheme(TEL_SCHEME))
-        self.assertIn('TT', Channel.types_for_scheme(TWITTER_SCHEME))
-
     def test_get_channel_type_name(self):
         self.assertEquals(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEquals(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
         self.assertEquals(self.released_channel.get_channel_type_name(), "Nexmo Channel")
-
 
     def test_channel_selection(self):
         # make our default tel channel MTN
@@ -549,6 +534,7 @@ class ChannelTest(TembaTest):
         # change channel type to Twitter
         channel.channel_type = TWITTER
         channel.address = 'billy_bob'
+        channel.scheme = 'twitter'
         channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
         channel.save()
 
@@ -936,29 +922,57 @@ class ChannelTest(TembaTest):
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
 
-            response = self.client.get(claim_twilio)
-            self.assertContains(response, '206-234-5678')
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = []
 
-            # claim it
-            response = self.client.post(claim_twilio, dict(country='US', phone_number='12062345678'))
-            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '206-234-5678')
 
-            # make sure it is actually connected
-            Channel.objects.get(channel_type='T', org=self.org)
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='US', phone_number='12062345678'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                Channel.objects.get(channel_type='T', org=self.org)
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+4545335500')]
-            Channel.objects.all().delete()
 
-            response = self.client.get(claim_twilio)
-            self.assertContains(response, '45 33 55 00')
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = []
 
-            # claim it
-            response = self.client.post(claim_twilio, dict(country='DK', phone_number='4545335500'))
-            self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                Channel.objects.all().delete()
 
-            # make sure it is actually connected
-            Channel.objects.get(channel_type='T', org=self.org)
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '45 33 55 00')
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='DK', phone_number='4545335500'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                Channel.objects.get(channel_type='T', org=self.org)
+
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = []
+
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = [MockTwilioClient.MockShortCode('8080')]
+                Channel.objects.all().delete()
+
+                self.org.timezone = 'America/New_York'
+                self.org.save()
+
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '8080')
+                self.assertContains(response, 'class="country">US')  # we look up the country from the timezone
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='US', phone_number='8080'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                Channel.objects.get(channel_type='T', org=self.org)
 
     def test_claim_nexmo(self):
         self.login(self.admin)
@@ -996,7 +1010,21 @@ class ChannelTest(TembaTest):
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
                 # make sure it is actually connected
-                Channel.objects.get(channel_type='NX', org=self.org)
+                channel = Channel.objects.get(channel_type='NX', org=self.org)
+
+                # test the update page for nexmo
+                update_url = reverse('channels.channel_update', args=[channel.pk])
+                response = self.client.get(update_url)
+
+                # try changing our address
+                updated = response.context['form'].initial
+                updated['address'] = 'MTN'
+                updated['alert_email'] = 'foo@bar.com'
+
+                response = self.client.post(update_url, updated)
+                channel = Channel.objects.get(pk=channel.id)
+
+                self.assertEquals('MTN', channel.address)
 
     def test_claim_plivo(self):
         self.login(self.admin)
@@ -1553,6 +1581,7 @@ class ChannelAlertTest(TembaTest):
         post_data['country'] = 'RW'
         post_data['url'] = url
         post_data['method'] = 'GET'
+        post_data['scheme'] = 'tel'
 
         response = self.client.post(reverse('channels.channel_claim_external'), post_data)
 
@@ -1719,6 +1748,7 @@ class ChannelAlertTest(TembaTest):
         post_data['country'] = 'RW'
         post_data['url'] = 'http://kannel.temba.com/cgi-bin/sendsms'
         post_data['verify_ssl'] = False
+        post_data['encoding'] = SMART_ENCODING
 
         response = self.client.post(reverse('channels.channel_claim_kannel'), post_data)
 
@@ -1729,6 +1759,7 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals(post_data['number'], channel.address)
         self.assertEquals(post_data['url'], channel.config_json()['send_url'])
         self.assertEquals(False, channel.config_json()['verify_ssl'])
+        self.assertEquals(SMART_ENCODING, channel.config_json()[ENCODING])
 
         # make sure we generated a username and password
         self.assertTrue(channel.config_json()['username'])
@@ -1873,6 +1904,43 @@ class ChannelAlertTest(TembaTest):
         text = text_template.render(Context(context))
 
         self.assertEquals(mail.outbox[1].body, text)
+
+    def test_m3tech(self):
+        from temba.channels.models import M3TECH
+
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_m3tech'))
+        post_data = response.context['form'].initial
+
+        post_data['country'] = 'PK'
+        post_data['number'] = '250788123123'
+        post_data['username'] = 'user1'
+        post_data['password'] = 'pass1'
+
+        response = self.client.post(reverse('channels.channel_claim_m3tech'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('PK', channel.country)
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals('+250788123123', channel.address)
+        self.assertEquals(M3TECH, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('api.m3tech_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['sent', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['failed', channel.uuid]))
+        self.assertContains(response, reverse('api.m3tech_handler', args=['delivered', channel.uuid]))
 
     def test_infobip(self):
         Channel.objects.all().delete()
