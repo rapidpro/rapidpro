@@ -11,12 +11,12 @@
   -block breadcrumbs
     %ul.breadcrumb
       %li
-        %a{href:"{% url 'api' %}"}
+        %a{href:"{% url 'api.v1' %}"}
           {{ brand.name }} API
         %span.divider &raquo;
 
       %li
-        %a.active{href:"{% url 'api.explorer' %}"} Explorer
+        %a.active{href:"{% url 'api.v1.explorer' %}"} Explorer
 
       -if request.user.api_token
         %li.pull-right{style:"color: #666"}

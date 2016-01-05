@@ -34,7 +34,7 @@
         <a href="http://www.africastalking.com/account/sms/smscallback" target="africastalking">Callback URL</a>.
 
     %code
-      https://{{ domain }}{% url 'api.africas_talking_handler' 'callback' object.uuid %}
+      https://{{ domain }}{% url 'handlers.africas_talking_handler' 'callback' object.uuid %}
 
     %hr
 
@@ -46,7 +46,7 @@
       <a href="http://www.africastalking.com/account/sms/dlrcallback" target="africastalking">Delivery Reports</a>.
 
     %code
-      https://{{ domain }}{% url 'api.africas_talking_handler' 'delivery' object.uuid %}
+      https://{{ domain }}{% url 'handlers.africas_talking_handler' 'delivery' object.uuid %}
 
     %hr
 
@@ -65,7 +65,7 @@
         path to HTTP GET and your target address to the URL below. (leave username and password blank)
 
     %code
-      https://{{ domain }}{% url 'api.clickatell_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'handlers.clickatell_handler' 'receive' object.uuid %}
 
     %hr
 
@@ -78,7 +78,7 @@
         account and set the message delivery notifications to the URL below. (pick HTTP Get as the Method)
 
     %code
-      https://{{ domain }}{% url 'api.clickatell_handler' 'status' object.uuid %}
+      https://{{ domain }}{% url 'handlers.clickatell_handler' 'status' object.uuid %}
 
     %hr
 
@@ -90,7 +90,7 @@
         URL for incoming messages to {{ number }}.
 
     %code
-      https://{{ domain }}{% url 'api.shaqodoon_handler' 'received' object.uuid %}
+      https://{{ domain }}{% url 'handlers.shaqodoon_handler' 'received' object.uuid %}
 
     %hr
 
@@ -120,7 +120,7 @@
         for your Zenvia account.
 
     %code
-      https://{{ domain }}{% url 'api.zenvia_handler' 'status' object.uuid %}
+      https://{{ domain }}{% url 'handlers.zenvia_handler' 'status' object.uuid %}
 
     %hr
 
@@ -131,7 +131,7 @@
       -trans "To receive incoming messages, you need to set the receive URL for your Zenvia account."
 
     %code
-      https://{{ domain }}{% url 'api.zenvia_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'handlers.zenvia_handler' 'receive' object.uuid %}
 
     %hr
 
@@ -147,7 +147,7 @@
         The callback URL is called by Nexmo when you receive new incoming messages.
 
     %code
-      https://{{ domain }}{% url 'api.nexmo_handler' 'receive' object.org.nexmo_uuid %}
+      https://{{ domain }}{% url 'handlers.nexmo_handler' 'receive' object.org.nexmo_uuid %}
 
     %h4
       -trans "Callback URL for Delivery Receipt"
@@ -157,7 +157,7 @@
         The delivery URL is called by Nexmo when a message is successfully delivered to a recipient.
 
     %code
-      https://{{ domain }}{% url 'api.nexmo_handler' 'status' object.org.nexmo_uuid %}
+      https://{{ domain }}{% url 'handlers.nexmo_handler' 'status' object.org.nexmo_uuid %}
 
 
   -elif object.channel_type == 'IB'
@@ -188,7 +188,7 @@
         This endpoint should be called by Infobip when new messages are received to your number. You can set the receive URL on your Infobip account by contacting your sales agent.
 
     %code
-      https://{{ domain }}{% url 'api.infobip_handler' 'received' object.uuid %}
+      https://{{ domain }}{% url 'handlers.infobip_handler' 'received' object.uuid %}
 
     %hr
 
@@ -201,7 +201,7 @@
         You can set the delivery callback URL on your Infobip account by contacting your sales agent.
 
     %code
-      https://{{ domain }}{% url 'api.infobip_handler' 'delivered' object.uuid %}
+      https://{{ domain }}{% url 'handlers.infobip_handler' 'delivered' object.uuid %}
 
   -elif object.channel_type == 'BM'
     %h4
@@ -218,7 +218,7 @@
         This endpoint should be called by Blackmyna when new messages are received to your number.
 
     %code
-      https://{{ domain }}{% url 'api.blackmyna_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'handlers.blackmyna_handler' 'receive' object.uuid %}
 
     %hr
 
@@ -230,7 +230,7 @@
         This endpoint should be called by Blackmyna when the message status changes. (delivery reports)
 
     %code
-      https://{{ domain }}{% url 'api.blackmyna_handler' 'status' object.uuid %}
+      https://{{ domain }}{% url 'handlers.blackmyna_handler' 'status' object.uuid %}
 
   -elif object.channel_type == 'SC'
     %h4
@@ -247,7 +247,24 @@
         This endpoint should be called by SMSCentral when new messages are received to your number.
 
     %code
-      https://{{ domain }}{% url 'api.smscentral_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'handlers.smscentral_handler' 'receive' object.uuid %}
+
+  -elif object.channel_type == 'ST'
+    %h4
+      -blocktrans
+        To finish configuring your Start connection you'll need to notify Start of the following receiving URL.
+
+    %hr
+
+    %h4
+      -trans "Inbound URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Start when new messages are received to your number.
+
+    %code
+      https://{{ domain }}{% url 'handlers.start_handler' 'receive' object.uuid %}
 
   -elif object.channel_type == 'M3'
     %h4
@@ -257,7 +274,7 @@
     %h4
       -trans "Received URL"
     %code
-      https://{{ domain }}{% url 'api.m3tech_handler' 'received' object.uuid %}
+      https://{{ domain }}{% url 'handlers.m3tech_handler' 'received' object.uuid %}
 
     %p
       -blocktrans
@@ -265,14 +282,14 @@
         the following parameters: 'from' and 'text'
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.m3tech_handler' 'received' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.m3tech_handler' 'received' object.uuid %}
         from=%2B250788123123&text=Love+is+patient.+Love+is+kind.
     %hr
 
     %h4
       -trans "Sent URL"
     %code
-      https://{{ domain }}{% url 'api.m3tech_handler' 'sent' object.uuid %}
+      https://{{ domain }}{% url 'handlers.m3tech_handler' 'sent' object.uuid %}
 
     %p
       -blocktrans
@@ -280,14 +297,14 @@
         the id of the message as the parameter 'id' (reporting sent messages is optional)
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.m3tech_handler' 'sent' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.m3tech_handler' 'sent' object.uuid %}
         id=2599235
     %hr
 
     %h4
       -trans "Delivered URL"
     %code
-      https://{{ domain }}{% url 'api.m3tech_handler' 'delivered' object.uuid %}
+      https://{{ domain }}{% url 'handlers.m3tech_handler' 'delivered' object.uuid %}
 
     %p
       -blocktrans
@@ -295,14 +312,14 @@
         the id of the message as the parameter 'id' (reporting deliveries is optional)
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.m3tech_handler' 'delivered' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.m3tech_handler' 'delivered' object.uuid %}
         id=2599235
     %hr
 
     %h4
       -trans "Failed URL"
     %code
-      https://{{ domain }}{% url 'api.m3tech_handler' 'failed' object.uuid %}
+      https://{{ domain }}{% url 'handlers.m3tech_handler' 'failed' object.uuid %}
 
     %p
       -blocktrans
@@ -310,7 +327,7 @@
         the id of the message as the parameter 'id' (reporting failed sends is optional)
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.m3tech_handler' 'failed' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.m3tech_handler' 'failed' object.uuid %}
         id=2599235
     %hr
 
@@ -341,7 +358,7 @@
         This endpoint should be called by Hub9 when new messages are received to your number. You can set the receive URL on your Hub9 account by contacting your sales agent.
 
     %code
-      https://{{ domain }}{% url 'api.hub9_handler' 'received' object.uuid %}
+      https://{{ domain }}{% url 'handlers.hub9_handler' 'received' object.uuid %}
 
     %hr
 
@@ -354,7 +371,7 @@
         You can set the delivery callback URL on your Infobip account by contacting your sales agent.
 
     %code
-      https://{{ domain }}{% url 'api.hub9_handler' 'delivered' object.uuid %}
+      https://{{ domain }}{% url 'handlers.hub9_handler' 'delivered' object.uuid %}
 
   -elif object.channel_type == 'VM'
     %h4
@@ -398,7 +415,7 @@
         This endpoint will be called by Vumi when new messages are received to your number.
 
     %code
-      https://{{ domain }}{% url 'api.vumi_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'handlers.vumi_handler' 'receive' object.uuid %}
 
     %hr
 
@@ -410,7 +427,7 @@
         This endpoint will be called by Vumi when sent messages are sent or delivered.
 
     %code
-      https://{{ domain }}{% url 'api.vumi_handler' 'event' object.uuid %}
+      https://{{ domain }}{% url 'handlers.vumi_handler' 'event' object.uuid %}
 
   -elif object.channel_type == 'KN'
     %h4
@@ -442,7 +459,7 @@
           keyword = default
           allowed-receiver-prefix = {{channel.address}}
           max-messages = 0
-          post-url = "https://{{domain}}{% url 'api.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I"
+          post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I"
           concatenation = true
           assume-plain-text = true
           accept-x-kannel-headers = true
@@ -460,7 +477,7 @@
       -trans "Status Callback URL"
 
     %code
-      https://{{ domain }}{% url 'api.verboice_handler' 'status' object.uuid %}
+      https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
 
   -elif object.channel_type == 'HX'
@@ -475,7 +492,7 @@
       -trans "Receive URL"
 
     %code
-      https://{{ domain }}{% url 'api.hcnx_handler' 'receive' object.uuid %}
+      https://{{ domain }}{% url 'handlers.hcnx_handler' 'receive' object.uuid %}
 
   -elif object.channel_type == 'YO'
     %h4
@@ -490,7 +507,7 @@
         This URL should be called with a GET by Yo! when new incoming messages are received on your shortcode.
 
     %code
-      https://{{ domain }}{% url 'api.yo_handler' 'received' object.uuid %}
+      https://{{ domain }}{% url 'handlers.yo_handler' 'received' object.uuid %}
 
   -elif object.channel_type == 'EX'
     %h4
@@ -534,7 +551,7 @@
       %h4
         -trans "Received URL"
         %code
-          https://{{ domain }}{% url 'api.external_handler' 'received' object.uuid %}
+          https://{{ domain }}{% url 'handlers.external_handler' 'received' object.uuid %}
 
       %p
         -blocktrans
@@ -543,14 +560,14 @@
           (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
       %pre.prettyprint.example<
         :plain
-          POST https://{{ domain }}{% url 'api.external_handler' 'received' object.uuid %}
+          POST https://{{ domain }}{% url 'handlers.external_handler' 'received' object.uuid %}
           from=%2B250788123123&text=Love+is+patient.+Love+is+kind.&date=2012-04-23T18:25:43.511Z
       %hr
 
     %h4
       -trans "Sent URL"
       %code
-        https://{{ domain }}{% url 'api.external_handler' 'sent' object.uuid %}
+        https://{{ domain }}{% url 'handlers.external_handler' 'sent' object.uuid %}
 
     %p
       -blocktrans
@@ -558,14 +575,14 @@
         the id of the message as the parameter 'id' (reporting sent messages is optional)
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.external_handler' 'sent' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.external_handler' 'sent' object.uuid %}
         id=2599235
     %hr
 
     %h4
       -trans "Delivered URL"
       %code
-        https://{{ domain }}{% url 'api.external_handler' 'delivered' object.uuid %}
+        https://{{ domain }}{% url 'handlers.external_handler' 'delivered' object.uuid %}
 
     %p
       -blocktrans
@@ -573,14 +590,14 @@
         the id of the message as the parameter 'id' (reporting deliveries is optional)
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.external_handler' 'delivered' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.external_handler' 'delivered' object.uuid %}
         id=2599235
     %hr
 
     %h4
       -trans "Failed URL"
       %code
-        https://{{ domain }}{% url 'api.external_handler' 'failed' object.uuid %}
+        https://{{ domain }}{% url 'handlers.external_handler' 'failed' object.uuid %}
 
     %p
       -blocktrans
@@ -588,7 +605,7 @@
         the id of the message as the parameter 'id' (reporting failed sends is optional)
     %pre.prettyprint.example<
       :plain
-        POST https://{{ domain }}{% url 'api.external_handler' 'failed' object.uuid %}
+        POST https://{{ domain }}{% url 'handlers.external_handler' 'failed' object.uuid %}
         id=2599235
     %hr
 
