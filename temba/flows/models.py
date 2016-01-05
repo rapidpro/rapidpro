@@ -5177,7 +5177,7 @@ class HasDistrictTest(Test):
 
         district = org.parse_location(text, 2)
 
-        if district:
+        if district and not state:
             return 1, district
 
         return 0, None
@@ -5188,7 +5188,6 @@ class HasWardTest(Test):
     STATE = 'state'
     DISTRICT = 'district'
     TEST = 'test'
-
 
     def __init__(self, state=None, district=None):
         self.state = state
@@ -5207,6 +5206,7 @@ class HasWardTest(Test):
         org = run.flow.org
         if not org.country:
             return 0, None
+        district = None
 
         # evaluate our district in case it has a replacement variable
         if self.district and self.state:
@@ -5221,9 +5221,8 @@ class HasWardTest(Test):
                         return 1, ward
                     return 0, None
 
-
         ward = org.parse_location(text, 3)
-        if ward:
+        if ward and not district:
             return 1, ward
 
         return 0, None
