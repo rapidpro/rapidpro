@@ -1,0 +1,174 @@
+{
+  "version": 6, 
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng", 
+        "action_sets": [
+          {
+            "y": 259, 
+            "x": 168, 
+            "destination": "e3c295e0-b802-467f-9a17-7b24de99d1a4", 
+            "uuid": "21799aa9-26c1-4ad3-8e26-8d97314e9439", 
+            "actions": [
+              {
+                "field": "name", 
+                "type": "save", 
+                "value": "@flow.name", 
+                "label": "Contact Name"
+              }, 
+              {
+                "msg": {
+                  "eng": "Hi @contact.name, how old are you?"
+                }, 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 527, 
+            "x": 437, 
+            "destination": "e3c295e0-b802-467f-9a17-7b24de99d1a4", 
+            "uuid": "6e0a2668-7175-4b6a-8ef8-806074b79a80", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Sorry, that doesn't look like a number."
+                }, 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 665, 
+            "x": 153, 
+            "destination": null, 
+            "uuid": "21ae0e9e-1beb-44be-9862-8de38ce52ba4", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Great, thanks!"
+                }, 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2015-10-01T20:04:31.273280Z", 
+        "entry": "363ac63b-f1b9-4742-8c25-c7dc65ae372e", 
+        "rule_sets": [
+          {
+            "uuid": "363ac63b-f1b9-4742-8c25-c7dc65ae372e", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "All Responses"
+                }, 
+                "destination": "eada048d-676b-4141-8163-257348fd2ded", 
+                "uuid": "3168ef93-72da-4268-ac3d-f06f5fe2d0f0", 
+                "destination_type": "R"
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "wait_message", 
+            "label": "Trigger Text", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 0, 
+            "x": 100, 
+            "config": {}
+          }, 
+          {
+            "uuid": "eada048d-676b-4141-8163-257348fd2ded", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "All Responses"
+                }, 
+                "destination": "21799aa9-26c1-4ad3-8e26-8d97314e9439", 
+                "uuid": "2fb3cd49-48bd-44d8-a487-c24c44bbaa54", 
+                "destination_type": "A"
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "expression", 
+            "label": "Name", 
+            "operand": "=REMOVE_FIRST_WORD(flow.trigger_text)", 
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 139, 
+            "x": 165, 
+            "config": {}
+          }, 
+          {
+            "uuid": "e3c295e0-b802-467f-9a17-7b24de99d1a4", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "type": "number"
+                }, 
+                "category": {
+                  "eng": "numeric"
+                }, 
+                "destination": "21ae0e9e-1beb-44be-9862-8de38ce52ba4", 
+                "uuid": "9e23669c-ef5a-4898-9850-6bd6a9045f35", 
+                "destination_type": "A"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "Other"
+                }, 
+                "destination": "6e0a2668-7175-4b6a-8ef8-806074b79a80", 
+                "uuid": "0b58b893-06e8-478d-9523-ab0522dfa9f7", 
+                "destination_type": "A"
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "wait_message", 
+            "label": "Age", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 465, 
+            "x": 149, 
+            "config": {}
+          }
+        ], 
+        "type": "F", 
+        "metadata": {}
+      }, 
+      "expires": 10080, 
+      "id": 38222, 
+      "flow_type": "F", 
+      "name": "Trigger Capture"
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Trigger Capture", 
+        "id": 38222
+      }, 
+      "groups": [], 
+      "keyword": "trigger2", 
+      "channel": null
+    }
+  ]
+}

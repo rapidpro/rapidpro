@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -77,15 +78,20 @@ class Value(models.Model):
 
     @classmethod
     def _filtered_values_to_categories(cls, contacts, values, label_field, formatter=None, return_contacts=False):
+        set_contacts = set()
+
         value_contacts = defaultdict(list)
         for value in values:
-            if value['contact'] in contacts:
+            contact = value['contact']
+
+            if contact in contacts:
                 if formatter:
                     label = formatter(value[label_field])
                 else:
                     label = value[label_field]
 
-                value_contacts[label].append(value['contact'])
+                value_contacts[label].append(contact)
+                set_contacts.add(contact)
 
         categories = []
         for value, contacts in value_contacts.items():
@@ -96,7 +102,7 @@ class Value(models.Model):
             categories.append(category)
 
         # sort our categories by our count decreasing
-        return sorted(categories, key=lambda c: c['count'], reverse=True)
+        return sorted(categories, key=lambda c: c['count'], reverse=True), set_contacts
 
     @classmethod
     def get_filtered_value_summary(cls, ruleset=None, contact_field=None, filters=None, return_contacts=False, filter_contacts=None):
@@ -200,50 +206,29 @@ class Value(models.Model):
 
         # we are summarizing a flow ruleset
         if ruleset:
-            runs = FlowRun.objects.filter(flow=ruleset.flow).order_by('contact', '-created_on', '-pk').distinct('contact')
-            runs = [r['id'] for r in runs.values('id', 'contact') if r['contact'] in contacts]
+            filter_uuids = set(self_filter_uuids)
 
-            # our dict will contain category name to count
-            results = dict()
+            # grab all the flow steps for this ruleset, this gets us the most recent run for each contact
+            steps = [fs for fs in FlowStep.objects.filter(step_uuid=ruleset.uuid)
+                                                  .values('arrived_on', 'rule_uuid', 'contact')
+                                                  .order_by('-arrived_on')]
 
-            # we can't use a subselect here because of a bug in Django, should be fixed in 1.7
-            # see: https://code.djangoproject.com/ticket/22434
-            value_counts = Value.objects.filter(org=org, ruleset=ruleset, rule_uuid__in=uuid_to_category.keys())
-
-            # restrict our runs, using ANY is way quicker than IN
-            if runs:
-                value_counts = value_counts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
-
-            # no matching runs, exclude any values
-            else:
-                value_counts = value_counts.extra(where=["1=0"])
-
-            # contacts that have gotten to this step
-            step_contacts = FlowStep.objects.filter(step_uuid=ruleset.uuid)
-
-            # if we have runs to filter by, do so using ANY
-            if runs:
-                step_contacts = step_contacts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
-
-            # otherwise, exclude all
-            else:
-                step_contacts = step_contacts.extra(where=["1=0"])
-
-            step_contacts = set([s['run__contact'] for s in step_contacts.values('run__contact')])
-
-            # restrict to our filter uuids if we are self filtering
-            if self_filter_uuids:
-                value_counts = value_counts.filter(rule_uuid__in=self_filter_uuids)
-
-            values = value_counts.values('rule_uuid', 'contact')
+            # this will build up sets of contacts for each rule uuid
+            seen_contacts = set()
             value_contacts = defaultdict(set)
-            for value in values:
-                value_contacts[value['rule_uuid']].add(value['contact'])
+            for step in steps:
+                contact = step['contact']
+                if contact in contacts:
+                    if contact not in seen_contacts:
+                        value_contacts[step['rule_uuid']].add(contact)
+                        seen_contacts.add(contact)
 
             results = defaultdict(set)
             for uuid, contacts in value_contacts.items():
-                category = uuid_to_category[uuid]
-                results[category] |= contacts
+                if uuid and (not filter_uuids or uuid in filter_uuids):
+                    category = uuid_to_category.get(uuid, None)
+                    if category:
+                        results[category] |= contacts
 
             # now create an ordered array of our results
             set_contacts = set()
@@ -257,37 +242,38 @@ class Value(models.Model):
 
             # how many runs actually entered a response?
             set_contacts = set_contacts
-            unset_contacts = step_contacts - set_contacts
+            unset_contacts = value_contacts[None]
 
         # we are summarizing based on contact field
         else:
-            set_contacts = contacts & set([v['contact'] for v in Value.objects.filter(contact_field=contact_field).values('contact')])
-            unset_contacts = contacts - set_contacts
-
             values = Value.objects.filter(contact_field=contact_field)
 
             if contact_field.value_type == TEXT:
                 values = values.values('string_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'string_value',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'string_value',
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type == DECIMAL:
                 values = values.values('decimal_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
-                                                                formatter=format_decimal, return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
+                                                                              formatter=format_decimal,
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type == DATETIME:
                 values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'date_value',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type in [STATE, DISTRICT]:
                 values = values.values('location_value__osm_id', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
+                                                                              return_contacts=return_contacts)
 
             else:
                 raise ValueError(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
+
+            set_contacts = contacts & set_contacts
+            unset_contacts = contacts - set_contacts
 
         print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
 
@@ -567,14 +553,14 @@ class Value(models.Model):
         pipe.execute()
 
         # leave me: nice for profiling..
-        # from django.db import connection as db_connection, reset_queries
-        # print "=" * 80
-        # for query in db_connection.queries:
-        #     print "%s - %s" % (query['time'], query['sql'][:100])
-        # print "-" * 80
-        # print "took: %f" % (time.time() - start)
-        # print "=" * 80
-        # reset_queries()
+        #from django.db import connection as db_connection, reset_queries
+        #print "=" * 80
+        #for query in db_connection.queries:
+        #    print "%s - %s" % (query['time'], query['sql'][:1000])
+        #print "-" * 80
+        #print "took: %f" % (time.time() - start)
+        #print "=" * 80
+        #reset_queries()
 
         return results
 

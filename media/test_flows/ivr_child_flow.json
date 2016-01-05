@@ -1,0 +1,153 @@
+{
+  "campaigns": [], 
+  "version": 5, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng", 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": "c6cb05b0-4519-434e-b172-049290dc3095", 
+            "uuid": "88c750e2-feaf-4b0d-a336-a64577f31d61", 
+            "actions": [
+              {
+                "recording": null, 
+                "msg": {
+                  "eng": "Hello World. Press a button"
+                }, 
+                "type": "say", 
+                "uuid": "693b91af-8288-4365-8152-381ee8c8b406"
+              }
+            ]
+          }, 
+          {
+            "y": 263, 
+            "x": 546, 
+            "destination": "c6cb05b0-4519-434e-b172-049290dc3095", 
+            "uuid": "5331ed29-37a7-4ce1-b5d6-027caa854f59", 
+            "actions": [
+              {
+                "recording": null, 
+                "msg": {
+                  "eng": "Sorry, didn't recognize that, try again."
+                }, 
+                "type": "say", 
+                "uuid": "0e5669b4-79d2-4060-8ee2-58844dd3301e"
+              }
+            ]
+          }, 
+          {
+            "y": 361, 
+            "x": 172, 
+            "destination": null, 
+            "uuid": "6643345a-90cc-4095-9eed-8287a3f3c5df", 
+            "actions": [
+              {
+                "recording": null, 
+                "msg": {
+                  "eng": "I just sent you a text."
+                }, 
+                "type": "say", 
+                "uuid": "685a0092-1ad9-4c03-982f-006bb346b9ca"
+              }, 
+              {
+                "type": "flow", 
+                "name": "Message Flow", 
+                "id": 35732
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2015-08-28T15:02:32.614224Z", 
+        "entry": "88c750e2-feaf-4b0d-a336-a64577f31d61", 
+        "rule_sets": [
+          {
+            "uuid": "c6cb05b0-4519-434e-b172-049290dc3095", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "category": {
+                  "base": "1", 
+                  "eng": "1"
+                }, 
+                "test": {
+                  "test": 1, 
+                  "type": "eq"
+                }, 
+                "destination": "6643345a-90cc-4095-9eed-8287a3f3c5df", 
+                "uuid": "523566e3-0e08-48c3-b791-d5e24b1fc2ef", 
+                "destination_type": "A"
+              }, 
+              {
+                "category": {
+                  "base": "All Responses", 
+                  "eng": "Other"
+                }, 
+                "uuid": "83005ace-0bb4-49b6-9498-83f9b8716a09", 
+                "destination": "5331ed29-37a7-4ce1-b5d6-027caa854f59", 
+                "destination_type": "A", 
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "config": {
+                  "type": "true", 
+                  "verbose_name": "contains anything", 
+                  "name": "Other", 
+                  "operands": 0
+                }
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "wait_digit", 
+            "label": "Button", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 163, 
+            "x": 251, 
+            "config": {}
+          }
+        ], 
+        "metadata": {}
+      }, 
+      "expires": 10080, 
+      "id": 35731, 
+      "flow_type": "V", 
+      "name": "Voice Flow"
+    }, 
+    {
+      "definition": {
+        "base_language": "eng", 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": null, 
+            "uuid": "f4c0e489-c5ef-4aed-9852-6000d879d157", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "You said foo!"
+                }, 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2015-08-28T14:47:17.160002Z", 
+        "entry": "f4c0e489-c5ef-4aed-9852-6000d879d157", 
+        "rule_sets": [], 
+        "metadata": {}
+      }, 
+      "expires": 10080, 
+      "id": 35732, 
+      "flow_type": "F", 
+      "name": "Message Flow"
+    }
+  ], 
+  "triggers": []
+}

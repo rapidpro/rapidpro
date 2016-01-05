@@ -126,7 +126,6 @@
     var user_tz_offset = {{ user_tz_offset }};
 
     $(document).ready(function() {
-      window.message_completions = {{completions|safe}};
 
       {% if object.trigger_type == 'C' %}
         select2div("#id_catchall_flow", "520px", '{% trans "Flow to start" %}');
@@ -146,8 +145,8 @@
         });
       {% endif %}
 
-      initAtMessageText("#id_response");
-      
+      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_response'));
+
       $('#id_flow').select2({
         minimumResultsForSearch: -1
       });

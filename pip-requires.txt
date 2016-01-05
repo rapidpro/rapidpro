@@ -1,16 +1,17 @@
 -e git+https://github.com/nyaruka/smartmin.git#egg=smartmin
-Django==1.7.7
+Django==1.8.5
 coverage==3.5.1
 django-celery==3.1.16
-django-compressor==1.3
+django-compressor==1.5
 django-debug-toolbar==1.2.2
 django-digest==1.13
-django-guardian==1.2.4
+django-extensions
+django-guardian
 -e git+http://github.com/nyaruka/django-modeltranslation.git#egg=django_modeltranslation-dev
-django-nose==1.2
+django-nose==1.4.2
 -e git+http://github.com/nyaruka/django-quickblocks.git#egg=django-quickblocks-dev
 django-rosetta==0.6.2
-gunicorn==18.0
+gunicorn==19.3.0
 nose==1.3.0
 pisa==3.0.33
 raven==4.0.4
@@ -23,10 +24,10 @@ django-redis==3.1.5
 redis==2.10.1
 BeautifulSoup
 xlutils
-phonenumbers==7.0.2
+phonenumbers==7.1.0
 django-countries==3.0.1
 djangorestframework==2.4.5
-django-ttag
+-e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools
 requests==1.2.3
 mock
@@ -56,4 +57,5 @@ stop-words
 twython
 enum34
 plivo
+rapidpro-expressions
 django-mptt
