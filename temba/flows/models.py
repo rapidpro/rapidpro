@@ -3578,6 +3578,11 @@ class FlowStep(models.Model):
             msg.msg_type = FLOW
             msg.save(update_fields=['msg_type'])
 
+        # if message is from contact, mark run as responded
+        if not self.run.responded and msg.direction == INCOMING:
+            self.run.responded = True
+            self.run.save(update_fields=('responded',))
+
     def get_step(self):
         """
         Returns either the RuleSet or ActionSet associated with this FlowStep

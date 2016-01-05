@@ -237,6 +237,7 @@ class FlowTest(TembaTest):
     def test_states(self):
         # set our flow
         self.flow.update(self.definition)
+        entry = ActionSet.objects.filter(uuid=self.flow.entry_uuid)[0]
 
         # how many people in the flow?
         self.assertEquals(0, self.flow.get_total_contacts())
@@ -261,44 +262,54 @@ class FlowTest(TembaTest):
         self.assertEquals(PENDING, msg.status)
         self.assertEquals(SMS_NORMAL_PRIORITY, msg.priority)
 
+        # should have a flow run for each contact
+        contact1_run = FlowRun.objects.get(contact=self.contact)
+        contact2_run = FlowRun.objects.get(contact=self.contact2)
+
+        self.assertEqual(contact1_run.flow, self.flow)
+        self.assertEqual(contact1_run.contact, self.contact)
+        self.assertFalse(contact1_run.responded)
+        self.assertFalse(contact2_run.responded)
+
         # should have two steps, one for the outgoing message, another for the rule set we are now waiting on
-        entry = ActionSet.objects.filter(uuid=self.flow.entry_uuid)[0]
-        step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[0]
-        contact2_step = FlowStep.objects.filter(run__contact=self.contact2).order_by('pk')[1]
-        self.assertEquals("Eric - A:00000000-00000000-00000000-00000001", str(step))
+        contact1_steps = list(FlowStep.objects.filter(run__contact=self.contact).order_by('pk'))
+        contact2_steps = list(FlowStep.objects.filter(run__contact=self.contact2).order_by('pk'))
+
+        self.assertEqual(len(contact1_steps), 2)
+        self.assertEqual(len(contact2_steps), 2)
+
+        # check our steps for contact #1
+        self.assertEqual(unicode(contact1_steps[0]), "Eric - A:00000000-00000000-00000000-00000001")
+        self.assertEqual(contact1_steps[0].step_uuid, entry.uuid)
+        self.assertEqual(contact1_steps[0].step_type, ACTION_SET)
+        self.assertEqual(contact1_steps[0].contact, self.contact)
+        self.assertTrue(contact1_steps[0].arrived_on)
+        self.assertTrue(contact1_steps[0].left_on)
+        self.assertEqual(set(contact1_steps[0].messages.all()), {msg})
+        self.assertEqual(contact1_steps[0].next_uuid, entry.destination)
+
+        self.assertEqual(unicode(contact1_steps[1]), "Eric - R:00000000-00000000-00000000-00000005")
+        self.assertEqual(contact1_steps[1].step_uuid, entry.destination)
+        self.assertEqual(contact1_steps[1].step_type, RULE_SET)
+        self.assertEqual(contact1_steps[1].contact, self.contact)
+        self.assertTrue(contact1_steps[1].arrived_on)
+        self.assertEqual(contact1_steps[1].left_on, None)
+        self.assertEqual(set(contact1_steps[1].messages.all()), set())
+        self.assertEqual(contact1_steps[1].next_uuid, None)
 
         # test our message context
         context = self.flow.build_message_context(self.contact, None)
         self.assertEquals(dict(__default__=''), context['flow'])
 
+        # check flow activity endpoint response
         self.login(self.admin)
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
 
-        self.assertEquals(entry.uuid, step.step_uuid)
-        self.assertEquals(ACTION_SET, step.step_type)
-        self.assertEquals(self.contact, step.run.contact)
-        self.assertEquals(self.contact, step.contact)
-        self.assertEquals(self.flow, step.run.flow)
-        self.assertTrue(step.arrived_on)
-        self.assertTrue(step.left_on)
-        self.assertEquals(entry.destination, step.next_uuid)
-
-        step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[1]
-
-        self.assertEquals(entry.destination, step.step_uuid)
-        self.assertEquals(RULE_SET, step.step_type)
-        self.assertEquals(self.contact, step.run.contact)
-        self.assertEquals(self.contact, step.contact)
-        self.assertEquals(self.flow, step.run.flow)
-        self.assertTrue(step.arrived_on)
-        self.assertFalse(step.left_on)
-        self.assertFalse(step.messages.all())
-
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)
-        response = self.client.get(reverse('contacts.contact_omnibox') + "?s=%s" % step.step_uuid)
+        response = self.client.get(reverse('contacts.contact_omnibox') + "?s=%s" % contact1_steps[1].step_uuid)
         contact_json = json.loads(response.content)
         self.assertEquals(2, len(contact_json['results']))
         self.client.logout()
@@ -313,7 +324,7 @@ class FlowTest(TembaTest):
 
         # no reply, our flow isn't active
         self.assertFalse(Msg.objects.filter(response_to=incoming))
-        step = FlowStep.objects.get(pk=step.pk)
+        step = FlowStep.objects.get(pk=contact1_steps[1].pk)
         self.assertFalse(step.left_on)
         self.assertFalse(step.messages.all())
 
@@ -321,8 +332,12 @@ class FlowTest(TembaTest):
         self.flow.is_archived = False
         self.flow.save()
 
+        # simulate a response from contact #1
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
         self.assertTrue(Flow.find_and_handle(incoming))
+
+        contact1_run.refresh_from_db()
+        self.assertTrue(contact1_run.responded)
 
         # our message should have gotten a reply
         reply = Msg.objects.get(response_to=incoming)
