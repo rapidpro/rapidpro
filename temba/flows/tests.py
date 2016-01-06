@@ -2968,7 +2968,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
 
         # stop them all
-        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_STOPPED)
+        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertEqual(6, FlowRun.objects.filter(is_active=False, exit_type='S').exclude(exited_on=None).count())
 
