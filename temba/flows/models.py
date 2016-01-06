@@ -1404,7 +1404,7 @@ class Flow(TembaModel):
         else:
             # stop any runs still active for these contacts
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            FlowRun.bulk_exit(previous_runs, FlowRun.EXIT_TYPE_STOPPED)
+            FlowRun.bulk_exit(previous_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
@@ -2765,10 +2765,10 @@ class FlowRevision(SmartModel):
 
 class FlowRun(models.Model):
     EXIT_TYPE_COMPLETED = 'C'
-    EXIT_TYPE_STOPPED = 'S'
+    EXIT_TYPE_INTERRUPTED = 'I'
     EXIT_TYPE_EXPIRED = 'E'
     EXIT_TYPE_CHOICES = ((EXIT_TYPE_COMPLETED, _("Completed")),
-                         (EXIT_TYPE_STOPPED, _("Stopped")),
+                         (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
@@ -2857,7 +2857,7 @@ class FlowRun(models.Model):
     @classmethod
     def bulk_exit(cls, runs, exit_type, exited_on=None):
         """
-        Exits (expires, stops) runs in bulk
+        Exits (expires, interrupts) runs in bulk
         """
         if isinstance(runs, list):
             runs = [{'id': r.pk, 'flow': r.flow_id} for r in runs]
