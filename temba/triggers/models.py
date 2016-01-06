@@ -159,10 +159,10 @@ class Trigger(SmartModel):
             start_msg = entity
         elif isinstance(entity, Call) or isinstance(entity, IVRCall):
             contact = entity.contact
-            start_msg = Msg(contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
-            start_msg = Msg(contact=contact, channel=channel, created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
         else:
             raise ValueError("Entity must be of type msg, call or contact")
 

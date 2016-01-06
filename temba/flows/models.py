@@ -466,7 +466,7 @@ class Flow(TembaModel):
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
                                       text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
         else:
-            msg = Msg(contact=call.contact, text='', id=0)
+            msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
         # find out where we last left off
         step = run.steps.all().order_by('-arrived_on').first()
@@ -1185,11 +1185,12 @@ class Flow(TembaModel):
         flow_context = dict()
 
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        tz = pytz.timezone(self.org.timezone)
 
         # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
         def value_wrapper(value):
             values = dict(text=value['text'],
-                          time=datetime_to_str(value['time'], format=date_format),
+                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
                           category=self.get_localized_text(value['category'], contact),
                           value=unicode(value['rule_value']))
             values['__default__'] = unicode(value['rule_value'])
@@ -1640,7 +1641,7 @@ class Flow(TembaModel):
 
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
 
-                    msg = Msg(contact=contact, text='', id=0)
+                    msg = Msg(org=self.org, contact=contact, text='', id=0)
                     Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
                                             is_test_contact=contact.is_test)
 
@@ -1657,7 +1658,7 @@ class Flow(TembaModel):
                 # if we didn't get an incoming message, see if we need to evaluate it passively
                 elif not entry_rules.is_pause():
                     # create an empty placeholder message
-                    msg = Msg(contact=contact, text='', id=0)
+                    msg = Msg(org=self.org, contact=contact, text='', id=0)
                     Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
 
             if start_msg:
@@ -3508,14 +3509,19 @@ class FlowStep(models.Model):
         # generate the messages for this step
         msgs = []
         if node.is_ruleset():
+            incoming = None
             if node.is_pause():
-                incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                               msg_type=FLOW, status=HANDLED, date=arrived_on,
-                                               channel=None, urn=None)
+                # if a msg was sent to this ruleset, create it
+                if json_obj['rule']:
+                    # if we received a message
+                    incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
+                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                   channel=None, urn=None)
             else:
                 incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
-            msgs.append(incoming)
+            if incoming:
+                msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
@@ -3526,7 +3532,8 @@ class FlowStep(models.Model):
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
-        if node.is_ruleset():
+        # if a rule was picked on this ruleset
+        if node.is_ruleset() and json_obj['rule']:
             rule_uuid = json_obj['rule']['uuid']
             rule_value = json_obj['rule']['value']
             rule_category = json_obj['rule']['category']

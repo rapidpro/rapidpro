@@ -283,13 +283,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of contacts from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.contacts'))
+            self._fetch_json('%s.json' % reverse('api.v1.contacts'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of contacts from API", self,
                              assert_queries=API_REQUEST_QUERIES+6, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json?page=2' % reverse('api.contacts'))
+            self._fetch_json('%s.json?page=2' % reverse('api.v1.contacts'))
 
     def test_api_groups(self):
         contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
@@ -300,7 +300,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of groups from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.contactgroups'))
+            self._fetch_json('%s.json' % reverse('api.v1.contactgroups'))
 
     def test_api_messages(self):
         contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
@@ -314,13 +314,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of messages from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.messages'))
+            self._fetch_json('%s.json' % reverse('api.v1.messages'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of messages from API", self,
                              assert_queries=API_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json?page=2' % reverse('api.messages'))
+            self._fetch_json('%s.json?page=2' % reverse('api.v1.messages'))
 
     def test_api_runs(self):
         flow = self.create_flow()
@@ -332,17 +332,17 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of flow runs from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.runs'))
+            self._fetch_json('%s.json' % reverse('api.v1.runs'))
 
         # query count, terminal nodes and category nodes for the flow all now cached
 
         with SegmentProfiler("Fetch second page of flow runs from API", self,
                              assert_queries=API_REQUEST_QUERIES+4, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json?page=2' % reverse('api.runs'))
+            self._fetch_json('%s.json?page=2' % reverse('api.v1.runs'))
 
         with SegmentProfiler("Create new flow runs via API endpoint", self, assert_tx=1, force_profile=True):
             data = {'flow': flow.pk, 'contact': [c.uuid for c in contacts]}
-            self._post_json('%s.json' % reverse('api.runs'), data)
+            self._post_json('%s.json' % reverse('api.v1.runs'), data)
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])

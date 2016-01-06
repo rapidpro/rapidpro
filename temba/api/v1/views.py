@@ -45,7 +45,7 @@ REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
 
 
 class ApiExplorerView(SmartTemplateView):
-    template_name = "api/api_explorer.html"
+    template_name = "api/v1/api_explorer.html"
 
     def get_context_data(self, **kwargs):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
@@ -230,20 +230,20 @@ def api(request, format=None):
     **Note that all calls made through this web interface are against the live API, please exercise the appropriate caution.**
     """
     return Response({
-        'boundaries': reverse('api.boundaries', request=request),
-        'broadcasts': reverse('api.broadcasts', request=request),
-        'calls': reverse('api.calls', request=request),
-        'campaigns': reverse('api.campaigns', request=request),
-        'contacts': reverse('api.contacts', request=request),
-        'contact_actions': reverse('api.contact_actions', request=request),
-        'events': reverse('api.campaignevents', request=request),
-        'fields': reverse('api.contactfields', request=request),
-        'flows': reverse('api.flows', request=request),
-        'labels': reverse('api.labels', request=request),
-        'messages': reverse('api.messages', request=request),
-        'message_actions': reverse('api.message_actions', request=request),
-        'relayers': reverse('api.channels', request=request),
-        'runs': reverse('api.runs', request=request),
+        'boundaries': reverse('api.v1.boundaries', request=request),
+        'broadcasts': reverse('api.v1.broadcasts', request=request),
+        'calls': reverse('api.v1.calls', request=request),
+        'campaigns': reverse('api.v1.campaigns', request=request),
+        'contacts': reverse('api.v1.contacts', request=request),
+        'contact_actions': reverse('api.v1.contact_actions', request=request),
+        'events': reverse('api.v1.campaignevents', request=request),
+        'fields': reverse('api.v1.contactfields', request=request),
+        'flows': reverse('api.v1.flows', request=request),
+        'labels': reverse('api.v1.labels', request=request),
+        'messages': reverse('api.v1.messages', request=request),
+        'message_actions': reverse('api.v1.message_actions', request=request),
+        'relayers': reverse('api.v1.channels', request=request),
+        'runs': reverse('api.v1.runs', request=request),
     })
 
 
@@ -468,7 +468,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List recent broadcasts",
-                    url=reverse('api.broadcasts'),
+                    url=reverse('api.v1.broadcasts'),
                     slug='broadcast-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
         spec['fields'] = [dict(name='id', required=False,
@@ -485,7 +485,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Send one or more messages",
-                    url=reverse('api.broadcasts'),
+                    url=reverse('api.v1.broadcasts'),
                     slug='broadcast-send',
                     request='{ "urns": ["tel:+250788222222", "tel:+250788111111"], "text": "My first message" }')
 
@@ -691,7 +691,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List recent messages",
-                    url=reverse('api.messages'),
+                    url=reverse('api.v1.messages'),
                     slug='sms-list',
                     request="after=2013-01-01T00:00:00.000&status=Q,S")
         spec['fields'] = [dict(name='id', required=False,
@@ -729,7 +729,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Send one or more messages",
-                    url=reverse('api.messages'),
+                    url=reverse('api.v1.messages'),
                     slug='sms-send',
                     request='{ "urn": ["tel:+250788222222", "tel:+250788111111"], "text": "My first message", "relayer": 1 }')
 
@@ -791,7 +791,7 @@ class MessageBulkActionEndpoint(BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Update one or more messages",
-                    url=reverse('api.message_actions'),
+                    url=reverse('api.v1.message_actions'),
                     slug='msg-actions',
                     request='{ "messages": [12345, 23456], "action": "label", '
                             '"label_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
@@ -903,7 +903,7 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Message Labels",
-                    url=reverse('api.labels'),
+                    url=reverse('api.v1.labels'),
                     slug='label-list',
                     request="")
         spec['fields'] = [dict(name='name', required=False,
@@ -917,7 +917,7 @@ class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add or Update a Message Label",
-                    url=reverse('api.labels'),
+                    url=reverse('api.v1.labels'),
                     slug='label-update',
                     request='{ "name": "Screened" }')
 
@@ -1014,7 +1014,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List recent incoming and outgoing Calls",
-                    url=reverse('api.calls'),
+                    url=reverse('api.v1.calls'),
                     slug='call-list',
                     request="after=2013-01-01T00:00:00.000&phone=%2B250788123123")
         spec['fields'] = [ dict(name='call', required=False,
@@ -1180,7 +1180,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Android phones",
-                    url=reverse('api.channels'),
+                    url=reverse('api.v1.channels'),
                     slug='channel-list',
                     request="after=2013-01-01T00:00:00.000&country=RW")
         spec['fields'] = [ dict(name='relayer', required=False,
@@ -1200,7 +1200,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Attach a Channel to your account using a claim code",
-                    url=reverse('api.channels'),
+                    url=reverse('api.v1.channels'),
                     slug='channel-claim',
                     request='{ "claim_code": "AOIFUGQUF", "phone": "+250788123123", "name": "Rwanda MTN Channel" }')
 
@@ -1216,7 +1216,7 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_delete_explorer(cls):
         spec = dict(method="DELETE",
                     title="Delete Android phones",
-                    url=reverse('api.channels'),
+                    url=reverse('api.v1.channels'),
                     slug='channel-delete',
                     request="after=2013-01-01T00:00:00.000&country=RW")
         spec['fields'] = [ dict(name='relayer', required=False,
@@ -1284,7 +1284,7 @@ class GroupEndpoint(ListAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Contact Groups",
-                    url=reverse('api.contactgroups'),
+                    url=reverse('api.v1.contactgroups'),
                     slug='contactgroup-list',
                     request="")
         spec['fields'] = [dict(name='name', required=False,
@@ -1500,7 +1500,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Contacts",
-                    url=reverse('api.contacts'),
+                    url=reverse('api.v1.contacts'),
                     slug='contact-list',
                     request="phone=%2B250788123123")
         spec['fields'] = [dict(name='uuid', required=False,
@@ -1520,7 +1520,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add or update a Contact",
-                    url=reverse('api.contacts'),
+                    url=reverse('api.v1.contacts'),
                     slug='contact-update',
                     request='{ "name": "Ben Haggerty", "groups": ["Top 10 Artists"], "urns": ["tel:+250788123123"] }')
 
@@ -1540,7 +1540,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
     def get_delete_explorer(cls):
         spec = dict(method="DELETE",
                     title="Delete Contacts",
-                    url=reverse('api.contacts'),
+                    url=reverse('api.v1.contacts'),
                     slug='contact-delete',
                     request="uuid=27fb583b-3087-4778-a2b3-8af489bf4a93")
         spec['fields'] = [dict(name='uuid', required=False,
@@ -1654,7 +1654,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Contact Fields",
-                    url=reverse('api.contactfields'),
+                    url=reverse('api.v1.contactfields'),
                     slug='contactfield-list',
                     request="")
         spec['fields'] = [dict(name='key', required=False,
@@ -1666,7 +1666,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add or update a Contact Field",
-                    url=reverse('api.contactfields'),
+                    url=reverse('api.v1.contactfields'),
                     slug='contactfield-update',
                     request='{ "key": "nick_name", "label": "Nick name", "value_type": "T" }')
 
@@ -1726,7 +1726,7 @@ class ContactBulkActionEndpoint(BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Update one or more contacts",
-                    url=reverse('api.contact_actions'),
+                    url=reverse('api.v1.contact_actions'),
                     slug='contact-actions',
                     request='{ "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3"], "action": "add", '
                             '"group_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
@@ -1828,7 +1828,7 @@ class FlowResultsEndpoint(BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="Get summarized results for a RuleSet or Contact Field",
-                    url=reverse('api.results'),
+                    url=reverse('api.v1.results'),
                     slug='flow-results',
                     request="")
         spec['fields'] = [dict(name='flow', required=False,
@@ -2072,7 +2072,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Flow Runs",
-                    url=reverse('api.runs'),
+                    url=reverse('api.v1.runs'),
                     slug='run-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [dict(name='run', required=False,
@@ -2094,7 +2094,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add one or more contacts to a Flow",
-                    url=reverse('api.runs'),
+                    url=reverse('api.v1.runs'),
                     slug='run-post',
                     request='{ "flow_uuid":"f5901b62-ba76-4003-9c62-72fdacc1b7b7" , "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
 
@@ -2206,7 +2206,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Campaigns",
-                    url=reverse('api.campaigns'),
+                    url=reverse('api.v1.campaigns'),
                     slug='campaign-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [dict(name='uuid', required=False,
@@ -2221,7 +2221,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add or update a Campaign",
-                    url=reverse('api.campaigns'),
+                    url=reverse('api.v1.campaigns'),
                     slug='campaign-update',
                     request='{ "name": "Reminders", "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9" }')
 
@@ -2380,7 +2380,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Campaign Events",
-                    url=reverse('api.campaignevents'),
+                    url=reverse('api.v1.campaignevents'),
                     slug='campaignevent-list',
                     request="after=2013-01-01T00:00:00.000")
 
@@ -2398,7 +2398,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add or update a Campaign Event",
-                    url=reverse('api.campaignevents'),
+                    url=reverse('api.v1.campaignevents'),
                     slug='campaignevent-update',
                     request='{ "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "relative_to": "Last Hit", "offset": 180, "unit": "W", "delivery_hour": -1, "message": "If I can be an example of being sober, then I can be an example of starting over."}')
 
@@ -2424,7 +2424,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
     def get_delete_explorer(cls):
         spec = dict(method="DELETE",
                     title="Delete a Campaign Event from a Campaign",
-                    url=reverse('api.campaignevents'),
+                    url=reverse('api.v1.campaignevents'),
                     slug='campaignevent-delete',
                     request="uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc")
 
@@ -2516,7 +2516,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List the Administrative Boundaries",
-                    url=reverse('api.boundaries'),
+                    url=reverse('api.v1.boundaries'),
                     slug='boundary-list',
                     request="")
         spec['fields'] = []
@@ -2804,7 +2804,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         spec = dict(method="GET",
                     title="List Flows",
-                    url=reverse('api.flows'),
+                    url=reverse('api.v1.flows'),
                     slug='flow-list',
                     request="after=2013-01-01T00:00:00.000")
         spec['fields'] = [ dict(name='flow', required=False,
@@ -2877,7 +2877,7 @@ class OrgEndpoint(BaseAPIView):
 
     @classmethod
     def get_read_explorer(cls):
-        return dict(method="GET", title="View Current Org", url=reverse('api.org'), slug='org-read', request="")
+        return dict(method="GET", title="View Current Org", url=reverse('api.v1.org'), slug='org-read', request="")
 
 
 class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
@@ -2929,7 +2929,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Create or update a flow run with new steps",
-                    url=reverse('api.steps'),
+                    url=reverse('api.v1.steps'),
                     slug='step-post',
                     request='{ "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd", "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "steps": [{"node": "32cf414b-35e3-4c75-8a78-d5f4de925e13", "arrived_on": "2015-08-25T11:59:30.088Z", "actions": [{"msg":"Hi Joe","type":"reply"}], "errors": []}] }')
 

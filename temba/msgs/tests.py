@@ -10,7 +10,7 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.channels.models import Channel, KANNEL
+from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
@@ -19,7 +19,8 @@ from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
-from temba.utils import dict_to_struct
+from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils.expressions import get_function_listing
 from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
 from xlrd import open_workbook
@@ -126,22 +127,20 @@ class MsgTest(TembaTest):
 
         response = self.client.get(outbox_url)
 
-        # all you get is only one item inside completions
+        # check our completions JSON and functions JSON
         self.assertEquals(response.context['completions'], json.dumps(completions))
+        self.assertEquals(response.context['function_completions'], json.dumps(get_function_listing()))
 
-        # lets add one extra contactfield
-        field = ContactField.objects.create(org=self.org, label="Sector", key='sector')
-        completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
-        response = self.client.get(outbox_url)
-
-        # now we have two items inside completions
-        self.assertTrue(json.loads(response.context['completions']), completions)
-
-        # OK one last time, add another extra contactfield
+        # add some contact fields
         field = ContactField.objects.create(org=self.org, label="Cell", key='cell')
         completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Cell"))
+
+        field = ContactField.objects.create(org=self.org, label="Sector", key='sector')
+        completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
+
         response = self.client.get(outbox_url)
 
+        # contact fields are included at the end in alphabetical order
         self.assertEquals(response.context['completions'], json.dumps(completions))
 
     def test_create_outgoing(self):
@@ -216,10 +215,12 @@ class MsgTest(TembaTest):
         self.assertIsNone(must_return_none)
 
     def test_create_incoming(self):
-
         Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "It's going well")
         Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "My name is Frank")
         msg = Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "Yes, 3.")
+
+        self.assertEqual(msg.text, "Yes, 3.")
+        self.assertEqual(unicode(msg), "Yes, 3.")
 
         # Can't send incoming messages
         with self.assertRaises(Exception):
@@ -1072,20 +1073,23 @@ class BroadcastTest(TembaTest):
         self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
     def test_message_context(self):
-
         ContactField.objects.create(org=self.org, label="Superhero Name", key="superhero_name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
         self.joe.set_field('superhero_name', 'batman')
         self.joe.save()
 
-        sms = Msg.all_messages.get()
+        msg = Msg.all_messages.get()
+        context = msg.build_message_context()
 
-        context = sms.build_message_context()
-        self.assertEquals("keyword remainder-remainder", context['value'])
-        self.assertTrue(context['time'])
-        self.assertEquals("Joe Blow", context['contact']['__default__'])
-        self.assertEquals("batman", context['contact']['superhero_name'])
+        self.assertEqual(context['__default__'], "keyword remainder-remainder")
+        self.assertEqual(context['value'], "keyword remainder-remainder")
+        self.assertEqual(context['contact']['__default__'], "Joe Blow")
+        self.assertEqual(context['contact']['superhero_name'], "batman")
+
+        # time should be in org format and timezone
+        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        self.assertEqual(msg_time, context['time'])
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, "sector", "sector")

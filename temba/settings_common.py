@@ -172,9 +172,10 @@ ROOT_URLCONF = 'temba.urls'
 # other urls to add
 APP_URLS = []
 
-SITEMAP = ('public.public_index', 'public.video_list', 'public.public_blog',
-           'api', 'api.explorer', 'api.webhook', 'api.webhook_simulator',
-           'api.sms', 'api.flows', 'api.runs', 'api.calls', 'api.channels')
+SITEMAP = ('public.public_index',
+           'public.public_blog',
+           'public.video_list',
+           'api')
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -412,6 +413,7 @@ PERMISSIONS = {
                          'claim_plivo',
                          'claim_shaqodoon',
                          'claim_smscentral',
+                         'claim_start',
                          'claim_twilio',
                          'claim_twitter',
                          'claim_verboice',
@@ -602,6 +604,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
+        'channels.channel_claim_start',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -713,6 +716,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
+        'channels.channel_claim_start',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',

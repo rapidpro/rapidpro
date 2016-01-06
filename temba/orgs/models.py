@@ -483,8 +483,8 @@ class Org(SmartModel):
         # update the mo and dl URL for our account
         client = NexmoClient(api_key, api_secret)
 
-        mo_path = reverse('api.nexmo_handler', args=['receive', nexmo_uuid])
-        dl_path = reverse('api.nexmo_handler', args=['status', nexmo_uuid])
+        mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
+        dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
 
         from temba.settings import TEMBA_HOST
         client.update_account('http://%s%s' % (TEMBA_HOST, mo_path), 'http://%s%s' % (TEMBA_HOST, dl_path))
@@ -504,7 +504,7 @@ class Org(SmartModel):
         if apps:
             temba_app = apps[0]
         else:
-            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('api.twilio_handler')
+            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
 
             # the the twiml to run when the voice app fails
             fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
@@ -1085,7 +1085,7 @@ class Org(SmartModel):
             traceback.print_exc()
             return None
 
-    def add_credits(self, bundle, token, user): # pragma: no cover
+    def add_credits(self, bundle, token, user):
         # look up our bundle
         if not bundle in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
@@ -1158,7 +1158,7 @@ class Org(SmartModel):
                            cc_name=charge.card.name)
 
             from temba.middleware import BrandingMiddleware
-            branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
+            branding = BrandingMiddleware.get_branding_for_host(self.brand)
 
             subject = _("%(name)s Receipt") % branding
             template = "orgs/email/receipt_email"

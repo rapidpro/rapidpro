@@ -12,7 +12,7 @@ from django.utils import timezone
 from mock import patch
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, SmartImportRowError
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
@@ -1675,6 +1675,7 @@ class ContactTest(TembaTest):
         self.assertEquals(3, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts Update").count())
 
+
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
         self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
         self.assertEquals(0, Contact.objects.filter(name='Jennifer Newcomer').count())
@@ -1720,6 +1721,36 @@ class ContactTest(TembaTest):
         self.assertTrue(response.context['show_form'])
         self.assertFalse(response.context['task'])
         self.assertEquals(response.context['group'], None)
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+        contact = self.create_contact(name="Bob", number='+250788111111')
+        contact.uuid = 'uuid-1111'
+        contact.save()
+
+        contact2 = self.create_contact(name='Kobe', number='+250788383396')
+        contact2.uuid = 'uuid-4444'
+        contact2.save()
+
+        with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+            # import contact with uuid will force update if existing contact for the uuid
+            csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
+            post_data = dict(csv_file=csv_file)
+            response = self.client.post(import_url, post_data, follow=True)
+            self.assertIsNotNone(response.context['task'])
+            self.assertIsNotNone(response.context['group'])
+            self.assertFalse(response.context['show_form'])
+            self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
+                                                                creates=2, updates=2))
+
+            self.assertEquals(mock_lock.call_count, 3)
+
+        self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+        self.assertEquals(0, Contact.objects.filter(name='Bob').count())
+        self.assertEquals(0, Contact.objects.filter(name='Jeff').count())
+        self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
+        self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -1791,17 +1822,15 @@ class ContactTest(TembaTest):
         csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_conflicts.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
-        self.assertEquals(response.context['results'], dict(records=1, errors=1, creates=0, updates=1,
-                                                            error_messages=[dict(line=2,
-                                                                                 error="Other existing contact with "
-                                                                                       "twitter of nyaruka")]))
+        self.assertEquals(response.context['results'], dict(records=2, errors=0, creates=0, updates=2,
+                                                            error_messages=[]))
 
         self.assertEquals(3, Contact.objects.all().count())
         self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
-        self.assertEquals(1, Contact.objects.filter(name='Textit').count())
+        self.assertEquals(0, Contact.objects.filter(name='Textit').count())
         self.assertEquals(0, Contact.objects.filter(name='Nyaruka').count())
         self.assertEquals(1, Contact.objects.filter(name='Kigali').count())
-        self.assertEquals(0, Contact.objects.filter(name='Klab').count())
+        self.assertEquals(1, Contact.objects.filter(name='Klab').count())
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -1900,6 +1929,9 @@ class ContactTest(TembaTest):
 
         self.assertEquals(contact1.get_field_raw('ride_or_drive'), 'Moto')  # the existing field was looked up by label
         self.assertEquals(contact1.get_field_raw('wears'), 'Nike')  # existing field was looked up by label & stripped
+
+        self.assertEquals(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
+        self.assertEquals(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=DATETIME)
@@ -2398,7 +2430,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter handle", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Twitter", "First", "Second", "Third"])
 
             # first row should be Adam
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "adam", "", "", ""])
@@ -2422,7 +2454,7 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter handle", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Phone", "Phone", "Twitter", "First", "Second", "Third"])
 
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "+12067799191", "", "adam", "", "", ""])
             self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "+12067799294", "+12062233445", "", "One", "", ""])
