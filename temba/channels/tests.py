@@ -4832,7 +4832,7 @@ class StartMobileTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.objects.get()
+        sms = Msg.all_messages.get()
         self.assertEquals('+250788123123', sms.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, sms.direction)
         self.assertEquals(self.org, sms.org)
