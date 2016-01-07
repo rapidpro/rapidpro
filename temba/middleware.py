@@ -1,10 +1,12 @@
-from django.conf import settings
+from __future__ import absolute_import, unicode_literals
+
+import traceback
+
+from django.db import transaction
 from django.utils import timezone, translation
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
-from temba.settings import BRANDING
-
-import traceback
+from temba.settings import BRANDING, DEFAULT_BRAND, HOSTNAME
 
 
 class ExceptionMiddleware(object):
@@ -20,9 +22,16 @@ class BrandingMiddleware(object):
 
     @classmethod
     def get_branding_for_host(cls, host):
+        # ignore subdomains
+        if len(host.split('.')) > 2:
+            host = '.'.join(host.split('.')[-2:])
+
+        # prune off the port
+        if ':' in host:
+            host = host[0:host.rindex(':')]
 
         # our default branding
-        branding = BRANDING.get('rapidpro.io')
+        branding = BRANDING.get(HOSTNAME, BRANDING.get(DEFAULT_BRAND))
 
         # override with site specific branding if we have that
         site_branding = BRANDING.get(host, None)
@@ -45,16 +54,7 @@ class BrandingMiddleware(object):
         except:
             traceback.print_exc()
 
-        # ignore subdomains
-        if len(host.split('.')) > 2:
-            host = '.'.join(host.split('.')[-2:])
-
-        # prune off the port
-        if ':' in host:
-            host = host[0:host.rindex(':')]
-
         request.branding = BrandingMiddleware.get_branding_for_host(host)
-
 
 class ActivateLanguageMiddleware(object):
 
@@ -79,9 +79,15 @@ class OrgTimezoneMiddleware(object):
 
             org_id = request.session.get('org_id', None)
             if org_id:
-                user.set_org(Org.objects.get(pk=org_id))
+                org = Org.objects.filter(is_active=True, pk=org_id).first()
+
+            # only set the org if they are still a user or an admin
+            if org and (user.is_superuser or user.is_staff or user in org.get_org_users()):
+                user.set_org(org)
+
+            # otherwise, show them what orgs are available
             else:
-                user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all()
+                user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
                 user_orgs = user_orgs.distinct('pk')
 
                 if user_orgs.count() == 1:
@@ -147,3 +153,19 @@ class ProfilerMiddleware(object):
             stats.print_stats(int(request.GET.get('count', 100)))
             response.content = '<pre>%s</pre>' % io.getvalue()
         return response
+
+
+class NonAtomicGetsMiddleware(object):
+    """
+    Django's non_atomic_requests decorator gives us no way of enabling/disabling transactions depending on the request
+    type. This middleware will make the current request non-atomic if an _non_atomic_gets attribute is set on the view
+    function, and if the request method is GET.
+    """
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        if getattr(view_func, '_non_atomic_gets', False):
+            if request.method.lower() == 'get':
+                transaction.non_atomic_requests(view_func)
+            else:
+                view_func._non_atomic_requests = set()
+        return None
+

@@ -5,6 +5,8 @@ import json
 import pytz
 import random
 import datetime
+import locale
+import resource
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -15,6 +17,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django.http import HttpResponse
+from itertools import islice, chain
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 
@@ -36,15 +39,27 @@ INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
                             'GMT': '',
                             'UTC': ''}
 
+
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
+    """
+    Formats a datetime or date as a string
+    :param date_obj: the datetime or date
+    :param format: the format (defaults to ISO8601)
+    :param ms: whether to include microseconds
+    :param tz: the timezone to localize in
+    :return: the formatted date string
+    """
     if not date_obj:
         return None
 
-    if date_obj.year < 1900:
-        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
-
     if not tz:
         tz = timezone.utc
+
+    if type(date_obj) == datetime.date:
+        date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
+
+    if date_obj.year < 1900:
+        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
 
     if isinstance(date_obj, datetime.datetime):
         date_obj = timezone.localtime(date_obj, tz)
@@ -208,19 +223,6 @@ def truncate(text, max_len):
         return text
 
 
-def get_preferred_language(language_dict, preferred_languages):
-
-    # If language_dict is not a dict, the original value is returned
-    if not isinstance(language_dict, dict):
-        return language_dict
-
-    for lang in preferred_languages:
-        localized = language_dict.get(lang, None)
-        if localized:
-            return localized
-    return None
-
-
 def get_dict_from_cursor(cursor):
     """
     Returns all rows from a cursor as a dict
@@ -276,6 +278,17 @@ def dict_to_struct(classname, attributes, datetime_fields=()):
     ex: dict_to_struct('MsgStruct', attributes)
     """
     return DictStruct(classname, attributes, datetime_fields)
+
+
+def prepped_request_to_str(prepped):
+    """
+    Graciously cribbed from http://stackoverflow.com/a/23816211
+    """
+    return '{}\n{}\n\n{}'.format(
+        prepped.method + ' ' + prepped.url,
+        '\n'.join('{}: {}'.format(k, v) for k, v in prepped.headers.items()),
+        prepped.body,
+    )
 
 
 class DateTimeJsonEncoder(json.JSONEncoder):
@@ -407,6 +420,16 @@ def non_atomic_when_eager(view_func):
     else:
         return view_func
 
+
+def non_atomic_gets(view_func):
+    """
+    Decorator which disables atomic requests for a view/dispatch function when the request method is GET. Works in
+    conjunction with the NonAtomicGetsMiddleware.
+    """
+    view_func._non_atomic_gets = True
+    return view_func
+
+
 def timezone_to_country_code(tz):
     country_timezones = pytz.country_timezones
 
@@ -424,3 +447,27 @@ def splitting_getlist(request, name, default=None):
         return vals[0].split(',')
     else:
         return vals
+
+def chunk_list(iterable, size):
+    """
+    Splits a very large list into evenly sized chunks.
+    Returns an iterator of lists that are no more than the size passed in.
+    """
+    source_iter = iter(iterable)
+    while True:
+        chunk_iter = islice(source_iter, size)
+        yield chain([chunk_iter.next()], chunk_iter)
+
+
+def print_max_mem_usage(msg=None):
+    """
+    Prints the maximum RAM used by the process thus far.
+    """
+    if msg is None:
+        msg = "Max usage: "
+
+    locale.setlocale(locale.LC_ALL, '')
+    print
+    print "=" * 80
+    print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
+    print "=" * 80

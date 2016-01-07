@@ -9,7 +9,6 @@ def export_contacts_task(id):
     """
     Export contacts to a file and e-mail a link to the user
     """
-    tasks = ExportContactsTask.objects.filter(pk=id)
-    if tasks:
-        task = tasks[0]
-        task.do_export()
+    export_task = ExportContactsTask.objects.filter(pk=id).first()
+    if export_task:
+        export_task.start_export()

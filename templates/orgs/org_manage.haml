@@ -8,7 +8,7 @@
   -compress css
     {% lessblock %}
       :plain
-        .login {
+        .service {
           margin-top:5px;
         }
 
@@ -43,7 +43,7 @@
           display:inline;
         }
 
-        .login {
+        .service {
           float:right;
           width: 50px;
           margin-right:20px;
@@ -103,10 +103,3 @@
       -else
         %a{class:'quick', href:'?search={{s}}'}= s
 
-/*-block content
-  .quick
-    -for org in quick
-      %a.login.btn.btn-tiny.posterize{href:"{% url 'users.user_mimic' org.administrators.all.0.pk %}", class:"{{org.plan}}"}
-        {{org.name|slice:":14"}} - {{ org.administrators.all.0.first_name }}
-
-  {{block.super}}

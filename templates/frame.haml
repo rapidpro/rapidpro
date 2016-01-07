@@ -45,12 +45,8 @@
       conditionalLoad('scripts/angular-file-upload-1.6.12/angular-file-upload-shim.js', null);
 
       // our angular scripts
-      conditionalLoad('angular-1.3.0-beta.17/angular.js', null);
-      conditionalLoad('angular-1.3.0-beta.17/angular-animate.js', null);
-
-      // TODO: Migrate to released version of 1.3 (issues with analytics)
-      // conditionalLoad('angular-1.3.0/angular.js', null);
-      // conditionalLoad('angular-1.3.0/angular-animate.js', null);
+      conditionalLoad('angular-1.3.15/angular.js', null);
+      conditionalLoad('angular-1.3.15/angular-animate.js', null);
 
       // this must be loaded after angular
       conditionalLoad('scripts/angular-file-upload-1.6.12/angular-file-upload.js', null)
@@ -83,8 +79,10 @@
     -compress js
       %script{src:"{{ STATIC_URL }}js/omnibox.js"}
       %script{src:"{{ STATIC_URL }}js/temba.js"}
+      %script{src:"{{ STATIC_URL }}js/excellent.js"}
       %script{src:"{{ STATIC_URL }}coffee/temba.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:'text/coffeescript'}
+      %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
 
     -include "includes/frame_top.html"
@@ -254,33 +252,7 @@
 
 
     -block modals
-
-      #modal-template.modal.hide{data-dismiss:'modal'}
-
-        #onConfirm.hide
-
-        .modal-header
-          %button.pull-right.close{type:'button', aria-hidden:'true'}
-            &times;
-          %h3
-            .icon
-            %span#modal-title
-              Uh oh!
-
-        .modal-body
-          .fetched-content
-            #modal-message
-            .form
-          .loader
-            %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
-
-        .modal-footer
-          %button.btn.tertiary.pull-left.hide
-            Tertiary
-          %button.btn.btn-primary.primary
-            Ok
-          %button.btn.secondary.hide
-            Cancel
+      -include 'modal.haml'
 
     -block extra-script
 

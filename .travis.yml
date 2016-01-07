@@ -1,26 +1,37 @@
 language: python
-cache: pip
 python:
-  - "2.7"
+- '2.7'
 services:
-  - redis-server
+- redis-server
 addons:
-  postgresql: "9.3"
+  postgresql: '9.3'
+sudo: false
+cache:
+  directories:
+  - $HOME/.cache/pip
 install:
-  - pip install -r pip-freeze.txt
-  - pip install coveralls
-  - npm install less
-  - npm install coffee-script
+- pip install --upgrade pip
+- pip install -r pip-freeze.txt --upgrade
+- pip install coveralls
+- npm install
 before_script:
-  - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
-  - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
-  - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis;"
-  - psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
-  - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
-  - psql -U temba postgres -c "CREATE DATABASE temba;"
-  - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
+- psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
+- psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
+- psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis;"
+- psql -d 'template1' -U postgres -c "CREATE EXTENSION postgis_topology;"
+- psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
+- psql -U temba postgres -c "CREATE DATABASE temba;"
+- ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 script:
-  - coverage run --source="." manage.py test temba/api temba/assets temba/campaigns temba/channels temba/contacts temba/flows temba/ivr temba/locations temba/msgs temba/orgs temba/public temba/reports temba/schedules temba/triggers temba/utils temba/values --verbosity=2 --noinput
+- node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
+- coverage run --source="." manage.py test temba/api temba/assets temba/campaigns
+  temba/channels temba/contacts temba/flows temba/ivr temba/locations temba/msgs temba/orgs
+  temba/public temba/reports temba/schedules temba/triggers temba/utils temba/values
+  --verbosity=2 --noinput
 after_success:
-  - coverage report -m --include="temba/api/*,temba/assets/*,temba/campaigns/*,temba/channels/*,temba/contacts/*,temba/flows/*,temba/ivr/*,temba/locations/*,temba/msgs/*,temba/orgs/*,temba/public/*,temba/reports/*,temba/schedules/*,temba/triggers/*,temba/utils/*,temba/values/*" --omit="*/migrations/*,*/tests" -i
-  - coveralls
+- coverage report -m --include="temba/api/*,temba/assets/*,temba/campaigns/*,temba/channels/*,temba/contacts/*,temba/flows/*,temba/ivr/*,temba/locations/*,temba/msgs/*,temba/orgs/*,temba/public/*,temba/reports/*,temba/schedules/*,temba/triggers/*,temba/utils/*,temba/values/*"
+  --omit="*/migrations/*,*/tests" -i
+- coveralls
+notifications:
+  slack:
+    secure: b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68=

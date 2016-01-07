@@ -66,28 +66,11 @@
 .label, .badge {
   text-shadow: none;
 }
-.lbl-parent.expanded:not(.active) > a {
-// background:#e4eff8;
-}
 
 .dropdown-menu li > a:hover, .dropdown-menu li > a:focus, .dropdown-submenu:hover > a {
   background: @color-selected;
   color: @color-selected-font;
   text-shadow: none;
-}
-
-.lbl-parent {
-  &.expanded {
-    &:not(.active) {
-      > a {
-	background:@color-selected;
-	color: @flat-darkblue;
-// text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
-	text-shadow: none;
-	margin-right: -15px;
-      }
-    }
-  }
 }
 
 .nav > li > a {
@@ -112,9 +95,9 @@
       text-shadow: none;
 
       &:hover {
-	background: @color-selected;
-	color: @flat-darkblue;
-	text-shadow: none;
+        background: @color-selected;
+        color: @flat-darkblue;
+        text-shadow: none;
       }
     }
 
@@ -1432,6 +1415,9 @@ input[type='text'].search-query {
 
 }
 
+.italics {
+  font-style:italic;
+}
 // *******************************
 // List views
 // *******************************
@@ -1694,8 +1680,14 @@ tr.checked {
   }
 
   .modal-body {
-    font-size: 18px;
     padding: 20px;
+
+    .details {
+      color: #ccc;
+      margin-top: 15px;
+      font-size: 14px;
+      font-style: italic;
+    }
 
     #send-form {
       #counter {
@@ -2199,7 +2191,7 @@ input[type='radio'] {
 
   .table {
     td {
-      border-top:0px;
+      border-top: 0;
       border-bottom:1px solid #ddd;
     }
 
@@ -2214,82 +2206,80 @@ input[type='radio'] {
     tbody {
 
       tr.new {
-	td {
-	  font-weight: bold;
-	}
+        td {
+          font-weight: bold;
+        }
       }
-
-      
 
       td {
-	
-	&.checkbox {
-	  padding-left: 6px;
-	  color: #777;
-	  width: 10px;
-	  
-	  &:hover {
-	    color: #6885c7;
-	  }
 
+        &.checkbox {
+          padding-left: 6px;
+          color: #777;
+          width: 10px;
 
-	  .glyph {
-	    margin-top: 3px;
-	  }
-	}
+          &:hover {
+            color: #6885c7;
+          }
 
-	&.value-text {
-	  width: 75%;
-	  
-	  .value-labels {
-	    float:right;
+          .glyph {
+            margin-top: 3px;
+          }
+        }
 
-	  }
+        &.value-text {
+          width: 75%;
 
+          .value-labels {
+            float: right;
+            white-space: nowrap;
+          }
+        }
 
-	}
-	
-	&.value-name {
-	  width: 90%;
-	  .icon-phone {
-	    color: @flat-mutedblue;
-	    font-size: 16px;
-	    margin-right:5px;
-	    margin-top:-1px;
-	  }
-	}
+        &.value-name {
+          width: 90%;
+          .icon-phone {
+            color: @color-font-lightgrey;
+            font-size: 16px;
+            margin-right: 5px;
+            margin-top: -1px;
+          }
 
-	&.value-status {
-	  white-space: nowrap;
-	  text-align: right;
-	}
+          .icon-channel-android {
+            color: @color-font-lightgrey;
+            font-size:16px;
+            margin-right: 5px;
+          }
+        }
 
-	&.value-phone {
-	  a {
-	    &:hover {
-	      text-decoration: none;
-	    }
-	    
-	  }
-	}
+        &.value-status {
+          white-space: nowrap;
+          text-align: right;
+        }
 
-	&.value-received {
-	  text-align: right;
-	}
-	
-	
-	.last-triggered {
-	  font-size:13px;
-	}
+        &.value-phone {
+          a {
+            &:hover {
+              text-decoration: none;
+            }
 
-	.count {
-	  font-size: 11px;
-	  margin-left:5px;
-	}
+          }
+        }
+
+        &.value-received {
+          text-align: right;
+        }
+
+        .last-triggered {
+          font-size: 13px;
+        }
+
+        .count {
+          font-size: 11px;
+          margin-left: 5px;
+        }
       }
-
     }
-
   }
 
   .list-buttons-container {
@@ -2502,4 +2492,76 @@ span.label a {
   -webkit-transform: rotateY(180deg);
   -moz-transform: rotateY(180deg);
   transform: rotateY(180deg);
+}
+
+// completion custom styles
+
+.atwho-view {
+  width: 280px;
+  max-width: 300px;
+  color: #555555;
+
+  .atwho-view-ul {
+    color: #555555;
+
+    .cur {
+      background: #efefef;
+      color: #555555;
+
+      small {
+        color: #555555;
+      }
+
+    }
+  }
+}
+
+.completion-dropdown {
+
+  .option-name {
+    font-size: 1em;
+  }
+
+  .option-example {
+    display: none;
+  }
+
+  .option-display {
+    display: none;
+  }
+
+  .display-labels {
+    display: none;
+  }
+
+  .cur > & {
+    .option-display {
+      display: block;
+    }
+  }
+
+  .cur:first-child:last-child > & {
+    .option-example {
+      display: block;
+      margin-top: 5px;
+    }
+
+    .display-labels {
+      display: block;
+      font-size: 0.75em;
+
+    }
+
+    .option-display {
+      display: block;
+      margin-top: 5px;
+    }
+
+  }
+
+}
+
+#intercom-container .intercom-launcher {
+  bottom: 60px;
+  right: 12px;
 }

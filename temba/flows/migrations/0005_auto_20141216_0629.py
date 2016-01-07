@@ -11,12 +11,15 @@ import math
 
 def populate_redis_activity(apps, schema_editor):
 
-    # kinda breaking migration rules here to not duplicate code, should be asking
-    # for raw model from apps.get_model('flows', 'Flow'). This means this migration
-    # can only run as long as the methods we are calling here exist.
-    from temba.flows.models import Flow
+    # Excuted migration actually used real model, to allow below
+    # method call to do_calculate_flow_stats(). With the model
+    # definition changing at 0023_new_split_dialog we can no longer
+    # fetch this model. This redis data migration will be removed
+    # when we squash for the first community release.
 
-    print
+    # from temba.flows.models import Flow
+    Flow = apps.get_model('flows', 'Flow')
+
     start = time.time()
     flows = Flow.objects.all().order_by('pk')
     total = flows.count()

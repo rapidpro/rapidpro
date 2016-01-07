@@ -86,6 +86,13 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 0, "Male", 2)
         self.assertResult(result, 1, "Female", 1)
 
+        # check the modified date is tracked for fields
+        original_value = Value.objects.get(contact=c1, contact_field=gender)
+        c1.set_field('gender', 'unknown')
+        new_value = Value.objects.get(contact=c1, contact_field=gender)
+        self.assertTrue(new_value.modified_on > original_value.modified_on)
+        self.assertNotEqual(new_value.string_value, original_value.string_value)
+
     def run_color_gender_flow(self, contact, color, gender, age):
         self.assertEquals("What is your gender?", self.send_message(self.flow, color, contact=contact, restart_participants=True))
         self.assertEquals("What is your age?", self.send_message(self.flow, gender, contact=contact))
@@ -211,6 +218,18 @@ class ResultTest(FlowFileTest):
 
         # ok, now segment by gender
         result = Value.get_value_summary(ruleset=color, filters=[], segment=dict(ruleset=gender.pk, categories=["Male", "Female"]))
+        male_result = result[0]
+        self.assertResult(male_result, 0, "Red", 0)
+        self.assertResult(male_result, 1, "Blue", 1)
+        self.assertResult(male_result, 2, "Green", 1)
+
+        female_result = result[1]
+        self.assertResult(female_result, 0, "Red", 1)
+        self.assertResult(female_result, 1, "Blue", 1)
+        self.assertResult(female_result, 2, "Green", 0)
+
+        # segment by gender again, but use the contact field to do so
+        result = Value.get_value_summary(ruleset=color, filters=[], segment=dict(contact_field="Gender", values=["MALE", "Female"]))
         male_result = result[0]
         self.assertResult(male_result, 0, "Red", 0)
         self.assertResult(male_result, 1, "Blue", 1)
@@ -350,17 +369,19 @@ class ResultTest(FlowFileTest):
         def run_flow(contact, word):
             self.assertEquals("Thank you", self.send_message(flow, word, contact=contact, restart_participants=True))
 
-        (c1, c2, c3, c4, c5) = (self.create_contact("Contact1", '0788111111'),
-                                self.create_contact("Contact2", '0788222222'),
-                                self.create_contact("Contact3", '0788333333'),
-                                self.create_contact("Contact4", '0788444444'),
-                                self.create_contact("Contact4", '0788555555'))
+        (c1, c2, c3, c4, c5, c6) = (self.create_contact("Contact1", '0788111111'),
+                                    self.create_contact("Contact2", '0788222222'),
+                                    self.create_contact("Contact3", '0788333333'),
+                                    self.create_contact("Contact4", '0788444444'),
+                                    self.create_contact("Contact5", '0788555555'),
+                                    self.create_contact("Contact6", '0788666666', is_test=True))
 
         run_flow(c1, "1 better place")
         run_flow(c2, "the great coffee")
         run_flow(c3, "1 cup of black tea")
         run_flow(c4, "awesome than this")
         run_flow(c5, "from an awesome place in kigali")
+        run_flow(c6, "awesome coffee")
 
         random = RuleSet.objects.get(flow=flow, label="Random")
 

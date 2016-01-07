@@ -7,9 +7,9 @@
       %a.icon-nav-messages{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|sms/filter|sms/flow|sms/archived|failed' %}"}
         .title
           -trans "messages"
-      -if unread_msg_count
+      -if msgs_unread_count
         .notification
-          {{unread_msg_count}}
+          {{ msgs_unread_count }}
 
   -if org_perms.contacts.contact_list and not request.user.is_superuser
     %li.nav-contacts
@@ -51,17 +51,19 @@
           .title
             -trans "channels"
 
-  -if org_perms.users.user_list or request.user.is_superuser
-    %li.nav-groups
-      %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
-        .title
-          -trans "users"
+  -if request.user.is_superuser or perms.auth.user_list
+    -if not user_org
+      %li.nav-groups
+        %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
+          .title
+            -trans "users"
 
-  -if request.user.is_superuser
-    %li.nav-orgs
-      %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
-        .title
-          -trans "orgs"
+  -if request.user.is_superuser or perms.orgs.org_manage
+    -if not user_org
+      %li.nav-orgs
+        %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
+          .title
+            -trans "orgs"
 
   -if not request.user.is_anonymous
     %li.more
@@ -85,10 +87,12 @@
 -if user_org and user_org.has_low_credits and not user.is_superuser
   -if user_org.get_credits_remaining < 0
     .nav-alert.interrupted
-      {% blocktrans %}You are out of credits, add more to resume your service{% endblocktrans %}
+      %a{href:'{% url "orgs.topup_list" %}'}
+        {% blocktrans %}You are out of credits, add more to resume your service{% endblocktrans %}
   -else
     .nav-alert
-      {% blocktrans count credits=user_org.get_credits_remaining %}You have {{ credits }} credit remaining, add credits to prevent interruption{%plural%}You have {{ credits }} credits remaining, add credits to prevent interruption{% endblocktrans %}</a>
+      %a{href:'{% url "orgs.topup_list" %}'}
+        {% blocktrans count credits=user_org.get_credits_remaining %}You have {{ credits }} credit remaining, add credits to prevent interruption{%plural%}You have {{ credits }} credits remaining, add credits to prevent interruption{% endblocktrans %}</a>
 -elif unsent_msgs or delayed_syncevents
   .nav-alert
     %a{href:'{% url "orgs.org_home" %}'}

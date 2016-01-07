@@ -4,6 +4,8 @@ import time
 
 from collections import defaultdict
 from django.db import models, connection
+from django.db.models import Q
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -53,7 +55,7 @@ class Value(models.Model):
     rule_uuid = models.CharField(max_length=255, null=True, db_index=True,
                                  help_text="The rule that matched, only appropriate for RuleSet values")
 
-    category = models.CharField(max_length=36, null=True,
+    category = models.CharField(max_length=128, null=True,
                                 help_text="The name of the category this value matched in the RuleSet")
 
     string_value = models.TextField(max_length=640,
@@ -76,15 +78,20 @@ class Value(models.Model):
 
     @classmethod
     def _filtered_values_to_categories(cls, contacts, values, label_field, formatter=None, return_contacts=False):
+        set_contacts = set()
+
         value_contacts = defaultdict(list)
         for value in values:
-            if value['contact'] in contacts:
+            contact = value['contact']
+
+            if contact in contacts:
                 if formatter:
                     label = formatter(value[label_field])
                 else:
                     label = value[label_field]
 
-                value_contacts[label].append(value['contact'])
+                value_contacts[label].append(contact)
+                set_contacts.add(contact)
 
         categories = []
         for value, contacts in value_contacts.items():
@@ -95,7 +102,7 @@ class Value(models.Model):
             categories.append(category)
 
         # sort our categories by our count decreasing
-        return sorted(categories, key=lambda c: c['count'], reverse=True)
+        return sorted(categories, key=lambda c: c['count'], reverse=True), set_contacts
 
     @classmethod
     def get_filtered_value_summary(cls, ruleset=None, contact_field=None, filters=None, return_contacts=False, filter_contacts=None):
@@ -108,6 +115,7 @@ class Value(models.Model):
             { ruleset: rulesetId, categories: ["Red", "Blue", "Yellow"] }
             { groups: 12,124,15 }
             { location: 1515, boundary: "f1551" }
+            { contact_field: fieldId, values: ["UK", "RW"] }
         """
         from temba.flows.models import RuleSet, FlowRun, FlowStep
         from temba.contacts.models import Contact
@@ -116,7 +124,7 @@ class Value(models.Model):
 
         # caller may identify either a ruleset or contact field to summarize
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            raise Exception("Must define either a RuleSet or ContactField to summarize values for")
+            raise ValueError("Must define either a RuleSet or ContactField to summarize values for")
 
         if ruleset:
             (categories, uuid_to_category) = ruleset.build_uuid_to_category_map()
@@ -135,20 +143,20 @@ class Value(models.Model):
             else:
                 contacts = Contact.objects.filter(pk__in=filter_contacts)
 
-            for filter in filters:
+            for contact_filter in filters:
                 # empty filters are no-ops
-                if not filter:
+                if not contact_filter:
                     continue
 
                 # we are filtering by another rule
-                if 'ruleset' in filter:
+                if 'ruleset' in contact_filter:
                     # load the ruleset for this filter
-                    filter_ruleset = RuleSet.objects.get(pk=filter['ruleset'])
+                    filter_ruleset = RuleSet.objects.get(pk=contact_filter['ruleset'])
                     (filter_cats, filter_uuids) = filter_ruleset.build_uuid_to_category_map()
 
                     uuids = []
                     for (uuid, category) in filter_uuids.items():
-                        if category in filter['categories']:
+                        if category in contact_filter['categories']:
                             uuids.append(uuid)
 
                     contacts = contacts.filter(values__rule_uuid__in=uuids)
@@ -158,23 +166,34 @@ class Value(models.Model):
                         self_filter_uuids = uuids
 
                 # we are filtering by one or more groups
-                elif 'groups' in filter:
+                elif 'groups' in contact_filter:
                     # filter our contacts by that group
-                    for group_id in filter['groups']:
+                    for group_id in contact_filter['groups']:
                         contacts = contacts.filter(all_groups__pk=group_id)
 
                 # we are filtering by one or more admin boundaries
-                elif 'boundary':
-                    boundaries = filter['boundary']
+                elif 'boundary' in contact_filter:
+                    boundaries = contact_filter['boundary']
                     if not isinstance(boundaries, list):
                         boundaries = [boundaries]
 
                     # filter our contacts by those that are in that location boundary
-                    contacts = contacts.filter(values__contact_field__id=filter['location'],
+                    contacts = contacts.filter(values__contact_field__id=contact_filter['location'],
                                                values__location_value__osm_id__in=boundaries)
 
+                # we are filtering by a contact field
+                elif 'contact_field' in contact_filter:
+                    contact_query = Q()
+
+                    # we can't use __in as we want case insensitive matching
+                    for value in contact_filter['values']:
+                        contact_query |= Q(values__contact_field__id=contact_filter['contact_field'],
+                                           values__string_value__iexact=value)
+
+                    contacts = contacts.filter(contact_query)
+
                 else:
-                    raise Exception("Invalid filter definition, must include 'group', 'ruleset' or 'boundary'")
+                    raise ValueError("Invalid filter definition, must include 'group', 'ruleset', 'contact_field' or 'boundary'")
 
             contacts = set([c['id'] for c in contacts.values('id')])
 
@@ -187,50 +206,29 @@ class Value(models.Model):
 
         # we are summarizing a flow ruleset
         if ruleset:
-            runs = FlowRun.objects.filter(flow=ruleset.flow).order_by('contact', '-created_on', '-pk').distinct('contact')
-            runs = [r['id'] for r in runs.values('id', 'contact') if r['contact'] in contacts]
+            filter_uuids = set(self_filter_uuids)
 
-            # our dict will contain category name to count
-            results = dict()
+            # grab all the flow steps for this ruleset, this gets us the most recent run for each contact
+            steps = [fs for fs in FlowStep.objects.filter(step_uuid=ruleset.uuid)
+                                                  .values('arrived_on', 'rule_uuid', 'contact')
+                                                  .order_by('-arrived_on')]
 
-            # we can't use a subselect here because of a bug in Django, should be fixed in 1.7
-            # see: https://code.djangoproject.com/ticket/22434
-            value_counts = Value.objects.filter(org=org, ruleset=ruleset, rule_uuid__in=uuid_to_category.keys())
-
-            # restrict our runs, using ANY is way quicker than IN
-            if runs:
-                value_counts = value_counts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
-
-            # no matching runs, exclude any values
-            else:
-                value_counts = value_counts.extra(where=["1=0"])
-
-            # contacts that have gotten to this step
-            step_contacts = FlowStep.objects.filter(step_uuid=ruleset.uuid)
-
-            # if we have runs to filter by, do so using ANY
-            if runs:
-                step_contacts = step_contacts.extra(where=["run_id = ANY(VALUES " + ", ".join(["(%d)" % r for r in runs]) + ")"])
-
-            # otherwise, exclude all
-            else:
-                step_contacts = step_contacts.extra(where=["1=0"])
-
-            step_contacts = set([s['run__contact'] for s in step_contacts.values('run__contact')])
-
-            # restrict to our filter uuids if we are self filtering
-            if self_filter_uuids:
-                value_counts = value_counts.filter(rule_uuid__in=self_filter_uuids)
-
-            values = value_counts.values('rule_uuid', 'contact')
+            # this will build up sets of contacts for each rule uuid
+            seen_contacts = set()
             value_contacts = defaultdict(set)
-            for value in values:
-                value_contacts[value['rule_uuid']].add(value['contact'])
+            for step in steps:
+                contact = step['contact']
+                if contact in contacts:
+                    if contact not in seen_contacts:
+                        value_contacts[step['rule_uuid']].add(contact)
+                        seen_contacts.add(contact)
 
             results = defaultdict(set)
             for uuid, contacts in value_contacts.items():
-                category = uuid_to_category[uuid]
-                results[category] |= contacts
+                if uuid and (not filter_uuids or uuid in filter_uuids):
+                    category = uuid_to_category.get(uuid, None)
+                    if category:
+                        results[category] |= contacts
 
             # now create an ordered array of our results
             set_contacts = set()
@@ -244,37 +242,38 @@ class Value(models.Model):
 
             # how many runs actually entered a response?
             set_contacts = set_contacts
-            unset_contacts = step_contacts - set_contacts
+            unset_contacts = value_contacts[None]
 
         # we are summarizing based on contact field
         else:
-            set_contacts = contacts & set([v['contact'] for v in Value.objects.filter(contact_field=contact_field).values('contact')])
-            unset_contacts = contacts - set_contacts
-
             values = Value.objects.filter(contact_field=contact_field)
 
             if contact_field.value_type == TEXT:
                 values = values.values('string_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'string_value',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'string_value',
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type == DECIMAL:
                 values = values.values('decimal_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
-                                                                formatter=format_decimal, return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
+                                                                              formatter=format_decimal,
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type == DATETIME:
                 values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'date_value',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
+                                                                              return_contacts=return_contacts)
 
             elif contact_field.value_type in [STATE, DISTRICT]:
                 values = values.values('location_value__osm_id', 'contact')
-                categories = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
-                                                                return_contacts=return_contacts)
+                categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
+                                                                              return_contacts=return_contacts)
 
             else:
-                raise Exception(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
+                raise ValueError(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
+
+            set_contacts = contacts & set_contacts
+            unset_contacts = contacts - set_contacts
 
         print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
 
@@ -291,7 +290,7 @@ class Value(models.Model):
         :return: how many cached records were invalidated
         """
         if not contact_field and not ruleset and not group:
-            raise Exception("You must specify a contact field, ruleset or group to invalidate results for")
+            raise ValueError("You must specify a contact field, ruleset or group to invalidate results for")
 
         if contact_field:
             key = CONTACT_KEY % contact_field.id
@@ -326,19 +325,20 @@ class Value(models.Model):
             { ruleset: 1515, categories: ["Red", "Blue"] }  // segmenting by another field, for those categories
             { groups: 124,151,151 }                         // segment by each each group in the passed in ids
             { location: "State", parent: null }             // segment for each admin boundary within the parent
+            { contact_field: "Country", values: ["US", "EN", "RW"] } // segment by a contact field for these values
         """
         from temba.contacts.models import ContactGroup, ContactField
-        from temba.flows.models import TrueTest, OPEN
+        from temba.flows.models import TrueTest, RuleSet
 
         start = time.time()
         results = []
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            raise Exception("Must specify either a RuleSet or Contact field.")
+            raise ValueError("Must specify either a RuleSet or Contact field.")
 
         org = ruleset.flow.org if ruleset else contact_field.org
 
-        open_ended = ruleset and ruleset.response_type == OPEN
+        open_ended = ruleset and ruleset.ruleset_type == RuleSet.TYPE_WAIT_MESSAGE and len(ruleset.get_rules()) == 1
 
         # default our filters to an empty list if None are passed in
         if filters is None:
@@ -357,14 +357,14 @@ class Value(models.Model):
             fingerprint_dict['contact_field'] = contact_field.id
             dependencies.add(CONTACT_KEY % contact_field.id)
 
-        for filter in filters:
-            if 'ruleset' in filter:
-                dependencies.add(RULESET_KEY % filter['ruleset'])
-            if 'groups' in filter:
-                for group_id in filter['groups']:
+        for contact_filter in filters:
+            if 'ruleset' in contact_filter:
+                dependencies.add(RULESET_KEY % contact_filter['ruleset'])
+            if 'groups' in contact_filter:
+                for group_id in contact_filter['groups']:
                     dependencies.add(GROUP_KEY % group_id)
-            if 'location' in filter:
-                field = ContactField.objects.get(org=org, label__iexact=filter['location'])
+            if 'location' in contact_filter:
+                field = ContactField.get_by_label(org, contact_filter['location'])
                 dependencies.add(CONTACT_KEY % field.id)
 
         if segment:
@@ -374,7 +374,7 @@ class Value(models.Model):
                 for group_id in segment['groups']:
                     dependencies.add(GROUP_KEY % group_id)
             if 'location' in segment:
-                field = ContactField.objects.get(org=org, label__iexact=segment['location'])
+                field = ContactField.get_by_label(org, segment['location'])
                 dependencies.add(CONTACT_KEY % field.id)
 
         # our final redis key will contain each dependency as well as a HASH representing the fingerprint of the
@@ -398,17 +398,15 @@ class Value(models.Model):
         if segment:
             # segmenting a result is the same as calculating the result with the addition of each
             # category as a filter so we expand upon the passed in filters to do this
-            if 'categories' in segment:
+            if 'ruleset' in segment and 'categories' in segment:
                 for category in segment['categories']:
                     category_filter = list(filters)
                     category_filter.append(dict(ruleset=segment['ruleset'], categories=[category]))
-
 
                     # calculate our results for this segment
                     kwargs['filters'] = category_filter
                     (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
                     results.append(dict(label=category, open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
-
 
             # segmenting by groups instead, same principle but we add group filters
             elif 'groups' in segment:
@@ -424,19 +422,32 @@ class Value(models.Model):
                     (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
                     results.append(dict(label=group.name, open_ended=open_ended, set=set_count, unset_count=unset_count, categories=categories))
 
+            # segmenting by a contact field, only for passed in categories
+            elif 'contact_field' in segment and 'values' in segment:
+                # look up the contact field
+                field = ContactField.get_by_label(org, segment['contact_field'])
+
+                for value in segment['values']:
+                    value_filter = list(filters)
+                    value_filter.append(dict(contact_field=field.pk, values=[value]))
+
+                    # calculate our results for this segment
+                    kwargs['filters'] = value_filter
+                    (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
+                    results.append(dict(label=value, open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
             # segmenting by a location field
             elif 'location' in segment:
                 # look up the contact field
-                field = ContactField.objects.get(org=org, label__iexact=segment['location'])
+                field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if not field.value_type in [STATE, DISTRICT]:
-                    raise Exception(_("Cannot segment on location for field that is not a State or District type"))
+                if field.value_type not in [STATE, DISTRICT]:
+                    raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
                 if not org.country:
-                    raise Exception(_("Cannot segment by location until country has been selected for organization"))
+                    raise ValueError(_("Cannot segment by location until country has been selected for organization"))
 
                 # the boundaries we will segment by
                 parent = org.country
@@ -451,7 +462,7 @@ class Value(models.Model):
 
                 # if the field is a district field, they need to specify the parent state
                 if not parent_osm_id and field.value_type == DISTRICT:
-                    raise Exception(_("You must specify a parent state to segment results by district"))
+                    raise ValueError(_("You must specify a parent state to segment results by district"))
 
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
@@ -504,20 +515,18 @@ class Value(models.Model):
             if ruleset and len(ruleset.get_rules()) == 1 and isinstance(ruleset.get_rules()[0].test, TrueTest):
                 cursor = connection.cursor()
 
-                custom_sql = """
-                  SELECT w.label, count(*) AS count FROM (
+                custom_sql = """SELECT w.label, count(*) AS count FROM (
                     SELECT
                       regexp_split_to_table(LOWER(text), E'[^[:alnum:]_]') AS label
-                    FROM msgs_msg
-                    WHERE id IN (
+                    FROM msgs_msg INNER JOIN contacts_contact ON ( msgs_msg.contact_id = contacts_contact.id )
+                    WHERE msgs_msg.id IN (
                       SELECT
                         msg_id
                         FROM flows_flowstep_messages, flows_flowstep
                         WHERE flowstep_id = flows_flowstep.id AND
                         flows_flowstep.step_uuid = '%s'
-                      )
-                  ) w group by w.label order by count desc;
-                """ % ruleset.uuid
+                      ) AND contacts_contact.is_test = False
+                  ) w group by w.label order by count desc;""" % ruleset.uuid
 
                 cursor.execute(custom_sql)
                 unclean_categories = get_dict_from_cursor(cursor)
@@ -544,14 +553,14 @@ class Value(models.Model):
         pipe.execute()
 
         # leave me: nice for profiling..
-        # from django.db import connection as db_connection, reset_queries
-        # print "=" * 80
-        # for query in db_connection.queries:
-        #     print "%s - %s" % (query['time'], query['sql'][:100])
-        # print "-" * 80
-        # print "took: %f" % (time.time() - start)
-        # print "=" * 80
-        # reset_queries()
+        #from django.db import connection as db_connection, reset_queries
+        #print "=" * 80
+        #for query in db_connection.queries:
+        #    print "%s - %s" % (query['time'], query['sql'][:1000])
+        #print "-" * 80
+        #print "took: %f" % (time.time() - start)
+        #print "=" * 80
+        #reset_queries()
 
         return results
 

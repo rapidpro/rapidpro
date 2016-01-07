@@ -54,6 +54,7 @@ class UpdateCampaignForm(ModelForm):
 
     class Meta:
         model = Campaign
+        fields = '__all__'
 
 
 class CampaignCRUDL(SmartCRUDL):
@@ -81,6 +82,28 @@ class CampaignCRUDL(SmartCRUDL):
             form_kwargs['user'] = self.request.user
             return form_kwargs
 
+        def form_valid(self, form):
+            previous_group = self.get_object().group
+            new_group = form.cleaned_data['group']
+
+            group_changed = new_group != previous_group
+            if group_changed:
+                fires = EventFire.objects.filter(event__campaign=self.object, event__campaign__group=previous_group, fired=None)
+                fires.delete()
+
+            # save our campaign
+            self.object = form.save(commit=False)
+            self.save(self.object)
+
+            # if our group changed, create our new fires
+            if group_changed:
+                EventFire.update_campaign_events(self.object)
+
+            response = self.render_to_response(self.get_context_data(form=form,
+                                                                     success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+            return response
 
     class Read(OrgMixin, SmartReadView):
         def get_gear_links(self):
@@ -110,6 +133,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Campaign
+                fields = '__all__'
 
         fields = ('name', 'group')
         form_class = CampaignForm
@@ -232,6 +256,7 @@ class EventForm(forms.ModelForm):
 
     class Meta:
         model = CampaignEvent
+        fields = '__all__'
 
 
 class CampaignEventCRUDL(SmartCRUDL):
@@ -287,7 +312,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             self.object.is_active = False
             self.object.save()
 
-            EventFire.update_events_for_event(self.object)
+            EventFire.update_eventfires_for_event(self.object)
 
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)
@@ -326,7 +351,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super(CampaignEventCRUDL.Update, self).post_save(obj)
             obj.update_flow_name()
-            EventFire.update_events_for_event(obj)
+            EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):
@@ -337,7 +362,6 @@ class CampaignEventCRUDL(SmartCRUDL):
                 flow.is_active = False
                 flow.save()
                 obj.message = None
-                # print "Deactivating previous flow %s [%d]" % (flow, flow.pk)
 
             obj = super(CampaignEventCRUDL.Update, self).pre_save(obj)
             self.form.pre_save(self.request, obj)
@@ -371,7 +395,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super(CampaignEventCRUDL.Create, self).post_save(obj)
             obj.update_flow_name()
-            EventFire.update_events_for_event(obj)
+            EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):

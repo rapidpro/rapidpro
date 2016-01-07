@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import hmac
 import json
+from django.db.models import Q
 import requests
 import uuid
 
@@ -16,8 +17,9 @@ from smartmin.models import SmartModel
 from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel, TEMBA_HEADERS
-from temba.msgs.models import CALL_OUT, CALL_OUT_MISSED, CALL_IN, CALL_IN_MISSED
-from temba.utils import datetime_to_str
+from temba.msgs.models import Call
+from temba.utils import datetime_to_str, prepped_request_to_str
+from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
 
 PENDING = 'P'
@@ -43,10 +45,10 @@ CATEGORIZE = 'categorize'
 EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (SMS_SENT, "Outgoing SMS Sent"),
                  (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (CALL_OUT, "Outgoing Call"),
-                 (CALL_OUT_MISSED, "Missed Outgoing Call"),
-                 (CALL_IN, "Incoming Call"),
-                 (CALL_IN_MISSED, "Missed Incoming Call"),
+                 (Call.TYPE_OUT, "Outgoing Call"),
+                 (Call.TYPE_OUT_MISSED, "Missed Outgoing Call"),
+                 (Call.TYPE_IN, "Incoming Call"),
+                 (Call.TYPE_IN_MISSED, "Missed Incoming Call"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))
@@ -79,7 +81,7 @@ class WebHookEvent(SmartModel):
         deliver_event_task.delay(self.id)
 
     @classmethod
-    def trigger_flow_event(cls, webhook_url, flow, run, node, contact, event, action='POST'):
+    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST'):
         org = flow.org
         api_user = get_api_user()
 
@@ -127,7 +129,7 @@ class WebHookEvent(SmartModel):
                     flow=flow.id,
                     run=run.id,
                     text=text,
-                    step=unicode(node.uuid),
+                    step=unicode(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
@@ -182,7 +184,7 @@ class WebHookEvent(SmartModel):
             else:
                 webhook_event.status = FAILED
                 message = "Got non 200 response (%d) from webhook." % response.status_code
-                raise Exception("Got non 200 response (%d) from webook." % response.status_code)
+                raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
 
         except Exception as e:
             import traceback
@@ -218,7 +220,7 @@ class WebHookEvent(SmartModel):
         org = msg.org
 
         # no-op if no webhook configured
-        if not org or not org.webhook:
+        if not org or not org.get_webhook_url():
             return
 
         # if the org doesn't care about this type of message, ignore it
@@ -254,7 +256,7 @@ class WebHookEvent(SmartModel):
         org = call.channel.org
 
         # no-op if no webhook configured
-        if not org or not org.webhook:
+        if not org or not org.get_webhook_url():
             return
 
         event = call.call_type
@@ -288,7 +290,7 @@ class WebHookEvent(SmartModel):
         org = channel.org
 
         # no-op if no webhook configured
-        if not org or not org.webhook: # pragma: no cover
+        if not org or not org.get_webhook_url(): # pragma: no cover
             return
 
         if not org.is_notified_of_alarms():
@@ -326,9 +328,9 @@ class WebHookEvent(SmartModel):
         post_data['relayer_phone'] = self.channel.address
 
         # look up the endpoint for this channel
-        result = dict(url=self.org.webhook, data=urlencode(post_data, doseq=True))
+        result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))
 
-        if not self.org.webhook: # pragma: no cover
+        if not self.org.get_webhook_url(): # pragma: no cover
             result['status_code'] = 0
             result['message'] = "No webhook registered for this org, ignoring event"
             self.status = FAILED
@@ -351,7 +353,20 @@ class WebHookEvent(SmartModel):
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
-            r = requests.post(self.org.webhook, data=post_data, headers=TEMBA_HEADERS)
+            # some hosts deny generic user agents, use Temba as our user agent
+            headers = TEMBA_HEADERS.copy()
+
+            # also include any user-defined headers
+            headers.update(self.org.get_webhook_headers())
+
+            s = requests.Session()
+            prepped = requests.Request('POST', self.org.get_webhook_url(),
+                                       data=post_data,
+                                       headers=headers).prepare()
+            result['url'] = prepped.url
+            result['request'] = prepped_request_to_str(prepped)
+            r = s.send(prepped)
+
             result['status_code'] = r.status_code
             result['body'] = r.text.strip()
 
@@ -366,7 +381,7 @@ class WebHookEvent(SmartModel):
                 try:
                     data = r.json()
                     serializer = MsgCreateSerializer(data=data, user=user, org=self.org)
-                            
+
                     if serializer.is_valid():
                         result['serializer'] = serializer
                         obj = serializer.object
@@ -413,6 +428,8 @@ class WebHookResult(SmartModel):
                            help_text="The URL the event was delivered to")
     data = models.TextField(null=True, blank=True,
                             help_text="The data that was posted to the webhook")
+    request = models.TextField(null=True, blank=True,
+                               help_text="The request that was posted to the webhook")
     status_code = models.IntegerField(help_text="The HTTP status as returned by the web hook")
     message = models.CharField(max_length=255,
                                help_text="A message describing the result, error messages go here")
@@ -438,8 +455,11 @@ class WebHookResult(SmartModel):
             message = message[:255]
 
         api_user = get_api_user()
+
         WebHookResult.objects.create(event=event,
                                      url=result['url'],
+                                     # Flow webhooks won't have 'request'
+                                     request=result.get('request'),
                                      data=result['data'],
                                      message=message,
                                      status_code=result.get('status_code', 503),
@@ -457,9 +477,39 @@ class APIToken(models.Model):
     Our API token, ties in orgs
     """
     key = models.CharField(max_length=40, primary_key=True)
+
     user = models.ForeignKey(User, related_name='api_tokens')
+
     org = models.ForeignKey(Org, related_name='api_tokens')
+
     created = models.DateTimeField(auto_now_add=True)
+
+    role = models.ForeignKey(Group)
+
+    @classmethod
+    def get_orgs_for_role(cls, user, role):
+        """
+        Gets all the orgs the user can login to with the given role. Also
+        takes a single character role (A, E, S, etc) and maps it to a UserGroup.
+        """
+
+        if role == 'A':
+            valid_orgs = Org.objects.filter(administrators__in=[user])
+            role = Group.objects.get(name='Administrators')
+        elif role == 'E':
+            # admins can authenticate as editors
+            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
+            role = Group.objects.get(name='Editors')
+        elif role == 'S':
+            # admins and editors can authenticate as surveyors
+            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
+            role = Group.objects.get(name='Surveyors')
+        else:
+            # can't authenticate via the api as anything else
+            valid_orgs = []
+            role = None
+
+        return valid_orgs, role
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -474,39 +524,48 @@ class APIToken(models.Model):
         return self.key
 
     class Meta:
-        unique_together = ('user', 'org')
+        unique_together = ('user', 'org', 'role')
 
-#-----------------------------------------------------------------------------------------------
-# Takes care of creating API tokens for new users
-#-----------------------------------------------------------------------------------------------
 
-def api_token(obj):
-    if not obj.is_authenticated():
+def get_or_create_api_token(user):
+    """
+    Gets or (lazily creates) an API token for this user
+    """
+    if not user.is_authenticated():
         return None
 
-    org = obj.get_org()
+    org = user.get_org()
     if not org:
-        org = Org.get_org(obj)
+        org = Org.get_org(user)
+
+    role = user.get_role()
 
     if org:
-        tokens = APIToken.objects.filter(user=obj, org=org)
+        tokens = APIToken.objects.filter(user=user, org=org, role=role)
 
         if tokens:
             return str(tokens[0])
         else:
-            token = APIToken.objects.create(user=obj, org=org)
+            token = APIToken.objects.create(user=user, org=org, role=role)
             return str(token)
     else:
         return None
 
-User.api_token = api_token
 
-#-----------------------------------------------------------------------------------------------
-# Returns a user that can be used to associate events created by the API service
-#-----------------------------------------------------------------------------------------------
+def api_token(user):
+    """
+    Cached property access to a user's lazily-created API token
+    """
+    return get_cacheable_attr(user, '__api_token', lambda: get_or_create_api_token(user))
+
+
+User.api_token = property(api_token)
+
 
 def get_api_user():
-    # create a Poll user.. this will be used by our SMS app to reply to messages
+    """
+    Returns a user that can be used to associate events created by the API service
+    """
     user = User.objects.filter(username='api')
     if user:
         return user[0]

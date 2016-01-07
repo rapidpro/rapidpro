@@ -55,7 +55,7 @@
 
       %pre.prettyprint<
         :plain
-          <b>{{ endpoint.method }}</b> {{API_URL}}{{ endpoint.url }}.json
+          <b>{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json
           <b>Authorization:</b> Token {{ request.user.api_token }}
 
       -if endpoint.method == 'GET' or endpoint.method == 'DELETE'
@@ -79,7 +79,7 @@
           %i - View Full Documentation
 
         -if user.api_token
-          %a.btn.btn-primary.pull-right{ onclick:'javascript:send("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}")' }= endpoint.method|upper
+          %a.btn.btn-primary.pull-right{ onclick:'javascript:send("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
         -else
           %span.pull-right Log in to use the Explorer
 

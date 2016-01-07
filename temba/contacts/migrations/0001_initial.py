@@ -4,8 +4,6 @@ from __future__ import unicode_literals
 from django.db import models, migrations
 from django.conf import settings
 import temba.orgs.models
-import django_hstore.fields
-
 
 class Migration(migrations.Migration):
 
@@ -26,13 +24,13 @@ class Migration(migrations.Migration):
                 ('is_archived', models.BooleanField(default=False, help_text='Whether this contacts has been archived', verbose_name='Is Archived')),
                 ('is_test', models.BooleanField(default=False, help_text='Whether this contact is for simulation', verbose_name='Is Test')),
                 ('status', models.CharField(default='N', max_length=2, verbose_name='Contact Status')),
-                ('fields', django_hstore.fields.DictionaryField(db_index=True)),
+                ('fields', models.CharField(null=True, max_length=128)),
                 ('language', models.CharField(help_text='The preferred language for this contact', max_length=3, null=True, verbose_name='Language', blank=True)),
             ],
             options={
                 'abstract': False,
             },
-            bases=(models.Model, temba.orgs.models.OrgModelMixin),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name='ContactField',
@@ -46,7 +44,7 @@ class Migration(migrations.Migration):
             ],
             options={
             },
-            bases=(models.Model, temba.orgs.models.OrgModelMixin),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name='ContactGroup',

@@ -45,27 +45,37 @@
                   %a{'href':'={folder.url}'}
                     ={folder.label} ({{ folder.count | intcomma }})
 
-              -if labels
+              - if labels
                 %li.nav-header
-                  -trans "Labels"
-                - for label in labels
-                  - with label.children as children
-                    %li{'class': '{% if current_label.id == label.pk %}active{% endif %} {% if children %}lbl-parent{%else%}lbl-not-parent{% endif %} {% if current_label in children or current_label.id == label.pk %}expanded{%endif %}'}
-                      %a{'href':'{% url "msgs.msg_filter" label.pk %}'}
-                        {{ label.label }} ({{ label.count | intcomma }})
-                        - if children
-                          - if current_label in children or current_label.id == label.pk
+                  - trans "Labels"
+                - for node in labels
+                  - if node.is_folder
+                    %li{ class:'{% if current_label.id == node.id %}active{% endif %} lbl-parent {% if current_label.id == node.id or current_label.folder.id == node.id %}expanded{% endif %}' }
+                      %a{'href':'{% url "msgs.msg_filter" node.id %}'}
+                        {{ node.name }}
+                        - if node.children.all
+                          - if current_label.id == node.id or current_label.folder.id == node.id
                             .glyph.icon-arrow-down-2
                           -else
                             .glyph.icon-arrow-right-8
 
-                      - if children
-                        - if current_label in children or current_label.id == label.pk
-                          %ul.nav.nav-list.level2
-                            - for sub_label in children
-                              %li{'class':'{% if current_label.pk == sub_label.pk %}active{% endif %}'}
-                                %a{'href':'{% url "msgs.msg_filter" sub_label.pk %}'}
-                                  {{ sub_label.name }} ({{ sub_label.get_message_count }})
+                      %ul.nav.nav-list.level2
+                        - for label in node.children.all
+                          %li{ class:'{% if current_label.id == label.id %}active{% endif %}' }
+                            %a{ href:"{% url 'msgs.msg_filter' label.id %}" }
+                              {{ label.name }} ({{ label.get_visible_count | intcomma }})
+                  - else
+                    %li{ class:'{% if current_label.id == node.id %}active{% endif %}' }
+                      %a{ href:"{% url 'msgs.msg_filter' node.id %}", class:'{% if current_label.id == node.id %}active{% endif %}' }
+                        {{ node.name }} ({{ node.get_visible_count | intcomma }})
+
+          %div{style:"margin-top: 10px"}
+            - if org_perms.msgs.label_create
+              %a.btn.btn-block.add-label
+                - trans "Create Label"
+            - if org_perms.msgs.label_create_folder
+              %a.btn.btn-block.add-folder
+                - trans "Create Folder"
 
         -if has_messages
           .span9
@@ -122,23 +132,30 @@
                           %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
                             .glyph.icon-tag
                             %span.caret
-                          %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
-                            - for label in labels
-                              -with label.children as children
-                                %li{'class':'{% if children %}dropdown-submenu{% endif %}'}
-                                  %a.lbl-menu.object-btn-label{href:'#', 'tabindex':'-1', data-id:'{{label.pk}}'}
-                                    .glyph.message-label.label-checkbox
-                                    = label.label
+                          %ul.dropdown-menu.label-menu{role:'menu', aria-labelledby:'dlabel'}
+                            - for node in labels
+                              - if node.is_folder and node.children.all
+                                %li.dropdown-submenu
+                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
+                                    {{ node.name }}
                                   %ul.dropdown-menu.label-menu
-                                    - for child in children
+                                    - for label in node.children.all
                                       %li
-                                        %a.lbl-menu.object-btn-label{'href':'#', 'tabindex':'-1', data-id:'{{child.pk}}'}
+                                        %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{label.id}}'}
                                           .glyph.message-label.label-checkbox
-                                          = child.name
+                                          {{ label.name }}
+                              - elif not node.is_folder
+                                %li
+                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
+                                    .glyph.message-label.label-checkbox
+                                    {{ node.name }}
+
                             - if org_perms.msgs.label_create
+                              - if has_labels
+                                %li.divider
                               %li
-                                %a.lbl-menu.add-label
-                                  -trans "Add Label"
+                                %a.lbl-menu.add-label{href:'#'}
+                                  -trans "New Label..."
 
             -block message-list
               %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
@@ -146,25 +163,22 @@
                   -for object in object_list
                     %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}{% if object.created_on > msg_last_viewed %}new{% endif %}', data-object-id:'{{ object.id }}',
                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
-                      - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
-                        %td.checkbox.sms.object-row-checkbox
-                          .glyph.object-row-checkbox
+                      - if actions
+                        - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
+                          %td.checkbox.sms.object-row-checkbox
+                            .glyph.object-row-checkbox
                       %td.value-phone.field_phone
                         %nobr
                           {{ object.contact|short_name:user_org }}
                       %td.value-text.field_text
                         {% get_value object 'text' %}
                         .value-labels
-                          %nobr
-                            - for label in object.labels.all
-                              %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
-                                  ={label.name}
+                          - for label in object.labels.all
+                            %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                              %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                                ={label.name}
 
-
-                      %td.value-flow.field_flow
-                        -if object.get_flow_id
-                          %nobr
+                          - if object.get_flow_id
                             %span.label.label-success
                               %a{href:"{% url 'flows.flow_editor' object.get_flow_id %}"}
                                 ={object.get_flow_name}
@@ -194,7 +208,6 @@
 -block extra-script
   {{ block.super }}
   :javascript
-
     {% if org_perms.msgs.msg_update %}
 
     function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
@@ -214,33 +227,30 @@
 
     {% endif %}
 
-    function onNumericDialogShown(modal) {
-      modal = modal.ele
-      // focus on the number dialog
-      modal.find('.modal-body > .form #number').focus();
-
-      modal.find('#number').keyup(function(event){
-        if(event.keyCode == 13){
-          $("#confirmation .ok").click();
-          $("#confirmation #number").off('keyup');
-        }
-      });
-    }
-
     $('.page-content').on('click', ".add-label", function() {
       lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Create Label" %}', '{% url "msgs.label_create" %}')
+      var modal = new Modax('{% trans "Create Label" %}', '{% url "msgs.label_create" %}');
+      modal.setIcon('icon-tag');
       modal.setListeners({
         onFormLoaded: function(){
           $("#active-modal form input#id_messages").val(lastChecked.join());
-          if ($('#id_parent').find('option').length > 1) {
-            select2div('#id_parent');
+          if ($('#id_folder').find('option').length > 1) {
+            select2div('#id_folder');
           } else {
-            $('#id_parent').parents('.control-group').hide();
+            $('#id_folder').parents('.control-group').hide();
           }
         }, onCompleted: function() { refresh(function() { recheckIds(); }, true);}
       });
 
+      modal.show();
+    });
+
+    $('.page-content').on('click', ".add-folder", function() {
+      var modal = new Modax('{% trans "Create Folder" %}', '{% url "msgs.label_create_folder" %}');
+      modal.setIcon('icon-folder');
+      modal.setListeners({
+        onCompleted: function() { refresh(null, true);}
+      });
       modal.show();
     });
 
@@ -280,9 +290,9 @@
     $('.page-content').on('click', ".msg-export-btn", function() {
       lastChecked = getCheckedIds();
       {% if current_label %}
-      var modal = new Modax('{% trans "Export Label Messages" %}', '{% url "msgs.msg_export" %}?label={{current_label.pk}}')
+      var modal = new Modax('{% trans "Export Label Messages" %}', '{% url "msgs.msg_export" %}?label={{current_label.pk}}');
       {% else %}
-      var modal = new Modax('{% trans "Export Messages" %}', '{% url "msgs.msg_export" %}')
+      var modal = new Modax('{% trans "Export Messages" %}', '{% url "msgs.msg_export" %}');
       {% endif %}
       modal.setIcon('icon-excel');
       modal.setRedirectOnSuccess(true);

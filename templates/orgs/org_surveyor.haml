@@ -1,0 +1,16 @@
+-extends "frame.html"
+
+-load i18n
+
+-block content
+
+  %p
+    -blocktrans with org.name as org and brand.name as brandname
+      To get started submitting surveys for {{ org }}, download the {{ brandname }} Surveyor app from
+      Google Play. After you install the Surveyor app on your Android phone, simply login with the same
+      account you use to login to {{ brandname }}.
+
+    %br
+    %br
+    %a{href:"https://play.google.com/store/apps/details?id={{brand.android_surveyor}}"}
+      %img{alt:"{{brand.name}} Surveyor on Google Play", src:"https://developer.android.com/images/brand/en_app_rgb_wo_45.png"}

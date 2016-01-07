@@ -127,11 +127,11 @@ class Migration(migrations.Migration):
             options={
                 'ordering': ['-created_on', '-pk'],
             },
-            bases=(models.Model, temba.orgs.models.OrgModelMixin),
+            bases=(models.Model,),
         ),
         migrations.AlterUniqueTogether(
             name='label',
-            unique_together=set([('name', 'parent', 'org')]),
+            unique_together=set([('org', 'name', 'parent')]),
         ),
         migrations.AddField(
             model_name='exportmessagestask',

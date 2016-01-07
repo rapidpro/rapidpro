@@ -10,9 +10,13 @@
           %span{id:"modal-title"}><
             [[title]]
       .modal-body
-                 [[body]]
-            
+        [[body]]
+
+        .details.hide
+          [[details]]
       .modal-footer
+        %button.pull-left{ng-show:'subtext', ng-class:'{"show-help":showHelp}', ng-click:"showHelpWidget()", class:"btn btn-secondary",ng-hide:"hideCancel"}
+          -trans "Help"
         %button{ng-click:"cancel()",class:"btn btn-secondary",ng-hide:"hideCancel"}
           -trans "Cancel"
         %button{ng-click:"ok()",class:"btn btn-primary"}

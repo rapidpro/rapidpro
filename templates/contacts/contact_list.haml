@@ -112,15 +112,17 @@
                             %span.caret
                           %ul.dropdown-menu.label-menu
                             - for group in groups
-                              -if not group.is_dynamic
+                              - if not group.is_dynamic
                                 %li
                                   %a.lbl-menu{'href':'#', onclick:'addContactToGroup({{group.pk}})', data-id:'{{group.pk}}'}
                                     .glyph.label-checkbox
                                     = group.label
                             - if org_perms.contacts.contactgroup_create
+                              - if groups
+                                %li.divider
                               %li
-                                %a.lbl-menu.add-group
-                                  -trans "Add Group"
+                                %a.lbl-menu.add-group{ href:'#' }
+                                  - trans "New Group..."
 
                       - if org_perms.msgs.broadcast_send 
                         %span.btn-group
@@ -229,6 +231,10 @@
 
     .span9 .contact_list tr.contacts {
       border-top: none;
+    }
+
+    .span9 .object-list tbody td.value-text {
+      min-width: 30px;
     }
 
     .modal .modal-body .control-group .control-label {

@@ -1,0 +1,215 @@
+{
+  "campaigns": [],
+  "version": 3,
+  "site": "http://rapidpro.io",
+  "flows": [
+    {
+      "definition": {
+        "rule_sets": [
+          {
+            "uuid": "1a08ec37-2218-48fd-b6b0-846b14407041",
+            "response_type": "C",
+            "rules": [
+              {
+                "test": {
+                  "test": "Red",
+                  "type": "contains_any"
+                },
+                "category": "Red",
+                "destination": "2469ada5-3c36-4d74-bf73-daab0a56c37c",
+                "uuid": "e82dfba9-aaf3-438c-b52d-5dee50b1260c"
+              },
+              {
+                "test": {
+                  "test": "Green",
+                  "type": "contains_any"
+                },
+                "category": "Green",
+                "destination": "2469ada5-3c36-4d74-bf73-daab0a56c37c",
+                "uuid": "6ac83530-aab5-423f-809e-56b6657dd543"
+              },
+              {
+                "test": {
+                  "test": "Blue",
+                  "type": "contains_any"
+                },
+                "category": "Blue",
+                "destination": "2469ada5-3c36-4d74-bf73-daab0a56c37c",
+                "uuid": "ad45fa86-0e4e-4d91-a1ff-a96308267216"
+              },
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "Other",
+                "destination": "dcd9541a-0263-474e-b3f1-03a28993f95a",
+                "uuid": "e342d6af-7149-485c-b2ac-0e56c6cc1aa9"
+              }
+            ],
+            "label": "Color",
+            "operand": "@step.value",
+            "y": 900,
+            "x": 98
+          },
+          {
+            "uuid": "0784d7f8-3534-4432-99ad-7e4ea41cfbdb",
+            "response_type": "C",
+            "rules": [
+              {
+                "test": {
+                  "test": "Mutzig",
+                  "type": "contains_any"
+                },
+                "category": "Mutzig",
+                "destination": "e990c809-62f3-44e7-b50a-e127324a6cde",
+                "uuid": "b2fa44f0-28d2-4e4e-80d0-31864e57fd2c"
+              },
+              {
+                "test": {
+                  "test": "Primus",
+                  "type": "contains_any"
+                },
+                "category": "Primus",
+                "destination": "e990c809-62f3-44e7-b50a-e127324a6cde",
+                "uuid": "865fdc87-ae3c-4ce5-9e79-41a1cd60bb80"
+              },
+              {
+                "test": {
+                  "test": "Turbo King",
+                  "type": "contains_any"
+                },
+                "category": "Turbo King",
+                "destination": "e990c809-62f3-44e7-b50a-e127324a6cde",
+                "uuid": "0c9313cd-190f-4c2d-b29e-43a3c958a0f3"
+              },
+              {
+                "test": {
+                  "test": "Skol",
+                  "type": "contains_any"
+                },
+                "category": "Skol",
+                "destination": "e990c809-62f3-44e7-b50a-e127324a6cde",
+                "uuid": "31c68da0-36f9-486f-ae0d-e9f099ca394a"
+              },
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "Other",
+                "destination": "5879a618-0093-4088-a180-1e19e9be6293",
+                "uuid": "cfde98d4-3ca1-4daf-8f4d-dfe962d7204c"
+              }
+            ],
+            "label": "Beer",
+            "operand": "@step.value",
+            "y": 45,
+            "x": 112
+          },
+          {
+            "uuid": "85077ae7-e958-41fb-bdd5-d70b84ff52e2",
+            "response_type": "C",
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "All Responses",
+                "destination": "cc592482-a95d-439b-ad96-d8e9306e2f37",
+                "uuid": "81502121-9784-4f97-96c0-cb30c7a1747b"
+              }
+            ],
+            "label": "Name",
+            "operand": "@step.value",
+            "y": 270,
+            "x": 191
+          }
+        ],
+        "entry": "ec4c8328-f7b6-4386-90c0-b7e6a3517e9b",
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 100,
+            "destination": "1a08ec37-2218-48fd-b6b0-846b14407041",
+            "uuid": "ec4c8328-f7b6-4386-90c0-b7e6a3517e9b",
+            "actions": [
+              {
+                "msg": "What is your favorite color?",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 237,
+            "x": 131,
+            "destination": "0784d7f8-3534-4432-99ad-7e4ea41cfbdb",
+            "uuid": "2469ada5-3c36-4d74-bf73-daab0a56c37c",
+            "actions": [
+              {
+                "msg": "Good choice, I like @flow.color.category too! What is your favorite beer?",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 8,
+            "x": 456,
+            "destination": "1a08ec37-2218-48fd-b6b0-846b14407041",
+            "uuid": "dcd9541a-0263-474e-b3f1-03a28993f95a",
+            "actions": [
+              {
+                "msg": "I don't know that color. Try again.",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 535,
+            "x": 191,
+            "destination": "85077ae7-e958-41fb-bdd5-d70b84ff52e2",
+            "uuid": "e990c809-62f3-44e7-b50a-e127324a6cde",
+            "actions": [
+              {
+                "msg": "Mmmmm... delicious @flow.beer.category. If only they made @flow.color|lower_case @flow.beer.category! Lastly, what is your name?",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 265,
+            "x": 512,
+            "destination": "0784d7f8-3534-4432-99ad-7e4ea41cfbdb",
+            "uuid": "5879a618-0093-4088-a180-1e19e9be6293",
+            "actions": [
+              {
+                "msg": "I don't know that one, try again please.",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 805,
+            "x": 191,
+            "destination": null,
+            "uuid": "cc592482-a95d-439b-ad96-d8e9306e2f37",
+            "actions": [
+              {
+                "msg": "Thanks @flow.name, we are all done!",
+                "type": "reply"
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "notes": []
+        }
+      },
+      "flow_type": "F",
+      "name": "Favorites",
+      "id": 500
+    }
+  ],
+  "triggers": []
+}

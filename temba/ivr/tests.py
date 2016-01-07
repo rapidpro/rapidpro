@@ -6,70 +6,15 @@ from mock import patch
 import mock
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
 from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
-from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg
-from temba.channels.models import TWILIO, CALL, ANSWER
-from temba.tests import TembaTest
-from twilio.util import RequestValidator
+from temba.channels.models import TWILIO, CALL, ANSWER, SEND
+from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
 import os
 from django.conf import settings
 from temba.msgs.models import IVR
 
 
-class MockRequestValidator(RequestValidator):
-
-    def __init__(self, token):
-        pass
-
-    def validate(self, url, post, signature):
-        return True
-
-class MockTwilioClient(TwilioClient):
-
-    def __init__(self, sid, token, base=''):
-        self.base = base
-        self.applications = MockTwilioClient.MockApplications()
-        self.calls = MockTwilioClient.MockCalls()
-        self.auth = ['', 'FakeRequestToken']
-
-    def validate(self, request):
-        return True
-
-    class MockCall():
-        def __init__(self, to=None, from_=None, url=None, status_callback=None):
-            self.to = to
-            self.from_ = from_
-            self.url = url
-            self.status_callback = status_callback
-            self.sid = 'CallSid'
-
-    class MockApplication():
-        def __init__(self, friendly_name):
-            self.friendly_name = friendly_name
-            self.sid = 'TwilioTestSid'
-
-    class MockApplications():
-        def __init__(self, *args):
-            pass
-
-        def list(self, friendly_name=None):
-            return [MockTwilioClient.MockApplication(friendly_name)]
-
-    class MockCalls():
-        def __init__(self):
-            pass
-
-        def create(self, to=None, from_=None, url=None, status_callback=None):
-            return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)
-
-        def hangup(self, external_id):
-            print "Hanging up %s on Twilio" % external_id
-
-        def update(self, external_id, url):
-            print "Updating call for %s to url %s" % (external_id, url)
-
-
-class IVRTests(TembaTest):
+class IVRTests(FlowFileTest):
 
     def setUp(self):
 
@@ -77,10 +22,40 @@ class IVRTests(TembaTest):
 
         # configure our account to be IVR enabled
         self.channel.channel_type = TWILIO
-        self.channel.role = CALL + ANSWER
+        self.channel.role = CALL + ANSWER + SEND
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_twilio_failed_auth(self):
+
+        def create(self, to=None, from_=None, url=None, status_callback=None):
+            from twilio import TwilioRestException
+            raise TwilioRestException(403, 'http://twilio.com', code=20003)
+        MockTwilioClient.MockCalls.create = create
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file('call-me-maybe')
+        flow = Flow.objects.filter(name='Call me maybe').first()
+
+        user_settings = self.admin.get_settings()
+        user_settings.tel = '+18005551212'
+        user_settings.save()
+
+        test_contact = Contact.get_test_contact(self.admin)
+        Contact.set_simulation(True)
+        flow.start([], [test_contact])
+
+        log = ActionLog.objects.all().order_by('-pk').first()
+        self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
+                                    'Check your token and try again.')
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -113,8 +88,8 @@ class IVRTests(TembaTest):
         if os.path.isfile(recording_file):
             os.remove(recording_file)
 
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, 'Fake Recording Bits')
+        with patch('requests.get') as response:
+            response.return_value = MockResponse(200, 'Fake Recording Bits')
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='completed',
                                   Digits='hangup',
@@ -135,12 +110,15 @@ class IVRTests(TembaTest):
         self.assertEquals(15, call.duration)
 
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
-        self.assertEquals(3, messages.count())
-        self.assertEquals(3, self.org.get_credits_used())
+        self.assertEquals(4, messages.count())
+        self.assertEquals(4, self.org.get_credits_used())
+
+        # we should have played a recording from the contact back to them
+        self.assertTrue('FAKESID.wav' in messages[2].recording_url)
 
         from temba.flows.models import FlowStep
         steps = FlowStep.objects.all()
-        self.assertEquals(3, steps.count())
+        self.assertEquals(4, steps.count())
 
         # each of our steps should have exactly one message
         for step in steps:
@@ -150,6 +128,75 @@ class IVRTests(TembaTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
 
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_ivr_child_flow(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        msg_flow = self.get_flow('ivr_child_flow')
+        ivr_flow = Flow.objects.get(name="Voice Flow")
+
+        # start macklemore in the flow
+        ben = self.create_contact('Ben', '+12345')
+        ivr_flow.start(groups=[], contacts=[ben])
+        call = IVRCall.objects.get(direction=OUTGOING)
+
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        self.assertEquals(2, FlowStep.objects.all().count())
+
+        # press 1
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
+        self.assertContains(response, '<Say>I just sent you a text.')
+
+        # should have also started a new flow and received our text
+        self.assertTrue(FlowRun.objects.filter(contact=ben, flow=msg_flow).first())
+        self.assertTrue(Msg.objects.filter(direction=OUTGOING, contact=ben, text="You said foo!").first())
+
+    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_non_blocking_rule_ivr(self):
+
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # flow goes: passive -> recording -> msg
+        flow = self.get_flow('non_blocking_rule_ivr')
+
+        print json.dumps(flow.as_json(), indent=2)
+
+        # start marshall in the flow
+        eminem = self.create_contact('Eminem', '+12345')
+        flow.start(groups=[], contacts=[eminem])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        self.assertNotEquals(call, None)
+
+        # after a call is picked up, twilio will call back to our server
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # should have two steps so far, right up to the recording
+        self.assertEquals(2, FlowStep.objects.all().count())
+
+        # no outbound yet
+        self.assertEquals(None, Msg.objects.filter(direction='O', contact=eminem).first())
+
+        # now pretend we got a recording
+        from temba.tests import MockResponse
+        with patch('requests.get') as response:
+            response.return_value = MockResponse(200, 'Fake Recording Bits')
+            self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
+                                     dict(CallStatus='in-progress',
+                                     Digits='#',
+                                     RecordingUrl='http://api.twilio.com/ASID/Recordings/SID',
+                                     RecordingSid='FAKESID'))
+
+        # now we should have an outbound message
+        self.assertEquals('Hi there Eminem', Msg.objects.filter(direction='O', contact=eminem).first().text)
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -209,22 +256,27 @@ class IVRTests(TembaTest):
         user_settings.tel = '+18005551212'
         user_settings.save()
 
-        # start our flow
-        eric = self.create_contact('Eric Newcomer', number='+13603621737')
-        eric.is_test = True
-        eric.save()
+        # start our flow as a test contact
+        test_contact = Contact.get_test_contact(self.admin)
         Contact.set_simulation(True)
-        flow.start([], [eric])
+        flow.start([], [test_contact])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
 
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
-        # now pretend we are a normal caller
+        # explicitly hanging up on a test call should remove it
+        call.update_status('in-progress', 0)
+        call.save()
+        IVRCall.hangup_test_call(flow)
+        self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
+
         ActionLog.objects.all().delete()
-        eric.is_test = False
-        eric.save()
-        Contact.set_simulation(False)
         IVRCall.objects.all().delete()
+
+        # now pretend we are a normal caller
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        Contact.set_simulation(False)
         flow.start([], [eric], restart_participants=True)
 
         # we should have an outbound ivr call now
@@ -272,7 +324,9 @@ class IVRTests(TembaTest):
 
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
-        self.assertEquals(COMPLETED, IVRCall.objects.get(pk=call.pk).status)
+        call = IVRCall.objects.get(pk=call.pk)
+        self.assertEquals(COMPLETED, call.status)
+        self.assertFalse(FlowRun.objects.filter(call=call).first().is_active)
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())
@@ -281,12 +335,12 @@ class IVRTests(TembaTest):
         self.assertEquals(0, ActionLog.objects.all().count())
         self.assertEquals(1, flow.get_completed_runs())
 
-        # should still have one active run
-        self.assertEquals(1, FlowRun.objects.filter(is_active=True).count())
+        # should still have no active runs
+        self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
 
-        # and we haven't left our final step
+        # and we've exited the flow
         step = FlowStep.objects.all().order_by('-pk').first()
-        self.assertIsNone(step.left_on)
+        self.assertTrue(step.left_on)
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):
@@ -301,18 +355,8 @@ class IVRTests(TembaTest):
         test_status_update(call, 'failed', FAILED)
         test_status_update(call, 'no-answer', NO_ANSWER)
 
-        # explicitly hanging up on a test call should remove it
-        call.update_status('in-progress', 0)
-        eric.is_test = True
-        eric.save()
-        call.save()
-        IVRCall.hangup_test_call(flow)
-        self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
-
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
-        eric.is_test = False
-        eric.save()
 
         # try sending callme trigger
         from temba.msgs.models import INCOMING
@@ -349,19 +393,16 @@ class IVRTests(TembaTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('rule-first-ivr')
-        flow = Flow.objects.filter(name='Rule First IVR').first()
+        flow = self.get_flow('rule-first-ivr')
 
         user_settings = self.admin.get_settings()
         user_settings.tel = '+18005551212'
         user_settings.save()
 
         # start our flow
-        eric = self.create_contact('Eric Newcomer', number='+13603621737')
-        eric.is_test = True
-        eric.save()
+        test_contact = Contact.get_test_contact(self.admin)
         Contact.set_simulation(True)
-        flow.start([], [eric])
+        flow.start([], [test_contact])
 
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
@@ -380,7 +421,7 @@ class IVRTests(TembaTest):
 
         # make sure a message from the person on the call goes to the
         # inbox since our flow doesn't handle text messages
-        msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
+        msg = self.create_msg(direction='I', contact=test_contact, text="message during phone call")
         self.assertFalse(Flow.find_and_handle(msg))
 
     @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -393,8 +434,7 @@ class IVRTests(TembaTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('call-me-maybe')
-        flow = Flow.objects.filter(name='Call me maybe').first()
+        flow = self.get_flow('call-me-maybe')
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
@@ -404,11 +444,3 @@ class IVRTests(TembaTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
-
-
-class TestTwilioClient(TembaTest):
-    def test_base_url(self):
-        """The base url should be set by settings.py"""
-        with self.settings(TWILIO_URL='test_url'):
-            client = TwilioClient(account='test_account', token='test_token')
-            self.assertEqual(client.base, 'test_url')

@@ -1,82 +1,26 @@
 from __future__ import unicode_literals
 
+import json
 import random
 
-from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.db import connection, reset_queries
 from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, Label, Msg, INCOMING, OUTGOING, PENDING
-from temba.utils import truncate
+from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
+from temba.utils import dict_to_struct
 from temba.values.models import Value, TEXT, DECIMAL
+from temba.utils.profiler import SegmentProfiler
 from tests import TembaTest
-from timeit import default_timer
 
 
-MAX_QUERIES_PRINT = 15
+API_INITIAL_REQUEST_QUERIES = 9  # num of required db hits for an initial API request
+API_REQUEST_QUERIES = 7  # num of required db hits for a subsequent API request
 
 
-class SegmentProfiler(object):
-    """
-    Used in a with block to profile a segment of code
-    """
-    def __init__(self, test, name, db_profile):
-        self.test = test
-        self.test.segments.append(self)
-        self.name = name
-        self.db_profile = db_profile
-        self.old_debug = settings.DEBUG
-
-        self.time_total = 0.0
-        self.time_queries = 0.0
-        self.queries = []
-
-    def __enter__(self):
-        if self.db_profile:
-            settings.DEBUG = True
-            reset_queries()
-
-        self.start_time = default_timer()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.time_total = default_timer() - self.start_time
-
-        if self.db_profile:
-            settings.DEBUG = self.old_debug
-            self.queries = connection.queries
-            reset_queries()
-
-    def __unicode__(self):
-        def format_query(q):
-            return "Query [%s] %.3f secs" % (truncate(q['sql'], 60), float(q['time']))
-
-        message = "Segment [%s] time: %.3f secs" % (self.name, self.time_total)
-        if self.db_profile:
-            num_queries = len(self.queries)
-            time_db = sum([float(q['time']) for q in self.queries])
-
-            message += ", %.3f secs db time, %d db queries" % (time_db, num_queries)
-
-            # if we have only have a few queries, include them all in order of execution
-            if len(self.queries) <= MAX_QUERIES_PRINT:
-                message += ":"
-                for query in self.queries:
-                    message += "\n\t%s" % format_query(query)
-            # if there are too many, only include slowest in order of duration
-            else:
-                message += ". %d slowest:" % MAX_QUERIES_PRINT
-                slowest = sorted(list(self.queries), key=lambda q: float(q['time']), reverse=True)[:MAX_QUERIES_PRINT]
-                for query in slowest:
-                    message += "\n\t%s" % format_query(query)
-
-        return message
-
-
-class PerformanceTest(TembaTest):
+class PerformanceTest(TembaTest):  # pragma: no cover
     segments = []
 
     def setUp(self):
@@ -93,17 +37,12 @@ class PerformanceTest(TembaTest):
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
 
-        self.tel_mtn = Channel.objects.create(org=self.org, name="MTN", channel_type="A", role="SR",
-                                              address="+250780000000", secret="12345", gcm_id="123",
-                                              created_by=self.user, modified_by=self.user)
-        self.tel_tigo = Channel.objects.create(org=self.org, name="Tigo", channel_type="A", role="SR",
-                                               address="+250720000000", secret="23456", gcm_id="234",
-                                               created_by=self.user, modified_by=self.user)
-        self.tel_bulk = Channel.objects.create(org=self.org, name="Nexmo", channel_type="NX", role="S",
-                                               parent=self.tel_tigo, secret="34567",
-                                               created_by=self.user, modified_by=self.user)
-        self.twitter = Channel.objects.create(org=self.org, name="Twitter", channel_type="TT", role="SR",
-                                              created_by=self.user, modified_by=self.user)
+        self.tel_mtn = Channel.create(self.org, self.user, 'RW', 'A', name="MTN", address="+250780000000",
+                                      secret="12345", gcm_id="123")
+        self.tel_tigo = Channel.create(self.org, self.user, 'RW', 'A', name="Tigo", address="+250720000000",
+                                       secret="23456", gcm_id="234")
+        self.tel_bulk = Channel.create(self.org, self.user, 'RW', 'NX', name="Nexmo", parent=self.tel_tigo)
+        self.twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob")
 
         # for generating tuples of scheme, path and channel
         generate_tel_mtn = lambda num: (TEL_SCHEME, "+25078%07d" % (num + 1), self.tel_mtn)
@@ -185,7 +124,8 @@ class PerformanceTest(TembaTest):
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            label = Label.create(self.org, self.user, name)
+            label = Label.label_objects.create(org=self.org, name=name, folder=None,
+                                               created_by=self.user, modified_by=self.user)
             labels.append(label)
 
             assign_to = messages[(g % num_bases)::num_bases]
@@ -207,6 +147,24 @@ class PerformanceTest(TembaTest):
         Call.objects.bulk_create(calls)
         return calls
 
+    def _create_runs(self, count, flow, contacts):
+        """
+        Creates the given number of flow runs
+        """
+        runs = []
+        for c in range(0, count):
+            contact = contacts[c % len(contacts)]
+            runs.append(FlowRun.create(flow, contact, db_insert=False))
+        FlowRun.objects.bulk_create(runs)
+
+        # add a step to each run
+        steps = []
+        for run in FlowRun.objects.all():
+            steps.append(FlowStep(run=run, contact=run.contact, step_type='R', step_uuid=flow.entry_uuid, arrived_on=timezone.now()))
+        FlowStep.objects.bulk_create(steps)
+
+        return runs
+
     def _fetch_json(self, url):
         """
         GETs JSON from an API endpoint
@@ -215,24 +173,32 @@ class PerformanceTest(TembaTest):
         self.assertEquals(200, resp.status_code)
         return resp
 
+    def _post_json(self, url, data):
+        """
+        POSTs JSON to an API endpoint
+        """
+        resp = self.client.post(url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEquals(201, resp.status_code)
+        return resp
+
     def test_contact_create(self):
         num_contacts = 1000
 
-        with SegmentProfiler(self, "Creating new contacts", True):
+        with SegmentProfiler("Creating new contacts", self, force_profile=True):
             self._create_contacts(num_contacts, ["Bobby"])
 
-        with SegmentProfiler(self, "Updating existing contacts", True):
+        with SegmentProfiler("Updating existing contacts", self, force_profile=True):
             self._create_contacts(num_contacts, ["Jimmy"])
 
     def test_message_incoming(self):
         num_contacts = 300
 
-        with SegmentProfiler(self, "Creating incoming messages from new contacts", False):
+        with SegmentProfiler("Creating incoming messages from new contacts", self, False, force_profile=True):
             for c in range(0, num_contacts):
                 scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
                 Msg.create_incoming(channel, (scheme, path), "Thanks #1", self.user)
 
-        with SegmentProfiler(self, "Creating incoming messages from existing contacts", False):
+        with SegmentProfiler("Creating incoming messages from existing contacts", self, False, force_profile=True):
             for c in range(0, num_contacts):
                 scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
                 Msg.create_incoming(channel, (scheme, path), "Thanks #2", self.user)
@@ -249,7 +215,7 @@ class PerformanceTest(TembaTest):
 
         broadcast = self._create_broadcast("Hello message #1", contacts)
 
-        with SegmentProfiler(self, "Sending broadcast to new contacts", True):
+        with SegmentProfiler("Sending broadcast to new contacts", self, True, force_profile=True):
             broadcast.send()
 
         # give all contact URNs an assigned channel as if they've been used for incoming
@@ -265,12 +231,12 @@ class PerformanceTest(TembaTest):
 
         broadcast = self._create_broadcast("Hello message #2", contacts)
 
-        with SegmentProfiler(self, "Sending broadcast when urns have channels", True):
+        with SegmentProfiler("Sending broadcast when urns have channels", self, True, force_profile=True):
             broadcast.send()
 
         broadcast = self._create_broadcast("Hello =contact #3", contacts)
 
-        with SegmentProfiler(self, "Sending broadcast with expression", True):
+        with SegmentProfiler("Sending broadcast with expression", self, True, force_profile=True):
             broadcast.send()
 
         # check messages for each channel
@@ -282,32 +248,101 @@ class PerformanceTest(TembaTest):
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
 
+    def test_message_export(self):
+        # create contacts
+        contacts = self._create_contacts(100, ["Bobby", "Jimmy", "Mary"])
+
+        # create messages and labels
+        incoming = self._create_incoming(100, "Hello", self.tel_mtn, contacts)
+        self._create_labels(10, ["My Label"], incoming)
+
+        task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
+                                                 created_by=self.user, modified_by=self.user)
+
+        with SegmentProfiler("Export messages", self, True, force_profile=True):
+            task.do_export()
+
     def test_flow_start(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
         groups = self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
         flow = self.create_flow()
 
-        with SegmentProfiler(self, "Starting a flow", True):
+        with SegmentProfiler("Starting a flow", self, True, force_profile=True):
             flow.start(groups, [])
 
         self.assertEqual(10000, Msg.objects.all().count())
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 
-    def test_api(self):
-        contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
+    def test_api_contacts(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
         self._create_groups(10, ["Bobbys", "Jims", "Marys"], contacts)
 
         self.login(self.user)
+        self.clear_cache()
 
-        with SegmentProfiler(self, "Fetch contacts from API", True):
+        with SegmentProfiler("Fetch first page of contacts from API", self,
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.contacts'))
 
-        with SegmentProfiler(self, "Fetch groups from API", True):
+        # query count now cached
+
+        with SegmentProfiler("Fetch second page of contacts from API", self,
+                             assert_queries=API_REQUEST_QUERIES+6, assert_tx=0, force_profile=True):
+            self._fetch_json('%s.json?page=2' % reverse('api.contacts'))
+
+    def test_api_groups(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
+        self._create_groups(300, ["Bobbys", "Jims", "Marys"], contacts)
+
+        self.login(self.user)
+        self.clear_cache()
+
+        with SegmentProfiler("Fetch first page of groups from API", self,
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.contactgroups'))
 
-        with SegmentProfiler(self, "Fetch groups from API (again)", True):
-            self._fetch_json('%s.json' % reverse('api.contactgroups'))
+    def test_api_messages(self):
+        contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
+
+        # create messages and labels
+        incoming = self._create_incoming(300, "Hello", self.tel_mtn, contacts)
+        self._create_labels(10, ["My Label"], incoming)
+
+        self.login(self.user)
+        self.clear_cache()
+
+        with SegmentProfiler("Fetch first page of messages from API", self,
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0, force_profile=True):
+            self._fetch_json('%s.json' % reverse('api.messages'))
+
+        # query count now cached
+
+        with SegmentProfiler("Fetch second page of messages from API", self,
+                             assert_queries=API_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
+            self._fetch_json('%s.json?page=2' % reverse('api.messages'))
+
+    def test_api_runs(self):
+        flow = self.create_flow()
+        contacts = self._create_contacts(50, ["Bobby", "Jimmy", "Mary"])
+        self._create_runs(300, flow, contacts)
+
+        self.login(self.user)
+        self.clear_cache()
+
+        with SegmentProfiler("Fetch first page of flow runs from API", self,
+                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
+            self._fetch_json('%s.json' % reverse('api.runs'))
+
+        # query count, terminal nodes and category nodes for the flow all now cached
+
+        with SegmentProfiler("Fetch second page of flow runs from API", self,
+                             assert_queries=API_REQUEST_QUERIES+4, assert_tx=0, force_profile=True):
+            self._fetch_json('%s.json?page=2' % reverse('api.runs'))
+
+        with SegmentProfiler("Create new flow runs via API endpoint", self, assert_tx=1, force_profile=True):
+            data = {'flow': flow.pk, 'contact': [c.uuid for c in contacts]}
+            self._post_json('%s.json' % reverse('api.runs'), data)
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
@@ -315,20 +350,20 @@ class PerformanceTest(TembaTest):
 
         self.login(self.user)
 
-        with SegmentProfiler(self, "Omnibox with telephone search", True):
+        with SegmentProfiler("Omnibox with telephone search", self, force_profile=True):
             self._fetch_json("%s?search=078" % reverse("contacts.contact_omnibox"))
 
     def test_contact_search(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
         self._create_values(contacts, self.field_nick, lambda c: c.name.lower().replace(' ', '_'))
 
-        with SegmentProfiler(self, "Contact search with simple query", True):
+        with SegmentProfiler("Contact search with simple query", self, force_profile=True):
             qs, is_complex = Contact.search(self.org, 'bob')
 
         self.assertEqual(3334, qs.count())
         self.assertEqual(False, is_complex)
 
-        with SegmentProfiler(self, "Contact search with complex query", True):
+        with SegmentProfiler("Contact search with complex query", self, force_profile=True):
             qs, is_complex = Contact.search(self.org, 'name = bob or tel has 078 or twitter = tweep_123 or nick is bob')
 
         self.assertEqual(3377, qs.count())
@@ -339,12 +374,12 @@ class PerformanceTest(TembaTest):
         contacts = self._create_contacts(num_contacts, ["Bobby", "Jimmy", "Mary"])
         groups = self._create_groups(10, ["Big Group"], contacts)
 
-        with SegmentProfiler(self, "Contact group counts via regular queries", True):
+        with SegmentProfiler("Contact group counts via regular queries", self, force_profile=True):
             for group in groups:
                 self.assertEqual(group.contacts.count(), num_contacts)
                 self.assertEqual(group.contacts.count(), num_contacts)
 
-        with SegmentProfiler(self, "Contact group counts with caching", True):
+        with SegmentProfiler("Contact group counts with caching", self, force_profile=True):
             for group in groups:
                 self.assertEqual(group.get_member_count(), num_contacts)
                 self.assertEqual(group.get_member_count(), num_contacts)
@@ -367,14 +402,26 @@ class PerformanceTest(TembaTest):
 
         self.login(self.user)
 
-        with SegmentProfiler(self, "Contact list page", True):
+        with SegmentProfiler("Contact list page", self, force_profile=True):
             self.client.get(reverse('contacts.contact_list'))
 
-        with SegmentProfiler(self, "Contact list page (repeat)", True):
+        with SegmentProfiler("Contact list page (repeat)", self, force_profile=True):
             self.client.get(reverse('contacts.contact_list'))
 
-        with SegmentProfiler(self, "Message inbox page", True):
+        with SegmentProfiler("Message inbox page", self, force_profile=True):
             self.client.get(reverse('msgs.msg_inbox'))
 
-        with SegmentProfiler(self, "Message inbox page (repeat)", True):
+        with SegmentProfiler("Message inbox page (repeat)", self, force_profile=True):
             self.client.get(reverse('msgs.msg_inbox'))
+
+    def test_channellog(self):
+        contact = self.create_contact("Test", "+250788383383")
+        msg = Msg.create_outgoing(self.org, self.admin, contact, "This is a test message")
+        msg = dict_to_struct('MockMsg', msg.as_task_json())
+
+
+        with SegmentProfiler("Channel Log inserts (10,000)", self, force_profile=True):
+            for i in range(10000):
+                ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",
+                                       request="GET http://foo", response="Ok", response_status="201")
+

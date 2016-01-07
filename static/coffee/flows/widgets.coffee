@@ -3,7 +3,7 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
-app.directive "sms", [ "$log", ($log) ->
+app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
   link = (scope, element, attrs) ->
 
     scope.showCounter = true
@@ -24,15 +24,13 @@ app.directive "sms", [ "$log", ($log) ->
     scope.$watch (->scope.message), scope.countCharacters
 
     # determine the initial message based on the current language
-    scope.message = scope.sms
-
-    if scope.$root.language and scope.sms
-      localized = scope.sms[scope.$root.language.iso_code]
-      if localized?
-        scope.message = localized
+    if scope.sms
+      scope.message = scope.sms[Flow.flow.base_language]
+      if not scope.message
+        scope.message = ""
 
   return {
-    templateUrl: "/partials/sms_directive?ts=" + new Date().getTime()
+    templateUrl: "/partials/sms_directive"
     restrict: "A"
     link: link
     scope: {
@@ -42,167 +40,14 @@ app.directive "sms", [ "$log", ($log) ->
   }
 ]
 
-# Ajax backed select2 widget
-app.directive "autoComplete", ["$timeout", "$http", "$log", ($timeout, $http, $log) ->
-
-  filters = [
-    { name:'title_case', display:'changes to title case'},
-    { name:'capitalize', display:'capitalizes the first letter'},
-    { name:'first_word', display:'takes only the first word'}
-    { name:'remove_first_word', display:'takes everything after the first word'}
-    { name:'upper_case', display:'upper cases all letters'}
-    { name:'lower_case', display:'lower cases all letters'}
-    { name:'read_digits', display:'reads back a number in a friendly way'}
-  ]
-
-  findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
-
-    matched = {}
-    results = []
-
-    for option in data
-      if option.name.indexOf(query) == 0
-        nextDot = option.name.indexOf('.', lastIdx + 1)
-        if nextDot == -1
-
-          if prependChar
-            name = start + prependChar + option.name
-          else
-            name = option.name
-
-          display = option.display
-        else
-          name = ""
-          suffix = option.name.substring(lastIdx+1, nextDot)
-          if start.length > 0 and start != suffix
-            name = start + "."
-          name += suffix
-
-          if name.indexOf(query) != 0
-            continue
-
-          display = null
-
-        if name not of matched
-          matched[name] = name
-          results.push({ name: name, display: display })
-
-    return results
+# auto completion widget
+app.directive "autoComplete", ["$rootScope", "$timeout", "$http", "$log", "Flow", ($rootScope, $timeout, $http, $log, Flow) ->
 
   link = (scope, element, attrs)  ->
-
-    all_results = []
-    qs = "?q=1"
-    if attrs.uuid
-      qs += "&uuid=" + attrs.uuid
-
-    if attrs.flow
-      qs += "&flow=" + attrs.flow
-
-    element.atwho
-      at: "@",
-      data: scope.$root.completions
-      insert_space: false
-      limit: 15
-      space_after: false
-      start_with_space: false
-      max_len: 100
-      callbacks:
-
-        before_save: (data) ->
-          all_results = data
-          return data
-
-        before_insert: (value, item, selectionEvent) ->
-
-          # see if there's more data to filter on
-          data = all_results #this.settings['@']['data']
-          hasMore = false
-          test = value.substring(1)
-
-          for option in data
-            if option.name.indexOf(test) == 0 and option.name != test
-              hasMore = true
-              break
-
-          # TODO: See if at.js still supports key code here (hasMore and #selectionEvent.keyCode == TAB)
-          if hasMore
-            value += '.'
-          else
-            value += ' '
-
-          return value
-
-        filter: (query, data, search_key) ->
-          # make sure we are enabled to return results
-
-          if scope.autoComplete is not undefined and not scope.autoComplete
-            return []
-
-          q = query.toLowerCase()
-          lastIdx = q.lastIndexOf('.')
-          start = q.substring(0, lastIdx)
-
-          results = findMatches(q, data, start, lastIdx)
-
-          if results.length > 0
-            return results
-
-          flag = "@"
-          flag = "(?:^|\\s)" + flag.replace(/[\-\[\]\/\{\}\(\)\*\+\?\\\^\$\|]/g, "\\$&")
-          regexp = new RegExp("([A-Za-z0-9_+-.]*\\|)([A-Za-z0-9_+-.]*)", "gi")
-          match = regexp.exec(q)
-
-          if match
-
-            # check that we should even be matching
-            name = q.substring(0, q.indexOf('|'))
-            found = false
-            for d in data
-              if d.name == name
-                found = true
-                break
-
-            if not found
-              return results
-
-            filterQuery = match[2]
-            lastIdx = q.lastIndexOf('|') + 1
-            start = q.substring(0, lastIdx - 1)
-            filterQuery = q.substring(lastIdx)
-            results = findMatches(filterQuery, filters, start , q.lastIndexOf('|'), '|')
-
-          return results
-
-
-        tpl_eval: (tpl, map) ->
-
-          if not map.display
-            tpl = "<li data-value='@${name}'>${name}</li>"
-          try
-            return tpl.replace /\$\{([^\}]*)\}/g, (tag, key, pos) -> map[key]
-          catch error
-            return ""
-
-        highlighter: (li, query) ->
-          return li
-
-        matcher: (flag, subtext) ->
-          flag = "(?:^|\\s)" + flag.replace(/[\-\[\]\/\{\}\(\)\*\+\?\\\^\$\|]/g, "\\$&")
-          regexp = new RegExp(flag + "([A-Za-z0-9_+-.\\|]*)$|" + flag + "([^\\x00-\\xff]*)$", "gi")
-          match = regexp.exec(subtext)
-          if match
-            match[2] or match[1]
-          else
-            null
-
-      tpl: "<li data-value='@${name}'>${name} (<span>${display}</span>)</li>"
-
+    new AutoComplete(Flow.completions, Flow.function_completions).bind(element)
   return {
     restrict: 'A'
     link: link
-    #scope:
-    #  autoComplete: '&'
   }
 ]
 
@@ -289,12 +134,12 @@ app.directive "select2", ["$timeout", ($timeout) ->
 ]
 
 
-app.directive "selectLabel", ["$timeout", ($timeout) ->
+app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
   link = (scope, element, attrs, form) ->
 
     element.select2
-      tags: scope.$parent.labels
-      mutiple: true
+      tags: Flow.labels
+      multiple: true
 
     field = form[attrs['name']]
     select2 = element.data('select2')
@@ -307,6 +152,18 @@ app.directive "selectLabel", ["$timeout", ($timeout) ->
       select2.data(initLabels)
 
     field['selected'] = select2.data()
+
+    # select2 won't let us attach to search keypress so
+    # we hook into the event right before the change is made
+    element.on 'select2-selecting', (e) ->
+      if e.val.length < 1
+        e.preventDefault()
+        return
+
+      # labels can't start with @, strip it off if we get this far
+      if e.val[0] == '@'
+        element.select2("search", e.val.slice(1))
+        e.preventDefault()
 
     element.on 'change', (e) ->
       field['selected'] = select2.data()
@@ -448,7 +305,7 @@ app.directive "selectStatic", ['$timeout', ($timeout) ->
 #============================================================================
 # Directive for an omnibox
 #============================================================================
-app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
+app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 
   omniRemap = (element, callback) ->
     callback()
@@ -605,7 +462,7 @@ app.directive "omnibox", [ "$timeout", "$log", ($timeout, $log) ->
 
     # pull our completions out of the scope if we're told to use them
     if options.completions
-      options.completions = scope.$root.completions
+      options.completions = Flow.completions
 
     data = []
     if scope.groups

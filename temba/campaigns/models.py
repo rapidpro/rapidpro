@@ -1,16 +1,17 @@
-from operator import attrgetter
-from uuid import uuid4
+from __future__ import absolute_import, unicode_literals
+
+from datetime import timedelta
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
-from smartmin.models import SmartModel
-from datetime import timedelta
-
-from temba.contacts.models import ContactGroup, ContactField, Contact
-from temba.orgs.models import Org
-from temba.flows.models import Flow
-from dateutil.parser import parse
 from django.utils.translation import ugettext_lazy as _
+from smartmin.models import SmartModel
+from temba.contacts.models import ContactGroup, ContactField, Contact
+from temba.flows.models import Flow
+from temba.orgs.models import Org
+from temba.utils.models import generate_uuid
+from temba.values.models import Value
+
 
 class Campaign(SmartModel):
     name = models.CharField(max_length=255,
@@ -21,6 +22,20 @@ class Campaign(SmartModel):
                                       help_text="Whether this campaign is archived or not")
     org = models.ForeignKey(Org,
                             help_text="The organization this campaign exists for")
+
+    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
+
+    @classmethod
+    def create(cls, org, user, name, group):
+        return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
+
+    @classmethod
+    def get_campaigns(cls, org, archived=None):
+        qs = cls.objects.filter(org=org, is_active=True)
+        if archived is not None:
+            qs = qs.filter(is_archived=archived)
+        return qs
 
     @classmethod
     def get_unique_name(cls, base_name, org, ignore=None):
@@ -39,7 +54,7 @@ class Campaign(SmartModel):
         return name
 
     @classmethod
-    def import_campaigns(cls, exported_json, org, user, site=None):
+    def import_campaigns(cls, exported_json, org, user, same_site=False):
         """
         Import campaigns from our export file
         """
@@ -54,7 +69,7 @@ class Campaign(SmartModel):
                 group = None
 
                 # first check if we have the objects by id
-                if site and site == exported_json.get('site', None):
+                if same_site:
                     group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
                     if group:
                         group.name = campaign_spec['group']['name']
@@ -77,11 +92,11 @@ class Campaign(SmartModel):
                     group = ContactGroup.create(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
-                    campaign = Campaign.objects.create(name=Campaign.get_unique_name(name, org), org=org, group=group, created_by=user, modified_by=user)
+                    campaign_name = Campaign.get_unique_name(name, org)
+                    campaign = Campaign.create(org, user, campaign_name, group)
                 else:
                     campaign.group = group
                     campaign.save()
-
 
                 # we want to nuke old single message flows
                 for event in campaign.events.all():
@@ -99,21 +114,20 @@ class Campaign(SmartModel):
 
                     # create our message flow for message events
                     if event_spec['event_type'] == MESSAGE_EVENT:
-                        flow = Flow.create_single_message(org, user, event_spec['message'])
+                        event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
+                                                                   event_spec['offset'],
+                                                                   event_spec['unit'],
+                                                                   event_spec['message'],
+                                                                   event_spec['delivery_hour'])
+                        event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
-
-                    if flow:
-                        event = campaign.events.create(created_by=user,
-                                                       modified_by=user,
-                                                       offset=event_spec['offset'],
-                                                       unit=event_spec['unit'],
-                                                       event_type=event_spec['event_type'],
-                                                       delivery_hour=event_spec['delivery_hour'],
-                                                       message=event_spec['message'],
-                                                       flow=flow,
-                                                       relative_to=relative_to)
-                        event.update_flow_name()
+                        if flow:
+                            CampaignEvent.create_flow_event(org, user, campaign, relative_to,
+                                                            event_spec['offset'],
+                                                            event_spec['unit'],
+                                                            flow,
+                                                            event_spec['delivery_hour'])
 
                 # update our scheduled events for this campaign
                 EventFire.update_campaign_events(campaign)
@@ -173,9 +187,10 @@ class Campaign(SmartModel):
         return [event.flow for event in self.events.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE).order_by('flow__id').distinct('flow')]
 
     def get_sorted_events(self):
-        events = [e for e in self.events.filter(is_active=True)]
-
-        # now sort by real offset
+        """
+        Returns campaign events sorted by their actual offset
+        """
+        events = list(self.events.filter(is_active=True))
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 
     def __unicode__(self):
@@ -219,6 +234,28 @@ class CampaignEvent(SmartModel):
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
+    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
+
+    @classmethod
+    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1):
+        if campaign.org != org:  # pragma: no cover
+            raise ValueError("Org mismatch")
+
+        flow = Flow.create_single_message(org, user, message)
+
+        return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
+                                  event_type=MESSAGE_EVENT, message=message, flow=flow, delivery_hour=delivery_hour,
+                                  created_by=user, modified_by=user)
+
+    @classmethod
+    def create_flow_event(cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1):
+        if campaign.org != org:  # pragma: no cover
+            raise ValueError("Org mismatch")
+
+        return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
+                                  event_type=FLOW_EVENT, flow=flow, delivery_hour=delivery_hour,
+                                  created_by=user, modified_by=user)
 
     @classmethod
     def get_hour_choices(cls):
@@ -269,14 +306,19 @@ class CampaignEvent(SmartModel):
 
         return offset
 
-    def calculate_scheduled_fire(self, contact):
+    def calculate_scheduled_fire_for_value(self, date_value, now):
+
+        date_value = self.campaign.org.parse_date(date_value)
+
+        # if we got a date, floor to the minute
+        if date_value:
+            date_value = date_value.replace(second=0, microsecond=0)
+
         if not self.relative_to.is_active: # pragma: no cover
             return None
 
         # try to parse it to a datetime
         try:
-            now = timezone.now()
-            date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
             if date_value:
                 if self.unit == MINUTES:
                     delta = timedelta(minutes=self.offset)
@@ -300,8 +342,13 @@ class CampaignEvent(SmartModel):
 
         return None
 
+    def calculate_scheduled_fire(self, contact):
+        date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
+        return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
+
     def __unicode__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
+
 
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
@@ -342,23 +389,45 @@ class EventFire(Model):
         Updates all the scheduled events for each user for the passed in campaign.
         Should be called anytime a campaign changes.
         """
+        from temba.campaigns.tasks import update_event_fires_for_campaign
+        update_event_fires_for_campaign.delay(campaign.pk)
+
+    @classmethod
+    def do_update_campaign_events(cls, campaign):
         for contact in campaign.group.contacts.exclude(is_test=True):
             cls.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_events_for_event(cls, event):
+    def update_eventfires_for_event(cls, event):
+        from temba.campaigns.tasks import update_event_fires
+        update_event_fires.delay(event.pk)
+
+    @classmethod
+    def do_update_eventfires_for_event(cls, event):
         # unschedule any fires
         EventFire.objects.filter(event=event, fired=None).delete()
 
-        # add new ones
-        if event.is_active:
-            for contact in event.campaign.group.contacts.exclude(is_test=True):
-                # calculate our scheduled date
-                scheduled = event.calculate_scheduled_fire(contact)
+        # add new ones if this event exists and the campaign is active
+        if event.is_active and not event.campaign.is_archived:
+
+            contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+            values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=event.relative_to.key)
+            values = values.select_related('contact').distinct('contact')
+
+            now = timezone.now()
+            events = []
+
+            org = event.campaign.org
+            for value in values:
+                formatted_date = org.format_date(value.datetime_value)
+                scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
 
                 # and if we have a date, then schedule it
                 if scheduled:
-                    EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
+                    events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+
+            # bulk create our event fires
+            EventFire.objects.bulk_create(events)
 
     @classmethod
     def update_field_events(cls, contact_field):
@@ -372,17 +441,28 @@ class EventFire(Model):
             # cancel existing events, we are going to recreate them all
             EventFire.objects.filter(event__relative_to=contact_field, fired=None).delete()
 
+            now = timezone.now()
+            from temba.values.models import Value
+
+            org = contact_field.org
             for event in CampaignEvent.objects.filter(relative_to=contact_field,
                                                       campaign__is_active=True, campaign__is_archived=False, is_active=True):
 
-                # for each contact
-                for contact in event.campaign.group.contacts.filter(is_active=True):
-                    # calculate our scheduled date
-                    scheduled = event.calculate_scheduled_fire(contact)
+                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+                values = Value.objects.filter(contact__in=contacts, contact_field__key__exact=contact_field.key)
+                values = values.select_related('contact').distinct('contact')
+
+                events = []
+                for value in values:
+                    formatted_date = org.format_date(value.datetime_value)
+                    scheduled = event.calculate_scheduled_fire_for_value(formatted_date, now)
 
                     # and if we have a date, then schedule it
                     if scheduled:
-                        EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
+                        events.append(EventFire(event=event, contact=value.contact, scheduled=scheduled))
+
+                # bulk create our event fires
+                EventFire.objects.bulk_create(events)
 
     @classmethod
     def update_events_for_contact(cls, contact):
@@ -435,14 +515,16 @@ class EventFire(Model):
         # remove any unfired events, they will get recreated below
         EventFire.objects.filter(event__campaign=campaign, contact=contact, fired=None).delete()
 
-        # for each event
-        for event in campaign.get_events():
-            # calculate our scheduled date
-            scheduled = event.calculate_scheduled_fire(contact)
+        # if we aren't archived
+        if not campaign.is_archived:
+            # then scheduled all our events
+            for event in campaign.get_events():
+                # calculate our scheduled date
+                scheduled = event.calculate_scheduled_fire(contact)
 
-            # and if we have a date, then schedule it
-            if scheduled and not contact.is_test:
-                EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
+                # and if we have a date, then schedule it
+                if scheduled and not contact.is_test:
+                    EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
     def __unicode__(self):
         return "%s - %s" % (self.event, self.contact)

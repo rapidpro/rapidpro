@@ -30,6 +30,8 @@ def send_msg_task():
     """
     Pops the next message off of our msg queue to send.
     """
+    logger = send_msg_task.get_logger()
+
     # pop off the next task
     task = pop_task(SEND_MSG_TASK)
 
@@ -38,7 +40,7 @@ def send_msg_task():
         return
 
     msg = dict_to_struct('MockMsg', task, datetime_fields=['delivered_on', 'sent_on', 'created_on',
-                                                           'queued_on', 'next_attempt'])
+                         'queued_on', 'next_attempt'])
 
     # send it off
     Channel.send_message(msg)

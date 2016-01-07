@@ -1,65 +1,65 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
-import pytz
 import requests
-import xml.etree.ElementTree as ET
+import urllib
 
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import timedelta
+from django import forms
 from django.conf import settings
-from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.contrib.auth import authenticate, login
+from django.core.cache import cache
+from django.core.paginator import Paginator
+from django.db.models import Q, Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from django.views.generic.list import MultipleObjectMixin
-from redis_cache import get_redis_connection
-from rest_framework import generics, status
+from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.mixins import DestroyModelMixin
-from rest_framework.reverse import reverse
-from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
-from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
-from temba.api.models import WebHookEvent, WebHookResult, SMS_RECEIVED
-from temba.api.serializers import BoundarySerializer, BroadcastReadSerializer, CallSerializer, CampaignSerializer
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+from smartmin.views import SmartTemplateView, SmartFormView, SmartReadView, SmartListView
+from temba.api.models import WebHookEvent, WebHookResult, get_or_create_api_token, APIToken
+from temba.api.serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
+from temba.api.serializers import CallSerializer, CampaignSerializer
 from temba.api.serializers import CampaignWriteSerializer, CampaignEventSerializer, CampaignEventWriteSerializer
 from temba.api.serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, BroadcastCreateSerializer
-from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunStartSerializer, FlowWriteSerializer
+from temba.api.serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
+from temba.api.serializers import FlowReadSerializer, FlowRunReadSerializer, FlowRunWriteSerializer, FlowRunStartSerializer, FlowDefinitionWriteSerializer
 from temba.api.serializers import MsgCreateSerializer, MsgCreateResultSerializer, MsgReadSerializer, MsgBulkActionSerializer
 from temba.api.serializers import LabelReadSerializer, LabelWriteSerializer
-from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer, ResultSerializer
+from temba.api.serializers import ChannelClaimSerializer, ChannelReadSerializer
 from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, PLIVO
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, USER_DEFINED_GROUP
-from temba.flows.models import Flow, FlowRun, RuleSet
+from temba.channels.models import Channel
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
+from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.models import Broadcast, Msg, Call, Label, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
-from temba.triggers.models import Trigger, MISSED_CALL_TRIGGER
-from temba.utils import analytics, json_date_to_datetime, JsonResponse, splitting_getlist, str_to_bool
-from temba.utils.middleware import disable_middleware
-from temba.utils.queues import push_task
-from twilio import twiml
+from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
+from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
+from temba.values.models import Value
 from urlparse import parse_qs
 
+
+# caching of counts from API requests
+REQUEST_COUNT_CACHE_KEY = 'org:%d:cache:api_request_counts:%s'
+REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
 
 
 def webhook_status_processor(request):
     status = dict()
     user = request.user
-    
+
     if user.is_superuser or user.is_anonymous():
         return status
-        
+
     # get user's org
     org = user.get_org()
-    
+
     if org:
         past_hour = timezone.now() - timedelta(hours=1)
         failed = WebHookEvent.objects.filter(org=org, status__in=['F','E'], created_on__gte=past_hour).order_by('-created_on')
@@ -70,20 +70,31 @@ def webhook_status_processor(request):
 
     return status
 
+
 class ApiPermission(BasePermission):
     def has_permission(self, request, view):
+
         if getattr(view, 'permission', None):
+
             if request.user.is_anonymous():
                 return False
 
-            org = request.user.get_org()
-            if org:
-                group = org.get_user_org_group(request.user)
+            # try to determine group from api token
+            if request.auth:
+                group = request.auth.role
+            # otherwise lean on the logged in user
+            else:
+                org = request.user.get_org()
+                group = org.get_user_org_group(request.user) if org else None
+
+            # if we have a group, check its permissions
+            if group:
                 codename = view.permission.split(".")[-1]
                 return group.permissions.filter(codename=codename)
-            else:
-                return False
-        else: # pragma: no cover
+
+            return False
+
+        else:  # pragma: no cover
             return True
 
 
@@ -159,8 +170,9 @@ class WebHookTunnelView(View):
             incoming_data = parse_qs(data)
             outgoing_data = dict()
             for key in incoming_data.keys():
-                if key in ['relayer', 'sms', 'phone', 'text', 'time', 'call', 'duration', 'power_level', 'power_status',
-                           'power_source', 'network_type', 'pending_message_count', 'retry_message_count', 'last_seen', 'event']:
+                if key in ['relayer', 'channel', 'sms', 'phone', 'text', 'time', 'call', 'duration', 'power_level', 'power_status',
+                           'power_source', 'network_type', 'pending_message_count', 'retry_message_count', 'last_seen', 'event',
+                           'step', 'values', 'flow', 'relayer_phone']:
                     outgoing_data[key] = incoming_data[key]
 
             response = requests.post(url, data=outgoing_data, timeout=3)
@@ -238,6 +250,7 @@ class WebHookSimulatorView(SmartTemplateView):
         fields = list()
         fields.append(dict(name="relayer", help="The id of the channel which handled this flow step", default=1))
         fields.append(dict(name="relayer_phone", help="The phone number of the channel", default="+250788123123"))
+        fields.append(dict(name="phone", help="The phone number of the contact", default="+250788788123"))
         fields.append(dict(name="flow", help="The id of the flow (reference the URL on your flow page)", default=504))
         fields.append(dict(name="step", help="The uuid of the step which triggered this event (reference your flow)", default="15121251-15121241-15145152-12541241"))
         fields.append(dict(name="time", help="The time that this step was reached by the user in ECMA-162 format", default="2013-01-21T22:34:00.123"))
@@ -260,34 +273,33 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
 
         endpoints = list()
-        endpoints.append(Channels.get_read_explorer())
-        endpoints.append(Channels.get_write_explorer())
-        endpoints.append(Channels.get_delete_explorer())
+        endpoints.append(ChannelEndpoint.get_read_explorer())
+        endpoints.append(ChannelEndpoint.get_write_explorer())
+        endpoints.append(ChannelEndpoint.get_delete_explorer())
 
-        endpoints.append(Contacts.get_read_explorer())
-        endpoints.append(Contacts.get_write_explorer())
-        endpoints.append(Contacts.get_delete_explorer())
+        endpoints.append(ContactEndpoint.get_read_explorer())
+        endpoints.append(ContactEndpoint.get_write_explorer())
+        endpoints.append(ContactEndpoint.get_delete_explorer())
 
-        endpoints.append(Groups.get_read_explorer())
+        endpoints.append(ContactBulkActionEndpoint.get_write_explorer())
 
-        endpoints.append(FieldsEndpoint.get_read_explorer())
-        endpoints.append(FieldsEndpoint.get_write_explorer())
+        endpoints.append(GroupEndpoint.get_read_explorer())
 
-        endpoints.append(MessagesEndpoint.get_read_explorer())
-        #endpoints.append(MessagesEndpoint.get_write_explorer())
+        endpoints.append(FieldEndpoint.get_read_explorer())
+        endpoints.append(FieldEndpoint.get_write_explorer())
 
-        endpoints.append(MessagesBulkActionEndpoint.get_write_explorer())
+        endpoints.append(MessageEndpoint.get_read_explorer())
+        #endpoints.append(MessageEndpoint.get_write_explorer())
 
-        endpoints.append(BroadcastsEndpoint.get_read_explorer())
-        endpoints.append(BroadcastsEndpoint.get_write_explorer())
+        endpoints.append(MessageBulkActionEndpoint.get_write_explorer())
 
-        endpoints.append(LabelsEndpoint.get_read_explorer())
-        endpoints.append(LabelsEndpoint.get_write_explorer())
+        endpoints.append(BroadcastEndpoint.get_read_explorer())
+        endpoints.append(BroadcastEndpoint.get_write_explorer())
 
-        endpoints.append(BroadcastsEndpoint.get_read_explorer())
-        endpoints.append(BroadcastsEndpoint.get_write_explorer())
+        endpoints.append(LabelEndpoint.get_read_explorer())
+        endpoints.append(LabelEndpoint.get_write_explorer())
 
-        endpoints.append(Calls.get_read_explorer())
+        endpoints.append(CallEndpoint.get_read_explorer())
 
         endpoints.append(FlowEndpoint.get_read_explorer())
 
@@ -307,10 +319,49 @@ class ApiExplorerView(SmartTemplateView):
 
         context['endpoints'] = endpoints
 
-        from temba.settings import API_URL
-        context['API_URL'] = API_URL
-
         return context
+
+
+class AuthenticateEndpoint(SmartFormView):
+
+    class LoginForm(forms.Form):
+        email = forms.CharField()
+        password = forms.CharField()
+        role = forms.CharField()
+
+    form_class = LoginForm
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super(AuthenticateEndpoint, self).dispatch(*args, **kwargs)
+
+    def form_valid(self, form, *args, **kwargs):
+        username = form.cleaned_data.get('email')
+        password = form.cleaned_data.get('password')
+        role = form.cleaned_data.get('role')
+
+        user = authenticate(username=username, password=password)
+        if user and user.is_active:
+            login(self.request, user)
+
+            orgs = []
+
+            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
+            if role:
+                for org in valid_orgs:
+                    user.set_org(org)
+                    user.set_role(role)
+                    token = get_or_create_api_token(user)
+
+                    if token:
+                        orgs.append(dict(id=org.pk, name=org.name, token=token))
+            else:
+                return HttpResponse(status=403)
+
+            return JsonResponse(orgs, safe=False)
+        else:
+            return HttpResponse(status=403)
+
 
 @api_view(['GET'])
 @permission_classes((SSLPermission, IsAuthenticated))
@@ -322,18 +373,21 @@ def api(request, format=None):
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 
-     * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
-     * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
-     * [/api/v1/messages](/api/v1/messages) - To list messages.
-     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
-     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
-     * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
-     * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
-     * [/api/v1/flows](/api/v1/flows) - To list active flows
-     * [/api/v1/runs](/api/v1/runs) - To list or start flow runs for contacts
-     * [/api/v1/campaigns](/api/v1/campaigns) - To list or modify campaigns on your account.
-     * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
      * [/api/v1/boundaries](/api/v1/boundaries) - To retrieve the geometries of the administrative boundaries on your account.
+     * [/api/v1/broadcasts](/api/v1/broadcasts) - To list and create outbox broadcasts.
+     * [/api/v1/calls](/api/v1/calls) - To list incoming, outgoing and missed calls as reported by the Android phone.
+     * [/api/v1/campaigns](/api/v1/campaigns) - To list or modify campaigns on your account.
+     * [/api/v1/contacts](/api/v1/contacts) - To list or modify contacts.
+     * [/api/v1/contact_actions](/api/v1/contact_actions) - To list or modify contacts.
+     * [/api/v1/events](/api/v1/events) - To list or modify campaign events on your account.
+     * [/api/v1/fields](/api/v1/fields) - To list or modify contact fields.
+     * [/api/v1/flows](/api/v1/flows) - To list active flows
+     * [/api/v1/groups](/api/v1/groups) - To list or modify campaign events on your account.
+     * [/api/v1/labels](/api/v1/labels) - To list and create new message labels.
+     * [/api/v1/messages](/api/v1/messages) - To list messages.
+     * [/api/v1/message_actions](/api/v1/message_actions) - To perform bulk message actions.
+     * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
+     * [/api/v1/runs](/api/v1/runs) - To list or start flow runs for contacts
 
     You may wish to use the [API Explorer](/api/v1/explorer) to interactively experiment with API.
 
@@ -347,7 +401,7 @@ def api(request, format=None):
 
     All API calls follow standard REST conventions.  You can list a set of resources by making a **GET** request on the endpoint
     and either send new messages or claim channels using the **POST** verb.  You can receive responses either
-    in JSON or XML by appending the corresponding extension to the endpoint URL, ex: ```/api/v1.json```
+    in JSON or XML by appending the corresponding extension to the endpoint URL, ex: ```/api/v1/contacts.json```
 
     ## Status Codes
 
@@ -403,18 +457,139 @@ def api(request, format=None):
         'calls': reverse('api.calls', request=request),
         'campaigns': reverse('api.campaigns', request=request),
         'contacts': reverse('api.contacts', request=request),
+        'contact_actions': reverse('api.contact_actions', request=request),
         'events': reverse('api.campaignevents', request=request),
         'fields': reverse('api.contactfields', request=request),
         'flows': reverse('api.flows', request=request),
         'labels': reverse('api.labels', request=request),
         'messages': reverse('api.messages', request=request),
+        'message_actions': reverse('api.message_actions', request=request),
         'relayers': reverse('api.channels', request=request),
         'runs': reverse('api.runs', request=request),
-        'sms': reverse('api.sms', request=request),
     })
 
 
-class BroadcastsEndpoint(generics.ListAPIView):
+class BaseAPIView(generics.GenericAPIView):
+    """
+    Base class of all our API endpoints
+    """
+    permission_classes = (SSLPermission, ApiPermission)
+
+    @non_atomic_gets
+    def dispatch(self, request, *args, **kwargs):
+        return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+
+
+class ListAPIMixin(mixins.ListModelMixin):
+    """
+    Mixin for any endpoint which returns a list of objects from a GET request
+    """
+    cache_counts = False
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def list(self, request, *args, **kwargs):
+        if not kwargs.get('format', None):
+            # if this is just a request to browse the endpoint docs, don't make a query
+            return Response([])
+        else:
+            return super(ListAPIMixin, self).list(request, *args, **kwargs)
+
+    class FixedCountPaginator(Paginator):
+        """
+        Paginator class which looks for fixed count stored as an attribute on the queryset, and uses that as it's total
+        count value if it exists, rather than calling count() on the queryset that may require an expensive db hit.
+        """
+        def __init__(self, queryset, *args, **kwargs):
+            self.fixed_count = getattr(queryset, 'fixed_count', None)
+
+            super(ListAPIMixin.FixedCountPaginator, self).__init__(queryset, *args, **kwargs)
+
+        def _get_count(self):
+            if self.fixed_count is not None:
+                return self.fixed_count
+            else:
+                return super(ListAPIMixin.FixedCountPaginator, self)._get_count()
+
+        count = property(_get_count)
+
+    paginator_class = FixedCountPaginator
+
+    def paginate_queryset(self, queryset, page_size=None):
+        if self.cache_counts:
+            # total counts can be expensive so we let some views cache counts based on the query parameters
+            query_params = self.request.QUERY_PARAMS.copy()
+            if 'page' in query_params:
+                del query_params['page']
+
+            # param values should be in UTF8
+            encoded_params = [(p[0], [v.encode('utf-8') for v in p[1]]) for p in query_params.lists()]
+
+            query_key = urllib.urlencode(sorted(encoded_params), doseq=True)
+            count_key = REQUEST_COUNT_CACHE_KEY % (self.request.user.get_org().pk, query_key)
+
+            # only try to use cached count for pages other than the first
+            if int(self.request.QUERY_PARAMS.get('page', 1)) != 1:
+                cached_count = cache.get(count_key)
+                if cached_count is not None:
+                    queryset.fixed_count = int(cached_count)
+
+            page = super(ListAPIMixin, self).paginate_queryset(queryset)
+
+            # reset the cached value
+            cache.set(count_key, page.paginator.count, REQUEST_COUNT_CACHE_TTL)
+        else:
+            page = super(ListAPIMixin, self).paginate_queryset(queryset)
+
+        # convert to list to ensure these will be the objects which get serialized
+        page.object_list = list(page.object_list)
+
+        # give views a chance to prepare objects for serialization
+        self.prepare_for_serialization(page.object_list)
+
+        return page
+
+    def prepare_for_serialization(self, object_list):
+        """
+        Views can override this to do things like bulk cache initialization of result objects
+        """
+        pass
+
+
+class CreateAPIMixin(object):
+    """
+    Mixin for any endpoint which can create or update objects with a write serializer. Our list and create approach
+    differs slightly a bit from ListCreateAPIView in the REST framework as we use separate read and write serializers...
+    and sometimes we use another serializer again for write output
+    """
+    write_serializer_class = None
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        context = self.get_serializer_context()
+        serializer = self.write_serializer_class(user=user, data=request.DATA, context=context)
+
+        if serializer.is_valid():
+            serializer.save()
+            return self.render_write_response(serializer.object, context)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def render_write_response(self, write_output, context):
+        response_serializer = self.serializer_class(instance=write_output, context=context)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DeleteAPIMixin(object):
+    """
+    Mixin for any endpoint that can delete objects with a DELETE request
+    """
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+
+class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you either list message broadcasts on your account using the ```GET``` method or create new
     message broadcasts using the ```POST``` method.
@@ -496,20 +671,9 @@ class BroadcastsEndpoint(generics.ListAPIView):
     """
     permission = 'msgs.broadcast_api'
     model = Broadcast
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = BroadcastReadSerializer
-    form_serializer_class = BroadcastCreateSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = BroadcastCreateSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            response_serializer = BroadcastReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = BroadcastCreateSerializer
+    cache_counts = True
 
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
@@ -579,55 +743,30 @@ class BroadcastsEndpoint(generics.ListAPIView):
         return spec
 
 
-class MessagesEndpoint(generics.ListAPIView):
+class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
-    This endpoint allows you either list messages on your account using the ```GET``` method or send new messages
-    using the ```POST``` method.
+    This endpoint allows you either list messages on your account using the ```GET``` method.
 
-    ## Sending Messages
-
-    ** Note that sending messages using this endpoint is deprecated, you should instead use the Broadcasts endpoint to
-       send new messages **
-
-    You can create new messages by making a **POST** request to this URL with the following JSON data:
-
-      * **channel** - the id of the channel that should send the messages (int, optional)
-      * **urn** - either a single URN or a JSON array of up to 100 urns to send the message to (string or array of strings)
-      * **contact** - either a single contact UUID or a JSON array of up to 100 contact UUIDs to send the message to (string or array of strings)
-      * **text** - the text of the message to send (string, limit of 480 characters)
-
-    Example:
-
-        POST /api/v1/messages.json
-        {
-            "urns": ["tel:+250788123123", "tel:+250788123124"],
-            "text": "hello world"
-        }
-
-    You will receive a response containing the ids of the messages created:
-
-        {
-            "messages": [
-               158, 159
-            ]
-        }
+    ** Note that sending messages using this endpoint is deprecated, you should instead use the
+       [broadcasts](/api/v1/broadcasts) endpoint to send new messages. **
 
     ## Listing Messages
 
     Returns the message activity for your organization, listing the most recent messages first.
 
       * **channel** - the id of the channel that sent or received this message (int) (filterable: ```channel``` repeatable)
+      * **broadcast** - the broadcast this message is associated with (filterable as ```broadcast``` repeatable)
       * **urn** - the URN of the sender or receiver, depending on direction (string) (filterable: ```urn``` repeatable)
       * **contact** - the UUID of the contact (string) (filterable: ```contact```repeatable )
       * **group_uuids** - the UUIDs of any groups the contact belongs to (string) (filterable: ```group_uuids``` repeatable)
       * **direction** - the direction of the SMS, either ```I``` for incoming messages or ```O``` for outgoing (string) (filterable: ```direction``` repeatable)
-      * **labels** - Any labels set on this message (filterable: ```label``` repeatable)
+      * **archived** - whether this message is archived (boolean) (filterable: ```archived```)
+      * **labels** - any labels set on this message (filterable: ```label``` repeatable)
       * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
       * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
-      * **broadcast** - the broadcast this message is associated with (only filterable as ```broadcast``` repeatable)
       * **status** - the status of this message, a string one of: (filterable: ```status``` repeatable)
 
             Q - Message is queued awaiting to be sent
@@ -654,11 +793,13 @@ class MessagesEndpoint(generics.ListAPIView):
             "results": [
             {
                 "id": 159,
+                "broadcast": 67,
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "status": "Q",
                 "relayer": 5,
                 "urn": "tel:+250788123124",
                 "direction": "O",
+                "archived": false,
                 "text": "hello world",
                 "created_on": "2013-03-02T17:28:12",
                 "sent_on": null,
@@ -669,20 +810,15 @@ class MessagesEndpoint(generics.ListAPIView):
     """
     permission = 'msgs.msg_api'
     model = Msg
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = MsgReadSerializer
-    form_serializer_class = MsgCreateSerializer
+    write_serializer_class = MsgCreateSerializer
+    cache_counts = True
 
-    def post(self, request, format=None):
-        user = request.user
-        serializer = MsgCreateSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
+    def render_write_response(self, write_output, context):
+        # use a different serializer for created messages
 
-            response_serializer = MsgCreateResultSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        response_serializer = MsgCreateResultSerializer(instance=write_output, context=context)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
         queryset = Msg.objects.filter(org=self.request.user.get_org())
@@ -743,20 +879,32 @@ class MessagesEndpoint(generics.ListAPIView):
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         types = splitting_getlist(self.request, 'type')
         if types:
             queryset = queryset.filter(msg_type__in=types)
 
-        labels = self.request.QUERY_PARAMS.getlist('label', None)
-        if labels:
-            queryset = queryset.filter(labels__name__in=labels)
+        labels_included, labels_required, labels_excluded = [], [], []
+        for label in self.request.QUERY_PARAMS.getlist('label', []):
+            if label.startswith('+'):
+                labels_required.append(label[1:])
+            elif label.startswith('-'):
+                labels_excluded.append(label[1:])
+            else:
+                labels_included.append(label)
+
+        if labels_included:
+            queryset = queryset.filter(labels__name__in=labels_included)
+        for label in labels_required:
+            queryset = queryset.filter(labels__name=label)
+        for label in labels_excluded:
+            queryset = queryset.exclude(labels__name=label)
 
         text = self.request.QUERY_PARAMS.get('text', None)
         if text:
@@ -770,10 +918,15 @@ class MessagesEndpoint(generics.ListAPIView):
         if broadcasts:
             queryset = queryset.filter(broadcast__in=broadcasts)
 
-        reverse_order = self.request.QUERY_PARAMS.get('reverse', None)
-        order = 'created_on' if reverse_order and str_to_bool(reverse_order) else '-created_on'
+        archived = self.request.QUERY_PARAMS.get('archived', None)
+        if archived is not None:
+            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            queryset = queryset.filter(visibility=visibility)
+        else:
+            queryset = queryset.exclude(visibility=DELETED)
 
-        return queryset.order_by(order).prefetch_related('labels').distinct()
+        queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
+        return queryset.order_by('-created_on').distinct()
 
     @classmethod
     def get_read_explorer(cls):
@@ -792,6 +945,8 @@ class MessagesEndpoint(generics.ListAPIView):
                                help="One or more status states to filter by. (repeatable) ex: Q,S,D"),
                           dict(name='direction', required=False,
                                help="One or more directions to filter by. (repeatable) ex: I,O"),
+                          dict(name='archived', required=False,
+                               help="Filter returned messages based on whether they are archived. ex: Y"),
                           dict(name='type', required=False,
                                help="One or more message types to filter by (inbox or flow). (repeatable) ex: I,F"),
                           dict(name='urn', required=False,
@@ -831,7 +986,7 @@ class MessagesEndpoint(generics.ListAPIView):
         return spec
 
 
-class MessagesBulkActionEndpoint(generics.GenericAPIView):
+class MessageBulkActionEndpoint(BaseAPIView):
     """
     ## Bulk Message Updating
 
@@ -861,7 +1016,6 @@ class MessagesBulkActionEndpoint(generics.GenericAPIView):
     You will receive an empty response if successful.
     """
     permission = 'msgs.msg_api'
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = MsgBulkActionSerializer
 
     def post(self, request, *args, **kwargs):
@@ -893,7 +1047,7 @@ class MessagesBulkActionEndpoint(generics.GenericAPIView):
         return spec
 
 
-class LabelsEndpoint(generics.ListAPIView):
+class LabelEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     ## Listing Message Labels
 
@@ -901,7 +1055,6 @@ class LabelsEndpoint(generics.ListAPIView):
 
     * **uuid** - the UUID of the label (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of the label (string) (filterable: ```name```)
-    * **parent** - the UUID of the parent label (string) (filterable: ```parent```)
     * **count** - the number of messages with the label (int)
 
     Example:
@@ -918,7 +1071,6 @@ class LabelsEndpoint(generics.ListAPIView):
                 {
                     "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
                     "name": "Screened",
-                    "parent": null,
                     "count": 315
                 },
                 ...
@@ -930,14 +1082,12 @@ class LabelsEndpoint(generics.ListAPIView):
     A **POST** can be used to create a new message label. Don't specify a UUID as this will be generated for you.
 
     * **name** - the label name (string)
-    * **parent** - the UUID of an existing label which will be the parent (string, optional)
 
     Example:
 
         POST /api/v1/labels.json
         {
-            "name": "Screened",
-            "parent": null
+            "name": "Screened"
         }
 
     You will receive a label object (with the new UUID) as a response if successful:
@@ -945,7 +1095,6 @@ class LabelsEndpoint(generics.ListAPIView):
         {
             "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
             "name": "Screened",
-            "parent": null,
             "count": 0
         }
 
@@ -955,15 +1104,13 @@ class LabelsEndpoint(generics.ListAPIView):
 
     * **uuid** - the label UUID
     * **name** - the label name (string)
-    * **parent** - the UUID of an existing label which will be the parent (string, optional)
 
     Example:
 
         POST /api/v1/labels.json
         {
             "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
-            "name": "Checked",
-            "parent": null
+            "name": "Checked"
         }
 
     You will receive the updated label object as a response if successful:
@@ -971,28 +1118,16 @@ class LabelsEndpoint(generics.ListAPIView):
         {
             "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
             "name": "Checked",
-            "parent": null,
             "count": 0
         }
     """
     permission = 'msgs.label_api'
     model = Label
     serializer_class = LabelReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = LabelWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = LabelWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = LabelReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = LabelWriteSerializer
 
     def get_queryset(self):
-        queryset = Label.objects.filter(org=self.request.user.get_org()).order_by('-pk')
+        queryset = self.model.label_objects.filter(org=self.request.user.get_org()).order_by('-pk')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1001,10 +1136,6 @@ class LabelsEndpoint(generics.ListAPIView):
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
-
-        parents = self.request.QUERY_PARAMS.getlist('parent', None)
-        if parents:
-            queryset = queryset.filter(parent__uuid__in=parents)
 
         return queryset
 
@@ -1028,18 +1159,16 @@ class LabelsEndpoint(generics.ListAPIView):
                     title="Add or Update a Message Label",
                     url=reverse('api.labels'),
                     slug='label-update',
-                    request='{ "name": "Screened", "parent": null }')
+                    request='{ "name": "Screened" }')
 
         spec['fields'] = [dict(name='uuid', required=True,
                                help='The UUID of the message label.  ex: "fdd156ca-233a-48c1-896d-a9d594d59b95"'),
                           dict(name='name', required=False,
-                               help='The name of the message label.  ex: "Screened"'),
-                          dict(name='parent', required=False,
-                               help='The UUID of the parent label. ex: "34914a7c-911d-4768-8adb-ac75fb6e9b94"')]
+                               help='The name of the message label.  ex: "Screened"')]
         return spec
 
 
-class Calls(generics.ListAPIView):
+class CallEndpoint(ListAPIMixin, BaseAPIView):
     """
     Returns the incoming and outgoing calls for your organization, most recent first.
 
@@ -1078,10 +1207,10 @@ class Calls(generics.ListAPIView):
     permission = 'msgs.call_api'
     model = Call
     serializer_class = CallSerializer
-    permission_classes = (SSLPermission, ApiPermission)
+    cache_counts = True
 
     def get_queryset(self):
-        queryset = Call.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         ids = splitting_getlist(self.request, 'call')
         if ids:
@@ -1144,7 +1273,7 @@ class Calls(generics.ListAPIView):
         return spec
 
 
-class Channels(DestroyModelMixin, generics.ListAPIView):
+class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Claiming Channels
 
@@ -1242,25 +1371,9 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
     permission = 'channels.channel_api'
     model = Channel
     serializer_class = ChannelReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = ChannelClaimSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = ChannelClaimSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            response_serializer = ChannelReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    write_serializer_class = ChannelClaimSerializer
 
     def destroy(self, request, *args, **kwargs):
-        self.request = request
         queryset = self.get_queryset()
 
         if not queryset:
@@ -1271,7 +1384,7 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
-        queryset = Channel.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-last_seen')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-last_seen')
 
         ids = splitting_getlist(self.request, 'relayer')
         if ids:
@@ -1360,7 +1473,7 @@ class Channels(DestroyModelMixin, generics.ListAPIView):
         return spec
 
 
-class Groups(generics.ListAPIView):
+class GroupEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Groups
 
@@ -1393,10 +1506,9 @@ class Groups(generics.ListAPIView):
     permission = 'contacts.contactgroup_api'
     model = ContactGroup
     serializer_class = ContactGroupReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
 
     def get_queryset(self):
-        queryset = ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('created_on')
+        queryset = self.model.user_groups.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         name = self.request.QUERY_PARAMS.get('name', None)
         if name:
@@ -1423,7 +1535,7 @@ class Groups(generics.ListAPIView):
         return spec
 
 
-class Contacts(generics.ListAPIView):
+class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Adding a Contact
 
@@ -1463,6 +1575,8 @@ class Contacts(generics.ListAPIView):
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
             }
+            "blocked": false,
+            "failed": false
         }
 
     ## Updating Contacts
@@ -1473,7 +1587,8 @@ class Contacts(generics.ListAPIView):
 
     ## Listing Contacts
 
-    A **GET** returns the list of contacts for your organization, in the order of last activity date.
+    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
+    only deleted contacts by passing the "?deleted=true" parameter to your call.
 
     * **uuid** - the unique identifier for this contact (string) (filterable: ```uuid``` repeatable)
     * **name** - the name of this contact (string, optional)
@@ -1481,6 +1596,8 @@ class Contacts(generics.ListAPIView):
     * **urns** - the URNs associated with this contact (string array) (filterable: ```urns```)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
     * **fields** - any contact fields on this contact (JSON, optional)
+    * **after** - only contacts which have changed on this date or after (string) ex: 2012-01-28T18:00:00.000
+    * **before** - only contacts which have been changed on this date or before (string) ex: 2012-01-28T18:00:00.000
 
     Example:
 
@@ -1526,21 +1643,8 @@ class Contacts(generics.ListAPIView):
     permission = 'contacts.contact_api'
     model = Contact
     serializer_class = ContactReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = ContactWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = ContactWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = ContactReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    write_serializer_class = ContactWriteSerializer
+    cache_counts = True
 
     def destroy(self, request, *args, **kwargs):
         queryset = self.get_base_queryset(request)
@@ -1565,10 +1669,32 @@ class Contacts(generics.ListAPIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_base_queryset(self, request):
-        return Contact.objects.filter(org=request.user.get_org(), is_active=True, is_test=False)
+        queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
+
+        # if they pass in deleted=true then only return deleted contacts
+        if str_to_bool(request.QUERY_PARAMS.get('deleted', '')):
+            return queryset.filter(is_active=False)
+        else:
+            return queryset.filter(is_active=True)
 
     def get_queryset(self):
-        queryset = self.get_base_queryset(self.request).order_by('modified_on')
+        queryset = self.get_base_queryset(self.request)
+
+        before = self.request.QUERY_PARAMS.get('before', None)
+        if before:
+            try:
+                before = json_date_to_datetime(before)
+                queryset = queryset.filter(modified_on__lte=before)
+            except:
+                queryset = queryset.filter(pk=-1)
+
+        after = self.request.QUERY_PARAMS.get('after', None)
+        if after:
+            try:
+                after = json_date_to_datetime(after)
+                queryset = queryset.filter(modified_on__gte=after)
+            except:
+                queryset = queryset.filter(pk=-1)
 
         phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
         if phones:
@@ -1581,32 +1707,34 @@ class Contacts(generics.ListAPIView):
         groups = self.request.QUERY_PARAMS.getlist('group', None)  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(all_groups__name__in=groups,
-                                       all_groups__group_type=USER_DEFINED_GROUP)
+                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = self.request.QUERY_PARAMS.getlist('group_uuids', None)
         if group_uuids:
             queryset = queryset.filter(all_groups__uuid__in=group_uuids,
-                                       all_groups__group_type=USER_DEFINED_GROUP)
+                                       all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
             queryset = queryset.filter(uuid__in=uuids)
 
-        return queryset
+        # can't prefetch a custom manager directly, so here we prefetch user groups as new attribute
+        user_groups_prefetch = Prefetch('all_groups', queryset=ContactGroup.user_groups.all(), to_attr='prefetched_user_groups')
 
-    def paginate_queryset(self, queryset, page_size):
-        """
-        Overriding this method let's us jump in just after queryset has been paginated but before objects have been
-        serialized - so that we can perform some cache optimization
-        """
-        packed = MultipleObjectMixin.paginate_queryset(self, queryset, page_size)
-        paginator, page, object_list, is_paginated = packed
+        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on')
 
+    def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs
         org = self.request.user.get_org()
         Contact.bulk_cache_initialize(org, object_list)
 
-        return packed
+    def get_serializer_context(self):
+        """
+        So that we only fetch active contact fields once for all contacts
+        """
+        context = super(BaseAPIView, self).get_serializer_context()
+        context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        return context
 
     @classmethod
     def get_read_explorer(cls):
@@ -1620,7 +1748,11 @@ class Contacts(generics.ListAPIView):
                           dict(name='urns', required=False,
                                help="One or more URNs to filter by.  ex: tel:+250788123123,twitter:ben"),
                           dict(name='group_uuids', required=False,
-                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9")]
+                               help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
+                          dict(name='after', required=False,
+                                help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='before', required=False,
+                                help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -1660,7 +1792,7 @@ class Contacts(generics.ListAPIView):
         return spec
 
 
-class FieldsEndpoint(generics.ListAPIView):
+class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     ## Listing Fields
 
@@ -1747,21 +1879,10 @@ class FieldsEndpoint(generics.ListAPIView):
     permission = 'contacts.contactfield_api'
     model = ContactField
     serializer_class = ContactFieldReadSerializer
-    permission_classes = (SSLPermission, ApiPermission)
-    form_serializer_class = ContactFieldWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = ContactFieldWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = ContactFieldReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = ContactFieldWriteSerializer
 
     def get_queryset(self):
-        queryset = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True)
 
         key = self.request.QUERY_PARAMS.get('key', None)
         if key:
@@ -1798,7 +1919,69 @@ class FieldsEndpoint(generics.ListAPIView):
         return spec
 
 
-class FlowResultsEndpoint(generics.GenericAPIView):
+class ContactBulkActionEndpoint(BaseAPIView):
+    """
+    ## Bulk Contact Updating
+
+    A **POST** can be used to perform an action on a set of contacts in bulk.
+
+    * **contacts** - either a single contact UUID or a JSON array of up to 100 contact UUIDs (string or array of strings)
+    * **action** - the action to perform, a string one of:
+
+            add - Add the contacts to the given group
+            remove - Remove the contacts from the given group
+            block - Block the contacts
+            unblock - Un-block the contacts
+            expire - force expiration of contacts' active flow runs
+            delete - Permanently delete the contacts
+
+    * **group** - the name of a contact group (string, optional)
+    * **group_uuid** - the UUID of a contact group (string, optional)
+
+    Example:
+
+        POST /api/v1/contact_actions.json
+        {
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "a5901b62-ba76-4003-9c62-72fdacc1b7b8"],
+            "action": "add",
+            "group": "Testers"
+        }
+
+    You will receive an empty response if successful.
+    """
+    permission = 'contacts.contact_api'
+    serializer_class = ContactBulkActionSerializer
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.serializer_class(user=user, data=request.DATA)
+
+        if serializer.is_valid():
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Update one or more contacts",
+                    url=reverse('api.contact_actions'),
+                    slug='contact-actions',
+                    request='{ "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3"], "action": "add", '
+                            '"group_uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95" }')
+
+        spec['fields'] = [dict(name='contacts', required=True,
+                               help="A JSON array of one or more strings, each a contact UUID."),
+                          dict(name='action', required=True,
+                               help="One of the following strings: add, remove, block, unblock, expire, delete"),
+                          dict(name='group', required=False,
+                               help="The name of a contact group if the action is add or remove"),
+                          dict(name='label_uuid', required=False,
+                               help="The UUID of a contact group if the action is add or remove")]
+        return spec
+
+
+class FlowResultsEndpoint(BaseAPIView):
     """
     This endpoint allows you to get aggregate results for a flow ruleset, optionally segmenting the results by another
     ruleset in the process.
@@ -1839,42 +2022,46 @@ class FlowResultsEndpoint(generics.GenericAPIView):
                 }
            ...
     """
-    permission = 'flows.flow_results'
-    model = Flow
-    permission_classes = (SSLPermission, ApiPermission)
-    serializer_class = ResultSerializer
+    permission = 'flows.flow_api'
 
-    def get(self, request, format=None):
+    def get(self, request, *args, **kwargs):
         user = request.user
         org = user.get_org()
 
         ruleset, contact_field = None, None
 
-        id = self.request.QUERY_PARAMS.get('ruleset', None)
-        if id:
-            ruleset = RuleSet.objects.filter(flow__org=org, pk=id).first()
+        ruleset_id_or_uuid = self.request.QUERY_PARAMS.get('ruleset', None)
+        if ruleset_id_or_uuid:
+            try:
+                ruleset = RuleSet.objects.filter(flow__org=org, pk=int(ruleset_id_or_uuid)).first()
+            except ValueError:
+                ruleset = RuleSet.objects.filter(flow__org=org, uuid=ruleset_id_or_uuid).first()
+
             if not ruleset:
-                return Response(dict(contact_field="No ruleset found with that id"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(ruleset=["No ruleset found with that UUID or id"]), status=status.HTTP_400_BAD_REQUEST)
 
         field = self.request.QUERY_PARAMS.get('contact_field', None)
         if field:
-            contact_field = ContactField.objects.filter(org=org, label__iexact=field).first()
+            contact_field = ContactField.get_by_label(org, field)
             if not contact_field:
-                return Response(dict(contact_field="No contact field found with that label"), status=status.HTTP_400_BAD_REQUEST)
+                return Response(dict(contact_field=["No contact field found with that label"]), status=status.HTTP_400_BAD_REQUEST)
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
-            return Response(dict(ruleset="You must specify either a ruleset or contact field",
-                                 contact_field="You must specify either a ruleset or contact field"), status=status.HTTP_400_BAD_REQUEST)
+            return Response(dict(non_field_errors=["You must specify either a ruleset or contact field"]), status=status.HTTP_400_BAD_REQUEST)
 
         segment = self.request.QUERY_PARAMS.get('segment', None)
         if segment:
             try:
                 segment = json.loads(segment)
-            except:
-                return Response(dict(segment="Invalid segment format, must be in JSON format"))
+            except ValueError:
+                return Response(dict(segment=["Invalid segment format, must be in JSON format"]), status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = ResultSerializer(ruleset=ruleset, contact_field=contact_field, segment=segment)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if ruleset:
+            data = Value.get_value_summary(ruleset=ruleset, segment=segment)
+        else:
+            data = Value.get_value_summary(contact_field=contact_field, segment=segment)
+
+        return Response(dict(results=data), status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):
@@ -1891,7 +2078,7 @@ class FlowResultsEndpoint(generics.GenericAPIView):
         return spec
 
 
-class FlowRunEndpoint(generics.ListAPIView):
+class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A
     run is created for each time a contact is started down a flow.
@@ -1901,11 +2088,15 @@ class FlowRunEndpoint(generics.ListAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **run** - the id of the run (long) (filterable: ```run``` repeatable)
+    * **uuid** - the UUID of the run (string) (filterable: ```uuid``` repeatable)
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
-    * **created_on** - the datetime when this run was started (datetime) (filterable: ```before``` and ```after```)
+    * **created_on** - the datetime when this run was started (datetime)
+    * **modified_on** - the datetime when this run was last modified (datetime) (filterable: ```before``` and ```after```)
+    * **completed** - boolean indicating whether this run has completed the flow (boolean)
+    * **expires_on** - the datetime when this run will expire (datetime)
+    * **expired_on** - the datetime when this run expired or null if it has not yet expired (datetime or null)
     * **steps** - steps visited by the contact on the flow (array of dictionaries)
     * **values** - values collected during the flow run (array of dictionaries)
 
@@ -1925,6 +2116,8 @@ class FlowRunEndpoint(generics.ListAPIView):
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-03-02T17:28:12",
+                "expires_on": "2015-07-08T01:10:43.111Z",
+                "expired_on": null
                 "steps": [
                     {
                         "node": "22bd934e-953b-460d-aaf5-42a84ec8f8af",
@@ -1989,6 +2182,7 @@ class FlowRunEndpoint(generics.ListAPIView):
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-08-19T19:11:20.838Z"
+                "modified_on": "2013-08-19T19:11:21.088Z"
                 "values": [],
                 "steps": [
                     {
@@ -2015,45 +2209,70 @@ class FlowRunEndpoint(generics.ListAPIView):
     """
     permission = 'flows.flow_api'
     model = FlowRun
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowRunReadSerializer
+    write_serializer_class = FlowRunStartSerializer
+    cache_counts = True
 
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = FlowRunStartSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-
-            if serializer.object:
-                response_serializer = FlowRunReadSerializer(instance=serializer.object)
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(dict(non_field_errors=["All contacts are already started in this flow, "
-                                                   "use restart_participants to force them to restart in the flow"]),
-                                 status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def render_write_response(self, write_output, context):
+        if write_output:
+            response_serializer = FlowRunReadSerializer(instance=write_output, many=True, context=context)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(dict(non_field_errors=["All contacts are already started in this flow, "
+                                               "use restart_participants to force them to restart in the flow"]),
+                        status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = FlowRun.objects.filter(flow__org=self.request.user.get_org(), contact__is_test=False).order_by('-created_on')
+        org = self.request.user.get_org()
+        queryset = self.model.objects.all()
+
+        contact_uuids = splitting_getlist(self.request, 'contact')
+        contact_phones = splitting_getlist(self.request, 'phone')  # deprecated
+
+        # subquery on contacts to avoid join - if we're querying for specific contacts
+        if contact_uuids or contact_phones:
+            include_contacts = Contact.objects.filter(org=org, is_test=False, is_active=True)
+
+            if contact_uuids:
+                include_contacts = include_contacts.filter(uuid__in=contact_uuids)
+
+            if contact_phones:
+                include_contacts = include_contacts.filter(urns__path__in=contact_phones)
+
+            queryset = queryset.filter(contact__in=include_contacts)
+        else:
+            test_contacts = Contact.objects.filter(org=org, is_test=True)
+            queryset = queryset.exclude(contact__in=test_contacts)
+
+        # subquery on flows to avoid join
+        include_flows = Flow.objects.filter(org=org, is_active=True)
+
+        flow_ids = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
+        if flow_ids:
+            include_flows = include_flows.filter(pk__in=flow_ids)
+
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        if flow_uuids:
+            include_flows = include_flows.filter(uuid__in=flow_uuids)
+
+        # if we are filtering by flows, do so
+        if flow_ids or flow_uuids:
+            queryset = queryset.filter(flow__in=include_flows)
+
+        # otherwise, filter by org
+        else:
+            queryset = queryset.filter(org=org)
+
+        # other queries on the runs themselves...
 
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)
 
-        flows = splitting_getlist(self.request, 'flow')  # deprecated, use flow_uuid
-        if flows:
-            queryset = queryset.filter(flow__pk__in=flows)
-
-        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
-        if flow_uuids:
-            queryset = queryset.filter(flow__uuid__in=flow_uuids)
-
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(created_on__lte=before)
+                queryset = queryset.filter(modified_on__lte=before)
             except:
                 queryset = queryset.filter(pk=-1)
 
@@ -2061,29 +2280,32 @@ class FlowRunEndpoint(generics.ListAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(created_on__gte=after)
+                queryset = queryset.filter(modified_on__gte=after)
             except:
                 queryset = queryset.filter(pk=-1)
 
-        phones = splitting_getlist(self.request, 'phone')  # deprecated
-        if phones:
-            queryset = queryset.filter(contact__urns__path__in=phones)
+        # it's faster to filter by contact group using a join than a subquery - especially for larger groups
 
         groups = splitting_getlist(self.request, 'group')  # deprecated, use group_uuids
         if groups:
             queryset = queryset.filter(contact__all_groups__name__in=groups,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
         group_uuids = splitting_getlist(self.request, 'group_uuids')
         if group_uuids:
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
-                                       contact__all_groups__group_type=USER_DEFINED_GROUP)
+                                       contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        contacts = splitting_getlist(self.request, 'contact')
-        if contacts:
-            queryset = queryset.filter(contact__uuid__in=contacts)
+        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
 
-        return queryset
+        rulesets_prefetch = Prefetch('flow__rule_sets',
+                                     queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
+                                     to_attr='ruleset_prefetch')
+
+        # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
+        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+
+        return queryset.order_by('-modified_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2101,9 +2323,9 @@ class FlowRunEndpoint(generics.ListAPIView):
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by.(repeatable)  ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='before', required=False,
-                               help="Only return runs which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                               help="Only return runs which were modified before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
-                               help="Only return runs which were created after this date.  ex: 2012-01-28T18:00:00.000")]
+                               help="Only return runs which were modified after this date.  ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -2113,10 +2335,10 @@ class FlowRunEndpoint(generics.ListAPIView):
                     title="Add one or more contacts to a Flow",
                     url=reverse('api.runs'),
                     slug='run-post',
-                    request='{ "flow": 15015, "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
+                    request='{ "flow_uuid":"f5901b62-ba76-4003-9c62-72fdacc1b7b7" , "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
 
-        spec['fields'] = [ dict(name='flow', required=True,
-                                help="The id of the flow to start the contact(s) on, the flow cannot be archived"),
+        spec['fields'] = [ dict(name='flow_uuid', required=True,
+                                help="The uuid of the flow to start the contact(s) on, the flow cannot be archived"),
                            dict(name='phone', required=True,
                                 help="A JSON array of one or more strings, each a phone number in E164 format"),
                            dict(name='contact', required=False,
@@ -2126,31 +2348,31 @@ class FlowRunEndpoint(generics.ListAPIView):
         return spec
 
 
-class CampaignEndpoint(generics.ListAPIView):
+class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     ## Adding or Updating a Campaign
 
     You can add a new campaign to your account, or update the fields on a campaign by sending a **POST** request to this
     URL with the following data:
 
-    * **campaign** - the id of the campaign (integer, optional, only include if updating an existing campaign)
+    * **uuid** - the UUID of the campaign (string, optional, only include if updating an existing campaign)
     * **name** - the full name of the campaign (string, required)
-    * **group** - the name of the contact group this campaign will be run against (string, required)
+    * **group_uuid** - the UUID of the contact group this campaign will be run against (string, required)
 
     Example:
 
         POST /api/v1/campaigns.json
         {
-            "name": "Starting Over",
-            "group": "Macklemore & Ryan Lewis"
+            "name": "Reminders",
+            "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"
         }
 
     You will receive a campaign object as a response if successful:
 
         {
-            "campaign": 1251125,
-            "name": "Starting Over",
-            "group": "Macklemore & Ryan Lewis",
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "name": "Reminders",
+            "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
             "created_on": "2013-08-19T19:11:21.088Z"
         }
 
@@ -2159,9 +2381,9 @@ class CampaignEndpoint(generics.ListAPIView):
     You can retrieve the campaigns for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` repeatable)
+      * **uuid** - the UUID of the campaign (string) (filterable: ```uuid``` repeatable)
       * **name** - the name of this campaign (string)
-      * **group** - the name of the group this campaign operates on (string)
+      * **group_uuid** - the UUID of the group this campaign operates on (string)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
 
     Example:
@@ -2176,9 +2398,9 @@ class CampaignEndpoint(generics.ListAPIView):
             "previous": null,
             "results": [
             {
-                "campaign": 145145,
-                "name": "Starting Over",
-                "group": "Macklemore & Ryan Lewis",
+                "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+                "name": "Reminders",
+                "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
             ...
@@ -2187,24 +2409,17 @@ class CampaignEndpoint(generics.ListAPIView):
     """
     permission = 'campaigns.campaign_api'
     model = Campaign
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = CampaignSerializer
-    form_serializer_class = CampaignWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = CampaignWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = CampaignSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    write_serializer_class = CampaignWriteSerializer
 
     def get_queryset(self):
-        queryset = Campaign.objects.filter(org=self.request.user.get_org(), is_active=True, is_archived=False).order_by('-created_on')
+        queryset = Campaign.get_campaigns(self.request.user.get_org())
 
-        ids = splitting_getlist(self.request, 'campaign')
+        uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
+
+        ids = splitting_getlist(self.request, 'campaign')  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
 
@@ -2224,7 +2439,7 @@ class CampaignEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset
+        return queryset.select_related('group').order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2233,14 +2448,12 @@ class CampaignEndpoint(generics.ListAPIView):
                     url=reverse('api.campaigns'),
                     slug='campaign-list',
                     request="after=2013-01-01T00:00:00.000")
-        spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by. (repeatable)  ex: 234235,230420"),
-                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000"),
-                           ]
-
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="One or more campaign UUIDs to filter by. (repeatable)  ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='before', required=False,
+                               help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
         return spec
 
     @classmethod
@@ -2249,39 +2462,38 @@ class CampaignEndpoint(generics.ListAPIView):
                     title="Add or update a Campaign",
                     url=reverse('api.campaigns'),
                     slug='campaign-update',
-                    request='{ "name": "Starting Over", "group": "Macklemore & Ryan Lewis" }')
+                    request='{ "name": "Reminders", "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9" }')
 
-        spec['fields'] = [ dict(name='campaign', required=False,
-                                help="The id of the campaign to update. (optional, new campaign will be created if left out)  ex: 1241515"),
-                           dict(name='name', required=True,
-                                help='The name of the campaign.  ex: "Starting Over"'),
-                           dict(name='group', required=True,
-                                help='What contact group the campaign should operate against.  ex: "Macklemore & Ryan Lewis"'),
-                         ]
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="The UUID of the campaign to update. (optional, new campaign will be created if left out)  ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='name', required=True,
+                               help='The name of the campaign.  ex: "Reminders"'),
+                          dict(name='group_uuid', required=True,
+                               help='The UUID of the contact group the campaign should operate against.  ex: "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"')]
         return spec
 
 
-class CampaignEventEndpoint(generics.ListAPIView):
+class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Adding or Updating Campaign Events
 
     You can add a new event to your campaign, or update the fields on an event by sending a **POST** request to this
     URL with the following data:
 
-    * **event** - the id of the event (integer, optional, only include if updating an existing campaign)
-    * **campaign** - the id of the campaign this event should be part of (integer, only include when creating new events)
+    * **uuid** - the UUID of the event (string, optional, only include if updating an existing campaign)
+    * **campaign_uuid** - the UUID of the campaign this event should be part of (string, only include when creating new events)
     * **relative_to** - the field that this event will be relative to for the contact (string, name of the Contact field, required)
     * **offset** - the offset from our contact field (positive or negative integer, required)
     * **unit** - the unit for our offset, M (minutes), H (hours), D (days), W (weeks) (string, required)
     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the Contact Field)
     * **message** - the message to send to the contact (string, required if flow id is not included)
-    * **flow** - the id of the flow to start the contact down (integer, required if message is null)
+    * **flow_uuid** - the UUID of the flow to start the contact down (string, required if message is null)
 
     Example:
 
         POST /api/v1/events.json
         {
-            "campaign": 1231515,
+            "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "relative_to": "Last Hit",
             "offset": 160,
             "unit": "W",
@@ -2292,13 +2504,14 @@ class CampaignEventEndpoint(generics.ListAPIView):
     You will receive an event object as a response if successful:
 
         {
-            "event": 150001,
-            "campaign": 1251125,
+            "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
+            "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "relative_to": "Last Hit",
             "offset": 160,
             "unit": "W",
             "delivery_hour": -1,
             "message": "Feeling sick and helpless, lost the compass where self is."
+            "flow_uuid": null,
             "created_on": "2013-08-19T19:11:21.088Z"
         }
 
@@ -2307,8 +2520,8 @@ class CampaignEventEndpoint(generics.ListAPIView):
     You can retrieve the campaign events for your organization by sending a ```GET``` to the same endpoint, listing the
     most recently created campaigns first.
 
-      * **campaign** - the id of the campaign (int) (filterable: ```campaign``` repeatable)
-      * **event** - only return events with these ids (int) (filterable: ```event``` repeatable)
+      * **uuid** - only return events with these UUIDs (string) (filterable: ```uuid``` repeatable)
+      * **campaign_uuid** - the UUID of the campaign (string) (filterable: ```campaign_uuid``` repeatable)
       * **created_on** - the datetime when this campaign was created (datetime) (filterable: ```before``` and ```after```)
 
     Example:
@@ -2323,13 +2536,14 @@ class CampaignEventEndpoint(generics.ListAPIView):
             "previous": null,
             "results": [
             {
-                "event": 150001,
-                "campaign": 1251125,
+                "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
+                "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "relative_to": "Last Hit",
                 "offset": 180,
                 "unit": "W",
                 "delivery_hour": -1,
                 "message": "If I can be an example of being sober, then I can be an example of starting over.",
+                "flow_uuid": null,
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
             ...
@@ -2337,40 +2551,25 @@ class CampaignEventEndpoint(generics.ListAPIView):
 
     ## Removing Events
 
-    A **DELETE** to the endpoint removes all matching events from your account.  You can filter the list of events to remove
-    using the following attributes
+    A **DELETE** to the endpoint removes all matching events from your account.  You can filter the list of events to
+    remove using the following attributes
 
-    * **campaing** - remove only events which are part of this campaign (comma separated int)
-    * **event** - remove only events with these ids (comma separated int)
+    * **uuid** - remove only events with these UUIDs (comma separated string)
+    * **campaign_uuid** - remove only events which are part of this campaign (comma separated string)
 
     Example:
 
-        DELETE /api/v1/events.json?event=409,501
+        DELETE /api/v1/events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
 
     You will receive either a 404 response if no matching events were found, or a 204 response if one or more events
     was removed.
     """
     permission = 'campaigns.campaignevent_api'
     model = CampaignEvent
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = CampaignEventSerializer
-    form_serializer_class = CampaignEventWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = CampaignEventWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = CampaignEventSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    write_serializer_class = CampaignEventWriteSerializer
 
     def destroy(self, request, *args, **kwargs):
-        self.request = request
         queryset = self.get_queryset()
 
         if not queryset:
@@ -2380,15 +2579,23 @@ class CampaignEventEndpoint(generics.ListAPIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
-        queryset = CampaignEvent.objects.filter(campaign__org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
 
-        ids = splitting_getlist(self.request, 'campaign')
-        if ids:
-            queryset = queryset.filter(campaign__pk__in=ids)
+        uuids = splitting_getlist(self.request, 'uuid')
+        if uuids:
+            queryset = queryset.filter(uuid__in=uuids)
 
-        ids = splitting_getlist(self.request, 'event')
+        campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        if campaign_uuids:
+            queryset = queryset.filter(campaign__uuid__in=campaign_uuids)
+
+        ids = splitting_getlist(self.request, 'event')  # deprecated, use uuid
         if ids:
             queryset = queryset.filter(pk__in=ids)
+
+        campaign_ids = splitting_getlist(self.request, 'campaign')  # deprecated, use campaign_uuid
+        if campaign_ids:
+            queryset = queryset.filter(campaign__pk__in=campaign_ids)
 
         before = self.request.QUERY_PARAMS.get('before', None)
         if before:
@@ -2406,7 +2613,7 @@ class CampaignEventEndpoint(generics.ListAPIView):
             except:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset
+        return queryset.select_related('campaign', 'flow').order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -2415,16 +2622,15 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     url=reverse('api.campaignevents'),
                     slug='campaignevent-list',
                     request="after=2013-01-01T00:00:00.000")
-        spec['fields'] = [ dict(name='campaign', required=False,
-                                help="One or more campaign ids to filter by. (repeatable) ex: 234235,230420"),
-                           dict(name='event', required=False,
-                                help="One or more even ids to filter by. (repeatable) ex:3435,67464"),
-                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000"),
-                           ]
 
+        spec['fields'] = [dict(name='uuid', required=False,
+                                help="One or more event UUIDs to filter by. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
+                          dict(name='campaign_uuid', required=False,
+                                help="One or more campaign UUIDs to filter by. (repeatable) ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='before', required=False,
+                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
         return spec
 
     @classmethod
@@ -2433,25 +2639,24 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     title="Add or update a Campaign Event",
                     url=reverse('api.campaignevents'),
                     slug='campaignevent-update',
-                    request='{ "campaign": 1251125, "relative_to": "Last Hit", "offset": 180, "unit": "W", "delivery_hour": -1, "message": "If I can be an example of being sober, then I can be an example of starting over."}')
+                    request='{ "campaign_uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "relative_to": "Last Hit", "offset": 180, "unit": "W", "delivery_hour": -1, "message": "If I can be an example of being sober, then I can be an example of starting over."}')
 
-        spec['fields'] = [ dict(name='event', required=False,
-                                help="The id of the event to update. (optional, new event will be created if left out)  ex: 1241515"),
-                           dict(name='campaign', required=False,
-                                help="The id of the campaign this even is part of. (optional, only used when creating a new campaign)  ex: 15151"),
-                           dict(name='relative_to', required=True,
-                                help='The name of the Contact field this event is relative to. (string) ex: "Last Fix"'),
-                           dict(name='offset', required=True,
-                                help='The offset, as an integer to the relative_to field (integer, positive or negative)  ex: 15'),
-                           dict(name='unit', required=True,
-                                help='The unit of the offset, one of M for minutes, H for hours, D for days or W for weeks (string)  ex: "M"'),
-                           dict(name='delivery_hour', required=True,
-                                help='The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)  ex: "16"'),
-                           dict(name='message', required=False,
-                                help='The message that should be sent to the contact when this event is triggered. (string)  ex: "It is time to raise the roof."'),
-                           dict(name='flow', required=False,
-                                help='If not message is included, then the id of the flow that the contact should start when this event is triggered (integer)  ex: 1514'),
-                         ]
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="The UUID of the event to update. (optional, new event will be created if left out)  ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfab"),
+                          dict(name='campaign_uuid', required=False,
+                               help="The UUID of the campaign this event is part of. (optional, only used when creating a new campaign)  ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                          dict(name='relative_to', required=True,
+                               help='The name of the Contact field this event is relative to. (string) ex: "Last Fix"'),
+                          dict(name='offset', required=True,
+                               help='The offset, as an integer to the relative_to field (integer, positive or negative)  ex: 15'),
+                          dict(name='unit', required=True,
+                               help='The unit of the offset, one of M for minutes, H for hours, D for days or W for weeks (string)  ex: "M"'),
+                          dict(name='delivery_hour', required=True,
+                               help='The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)  ex: "16"'),
+                          dict(name='message', required=False,
+                               help='The message that should be sent to the contact when this event is triggered. (string)  ex: "It is time to raise the roof."'),
+                          dict(name='flow_uuid', required=False,
+                               help='If not message is included, then the UUID of the flow that the contact should start when this event is triggered (string)  ex: 6db50de7-2d20-4cce-b0dd-3f38b7a52ff9')]
         return spec
 
     @classmethod
@@ -2460,23 +2665,24 @@ class CampaignEventEndpoint(generics.ListAPIView):
                     title="Delete a Campaign Event from a Campaign",
                     url=reverse('api.campaignevents'),
                     slug='campaignevent-delete',
-                    request="event=1255")
-        spec['fields'] = [ dict(name='event', required=False,
-                                help="Only delete events with these ids ids. (repeatable) ex: 235,124"),
-                           dict(name='campaign', required=False,
-                                help="Only delete events that are part of these campaigns. ex: 1514,141") ]
+                    request="uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc")
 
+        spec['fields'] = [dict(name='uuid', required=False,
+                               help="Only delete events with these UUIDs. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
+                          dict(name='campaign_uuid', required=False,
+                               help="Only delete events that are part of these campaigns. ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00")]
         return spec
 
 
-class BoundaryEndpoint(generics.ListAPIView):
+class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the administrative boundaries for the country associated with your organization
     along with the simplified gps geometry for those boundaries in GEOJSON format.
 
     ## Listing Boundaries
 
-    Returns the boundaries for your organization.
+    Returns the boundaries for your organization. You can return just the names of the boundaries and their aliases,
+    without any coordinate information by passing "?aliases=true".
 
     **Note that this may be a very large dataset as it includes the simplified coordinates for each administrative boundary.
      It is recommended to cache the results on the client side.**
@@ -2527,18 +2733,23 @@ class BoundaryEndpoint(generics.ListAPIView):
     """
     permission = 'locations.adminboundary_api'
     model = AdminBoundary
-    permission_classes = (SSLPermission, ApiPermission)
-    serializer_class = BoundarySerializer
 
     def get_queryset(self):
+
         org = self.request.user.get_org()
         if not org.country:
             return []
 
-        queryset = AdminBoundary.objects.filter(Q(pk=org.country.pk) |
-                                                Q(parent=org.country) |
-                                                Q(parent__parent=org.country)).order_by('level', 'name')
+        queryset = self.model.objects.filter(Q(pk=org.country.pk) |
+                                             Q(parent=org.country) |
+                                             Q(parent__parent=org.country)).order_by('level', 'name')
         return queryset.select_related('parent')
+
+    def get_serializer_class(self):
+        if self.request.GET.get('aliases'):
+            return AliasSerializer
+        else:
+            return BoundarySerializer
 
     @classmethod
     def get_read_explorer(cls):
@@ -2552,7 +2763,180 @@ class BoundaryEndpoint(generics.ListAPIView):
         return spec
 
 
-class FlowEndpoint(generics.ListAPIView):
+class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
+    """
+    This endpoint returns a flow definition given a flow uuid. Posting to it allows creation
+    or updating of existing flows. This endpoint should be considered to only have alpha-level
+    support and is subject to modification or removal.
+
+    ## Getting a flow definition
+
+    Returns the flow definition for the given flow.
+
+      * **uuid** - the UUID of the flow (string)
+
+    Example:
+
+        GET /api/v1/flow_definition.json?uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
+
+    Response is a flow definition
+
+        {
+          metadata: {
+            "name": "Water Point Survey",
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
+            "saved_on": "2015-09-23T00:25:50.709164Z",
+            "revision":28,
+            "expires":7880,
+            "id":12712,
+          },
+          "version": 7,
+          "flow_type": "S",
+          "base_language": "eng",
+          "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+          "action_sets": [
+            {
+              "y": 0,
+              "x": 100,
+              "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+              "actions": [
+                {
+                  "msg": {
+                    "eng": "What is your name?"
+                  },
+                  "type": "reply"
+                }
+              ]
+            },
+            ...
+          ],
+          "rule_sets": [
+            {
+              "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "webhook_action": null,
+              "rules": [
+                {
+                  "test": {
+                    "test": "true",
+                    "type": "true"
+                  },
+                  "category": {
+                    "eng": "All Responses"
+                  },
+                  "destination": null,
+                  "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                  "destination_type": null
+                }
+              ],
+              "webhook": null,
+              "ruleset_type": "wait_message",
+              "label": "Name",
+              "operand": "@step.value",
+              "finished_key": null,
+              "y": 162,
+              "x": 62,
+              "config": {}
+            },
+            ...
+          ]
+          }
+        }
+
+    ## Saving a flow definition
+
+    By making a ```POST``` request to the endpoint you can create or update an existing flow
+
+    * **metadata** - contains the name and uuid (optional) for the flow
+    * **version** - the flow spec version for the definition being submitted
+    * **base_language** - the default language code to use for the flow
+    * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
+    * **action_sets** - the actions in the flow
+    * **rule_sets** - the rules in the flow
+    * **entry** - the uuid for the action_set or rule_set the flow starts at
+
+    Example:
+
+        POST /api/v1/flow_definition.json
+        {
+          "metadata": {
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "name": "Registration Flow"
+          },
+          "version": 7,
+          "flow_type": "S",
+          "base_language": "eng",
+          "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+          "action_sets": [
+            {
+              "y": 0,
+              "x": 100,
+              "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+              "actions": [
+                {
+                  "msg": {
+                    "eng": "What is your name?"
+                  },
+                  "type": "reply"
+                }
+              ]
+            },
+            ...
+          ],
+          "rule_sets": [
+            {
+              "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+              "webhook_action": null,
+              "rules": [
+                {
+                  "test": {
+                    "test": "true",
+                    "type": "true"
+                  },
+                  "category": {
+                    "eng": "All Responses"
+                  },
+                  "destination": null,
+                  "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                  "destination_type": null
+                }
+              ],
+              "webhook": null,
+              "ruleset_type": "wait_message",
+              "label": "Name",
+              "operand": "@step.value",
+              "finished_key": null,
+              "y": 162,
+              "x": 62,
+              "config": {}
+            },
+            ...
+          ]
+        }
+
+    """
+    permission = 'flows.flow_api'
+    model = Flow
+    write_serializer_class = FlowDefinitionWriteSerializer
+
+    def get(self, request, *args, **kwargs):
+
+        uuid = request.GET.get('uuid')
+        flow = Flow.objects.filter(org=self.request.user.get_org(), is_active=True, uuid=uuid).first()
+
+        if flow:
+            # make sure we have the latest format
+            flow.ensure_current_version()
+            return Response(flow.as_json(), status=status.HTTP_200_OK)
+        else:
+            return Response(dict(error="Invalid flow uuid"), status=status.HTTP_400_BAD_REQUEST)
+
+    def render_write_response(self, flow, context):
+        return Response(flow.as_json(), status=status.HTTP_201_CREATED)
+
+
+class FlowEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list all the active flows on your account using the ```GET``` method.
 
@@ -2565,7 +2949,11 @@ class FlowEndpoint(generics.ListAPIView):
       * **archived** - whether this flow is archived (boolean) (filterable: ```archived```)
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
-      * **rulesets** - the rulesets on this flow, including their node UUID and label
+      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
+      * **participants** - the number of contacts who have participated in this flow (integer)
+      * **runs** - the total number of runs for this flow (integer)
+      * **completed_runs** - the number of completed runs for this flow (integer)
+      * **rulesets** - the rulesets on this flow, including their node UUID, ruleset type, and label
 
     Example:
 
@@ -2581,17 +2969,23 @@ class FlowEndpoint(generics.ListAPIView):
             {
                 "uuid": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
                 "archived": false,
+                "expires": 720,
                 "name": "Thrift Shop Status",
                 "labels": [ "Polls" ],
+                "participants": 1,
+                "runs": 3,
+                "completed_runs": 0,
                 "rulesets": [
                    {
                     "id": 17122,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
+                    "ruleset_type": "wait_message",
                     "label": "Age"
                    },
                    {
                     "id": 17128,
                     "node": "fe594710-68fc-4cb5-bd85-c0c77e4caa45",
+                    "ruleset_type": "wait_message",
                     "label": "Gender"
                    }
                 ]
@@ -2602,22 +2996,10 @@ class FlowEndpoint(generics.ListAPIView):
     """
     permission = 'flows.flow_api'
     model = Flow
-    permission_classes = (SSLPermission, ApiPermission)
     serializer_class = FlowReadSerializer
-    form_serializer_class = FlowWriteSerializer
-
-    def post(self, request, format=None):
-        user = request.user
-        serializer = FlowWriteSerializer(user=user, data=request.DATA)
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = FlowReadSerializer(instance=serializer.object)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        queryset = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
+        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
         uuids = self.request.QUERY_PARAMS.getlist('uuid', None)
         if uuids:
@@ -2651,6 +3033,10 @@ class FlowEndpoint(generics.ListAPIView):
         if archived is not None:
             queryset = queryset.filter(is_archived=str_to_bool(archived))
 
+        flow_type = self.request.QUERY_PARAMS.getlist('type', None)
+        if flow_type:
+            queryset = queryset.filter(flow_type__in=flow_type)
+
         return queryset.prefetch_related('labels')
 
     @classmethod
@@ -2675,11 +3061,11 @@ class FlowEndpoint(generics.ListAPIView):
         return spec
 
 
-class AssetEndpoint(generics.RetrieveAPIView):
+class AssetEndpoint(BaseAPIView):
     """
     This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
     """
-    def retrieve(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         type_name = request.GET.get('type')
         identifier = request.GET.get('identifier')
         if not type_name or not identifier:
@@ -2691,1151 +3077,109 @@ class AssetEndpoint(generics.RetrieveAPIView):
         return handle_asset_request(request.user, AssetType[type_name], identifier)
 
 
-# ====================================================================================================================
-# Channel handlers
-# ====================================================================================================================
-
-
-class TwilioHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TwilioHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD")
-
-    def post(self, request, *args, **kwargs):
-        from twilio.util import RequestValidator
-        from temba.msgs.models import Msg, SENT, DELIVERED
-
-        signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-        url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
-
-        call_sid = request.REQUEST.get('CallSid', None)
-        direction = request.REQUEST.get('Direction', None)
-        status = request.REQUEST.get('CallStatus', None)
-        to_number = request.REQUEST.get('To', None)
-        to_country = request.REQUEST.get('ToCountry', None)
-        from_number = request.REQUEST.get('From', None)
-
-        # Twilio sometimes sends un-normalized numbers
-        if not to_number.startswith('+') and to_country:
-            to_number, valid = ContactURN.normalize_number(to_number, to_country)
-
-        # see if it's a twilio call being initiated
-        if to_number and call_sid and direction == 'inbound' and status == 'ringing':
-
-            # find a channel that knows how to answer twilio calls
-            channel = Channel.objects.filter(address=to_number, channel_type='T', role__contains='A', is_active=True).exclude(org=None).first()
-            if not channel:
-                raise Exception("No active answering channel found for number: %s" % to_number)
-
-            client = channel.org.get_twilio_client()
-            validator = RequestValidator(client.auth[1])
-            signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-
-            base_url = settings.TEMBA_HOST
-            url = "https://%s%s" % (base_url, request.get_full_path())
-
-            if validator.validate(url, request.POST, signature):
-                from temba.ivr.models import IVRCall
-
-                # find a contact for the one initiating us
-                contact_urn = ContactURN.get_or_create(channel.org, TEL_SCHEME, from_number, channel)
-                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, from_number)])
-                flow = Trigger.find_flow_for_inbound_call(contact)
-
-                call = IVRCall.create_incoming(channel, contact, contact_urn, flow, channel.created_by)
-                call.update_status(request.POST.get('CallStatus', None),
-                                   request.POST.get('CallDuration', None))
-                call.save()
-
-                if flow:
-                    FlowRun.create(flow, contact, call=call)
-                    response = Flow.handle_call(call, {})
-                    return HttpResponse(unicode(response))
-                else:
-
-                    # we don't have an inbound trigger to deal with this call.
-                    response = twiml.Response()
-
-                    # say nothing and hangup, this is a little rude, but if we reject the call, then
-                    # they'll get a non-working number error. We send 'busy' when our server is down
-                    # so we don't want to use that here either.
-                    response.say('')
-                    response.hangup()
-
-                    # if they have a missed call trigger, fire that off
-                    Trigger.catch_triggers(contact, MISSED_CALL_TRIGGER)
-
-                    # either way, we need to hangup now
-                    return HttpResponse(unicode(response))
-
-        action = request.GET.get('action', 'received')
-        # this is a callback for a message we sent
-        if action == 'callback':
-            smsId = request.GET.get('id', None)
-            status = request.POST.get('SmsStatus', None)
-
-            # get the SMS
-            sms = Msg.objects.select_related('channel').get(id=smsId)
-
-            # validate this request is coming from twilio
-            org = sms.org
-            client = org.get_twilio_client()
-            validator = RequestValidator(client.auth[1])
-
-            if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
-
-            # queued, sending, sent, failed, or received.
-            if status == 'sent':
-                sms.status_sent()
-            elif status == 'delivered':
-                sms.status_delivered()
-            elif status == 'failed':
-                sms.fail()
-
-            sms.broadcast.update()
-
-            return HttpResponse("", status=200)
-
-        # this is an incoming message that is being received by Twilio
-        elif action == 'received':
-            channel = Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
-            if not channel:
-                raise Exception("No active channel found for number: %s" % to_number)
-
-            # validate this request is coming from twilio
-            org = channel.org
-            client = org.get_twilio_client()
-            validator = RequestValidator(client.auth[1])
-
-            if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
-
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), request.POST['Body'])
-
-            return HttpResponse("", status=201)
-
-        return HttpResponse("Not Handled, unknown action", status=400)
-
-class StripeHandler(View): # pragma: no cover
+class OrgEndpoint(BaseAPIView):
     """
-    Handles WebHook events from Stripe.  We are interested as to when invoices are
-    charged by Stripe so we can send the user an invoice email.
+    ## Viewing Current Organization
+
+    A **GET** returns the details of your organization. There are no parameters.
+
+    Example:
+
+        GET /api/v1/org.json
+
+    Response containing your organization:
+
+        {
+            "name": "Nyaruka",
+            "country": "RW",
+            "languages": ["eng", "fre"],
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "anon": false
+        }
     """
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(StripeHandler, self).dispatch(*args, **kwargs)
+    permission = 'orgs.org_api'
 
     def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD")
+        org = request.user.get_org()
 
-    def post(self, request, *args, **kwargs):
-        import stripe
-        from temba.orgs.models import Org, TopUp
+        data = dict(name=org.name,
+                    country=org.get_country_code(),
+                    languages=[l.iso_code for l in org.languages.order_by('iso_code')],
+                    primary_language=org.primary_language.iso_code if org.primary_language else None,
+                    timezone=org.timezone,
+                    date_style=('day_first' if org.get_dayfirst() else 'month_first'),
+                    anon=org.is_anon)
 
-        # stripe delivers a JSON payload
-        stripe_data = json.loads(request.body)
+        return Response(data, status=status.HTTP_200_OK)
 
-        # but we can't trust just any response, so lets go look up this event
-        stripe.api_key = get_stripe_credentials()[1]
-        event = stripe.Event.retrieve(stripe_data['id'])
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(method="GET", title="View Current Org", url=reverse('api.org'), slug='org-read', request="")
 
-        if not event:
-            return HttpResponse("Ignored, no event")
 
-        if not event.livemode:
-            return HttpResponse("Ignored, test event")
-
-        # we only care about invoices being paid or failing
-        if event.type == 'charge.succeeded' or event.type == 'charge.failed':
-            charge = event.data.object
-            charge_date = datetime.fromtimestamp(charge.created)
-            description = charge.description
-            amount = "$%s" % (Decimal(charge.amount) / Decimal(100)).quantize(Decimal(".01"))
-
-            # look up our customer
-            customer = stripe.Customer.retrieve(charge.customer)
-
-            # and our org
-            org = Org.objects.filter(stripe_customer=customer.id).first()
-            if not org:
-                return HttpResponse("Ignored, no org for customer")
-
-            # look up the topup that matches this charge
-            topup = TopUp.objects.filter(stripe_charge=charge.id).first()
-            if topup and event.type == 'charge.failed':
-                topup.rollback()
-                topup.save()
-
-            # we know this org, trigger an event for a payment succeeding
-            if org.administrators.all():
-                if event.type == 'charge_succeeded':
-                    track = "temba.charge_succeeded"
-                else:
-                    track = "temba.charge_failed"
-
-                context = dict(description=description,
-                               invoice_id=charge.id,
-                               invoice_date=charge_date.strftime("%b %e, %Y"),
-                               amount=amount,
-                               org=org.name,
-                               cc_last4=charge.card.last4,
-                               cc_type=charge.card.type,
-                               cc_name=charge.card.name)
-
-                admin_email = org.administrators.all().first().email
-
-                analytics.track(admin_email, track, context)
-                return HttpResponse("Event '%s': %s" % (track, context))
-
-        # empty response, 200 lets Stripe know we handled it
-        return HttpResponse("Ignored, uninteresting event")
-
-
-class AfricasTalkingHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(AfricasTalkingHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD", status=400)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-        from temba.channels.models import AFRICAS_TALKING
-
-        action = kwargs['action']
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=AFRICAS_TALKING).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # this is a callback for a message we sent
-        if action == 'delivery':
-            if not 'status' in request.POST or not 'id' in request.POST:
-                return HttpResponse("Missing status or id parameters", status=400)
-
-            status = request.POST['status']
-            external_id = request.POST['id']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % external_id, status=404)
-
-            if status == 'Success':
-                sms.status_delivered()
-            elif status == 'Sent' or status == 'Buffered':
-                sms.status_sent()
-            elif status == 'Rejected' or status == 'Failed':
-                sms.fail()
-
-            sms.broadcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'callback':
-            if not 'from' in request.POST or not 'text' in request.POST:
-                return HttpResponse("Missing from or text parameters", status=400)
-
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), request.POST['text'])
-
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-
-class ZenviaHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ZenviaHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-        from temba.channels.models import ZENVIA
-
-        request.encoding = "ISO-8859-1"
-
-        action = kwargs['action']
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=ZENVIA).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # this is a callback for a message we sent
-        if action == 'status':
-            if not 'status' in request.REQUEST or not 'id' in request.REQUEST:
-                return HttpResponse("Missing parameters, requires 'status' and 'id'", status=400)
-
-            status = int(request.REQUEST['status'])
-            sms_id = request.REQUEST['id']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
-
-            # delivered
-            if status == 120:
-                sms.status_delivered()
-            elif status == 111:
-                sms.status_sent()
-            else:
-                sms.fail()
-
-            # update our broadcast status
-            sms.broadcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            import pytz
-
-            if not 'date' in request.REQUEST or not 'from' in request.REQUEST or not 'msg' in request.REQUEST:
-                return HttpResponse("Missing parameters, requires 'from', 'date' and 'msg'", status=400)
-
-            # dates come in the format 31/07/2013 14:45:00
-            sms_date = datetime.strptime(request.REQUEST['date'], "%d/%m/%Y %H:%M:%S")
-            brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
-
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['from']),
-                                      request.REQUEST['msg'],
-                                      date=brazil_date)
-
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-
-class ExternalHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ExternalHandler, self).dispatch(*args, **kwargs)
-
-    def get_channel_type(self):
-        from temba.channels.models import EXTERNAL
-        return EXTERNAL
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-
-        action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
-
-        # this is a callback for a message we sent
-        if action == 'delivered' or action == 'failed' or action == 'sent':
-            if not 'id' in request.REQUEST:
-                return HttpResponse("Missing 'id' parameter, invalid call.", status=400)
-
-            sms_pk = request.REQUEST['id']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_pk).first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
-
-            if action == 'delivered':
-                sms.status_delivered()
-            elif action == 'sent':
-                sms.status_sent()
-            elif action == 'failed':
-                sms.fail()
-
-            sms.broadcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'received':
-            if not request.REQUEST.get('from', None):
-                return HttpResponse("Missing 'from' parameter, invalid call.", status=400)
-
-            if not 'text' in request.REQUEST:
-                return HttpResponse("Missing 'text' parameter, invalid call.", status=400)
-
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['from']), request.REQUEST['text'])
-
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-
-class ShaqodoonHandler(ExternalHandler):
+class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
     """
-    Overloaded external channel for accepting Shaqodoon messages
+    This endpoint allows you to create flow runs and steps.
+
+    ## Creating flow steps
+
+    By making a ```POST``` request to the endpoint you can add a new steps to a flow run.
+
+    * **flow** - the UUID of the flow (string)
+    * **revision** - the revision of the flow that was executed (integer)
+    * **contact** - the UUID of the contact (string)
+    * **steps** - the new step objects (array of objects)
+    * **started** - the datetime when the run was started
+    * **completed** - whether the run is complete
+
+    Example:
+
+        POST /api/v1/steps.json
+        {
+            "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+            "revision": 2,
+            "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd",
+            "completed": true,
+            "started": "2015-09-23T17:59:47.572Z"
+            "steps": [
+                {
+                    "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
+                    "arrived_on": "2015-08-25T11:59:30.088Z",
+                    "actions": [{"msg":"Hi Joe","type":"reply"}],
+                    "errors": []
+                }
+            ]
+        }
+
+    Response is the updated or created flow run.
     """
-    def get_channel_type(self):
-        from temba.channels.models import SHAQODOON
-        return SHAQODOON
-
-
-class InfobipHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(InfobipHandler, self).dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-        from temba.channels.models import INFOBIP
-
-        action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=INFOBIP).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # parse our raw body, it should be XML that looks something like:
-        # <DeliveryReport>
-        #   <message id="254021015120766124"
-        #    sentdate="2014/02/10 16:12:07"
-        #    donedate="2014/02/10 16:13:00"
-        #    status="DELIVERED"
-        #    gsmerror="0"
-        #    price="0.65" />
-        # </DeliveryReport>
-        root = ET.fromstring(request.body)
-
-        message = root.find('message')
-        external_id = message.get('id')
-        status = message.get('status')
-
-        # look up the message
-        sms = Msg.objects.filter(channel=channel, external_id=external_id).first()
-        if not sms:
-            return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
-
-        if status == 'DELIVERED':
-            sms.status_delivered()
-        elif status == 'SENT':
-            sms.status_sent()
-        elif status in ['NOT_SENT', 'NOT_ALLOWED', 'INVALID_DESTINATION_ADDRESS',
-                        'INVALID_SOURCE_ADDRESS', 'ROUTE_NOT_AVAILABLE', 'NOT_ENOUGH_CREDITS',
-                        'REJECTED', 'INVALID_MESSAGE_FORMAT']:
-            sms.fail()
-
-        sms.broadcast.update()
-
-        return HttpResponse("SMS Status Updated")
-
-    def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-        from temba.channels.models import INFOBIP
-
-        action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
-
-        # validate all the appropriate fields are there
-        if 'sender' not in request.REQUEST or 'text' not in request.REQUEST or 'receiver' not in request.REQUEST:
-            return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
-
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=INFOBIP).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # validate this is not a delivery report, those must be POSTs
-        if action == 'delivered':
-            return HttpResponse("Illegal method, delivery reports must be POSTs", status=401)
-
-        # make sure the channel number matches the receiver
-        if channel.address != '+' + request.REQUEST['receiver']:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['sender']), request.REQUEST['text'])
-
-        return HttpResponse("SMS Accepted: %d" % sms.id)
-
-
-class Hub9Handler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(Hub9Handler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-        from temba.channels.models import HUB9
-
-        channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=HUB9).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
-        # They send everythign as a simple GET
-        # userid=testusr&password=test&original=555555555555&sendto=666666666666
-        # &messageid=99123635&message=Test+sending+sms
-
-        action = kwargs['action'].lower()
-        message = request.REQUEST.get('message', None)
-        external_id = request.REQUEST.get('messageid', None)
-        status = int(request.REQUEST.get('status', -1))
-        from_number = request.REQUEST.get('original', None)
-        to_number = request.REQUEST.get('sendto', None)
-
-        # delivery reports
-        if action == 'delivered':
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=external_id).first()
-            if not sms:
-                return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
-
-            if 10 <= status <= 12:
-                sms.status_delivered()
-            elif status > 20:
-                sms.fail()
-            elif status != -1:
-                sms.status_sent()
-
-            sms.broadcast.update()
-            return HttpResponse("000")
-
-        # An MO message
-        if action == 'received':
-            # make sure the channel number matches the receiver
-            if channel.address != '+' + to_number:
-                return HttpResponse("Channel with number '%s' not found." % to_number, status=404)
-
-            from_number = '+' + from_number
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
-            return HttpResponse("000")
-
-        return HttpResponse("Unreconized action: %s" % action, status=404)
-
-
-class HighConnectionHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(HighConnectionHandler, self).dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return self.get(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-        from temba.channels.models import HIGH_CONNECTION
-
-        channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=HIGH_CONNECTION).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
-
-        action = kwargs['action'].lower()
-
-        # Update on the status of a sent message
-        if action == 'status':
-            msg_id = request.REQUEST.get('ret_id', None)
-            status = int(request.REQUEST.get('status', 0))
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=msg_id).first()
-            if not sms:
-                return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
-
-            if status == 4:
-                sms.status_sent()
-            elif status == 6:
-                sms.status_delivered()
-            elif status in [2, 11, 12, 13, 14, 15, 16]:
-                sms.fail()
-
-            sms.broadcast.update()
-            return HttpResponse(json.dumps(dict(msg="Status Updated")))
-
-        # An MO message
-        elif action == 'receive':
-            to_number = request.REQUEST.get('TO', None)
-            from_number = request.REQUEST.get('FROM', None)
-            message = request.REQUEST.get('MESSAGE', None)
-            received = request.REQUEST.get('RECEPTION_DATE', None)
-
-            # dateformat for reception date is 2015-04-02T14:26:06 in UTC
-            if received is None:
-                received = timezone.now()
-            else:
-                raw_date = datetime.strptime(received, "%Y-%m-%dT%H:%M:%S")
-                received = raw_date.replace(tzinfo=pytz.utc)
-
-            if to_number is None or from_number is None or message is None:
-                return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)
-
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message, date=received)
-            return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
-
-        return HttpResponse("Unrecognized action: %s" % action, status=400)
-
-class NexmoHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(NexmoHandler, self).dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return self.get(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
-        from temba.channels.models import NEXMO
-
-        action = kwargs['action'].lower()
-
-        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
-        if (action == 'receive' and not request.REQUEST.get('to', None)) or (action == 'status' and not request.REQUEST.get('messageId', None)):
-            return HttpResponse("No to parameter, ignoring")
-
-        request_uuid = kwargs['uuid']
-
-        # crazy enough, for nexmo 'to' is the channel number for both delivery reports and new messages
-        channel_number = request.REQUEST['to']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=channel_number, is_active=True, channel_type=NEXMO).exclude(org=None).first()
-
-        # make sure we got one, and that it matches the key for our org
-        org_uuid = None
-        if channel:
-            org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
-
-        if not channel or org_uuid != request_uuid:
-            return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
-
-        # this is a callback for a message we sent
-        if action == 'status':
-            external_id = request.REQUEST['messageId']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).first()
-            if not sms:
-                return HttpResponse("No SMS message with external id: %s" % external_id, status=200)
-
-            status = request.REQUEST['status']
-
-            if status == 'delivered':
-                sms.status_delivered()
-            elif status == 'accepted' or status == 'buffered':
-                sms.status_sent()
-            elif status == 'expired' or status == 'failed':
-                sms.fail()
-
-            sms.broadcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            number = '+%s' % request.REQUEST['msisdn']
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, number), request.REQUEST['text'])
-            sms.external_id = request.REQUEST['messageId']
-            sms.save(update_fields=['external_id'])
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-class VerboiceHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(VerboiceHandler, self).dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return HttpResponse("Illegal method, must be GET", status=405)
-
-    def get(self, request, *args, **kwargs):
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        from temba.channels.models import VERBOICE
-        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=VERBOICE).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
-
-        if action == 'status':
-
-            to = self.request.REQUEST.get('From', None)
-            call_sid = self.request.REQUEST.get('CallSid', None)
-            call_status = self.request.REQUEST.get('CallStatus', None)
-
-            if not to or not call_sid or not call_status:
-                return HttpResponse("Missing From or CallSid or CallStatus, ignoring message", status=400)
-
-            from temba.ivr.models import IVRCall
-            call = IVRCall.objects.filter(external_id=call_sid).first()
-            if call:
-                call.update_status(call_status, None)
-                call.save()
-                return HttpResponse("Call Status Updated")
-
-        return HttpResponse("Not handled", status=400)
-
-class VumiHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(VumiHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("Illegal method, must be POST", status=405)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT, DELIVERED, FAILED, ERRORED
-        from temba.channels.models import VUMI
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=VUMI).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
-
-        # parse our JSON
-        try:
-            body = json.loads(request.body)
-        except Exception as e:
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
-
-        # this is a callback for a message we sent
-        if action == 'event':
-            if not 'event_type' in body and not 'user_message_id' in body:
-                return HttpResponse("Missing event_type or user_message_id, ignoring message", status=400)
-
-            external_id = body['user_message_id']
-            status = body['event_type']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id)
-
-            if not sms:
-                return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
-
-            if not status in ['ack', 'delivery_report']:
-                return HttpResponse("Unknown status '%s', ignoring", status=200)
-
-            # only update to SENT status if still in WIRED state
-            if status == 'ack':
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
-            elif status == 'delivery_report':
-                sms = sms.first()
-                if sms:
-                    delivery_status = body.get('delivery_status', 'success')
-                    if delivery_status == 'failed':
-
-                        # we can get multiple reports from vumi if they multi-part the message for us
-                        if sms.status in (WIRED, DELIVERED):
-                            print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                            Msg.mark_error(get_redis_connection(), sms)
-                    else:
-
-                        # we should only mark it as delivered if it's in a wired state, we want to hold on to our
-                        # delivery failures if any part of the message comes back as failed
-                        if sms.status == WIRED:
-                            sms.status_delivered()
-
-            # disabled for performance reasons
-            # sms.first().broadcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            if not 'timestamp' in body or not 'from_addr' in body or not 'content' in body or not 'message_id' in body:
-                return HttpResponse("Missing one of timestamp, from_addr, content or message_id, ignoring message", status=400)
-
-            # dates come in the format "2014-04-18 03:54:20.570618" GMT
-            sms_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
-
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, body['from_addr']),
-                                      body['content'],
-                                      date=gmt_date)
-
-            # use an update so there is no race with our handling
-            Msg.objects.filter(pk=sms.id).update(external_id=body['message_id'])
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-class KannelHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(KannelHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
-        from temba.channels.models import KANNEL
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=KANNEL).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
-
-        # kannel is telling us this message got delivered
-        if action == 'status':
-            if not all(k in request.REQUEST for k in ['id', 'status']):
-                return HttpResponse("Missing one of 'id' or 'status' in request parameters.", status=400)
-
-            sms_id = self.request.REQUEST['id']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, id=sms_id)
-            if not sms:
-                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
-
-            # possible status codes kannel will send us
-            STATUS_CHOICES = {'1': DELIVERED,
-                              '2': FAILED,
-                              '4': SENT,
-                              '8': SENT,
-                              '16': FAILED}
-
-            # check our status
-            status_code = self.request.REQUEST['status']
-            status = STATUS_CHOICES.get(status_code, None)
-
-            # we don't recognize this status code
-            if not status:
-                return HttpResponse("Unrecognized status code: '%s', ignoring message." % status_code, status=401)
-
-            # only update to SENT status if still in WIRED state
-            if status == SENT:
-                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
-                    sms_obj.status_sent()
-            elif status == DELIVERED:
-                for sms_obj in sms:
-                    sms_obj.status_delivered()
-            elif status == FAILED:
-                for sms_obj in sms:
-                    sms_obj.fail()
-
-            # disabled for performance reasons
-            # sms.first().broadcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            if not all(k in request.REQUEST for k in ['message', 'sender', 'ts', 'id']):
-                return HttpResponse("Missing one of 'message', 'sender', 'id' or 'ts' in request parameters.", status=400)
-
-            # dates come in the format "2014-04-18 03:54:20.570618" GMT
-            sms_date = datetime.utcfromtimestamp(int(request.REQUEST['ts']))
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
-
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['sender']),
-                                      request.REQUEST['message'],
-                                      date=gmt_date)
-
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-
-class ClickatellHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ClickatellHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
-        from temba.channels.models import CLICKATELL, API_ID
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=CLICKATELL).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
-
-        # make sure the API id matches if it is included (pings from clickatell don't include them)
-        if 'api_id' in self.request.REQUEST and channel.config_json()[API_ID] != self.request.REQUEST['api_id']:
-            return HttpResponse("Invalid API id for message delivery: %s" % self.request.REQUEST['api_id'], status=400)
-
-        # Clickatell is telling us a message status changed
-        if action == 'status':
-            if not all(k in request.REQUEST for k in ['apiMsgId', 'status']):
-                # return 200 as clickatell pings our endpoint during configuration
-                return HttpResponse("Missing one of 'apiMsgId' or 'status' in request parameters.", status=200)
-
-            sms_id = self.request.REQUEST['apiMsgId']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
-            if not sms:
-                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
-
-            # possible status codes Clickatell will send us
-            STATUS_CHOICES = {'001': FAILED,      # incorrect msg id
-                              '002': WIRED,       # queued
-                              '003': SENT,        # delivered to upstream gateway
-                              '004': DELIVERED,   # received by handset
-                              '005': FAILED,      # error in message
-                              '006': FAILED,      # terminated by user
-                              '007': FAILED,      # error delivering
-                              '008': WIRED,       # msg received
-                              '009': FAILED,      # error routing
-                              '010': FAILED,      # expired
-                              '011': WIRED,       # delayed but queued
-                              '012': FAILED,      # out of credit
-                              '014': FAILED}      # too long
-
-            # check our status
-            status_code = self.request.REQUEST['status']
-            status = STATUS_CHOICES.get(status_code, None)
-
-            # we don't recognize this status code
-            if not status:
-                return HttpResponse("Unrecognized status code: '%s', ignoring message." % status_code, status=401)
-
-            # only update to SENT status if still in WIRED state
-            if status == SENT:
-                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
-                    sms_obj.status_sent()
-            elif status == DELIVERED:
-                for sms_obj in sms:
-                    sms_obj.status_delivered()
-            elif status == FAILED:
-                for sms_obj in sms:
-                    sms_obj.fail()
-                    Channel.track_status(sms_obj.channel, "Failed")
-            else:
-                # ignore wired, we are wired by default
-                pass
-
-            # update the broadcast status
-            bcast = sms.first().broadcast
-            if bcast:
-                bcast.update()
-
-            return HttpResponse("SMS Status Updated")
-
-        # this is a new incoming message
-        elif action == 'receive':
-            if not all(k in request.REQUEST for k in ['from', 'text', 'moMsgId', 'timestamp']):
-                # return 200 as clickatell pings our endpoint during configuration
-                return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
-
-            # dates come in the format "2014-04-18 03:54:20" GMT
-            sms_date = datetime.strptime(request.REQUEST['timestamp'], '%Y-%m-%d %H:%M:%S')
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
-            text = request.REQUEST['text']
-
-            # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
-            # this into utf-8 through the insane process below, Python is retarded about encodings
-            if request.REQUEST.get('charset', 'utf-8') == 'UTF-16BE':
-                text_bytes = bytearray()
-                for text_byte in text:
-                    text_bytes.append(ord(text_byte))
-
-                # now encode back into utf-8
-                text = text_bytes.decode('utf-16be').encode('utf-8')
-
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['from']),
-                                      text,
-                                      date=gmt_date)
-
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
-            return HttpResponse("SMS Accepted: %d" % sms.id)
-
-        else:
-            return HttpResponse("Not handled", status=400)
-
-
-class PlivoHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(PlivoHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
-
-        action = kwargs['action'].lower()
-        request_uuid = kwargs['uuid']
-
-        if not all(k in request.REQUEST for k in ['From', 'To', 'MessageUUID']):
-                return HttpResponse("Missing one of 'From', 'To', or 'MessageUUID' in request parameters.",
-                                    status=400)
-
-        channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type=PLIVO).first()
-
-        if action == 'status':
-            plivo_channel_address = request.REQUEST['From']
-
-            if not 'Status' in request.REQUEST:
-                return HttpResponse("Missing 'Status' in request parameters.", status=400)
-
-            if not channel:
-                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
-
-            channel_address = plivo_channel_address
-            if channel_address[0] != '+':
-                channel_address = '+' + channel_address
-
-            if channel.address != channel_address:
-                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
-
-            sms_id = request.REQUEST['MessageUUID']
-
-            if 'ParentMessageUUID' in request.REQUEST:
-                sms_id = request.REQUEST['ParentMessageUUID']
-
-            # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id)
-            if not sms:
-                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
-
-            STATUS_CHOICES = {'queued': WIRED,
-                              'sent': SENT,
-                              'delivered': DELIVERED,
-                              'undelivered': SENT,
-                              'rejected': FAILED}
-
-            plivo_status = request.REQUEST['Status']
-            status = STATUS_CHOICES.get(plivo_status, None)
-
-            if not status:
-                return HttpResponse("Unrecognized status: '%s', ignoring message." % plivo_status, status=401)
-
-            # only update to SENT status if still in WIRED state
-            if status == SENT:
-                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
-                    sms_obj.status_sent()
-            elif status == DELIVERED:
-                for sms_obj in sms:
-                    sms_obj.status_delivered()
-            elif status == FAILED:
-                for sms_obj in sms:
-                    sms_obj.fail()
-                    Channel.track_status(sms_obj.channel, "Failed")
-            else:
-                # ignore wired, we are wired by default
-                pass
-
-            # update the broadcast status
-            bcast = sms.first().broadcast
-            if bcast:
-                bcast.update()
-
-            return HttpResponse("Status Updated")
-
-        elif action == 'receive':
-            if not 'Text' in request.REQUEST:
-                return HttpResponse("Missing 'Text' in request parameters.", status=400)
-
-            plivo_channel_address = request.REQUEST['To']
-
-            if not channel:
-                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
-
-            channel_address = plivo_channel_address
-            if channel_address[0] != '+':
-                channel_address = '+' + channel_address
-
-            if channel.address != channel_address:
-                return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
-
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['From']),
-                                      request.REQUEST['Text'])
-
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
-
-            return HttpResponse("SMS accepted: %d" % sms.id)
-        else:
-            return HttpResponse("Not handled", status=400)
-
-
-class MageHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(MageHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
-
-    def post(self, request, *args, **kwargs):
-        from temba.triggers.tasks import fire_follow_triggers
-
-        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
-
-        if len(authorization) != 2 or authorization[0] != 'Token' or authorization[1] != settings.MAGE_AUTH_TOKEN:
-            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
-
-        action = kwargs['action'].lower()
-        new_contact = request.POST.get('new_contact', '').lower() in ('true', '1')
-
-        if action == 'handle_message':
-            try:
-                msg_id = int(request.POST.get('message_id', ''))
-            except ValueError:
-                return JsonResponse(dict(error="Invalid message_id"), status=400)
-
-            msg = Msg.objects.select_related('org').get(pk=msg_id)
-
-            push_task(msg.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                      dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
-
-            # fire an event off for this message
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, msg.created_on)
-        elif action == 'follow_notification':
-            try:
-                channel_id = int(request.POST.get('channel_id', ''))
-                contact_urn_id = int(request.POST.get('contact_urn_id', ''))
-            except ValueError:
-                return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
-
-            fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact), queue='handler')
-
-        return JsonResponse(dict(error=None))
+    permission = 'flows.flow_api'
+    model = FlowRun
+    serializer_class = FlowRunReadSerializer
+    write_serializer_class = FlowRunWriteSerializer
+
+    def render_write_response(self, write_output, context):
+        response_serializer = FlowRunReadSerializer(instance=write_output, context=context)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Create or update a flow run with new steps",
+                    url=reverse('api.steps'),
+                    slug='step-post',
+                    request='{ "contact": "cf85cb74-a4e4-455b-9544-99e5d9125cfd", "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "steps": [{"node": "32cf414b-35e3-4c75-8a78-d5f4de925e13", "arrived_on": "2015-08-25T11:59:30.088Z", "actions": [{"msg":"Hi Joe","type":"reply"}], "errors": []}] }')
+
+        spec['fields'] = [dict(name='contact', required=True,
+                               help="The UUID of the contact"),
+                          dict(name='flow', required=True,
+                               help="The UUID of the flow"),
+                          dict(name='started', required=True,
+                               help='Datetime when the flow started'),
+                          dict(name='completed', required=True,
+                               help='Boolean whether the run is complete or not'),
+                          dict(name='steps', required=True,
+                               help="A JSON array of one or objects, each a flow step")]
+        return spec
