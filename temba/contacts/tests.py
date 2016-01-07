@@ -783,6 +783,7 @@ class ContactTest(TembaTest):
         self.assertEquals(30, q('join_date <= 30/1/2014'))
         self.assertEquals(60, q('join_date > 30/1/2014'))
         self.assertEquals(61, q('join_date >= 30/1/2014'))
+        self.assertEquals(0, q('join_date >= xxxx'))  # invalid date
 
         self.assertEquals(30, q('home is Kayonza'))
         self.assertEquals(30, q('HOME is "kigali"'))
