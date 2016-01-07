@@ -22,7 +22,7 @@ if TESTING:
         class DisableMigrations(object):
             def __contains__(self, item):
                 return True
-            
+
             def __getitem__(self, item):
                 return "notmigrations"
         MIGRATION_MODULES = DisableMigrations()
@@ -1009,7 +1009,7 @@ COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
-COMPRESS_URL = '/sitestatic/'
+COMPRESS_URL = '/static/'
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
 MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
@@ -1050,3 +1050,9 @@ TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
 TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
 # SEGMENT_IO_KEY = "your segment.io key here"
+
+
+#-----------------------------------------------------------------------------------
+# Twilio settings
+#-----------------------------------------------------------------------------------
+TWILIO_URL = 'https://api.twilio.com'

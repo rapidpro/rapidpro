@@ -25,9 +25,9 @@ static/coffee/simulator.js
 static/coffee/temba.js
 static/coffee/formax.js
 static/javascripts/
-temba/settings.py
 temba/smartmin
 temba.db
+temba/settings.py
 
 
 # Exclude media folder except files used for import testing
@@ -106,3 +106,4 @@ docs/_build/
 # PyBuilder
 target/
 textit
+_site/

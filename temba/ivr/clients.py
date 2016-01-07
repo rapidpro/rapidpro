@@ -17,6 +17,10 @@ class IVRException(Exception):
 
 
 class TwilioClient(TwilioRestClient):
+    def __init__(self, *args, **kwargs):
+        kwargs['base'] = settings.TWILIO_URL
+        super(TwilioClient, self).__init__(*args, **kwargs)
+
     def start_call(self, call, to, from_, status_callback):
 
         try:
