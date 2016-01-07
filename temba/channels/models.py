@@ -1103,6 +1103,7 @@ class Channel(TembaModel):
             'to': msg.urn_path,
             'ret_id': msg.id,
             'datacoding': 8,
+            'userdata': 'textit',
             'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
             'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
         }
