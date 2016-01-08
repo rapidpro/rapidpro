@@ -154,6 +154,7 @@ class ContactActionForm(BaseActionForm):
                        ('delete', _("Delete Contacts")))
 
     OBJECT_CLASS = Contact
+    OBJECT_CLASS_MANAGER = 'objects'
     LABEL_CLASS = ContactGroup
     LABEL_CLASS_MANAGER = 'user_groups'
     HAS_IS_ACTIVE = True
@@ -754,7 +755,7 @@ class ContactCRUDL(SmartCRUDL):
             recent = self.request.REQUEST.get('r', False)
             context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
 
-            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')
+            text_messages = Msg.all_messages.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')
             if recent:
                 start_time = context['recent_date']
                 text_messages = text_messages.filter(created_on__gt=start_time)
