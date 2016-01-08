@@ -627,6 +627,14 @@ class TriggerTest(TembaTest):
         # should now have two catch all triggers
         self.assertEquals(2, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
 
+        # try to add another catchall trigger with a few different groups
+        group2 = self.create_group("Trigger Group 2", [])
+        post_data['groups'] = [group.pk, group2.pk]
+        response = self.client.post(trigger_url, post_data)
+
+        # should have failed
+        self.assertTrue(len(response.context['form'].errors))
+
         post_data = dict()
         post_data['action'] = 'restore'
         post_data['objects'] = [old_catch_all.pk]
@@ -646,11 +654,11 @@ class TriggerTest(TembaTest):
 
         # try a message again, this shouldn't cause anything since the contact isn't part of our group
         FlowRun.objects.all().delete()
-        Msg.objects.all().delete()
+        Msg.all_messages.all().delete()
 
         incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
         self.assertEquals(0, FlowRun.objects.all().count())
-        self.assertFalse(Msg.objects.filter(response_to=incoming))
+        self.assertFalse(Msg.all_messages.filter(response_to=incoming))
 
         # now add the contact to the group
         group.contacts.add(contact)
@@ -659,7 +667,7 @@ class TriggerTest(TembaTest):
         incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
         self.assertEquals(1, FlowRun.objects.all().count())
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
-        reply = Msg.objects.get(response_to=incoming)
+        reply = Msg.all_messages.get(response_to=incoming)
         self.assertEquals('Echo: Hi', reply.text)
 
     def test_update(self):

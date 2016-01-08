@@ -678,7 +678,7 @@ class TriggerCRUDL(SmartCRUDL):
             groups = form.cleaned_data['groups']
 
             # first archive all catch all message triggers with matching groups
-            Trigger.objects.filter(org=org, groups=groups,
+            Trigger.objects.filter(org=org, groups__in=groups,
                                    trigger_type=Trigger.TYPE_CATCH_ALL,
                                    is_active=True).update(is_archived=True)
 
