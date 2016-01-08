@@ -277,10 +277,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.onBeforeConnectorDrop = (props) ->
 
-    if not Flow.isConnectionAllowed(props.sourceId, props.targetId)
+    errorMessage = Flow.getConnectionError(props.sourceId, props.targetId)
+    if errorMessage
       $rootScope.ghost.hide()
       $rootScope.ghost = null
-      showDialog('Infinite Loop', 'Connecting these steps together would create an infinite loop in your flow. To connect these steps you need to pass through a step that waits for the user to respond.')
+      showDialog('Invalid Connection', errorMessage)
       return false
     return true
 
