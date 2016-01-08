@@ -1596,7 +1596,7 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
                     if not msg.contact_id in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
@@ -1668,7 +1668,7 @@ class Flow(TembaModel):
         # trigger our messages to be sent
         if msgs:
             msg_ids = [m.id for m in msgs]
-            Msg.objects.filter(id__in=msg_ids).update(status=PENDING)
+            Msg.all_messages.filter(id__in=msg_ids).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -3473,14 +3473,14 @@ class FlowStep(models.Model):
                                                    msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:
-                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             if incoming:
                 msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = Msg.all_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)

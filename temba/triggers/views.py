@@ -242,6 +242,7 @@ class TriggerActionForm(BaseActionForm):
                        ('restore', _("Restore Triggers")))
 
     OBJECT_CLASS = Trigger
+    OBJECT_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = True
 
     class Meta:

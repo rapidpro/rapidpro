@@ -689,8 +689,8 @@ class OrgTest(TembaTest):
 
         # after applying this, no non-test messages should be without a topup
         self.org.apply_topups()
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=False, topup=None))
+        self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
         self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # now we're pro
@@ -1022,7 +1022,7 @@ class AnonOrgTest(TembaTest):
         flow.start([], [contact])
 
         # should have one SMS
-        self.assertEquals(1, Msg.objects.all().count())
+        self.assertEquals(1, Msg.all_messages.all().count())
 
         # shouldn't show the number on the outgoing page
         response = self.client.get(reverse('msgs.msg_outbox'))

@@ -335,13 +335,14 @@ class BaseActionForm(forms.Form):
                        ('delete', _("Delete Messages")))
 
     OBJECT_CLASS = Msg
+    OBJECT_CLASS_MANAGER = 'current_messages'
     LABEL_CLASS = Label
     LABEL_CLASS_MANAGER = 'all_objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
     label = forms.ModelChoiceField(getattr(LABEL_CLASS, LABEL_CLASS_MANAGER).all(), required=False)
-    objects = forms.ModelMultipleChoiceField(OBJECT_CLASS.objects.all())
+    objects = forms.ModelMultipleChoiceField(getattr(OBJECT_CLASS, OBJECT_CLASS_MANAGER).all())
     add = forms.BooleanField(required=False)
     number = forms.BooleanField(required=False)
 
@@ -354,10 +355,9 @@ class BaseActionForm(forms.Form):
 
         self.fields['action'].choices = self.ALLOWED_ACTIONS
         self.fields['label'].queryset = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
-
-        self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org)
+        self.fields['objects'].queryset = getattr(self.OBJECT_CLASS, self.OBJECT_CLASS_MANAGER).filter(org=org)
         if self.HAS_IS_ACTIVE:
-            self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org, is_active=True)
+            self.fields['objects'].queryset = getattr(self.OBJECT_CLASS, self.OBJECT_CLASS_MANAGER).filter(org=org, is_active=True)
 
     def clean(self):
         data = self.cleaned_data
@@ -368,7 +368,6 @@ class BaseActionForm(forms.Form):
         update_allowed = self.user.get_org_group().permissions.filter(codename=update_perm_codename)
         delete_allowed = self.user.get_org_group().permissions.filter(codename="msg_update")
         resend_allowed = self.user.get_org_group().permissions.filter(codename="broadcast_send")
-
 
         if action in ['label', 'unlabel', 'archive', 'restore', 'block', 'unblock'] and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
@@ -452,6 +451,7 @@ class MsgActionForm(BaseActionForm):
                        ('delete', _("Delete Messages")))
 
     OBJECT_CLASS = Msg
+    OBJECT_CLASS_MANAGER = 'all_messages'
     LABEL_CLASS = Label
     LABEL_CLASS_MANAGER = 'label_objects'
 
@@ -882,7 +882,7 @@ class LabelCRUDL(SmartCRUDL):
 
             if self.form.cleaned_data['messages']:
                 msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
-                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
+                messages = Msg.all_messages.filter(org=obj.org, pk__in=msg_ids)
                 if messages:
                     obj.toggle_label(messages, add=True)
 
