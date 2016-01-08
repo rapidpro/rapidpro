@@ -678,13 +678,15 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       flowFields = {}
       if @flow
         for ruleset in @flow.rule_sets
-          if ruleset.uuid != excludeRuleset?.uuid
-            flowFields[@slugify(ruleset.label)] = ruleset.label
+          flowFields[@slugify(ruleset.label)] = [ruleset.uuid, ruleset.label]
 
       # as an array
       result = []
-      for id, name of flowFields
-        result.push({ id: id, text: name})
+      for id, details of flowFields
+        uuid = details[0]
+        label = details[1]
+        if uuid != excludeRuleset?.uuid
+          result.push({ id: id, text: label})
 
       return result
 
@@ -953,6 +955,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     replaceRuleset: (ruleset, markDirty=true) ->
 
+      # make sure we don't have a cached field names
+      ruleset._flowFieldName = null
+      ruleset._contactFieldName = null
+
       # find the ruleset we are replacing by uuid
       found = false
 
@@ -1072,6 +1078,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       idx = actionset.actions.indexOf(action)
       actionset.actions.splice(idx, 1)
       actionset.actions.splice(idx-1, 0, action)
+
+      # clear our last action marker
+      actionset._lastActionMissingTranslation = null
+
       @markDirty()
 
 
@@ -1143,6 +1153,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       return action.type != 'flow'
 
     saveAction: (actionset, action) ->
+
+      actionset._lastActionMissingTranslation = null
 
       found = false
       lastAction = null

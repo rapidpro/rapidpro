@@ -916,6 +916,10 @@ CELERYBEAT_SCHEDULE = {
     "calculate-credit-caches": {
         'task': 'calculate_credit_caches',
         'schedule': timedelta(days=3),
+    },
+    "purge-broadcasts": {
+        'task': 'purge_broadcasts_task',
+        'schedule': crontab(hour=2, minute=0)
     }
 }
 
