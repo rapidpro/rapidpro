@@ -616,7 +616,10 @@ class Msg(models.Model):
     purged = models.BooleanField(default=False, help_text="If this message has been purged")
 
     all_messages = models.Manager()
-    current_messages = CurrentMessagesManager()
+    current_messages = models.Manager()
+
+    # TODO: once migration is complete
+    # current_messages = CurrentMessagesManager()
 
     @classmethod
     def send_messages(cls, all_msgs):
