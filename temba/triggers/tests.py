@@ -569,7 +569,7 @@ class TriggerTest(TembaTest):
         self.assertFalse(catch_all_trigger)
 
         Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
-        self.assertEquals(1, Msg.objects.all().count())
+        self.assertEquals(1, Msg.all_messages.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
         trigger_url = reverse("triggers.trigger_catchall")
@@ -592,7 +592,7 @@ class TriggerTest(TembaTest):
         incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
-        reply = Msg.objects.get(response_to=incoming)
+        reply = Msg.all_messages.get(response_to=incoming)
         self.assertEquals('Echo: Hi', reply.text)
 
         other_flow = Flow.copy(flow, self.admin)
