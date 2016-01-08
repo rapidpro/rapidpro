@@ -2733,6 +2733,21 @@ class YoTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
+                mock.side_effect = [MockResponse(401, "Error"), MockResponse(200, 'ybs_autocreate_status=OK')]
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(SENT, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # check that requests was called twice, using the backup URL the second time
+                self.assertEquals(2, mock.call_count)
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Kaboom")
 
                 # manually send it off

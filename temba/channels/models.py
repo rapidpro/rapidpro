@@ -127,8 +127,9 @@ PLIVO_APP_ID = 'PLIVO_APP_ID'
 TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
                       "users who are not following you")  # handle no longer follows us
 
-YO_API_URL = 'http://smgw1.yo.co.ug:9100/sendsms'
-
+YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
+YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
+YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
 class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
@@ -1413,31 +1414,31 @@ class Channel(TembaModel):
         log_params = params.copy()
         log_params['password'] = 'x' * len(log_params['password'])
 
-        url = YO_API_URL + '?' + urlencode(params)
-        log_url = YO_API_URL + '?' + urlencode(log_params)
-
         start = time.time()
-        try:
-            response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
-            response_qs = urlparse.parse_qs(response.text)
-        except Exception as e:
-            raise SendException(u"Unable to send message: %s" % unicode(e),
-                                url=log_url,
-                                method='GET',
-                                request='',
-                                response=response.text,
-                                response_status=response.status_code)
 
-        if response.status_code != 200 and response.status_code != 201:
-            raise SendException("Received non 200 status: %d" % response.status_code,
-                                url=log_url,
-                                method='GET',
-                                request='',
-                                response=response.text,
-                                response_status=response.status_code)
+        for send_url in [YO_API_URL_1, YO_API_URL_2, YO_API_URL_3]:
+            url = send_url + '?' + urlencode(params)
+            log_url = send_url + '?' + urlencode(log_params)
 
-        # if it wasn't successfully delivered, throw
-        if response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
+            failed = False
+            try:
+                response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
+                response_qs = urlparse.parse_qs(response.text)
+            except Exception as e:
+                failed = True
+
+            if not failed and response.status_code != 200 and response.status_code != 201:
+                failed = True
+
+            # if it wasn't successfully delivered, throw
+            if not failed and response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
+                failed = True
+
+            # if we sent the message, then move on
+            if not failed:
+                break
+
+        if failed:
             raise SendException("Received error from Yo! API",
                                 url=log_url,
                                 method='GET',
