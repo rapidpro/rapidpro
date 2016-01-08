@@ -6,6 +6,7 @@ import json
 from django.core.urlresolvers import reverse
 from django.db import connection
 from temba.tests import TembaTest
+from temba.utils.profiler import SegmentProfiler
 
 
 class APITest(TembaTest):
@@ -43,3 +44,40 @@ class APITest(TembaTest):
     def assert403(self, url):
         response = self.fetchHTML(url)
         self.assertEquals(403, response.status_code)
+
+    def test_api_runs(self):
+        url = reverse('api.v2.runs')
+
+        # can't access, get 403
+        self.assert403(url)
+
+        # login as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # login as administrator
+        self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+
+        flow = self.create_flow()
+
+        answers = ["Blue, ""Orange"]
+        for n in range(1000):
+            flow.start([], [self.joe], restart_participants=True)
+            msg = self.create_msg(direction='I', contact=self.joe, text=answers[n % len(answers)])
+            msg.handle()
+
+        # now test fetching them instead.....
+
+        # no filtering
+
+        with SegmentProfiler("Fetching runs"):
+            response = self.fetchJSON(url)
+            self.assertEqual(response.status_code, 200)
+
+            next_url = response.json['next']
+
+            response = self.fetchJSON(next_url)
