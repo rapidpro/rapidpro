@@ -101,3 +101,4 @@ enum34==1.0.3
 plivo==0.10.1
 antlr4-python2-runtime==4.5.2
 django-extensions==1.5.7
+django-mptt==0.7.4
