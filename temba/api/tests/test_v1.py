@@ -173,7 +173,7 @@ class APITest(TembaTest):
 
         # browse as HTML anonymously
         response = self.fetchHTML(url)
-        self.assertContains(response, "RapidPro API", status_code=403)  # still shows docs
+        self.assertContains(response, "We provides a simple REST API", status_code=403)  # still shows docs
 
         # try to browse as JSON anonymously
         response = self.fetchJSON(url)
