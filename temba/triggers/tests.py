@@ -627,6 +627,8 @@ class TriggerTest(TembaTest):
         # should now have two catch all triggers
         self.assertEquals(2, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
 
+        group_catch_all = Trigger.objects.get(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL, groups=group)
+
         # try to add another catchall trigger with a few different groups
         group2 = self.create_group("Trigger Group 2", [])
         post_data['groups'] = [group.pk, group2.pk]
@@ -669,6 +671,13 @@ class TriggerTest(TembaTest):
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.all_messages.get(response_to=incoming)
         self.assertEquals('Echo: Hi', reply.text)
+
+        # delete the group
+        group.release()
+
+        # trigger should no longer be active
+        group_catch_all.refresh_from_db()
+        self.assertFalse(group_catch_all.is_active)
 
     def test_update(self):
 
