@@ -27,6 +27,7 @@ from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
+from temba.locations.models import AdminBoundary
 from uuid import uuid4
 from xlrd import xldate_as_tuple
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE
@@ -35,6 +36,7 @@ from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, Numbe
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
+from .models import HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, APIAction, ActionLog
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
@@ -1107,6 +1109,52 @@ class FlowTest(TembaTest):
         self.assertEquals(uuid(13), step.rule_uuid)
         self.assertEquals("15", step.rule_value)
         self.assertEquals(Decimal("15"), step.rule_decimal_value)
+
+    def test_location_entry_test(self):
+
+        self.country = AdminBoundary.objects.create(osm_id='192787', name='Nigeria', level=0)
+        Kano = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        Lagos = AdminBoundary.objects.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        Ajingi = AdminBoundary.objects.create(osm_id='3710308', name='Ajingi', level=2, parent=Kano)
+        Bichi = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=Kano)
+        Apapa = AdminBoundary.objects.create(osm_id='3718187', name='Apapa', level=2, parent=Lagos)
+        BichiWard = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=Bichi)
+        AdminBoundary.objects.create(osm_id='3710378', name='Ajingi', level=3, parent=Ajingi)
+        sms = self.create_msg(contact=self.contact, text="awesome text")
+        self.sms = sms
+        runs = FlowRun.objects.filter(contact=self.contact)
+        if runs:
+            run = runs[0]
+        else:
+            run = FlowRun.create(self.flow, self.contact)
+
+        tz = run.flow.org.get_tzinfo()
+        self.org.country = self.country
+        run.flow.org = self.org
+        context = run.flow.build_message_context(run.contact, None)
+
+        #wrong admin level should return None if provided
+        lga_tuple = HasDistrictTest('Kano').evaluate(run, sms, context, 'apapa')
+        self.assertEquals(lga_tuple[1], None)
+
+        lga_tuple = HasDistrictTest('Lagos').evaluate(run, sms, context, 'apapa')
+        self.assertEquals(lga_tuple[1], Apapa)
+
+        #get lga with out higher admin level
+        lga_tuple = HasDistrictTest().evaluate(run, sms, context, 'apapa')
+        self.assertEquals(lga_tuple[1], Apapa)
+
+        #get ward with out higher admin levels
+        ward_tuple = HasWardTest().evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], BichiWard)
+
+        #get with hierarchy proved
+        ward_tuple = HasWardTest('Kano', 'Bichi').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], BichiWard)
+
+        #wrong admin level should return None if provided
+        ward_tuple = HasWardTest('Kano', 'Ajingi').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], None)
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
