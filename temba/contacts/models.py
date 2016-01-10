@@ -152,7 +152,7 @@ class ContactField(models.Model):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
-    def get_field(cls, org, type):
+    def get_location_field(cls, org, type):
         return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
     def __unicode__(self):
@@ -320,8 +320,8 @@ class Contact(TembaModel, SmartModel):
             loc_value = None
 
             if field.value_type == WARD:
-                state_field = ContactField.get_field(self.org, STATE)
-                district_field = ContactField.get_field(self.org, DISTRICT)
+                state_field = ContactField.get_location_field(self.org, STATE)
+                district_field = ContactField.get_location_field(self.org, DISTRICT)
                 if state_field and district_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
@@ -330,7 +330,7 @@ class Contact(TembaModel, SmartModel):
                             loc_value = self.org.parse_location(value, 3, district_value)
 
             elif field.value_type == DISTRICT:
-                state_field = ContactField.get_field(self.org, STATE)
+                state_field = ContactField.get_location_field(self.org, STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
