@@ -1644,6 +1644,10 @@ class ContactGroup(TembaModel):
         from temba.campaigns.models import EventFire
         EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
 
+        # mark any triggers that operate only on this group as inactive
+        from temba.triggers.models import Trigger
+        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
+
         Value.invalidate_cache(group=self)
 
     @property
