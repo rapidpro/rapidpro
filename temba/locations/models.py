@@ -4,9 +4,8 @@ from smartmin.models import SmartModel
 logger = logging.getLogger(__name__)
 
 from django.contrib.gis.db import models
-from mptt.models import MPTTModel, TreeForeignKey
 import geojson
-
+from mptt.models import MPTTModel, TreeForeignKey
 
 COUNTRY_LEVEL = 0
 STATE_LEVEL = 1
@@ -24,10 +23,7 @@ class AdminBoundary(MPTTModel, models.Model):
                             help_text="The name of our administrative boundary")
 
     level = models.IntegerField(
-        help_text="The level of the boundary, 0 for country, 1 for state, 2 for district")
-
-    in_country = models.CharField(max_length=15, null=True,
-                                  help_text="The OSM id of this admin level's country id")
+        help_text="The level of the boundary, 0 for country, 1 for state, 2 for district, 3 for ward")
 
     parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
                             help_text="The parent to this political boundary if any")
