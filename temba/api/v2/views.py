@@ -4,7 +4,10 @@ from django.db.models import Prefetch
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, pagination
 from rest_framework.response import Response
-from temba.flows.models import FlowRun, FlowStep, RuleSet
+from temba.contacts.models import Contact
+from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.msgs.models import Msg
+from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import FlowRunReadSerializer
 from ..models import ApiPermission, SSLPermission
 
@@ -38,6 +41,31 @@ class ListAPIMixin(mixins.ListModelMixin):
         else:
             return super(ListAPIMixin, self).list(request, *args, **kwargs)
 
+    def get_queryset(self):
+        return self.model.objects.all()
+
+    def filter_before_after(self, queryset, field):
+        """
+        Filters the queryset by the before/after params if are provided
+        """
+        before = self.request.query_params.get('before')
+        if before:
+            try:
+                before = json_date_to_datetime(before)
+                queryset = queryset.filter(**{field + '__lte': before})
+            except Exception:
+                queryset = queryset.filter(pk=-1)
+
+        after = self.request.query_params.get('after')
+        if after:
+            try:
+                after = json_date_to_datetime(after)
+                queryset = queryset.filter(**{field + '__gte': after})
+            except Exception:
+                queryset = queryset.filter(pk=-1)
+
+        return queryset
+
 
 class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
     """
@@ -49,17 +77,34 @@ class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
 
-    def get_queryset(self):
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
         org = self.request.user.get_org()
-        queryset = self.model.objects.filter(org=org)
 
-        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
+        # filter by org or a flow
+        flow_uuid = params.get('flow')
+        if flow_uuid:
+            flow = Flow.objects.filter(org=org, uuid=flow_uuid)
+            if flow:
+                queryset = queryset.filter(flow=flow)
+            else:
+                queryset = queryset.filter(pk=-1)
+        else:
+            queryset = queryset.filter(org=org)
 
-        rulesets_prefetch = Prefetch('flow__rule_sets',
-                                     queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
-                                     to_attr='ruleset_prefetch')
+        # filter out test contact runs
+        test_contacts = Contact.objects.filter(org=org, is_test=True)
+        queryset = queryset.exclude(contact__in=test_contacts)
+
+        # limit to responded runs if specified
+        if str_to_bool(params.get('responded')):
+            queryset = queryset.filter(responded=True)
 
         # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+        prefetch_steps = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
+        prefetch_flow = Prefetch('flow', queryset=Flow.objects.only('uuid'))
+        prefetch_contact = Prefetch('contact', queryset=Contact.objects.only('uuid'))
+        prefetch_msgs = Prefetch('steps__messages', queryset=Msg.all_messages.only('text'))
+        queryset = queryset.prefetch_related(prefetch_flow, prefetch_contact, prefetch_steps, prefetch_msgs)
 
-        return queryset
+        return self.filter_before_after(queryset, 'modified_on')
