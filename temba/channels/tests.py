@@ -4869,7 +4869,8 @@ class StartMobileTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+977788123123")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        bcast = joe.send("Вітаємо в U-Report, системі опитувань про майбутнє країни.Зараз невеличка реєстрація.?",
+                         self.admin, trigger_send=False)
 
         # our outgoing sms
         sms = bcast.get_messages()[0]
