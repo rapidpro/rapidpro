@@ -4,7 +4,7 @@ import regex
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
 from django.core.management.base import BaseCommand, CommandError
-from temba.locations.models import AdminBoundary, COUNTRY_LEVEL
+from temba.locations.models import AdminBoundary, COUNTRY_LEVEL, STATE_LEVEL, DISTRICT_LEVEL
 import geojson
 
 
@@ -16,46 +16,55 @@ class Command(BaseCommand):  # pragma: no cover
     args = '<file1.zip | 49915admin1.json.. >'
     help = 'Import our geojson zip file format, updating all our OSM data accordingly.'
 
-    def get_country_id(self, props):
-        if props.get('admin_level') is COUNTRY_LEVEL:
-            return props.get('osm_id')
-        return props.get('is_in_country')
-
-    def import_file(self, file_obj, country_id):
-        admin_json = geojson.loads(file_obj.read())
+    def import_file(self, filename, file):
+        admin_json = geojson.loads(file.read())
 
         # we keep track of all the osm ids we've seen because we remove all admin levels at this level
         # which weren't seen. (they have been removed)
         seen_osm_ids = []
 
-        country_osm_id = None
+        # track currently processed admin boundar
+        current_boundary = None
+
+        # parse our filename.. they are in the format:
+        # 192787admin2_simplified.json
+        match = regex.match(
+            r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, regex.V0)
         level = None
+        is_simplified = None
+        if match:
+            level = int(match.group(2))
+            is_simplified = True if match.group(3) else False
+        else:
+            # else parse other filenames that are in
+            # admin_level_0_simplified.json format.
+            match = regex.match(
+                r'admin_level_(\d)(_simplified)?\.json$', filename, regex.V0)
+            if match:
+                level = int(match.group(1))
+                is_simplified = True if match.group(2) else False
+            elif not match:
+                print "Skipping '%s', doesn't match file pattern." % filename
 
         # for each of our features
         for feature in admin_json['features']:
             # what level are we?
             props = feature.properties
-            country_osm_id = props.get('is_in_country')
-            level = props.get('admin_level')
-            is_simplified = props.get('is_simplified')
+            # get parent id which is set in new file format
             parent_osm_id = props.get('parent_id')
+
+            # if parent_osm_id is not set and not COUNTRY_LEVEL check for old
+            # file format
+            if not parent_osm_id and level != COUNTRY_LEVEL:
+                if level == STATE_LEVEL:
+                    parent_osm_id = props['is_in_country']
+                elif level == DISTRICT_LEVEL:
+                    parent_osm_id = props['is_in_state']
+
             osm_id = props['osm_id']
             name = props.get('name_en', '')
             if not name or name == 'None':
                 name = props['name']
-
-            # Skip feature if import is country specific and does not belong to the
-            # country we are currently importing
-            if country_id and country_id != str(self.get_country_id(props)):
-                print("Skipping %s because it does not match country OSM id: %s" %
-                      (name, country_osm_id))
-                continue
-
-            # Try to get country id if admin level is not a country else bail
-            if country_osm_id is None and level is not COUNTRY_LEVEL:
-                print("Skipping %s (%s) as country id is not defined." %
-                      (name, osm_id))
-                continue
 
             # try to find parent, bail if we can't
             parent = None
@@ -91,8 +100,7 @@ class Command(BaseCommand):  # pragma: no cover
 
             geometry = MultiPolygon(polygons)
 
-            kwargs = dict(osm_id=osm_id, name=name, level=level,
-                          parent=parent, in_country=country_osm_id)
+            kwargs = dict(osm_id=osm_id, name=name, level=level, parent=parent)
             if is_simplified:
                 kwargs['simplified_geometry'] = geometry
             else:
@@ -112,10 +120,14 @@ class Command(BaseCommand):  # pragma: no cover
             seen_osm_ids.append(osm_id)
 
         # now remove any unseen boundaries
+        # TODO: how do we deal with values already assigned to a location? we should probably retry to do some
         # matching based on the new names? (though unlikely to match if the
         # name didn't match when trying to find the boundary)
-        AdminBoundary.objects.filter(level=level, in_country=country_osm_id).exclude(
-            osm_id__in=seen_osm_ids).delete()
+        current_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
+        if current_boundary:
+            country = current_boundary.get_root()
+            country.get_descendants().filter(level=level).exclude(
+                osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
         filenames = []
@@ -128,8 +140,10 @@ class Command(BaseCommand):  # pragma: no cover
         else:
             filenames = list(args)
 
-        # are we importing for a specific country?
-        country_osm_id = options.get('country')
+        # are we filtering by a prefix?
+        prefix = ''
+        if options['country']:
+            prefix = '%sadmin' % options['country']
 
         # sort our filenames, this will make sure we import 0 levels before 1
         # before 2
@@ -138,16 +152,16 @@ class Command(BaseCommand):  # pragma: no cover
         # for each file they have given us
         for filename in filenames:
             # if it ends in json, then it is geojson, try to parse it
-            if filename.endswith('json'):
+            if filename.startswith(prefix) and filename.endswith('json'):
                 # read the file entirely
                 print "=== parsing %s" % filename
 
                 # if we are reading from a zipfile, read it from there
                 if zipfile:
                     with zipfile.open(filename) as json_file:
-                        self.import_file(json_file, country_osm_id)
+                        self.import_file(filename, json_file)
 
                 # otherwise, straight off the filesystem
                 else:
                     with open(filename) as json_file:
-                        self.import_file(json_file, country_osm_id)
+                        self.import_file(filename, json_file)
