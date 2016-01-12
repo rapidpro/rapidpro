@@ -663,27 +663,19 @@ class Org(SmartModel):
         # first check if we have a direct name match
         if parent:
             boundary = parent.children.filter(name__iexact=name, level=level).first()
-        elif level == 1:
-            boundary = AdminBoundary.objects.filter(parent=self.country, name__iexact=name, level=level).first()
-        elif level == 2:
-            boundary = AdminBoundary.objects.filter(parent__parent=self.country, name__iexact=name, level=level).first()
-        elif level == 3:
-            boundary = AdminBoundary.objects.filter(parent__parent__parent=self.country, name__iexact=name, level=level).first()
-
+        else:
+            result = AdminBoundary.objects.filter(name__iexact=name, level=level).first()
+            if result and result.parent.get_root() == self.country:
+                boundary = result
         # not found by name, try looking up by alias
         if not boundary:
             if parent:
                 alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
                                                      boundary__parent=parent).first()
-            elif level == 1:
-                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent=self.country).first()
-            elif level == 2:
-                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent__parent=self.country).first()
-            elif level == 3:
-                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent__parent__parent=self.country).first()
+            else:
+                result = BoundaryAlias.objects.filter(name__iexact=name, level=level).first()
+                if result and result.boundary.parent.get_root() == self.country:
+                    boundary = result
 
             if alias:
                 boundary = alias.boundary
