@@ -23,3 +23,18 @@ class DocumentationRenderer(BrowsableAPIRenderer):
             'name': self.get_name(view),
             'breadcrumblist': self.get_breadcrumbs(request),
         }
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        """
+        Usually one customizes the browsable view by overriding the rest_framework/api.html template but we have two
+        versions of the API to support with two different templates.
+        """
+        if not renderer_context:
+            raise ValueError("Can't render without context")
+
+        request_path = renderer_context['request'].path
+        api_version = 1 if request_path.startswith('/api/v1') else 2
+
+        self.template = 'api/v%d/api_root.html' % api_version
+
+        return super(DocumentationRenderer, self).render(data, accepted_media_type, renderer_context)

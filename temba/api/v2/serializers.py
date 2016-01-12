@@ -29,7 +29,6 @@ class ReadSerializer(serializers.ModelSerializer):
 class FlowRunReadSerializer(ReadSerializer):
     flow = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField()
-    values = serializers.SerializerMethodField()
     steps = serializers.SerializerMethodField()
     exit_type = serializers.SerializerMethodField()
 
@@ -48,21 +47,14 @@ class FlowRunReadSerializer(ReadSerializer):
                           'arrived_on': format_datetime(step.arrived_on),
                           'left_on': format_datetime(step.left_on),
                           'text': step.get_text(),
-                          'value': val})
+                          'value': val,
+                          'category': step.rule_category})
         return steps
-
-    def get_values(self, obj):
-        values = {}
-        for step in obj.steps.all():
-            if step.step_type == RULE_SET and step.rule_uuid:
-                val = step.rule_decimal_value if step.rule_decimal_value is not None else step.rule_value
-                values[step.step_uuid] = {'value': val, 'category': step.rule_category}
-        return values
 
     def get_exit_type(self, obj):
         return FLOW_RUN_EXIT_TYPES.get(obj.exit_type)
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'responded', 'steps', 'values',
+        fields = ('id', 'flow', 'contact', 'responded', 'steps',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')

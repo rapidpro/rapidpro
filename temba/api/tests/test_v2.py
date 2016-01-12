@@ -104,22 +104,25 @@ class APITest(TembaTest):
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
 
+        self.maxDiff = None
+
         self.assertEqual(response.json['results'][1], {'id': frank_run2.pk,
                                                        'flow': flow1.uuid,
                                                        'contact': self.frank.uuid,
                                                        'responded': False,
-                                                       'values': {},
                                                        'steps': [{'node': '00000000-00000000-00000000-00000001',
+                                                                  'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
                                                                   'left_on': format_datetime(frank_run2_steps[0].left_on),
                                                                   'text': None,
                                                                   'value': None,
-                                                                  'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
+                                                                  'category': None,
                                                                   'type': 'actionset'},
                                                                  {'node': '00000000-00000000-00000000-00000005',
+                                                                  'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
                                                                   'left_on': None,
                                                                   'text': None,
                                                                   'value': None,
-                                                                  'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
+                                                                  'category': None,
                                                                   'type': 'ruleset'}],
                                                        'created_on': format_datetime(frank_run2.created_on),
                                                        'modified_on': format_datetime(frank_run2.modified_on),
@@ -130,25 +133,26 @@ class APITest(TembaTest):
                                                        'flow': flow1.uuid,
                                                        'contact': self.joe.uuid,
                                                        'responded': True,
-                                                       'values': {'00000000-00000000-00000000-00000005': {'value': "blue",
-                                                                                                          'category': "Blue"}},
                                                        'steps': [{'node': '00000000-00000000-00000000-00000001',
+                                                                  'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
                                                                   'left_on': format_datetime(joe_run1_steps[0].left_on),
                                                                   'text': 'What is your favorite color?',
                                                                   'value': None,
-                                                                  'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
+                                                                  'category': None,
                                                                   'type': 'actionset'},
                                                                  {'node': '00000000-00000000-00000000-00000005',
+                                                                  'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
                                                                   'left_on': format_datetime(joe_run1_steps[1].left_on),
                                                                   'text': 'it is blue',
                                                                   'value': 'blue',
-                                                                  'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
+                                                                  'category': "Blue",
                                                                   'type': 'ruleset'},
                                                                  {'node': '00000000-00000000-00000000-00000003',
+                                                                  'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
                                                                   'left_on': format_datetime(joe_run1_steps[2].left_on),
                                                                   'text': 'Blue is sad. :(',
                                                                   'value': None,
-                                                                  'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
+                                                                  'category': None,
                                                                   'type': 'actionset'}],
                                                        'created_on': format_datetime(joe_run1.created_on),
                                                        'modified_on': format_datetime(joe_run1.modified_on),
@@ -166,6 +170,18 @@ class APITest(TembaTest):
         # filter by flow + responded
         response = self.fetchJSON(url, 'flow=%s&responded=TrUe' % flow1.uuid)
         self.assertResultIds(response, [frank_run1.pk, joe_run1.pk])
+
+        # filter by contact
+        response = self.fetchJSON(url, 'contact=%s' % self.joe.uuid)
+        self.assertResultIds(response, [joe_run3.pk, joe_run2.pk, joe_run1.pk])
+
+        # filter by invalid contact
+        response = self.fetchJSON(url, 'contact=invalid')
+        self.assertResultIds(response, [])
+
+        # filter by contact + responded
+        response = self.fetchJSON(url, 'contact=%s&responded=yes' % self.joe.uuid)
+        self.assertResultIds(response, [joe_run1.pk])
 
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(frank_run1.modified_on))
