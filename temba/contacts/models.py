@@ -244,12 +244,13 @@ class Contact(TembaModel):
         return cls.objects.filter(is_test=simulation)
 
     def get_scheduled_messages(self):
-        from temba.msgs.models import Broadcast
+        from temba.msgs.models import SystemLabel
+
         contact_urns = self.get_urns()
         contact_groups = self.user_groups.all()
         now = timezone.now()
 
-        scheduled_broadcasts = Broadcast.objects.exclude(schedule=None)
+        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED, exclude_test_contacts=False)
         scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
         scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
         scheduled_broadcasts = scheduled_broadcasts.filter(
