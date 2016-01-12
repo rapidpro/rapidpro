@@ -8,7 +8,7 @@ import mptt.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('locations', '0003_adminboundary_in_country'),
+        ('locations', '0003_strip_boundary_alias_name'),
     ]
 
     operations = [
