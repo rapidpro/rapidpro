@@ -1493,7 +1493,7 @@ class SystemLabel(models.Model):
         return labels
 
     @classmethod
-    def get_queryset(cls, org, label_type):
+    def get_queryset(cls, org, label_type, exclude_test_contacts=True):
         """
         Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
         trigger used to maintain the label counts.
@@ -1520,10 +1520,11 @@ class SystemLabel(models.Model):
 
         qs = qs.filter(org=org)
 
-        if label_type == cls.TYPE_SCHEDULED:
-            qs = qs.exclude(contacts__is_test=True)
-        else:
-            qs = qs.exclude(contact__is_test=True)
+        if exclude_test_contacts:
+            if label_type == cls.TYPE_SCHEDULED:
+                qs = qs.exclude(contacts__is_test=True)
+            else:
+                qs = qs.exclude(contact__is_test=True)
 
         return qs
 
