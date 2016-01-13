@@ -145,7 +145,7 @@ class AuthenticateEndpoint(SmartFormView):
 @permission_classes((SSLPermission, IsAuthenticated))
 def api(request, format=None):
     """
-    We provides a simple REST API for you to interact with your data from outside applications.
+    We provide a simple REST API for you to interact with your data from outside applications.
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 
@@ -165,7 +165,7 @@ def api(request, format=None):
      * [/api/v1/relayers](/api/v1/relayers) - To list, create and remove new Android phones.
      * [/api/v1/runs](/api/v1/runs) - To list or start flow runs for contacts
 
-    You may wish to use the [API Explorer](/api/v1/explorer) to interactively experiment with API.
+    You may wish to use the [API Explorer](/api/v1/explorer) to interactively experiment with the API.
 
     ## Web Hook
 
@@ -176,7 +176,7 @@ def api(request, format=None):
     ## Verbs
 
     All API calls follow standard REST conventions.  You can list a set of resources by making a **GET** request on the endpoint
-    and either send new messages or claim channels using the **POST** verb.  You can receive responses either
+    and either create or update resources using the **POST** verb.  You can receive responses either
     in JSON or XML by appending the corresponding extension to the endpoint URL, ex: ```/api/v1/contacts.json```
 
     ## Status Codes
@@ -225,7 +225,7 @@ def api(request, format=None):
 
         Authorization: Token YOUR_API_TOKEN_GOES_HERE
 
-    **Note that all calls made through this web interface are against the live API, please exercise the appropriate caution.**
+    **Note that all calls made through this web interface are against the live API so please exercise the appropriate caution.**
     """
     return Response({
         'boundaries': reverse('api.v1.boundaries', request=request),

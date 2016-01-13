@@ -250,7 +250,7 @@ class Contact(TembaModel):
         contact_groups = self.user_groups.all()
         now = timezone.now()
 
-        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
+        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED, exclude_test_contacts=False)
         scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
         scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
         scheduled_broadcasts = scheduled_broadcasts.filter(
@@ -1643,6 +1643,10 @@ class ContactGroup(TembaModel):
         # delete any event fires related to our group
         from temba.campaigns.models import EventFire
         EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
+
+        # mark any triggers that operate only on this group as inactive
+        from temba.triggers.models import Trigger
+        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
         Value.invalidate_cache(group=self)
 

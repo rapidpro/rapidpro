@@ -19,7 +19,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
             'view': view,
             'request': request,
             'response': response,
-            'description': self.get_description(view, renderer_context['response'].status_code),
+            'description': view.get_view_description(html=True),
             'name': self.get_name(view),
             'breadcrumblist': self.get_breadcrumbs(request),
         }
