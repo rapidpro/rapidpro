@@ -660,22 +660,38 @@ class Org(SmartModel):
             return None
 
     def find_boundary_by_name(self, name, level, parent):
+
+        def get_location_by_name(_name, _level, country, is_alias=False):
+
+            _boundary = None
+            if is_alias:
+                query = dict(name__iexact=_name, boundary__level=_level)
+                model = BoundaryAlias
+            else :
+                query = dict(name__iexact=_name, level=_level)
+                model = AdminBoundary
+            result = model.objects.filter(**query).first()
+
+            if result and is_alias and result.boundry.parent.get_root() == country:
+                _boundary = result
+            if result and not is_alias and result.parent.get_root() == country:
+                _boundary = result
+
+            return _boundary
+
         # first check if we have a direct name match
         if parent:
             boundary = parent.children.filter(name__iexact=name, level=level).first()
         else:
-            result = AdminBoundary.objects.filter(name__iexact=name, level=level).first()
-            if result and result.parent.get_root() == self.country:
-                boundary = result
+            boundary = get_location_by_name(name, level, self.country)
+
         # not found by name, try looking up by alias
         if not boundary:
             if parent:
-                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
+               alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
                                                      boundary__parent=parent).first()
             else:
-                result = BoundaryAlias.objects.filter(name__iexact=name, level=level).first()
-                if result and result.boundary.parent.get_root() == self.country:
-                    boundary = result
+                alias = get_location_by_name(name, level, self.country, True)
 
             if alias:
                 boundary = alias.boundary
