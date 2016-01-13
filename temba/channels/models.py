@@ -1205,20 +1205,21 @@ class Channel(TembaModel):
 
         post_body = u"""
           <message>
-            <service id='single' source=$$FROM$$ />
+            <service id="single" source=$$FROM$$ />
             <to>$$TO$$</to>
-            <body content-type='plain/text' encoding='plain'>$$BODY$$</body>
-          </message>"
+            <body content-type="plain/text" encoding="plain">$$BODY$$</body>
+          </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
+        post_body = post_body.encode('utf8')
 
         url = 'http://bulk.startmobile.com.ua/clients.php'
 
         start = time.time()
         try:
-            headers = {'Content-Type': 'application/xml'}
+            headers = {'Content-Type': 'application/xml; charset=utf8'}
             headers.update(TEMBA_HEADERS)
 
             response = requests.post(url,
@@ -1230,7 +1231,7 @@ class Channel(TembaModel):
             raise SendException(unicode(e),
                                 method='POST',
                                 url=url,
-                                request=post_body,
+                                request=post_body.decode('utf8'),
                                 response='',
                                 response_status=503)
 
@@ -1238,7 +1239,7 @@ class Channel(TembaModel):
             raise SendException("Error Sending Message",
                                 method='POST',
                                 url=url,
-                                request=post_body,
+                                request=post_body.decode('utf8'),
                                 response=response.text,
                                 response_status=response.status_code)
 
@@ -1248,7 +1249,7 @@ class Channel(TembaModel):
                                description="Successfully delivered",
                                method='POST',
                                url=url,
-                               request=post_body,
+                               request=post_body.decode('utf8'),
                                response=response.text,
                                response_status=response.status_code)
 
@@ -2235,10 +2236,10 @@ class ChannelLog(models.Model):
     @classmethod
     def write(cls, log):
         if log.is_error:
-            print("[%d] ERROR - %s %s \"%s\" %s \"%s\"" %
+            print(u"[%d] ERROR - %s %s \"%s\" %s \"%s\"" %
                   (log.msg.pk, log.method, log.url, log.request, log.response_status, log.response))
         else:
-            print("[%d] SENT - %s %s \"%s\" %s \"%s\"" %
+            print(u"[%d] SENT - %s %s \"%s\" %s \"%s\"" %
                   (log.msg.pk, log.method, log.url, log.request, log.response_status, log.response))
 
     @classmethod

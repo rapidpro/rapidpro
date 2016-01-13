@@ -171,8 +171,21 @@ class Trigger(SmartModel):
         if trigger_type == Trigger.TYPE_FOLLOW:
             triggers = triggers.filter(channel=channel)
 
-        for trigger in triggers:
-            trigger.flow.start([], [contact], start_msg=start_msg, restart_participants=True)
+        # is there a match for a group specific trigger?
+        group_ids = contact.user_groups.values_list('pk', flat=True)
+        group_triggers = triggers.filter(groups__in=group_ids).order_by('groups__name')
+
+        # if we match with a group restriction, that takes precedence
+        if group_triggers:
+            triggers = group_triggers
+
+        # otherwise, restrict to triggers that don't filter by group
+        else:
+            triggers = triggers.filter(groups=None)
+
+        # only fire the first matching trigger
+        if triggers:
+            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True)
 
         return bool(triggers)
 
@@ -287,9 +300,20 @@ class Trigger(SmartModel):
 
         if c_last_triggered:
             # first archive all our catch all message triggers and unarchive the last triggered in the selected
-            Trigger.objects.filter(org=c_last_triggered[0].org,
-                                   trigger_type=Trigger.TYPE_CATCH_ALL,
-                                   is_active=True).update(is_archived=True)
+            existing_triggers = Trigger.objects.filter(org=c_last_triggered[0].org,
+                                                       trigger_type=Trigger.TYPE_CATCH_ALL,
+                                                       is_active=True)
+
+            # we will only restore the first one, find any conflicts with those groups
+            restore_groups = c_last_triggered[0].groups.all()
+            if restore_groups:
+                existing_triggers = existing_triggers.filter(groups__in=restore_groups)
+            else:
+                existing_triggers = existing_triggers.filter(groups=None)
+
+            # archive any colliding triggers
+            existing_triggers.update(is_archived=True)
+
             c_last_triggered[0].is_archived = False
             c_last_triggered[0].save()
 

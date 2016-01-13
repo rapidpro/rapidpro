@@ -94,7 +94,8 @@ def check_flow_stats_accuracy_task(flow_id):
     flow = Flow.objects.get(pk=flow_id)
 
     r = get_redis_connection()
-    runs_started_cached = int(r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count)))
+    runs_started_cached = r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count))
+    runs_started_cached = 0 if runs_started_cached is None else int(runs_started_cached)
     runs_started = flow.runs.filter(contact__is_test=False).count()
 
     if runs_started != runs_started_cached:
@@ -106,5 +107,13 @@ def check_flow_stats_accuracy_task(flow_id):
 
 @task(track_started=True, name="calculate_flow_stats")
 def calculate_flow_stats_task(flow_id):
-    logger = start_flow_task.get_logger()
-    Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+    r = get_redis_connection()
+
+    flow = Flow.objects.get(pk=flow_id)
+    runs_started_cached = r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count))
+    runs_started_cached = 0 if runs_started_cached is None else int(runs_started_cached)
+    runs_started = flow.runs.filter(contact__is_test=False).count()
+
+    if runs_started != runs_started_cached:
+        logger = start_flow_task.get_logger()
+        Flow.objects.get(pk=flow_id).do_calculate_flow_stats()

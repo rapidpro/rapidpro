@@ -649,6 +649,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           @detectLoop(node.uuid, node.destination, path)
 
     isConnectionAllowed: (sourceId, targetId) ->
+      return @getConnectionError(sourceId, targetId) == null
+
+    getConnectionError: (sourceId, targetId) ->
 
       source = sourceId.split('_')[0]
       path = [ source ]
@@ -657,14 +660,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       targetNode = @getNode(targetId)
 
       if @isPausingRuleset(sourceNode) and @isPausingRuleset(targetNode)
-        return false
+        return 'The flow cannot wait for two consecutive responses from the contact. Instead, send them a message between waiting for a response.'
 
       try
         @detectLoop(source, targetId, path)
       catch e
         $log.debug(e.message)
-        return false
-      return true
+        return 'Connecting these together would create an infinite loop in your flow. To connect these, make sure to pass it through an action that waits for a response.'
+      return null
 
     # translates a string into a slug
     slugify: (label) ->

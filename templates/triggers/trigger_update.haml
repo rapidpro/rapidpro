@@ -129,6 +129,7 @@
 
       {% if object.trigger_type == 'C' %}
         select2div("#id_catchall_flow", "520px", '{% trans "Flow to start" %}');
+        $("#id_groups").select2({ containerCssClass: "select2-temba-field" })
       {% endif %}
 
       {% if object.trigger_type == 'M' %}
@@ -140,9 +141,7 @@
       {% endif %}
 
       {% if object.trigger_type == 'K' or object.trigger_type == 'V' %}
-        $('#id_groups').select2({
-          containerCssClass: "select2-temba-field"
-        });
+        $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
       new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_response'));
