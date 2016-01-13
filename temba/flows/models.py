@@ -2856,21 +2856,21 @@ class FlowRun(models.Model):
         Expires a set of runs
         """
         # let's optimize by only selecting what we need and loading the actual ids
-        runs = list(runs.order_by('flow').values('id', 'flow'))
+        runs = list(runs.order_by('flow_id').values('id', 'flow_id'))
 
         # remove activity for each run, batched by flow
         last_flow = None
         expired_runs = []
 
         for run in runs:
-            if run['flow'] != last_flow:
+            if run['flow_id'] != last_flow:
                 if expired_runs:
                     flow = Flow.objects.filter(id=last_flow).first()
                     if flow:
                         flow.remove_active_for_run_ids(expired_runs)
                 expired_runs = []
             expired_runs.append(run['id'])
-            last_flow = run['flow']
+            last_flow = run['flow_id']
 
         # same thing for our last batch if we have one
         if expired_runs:
