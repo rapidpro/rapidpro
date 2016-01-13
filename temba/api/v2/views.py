@@ -67,6 +67,8 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
+    throttle_scope = 'v2'
+
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 

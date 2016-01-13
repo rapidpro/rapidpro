@@ -973,15 +973,21 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
-        'temba.api.authentication.APITokenAuthentication',
+        'temba.api.support.APITokenAuthentication',
     ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'temba.api.support.OrgRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'v2': '1200/hour'
+    },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
-        'temba.api.renderers.DocumentationRenderer',
+        'temba.api.support.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework_xml.renderers.XMLRenderer',
     ),
-    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler',
+    'EXCEPTION_HANDLER': 'temba.api.support.temba_exception_handler',
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
