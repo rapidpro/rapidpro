@@ -143,6 +143,7 @@ class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
                 "steps": [
                     {
                         "node": "22bd934e-953b-460d-aaf5-42a84ec8f8af",
+                        "category": null,
                         "left_on": "2013-08-19T19:11:21.082Z",
                         "text": "Hi from the Thrift Shop! We are having specials this week. What are you interested in?",
                         "value": null,
@@ -151,6 +152,7 @@ class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
                     },
                     {
                         "node": "9a31495d-1c4c-41d5-9018-06f93baa5b98",
+                        "category": "Foxes",
                         "left_on": null,
                         "text": "I want to buy a fox skin",
                         "value": "fox skin",
