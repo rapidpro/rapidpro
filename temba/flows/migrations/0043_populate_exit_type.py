@@ -20,6 +20,15 @@ def populate_exit_type(apps, schema_editor):
     FlowStep = apps.get_model('flows', 'FlowStep')
     ActionSet = apps.get_model('flows', 'ActionSet')
 
+    do_populate_exit_type(FlowRun, FlowStep, ActionSet)
+
+
+def populate_exit_type_offline():
+    from temba.flows.models import FlowRun, FlowStep, ActionSet
+    do_populate_exit_type(FlowRun, FlowStep, ActionSet)
+
+
+def do_populate_exit_type(FlowRun, FlowStep, ActionSet):
     # grab ids of all inactive runs
     exited_run_ids = FlowRun.objects.filter(is_active=False, exit_type=None).values_list('pk', flat=True)
 
