@@ -2858,18 +2858,19 @@ class FlowRun(models.Model):
         Exits (expires, interrupts) runs in bulk
         """
         if isinstance(runs, list):
-            runs = [{'id': r.pk, 'flow': r.flow_id} for r in runs]
+            runs = [{'id': r.pk, 'flow_id': r.flow_id} for r in runs]
         else:
-            runs = list(runs.values('id', 'flow'))  # select only what we need...
+            runs = list(runs.values('id', 'flow_id'))  # select only what we need...
 
         # organize runs by flow
         runs_by_flow = defaultdict(list)
         for run in runs:
-            runs_by_flow[run['flow']].append(run['id'])
+            runs_by_flow[run['flow_id']].append(run['id'])
 
         # for each flow, remove activity for all runs
         for flow_id, run_ids in runs_by_flow.iteritems():
             flow = Flow.objects.filter(id=flow_id).first()
+
             if flow:
                 flow.remove_active_for_run_ids(run_ids)
 
