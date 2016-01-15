@@ -320,14 +320,10 @@ class Contact(TembaModel, SmartModel):
             loc_value = None
 
             if field.value_type == WARD:
-                state_field = ContactField.get_location_field(self.org, STATE)
                 district_field = ContactField.get_location_field(self.org, DISTRICT)
-                if state_field and district_field:
-                    state_value = self.get_field(state_field.key)
-                    if state_value:
-                        district_value = self.get_field(district_field.key)
-                        if district_value:
-                            loc_value = self.org.parse_location(value, 3, district_value)
+                district_value = self.get_field(district_field.key)
+                if district_value:
+                    loc_value = self.org.parse_location(value, 3, district_value.location_value)
 
             elif field.value_type == DISTRICT:
                 state_field = ContactField.get_location_field(self.org, STATE)
@@ -337,6 +333,11 @@ class Contact(TembaModel, SmartModel):
                         loc_value = self.org.parse_location(value, 2, state_value.location_value)
             else:
                 loc_value = self.org.parse_location(value, 1)
+
+            if loc_value is not None and len(loc_value) > 0:
+                loc_value = loc_value.first()
+            else:
+                loc_value = None
 
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()

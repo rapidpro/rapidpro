@@ -5150,7 +5150,7 @@ class HasStateTest(Test):
 
         state = org.parse_location(text, 1)
         if state:
-            return 1, state
+            return 1, state.first()
 
         return 0, None
 
@@ -5182,14 +5182,14 @@ class HasDistrictTest(Test):
 
         parent = org.parse_location(state, 1)
         if parent:
-            district = org.parse_location(text, 2, parent)
+            district = org.parse_location(text, 2, parent.first())
             if district:
-                return 1, district
+                return 1, district.first()
         district = org.parse_location(text, 2)
 
         #parse location when state contrain is not provide or available
-        if (len(errors) or state is None) > 0 and district:
-            return 1, district
+        if (len(errors) > 0 or state is None) and len(district) == 1:
+            return 1, district.first()
 
         return 0, None
 
@@ -5222,16 +5222,16 @@ class HasWardTest(Test):
         state_, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
         if (district_ and state_) and (len(missing_district) == 0 and len(missing_state) == 0):
             state = org.parse_location(state_, 1)
-            district = org.parse_location(district_, 2, state)
+            district = org.parse_location(district_, 2, state.first())
             if district:
-                ward = org.parse_location(text, 3, district)
+                ward = org.parse_location(text, 3, district.first())
                 if ward:
-                    return 1, ward
+                    return 1, ward.first()
 
         #parse location when state contrain is not provide or available
         ward = org.parse_location(text, 3)
-        if ward and district is None:
-            return 1, ward
+        if len(ward) == 1 and district is None:
+            return 1, ward.first()
 
         return 0, None
 

@@ -659,39 +659,44 @@ class Org(SmartModel):
         except:
             return None
 
+    @classmethod
+    def repeat_text(cls, text, count, delimiter='__', prefix=None):
+        list = []
+        if prefix:
+            list.append(prefix)
+        while count:
+            list.append(text)
+            count -= 1
+
+        return delimiter.join(list)
+
+    def generate_location_query(self, name, level, is_alias=False):
+
+        if is_alias:
+            query = dict(name__iexact=name, boundary__level=level)
+            query[self.repeat_text('parent', level, '__', 'boundary')] = self.country
+        else :
+            query = dict(name__iexact=name, level=level)
+            query[self.repeat_text('parent', level, '__')] = self.country
+
+        return query
+
     def find_boundary_by_name(self, name, level, parent):
-
-        def get_location_by_name(_name, _level, country, is_alias=False):
-
-            _boundary = None
-            if is_alias:
-                query = dict(name__iexact=_name, boundary__level=_level)
-                model = BoundaryAlias
-            else :
-                query = dict(name__iexact=_name, level=_level)
-                model = AdminBoundary
-            result = model.objects.filter(**query).first()
-
-            if result and is_alias and result.boundry.parent.get_root() == country:
-                _boundary = result
-            if result and not is_alias and result.parent.get_root() == country:
-                _boundary = result
-
-            return _boundary
-
         # first check if we have a direct name match
         if parent:
-            boundary = parent.children.filter(name__iexact=name, level=level).first()
+            boundary = parent.children.filter(name__iexact=name, level=level)
         else:
-            boundary = get_location_by_name(name, level, self.country)
+            query = self.generate_location_query(name, level)
+            boundary = AdminBoundary.objects.filter(**query)
 
         # not found by name, try looking up by alias
         if not boundary:
             if parent:
                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent=parent).first()
+                                                     boundary__parent=parent)
             else:
-                alias = get_location_by_name(name, level, self.country, True)
+                query = self.generate_location_query(name, level, True)
+                alias = BoundaryAlias.objects.filter(**query)
 
             if alias:
                 boundary = alias.boundary
@@ -706,26 +711,26 @@ class Org(SmartModel):
         # now look up the boundary by full name
         boundary = self.find_boundary_by_name(location_string, level, parent)
 
-        if not boundary:
+        if len(boundary) == 0:
             # try removing punctuation and try that
             bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 
         # if we didn't find it, tokenize it
-        if not boundary:
+        if len(boundary) == 0:
             words = regex.split(r"\W+", location_string.lower(), flags=regex.UNICODE | regex.V0)
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
-                    if boundary:
+                    if len(boundary) > 0:
                         break
 
-                if not boundary:
+                if len(boundary) == 0:
                     # still no boundary? try n-gram of 2
                     for i in range(0, len(words)-1):
                         bigram = " ".join(words[i:i+2])
                         boundary = self.find_boundary_by_name(bigram, level, parent)
-                        if boundary:
+                        if len(boundary) > 0:
                             break
 
         return boundary
