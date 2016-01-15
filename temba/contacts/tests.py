@@ -726,7 +726,7 @@ class ContactTest(TembaTest):
             contact.set_field('state', "Rwanda")
             index = (i + 2) % len(locations)
             with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-                mock_parse_location.return_value = locations_boundaries[index]
+                mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
                 contact.set_field('home', locations[index])
 
         q = lambda query: Contact.search(self.org, query)[0].count()
