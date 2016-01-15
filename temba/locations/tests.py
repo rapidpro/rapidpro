@@ -2,6 +2,7 @@ import json
 from django.core.urlresolvers import reverse
 from temba.tests import TembaTest
 
+
 class Locationtest(TembaTest):
 
     def test_boundaries(self):
@@ -26,7 +27,8 @@ class Locationtest(TembaTest):
         self.assertEquals(self.country, response.context['object'])
 
         # ok, now get the geometry for rwanda
-        response = self.client.get(reverse('locations.adminboundary_geometry', args=[self.country.osm_id]))
+        response = self.client.get(
+            reverse('locations.adminboundary_geometry', args=[self.country.osm_id]))
 
         # should be json
         response_json = json.loads(response.content)
@@ -38,7 +40,8 @@ class Locationtest(TembaTest):
         self.assertEquals(2, len(response_json['features']))
 
         # now get it for one of the sub areas
-        response = self.client.get(reverse('locations.adminboundary_geometry', args=[self.district1.osm_id]))
+        response = self.client.get(
+            reverse('locations.adminboundary_geometry', args=[self.district1.osm_id]))
         response_json = json.loads(response.content)
 
         # should have features in it
@@ -48,7 +51,8 @@ class Locationtest(TembaTest):
         self.assertEquals(1, len(response_json['features']))
 
         # now grab our aliases
-        response = self.client.get(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
+        response = self.client.get(
+            reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
         response_json = json.loads(response.content)
 
         # should just be kigali, without any aliases
@@ -59,21 +63,17 @@ class Locationtest(TembaTest):
 
         # update our alias for kigali
         response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
-                                    json.dumps([dict(osm_id=self.state1.osm_id, aliases="kigs\nkig ")]),
+                                    json.dumps(
+                                        [dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")]),
                                     content_type='application/json')
 
         self.assertEquals(200, response.status_code)
 
         # fetch our aliases again
-        response = self.client.get(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
+        response = self.client.get(
+            reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
         response_json = json.loads(response.content)
 
         # now have kigs as an alias
         self.assertEquals("Kigali City", response_json[1]['name'])
         self.assertEquals('kig\nkigs', response_json[1]['aliases'])
-
-
-
-
-
-

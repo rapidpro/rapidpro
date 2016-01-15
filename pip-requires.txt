@@ -58,3 +58,4 @@ twython
 enum34
 plivo
 rapidpro-expressions
+django-mptt
