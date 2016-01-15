@@ -945,8 +945,8 @@ class FlowCRUDL(SmartCRUDL):
 
                 runs = FlowRun.objects.filter(flow=self.object).exclude(contact__is_test=True)
 
-                if 'sSearch' in self.request.REQUEST:
-                    query = self.request.REQUEST['sSearch']
+                query = self.request.REQUEST.get('sSearch', None)
+                if query:
                     if org.is_anon:
                         # try casting our query to an int if they are querying by contact id
                         query_int = -1
