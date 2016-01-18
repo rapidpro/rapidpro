@@ -8,9 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Msg, Label, DELETED
+from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import FlowRunReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
@@ -113,6 +115,10 @@ class ListAPIMixin(mixins.ListModelMixin):
         return queryset
 
 
+# ============================================================
+# Endpoints (A-Z)
+# ============================================================
+
 class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to fetch flow runs. A run represents a single contact's path through a flow and is created
@@ -124,12 +130,12 @@ class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
     run has the following attributes:
 
      * **id** - the id of the run (int)
-     * **flow** - the UUID of the flow (string), filterable
-     * **contact** - the UUID of the contact (string), filterable
-     * **responded** - whether the contact responded (boolean), filterable
+     * **flow** - the UUID of the flow (string), filterable as `flow`
+     * **contact** - the UUID of the contact (string), filterable as `contact`
+     * **responded** - whether the contact responded (boolean), filterable as `responded`
      * **steps** - steps visited by the contact on the flow (array of dictionaries)
      * **created_on** - the datetime when this run was started (datetime)
-     * **modified_on** - the datetime when this run was last modified (datetime), filterable as ```before``` and ```after```
+     * **modified_on** - the datetime when this run was last modified (datetime), filterable as `before` and `after`
      * **exited_on** - the datetime when this run exited or null if it is still active (datetime)
      * **exit_type** - how the run ended (one of "interrupted", "completed", "expired")
 
@@ -215,11 +221,12 @@ class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
             queryset = queryset.filter(responded=True)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
-        prefetch_steps = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-        prefetch_flow = Prefetch('flow', queryset=Flow.objects.only('uuid'))
-        prefetch_contact = Prefetch('contact', queryset=Contact.objects.only('uuid'))
-        prefetch_msgs = Prefetch('steps__messages', queryset=Msg.all_messages.only('text'))
-        queryset = queryset.prefetch_related(prefetch_flow, prefetch_contact, prefetch_steps, prefetch_msgs)
+        queryset = queryset.prefetch_related(
+                Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
+                Prefetch('flow', queryset=Flow.objects.only('uuid')),
+                Prefetch('contact', queryset=Contact.objects.only('uuid')),
+                Prefetch('steps__messages', queryset=Msg.all_messages.only('text')),
+        )
 
         return self.filter_before_after(queryset, 'modified_on')
 
@@ -230,7 +237,7 @@ class FlowRunEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Flow Runs",
             'url': reverse('api.v2.runs'),
             'slug': 'run-list',
-            'request': "after=2013-01-01T00:00:00.000",
+            'request': "after=2014-01-01T00:00:00.000",
             'fields': [
                 {'name': 'flow', 'required': False, 'help': "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
@@ -251,8 +258,8 @@ class MessageEndpoint(ListAPIMixin, BaseAPIView):
     message has the following attributes:
 
      * **id** - the id of the message (int)
-     * **broadcast** - the id of the broadcast (int), filterable
-     * **contact** - the UUID of the contact (string), filterable
+     * **broadcast** - the id of the broadcast (int), filterable as `broadcast`
+     * **contact** - the UUID of the contact (string), filterable as `contact`
      * **urn** - the URN of the sender or receiver, depending on direction (string)
      * **channel** - the UUID of the channel that handled this message (string)
      * **direction** - the direction of the message (one of "incoming" or "outgoing")
@@ -260,8 +267,8 @@ class MessageEndpoint(ListAPIMixin, BaseAPIView):
      * **status** - the status of the message (string)
      * **archived** - whether this message is archived (boolean)
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple messages.
-     * **labels** - any labels set on this message (list of strings), filterable as ```label```
-     * **created_on** - when this message was either received by the channel or created (datetime) (filterable as ```before``` and ```after```)
+     * **labels** - any labels set on this message (list of strings), filterable as `label`
+     * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`)
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime)
      * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
 
@@ -337,10 +344,13 @@ class MessageEndpoint(ListAPIMixin, BaseAPIView):
         # TODO: filtering by preset views
 
         # use prefetch rather than select_related for foreign keys to avoid joins
-        prefetch_contact = Prefetch('contact', queryset=Contact.objects.only('uuid'))
-        prefetch_urn = Prefetch('contact_urn', queryset=ContactURN.objects.only('urn'))
-        prefetch_labels = Prefetch('labels', queryset=Label.label_objects.only('name'))
-        queryset = queryset.prefetch_related(prefetch_contact, prefetch_urn, prefetch_labels)
+        queryset = queryset.prefetch_related(
+            Prefetch('org', queryset=Org.objects.only('is_anon')),
+            Prefetch('contact', queryset=Contact.objects.only('uuid')),
+            Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
+            Prefetch('channel', queryset=Channel.objects.only('uuid')),
+            Prefetch('labels', queryset=Label.label_objects.only('name')),
+        )
 
         return self.filter_before_after(queryset, 'created_on')
 
@@ -351,7 +361,7 @@ class MessageEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Messages",
             'url': reverse('api.v2.messages'),
             'slug': 'msg-list',
-            'request': "after=2013-01-01T00:00:00.000",
+            'request': "after=2014-01-01T00:00:00.000",
             'fields': [
                 {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},

@@ -26,7 +26,6 @@ class ReadSerializer(serializers.ModelSerializer):
 # Serializers (A-Z)
 # ============================================================
 
-
 class FlowRunReadSerializer(ReadSerializer):
     NODE_TYPES = {
         RULE_SET: 'ruleset',
