@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
+from temba.contacts.models import Contact
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
 from temba.msgs.models import Msg, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED, WIRED
 from temba.msgs.models import SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
@@ -25,6 +26,56 @@ class ReadSerializer(serializers.ModelSerializer):
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
+
+class ContactReadSerializer(ReadSerializer):
+    name = serializers.SerializerMethodField()
+    language = serializers.SerializerMethodField()
+    urns = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
+    fields = serializers.SerializerMethodField('get_contact_fields')
+    blocked = serializers.SerializerMethodField()
+    failed = serializers.SerializerMethodField()
+
+    def get_name(self, obj):
+        return obj.name if obj.is_active else None
+
+    def get_language(self, obj):
+        return obj.language if obj.is_active else None
+
+    def get_urns(self, obj):
+        if obj.org.is_anon or not obj.is_active:
+            return []
+
+        return [urn.urn for urn in obj.get_urns()]
+
+    def get_groups(self, obj):
+        if not obj.is_active:
+            return []
+
+        groups = obj.prefetched_user_groups if hasattr(obj, 'prefetched_user_groups') else obj.user_groups.all()
+        return [{'uuid': g.uuid, 'name': g.name} for g in groups]
+
+    def get_contact_fields(self, obj):
+        if not obj.is_active:
+            return {}
+
+        fields = {}
+        for contact_field in self.context['contact_fields']:
+            value = obj.get_field(contact_field.key)
+            fields[contact_field.key] = Contact.serialize_field_value(contact_field, value)
+        return fields
+
+    def get_blocked(self, obj):
+        return obj.is_blocked if obj.is_active else None
+
+    def get_failed(self, obj):
+        return obj.is_failed if obj.is_active else None
+
+    class Meta:
+        model = Contact
+        fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'failed',
+                  'created_on', 'modified_on')
+
 
 class FlowRunReadSerializer(ReadSerializer):
     NODE_TYPES = {
@@ -135,7 +186,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.visibility == ARCHIVED
 
     def get_labels(self, obj):
-        return [l.name for l in obj.labels.all()]
+        return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     class Meta:
         model = Msg

@@ -7,7 +7,7 @@ from django.core.urlresolvers import reverse
 from django.db import connection
 from django.utils import timezone
 from temba.channels.models import Channel
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.tests import TembaTest
@@ -25,6 +25,9 @@ class APITest(TembaTest):
 
         self.twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
                                       address="billy_bob", role="SR", scheme='twitter')
+
+        self.create_secondary_org()
+        self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
 
         self.maxDiff = None
 
@@ -76,6 +79,67 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([r['id'] for r in response.json['results']], [o.pk for o in expected])
 
+    def assertResultsByUUID(self, response, expected):
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([r['uuid'] for r in response.json['results']], [o.uuid for o in expected])
+
+    def test_api_contacts(self):
+        url = reverse('api.v2.contacts')
+
+        self.assertEndpointAccess(url)
+
+        # create some more contacts (in addition to Joe and Frank)
+        contact1 = self.create_contact("Ann", "0788000001", language='fre')
+        contact2 = self.create_contact("Bob", "0788000002")
+        contact3 = self.create_contact("Cat", "0788000003")
+        contact4 = self.create_contact("Don", "0788000004")
+
+        contact1.fail()
+        contact2.block()
+        contact3.release()
+
+        # put some contacts in a group
+        group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
+        group.update_contacts([self.joe, contact1], add=True)
+
+        # no filtering
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsByUUID(response, [contact1, self.joe, contact4, contact2, self.frank])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': contact1.uuid,
+            'name': "Ann",
+            'language': "fre",
+            'urns': ["tel:+250788000001"],
+            'groups': [{'uuid': group.uuid, 'name': group.name}],
+            'fields': {},
+            'blocked': False,
+            'failed': True,
+            'created_on': format_datetime(contact1.created_on),
+            'modified_on': format_datetime(contact1.modified_on)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
+        self.assertResultsByUUID(response, [contact2])
+
+        # filter by URN
+        response = self.fetchJSON(url, 'urn=tel%3A%2B250788000004')
+        self.assertResultsByUUID(response, [contact4])
+
+        # filter by group name
+        response = self.fetchJSON(url, 'group=Customers')
+        self.assertResultsByUUID(response, [contact1, self.joe])
+
+        # filter by group UUID
+        response = self.fetchJSON(url, 'group=%s' % group.uuid)
+        self.assertResultsByUUID(response, [contact1, self.joe])
+
+        # filter by invalid group
+        response = self.fetchJSON(url, 'group=invalid')
+        self.assertResultsByUUID(response, [])
+
     def test_api_messages(self):
         url = reverse('api.v2.messages')
 
@@ -95,6 +159,9 @@ class APITest(TembaTest):
 
         # add a test contact message
         self.create_msg(direction='I', msg_type='F', text="Hello", contact=self.test_contact)
+
+        # add message in other org
+        self.create_msg(direction='I', msg_type='I', text="Guten tag!", contact=self.hans, org=self.org2)
 
         # label some of the messages
         label = Label.get_or_create(self.org, self.admin, "Spam")
@@ -132,11 +199,15 @@ class APITest(TembaTest):
             'status': "queued",
             'archived': False,
             'text': "Bonjour",
-            'labels': ["Spam"],
+            'labels': [{'uuid': label.uuid, 'name': "Spam"}],
             'created_on': format_datetime(frank_msg1.created_on),
             'sent_on': None,
             'delivered_on': None
         })
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % joe_msg3.pk)
+        self.assertResultsById(response, [joe_msg3])
 
         # filter by contact
         response = self.fetchJSON(url, 'contact=%s' % self.joe.uuid)
@@ -146,8 +217,12 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'contact=invalid')
         self.assertResultsById(response, [])
 
-        # filter by label
+        # filter by label name
         response = self.fetchJSON(url, 'label=Spam')
+        self.assertResultsById(response, [joe_msg3, frank_msg1])
+
+        # filter by label UUID
+        response = self.fetchJSON(url, 'label=%s' % label.uuid)
         self.assertResultsById(response, [joe_msg3, frank_msg1])
 
         # filter by invalid label
@@ -175,6 +250,10 @@ class APITest(TembaTest):
         Contact.set_simulation(True)
         flow2.start([], [self.test_contact])
         Contact.set_simulation(False)
+
+        # add a run for another org
+        flow3 = self.create_flow(org=self.org2, user=self.admin2, uuid_start=10000)
+        flow3.start([], [self.hans])
 
         # refresh runs which will have been modified by being interrupted
         joe_run1.refresh_from_db()
@@ -259,6 +338,10 @@ class APITest(TembaTest):
             'exited_on': format_datetime(joe_run1.exited_on),
             'exit_type': 'completed'
         })
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
+        self.assertResultsById(response, [frank_run2])
 
         # filter by flow
         response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
