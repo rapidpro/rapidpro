@@ -11,7 +11,7 @@ from smartmin.views import SmartTemplateView
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
-from temba.msgs.models import Msg, Label, DELETED
+from temba.msgs.models import Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import ContactReadSerializer, FlowRunReadSerializer, MsgReadSerializer
@@ -94,7 +94,9 @@ class ListAPIMixin(mixins.ListModelMixin):
             return super(ListAPIMixin, self).list(request, *args, **kwargs)
 
     def get_queryset(self):
-        return getattr(self.model, self.model_manager).all()
+        org = self.request.user.get_org()
+
+        return getattr(self.model, self.model_manager).filter(org=org)
 
     def filter_before_after(self, queryset, field):
         """
@@ -188,7 +190,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         deleted_only = str_to_bool(params.get('deleted'))
-        queryset = queryset.filter(org=org, is_test=False, is_active=(not deleted_only))
+        queryset = queryset.filter(is_test=False, is_active=(not deleted_only))
 
         # filter by UUID (optional)
         uuid = params.get('uuid')
@@ -308,11 +310,28 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = MsgReadSerializer
     pagination_class = CreatedOnCursorPagination
 
+    VIEW_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
+                    'flows': SystemLabel.TYPE_FLOWS,
+                    'archived': SystemLabel.TYPE_ARCHIVED,
+                    'outbox': SystemLabel.TYPE_OUTBOX,
+                    'sent': SystemLabel.TYPE_SENT}
+
+    def get_queryset(self):
+        view_name = self.request.query_params.get('view')
+        if view_name:
+            sys_label = self.VIEW_FILTERS.get(view_name.lower())
+            if sys_label:
+                return SystemLabel.get_queryset(self.request.user.get_org(), sys_label)
+            else:
+                return Msg.current_messages.filter(pk=-1)
+        else:
+            return super(MessagesEndpoint, self).get_queryset()
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
         org = self.request.user.get_org()
 
-        queryset = queryset.filter(org=org).exclude(visibility=DELETED).exclude(msg_type=None)
+        queryset = queryset.exclude(visibility=DELETED).exclude(msg_type=None)
 
         # filter by id (optional)
         msg_id = params.get('id')
@@ -345,8 +364,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(labels=label)
             else:
                 queryset = queryset.filter(pk=-1)
-
-        # TODO: filtering by preset views
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
@@ -450,7 +467,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         params = self.request.query_params
         org = self.request.user.get_org()
 
-        # filter by org or a flow
+        # filter by flow (optional)
         flow_uuid = params.get('flow')
         if flow_uuid:
             flow = Flow.objects.filter(org=org, uuid=flow_uuid)
@@ -458,8 +475,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(flow=flow)
             else:
                 queryset = queryset.filter(pk=-1)
-        else:
-            queryset = queryset.filter(org=org)
 
         # filter by id (optional)
         run_id = params.get('id')

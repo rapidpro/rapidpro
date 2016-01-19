@@ -146,12 +146,12 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some messages
-        joe_msg1 = self.create_msg(direction='I', msg_type='I', text="Howdy", contact=self.joe)
+        joe_msg1 = self.create_msg(direction='I', msg_type='F', text="Howdy", contact=self.joe)
         frank_msg1 = self.create_msg(direction='I', msg_type='I', text="Bonjour", contact=self.frank, channel=self.twitter)
-        joe_msg2 = self.create_msg(direction='O', msg_type='I', text="How are you?", contact=self.joe)
-        frank_msg2 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank)
-        joe_msg3 = self.create_msg(direction='I', msg_type='I', text="Good", contact=self.joe)
-        frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter)
+        joe_msg2 = self.create_msg(direction='O', msg_type='I', text="How are you?", contact=self.joe, status='Q')
+        frank_msg2 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank, status='D')
+        joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe)
+        frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter, visibility='A')
 
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_msg(direction='O', msg_type='F', text="Surveys!", contact=self.joe, contact_urn=None,
@@ -204,6 +204,30 @@ class APITest(TembaTest):
             'sent_on': None,
             'delivered_on': None
         })
+
+        # filter by view (inbox)
+        response = self.fetchJSON(url, 'view=INBOX')
+        self.assertResultsById(response, [frank_msg1])
+
+        # filter by view (flow)
+        response = self.fetchJSON(url, 'view=flows')
+        self.assertResultsById(response, [joe_msg3, joe_msg1])
+
+        # filter by view (archived)
+        response = self.fetchJSON(url, 'view=archived')
+        self.assertResultsById(response, [frank_msg3])
+
+        # filter by view (outbox)
+        response = self.fetchJSON(url, 'view=outbox')
+        self.assertResultsById(response, [joe_msg2])
+
+        # filter by view (sent)
+        response = self.fetchJSON(url, 'view=sent')
+        self.assertResultsById(response, [joe_msg4, frank_msg2])
+
+        # filter by invalid view
+        response = self.fetchJSON(url, 'view=invalid')
+        self.assertResultsById(response, [])
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % joe_msg3.pk)
