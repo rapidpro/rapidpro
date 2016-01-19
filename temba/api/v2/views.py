@@ -274,14 +274,16 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime)
      * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
 
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`.
+
     Example:
 
-        GET /api/v2/messages.json?contact=d33e9ad5-5c35-414c-abd4-e7451c69ff1d
+        GET /api/v2/messages.json?folder=inbox
 
     Response is the list of messages for that contact, most recently created first:
 
         {
-            "next": "http://example.com/api/v2/messages.json?contact=d33e9ad5-5c35-414c-abd4-e7451c69ff1d&cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
+            "next": "http://example.com/api/v2/messages.json?folder=inbox&cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
             "previous": null,
             "results": [
             {
@@ -302,7 +304,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             },
             ...
         }
-
     """
     permission = 'msgs.msg_api'
     model = Msg
@@ -310,16 +311,16 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = MsgReadSerializer
     pagination_class = CreatedOnCursorPagination
 
-    VIEW_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
-                    'flows': SystemLabel.TYPE_FLOWS,
-                    'archived': SystemLabel.TYPE_ARCHIVED,
-                    'outbox': SystemLabel.TYPE_OUTBOX,
-                    'sent': SystemLabel.TYPE_SENT}
+    FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
+                      'flows': SystemLabel.TYPE_FLOWS,
+                      'archived': SystemLabel.TYPE_ARCHIVED,
+                      'outbox': SystemLabel.TYPE_OUTBOX,
+                      'sent': SystemLabel.TYPE_SENT}
 
     def get_queryset(self):
-        view_name = self.request.query_params.get('view')
-        if view_name:
-            sys_label = self.VIEW_FILTERS.get(view_name.lower())
+        folder = self.request.query_params.get('folder')
+        if folder:
+            sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
                 return SystemLabel.get_queryset(self.request.user.get_org(), sys_label)
             else:
@@ -387,6 +388,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             'fields': [
                 {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': 'folder', 'required': False, 'help': "A folder name to filter by, one of: inbox, flows, archived, outbox, sent"},
                 {'name': 'label', 'required': False, 'help': "A label name or UUID to filter by, ex: Spam"},
                 {'name': 'before', 'required': False, 'help': "Only return messages created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}

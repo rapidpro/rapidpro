@@ -205,28 +205,28 @@ class APITest(TembaTest):
             'delivered_on': None
         })
 
-        # filter by view (inbox)
-        response = self.fetchJSON(url, 'view=INBOX')
+        # filter by folder (inbox)
+        response = self.fetchJSON(url, 'folder=INBOX')
         self.assertResultsById(response, [frank_msg1])
 
-        # filter by view (flow)
-        response = self.fetchJSON(url, 'view=flows')
+        # filter by folder (flow)
+        response = self.fetchJSON(url, 'folder=flows')
         self.assertResultsById(response, [joe_msg3, joe_msg1])
 
-        # filter by view (archived)
-        response = self.fetchJSON(url, 'view=archived')
+        # filter by folder (archived)
+        response = self.fetchJSON(url, 'folder=archived')
         self.assertResultsById(response, [frank_msg3])
 
-        # filter by view (outbox)
-        response = self.fetchJSON(url, 'view=outbox')
+        # filter by folder (outbox)
+        response = self.fetchJSON(url, 'folder=outbox')
         self.assertResultsById(response, [joe_msg2])
 
-        # filter by view (sent)
-        response = self.fetchJSON(url, 'view=sent')
+        # filter by folder (sent)
+        response = self.fetchJSON(url, 'folder=sent')
         self.assertResultsById(response, [joe_msg4, frank_msg2])
 
         # filter by invalid view
-        response = self.fetchJSON(url, 'view=invalid')
+        response = self.fetchJSON(url, 'folder=invalid')
         self.assertResultsById(response, [])
 
         # filter by id
