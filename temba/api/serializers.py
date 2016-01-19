@@ -1446,7 +1446,6 @@ class BoundarySerializer(serializers.ModelSerializer):
     boundary = serializers.SerializerMethodField('get_boundary')
     parent = serializers.SerializerMethodField('get_parent')
     geometry = serializers.SerializerMethodField('get_geometry')
-    in_country = serializers.SerializerMethodField('get_country')
 
     def get_parent(self, obj):
         return obj.parent.osm_id if obj.parent else None
@@ -1457,12 +1456,9 @@ class BoundarySerializer(serializers.ModelSerializer):
     def get_boundary(self, obj):
         return obj.osm_id
 
-    def get_country(self, obj):
-        return obj.in_country if obj.in_country else None
-
     class Meta:
         model = AdminBoundary
-        fields = ('boundary', 'name', 'level', 'parent', 'geometry', 'in_country')
+        fields = ('boundary', 'name', 'level', 'parent', 'geometry')
 
 
 class AliasSerializer(BoundarySerializer):
