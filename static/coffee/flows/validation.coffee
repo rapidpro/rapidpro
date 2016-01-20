@@ -103,3 +103,33 @@ app.directive "validateType", ->
 
   require:"ngModel"
   link: link
+
+# Creates an isolated form to use for nested ng-forms
+# http://jsfiddle.net/gikoo/qNrFX/
+app.directive "isolateForm", ->
+  restrict: 'A',
+  require: '?form',
+  link: (scope, element, attrs, ctrl) ->
+      if !ctrl
+        return
+
+      # Do a copy of the controller
+      ctrlCopy = {}
+      angular.copy(ctrl, ctrlCopy)
+
+      # Get the parent of the form
+      parent = element.parent().controller('form')
+      # Remove parent link to the controller
+      parent.$removeControl(ctrl)
+
+      # Replace form controller with a "isolated form"
+      isolatedFormCtrl =
+          $setValidity: (validationToken, isValid, control) ->
+              ctrlCopy.$setValidity(validationToken, isValid, control)
+              parent.$setValidity(validationToken, true, ctrl)
+          $setDirty: ->
+              element.removeClass('ng-pristine').addClass('ng-dirty')
+              ctrl.$dirty = true
+              ctrl.$pristine = false
+
+      angular.extend(ctrl, isolatedFormCtrl)
