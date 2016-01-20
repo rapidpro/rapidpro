@@ -77,3 +77,39 @@ class Locationtest(TembaTest):
         # now have kigs as an alias
         self.assertEquals("Kigali City", response_json[1]['name'])
         self.assertEquals('kig\nkigs', response_json[1]['aliases'])
+
+        # test nested admin level aliases update
+        response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
+                                    json.dumps(
+                                        [dict(osm_id=self.state2.osm_id, aliases="Eastern P",
+                                              children=[dict(osm_id=self.district1.osm_id,
+                                                                 aliases="Gatsibo",
+                                                             children=[dict(osm_id=self.ward1.osm_id,
+                                                                 aliases="Kageyo Gat")])])]),
+                                    content_type='application/json')
+
+        self.assertEquals(200, response.status_code)
+
+        # fetch aliases again
+        response = self.client.get(
+            reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
+        response_json = json.loads(response.content)
+        self.assertEquals(response_json[0].get('name'), self.state2.name)
+        self.assertEquals(response_json[0].get('aliases'), 'Eastern P')
+        self.assertTrue('Kageyo Gat' in response_json[0].get('match'))
+
+        # trigger wrong request data using bad json
+        response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
+                                    """{"data":"foo \r\n bar"}""",
+                                    content_type='application/json')
+
+        response_json = json.loads(response.content)
+        self.assertEquals(400, response.status_code)
+        self.assertEquals(response_json.get('status'), 'error')
+
+        # Get geometry of admin boundary without sub-levels, should return one feature
+        response = self.client.get(
+            reverse('locations.adminboundary_geometry', args=[self.ward3.osm_id]))
+        self.assertEquals(200, response.status_code)
+        response_json = json.loads(response.content)
+        self.assertEquals(len(response_json.get('features')), 1)
