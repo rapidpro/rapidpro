@@ -27,22 +27,22 @@ def populate_exit_type_migration(apps, schema_editor):
     FlowStep = apps.get_model('flows', 'FlowStep')
     ActionSet = apps.get_model('flows', 'ActionSet')
 
-    populate_exit_type(FlowRun, FlowStep, ActionSet)
+    populate_exit_type(FETCH_BATCH_SIZE, FlowRun, FlowStep, ActionSet)
 
 
-def populate_exit_type_offline():
+def populate_exit_type_offline(batch_size=FETCH_BATCH_SIZE):
     """
     For running migration logic outside of an actual database sync
     """
     from temba.flows.models import FlowRun, FlowStep, ActionSet
-    populate_exit_type(FlowRun, FlowStep, ActionSet)
+    populate_exit_type(batch_size, FlowRun, FlowStep, ActionSet)
 
 
-def populate_exit_type(FlowRun, FlowStep, ActionSet):
+def populate_exit_type(batch_size, FlowRun, FlowStep, ActionSet):
     total = 0
     while True:
         # keep processing batches of runs until method returns 0
-        updated = populate_exit_type_batch(FlowRun, FlowStep, ActionSet)
+        updated = populate_exit_type_batch(batch_size, FlowRun, FlowStep, ActionSet)
         if updated:
             total += updated
             print "Updated total of %d flow runs so far" % total
@@ -50,10 +50,10 @@ def populate_exit_type(FlowRun, FlowStep, ActionSet):
             break
 
 
-def populate_exit_type_batch(FlowRun, FlowStep, ActionSet):
+def populate_exit_type_batch(batch_size, FlowRun, FlowStep, ActionSet):
     # grab ids of a batch of inactive runs with no exit type
     exited_run_ids = FlowRun.objects.filter(is_active=False, exit_type=None)
-    exited_run_ids = list(exited_run_ids.values_list('pk', flat=True)[:FETCH_BATCH_SIZE])
+    exited_run_ids = list(exited_run_ids.values_list('pk', flat=True)[:batch_size])
 
     if not exited_run_ids:
         return 0
