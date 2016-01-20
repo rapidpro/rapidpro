@@ -389,6 +389,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_type = forms.ChoiceField(label=_('Run flow over'),
                                           help_text=_('Place a phone call or use text messaging'),
                                           choices=((Flow.FLOW, 'Text Messaging'),
+                                                   (Flow.USSD, 'USSD Messaging'),
                                                    (Flow.VOICE, 'Phone Call'),
                                                    (Flow.SURVEY, 'Android Phone')))
 
