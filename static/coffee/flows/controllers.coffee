@@ -604,7 +604,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     # if its the base language, don't show the from text
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code
 
-      if action.type in ["send", "reply", "say"]
+      if action.type in ["send", "reply", "say", "ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
 
@@ -1364,6 +1364,23 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
+    $scope.action.msg[$scope.base_language] = message
+
+    $scope.action.type = type
+    Flow.saveAction(actionset, $scope.action)
+    $modalInstance.close()
+
+
+  # Saving a USSD message in the flow
+  $scope.saveUssd = (message, menu, type='ussd') ->
+
+    if typeof($scope.action.msg) != "object"
+      $scope.action.msg = {}
+
+    $scope.action.msg.message = message
+    for item in menu
+      message += '\n' + item.number + ': ' + item.label
+    $scope.action.msg.menu = menu if menu
     $scope.action.msg[$scope.base_language] = message
 
     $scope.action.type = type
