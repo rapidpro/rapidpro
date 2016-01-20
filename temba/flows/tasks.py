@@ -40,7 +40,8 @@ def check_flows_task():
     if not r.get(key):
         with r.lock(key, timeout=900):
             # expire all flows that should no longer be active
-            FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()))
+            runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
+            FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
 @task(track_started=True, name='export_flow_results_task')

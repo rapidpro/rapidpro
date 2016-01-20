@@ -71,6 +71,19 @@ class FlowTest(TembaTest):
         filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         return open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
 
+    def test_get_unique_name(self):
+        flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
+        self.assertEqual(flow1.name, "Sheep Poll")
+
+        flow2 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
+        self.assertEqual(flow2.name, "Sheep Poll 2")
+
+        flow3 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
+        self.assertEqual(flow3.name, "Sheep Poll 3")
+        
+        self.create_secondary_org()
+        self.assertEqual(Flow.get_unique_name(self.org2, "Sheep Poll"), "Sheep Poll")  # different org
+
     def test_flow_get_results_queries(self):
 
         contact3 = self.create_contact('George', '+250788382234')
@@ -2918,14 +2931,12 @@ class FlowsTest(FlowFileTest):
         assertInResponse(response, 'function_completions', 'ABS')
         assertInResponse(response, 'function_completions', 'YEAR')
 
-    def test_expiration(self):
+    def test_bulk_exit(self):
         flow = self.get_flow('favorites')
         color = RuleSet.objects.get(label='Color', flow=flow)
         self.clear_activity(flow)
 
-        contacts = []
-        for i in range(6):
-            contacts.append(self.create_contact("Run Contact %d" % i, "+25078838338%d" % i))
+        contacts = [self.create_contact("Run Contact %d" % i, "+25078838338%d" % i) for i in range(6)]
 
         # add our contacts to the flow
         for contact in contacts:
@@ -2939,16 +2950,27 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(6, active[color.uuid])
 
-        # go expire them all
-        FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True), batch_size=4)
+        # expire them all
+        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
 
         # should all be expired
         (active, visited) = flow.get_activity()
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
-        self.assertEquals(6, FlowRun.objects.filter(is_active=False).count())
+        self.assertEquals(6, FlowRun.objects.filter(is_active=False, exit_type='E').exclude(exited_on=None).count())
         self.assertEquals(6, flow.get_total_runs())
         self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(0, len(active))
+
+        # start all contacts in the flow again
+        for contact in contacts:
+            self.send_message(flow, 'chartreuse', contact=contact, restart_participants=True)
+
+        self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
+
+        # stop them all
+        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        self.assertEqual(6, FlowRun.objects.filter(is_active=False, exit_type='I').exclude(exited_on=None).count())
 
     def test_activity(self):
 
@@ -3037,7 +3059,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(cga_flow.get_activity()[0]))
 
         # expire the first contact's runs
-        FlowRun.do_expire_runs(FlowRun.objects.filter(contact=self.contact))
+        FlowRun.bulk_exit(FlowRun.objects.filter(contact=self.contact), FlowRun.EXIT_TYPE_EXPIRED)
 
         # no active runs for our contact
         self.assertEquals(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())

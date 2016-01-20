@@ -27,7 +27,7 @@ from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value, DATETIME
 from ..models import APIToken
-from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField
+from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
 
 
 class APITest(TembaTest):
@@ -234,6 +234,12 @@ class APITest(TembaTest):
         self.channel.is_active = False
         self.channel.save()
         self.assertRaises(ValidationError, channel_field.to_internal_value, self.channel.pk)
+
+        date_field = DateTimeField(source='test')
+
+        dt = pytz.timezone("Africa/Kigali").localize(datetime(2015, 12, 16, 12, 56, 30, 123456))
+        self.assertEqual(date_field.to_representation(dt), '2015-12-16T10:56:30.123Z')
+        self.assertEqual(date_field.to_representation(None), None)
 
     @override_settings(REST_HANDLE_EXCEPTIONS=True)
     @patch('temba.api.v1.views.FieldEndpoint.get_queryset')

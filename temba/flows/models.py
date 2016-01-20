@@ -10,7 +10,7 @@ import time
 import urllib2
 import xlwt
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -19,7 +19,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Q, Count, QuerySet
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -27,20 +27,18 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from string import maketrans, punctuation
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, OUTGOING, INCOMING, STOP_WORDS, QUEUED, INITIALIZING, HANDLED, SENT, Label
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
-from temba.utils.models import TembaModel
+from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
 from twilio import twiml
-from unidecode import unidecode
 from uuid import uuid4
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
@@ -259,7 +257,7 @@ class Flow(TembaModel):
         """
         base_language = org.primary_language.iso_code if org.primary_language else 'base'
 
-        name = Flow.get_unique_name('Join %s' % group.name, org)
+        name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
 
         uuid = unicode(uuid4())
@@ -352,7 +350,7 @@ class Flow(TembaModel):
                     flow = Flow.objects.filter(org=org, id=flow_spec['metadata']['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
-                        flow.name = Flow.get_unique_name(name, org, ignore=flow)
+                        flow.name = Flow.get_unique_name(org, name, ignore=flow)
                         flow.save(update_fields=['name', 'expires_after_minutes'])
 
                 # if it's not of our world, let's try by name
@@ -361,7 +359,7 @@ class Flow(TembaModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
-                    flow = Flow.create(org, user, Flow.get_unique_name(name, org), flow_type=flow_type,
+                    flow = Flow.create(org, user, Flow.get_unique_name(org, name), flow_type=flow_type,
                                        expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, flow_spec=flow_spec))
@@ -426,11 +424,6 @@ class Flow(TembaModel):
             return RuleSet.get(flow, uuid)
         else:
             return ActionSet.get(flow, uuid)
-
-    @classmethod
-    def get_org_responses_since(cls, org, since):
-        rule_ids = [r.uuid for r in RuleSet.objects.filter(flow__is_active=True, flow__org=org).order_by('uuid')]
-        return FlowStep.objects.filter(contact__is_test=False, step_uuid__in=rule_ids, left_on__gte=since).count()
 
     @classmethod
     def handle_call(cls, call, user_response=None, hangup=False):
@@ -546,7 +539,10 @@ class Flow(TembaModel):
                                     (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
 
     @classmethod
-    def get_unique_name(cls, base_name, org, ignore=None):
+    def get_unique_name(cls, org, base_name, ignore=None):
+        """
+        Generates a unique flow name based on the given base name
+        """
         name = base_name[:64].strip()
 
         count = 2
@@ -555,7 +551,7 @@ class Flow(TembaModel):
             if ignore:
                 flows = flows.exclude(pk=ignore.pk)
 
-            if flows.first() is None:
+            if not flows.exists():
                 break
 
             name = '%s %d' % (base_name[:59].strip(), count)
@@ -1406,10 +1402,9 @@ class Flow(TembaModel):
             # exclude anybody who has already participated in the flow
             all_contacts = all_contacts.exclude(pk__in=[r['contact'] for r in self.runs.all().values('contact')])
         else:
-            # mark any current runs as no longer active
+            # stop any runs still active for these contacts
             previous_runs = self.runs.filter(is_active=True, contact__in=all_contacts)
-            self.remove_active_for_run_ids([r['id'] for r in previous_runs.values('id')])
-            previous_runs.update(is_active=False)
+            FlowRun.bulk_exit(previous_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
@@ -1691,9 +1686,6 @@ class Flow(TembaModel):
 
         if not arrived_on:
             arrived_on = timezone.now()
-
-        # if we were previously marked complete, activate again
-        run.set_completed(False)
 
         if not is_start:
             # we have activity, update our expires on date accordingly
@@ -2772,6 +2764,13 @@ class FlowRevision(SmartModel):
 
 
 class FlowRun(models.Model):
+    EXIT_TYPE_COMPLETED = 'C'
+    EXIT_TYPE_INTERRUPTED = 'I'
+    EXIT_TYPE_EXPIRED = 'E'
+    EXIT_TYPE_CHOICES = ((EXIT_TYPE_COMPLETED, _("Completed")),
+                         (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
+                         (EXIT_TYPE_EXPIRED, _("Expired")))
+
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
     flow = models.ForeignKey(Flow, related_name='runs')
@@ -2790,14 +2789,17 @@ class FlowRun(models.Model):
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text=_("When this flow run was created"))
 
-    expires_on = models.DateTimeField(null=True,
-                                      help_text=_("When this flow run will expire"))
-
-    expired_on = models.DateTimeField(null=True,
-                                      help_text=_("When this flow run expired"))
-
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text=_("When this flow run was last updated"))
+
+    exited_on = models.DateTimeField(null=True,
+                                     help_text=_("When the contact exited this flow run"))
+
+    exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES,
+                                 help_text=_("Why the contact exited this flow run"))
+
+    expires_on = models.DateTimeField(null=True,
+                                      help_text=_("When this flow run will expire"))
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
@@ -2851,41 +2853,40 @@ class FlowRun(models.Model):
             return unicode(fields), count+1
 
     @classmethod
-    def do_expire_runs(cls, runs, batch_size=1000):
+    def bulk_exit(cls, runs, exit_type, exited_on=None):
         """
-        Expires a set of runs
+        Exits (expires, interrupts) runs in bulk
         """
-        # let's optimize by only selecting what we need and loading the actual ids
-        runs = list(runs.order_by('flow_id').values('id', 'flow_id'))
+        if isinstance(runs, list):
+            runs = [{'id': r.pk, 'flow_id': r.flow_id} for r in runs]
+        else:
+            runs = list(runs.values('id', 'flow_id'))  # select only what we need...
 
-        # remove activity for each run, batched by flow
-        last_flow = None
-        expired_runs = []
-
+        # organize runs by flow
+        runs_by_flow = defaultdict(list)
         for run in runs:
-            if run['flow_id'] != last_flow:
-                if expired_runs:
-                    flow = Flow.objects.filter(id=last_flow).first()
-                    if flow:
-                        flow.remove_active_for_run_ids(expired_runs)
-                expired_runs = []
-            expired_runs.append(run['id'])
-            last_flow = run['flow_id']
+            runs_by_flow[run['flow_id']].append(run['id'])
 
-        # same thing for our last batch if we have one
-        if expired_runs:
-            flow = Flow.objects.filter(id=last_flow).first()
+        # for each flow, remove activity for all runs
+        for flow_id, run_ids in runs_by_flow.iteritems():
+            flow = Flow.objects.filter(id=flow_id).first()
+
             if flow:
-                flow.remove_active_for_run_ids(expired_runs)
+                flow.remove_active_for_run_ids(run_ids)
 
-        # finally, update our db with the new expirations
+        modified_on = timezone.now()
+        if not exited_on:
+            exited_on = modified_on
+
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        batches = [runs[i:i + batch_size] for i in range(0, len(runs), batch_size)]
-        for batch in batches:
-            FlowRun.objects.filter(id__in=[f['id'] for f in batch]).update(is_active=False, expired_on=timezone.now())
+        for batch in chunk_list(runs, 1000):
+            run_objs = FlowRun.objects.filter(pk__in=[r['id'] for r in batch])
+            run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
 
     def release(self):
-
+        """
+        Permanently deletes this flow run
+        """
         # remove each of our steps. we do this one at a time
         # so we can decrement the activity properly
         for step in self.steps.all():
@@ -2912,36 +2913,36 @@ class FlowRun(models.Model):
         # lastly delete ourselves
         self.delete()
 
-    def set_completed(self, complete=True, final_step=None, completed_on=None):
+    def set_completed(self, final_step=None, completed_on=None):
         """
-        Mark a run as complete. Runs can become incomplete at a later
-        data if they re-engage with an updated flow.
+        Mark a run as complete
         """
-        if complete:
-            if self.contact.is_test:
-                ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
+        if self.contact.is_test:
+            ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
 
-            now = timezone.now()
+        now = timezone.now()
 
-            # mark that we left this step
-            if final_step:
-                final_step.left_on = completed_on if completed_on else now
-                final_step.save(update_fields=['left_on'])
-                self.flow.remove_active_for_step(final_step)
+        if not completed_on:
+            completed_on = now
 
-            # mark this flow as inactive
-            self.is_active = False
-            self.modified_on = now
-            self.save(update_fields=['modified_on', 'is_active'])
+        # mark that we left this step
+        if final_step:
+            final_step.left_on = completed_on
+            final_step.save(update_fields=['left_on'])
+            self.flow.remove_active_for_step(final_step)
+
+        # mark this flow as inactive
+        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        self.exited_on = completed_on
+        self.modified_on = now
+        self.is_active = False
+        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         r = get_redis_connection()
         if not self.contact.is_test:
             with self.flow.lock_on(FlowLock.participation):
                 key = self.flow.get_stats_cache_key(FlowStatsCache.runs_completed_count)
-                if complete:
-                    r.sadd(key, self.pk)
-                else:
-                    r.srem(key, self.pk)
+                r.sadd(key, self.pk)
 
     def update_expiration(self, point_in_time):
         """
@@ -2962,12 +2963,12 @@ class FlowRun(models.Model):
                 self.expire()
 
     def expire(self):
-        self.do_expire_runs(FlowRun.objects.filter(pk=self.pk))
+        self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
 
     @classmethod
     def expire_all_for_contacts(cls, contacts):
-        runs = cls.objects.filter(is_active=True, contact__in=contacts)
-        cls.do_expire_runs(runs)
+        contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
+        cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
 
     def update_fields(self, field_map):
         # validate our field
@@ -2986,19 +2987,7 @@ class FlowRun(models.Model):
         return json.loads(self.fields) if self.fields else {}
 
     def is_completed(self):
-        """
-        Whether this run has reached the terminal node in the flow
-        """
-        terminal_nodes = self.flow.get_terminal_nodes()
-        category_nodes = self.flow.get_category_nodes()
-
-        for step in self.steps.all():
-            if step.step_uuid in terminal_nodes:
-                return True
-            elif step.step_uuid in category_nodes and step.left_on is None and step.rule_uuid is not None:
-                return True
-
-        return False
+        return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
@@ -3014,41 +3003,6 @@ class FlowRun(models.Model):
                 self.voice_response.say(text)
 
         return msg
-
-
-class FlowStepIterator(object):
-    """
-    Queryset wrapper to chunk queries and reduce in-memory footprint
-    """
-    def __init__(self, ids, order_by=None, select_related=None, prefetch_related=None, max_obj_num=1000):
-        self._ids = ids
-        self._order_by = order_by
-        self._select_related = select_related
-        self._prefetch_related = prefetch_related
-        self._generator = self._setup()
-        self.max_obj_num = max_obj_num
-
-    def _setup(self):
-        for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = FlowStep.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
-
-            if self._order_by:
-                chunk_queryset = chunk_queryset.order_by(*self._order_by)
-
-            if self._select_related:
-                chunk_queryset = chunk_queryset.select_related(*self._select_related)
-
-            if self._prefetch_related:
-                chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
-
-            for obj in chunk_queryset:
-                yield obj
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        return self._generator.next()
 
 
 class ExportFlowResultsTask(SmartModel):
@@ -3227,12 +3181,12 @@ class ExportFlowResultsTask(SmartModel):
             urn_display_cache[contact.pk] = urn_display
             return urn_display
 
-        for run_step in FlowStepIterator(step_ids,
-                                         order_by=['contact', 'run', 'arrived_on', 'pk'],
-                                         select_related=['run', 'contact'],
-                                         prefetch_related=['messages__contact_urn',
-                                                           'messages__channel',
-                                                           'contact__all_groups']):
+        for run_step in ChunkIterator(FlowStep, step_ids,
+                                      order_by=['contact', 'run', 'arrived_on', 'pk'],
+                                      select_related=['run', 'contact'],
+                                      prefetch_related=['messages__contact_urn',
+                                                        'messages__channel',
+                                                        'contact__all_groups']):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:

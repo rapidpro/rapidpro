@@ -23,6 +23,17 @@ from temba.values.models import VALUE_TYPE_CHOICES
 MAX_BULK_ACTION_ITEMS = 100
 
 
+def format_v1_datetime(value):
+    """
+    Datetime fields are limited to millisecond accuracy for v1
+    """
+    if not value:
+        return None
+
+    as_utc = value.astimezone(pytz.UTC)
+    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+
 def validate_bulk_fetch(fetched, uuids):
     """
     Validates a bulk fetch of objects against the provided list of UUIDs
@@ -43,8 +54,7 @@ class DateTimeField(serializers.DateTimeField):
     For backward compatibility, datetime fields are limited to millisecond accuracy
     """
     def to_representation(self, value):
-        as_utc = value.astimezone(pytz.UTC)
-        return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        return format_v1_datetime(value)
 
 
 class StringArrayField(serializers.ListField):
@@ -1099,7 +1109,7 @@ class FlowRunReadSerializer(ReadSerializer):
     created_on = DateTimeField()
     modified_on = DateTimeField()
     expires_on = DateTimeField()
-    expired_on = DateTimeField()
+    expired_on = serializers.SerializerMethodField()
     flow = serializers.SerializerMethodField()  # deprecated, use flow_uuid
 
     def get_flow(self, obj):
@@ -1132,6 +1142,9 @@ class FlowRunReadSerializer(ReadSerializer):
                               value=unicode(step.rule_value)))
 
         return steps
+
+    def get_expired_on(self, obj):
+        return format_v1_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
     class Meta:
         model = FlowRun
@@ -1247,7 +1260,7 @@ class FlowRunWriteSerializer(WriteSerializer):
             final_step = step_objs[len(step_objs) - 1] if step_objs else None
             completed_on = steps[len(steps) - 1]['arrived_on'] if steps else None
 
-            run.set_completed(True, final_step, completed_on=completed_on)
+            run.set_completed(final_step, completed_on=completed_on)
         else:
             run.modified_on = timezone.now()
             run.save(update_fields=('modified_on',))
