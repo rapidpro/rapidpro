@@ -176,6 +176,7 @@ class Flow(TembaModel, SmartModel):
     MESSAGE = 'M'
     VOICE = 'V'
     SURVEY = 'S'
+    USSD = 'U'
 
     RULES_ENTRY = 'R'
     ACTIONS_ENTRY = 'A'
@@ -183,7 +184,8 @@ class Flow(TembaModel, SmartModel):
     FLOW_TYPES = ((FLOW, _("Message flow")),
                   (MESSAGE, _("Single Message Flow")),
                   (VOICE, _("Phone call flow")),
-                  (SURVEY, _("Android Survey")))
+                  (SURVEY, _("Android Survey")),
+                  (USSD, _("USSD flow")))
 
     ENTRY_TYPES = ((RULES_ENTRY, "Rules"),
                    (ACTIONS_ENTRY, "Actions"))
@@ -3818,6 +3820,7 @@ class Action(object):
         if not cls.__action_mapping:
             cls.__action_mapping = {
                 ReplyAction.TYPE: ReplyAction,
+                UssdAction.TYPE: UssdAction,
                 SendAction.TYPE: SendAction,
                 AddToGroupAction.TYPE: AddToGroupAction,
                 DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
@@ -4309,6 +4312,45 @@ class ReplyAction(Action):
 
     def get_description(self):
         return "Replied with %s" % self.msg
+
+
+class UssdAction(Action):
+    """
+    Action to send an USSD message
+    """
+    TYPE = 'ussd'
+    MESSAGE = 'msg'
+
+    def __init__(self, msg=None):
+        self.msg = msg
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return UssdAction(msg=json_obj.get(UssdAction.MESSAGE))
+
+    def as_json(self):
+        return dict(type=UssdAction.TYPE, msg=self.msg)
+
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
+        if self.msg:
+            user = get_flow_user()
+            text = run.flow.get_localized_text(self.msg, run.contact)
+
+            if offline_on:
+                return [Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
+                                            created_on=offline_on, response_to=msg)]
+
+            context = run.flow.build_message_context(run.contact, msg)
+            if msg:
+                broadcast = msg.reply(text, user, trigger_send=False, message_context=context)
+            else:
+                broadcast = run.contact.send(text, user, trigger_send=False, message_context=context)
+
+            return list(broadcast.get_messages())
+        return []
+
+    def get_description(self):
+        return "USSD with %s" % self.msg
 
 
 class VariableContactAction(Action):
