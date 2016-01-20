@@ -50,6 +50,7 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
               scope.node.y = element[0].offsetTop
 
               Flow.determineFlowStart()
+              Plumb.setPageHeight()
 
               # reset our dragging flag after our current event loop
               $timeout ->

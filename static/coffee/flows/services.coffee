@@ -350,9 +350,12 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
         jsPlumb.repaint(element)
       else
         jsPlumb.repaintEverything()
+    , 0
 
+    $timeout ->
       service.setPageHeight()
     , 0
+
 
   disconnectRules: (rules) ->
     for rule in rules
