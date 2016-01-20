@@ -1,0 +1,25 @@
+.ussd-directive
+  %label
+    Add text:
+    %textarea{ng-model:"message",name:"ussd",auto-complete:"",required:"",flow:"[[$parent.flowId]]",ng-required:"",class:"ussd"}
+  %label
+    Add menu item(s):
+
+  .ng-form{name:"add_new_item",isolate-form:""}
+    %div.ussd-item.ussd-item-addnew
+      %span
+        %input.styled.ussd-number{type:"text",placeholder:"#",name:"number",ng-model:"newNumber",ng-required:"",number:""}
+      %span
+        %input.styled.ussd-label.invalid{type:"text",placeholder:"Label title",name:"label",ng-model:"newLabel",ng-required:""}
+      %span
+        %button.ussd-add{ng-click:'addMenuItem(newNumber, newLabel)',ng-disabled:"add_new_item.$invalid"}
+          +
+
+  %div.ussd-item.ussd-item-added{ng-repeat:"item in menu"}
+    %span
+      %input.styled.ussd-number{ng-model:"item.number",type:"text",ng-required:"",number:""}
+    %span
+      %input.styled.ussd-label{ng-model:"item.label",type:"text",ng-required:""}
+    %span
+      %button.ussd-remove{ng-click:'removeMenuItem($index)'}
+        &minus;
