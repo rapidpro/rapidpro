@@ -90,7 +90,7 @@ describe 'Directives:', ->
       result = ele.children().isolateScope()
 
       expect(html).toContain(132) # 132 characters for the counter
-      expect(html).toContain(" / 1") # of one message
+      expect(html).toContain(" \\/ 1") # of one message
 
       expect(result.showCounter).toBe(true)
       expect(result.characters).toBe(132)
