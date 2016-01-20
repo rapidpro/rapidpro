@@ -18,7 +18,7 @@ For questions and discussions for RapidPro developers. If you are not a develope
 ## Slack
 
 You can chat with the RapidPro developers in the public
-<a href="http://rapidprodev.herokuapp.com">Slack</a> room. You should not
+<a href="https://rapidprodev.slack.com/messages/development/">Slack</a> room. You should not
 use this room unless you are a developer. If you require support, please contact
 your hosting provider.
 
