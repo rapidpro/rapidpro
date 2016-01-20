@@ -1,6 +1,85 @@
 app = angular.module('temba.widgets', [])
 
 #============================================================================
+# Displaying USSD Menu with textarea, menu inputs and char counter
+#============================================================================
+app.directive "ussd", [ "$log", "Flow", ($log, Flow) ->
+  MESSAGE_LENGTH = 182
+
+  link = (scope, element, attrs) ->
+    scope.menu = []
+
+    scope.showCounter = true
+    if attrs.showCounter?
+      scope.showCounter = eval(attrs.showCounter)
+
+    # find out how many sms messages this will be
+    scope.countCharacters = ->
+      if scope.message
+        length = scope.message.length
+        scope.messages = Math.ceil(length/MESSAGE_LENGTH)
+        scope.characters = scope.messages * MESSAGE_LENGTH - length
+      else
+        scope.messages = 0
+        scope.characters = MESSAGE_LENGTH
+
+    # update our counter everytime the message changes
+    scope.$watch (->scope.message), scope.countCharacters
+
+    # determine the initial message based on the current language
+    if scope.ussd
+      # search for first menu item
+      content = scope.ussd[Flow.flow.base_language].split(/\n/g)
+      for item, index in content
+        if item.indexOf(": ") isnt -1
+          menuIndex = index
+          break
+
+      if menuIndex
+        # build menu
+        scope.message = content[0..menuIndex-1].join("\n")
+        for item in content[menuIndex..]
+          menuItem = item.split(": ")
+          scope.menu.push
+            number:menuItem[0]
+            label:menuItem[1]
+      else
+        scope.message = scope.ussd[Flow.flow.base_language]
+      if not scope.message
+        scope.message = ""
+
+      # set new menu item number
+      scope.$watch (->scope.menu.length), ->
+        if scope.menu.length < 9
+          scope.newNumber = scope.menu.length + 1
+        else
+          scope.newNumber = 0
+        scope.newLabel = ""
+
+      isPositiveInteger = (n) ->
+        n >>> 0 is parseFloat(n)
+
+    scope.addMenuItem = (number, label) ->
+      scope.menu.push
+        number: number
+        label: label
+
+    scope.removeMenuItem = (index) ->
+      scope.menu.splice(index, 1)
+
+  return {
+    templateUrl: "/partials/ussd_directive"
+    restrict: "A"
+    link: link
+    scope: {
+      ussd: '='
+      message: '='
+      menu: '='
+    }
+  }
+]
+
+#============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
 app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
