@@ -3,9 +3,12 @@ from __future__ import unicode_literals
 import json
 import pycountry
 import regex
+import pytz
+import time
+
 
 from collections import OrderedDict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -29,7 +32,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm, BaseActionForm
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
-from temba.utils import analytics, slugify_with
+from temba.utils import analytics, slugify_with, languages
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
 
@@ -151,6 +154,7 @@ class ContactActionForm(BaseActionForm):
                        ('delete', _("Delete Contacts")))
 
     OBJECT_CLASS = Contact
+    OBJECT_CLASS_MANAGER = 'objects'
     LABEL_CLASS = ContactGroup
     LABEL_CLASS_MANAGER = 'user_groups'
     HAS_IS_ACTIVE = True
@@ -254,8 +258,8 @@ class UpdateContactForm(ContactForm):
         # if they had a preference that has since been removed, make sure we show it
         if self.instance.language:
             if not self.instance.org.languages.filter(iso_code=self.instance.language).first():
-                lang = pycountry.languages.get(bibliographic=self.instance.language)
-                choices += [(self.instance.language, _("%s (Missing)") % lang.name)]
+                lang = languages.get_language_name(self.instance.language)
+                choices += [(self.instance.language, _("%s (Missing)") % lang)]
 
         choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
 
@@ -325,12 +329,17 @@ class ContactCRUDL(SmartCRUDL):
 
         class CustomizeForm(forms.ModelForm):
             def clean(self):
+
+                used_labels = []
                 # don't allow users to specify field keys or labels
                 re_col_name_field = regex.compile(r'column_\w+_label', regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
-                        field_key = slugify_with(value)
+                        if field_label.startswith('[_NEW_]'):
+                            field_label = field_label[7:]
+
+                        field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
                             raise ValidationError(_("Field names can only contain letters, numbers, "
@@ -338,6 +347,12 @@ class ContactCRUDL(SmartCRUDL):
 
                         if field_key in Contact.RESERVED_FIELDS:
                             raise ValidationError(_("%s is a reserved name for contact fields") % value)
+
+                        if field_label in used_labels:
+                            raise ValidationError(_("%s should be used once") % field_label)
+
+                        used_labels.append(field_label)
+
                 return self.cleaned_data
 
             class Meta:
@@ -352,15 +367,34 @@ class ContactCRUDL(SmartCRUDL):
             Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
             containing the column label and the names of the fields
             """
+
+            org = self.derive_org()
+
             column_controls = []
             for header in column_headers:
                 header_key = slugify_with(header)
 
-                include_field = forms.BooleanField(label=' ', required=False)
+                include_field = forms.BooleanField(label=' ', required=False, initial=True)
                 include_field_name = 'column_%s_include' % header_key
                 label_field = forms.CharField(label=' ', initial=header.title())
+
+
+                label_initial = ContactField.get_by_label(org, header.title())
+
+                label_field_initial = header.title()
+                if label_initial:
+                    label_field_initial = label_initial.label
+
+                label_field = forms.CharField( initial=label_field_initial,
+                                                     required=False, label=' ')
+
                 label_field_name = 'column_%s_label' % header_key
-                type_field = forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, required=True)
+
+                type_field_initial = None
+                if label_initial:
+                    type_field_initial = label_initial.value_type
+
+                type_field = forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, required=True, initial=type_field_initial)
                 type_field_name = 'column_%s_type' % header_key
 
                 fields = []
@@ -379,8 +413,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Customize, self).get_context_data(**kwargs)
+
+            org = self.derive_org()
+
             context['column_controls'] = self.column_controls
             context['task'] = self.get_object()
+
+            contact_fields = sorted([dict(id=elt['label'], text=elt['label']) for elt in ContactField.objects.filter(org=org, is_active=True).values('label')], key=lambda k: k['text'].lower())
+            context['contact_fields'] = json.dumps(contact_fields)
 
             return context
 
@@ -401,6 +441,9 @@ class ContactCRUDL(SmartCRUDL):
             for column in self.column_controls:
                 if cleaned_data[column['include_field']]:
                     label = cleaned_data[column['label_field']]
+                    if label.startswith("[_NEW_]"):
+                        label = label[7:]
+
                     label = label.strip()
                     value_type = cleaned_data[column['type_field']]
                     org = self.derive_org()
@@ -410,6 +453,7 @@ class ContactCRUDL(SmartCRUDL):
                     existing_field = ContactField.get_by_label(org, label)
                     if existing_field:
                         field_key = existing_field.key
+                        value_type = existing_field.value_type
 
                     extra_fields.append(dict(key=field_key, header=column['header'], label=label, type=value_type))
 
@@ -536,7 +580,6 @@ class ContactCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(json_result), content_type='application/json')
 
     class Read(OrgObjPermsMixin, SmartReadView):
-        refresh = 30000
         fields = ('name',)
 
         def derive_title(self):
@@ -555,29 +598,39 @@ class ContactCRUDL(SmartCRUDL):
                 contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
 
             if contact is None:
-                raise Http404("No active contact with that id")
+                raise Http404("No active contact with that UUID")
 
             return contact
 
         def get_context_data(self, **kwargs):
-            from temba.channels.models import SEND
+            context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
 
             contact = self.object
             if not contact.is_active:
                 raise Http404("No active contact with that id")
 
-            def contact_cmp(a, b):
-                if a.__class__ == b.__class__:
-                    return a.pk - b.pk
-                else:
-                    if a.created_on == b.created_on:
-                        return 0
-                    elif a.created_on < b.created_on:
-                        return -1
-                    else:
-                        return 1
+            # the users group membership
+            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
+
+            # event fires
+            event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
+            scheduled_messages = contact.get_scheduled_messages()
+
+            merged_upcoming_events = []
+            for fire in event_fires:
+                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.message,
+                                                   flow_id=fire.event.flow.pk, flow_name=fire.event.flow.name,
+                                                   scheduled=fire.scheduled))
+
+            for sched_broadcast in scheduled_messages:
+                merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M', message=sched_broadcast.text, flow_id=None,
+                                                   flow_name=None, scheduled=sched_broadcast.schedule.next_fire))
+
+            # upcoming scheduled events
+            context['upcoming_events'] = sorted(merged_upcoming_events, key=lambda k: k['scheduled'], reverse=True)
 
             # divide contact's URNs into those we can send to, and those we can't
+            from temba.channels.models import SEND
             sendable_schemes = contact.org.get_schemes(SEND)
             sendable_urns = []
             unsendable_urns = []
@@ -586,19 +639,30 @@ class ContactCRUDL(SmartCRUDL):
                     sendable_urns.append(urn)
                 else:
                     unsendable_urns.append(urn)
-
-            text_messages = Msg.objects.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on', '-id')
-            call_messages = Call.objects.filter(contact=contact.id).order_by('-created_on', '-id')
-            all_messages = chain(text_messages, call_messages)
-            all_messages = sorted(all_messages, cmp=contact_cmp, reverse=True)
-
-            context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
-            context['all_messages'] = all_messages
             context['contact_sendable_urns'] = sendable_urns
             context['contact_unsendable_urns'] = unsendable_urns
-            context['contact_fields'] = ContactField.objects.filter(org=contact.org, is_active=True).order_by('pk')
-            context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
-            context['upcoming_events'] = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by('scheduled')
+
+            # load our contacts values
+            Contact.bulk_cache_initialize(contact.org, [contact])
+
+            # lookup all of our contact fields
+            contact_fields = []
+            fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
+            for field in fields:
+                value = getattr(contact, '__field__%s' % field.key)
+                if value:
+                    display = Contact.get_field_display_for_value(field, value)
+                    contact_fields.append(dict(label=field.label, value=display, featured=field.show_in_table))
+
+            # stuff in the contact's language in the fields as well
+            if contact.language:
+                lang = languages.get_language_name(contact.language)
+                if not lang:
+                    lang = contact.language
+                contact_fields.append(dict(label='Language', value=lang, featured=True))
+
+            context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
+            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -637,6 +701,114 @@ class ContactCRUDL(SmartCRUDL):
                                       js_class='contact-delete-button', href='#'))
 
             return links
+
+    class History(OrgObjPermsMixin, SmartReadView):
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            # overloaded to have uuid pattern instead of integer id
+            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
+
+        def get_object(self, queryset=None):
+            uuid = self.kwargs.get('uuid')
+            if self.request.user.is_superuser:
+                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
+            else:
+                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
+
+            if contact is None:
+                raise Http404("No active contact with that id")
+
+            return contact
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
+
+            from temba.flows.models import FlowRun, Flow
+            from temba.campaigns.models import EventFire
+
+            def activity_cmp(a, b):
+
+                if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
+                    a.created_on = a.fired
+
+                if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
+                    b.created_on = b.fired
+
+                if a.created_on == b.created_on:
+                    return 0
+                elif a.created_on < b.created_on:
+                    return -1
+                else:
+                    return 1
+
+            contact = self.get_object()
+
+            # determine our start and end time based on the page
+            page = int(self.request.REQUEST.get('page', 1))
+            msgs_per_page = 100
+            start_time = None
+
+            # if we are just grabbing recent history use that window
+
+            recent_seconds = int(self.request.REQUEST.get('rs', 0))
+            recent = self.request.REQUEST.get('r', False)
+            context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
+
+            text_messages = Msg.all_messages.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')
+            if recent:
+                start_time = context['recent_date']
+                text_messages = text_messages.filter(created_on__gt=start_time)
+                context['recent'] = True
+
+            # other wise, just grab 100 messages within our page (and an extra marker, for determining more)
+            else:
+                start_message = (page - 1) * msgs_per_page
+                end_message = page * msgs_per_page
+                text_messages = text_messages[start_message:end_message+1]
+
+            # ignore our lead message past the first page
+            count = len(text_messages)
+            first_message = 0
+
+            # if we got an extra one at the end too, trim it off
+            context['more'] = False
+            if count > msgs_per_page and not recent:
+                context['more'] = True
+                start_time = text_messages[count - 1].created_on
+                count -= 1
+
+            # grab up to 100 messages from our first message
+            if not recent_seconds:
+                text_messages = text_messages[first_message:first_message+100]
+
+            activity = []
+
+            if count > 0:
+                # if we don't know our start time, go back to the beginning
+                if not start_time:
+                    start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
+
+                # if we don't know our stop time yet, assume the first message
+                if page == 1:
+                    end_time = timezone.now()
+                else:
+                    end_time = text_messages[0].created_on
+
+                context['start_time'] = start_time
+
+                # all of our runs and events
+                runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+                fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+
+                # missed calls
+                calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+
+                # now chain them all together in the same list and sort by time
+                activity = sorted(chain(text_messages, runs, fired, calls), cmp=activity_cmp, reverse=True)
+
+            context['activity'] = activity
+            return context
 
     class List(ContactActionMixin, ContactListView):
         title = _("Contacts")
@@ -848,48 +1020,6 @@ class ContactCRUDL(SmartCRUDL):
 
             return obj
 
-    class History(Read):
-        """
-        Displays a history of events that happend on this contact, including messages, event fires, flow
-        starts etc, all in order of when they occurred.
-        """
-        template_name = 'contacts/contact_history.html'
-
-        def get_context_data(self, **kwargs):
-            from temba.campaigns.models import EventFire
-            from temba.flows.models import FlowStep, RULE_SET, ACTION_SET
-
-            context = super(ContactCRUDL.History, self).get_context_data(**kwargs)
-
-            # this will contain all our events as pairs of datetime->event
-            events = []
-
-            # first add all our messages
-            for msg in Msg.objects.filter(contact=self.object):
-                events.append((msg.created_on, msg))
-
-            # now add all our event fires
-            for ef in EventFire.objects.filter(contact=self.object).exclude(fired=None):
-                if ef.fired:
-                    events.append((ef.fired, ef))
-                else:
-                    events.append((ef.scheduled, ef))
-
-            # flow rule steps that got processed
-            for fs in FlowStep.objects.filter(contact=self.object, step_type=RULE_SET).exclude(left_on=None):
-                events.append((fs.left_on, fs))
-
-            # flow action steps that were found
-            for fs in FlowStep.objects.filter(contact=self.object, step_type=ACTION_SET):
-                events.append((fs.arrived_on, fs))
-
-            # sort by id first, then by pk
-            events = sorted(events, key=lambda event: event[1].id, reverse=True)
-            events = sorted(events, key=lambda event: event[0], reverse=True)
-
-            context['events'] = events
-            return context
-
     class Block(OrgPermsMixin, SmartUpdateView):
         """
         Block this contact
@@ -1037,7 +1167,7 @@ class ManageFieldsForm(forms.Form):
                     if label.lower() in used_labels:
                         raise ValidationError(_("Field names must be unique"))
 
-                    elif label in Contact.RESERVED_FIELDS:
+                    elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
 
@@ -1061,7 +1191,9 @@ class ContactFieldCRUDL(SmartCRUDL):
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)
                 results.append(result)
-            return HttpResponse(json.dumps(results), content_type='application/javascript')
+
+            sorted_results = sorted(results, key=lambda k: k['label'].lower())
+            return HttpResponse(json.dumps(sorted_results), content_type='application/javascript')
 
     class Managefields(ModalMixin, OrgPermsMixin, SmartFormView):
         title = _("Manage Contact Fields")

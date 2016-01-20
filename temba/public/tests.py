@@ -117,16 +117,25 @@ class PublicTest(SmartminTest):
     def test_sitemaps(self):
         sitemap_url = reverse('public.sitemaps')
 
-        # get the count of items, we are expecting only 13 items for now. We have no video item yet.
+        # number of fixed items (i.e. not videos, differs between configurations)
         response = self.client.get(sitemap_url)
-        self.assertEquals(len(response.context['urlset']), 12)
 
-        # add a video on the item, we will now have 14 items
+        # but first item is always home page
+        self.assertEquals(response.context['urlset'][0], {'priority': '0.5',
+                                                          'item': 'public.public_index',
+                                                          'lastmod': None,
+                                                          'changefreq': 'daily',
+                                                          'location': u'http://example.com/'})
+
+        num_fixed_items = len(response.context['urlset'])
+
+        # adding a video will dynamically add a new item
         Video.objects.create(name="Item14", summary="Unicorn", description="Video of unicorns", vimeo_id="1234",
                              order=0, created_by=self.superuser, modified_by=self.superuser)
 
         response = self.client.get(sitemap_url)
-        self.assertEquals(len(response.context['urlset']), 13)
+        self.assertEqual(len(response.context['urlset']), num_fixed_items + 1)
+
 
 class VideoCRUDLTest(_CRUDLTest):
 

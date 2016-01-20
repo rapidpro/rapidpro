@@ -12,7 +12,6 @@
       padding: 3px 10px;
       margin-bottom: 10px;
     }
-
     label h3 {
       margin-top: 0px;
       margin-bottom: 0px;
@@ -22,6 +21,14 @@
       margin-bottom: 10px;
       padding-bottom: 10px;
       border-bottom: 1px solid #ccc;
+    }
+
+    .topup.expired {
+      border-bottom: 1px solid rgb(178, 23, 26);
+    }
+
+    .topup.expiring {
+      border-bottom: 1px solid #e68628;
     }
 
     .topup-price {
@@ -42,6 +49,14 @@
       margin-top: 5px;
       float: right;
       font-style: italic;
+    }
+
+    .topup.expired > .topup-expires {
+      color: rgb(178, 23, 26);
+    }
+
+    .topup.expiring > .topup-expires {
+      color: #e68628;
     }
 
     .title-icon + .title-text {
@@ -91,7 +106,7 @@
           -trans "credits remaining. Top up early to prevent any disruption in your service."
 
   -for topup in object_list
-    .topup{ class:"{% if topup.expires_on < now %}expired{% endif %}" }
+    .topup{ class:"{% if topup.expires_on < now %}expired{% elif topup.expires_on < expiration_period %}expiring{% endif %}" }
       .topup-price
         -if not topup.price
           -trans "FREE"
@@ -124,4 +139,3 @@
               {{ topup.created_on }}
               -trans " by "
               {{ topup.created_by.first_name }} {{ topup.created_by.last_name }}
-

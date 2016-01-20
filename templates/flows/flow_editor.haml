@@ -298,7 +298,7 @@
                 .category
                   All Responses
 
-        .node{ng-repeat:'action_set in flow.action_sets', drop-scope:'[[getAcceptedScopes("actionset")]]', node:'action_set', ng-dblclick:'$event.stopPropagation()',
+        .node{ng-repeat:'action_set in flow.action_sets', drop-scope:'actions rules', node:'action_set', ng-dblclick:'$event.stopPropagation()',
                ng-attr-id:'[[action_set.uuid]]', class:'action-node', ng-class:'{recents:action_set._showMessages, translate:lastActionMissingTranslation(action_set)}',
                ng-style:"{left:action_set.x, top:action_set.y}"}
 
@@ -432,7 +432,7 @@
 
 
         .node{ng-repeat:'ruleset in flow.rule_sets track by ruleset.uuid',
-              node:'ruleset', drop-scope:'[[getAcceptedScopes("ruleset")]]', ng-dblclick:'$event.stopPropagation()',
+              node:'ruleset', drop-scope:'actions rules', ng-dblclick:'$event.stopPropagation()',
               class:'rule-node', ng-attr-id:'[[ruleset.uuid]]',
               ng-class:"{recents:ruleset._showMessages}",
               ng-style:"{left:ruleset.x, top:ruleset.y}"}

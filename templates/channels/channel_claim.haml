@@ -65,13 +65,13 @@
                   code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
                   in a few simple steps.
 
-    -if user_org.timezone == 'Africa/Nairobi'
+    -if user_org.timezone == 'Africa/Nairobi' or user_org.timezone == 'Africa/Kampala'
       .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-            We recommend using an Africa's Talking shortcode in Kenya. Visit {{link_start}}their website{{link_end}} for details.
+            We recommend using an Africa's Talking shortcode in Kenya or Uganda. Visit {{link_start}}their website{{link_end}} for details.
 
         .row
           .span3
@@ -84,7 +84,7 @@
             .claim-description
               %div
                 -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-                  If you are based in Kenya, you can purchase a short
+                  If you are based in Kenya or Uganda, you can purchase a short
                   code from {{link_start}}Africa's Talking{{link_end}} and connect it
                   in a few simple steps.
 
@@ -197,10 +197,7 @@
             .claim-description
               %div
                 -blocktrans
-                  Instantly add a dedicated phone number in the area code of your
-                  choice from your connected
-                %a.twilio-account{href:"#"}
-                  -trans "Twilio Account."
+                  Instantly add a dedicated phone number in the area code of your choice.
 
     -if not user_org.is_connected_to_nexmo
       .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
@@ -346,6 +343,21 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs.
 
+    -if user_org.timezone == 'Europe/Kiev'
+      .claim-row.start-channel
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_start' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Start Mobile Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
+
     -if False
       .claim-row.infobip-channel
         .recommendation.hide
@@ -457,12 +469,16 @@
                 -blocktrans
                   Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.
 
+
+
 -block form-buttons
 
 -block extra-script
   {{block.super}}
 
   :javascript
+
+
     $(document).ready(function() {
       var channel = $('.claim-row.recommended');
       $('.channel-options').prepend(channel);
@@ -478,14 +494,6 @@
           form = modal.ele.find("form");
           form.attr('autocomplete', 'off');
         }});
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% else %}
-      $(".twilio-account").live('click', function() {
-        var modal = new Modax('{% trans "Disconnect Twilio" %}', '{% url "orgs.org_twilio_account" %}');
-        modal.setIcon("icon-channel-twilio");
-        modal.addClass("alert");
         modal.setRedirectOnSuccess(true);
         modal.show();
       });

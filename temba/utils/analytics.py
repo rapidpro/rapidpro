@@ -2,12 +2,34 @@ from __future__ import absolute_import
 
 import analytics as segment_analytics
 from django.conf import settings
+from librato_bg import Client
+
+# our librato_bg client
+_librato = None
+
+
+def init_librato(user, token):
+    global _librato
+    _librato = Client(user, token)
+
+
+def gauge(event, value=None):
+    """
+    Triggers a gauge event in Librato
+    """
+    if value is None:
+        value = 1
+
+    if _librato:
+        _librato.gauge(event, value, settings.HOSTNAME)
+
 
 def identify(username, attributes):
     """
     Pass through to segment.io analytics.
     """
     segment_analytics.identify(username, attributes)
+
 
 def track(user, event, properties=None, context=None):
     """

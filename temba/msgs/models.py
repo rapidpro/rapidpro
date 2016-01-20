@@ -204,6 +204,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
+    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
+
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
         create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
@@ -314,9 +316,6 @@ class Broadcast(models.Model):
     def get_message_failed_count(self):
         return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
 
-    def get_first_message(self):
-        return self.get_messages().first()
-
     def get_sync_commands(self, channel):
         """
         Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
@@ -353,8 +352,8 @@ class Broadcast(models.Model):
             response_to = None
 
         # cannot ask for sending by us AND specify a created on, blow up in that case
-        if trigger_send and created_on:
-            raise Exception("Cannot trigger send and specify a created_on, breaks creating batches")
+        if trigger_send and created_on:  # pragma: no cover
+            raise ValueError("Cannot trigger send and specify a created_on, breaks creating batches")
 
         if partial_recipients:
             # if flow is being started, it'll provide a batch of unique contacts itself
@@ -438,11 +437,11 @@ class Broadcast(models.Model):
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
-                Msg.objects.bulk_create(batch)
+                Msg.all_messages.bulk_create(batch)
 
                 # send any messages
                 if trigger_send:
-                    self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                    self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
                     # increment our created on so we can load our next batch
                     created_on = created_on + timedelta(seconds=1)
@@ -451,10 +450,10 @@ class Broadcast(models.Model):
 
         # commit any remaining objects
         if batch:
-            Msg.objects.bulk_create(batch)
+            Msg.all_messages.bulk_create(batch)
 
             if trigger_send:
-                self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
         # for large batches, status is handled externally
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
@@ -501,6 +500,11 @@ class Broadcast(models.Model):
 
     def __unicode__(self):
         return "%s (%s)" % (self.org.name, self.pk)
+
+
+class CurrentMessagesManager(models.Manager):
+    def get_queryset(self):
+        return super(CurrentMessagesManager, self).get_queryset().filter(purged=False)
 
 
 class Msg(models.Model):
@@ -609,6 +613,14 @@ class Msg(models.Model):
     recording_url = models.URLField(null=True, blank=True, max_length=255,
                                     help_text=_("The url for any recording associated with this message"))
 
+    purged = models.BooleanField(default=False, help_text="If this message has been purged")
+
+    all_messages = models.Manager()
+    current_messages = models.Manager()
+
+    # TODO: once migration is complete
+    # current_messages = CurrentMessagesManager()
+
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -628,7 +640,7 @@ class Msg(models.Model):
                 queued_on = timezone.now()
 
                 # update them to queued
-                send_messages = Msg.objects.filter(id__in=msg_ids)\
+                send_messages = Msg.current_messages.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=ANDROID)\
                                            .exclude(msg_type=IVR)\
                                            .exclude(topup=None)\
@@ -665,12 +677,12 @@ class Msg(models.Model):
             for handler in handlers:
                 try:
                     start = None
-                    if settings.DEBUG:
+                    if settings.DEBUG:  # pragma: no cover
                         start = time.time()
 
                     handled = handler.handle(msg)
 
-                    if start:
+                    if start:  # pragma: no cover
                         print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk)
 
                     if handled:
@@ -688,15 +700,15 @@ class Msg(models.Model):
 
         # record our handling latency for this object
         if msg.queued_on:
-            analytics.track("System", "temba.handling_latency", properties=dict(value=(msg.delivered_on - msg.queued_on).total_seconds()))
+            analytics.gauge('temba.handling_latency', (msg.delivered_on - msg.queued_on).total_seconds())
 
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
-        analytics.track("System", "temba.channel_handling_latency", properties=dict(value=(msg.delivered_on - msg.created_on).total_seconds()))
+        analytics.gauge('temba.channel_handling_latency', (msg.delivered_on - msg.created_on).total_seconds())
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
-        messages = Msg.objects.filter(org=org)
+        messages = Msg.all_messages.filter(org=org)
 
         if is_archived:
             messages = messages.filter(visibility=ARCHIVED)
@@ -718,7 +730,7 @@ class Msg(models.Model):
         probably be confusing to go out.
         """
         one_week_ago = timezone.now() - timedelta(days=7)
-        failed_messages = Msg.objects.filter(created_on__lte=one_week_ago, direction=OUTGOING,
+        failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
                                              status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
@@ -738,7 +750,7 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.objects.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
+            unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
                                               contact__is_test=False, created_on__gt=org.msg_last_viewed, labels=None).count()
 
             cache.set(key, unread_count, 900)
@@ -774,10 +786,10 @@ class Msg(models.Model):
             if isinstance(msg, Msg):
                 msg.fail()
             else:
-                Msg.objects.select_related('org').get(pk=msg.id).fail()
+                Msg.current_messages.select_related('org').get(pk=msg.id).fail()
 
             if channel:
-                analytics.track("System", "temba.msg_failed_%s" % channel.channel_type.lower())
+                analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
         else:
             msg.status = ERRORED
             msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
@@ -785,7 +797,7 @@ class Msg(models.Model):
             if isinstance(msg, Msg):
                 msg.save(update_fields=('status', 'next_attempt', 'error_count'))
             else:
-                Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
+                Msg.all_messages.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
@@ -794,7 +806,7 @@ class Msg(models.Model):
             pipe.execute()
 
             if channel:
-                analytics.track("System", "temba.msg_errored_%s" % channel.channel_type.lower())
+                analytics.gauge('temba.msg_errored_%s' % channel.channel_type.lower())
 
     @classmethod
     def mark_sent(cls, r, channel, msg, status, latency, external_id=None):
@@ -815,22 +827,22 @@ class Msg(models.Model):
         pipe.execute()
 
         if external_id:
-            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
+            Msg.current_messages.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
         else:
-            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
+            Msg.current_messages.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
         # record our latency between the message being created and it being sent
         # (this will have some db latency but will still be a good measure in the second-range)
 
         # hasattr needed here as queued_on being included is new, so some messages may not have the attribute after push
         if getattr(msg, 'queued_on', None):
-            analytics.track("System", "temba.sending_latency", properties=dict(value=(msg.sent_on - msg.queued_on).total_seconds()))
+            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
         else:
-            analytics.track("System", "temba.sending_latency", properties=dict(value=(msg.sent_on - msg.created_on).total_seconds()))
+            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.created_on).total_seconds())
 
         # logs that a message was sent for this channel type if our latency is known
         if latency > 0:
-            analytics.track("System", "temba.msg_sent_%s" % channel.channel_type.lower(), properties=dict(value=latency))
+            analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), latency)
 
     def as_json(self):
         return dict(direction=self.direction,
@@ -936,15 +948,15 @@ class Msg(models.Model):
                       dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
 
     def build_message_context(self):
-        message_context = dict()
-        message_context['__default__'] = self.text
+        date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        tz = pytz.timezone(self.org.timezone)
 
-        message_context['contact'] = self.contact.build_message_context()
-
-        message_context['value'] = self.text
-        message_context['time'] = self.created_on
-
-        return message_context
+        return {
+            '__default__': self.text,
+            'value': self.text,
+            'contact': self.contact.build_message_context(),
+            'time': datetime_to_str(self.created_on, format=date_format, tz=tz)
+        }
 
     def resend(self):
         """
@@ -955,7 +967,7 @@ class Msg(models.Model):
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
 
-        cloned = Msg.objects.create(org=self.org,
+        cloned = Msg.all_messages.create(org=self.org,
                                     channel=channel,
                                     contact=self.contact,
                                     contact_urn=self.contact_urn,
@@ -1033,7 +1045,7 @@ class Msg(models.Model):
         else:
             contact_urn = None
 
-        existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
+        existing = Msg.all_messages.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1062,10 +1074,10 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        msg = Msg.objects.create(**msg_args)
+        msg = Msg.all_messages.create(**msg_args)
 
         if channel:
-            analytics.track('System', 'temba.msg_incoming_%s' % channel.channel_type.lower())
+            analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
         if status == PENDING:
             msg.handle()
@@ -1076,7 +1088,8 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, contact, message_context, org=None, url_encode=False, partial_vars=False):
+    def substitute_variables(cls, text, contact, message_context,
+                             org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1157,19 +1170,23 @@ class Msg(models.Model):
         if not message_context:
             message_context = dict()
 
+        # make sure 'channel' is populated if we have a channel
+        if channel:
+            message_context['channel'] = channel.build_message_context()
+
         (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
-            same_msgs = Msg.objects.filter(contact_urn=contact_urn,
-                                           contact__is_test=False,
-                                           channel=channel,
-                                           recording_url=recording_url,
-                                           text=text,
-                                           direction=OUTGOING,
-                                           created_on__gte=created_on - timedelta(minutes=10))
+            same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
+                                                    contact__is_test=False,
+                                                    channel=channel,
+                                                    recording_url=recording_url,
+                                                    text=text,
+                                                    direction=OUTGOING,
+                                                    created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1177,21 +1194,21 @@ class Msg(models.Model):
             channel_id = channel.pk if channel else None
 
             if same_msg_count >= 10:
-                analytics.track('System', "temba.msg_loop_caught", dict(org=org.pk, channel=channel_id))
+                analytics.gauge('temba.msg_loop_caught')
                 return None
 
             # be more aggressive about short codes for duplicate messages
             # we don't want machines talking to each other
             tel = contact.raw_tel()
             if tel and len(tel) < 6:
-                same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
-                                                    contact__is_test=False,
-                                                    channel=channel,
-                                                    text=text,
-                                                    direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(hours=24)).count()
+                same_msg_count = Msg.current_messages.filter(contact_urn=contact_urn,
+                                                             contact__is_test=False,
+                                                             channel=channel,
+                                                             text=text,
+                                                             direction=OUTGOING,
+                                                             created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
-                    analytics.track('System', "temba.msg_shortcode_loop_caught", dict(org=org.pk, channel=channel_id))
+                    analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
 
         # costs 1 credit to send a message
@@ -1205,7 +1222,7 @@ class Msg(models.Model):
 
         # track this if we have a channel
         if channel:
-            analytics.track('System', 'temba.msg_outgoing_%s' % channel.channel_type.lower())
+            analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1225,7 +1242,7 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
+        return Msg.all_messages.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
     def resolve_recipient(org, user, recipient, channel, role=SEND):
@@ -1274,6 +1291,7 @@ class Msg(models.Model):
         self.status = SENT
         self.sent_on = timezone.now()
         self.save(update_fields=('status', 'sent_on'))
+
         Channel.track_status(self.channel, "Sent")
 
     def status_delivered(self):
@@ -1285,6 +1303,7 @@ class Msg(models.Model):
         if not self.sent_on:
             self.sent_on = timezone.now()
         self.save(update_fields=('status', 'delivered_on', 'sent_on'))
+
         Channel.track_status(self.channel, "Delivered")
 
     def archive(self):
@@ -1414,7 +1433,7 @@ class Call(SmartModel):
                                    created_by=user,
                                    modified_by=user)
 
-        analytics.track('System', 'temba.call_%s' % call.get_call_type_display().lower(), dict(channel_type=channel.get_channel_type_display()))
+        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower().replace(' ', '_'))
 
         WebHookEvent.trigger_call_event(call)
 
@@ -1474,23 +1493,24 @@ class SystemLabel(models.Model):
         return labels
 
     @classmethod
-    def get_queryset(cls, org, label_type):
+    def get_queryset(cls, org, label_type, exclude_test_contacts=True):
         """
         Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
         trigger used to maintain the label counts.
         """
+        # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.current_messages.filter(direction=INCOMING, visibility=ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.current_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
@@ -1500,10 +1520,11 @@ class SystemLabel(models.Model):
 
         qs = qs.filter(org=org)
 
-        if label_type == cls.TYPE_SCHEDULED:
-            qs = qs.exclude(contacts__is_test=True)
-        else:
-            qs = qs.exclude(contact__is_test=True)
+        if exclude_test_contacts:
+            if label_type == cls.TYPE_SCHEDULED:
+                qs = qs.exclude(contacts__is_test=True)
+            else:
+                qs = qs.exclude(contact__is_test=True)
 
         return qs
 
@@ -1533,7 +1554,7 @@ class UserLabelManager(models.Manager):
         return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-class Label(TembaModel, SmartModel):
+class Label(TembaModel):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
@@ -1623,7 +1644,8 @@ class Label(TembaModel, SmartModel):
         return queryset.filter(labels=self)
 
     def get_messages(self):
-        return self.filter_messages(Msg.objects.all())
+        # TODO: consider purpose built indexes
+        return self.filter_messages(Msg.all_messages.all())
 
     def get_visible_count(self):
         """
@@ -1690,7 +1712,7 @@ class MsgIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
+            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i+self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)
@@ -1709,6 +1731,7 @@ class MsgIterator(object):
 
     def next(self):
         return self._generator.next()
+
 
 class ExportMessagesTask(SmartModel):
     """
