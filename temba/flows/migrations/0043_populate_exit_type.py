@@ -6,6 +6,10 @@ from django.db.models import Prefetch, F
 from temba.utils import chunk_list
 
 
+FETCH_BATCH_SIZE = 1000000
+UPDATE_BATCH_SIZE = 1000
+
+
 def step_is_terminal(step, terminal_nodes):
     if step.step_uuid in terminal_nodes:
         return True  # an action set with no destination
@@ -15,25 +19,44 @@ def step_is_terminal(step, terminal_nodes):
         return False
 
 
-def populate_exit_type(apps, schema_editor):
+def populate_exit_type_migration(apps, schema_editor):
+    """
+    For running migration logic inside a database sync
+    """
     FlowRun = apps.get_model('flows', 'FlowRun')
     FlowStep = apps.get_model('flows', 'FlowStep')
     ActionSet = apps.get_model('flows', 'ActionSet')
 
-    do_populate_exit_type(FlowRun, FlowStep, ActionSet)
+    populate_exit_type(FlowRun, FlowStep, ActionSet)
 
 
 def populate_exit_type_offline():
+    """
+    For running migration logic outside of an actual database sync
+    """
     from temba.flows.models import FlowRun, FlowStep, ActionSet
-    do_populate_exit_type(FlowRun, FlowStep, ActionSet)
+    populate_exit_type(FlowRun, FlowStep, ActionSet)
 
 
-def do_populate_exit_type(FlowRun, FlowStep, ActionSet):
-    # grab ids of all inactive runs
-    exited_run_ids = FlowRun.objects.filter(is_active=False, exit_type=None).values_list('pk', flat=True)
+def populate_exit_type(FlowRun, FlowStep, ActionSet):
+    total = 0
+    while True:
+        # keep processing batches of runs until method returns 0
+        updated = populate_exit_type_batch(FlowRun, FlowStep, ActionSet)
+        if updated:
+            total += updated
+            print "Updated total of %d flow runs so far" % total
+        else:
+            break
+
+
+def populate_exit_type_batch(FlowRun, FlowStep, ActionSet):
+    # grab ids of a batch of inactive runs with no exit type
+    exited_run_ids = FlowRun.objects.filter(is_active=False, exit_type=None)
+    exited_run_ids = list(exited_run_ids.values_list('pk', flat=True)[:FETCH_BATCH_SIZE])
 
     if not exited_run_ids:
-        return
+        return 0
 
     print "Fetched ids of %d potentially expired, completed or stopped runs" % len(exited_run_ids)
 
@@ -47,7 +70,7 @@ def do_populate_exit_type(FlowRun, FlowStep, ActionSet):
 
     num_updated = 0
 
-    for batch_ids in chunk_list(exited_run_ids, 1000):
+    for batch_ids in chunk_list(exited_run_ids, UPDATE_BATCH_SIZE):
         completed_ids = []
         interrupted_ids = []
         expired_ids = []
@@ -76,6 +99,8 @@ def do_populate_exit_type(FlowRun, FlowStep, ActionSet):
 
         print " > Updated %d of %d runs" % (num_updated, len(exited_run_ids))
 
+    return len(exited_run_ids)
+
 
 class Migration(migrations.Migration):
 
@@ -84,5 +109,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(populate_exit_type)
+        migrations.RunPython(populate_exit_type_migration)
     ]
