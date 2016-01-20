@@ -397,8 +397,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     TEXT = 'F'
     VOICE = 'V'
     SURVEY = 'S'
+    USSD = 'U'
 
-    ALL = [TEXT,VOICE,SURVEY]
+    ALL = [TEXT,VOICE,SURVEY,USSD]
 
     constructor: ->
 
@@ -406,6 +407,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true, filter:[VOICE] }
         { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic', filter:[VOICE]}
         { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:ALL }
+        { type:'ussd', name:'USSD Message', verbose_name:'Send a USSD message', icon: 'icon-bubble-3', message:true, filter:ALL }
         { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
         { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag', filter:ALL }
         { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user', filter:ALL }
@@ -420,15 +422,15 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       @rulesets = [
 
-        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
+        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY,USSD] },
 
         # voice flows only
         { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', filter:VOICE },
-        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', filter:VOICE },
-        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
+        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', filter:[VOICE,USSD] },
+        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:[VOICE,USSD] },
 
         # online flows
-        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE] },
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE,USSD] },
 
         # all flows
         { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:ALL },
@@ -992,7 +994,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         missing = 0
         for actionset in flow.action_sets
           for action in actionset.actions
-            if action.type in ['send', 'reply', 'say']
+            if action.type in ['send', 'reply', 'say', 'ussd']
               items++
               if action._missingTranslation
                 missing++
