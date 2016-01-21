@@ -472,7 +472,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by flow (optional)
         flow_uuid = params.get('flow')
         if flow_uuid:
-            flow = Flow.objects.filter(org=org, uuid=flow_uuid)
+            flow = Flow.objects.filter(org=org, uuid=flow_uuid).first()
             if flow:
                 queryset = queryset.filter(flow=flow)
             else:
