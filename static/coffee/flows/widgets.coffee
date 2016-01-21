@@ -3,33 +3,29 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Displaying USSD Menu with textarea, menu inputs and char counter
 #============================================================================
-app.directive "ussd", [ "$log", "Flow", ($log, Flow) ->
+app.directive "ussd", [ "$rootScope", "$log", "Flow", ($rootScope, $log, Flow) ->
   MESSAGE_LENGTH = 182
 
   link = (scope, element, attrs) ->
     scope.menu = []
 
-    scope.showCounter = true
-    if attrs.showCounter?
-      scope.showCounter = eval(attrs.showCounter)
-
     # find out how many sms messages this will be
     scope.countCharacters = ->
-      if scope.message
-        length = scope.message.length
-        scope.messages = Math.ceil(length/MESSAGE_LENGTH)
-        scope.characters = scope.messages * MESSAGE_LENGTH - length
-      else
-        scope.messages = 0
-        scope.characters = MESSAGE_LENGTH
+      sum = (items) ->
+          items.reduce (prev, current) ->
+            current.number ?= ""
+            current.label ?= ""
+            prev + current.number.length + current.label.length
+          ,0
+      $rootScope.characters = MESSAGE_LENGTH - scope.message.length - sum(scope.menu)
 
-    # update our counter everytime the message changes
+    # update our counter every time the message changes
     scope.$watch (->scope.message), scope.countCharacters
 
     # determine the initial message based on the current language
     if scope.ussd
-      # search for first menu item
       content = scope.ussd[Flow.flow.base_language].split(/\n/g)
+      # search for first menu item
       for item, index in content
         if item.indexOf(": ") isnt -1
           menuIndex = index
@@ -41,8 +37,8 @@ app.directive "ussd", [ "$log", "Flow", ($log, Flow) ->
         for item in content[menuIndex..]
           menuItem = item.split(": ")
           scope.menu.push
-            number:menuItem[0]
-            label:menuItem[1]
+            number: menuItem[0]
+            label: menuItem[1]
       else
         scope.message = scope.ussd[Flow.flow.base_language]
       if not scope.message

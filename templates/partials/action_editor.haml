@@ -155,3 +155,8 @@
     -trans "Cancel"
   %button{ng-disabled:"action_editor.$invalid",ng-click:"ok()",class:"btn btn-primary",ng-model:"message"}
     -trans "Ok"
+  .ussd-counter{ng-class:"{warning: characters < 20}"}
+    Characters left:
+    .pill
+      %b
+        [[characters]]
