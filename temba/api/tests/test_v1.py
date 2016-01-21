@@ -1352,11 +1352,11 @@ class APITest(TembaTest):
 
             # but can't update phone
             response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid, phone='+250788123456'))
-            self.assertResponseError(response, 'non_field_errors', "Cannot update URNs on anonymous organizations")
+            self.assertResponseError(response, 'non_field_errors', "Cannot update contact URNs on anonymous organizations")
 
             # or URNs
             response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid, urns=['tel:+250788123456']))
-            self.assertResponseError(response, 'non_field_errors', "Cannot update URNs on anonymous organizations")
+            self.assertResponseError(response, 'non_field_errors', "Cannot update contact URNs on anonymous organizations")
 
         # finally try clearing our language
         response = self.postJSON(url, dict(phone='+250788123456', language=None))
