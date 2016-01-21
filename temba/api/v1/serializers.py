@@ -480,8 +480,8 @@ class ContactWriteSerializer(WriteSerializer):
         if data.get('group_uuids') is not None and data.get('groups') is not None:
             raise serializers.ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
-        if self.org.is_anon and self.instance:
-            raise serializers.ValidationError("Cannot update contacts on anonymous organizations, can only create")
+        if self.org.is_anon and self.instance and self.urn_tuples is not None:
+            raise serializers.ValidationError("Cannot update contact URNs on anonymous organizations")
 
         if self.urn_tuples is not None:
             # look up these URNs, keeping track of the contacts that are connected to them
