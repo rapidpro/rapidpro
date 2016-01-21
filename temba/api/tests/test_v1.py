@@ -1343,9 +1343,20 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'urns', "Invalid URN: 'uh:nope'")
 
         with AnonymousOrg(self.org):
-            # anon orgs can't update contacts
-            response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
-            self.assertResponseError(response, 'non_field_errors', "Cannot update contacts on anonymous organizations, can only create")
+            # anon orgs can update contacts by uuid
+            response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid))
+            self.assertEquals(201, response.status_code)
+
+            contact = Contact.objects.get()
+            self.assertEquals("Anon", contact.name)
+
+            # but can't update phone
+            response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid, phone='+250788123456'))
+            self.assertResponseError(response, 'non_field_errors', "Cannot update URNs on anonymous organizations")
+
+            # or URNs
+            response = self.postJSON(url, dict(name="Anon", uuid=contact.uuid, urns=['tel:+250788123456']))
+            self.assertResponseError(response, 'non_field_errors', "Cannot update URNs on anonymous organizations")
 
         # finally try clearing our language
         response = self.postJSON(url, dict(phone='+250788123456', language=None))
