@@ -5,7 +5,7 @@ from django.db import migrations
 from temba.utils import chunk_list
 
 
-FETCH_BATCH_SIZE = 100000
+FETCH_BATCH_SIZE = 1000000
 UPDATE_BATCH_SIZE = 1000
 
 
