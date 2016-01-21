@@ -133,7 +133,6 @@ class MsgReadSerializer(ReadSerializer):
     }
     STATUSES = {
         INITIALIZING: "initializing",
-        PENDING: "pending",
         QUEUED: "queued",
         WIRED: "wired",
         SENT: "sent",
@@ -179,8 +178,7 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_status(self, obj):
         # PENDING and QUEUED are same as far as users are concerned
-        code = 'Q' if obj.status in ['Q', 'P'] else obj.status
-        return self.STATUSES.get(code)
+        return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED

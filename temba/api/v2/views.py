@@ -42,7 +42,7 @@ def api(request, format=None):
 
 class ApiExplorerView(SmartTemplateView):
     """
-    Explorer view which let's users experiment with endpoints against their own data
+    Explorer view which lets users experiment with endpoints against their own data
     """
     template_name = "api/v2/api_explorer.html"
 
@@ -146,14 +146,14 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
     only deleted contacts by passing the "deleted=true" parameter to your call.
 
-    * **uuid** - the unique identifier of the contact (string), filterable as `uuid`
-    * **name** - the name of the contact (string)
-    * **language** - the preferred language of the contact (string)
-    * **urns** - the URNs associated with the contact (string array), filterable as `urn`
-    * **groups** - the UUIDs of any groups the contact is part of (string array), filterable as `group`
-    * **fields** - any contact fields on this contact (dictionary)
-    * **created_on** - when this contact was created (datetime)
-    * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`
+    * **uuid** - the unique identifier of the contact (string), filterable as `uuid`.
+    * **name** - the name of the contact (string).
+    * **language** - the preferred language of the contact (string).
+    * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
+    * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
+    * **fields** - any contact fields on this contact (dictionary).
+    * **created_on** - when this contact was created (datetime).
+    * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
 
     Example:
 
@@ -259,20 +259,20 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the messages for your organization, filtering them as needed. Each
     message has the following attributes:
 
-     * **id** - the id of the message (int), filterable as `id`
-     * **broadcast** - the id of the broadcast (int), filterable as `broadcast`
-     * **contact** - the UUID of the contact (string), filterable as `contact`
-     * **urn** - the URN of the sender or receiver, depending on direction (string)
-     * **channel** - the UUID of the channel that handled this message (string)
-     * **direction** - the direction of the message (one of "incoming" or "outgoing")
-     * **type** - the type of the message (one of "inbox", "flow", "ivr")
-     * **status** - the status of the message (string)
-     * **archived** - whether this message is archived (boolean)
+     * **id** - the id of the message (int), filterable as `id`.
+     * **broadcast** - the id of the broadcast (int), filterable as `broadcast`.
+     * **contact** - the UUID of the contact (string), filterable as `contact`.
+     * **urn** - the URN of the sender or receiver, depending on direction (string).
+     * **channel** - the UUID of the channel that handled this message (string).
+     * **direction** - the direction of the message (one of "incoming" or "outgoing").
+     * **type** - the type of the message (one of "inbox", "flow", "ivr").
+     * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
+     * **archived** - whether this message is archived (boolean).
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple messages.
-     * **labels** - any labels set on this message (list of strings), filterable as `label`
-     * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`)
-     * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime)
-     * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
+     * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
+     * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
+     * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
+     * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime).
 
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`.
 
@@ -406,15 +406,15 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-     * **id** - the id of the run (int), filterable as `id`
-     * **flow** - the UUID of the flow (string), filterable as `flow`
-     * **contact** - the UUID of the contact (string), filterable as `contact`
-     * **responded** - whether the contact responded (boolean), filterable as `responded`
-     * **steps** - steps visited by the contact on the flow (array of dictionaries)
-     * **created_on** - the datetime when this run was started (datetime)
-     * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`
-     * **exited_on** - the datetime when this run exited or null if it is still active (datetime)
-     * **exit_type** - how the run ended (one of "interrupted", "completed", "expired")
+     * **id** - the id of the run (int), filterable as `id`.
+     * **flow** - the UUID of the flow (string), filterable as `flow`.
+     * **contact** - the UUID of the contact (string), filterable as `contact`.
+     * **responded** - whether the contact responded (boolean), filterable as `responded`.
+     * **steps** - steps visited by the contact on the flow (array of objects).
+     * **created_on** - the datetime when this run was started (datetime).
+     * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
+     * **exited_on** - the datetime when this run exited or null if it is still active (datetime).
+     * **exit_type** - how the run ended (one of "interrupted", "completed", "expired").
 
     Example:
 
