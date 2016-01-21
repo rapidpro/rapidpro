@@ -369,7 +369,6 @@ class ContactCRUDL(SmartCRUDL):
             """
 
             org = self.derive_org()
-
             column_controls = []
             for header in column_headers:
                 header_key = slugify_with(header)

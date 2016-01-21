@@ -649,6 +649,10 @@ class Contact(TembaModel):
 
         possible_urn_headers = ['phone', 'external'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
+        # prevent urns update on anon org
+        if uuid and org.is_anon:
+            possible_urn_headers = []
+
         for urn_header in possible_urn_headers:
 
             value = None
@@ -694,7 +698,7 @@ class Contact(TembaModel):
 
             urns.append((urn_scheme, value))
 
-        if not urns:
+        if not urns and not org.is_anon:
             error_str = "Missing any valid URNs"
             error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[2:])
 
@@ -795,7 +799,7 @@ class Contact(TembaModel):
         Contact.validate_import_header(headers)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header.strip().lower() not in Contact.RESERVED_FIELDS]
+        return [header for header in headers if header.strip().lower() and header.strip().lower() not in Contact.RESERVED_FIELDS]
 
     @classmethod
     def validate_import_header(cls, header):
