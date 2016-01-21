@@ -2024,6 +2024,12 @@ class ContactTest(TembaTest):
         c2 = Contact.create_instance(field_dict)
         self.assertEquals(c1.pk, c2.pk)
 
+        with AnonymousOrg(self.org):
+            # should existing urns on anon org
+            with self.assertRaises(SmartImportRowError):
+                field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
+                c1 = Contact.create_instance(field_dict)
+
         c1.block()
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         field_dict['name'] = 'LaToya Jackson'
