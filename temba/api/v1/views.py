@@ -2501,9 +2501,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         if not org.country:
             return []
 
-        queryset = self.model.objects.filter(Q(pk=org.country.pk) |
-                                             Q(parent=org.country) |
-                                             Q(parent__parent=org.country)).order_by('level', 'name')
+        queryset = org.country.get_descendants(include_self=True).order_by('level', 'name')
         return queryset.select_related('parent')
 
     def get_serializer_class(self):
