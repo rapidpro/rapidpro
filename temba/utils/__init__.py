@@ -441,12 +441,17 @@ def timezone_to_country_code(tz):
 
     return timezone_country.get(tz, '')
 
+
 def splitting_getlist(request, name, default=None):
-    vals = request.QUERY_PARAMS.getlist(name, default)
+    """
+    Used for backward compatibility in the API where some list params can be provided as comma separated values
+    """
+    vals = request.query_params.getlist(name, default)
     if vals and len(vals) == 1:
         return vals[0].split(',')
     else:
         return vals
+
 
 def chunk_list(iterable, size):
     """

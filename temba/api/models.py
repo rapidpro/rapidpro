@@ -1,18 +1,19 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import hmac
 import json
-from django.db.models import Q
 import requests
 import uuid
 
 from datetime import timedelta
+from django.db.models import Q
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models
 from django.utils import timezone
 from hashlib import sha1
+from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
@@ -52,6 +53,41 @@ EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))
+
+
+class ApiPermission(BasePermission):
+    def has_permission(self, request, view):
+
+        if getattr(view, 'permission', None):
+
+            if request.user.is_anonymous():
+                return False
+
+            # try to determine group from api token
+            if request.auth:
+                group = request.auth.role
+            # otherwise lean on the logged in user
+            else:
+                org = request.user.get_org()
+                group = org.get_user_org_group(request.user) if org else None
+
+            # if we have a group, check its permissions
+            if group:
+                codename = view.permission.split(".")[-1]
+                return group.permissions.filter(codename=codename)
+
+            return False
+
+        else:  # pragma: no cover
+            return True
+
+
+class SSLPermission(BasePermission): # pragma: no cover
+    def has_permission(self, request, view):
+        if getattr(settings, 'SESSION_COOKIE_SECURE', False):
+            return request.is_secure()
+        else:
+            return True
 
 
 class WebHookEvent(SmartModel):
@@ -318,7 +354,7 @@ class WebHookEvent(SmartModel):
         return hook_event
 
     def deliver(self):
-        from .serializers import MsgCreateSerializer
+        from .v1.serializers import MsgCreateSerializer
 
         # create our post parameters
         post_data = json.loads(self.data)

@@ -219,6 +219,16 @@
 
     :javascript
 
+      function removalConfirmation(removal, buttonName) {
+        modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
+        modal.addClass('alert');
+        modal.setListeners({onPrimary: function(){
+          $('#' + removal + '-form').click();
+        }}, false);
+        modal.setPrimaryButton(buttonName);
+        modal.show();
+      }
+
       function formatContact(item) {
         if (item.text.indexOf(" (") > -1) {
          var name = item.text.split("(")[0];

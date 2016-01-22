@@ -13,13 +13,13 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         request = renderer_context['request']
         response = renderer_context['response']
         renderer = self.get_default_renderer(view)
-        context = {
+
+        return {
             'content': self.get_content(renderer, data, accepted_media_type, renderer_context),
             'view': view,
             'request': request,
             'response': response,
-            'description': self.get_description(view),
+            'description': view.get_view_description(html=True),
             'name': self.get_name(view),
             'breadcrumblist': self.get_breadcrumbs(request),
         }
-        return context

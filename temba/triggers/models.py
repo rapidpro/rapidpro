@@ -128,14 +128,17 @@ class Trigger(SmartModel):
                     trigger = trigger.filter(groups__in=groups)
 
                 trigger = trigger.first()
-
-                channel = trigger_spec.get('channel', None)  # older exports won't have a channel
-
                 if trigger:
                     trigger.is_archived = False
                     trigger.flow = flow
                     trigger.save()
                 else:
+
+                    # if we have a channel resolve it
+                    channel = trigger_spec.get('channel', None)  # older exports won't have a channel
+                    if channel:
+                        channel = Channel.objects.filter(pk=channel.pk, org=org).first()
+
                     trigger = Trigger.objects.create(org=org, trigger_type=trigger_spec['trigger_type'],
                                                      keyword=trigger_spec['keyword'], flow=flow,
                                                      created_by=user, modified_by=user,
@@ -156,10 +159,10 @@ class Trigger(SmartModel):
             start_msg = entity
         elif isinstance(entity, Call) or isinstance(entity, IVRCall):
             contact = entity.contact
-            start_msg = Msg(contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
-            start_msg = Msg(contact=contact, channel=channel, created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
         else:
             raise ValueError("Entity must be of type msg, call or contact")
 
@@ -168,8 +171,21 @@ class Trigger(SmartModel):
         if trigger_type == Trigger.TYPE_FOLLOW:
             triggers = triggers.filter(channel=channel)
 
-        for trigger in triggers:
-            trigger.flow.start([], [contact], start_msg=start_msg, restart_participants=True)
+        # is there a match for a group specific trigger?
+        group_ids = contact.user_groups.values_list('pk', flat=True)
+        group_triggers = triggers.filter(groups__in=group_ids).order_by('groups__name')
+
+        # if we match with a group restriction, that takes precedence
+        if group_triggers:
+            triggers = group_triggers
+
+        # otherwise, restrict to triggers that don't filter by group
+        else:
+            triggers = triggers.filter(groups=None)
+
+        # only fire the first matching trigger
+        if triggers:
+            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True)
 
         return bool(triggers)
 
@@ -284,9 +300,20 @@ class Trigger(SmartModel):
 
         if c_last_triggered:
             # first archive all our catch all message triggers and unarchive the last triggered in the selected
-            Trigger.objects.filter(org=c_last_triggered[0].org,
-                                   trigger_type=Trigger.TYPE_CATCH_ALL,
-                                   is_active=True).update(is_archived=True)
+            existing_triggers = Trigger.objects.filter(org=c_last_triggered[0].org,
+                                                       trigger_type=Trigger.TYPE_CATCH_ALL,
+                                                       is_active=True)
+
+            # we will only restore the first one, find any conflicts with those groups
+            restore_groups = c_last_triggered[0].groups.all()
+            if restore_groups:
+                existing_triggers = existing_triggers.filter(groups__in=restore_groups)
+            else:
+                existing_triggers = existing_triggers.filter(groups=None)
+
+            # archive any colliding triggers
+            existing_triggers.update(is_archived=True)
+
             c_last_triggered[0].is_archived = False
             c_last_triggered[0].save()
 

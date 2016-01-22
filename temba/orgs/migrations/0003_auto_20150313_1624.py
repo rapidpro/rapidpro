@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         TopUp = apps.get_model('orgs', 'TopUp')
         Msg = apps.get_model('msgs', 'Msg')
         for topup in TopUp.objects.all():
-            topup.used = Msg.objects.filter(topup=topup).count()
+            topup.used = Msg.all_messages.filter(topup=topup).count()
             topup.save()
 
     def install_topup_used_trigger(apps, schema_editor):

@@ -84,10 +84,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   $rootScope.ivr = window.ivr
 
   $scope.getContactFieldName = (ruleset) ->
-    return Flow.getContactField(ruleset)
+    if not ruleset._contactFieldName
+      ruleset._contactFieldName = Flow.getContactField(ruleset)
+    return ruleset._contactFieldName
 
   $scope.getFlowFieldName = (ruleset) ->
-    return Flow.getFlowField(ruleset)
+    if not ruleset._flowFieldName
+      ruleset._flowFieldName = Flow.getFlowField(ruleset)
+    return ruleset._flowFieldName
 
   # when they click on an injected gear item
   $scope.clickGearMenuItem = (id) ->
@@ -124,9 +128,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
         hideCancel: -> hideCancel
 
     return $scope.dialog
-
-  $scope.getAcceptedScopes = (nodeType) ->
-    return 'actions rules'
 
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
@@ -276,10 +277,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
   $scope.onBeforeConnectorDrop = (props) ->
 
-    if not Flow.isConnectionAllowed(props.sourceId, props.targetId)
+    errorMessage = Flow.getConnectionError(props.sourceId, props.targetId)
+    if errorMessage
       $rootScope.ghost.hide()
       $rootScope.ghost = null
-      showDialog('Infinite Loop', 'Connecting these steps together would create an infinite loop in your flow. To connect these steps you need to pass through a step that waits for the user to respond.')
+      showDialog('Invalid Connection', errorMessage)
       return false
     return true
 
@@ -395,11 +397,15 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # method to determine if the last action in an action set is missing a translation
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
-    lastAction = actionset.actions[actionset.actions.length - 1]
-    if Flow.language
-      if Flow.language.iso_code != Flow.flow.base_language
-        if lastAction.msg and lastAction.type in ['reply', 'send', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
-          return true
+    if actionset._lastActionMissingTranslation == null
+      lastAction = actionset.actions[actionset.actions.length - 1]
+      actionset._lastActionMissingTranslation = false
+      if Flow.language
+        if Flow.language.iso_code != Flow.flow.base_language
+          if lastAction.msg and lastAction.type in ['reply', 'send', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
+              actionset._lastActionMissingTranslation = true
+    return actionset._lastActionMissingTranslation
+
 
   $scope.broadcastToStep = (uuid) ->
     window.broadcastToNode(uuid)

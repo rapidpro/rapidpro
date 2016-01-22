@@ -8,6 +8,7 @@
 # temba
 dump.rdb
 .coverage
+coverage_html_report
 env
 build
 config/gen

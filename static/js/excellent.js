@@ -50,20 +50,65 @@
             return null;
         }
 
-        var identifier = "";
-        
+        var fragment = "";
+        var skipChar = false;
+        var neededParentheses = [];
+        var inQuotes = false;
+        var prependFlag = '';
+
         for (var pos = partialExpression.length - 1; pos >= 0; pos--) {
             var ch = partialExpression[pos];
-            if (isWordChar(ch) || ch === '.') {
-                identifier = ch + identifier;
+
+            if (ch === ' ') {
+                skipChar = true;
             }
-            else {
+
+            if (ch === ',') {
+                skipChar = true;
+                if (neededParentheses[neededParentheses.length - 1] != '(') {
+                    neededParentheses.push('(');
+                }
+            }
+
+            if (ch === ')' && !inQuotes) {
+                skipChar = true;
+                neededParentheses.push('(');
+                neededParentheses.push('(');
+            }
+
+            if (ch === '"') {
+                inQuotes = !inQuotes;
+            }
+
+            if (skipChar) {
+                if (ch === '(' && !inQuotes) {
+                    if (neededParentheses[neededParentheses.length - 1] == '(') {
+                        neededParentheses.pop();
+                    }
+
+                    if (neededParentheses.length == 0) {
+                        skipChar = false;
+                    }
+                }
+            }
+
+            if (ch === '(' && fragment == '') {
+                prependFlag = '#';
+            }
+
+            if (skipChar || inQuotes || (ch === '(' && fragment == '')) {
+                continue;
+            }
+
+            if (isWordChar(ch) || ch === '.') {
+                fragment = ch + fragment;
+            } else {
                 break;
             }
         }
 
-        if (identifier.match(/[A-Za-z][\w]*(\.[\w]+)*/)) {
-            return identifier;
+        if (fragment.match(/[A-Za-z][\w]*(\.[\w]+)*/)) {
+            return prependFlag + fragment;
         }
         else {
             return null;
@@ -95,7 +140,7 @@
         var state = inString ? STATE_IGNORE : STATE_STRING_LITERAL;
         var identifier = "";
         var parenthesesLevel = 0;
-        
+
         for (var pos = partialExpression.length - 1; pos >= 0; pos--) {
             var ch = partialExpression[pos];
 
@@ -103,7 +148,7 @@
                 if (parenthesesLevel == 0 && (isWordChar(ch) || ch === '.')) {
                     state = STATE_IDENTIFIER;
                     identifier = ch + identifier;
-                } 
+                }
                 else if (ch == "\"") {
                     state = STATE_STRING_LITERAL;
                 }
@@ -117,7 +162,7 @@
             else if (state == STATE_IDENTIFIER) {
                 if (isWordChar(ch) || ch === '.') {
                     identifier = ch + identifier;
-                } 
+                }
                 else {
                     return identifier;
                 }
@@ -125,7 +170,7 @@
             else if (state == STATE_STRING_LITERAL) {
                 if (ch == "\"") {
                     state = STATE_IGNORE;
-                }    
+                }
             }
         }
         return null;
@@ -258,7 +303,7 @@
      * Determines whether the given character is a word character, i.e. \w in a regex
      */
     function isWordChar(ch) {
-        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'; 
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_';
     }
 
 }(window.excellent = window.excellent || {}));
