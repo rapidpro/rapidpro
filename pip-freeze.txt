@@ -102,4 +102,4 @@ plivo==0.10.1
 antlr4-python2-runtime==4.5.2
 django-extensions==1.5.7
 -e git+http://github.com/nyaruka/python-librato-bg.git@d670939749e051a7baeedd1d353c9cbd0e8772c4#egg=librato_bg
-
+django-mptt==0.7.4
