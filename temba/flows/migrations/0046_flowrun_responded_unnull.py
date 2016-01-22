@@ -8,13 +8,13 @@ from django.conf import settings
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0043_populate_exit_type'),
+        ('flows', '0045_populate_responded'),
     ]
 
     operations = [
-        migrations.AddField(
+        migrations.AlterField(
             model_name='flowrun',
             name='responded',
-            field=models.NullBooleanField(help_text='Whether contact has responded in this run'),
+            field=models.BooleanField(default=False, help_text='Whether contact has responded in this run'),
         ),
     ]
