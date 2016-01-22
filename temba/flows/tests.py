@@ -4096,6 +4096,35 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('Administrator', actionset.get_actions()[1].emails[0])
 
 
+    def test_flow_results(self):
+
+        flow = self.get_flow('favorites')
+
+        self.send_message(flow, "green")
+        self.send_message(flow, "primus")
+        self.send_message(flow, "Ben")
+
+        ryan = self.create_contact('Ryan Lewis', '+12065551212')
+        self.send_message(flow, "red", contact=ryan)
+        self.send_message(flow, "turbo king", contact=ryan)
+        self.send_message(flow, "Ryan", contact=ryan)
+
+        # see that we can fetch results
+        self.login(self.admin)
+        response = self.client.get('%s?json=true&sSearch=&sEcho=1' % reverse('flows.flow_results', args=[flow.pk]))
+        response = json.loads(response.content)
+        self.assertEquals(2, len(response['aaData']))
+        self.assertEquals('+12065551212', response['aaData'][0][1]['category'])
+
+        # make sure it still shows up for anon orgs and nameless contacts
+        Org.objects.all().update(is_anon=True)
+        Contact.objects.all().update(name=None)
+
+        response = self.client.get('%s?json=true&sSearch=&sEcho=1' % reverse('flows.flow_results', args=[flow.pk]))
+        response = json.loads(response.content)
+        self.assertEquals(2, len(response['aaData']))
+
+
 class DuplicateValueTest(FlowFileTest):
 
     def test_duplicate_value_test(self):
