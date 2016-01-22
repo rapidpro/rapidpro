@@ -5,9 +5,9 @@ import pytz
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
-from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -17,10 +17,10 @@ from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, PLIVO, SHAQODOON, YO
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
-from temba.orgs.models import get_stripe_credentials, NEXMO_UUID
+from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger
-from temba.utils import analytics, JsonResponse, json_date_to_datetime
+from temba.utils import JsonResponse, json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml
@@ -109,7 +109,7 @@ class TwilioHandler(View):
             status = request.POST.get('SmsStatus', None)
 
             # get the SMS
-            sms = Msg.objects.select_related('channel').get(id=smsId)
+            sms = Msg.all_messages.select_related('channel').get(id=smsId)
 
             # validate this request is coming from twilio
             org = sms.org
@@ -153,80 +153,6 @@ class TwilioHandler(View):
 
         return HttpResponse("Not Handled, unknown action", status=400)
 
-class StripeHandler(View): # pragma: no cover
-    """
-    Handles WebHook events from Stripe.  We are interested as to when invoices are
-    charged by Stripe so we can send the user an invoice email.
-    """
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(StripeHandler, self).dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD")
-
-    def post(self, request, *args, **kwargs):
-        import stripe
-        from temba.orgs.models import Org, TopUp
-
-        # stripe delivers a JSON payload
-        stripe_data = json.loads(request.body)
-
-        # but we can't trust just any response, so lets go look up this event
-        stripe.api_key = get_stripe_credentials()[1]
-        event = stripe.Event.retrieve(stripe_data['id'])
-
-        if not event:
-            return HttpResponse("Ignored, no event")
-
-        if not event.livemode:
-            return HttpResponse("Ignored, test event")
-
-        # we only care about invoices being paid or failing
-        if event.type == 'charge.succeeded' or event.type == 'charge.failed':
-            charge = event.data.object
-            charge_date = datetime.fromtimestamp(charge.created)
-            description = charge.description
-            amount = "$%s" % (Decimal(charge.amount) / Decimal(100)).quantize(Decimal(".01"))
-
-            # look up our customer
-            customer = stripe.Customer.retrieve(charge.customer)
-
-            # and our org
-            org = Org.objects.filter(stripe_customer=customer.id).first()
-            if not org:
-                return HttpResponse("Ignored, no org for customer")
-
-            # look up the topup that matches this charge
-            topup = TopUp.objects.filter(stripe_charge=charge.id).first()
-            if topup and event.type == 'charge.failed':
-                topup.rollback()
-                topup.save()
-
-            # we know this org, trigger an event for a payment succeeding
-            if org.administrators.all():
-                if event.type == 'charge_succeeded':
-                    track = "temba.charge_succeeded"
-                else:
-                    track = "temba.charge_failed"
-
-                context = dict(description=description,
-                               invoice_id=charge.id,
-                               invoice_date=charge_date.strftime("%b %e, %Y"),
-                               amount=amount,
-                               org=org.name,
-                               cc_last4=charge.card.last4,
-                               cc_type=charge.card.type,
-                               cc_name=charge.card.name)
-
-                admin_email = org.administrators.all().first().email
-
-                analytics.track(admin_email, track, context)
-                return HttpResponse("Event '%s': %s" % (track, context))
-
-        # empty response, 200 lets Stripe know we handled it
-        return HttpResponse("Ignored, uninteresting event")
-
 
 class AfricasTalkingHandler(View):
 
@@ -257,7 +183,7 @@ class AfricasTalkingHandler(View):
             external_id = request.POST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % external_id, status=404)
 
@@ -316,7 +242,7 @@ class ZenviaHandler(View):
             sms_id = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=sms_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
 
@@ -372,12 +298,17 @@ class ExternalHandler(View):
         from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
 
         action = kwargs['action'].lower()
-        channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True,
-                                         channel_type=self.get_channel_type()).exclude(org=None).first()
+        # some external channels that have been added as bulk relayers had UUID set to their phone number
+        uuid_or_address = kwargs['uuid']
+        if len(uuid_or_address) == 36:
+            channel_q = Q(uuid=uuid_or_address)
+        else:
+            channel_q = Q(address=uuid_or_address) | Q(address=('+' + uuid_or_address))
+
+        channel = Channel.objects.filter(channel_q).filter(is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+            return HttpResponse("Channel with uuid or address %s not found." % uuid_or_address, status=400)
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
@@ -387,7 +318,7 @@ class ExternalHandler(View):
             sms_pk = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=sms_pk).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
 
@@ -417,7 +348,7 @@ class ExternalHandler(View):
             if date:
                 date = json_date_to_datetime(date)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, sender), text, date=date)
+            sms = Msg.create_incoming(channel, (channel.scheme, sender), text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -473,7 +404,7 @@ class InfobipHandler(View):
         status = message.get('status')
 
         # look up the message
-        sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+        sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
         if not sms:
             return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -548,7 +479,7 @@ class Hub9Handler(View):
         # delivery reports
         if action == 'delivered':
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=external_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -601,7 +532,7 @@ class HighConnectionHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=msg_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, pk=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -664,7 +595,7 @@ class BlackmynaHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, external_id=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -765,7 +696,8 @@ class NexmoHandler(View):
         channel_number = request.REQUEST['to']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=channel_number, is_active=True, channel_type=NEXMO).exclude(org=None).first()
+        address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
+        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type=NEXMO).exclude(org=None).first()
 
         # make sure we got one, and that it matches the key for our org
         org_uuid = None
@@ -780,7 +712,7 @@ class NexmoHandler(View):
             external_id = request.REQUEST['messageId']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=200)
 
@@ -881,7 +813,7 @@ class VumiHandler(View):
             status = body['event_type']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel')
 
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
@@ -929,7 +861,7 @@ class VumiHandler(View):
                                       date=gmt_date)
 
             # use an update so there is no race with our handling
-            Msg.objects.filter(pk=sms.id).update(external_id=body['message_id'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=body['message_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -964,7 +896,7 @@ class KannelHandler(View):
             sms_id = self.request.REQUEST['id']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1013,7 +945,7 @@ class KannelHandler(View):
                                       request.REQUEST['message'],
                                       date=gmt_date)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1054,7 +986,7 @@ class ClickatellHandler(View):
             sms_id = self.request.REQUEST['apiMsgId']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1132,7 +1064,7 @@ class ClickatellHandler(View):
                                       text,
                                       date=gmt_date)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1182,7 +1114,7 @@ class PlivoHandler(View):
                 sms_id = request.REQUEST['ParentMessageUUID']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1240,7 +1172,7 @@ class PlivoHandler(View):
                                       (TEL_SCHEME, request.REQUEST['From']),
                                       request.REQUEST['Text'])
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
 
             return HttpResponse("SMS accepted: %d" % sms.id)
         else:
@@ -1273,7 +1205,7 @@ class MageHandler(View):
             except ValueError:
                 return JsonResponse(dict(error="Invalid message_id"), status=400)
 
-            msg = Msg.objects.select_related('org').get(pk=msg_id)
+            msg = Msg.all_messages.select_related('org').get(pk=msg_id)
 
             push_task(msg.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
                       dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
@@ -1290,3 +1222,47 @@ class MageHandler(View):
             fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact), queue='handler')
 
         return JsonResponse(dict(error=None))
+
+
+class StartHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(StartHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.channels.models import START
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=START).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        # Parse our raw body, it should be XML that looks something like:
+        # <message>
+        #   <service type="sms" timestamp="1450450974" auth="AAAFFF" request_id="15"/>
+        #   <from>+12788123123</from>
+        #   <to>1515</to>
+        #   <body content-type="content-type" encoding="encoding">hello world</body>
+        # </message>
+        try:
+            message = ET.fromstring(request.body)
+        except ET.ParseError as e:
+            message = None
+
+        service = message.find('service') if message is not None else None
+        external_id = service.get('request_id') if service is not None else None
+        sender_el = message.find('from') if message is not None else None
+        text_el = message.find('body') if message is not None else None
+
+        # validate all the appropriate fields are there
+        if external_id is None or sender_el is None or text_el is None:
+            return HttpResponse("Missing parameters, must have 'request_id', 'to' and 'body'", status=400)
+
+        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text_el.text)
+
+        # Start expects an XML response
+        xml_response = """<answer type="async"><state>Accepted</state></answer>"""
+        return HttpResponse(xml_response)

@@ -27,13 +27,15 @@
     .channel-roles
 
       -for channel in object.get_delegate_channels
-        .icon{class:'{{ channel|channel_icon }}'}
 
-        -if channel.is_delegate_sender
-          -trans "Bulk sending enabled"
+        %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
+          .icon{class:'{{ channel|channel_icon }}'}
 
-        -if channel.is_delegate_caller
-          -trans "Voice calls enabled"
+          -if channel.is_delegate_sender
+            -trans "Bulk sending enabled"
+
+          -if channel.is_delegate_caller
+            -trans "Voice calls enabled"
 
       -if channel.has_configuration_page
         <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.id %}">{%trans "Settings"%}</a>
@@ -406,6 +408,13 @@
 -block extra-style
   :css
 
+    .channel-roles a,
+    .channel-roles a:hover,
+    .channel-roles a:active,
+    .channel-roles a:visited {
+      text-decoration: none;
+      color: rgb(102,102,102);
+    }
 
     @media(min-width: 768px) and (max-width: 1200px) {
       .span2.strong-min-170 {
@@ -477,16 +486,6 @@
 :javascript
 
   {% if org_perms.channels.channel_delete %}
-    function removalConfirmation(removal, buttonName) {
-        modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
-        modal.addClass('alert');
-        modal.setListeners({onPrimary: function(){
-          $('#' + removal + '-form').click();
-        }}, false);
-        modal.setPrimaryButton(buttonName);
-        modal.show();
-    }
-
     $(".remove-channel").live('click', function(){ removalConfirmation("deletion", "Remove")});
     $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", "Disable Bulk Sending")});
     $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", "Disable Voice Calling")});

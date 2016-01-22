@@ -88,6 +88,8 @@ class GroupBasedTriggerForm(BaseTriggerForm):
 
         if groups:
             existing = existing.filter(groups__in=groups)
+        else:
+            existing = existing.filter(groups=None)
 
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
@@ -96,6 +98,29 @@ class GroupBasedTriggerForm(BaseTriggerForm):
 
     def clean(self):
         data = super(GroupBasedTriggerForm, self).clean()
+        if self.get_existing_triggers(data):
+            raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
+        return data
+
+    class Meta(BaseTriggerForm.Meta):
+        fields = ('flow', 'groups')
+
+
+class CatchAllTriggerForm(GroupBasedTriggerForm):
+    """
+    For for catchall triggers
+    """
+    def __init__(self, user, *args, **kwargs):
+        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        super(CatchAllTriggerForm, self).__init__(user, flows, *args, **kwargs)
+
+    def get_existing_triggers(self, cleaned_data):
+        existing = super(CatchAllTriggerForm, self).get_existing_triggers(cleaned_data)
+        existing = existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
+        return existing
+
+    def clean(self):
+        data = super(CatchAllTriggerForm, self).clean()
         if self.get_existing_triggers(data):
             raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
         return data
@@ -242,6 +267,7 @@ class TriggerActionForm(BaseActionForm):
                        ('restore', _("Restore Triggers")))
 
     OBJECT_CLASS = Trigger
+    OBJECT_CLASS_MANAGER = 'objects'
     HAS_IS_ACTIVE = True
 
     class Meta:
@@ -305,7 +331,7 @@ class TriggerCRUDL(SmartCRUDL):
                          Trigger.TYPE_SCHEDULE: ScheduleTriggerForm,
                          Trigger.TYPE_MISSED_CALL: DefaultTriggerForm,
                          Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
-                         Trigger.TYPE_CATCH_ALL: DefaultTriggerForm,
+                         Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
                          Trigger.TYPE_FOLLOW: FollowTriggerForm}
 
         def get_form_class(self):
@@ -638,25 +664,32 @@ class TriggerCRUDL(SmartCRUDL):
             return response
 
     class Catchall(CreateTrigger):
-        form_class = DefaultTriggerForm
+        form_class = CatchAllTriggerForm
 
         def get_form_kwargs(self):
             kwargs = super(TriggerCRUDL.Catchall, self).get_form_kwargs()
+            kwargs['user'] = self.request.user
             kwargs['auto_id'] = "id_catchall_%s"
             return kwargs
 
         def form_valid(self, form):
             user = self.request.user
             org = user.get_org()
+            groups = form.cleaned_data['groups']
 
-            # first archive all catch all message triggers
-            Trigger.objects.filter(org=org,
+            # first archive all catch all message triggers with matching groups
+            Trigger.objects.filter(org=org, groups__in=groups,
                                    trigger_type=Trigger.TYPE_CATCH_ALL,
                                    is_active=True).update(is_archived=True)
 
             # then create a new catch all trigger
-            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_CATCH_ALL,
-                                   flow=form.cleaned_data['flow'])
+            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org,
+                                             trigger_type=Trigger.TYPE_CATCH_ALL,
+                                             flow=form.cleaned_data['flow'])
+
+            # add all the groups we are relevant for
+            for group in groups:
+                trigger.groups.add(group)
 
             analytics.track(self.request.user.username, 'temba.trigger_created_catchall')
 
