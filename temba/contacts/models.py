@@ -698,7 +698,7 @@ class Contact(TembaModel):
 
             urns.append((urn_scheme, value))
 
-        if not urns and not org.is_anon:
+        if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
             error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[2:])
 
@@ -808,9 +808,8 @@ class Contact(TembaModel):
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
 
-        if org.is_anon:
-            if 'uuid' in header and 'name' in header:
-                return
+        if 'uuid' in header and len(header) > 1:
+            return
 
         if 'name' not in header and not header_urn_fields:
             raise Exception(ugettext('The file you provided is missing required headers called "Name" and one of "%s".'
