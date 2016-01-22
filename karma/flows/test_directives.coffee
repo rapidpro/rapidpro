@@ -114,4 +114,57 @@ describe 'Directives:', ->
       expect(result.message).not.toBe(undefined)
       expect(result.message).not.toBe(null)
 
+  describe 'Validate Type', ->
+
+    it 'should validate numbers and variables for numeric rules', ->
+      ele = angular.element("<ng-form><input ng-model='rule.test._base' name='operand' ng-required='rule.category._base' ng-change='updateCategory(rule)' type='text' class='operand' validate-type='[[rule._config.type]]' /></ng-form>")
+      scope = $rootScope.$new()
+
+      config =
+        type:'eq'
+        name:'Equal to'
+        verbose_name: 'has a number equal to'
+        operands: 1
+        localized: true
+
+      scope.rule =
+        _config: config
+        test: {_base:'12'}
+        type: 'eq'
+        category: {_base: 'Age'}
+
+
+      $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      expect(ele.html()).toMatch(/ng-valid-validate-type/)
+
+      scope.rule =
+        _config: config
+        test: {_base:'@contact.age'}
+        type: 'eq'
+        category: {_base: 'Age'}
+
+
+      $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      expect(ele.html()).toMatch(/ng-valid-validate-type/)
+
+      # should not match words
+      scope.rule =
+        _config: config
+        test: {_base:'old'}
+        type: 'eq'
+        category: {_base: 'Age'}
+
+
+      $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      expect(ele.html()).toMatch(/ng-invalid-validate-type/)
+
 

@@ -7,6 +7,7 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.contacts.models import ContactField
 from temba.flows.models import RuleSet
+from temba.orgs.models import Language
 from temba.tests import FlowFileTest
 from temba.values.models import Value, STATE, DISTRICT, DECIMAL, TEXT, DATETIME
 
@@ -379,12 +380,33 @@ class ResultTest(FlowFileTest):
         run_flow(c1, "1 better place")
         run_flow(c2, "the great coffee")
         run_flow(c3, "1 cup of black tea")
-        run_flow(c4, "awesome than this")
+        run_flow(c4, "awesome than this encore")
         run_flow(c5, "from an awesome place in kigali")
         run_flow(c6, "awesome coffee")
 
         random = RuleSet.objects.get(flow=flow, label="Random")
 
+        result = Value.get_value_summary(ruleset=random)[0]
+        self.assertEquals(10, len(result['categories']))
+        self.assertTrue(result['open_ended'])
+        self.assertResult(result, 0, "awesome", 2)
+        self.assertResult(result, 1, "place", 2)
+        self.assertResult(result, 2, "better", 1)
+        self.assertResult(result, 3, "black", 1)
+        self.assertResult(result, 4, "coffee", 1)
+        self.assertResult(result, 5, "cup", 1)
+        self.assertResult(result, 6, "encore", 1)
+        self.assertResult(result, 7, "great", 1)
+        self.assertResult(result, 8, "kigali", 1)
+        self.assertResult(result, 9, "tea", 1)
+
+        # add French to org languages
+        Language.create(self.org, self.admin, 'French', 'fre')
+
+        # make sure we cleared the cache
+        Value.invalidate_cache(ruleset=random)
+
+        # encore is a french stop word and should not be included this time
         result = Value.get_value_summary(ruleset=random)[0]
         self.assertEquals(9, len(result['categories']))
         self.assertTrue(result['open_ended'])
