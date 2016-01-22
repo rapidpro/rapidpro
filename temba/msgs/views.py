@@ -26,6 +26,9 @@ from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, S
 
 
 def send_message_auto_complete_processor(request):
+    """
+    Adds completions for the expression auto-completion to the request context
+    """
     completions = []
     user = request.user
     org = None
@@ -34,23 +37,24 @@ def send_message_auto_complete_processor(request):
         org = request.user.get_org()
 
     if org:
-        for field in org.contactfields.filter(is_active=True):
-            completions.append(dict(name="contact.%s" % str(field.key), display=unicode(_("Contact Field: %(label)s")) % {'label':field.label}))
+        completions.append(dict(name='contact', display=unicode(_("Contact Name"))))
+        completions.append(dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
+        completions.append(dict(name='contact.groups', display=unicode(_("Contact Groups"))))
+        completions.append(dict(name='contact.language', display=unicode(_("Contact Language"))))
+        completions.append(dict(name='contact.name', display=unicode(_("Contact Name"))))
+        completions.append(dict(name='contact.tel', display=unicode(_("Contact Phone"))))
+        completions.append(dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
+        completions.append(dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
 
-        completions.insert(0, dict(name='contact', display=unicode(_("Contact Name"))))
-        completions.insert(1, dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
-        completions.insert(2, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
-        completions.insert(3, dict(name='contact.language', display=unicode(_("Contact Language"))))
-        completions.insert(4, dict(name='contact.name', display=unicode(_("Contact Name"))))
-        completions.insert(5, dict(name='contact.tel', display=unicode(_("Contact Phone"))))
-        completions.insert(6, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
-        completions.insert(7, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
+        completions.append(dict(name="date", display=unicode(_("Current Date and Time"))))
+        completions.append(dict(name="date.now", display=unicode(_("Current Date and Time"))))
+        completions.append(dict(name="date.today", display=unicode(_("Current Date"))))
+        completions.append(dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
+        completions.append(dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
-        completions.insert(8, dict(name="date", display=unicode(_("Current Date and Time"))))
-        completions.insert(9, dict(name="date.now", display=unicode(_("Current Date and Time"))))
-        completions.insert(10, dict(name="date.today", display=unicode(_("Current Date"))))
-        completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
-        completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
+        for field in org.contactfields.filter(is_active=True).order_by('label'):
+            display = unicode(_("Contact Field: %(label)s")) % {'label': field.label}
+            completions.append(dict(name="contact.%s" % str(field.key), display=display))
 
     function_completions = get_function_listing()
     return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
@@ -331,13 +335,14 @@ class BaseActionForm(forms.Form):
                        ('delete', _("Delete Messages")))
 
     OBJECT_CLASS = Msg
+    OBJECT_CLASS_MANAGER = 'current_messages'
     LABEL_CLASS = Label
     LABEL_CLASS_MANAGER = 'all_objects'
     HAS_IS_ACTIVE = False
 
     action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
     label = forms.ModelChoiceField(getattr(LABEL_CLASS, LABEL_CLASS_MANAGER).all(), required=False)
-    objects = forms.ModelMultipleChoiceField(OBJECT_CLASS.objects.all())
+    objects = forms.ModelMultipleChoiceField(getattr(OBJECT_CLASS, OBJECT_CLASS_MANAGER).all())
     add = forms.BooleanField(required=False)
     number = forms.BooleanField(required=False)
 
@@ -350,10 +355,9 @@ class BaseActionForm(forms.Form):
 
         self.fields['action'].choices = self.ALLOWED_ACTIONS
         self.fields['label'].queryset = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
-
-        self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org)
+        self.fields['objects'].queryset = getattr(self.OBJECT_CLASS, self.OBJECT_CLASS_MANAGER).filter(org=org)
         if self.HAS_IS_ACTIVE:
-            self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org, is_active=True)
+            self.fields['objects'].queryset = getattr(self.OBJECT_CLASS, self.OBJECT_CLASS_MANAGER).filter(org=org, is_active=True)
 
     def clean(self):
         data = self.cleaned_data
@@ -364,7 +368,6 @@ class BaseActionForm(forms.Form):
         update_allowed = self.user.get_org_group().permissions.filter(codename=update_perm_codename)
         delete_allowed = self.user.get_org_group().permissions.filter(codename="msg_update")
         resend_allowed = self.user.get_org_group().permissions.filter(codename="broadcast_send")
-
 
         if action in ['label', 'unlabel', 'archive', 'restore', 'block', 'unblock'] and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
@@ -448,6 +451,7 @@ class MsgActionForm(BaseActionForm):
                        ('delete', _("Delete Messages")))
 
     OBJECT_CLASS = Msg
+    OBJECT_CLASS_MANAGER = 'all_messages'
     LABEL_CLASS = Label
     LABEL_CLASS_MANAGER = 'label_objects'
 
@@ -473,7 +477,7 @@ class MsgActionMixin(SmartListView):
             response = form.execute()
 
             # shouldn't get in here in normal operation
-            if response and 'error' in response:  # pragma: no-cover
+            if response and 'error' in response:  # pragma: no cover
                 return HttpResponse(json.dumps(response), content_type='application/json', status=400)
 
         return self.get(request, *args, **kwargs)
@@ -878,7 +882,7 @@ class LabelCRUDL(SmartCRUDL):
 
             if self.form.cleaned_data['messages']:
                 msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
-                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
+                messages = Msg.all_messages.filter(org=obj.org, pk__in=msg_ids)
                 if messages:
                     obj.toggle_label(messages, add=True)
 

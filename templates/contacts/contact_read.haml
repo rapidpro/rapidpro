@@ -1,7 +1,7 @@
 -extends "smartmin/read.html" 
 
 -load smartmin sms contacts compress temba channels
--load i18n
+-load i18n humanize
 
 -block buttons
 
@@ -23,7 +23,7 @@
       .contact-urn
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
-          %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\")"}><
+          %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, fetchRecentMessages)"}><
             {{urn|format_urn:user_org}}
         -else
           %span.contact-urn-path
@@ -50,96 +50,69 @@
 -block read-buttons
 
 -block content
-  #pjax
-    -block pjax
 
-      .row
-        .span9
-          -for msg in all_messages
-            .message.span9{class:'type-{{msg.msg_type}}'}
-              .avatar{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%}'}
-                -if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss"
-                  .glyph.icon-user
-                -else
-                  -if msg.direction == 'O' and msg.channel
-                    %a{href:'{% url "channels.channel_read" msg.channel.get_parent_channel.pk %}'}
-                      .glyph{class:'{{ msg.channel|channel_icon}}', title:'From: {{ msg.channel.get_address_display }}'}
-                  -elif msg.direction == 'O'
-                    %a{href:'#'}
-                      .glyph{class:'icon-circle-2', title:'No channel'}
+  -if contact_fields
+    .contact-fields{class:'{% if fields %}clickable{%endif%}'}
+      -for field in contact_fields
+        --if field.value
+          .contact-field{class:'{% if field.featured %}featured{%else%}normal{%endif%}'}
+            .contact-field-label
+              {{field.label|title}}
+            .contact-field-value
+              {{field.value}}
 
-              .text{class:'{% if msg.direction == "I" or msg.call_type == "mo_call" or msg.call_type == "mo_miss" %}I{%else%}O{%endif%} {% if msg.visibility == "A" %}A{%endif%}'}
+  -if upcoming_events
+    .header
+      -trans "Upcoming"
 
-                -if msg.text != msg.recording_url
-                  {{msg.text}}
-                -elif msg.recording_url
-                  -trans "Recorded message from the contact"
-                -if msg.call_type == 'mo_call'
-                  -blocktrans with duration=msg.duration
-                    Incoming Call ({{duration}} seconds)
-                -if msg.call_type == 'mo_miss'
-                  -trans "Missed Incoming Call"
-                -if msg.call_type == 'mt_call'
-                  -blocktrans with duration=msg.duration                  
-                    Outgoing Call ({{duration}} seconds)
-                -if msg.call_type == 'mt_miss'
-                  -trans "Missed Outgoing Call"
+      -if upcoming_events|length > 3
+        %a.pull-right.btn.btn-tiny.show-all
+          Show All
 
-                -if msg.get_flow_id
-                  .msg-flow
-                    %span.label.label-success
-                      %a{href:'{% url "flows.flow_editor" msg.get_flow_id %}'}
-                        {{ msg.get_flow_name }}
+    %table.activity.pending
+      -for evt in upcoming_events
 
-                .sent-at{title:'{{ msg.created_on }}'}
-                  -if msg.recording_url
-                    .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
-                      %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
-                      .play
-                        .icon-phone
-                        .text
-                          -trans "Listen"
-                      .stop.hide
-                        .stop-icon
-                        .text
-                          -trans "Stop"
-                  -else
-                    {{ msg|as_icon }}
+        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%} {%if forloop.counter <= upcoming_events|length|add:-3%}hide hidden-upcoming{%endif%}"}
+          %td.icon
+            -if evt.event_type == 'M'
+              %span.glyph.icon-bubble-right
+            -elif evt.event_type == 'F'
+              %span.glyph.icon-tree-2
+            -else
+              %span.glyph.icon-clock
 
-                  {{ msg.created_on|gmail_time }}
-                  -if msg.visibility == 'A'
-                    (Archived)
+          %td.details
 
-            .clearfix
-        .span3
-          .contact_fields
-            -if contact_fields
-              .contact_fields_title
-                -trans "Contact Fields"
-            -for field in contact_fields
-              .contact_field
-                .contact_field_label
-                  {{field.label|title}}
-                .contact_field_value
-                  {{ object|contact_field:field.key }}
-              .clearfix
+            .activity-scheduled
 
-          .contact_fields
-            -if contact_fields
-              .contact_fields_title
-                -trans "Scheduled Messages"
+              -if evt.event_type == 'M'
+                //.summary
+                //  Scheduled {{evt.event.campaign}} message
+                .activity-body
+                  {{evt.message}}
 
-              -for evt in upcoming_events
-                .upcoming_event
-                  .upcoming_event_label
-                    {{evt.scheduled}}
-                  .upcoming_event_value
-                    -if evt.event.event_type == 'M'
-                      {{evt.event.message}}
-                    -elif evt.event.event_type == 'F'
-                      %a.href{ href: "{% url 'campaigns.campaignevent_read' evt.event.pk %}" }= evt.event.flow.name
-                      flow
-                .clearfix
+
+
+              -elif evt.event_type == 'F'
+                -trans "Start"
+                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_id %}" }= evt.flow_name
+          %td.created_on
+            {{evt.scheduled}}
+
+            .repeats
+              -if evt.repeat_period == 'D'
+                -trans 'repeats daily'
+              -elif evt.repeat_period == 'W'
+                -trans 'repeats weekly'
+
+  .header
+    -trans "Message History"
+  %table.activity.history
+    %tr.since
+      %td{colspan:3}
+        %span.loading
+          -trans "One moment..."
+
 
 -block post-content
   -include "msgs/msg_send_modal.haml"
@@ -167,6 +140,207 @@
   -compress css
     {% lessblock %}
       :plain
+
+        .header {
+          padding: 8px;
+          font-size:14px;
+          border-bottom: 1px solid #d9d9d9;
+          margin-top: 10px;
+          .show-all {
+            margin-top:-8px;
+            margin-right:-8px;
+          }
+        }
+
+        table.activity {
+
+          tr.since {
+            border-bottom: none;
+            td {
+              text-align:center;
+              border-top: 1px solid @color-bg-grey + #555;
+              padding-top:15px;
+
+              .date {
+                border:0px solid red;
+              }
+
+              .btn {
+                margin-top:15px;
+              }
+            }
+          }
+
+          tr.end-call {
+            background: #ddd;
+            color: #000;
+            td {
+              text-align:center;
+              padding: 5px;
+            }
+          }
+
+          width: 100%;
+          margin-bottom: 20px;
+          border-collapse: collapse;
+
+          &.pending {
+
+            color: #ccc;
+
+            tr.non-msg {
+              background: inherit;
+            }
+
+
+            .icon {
+              .glyph.icon-bubble-right, .glyph.icon-tree-2 {
+                color: #ddd;
+              }
+              text-align:center;
+            }
+
+            a {
+              color: #ddd;
+            }
+          }
+
+          tr {
+            border-top: 1px solid #f3f3f3;
+            border-bottom: 1px solid #f3f3f3;
+            width: 100%;
+
+          }
+
+          tr.non-msg {
+            background: #fafafa;
+          }
+
+          td {
+            vertical-align:middle;
+            padding: 2px 20px;
+
+            &.icon {
+              width: 30px;
+              padding: 2px 0px;
+              padding-left:10px;
+              text-align:center;
+            }
+
+            &.details {
+
+            }
+          }
+
+          .created_on {
+            width: 160px;
+            font-size:13px;
+            line-height:13px;
+            border: 0px solid;
+            text-align:right;
+
+            .repeats {
+              font-size:90%;
+            }
+          }
+
+          .icon {
+            border: 0px solid;
+            text-align:center;
+
+            .glyph {
+              margin-top:16px;
+              font-size:14px;
+              line-height:0;
+              color: @flat-darkwhite;
+              padding: 5px;
+
+              &.icon-bubble-right, &.icon-bubble-check {
+                color: @color-status-green;
+              }
+
+              &.icon-bubble-user {
+                color: @color-primary;
+              }
+
+              &.icon-bullhorn {
+                color: @color-status-green;
+              }
+
+              &.icon-bubble-notification {
+                color: @color-status-failed;
+              }
+            }
+          }
+
+          .details {
+            border: 0px solid;
+            padding: 14px;
+
+            .activity-message {
+
+              .activity-body {
+                .text {
+                  display: inline-block;
+                }
+                .channel {
+                  display:inline-block;
+                  font-size:11px;
+                  line-height:11px;
+                  color: @flat-white;
+                  a {
+                    color: #ccc;
+
+                    &:hover {
+                      text-decoration:none;
+                    }
+                  }
+                }
+              }
+            }
+
+            .summary {
+              font-size:11px;
+              font-weight:500;
+              line-height:10px;
+              color: @flat-grey;
+            }
+
+            .contact-count {
+              padding-left:5px;
+              font-weight:normal;
+            }
+          }
+        }
+
+
+        .message-history {
+          .broadcast {
+            .rounded-corners();
+            border: solid 1px #f3f3f3;
+
+            padding:15px;
+            margin-bottom:5px;
+
+            .icon-megaphone {
+              float:left;
+              font-size:30px;
+              color: @color-status-green;
+            }
+
+            .sent-to {
+              margin-left:50px;
+              font-size: 12px;
+              font-weight: 400;
+              color: #c1c1c1;
+              line-height:9px;
+            }
+            .message-body {
+              margin-left:50px;
+            }
+          }
+        }
+
         .contact-urn {
           display: inline-block;
           margin-right: 10px;
@@ -182,199 +356,96 @@
           }
         }
 
+        .left-recording {
+          font-style: italic;
+          font-size:90%;
+        }
 
-        .sent-at {
+        .recording {
+          width:16px;
+          padding:4px;
+          text-align:center;
+          .stop {
 
-          .recording {
-            width:50px;
-            text-align:center;
-            .stop {
-              .stop-icon {
-                width:7px;
-                height:7px;
-                background: @flat-white;
-                display:inline-block;
-                line-height:0px;
-                margin-top:-6px;
-                margin-right:1px;
-                margin-left:5px;
-              }
-              .text {
-                padding-top:7px;
-              }
-            }
-
-            &.direction-I{
-
-            }
-
-            padding:1px 6px;
-            padding-bottom:4px;
-            padding-left:1px;
-            .rounded-corners(6px);
-            height:12px;
-            background: @flat-white;
-            color:@flat-white - #555;
-            display:inline-block;
-            margin-right:5px;
-            line-height:0px;
+            font-size:22px;
+            margin-left:-7px;
+            margin-top:-3px;
+          }
 
 
-            .icon-phone {
-              display:inline-block;
-              font-size:11px;
-              margin-top:1px;
-              margin-right:0px;
-            }
+          color:@color-links + #222;
+          display:inline-block;
+          margin-left:0px;
+          font-size:14px;
+          line-height:0px;
 
-            .text {
-              display:inline-block;
-              padding-left:0px;
-            }
+          &:hover {
+            color: @color-links;
+            cursor:pointer;
+          }
 
+          &.playing {
+            color: @color-links + #222;
             &:hover {
-              background: @color-links;
-              color: @flat-white;
-              cursor:pointer;
+              color: @color-links;
             }
 
-            &.playing {
-              background: @flat-blue;
-              color: #fff;
+            .stop {
+              display:block;
+            }
 
-              &:hover {
-                color: #fff;
-              }
-
-              .stop {
-                display:block;
-              }
-
-              .play {
-                display:none;
-              }
+            .play {
+              display:none;
             }
           }
         }
 
-        .contact_fields {
-          font-size: 14px;
+
+        .contact-fields {
+          // background: #f1f1f1;
+
+          font-size: 12px;
           color: @color-font-grey;
+          border: 1px solid #f1f1f1;
+          margin-bottom:15px;
 
-          .contact_fields_title {
-            padding: 10px 40px;
-            font-weight: 400;
-            font-size: 18px;
+          &.clickable:hover {
+            background: #f1f1f1;
+            cursor:pointer;
           }
 
-          .upcoming_event {
-            padding: 10px 5px 10px 60px;
+          .show-more {
+            padding: 10px;
+            display:block;
+          }
 
-            .upcoming_event_label {
-              font-weight: 400;
+          .contact-field {
+            padding: 2px 10px;
+            width: 260px;
+            display:inline-block;
+
+            &.normal {
+              display:none;
+            }
+
+            .contact-field-label {
+              font-weight: normal;
               color: @color-font-black;
+              font-size:12px;
+              margin-right:2px;
+              padding-top:5px;
+              font-size:95%;
+
             }
 
-            .upcoming_event_value {
-              font-weight: 200;
+            .contact-field-value {
+              font-weight: bold;
               color: @color-font-grey;
-              font-size: 14px;
-            }
-
-          }
-
-          .contact_field,  {
-            padding: 10px 60px;
-
-            .contact_field_label {
-              font-weight: 400;
-              color: @color-font-black;
-            }
-
-            .contact_field_value {
-              font-weight: 200;
-              color: @color-font-grey;
-            }
-
-          }
-
-        }
-
-        .message {
-
-          border-top:1px solid @flat-darkwhite;
-
-          .avatar {
-            border: 0px solid red;
-            float:left;
-            width:67px;
-            height:67px;
-            background: @flat-white;
-
-
-            .glyph {
-              margin-left:8px;
-              margin-top:5px;
-              color: @flat-darkwhite;
-              font-size:50px;
-            }
-
-            &.O {
-              float:right;
-              .glyph {
-                font-size:30px;
-                padding-left:12px;
-                padding-top: 10px;
-
-                &.icon-everywhere {
-                  padding-left: 4px;
-                  padding-top: 4px;
-                  font-size:45px;
-                }
-              }
+              border: 0px solid green;
+              padding-top:-5px;
 
             }
-          }
 
-          .text {
-            border: 0px solid green;
-            padding-top:5px;
-            padding-left:10px;
-
-            &.I {
-              margin-left:67px;
-            }
-
-            &.O {
-              padding-right:-77px;
-              text-align:right;
-              margin-right:77px;
-            }
-
-            &.A {
-              color:#999;
-              font-style:italic;
-            }
-
-            .from-number {
-              color:#999;
-              font-size:11px;
-              margin-top:-3px;
-            }
-
-            .sent-at {
-              color:#999;
-              font-size:11px;
-              font-style:normal;
-              padding-bottom:5px;
-              margin-top:0px;
-
-              .glyph {
-                margin-right:2px;
-                font-size:12px;
-                margin-top:2px;
-              }
-            }
           }
         }
 
@@ -384,6 +455,79 @@
   {{ block.super }}
 
   :javascript
+
+    var page = 1;
+    var refreshSeconds = 30;
+    var scheduledRefresh = null;
+
+    $(document).ready(function() {
+
+      $('.show-all').live('click', function() {
+        $(this).hide();
+        $('.hidden-upcoming').slideDown()
+      });
+
+      $('.time').live('mouseover', function() {
+        $(this).children('.long').show();
+        $(this).children('.short').hide();
+      }).live('mouseleave', function() {
+        $(this).children('.short').show();
+        $(this).children('.long').hide();
+      });
+      // fetch our first chunk of history
+      $.get('/contact/history/{{contact.uuid}}/?rs={{recent_seconds}}', function(data){
+        $('.history tr:last').remove();
+        $('.history').append(data);
+      });
+
+      // when they click to load more, fetch more history
+      $('.load-more').live('click', function() {
+        $(this).css('visibility', 'hidden');
+        $('.since .loading').text('One moment..');
+
+        page++
+        $.get('/contact/history/{{contact.uuid}}/?rs={{recent_seconds}}&page=' + page, function(data){
+          $('.history tr:last').remove();
+          $('.history').append(data);
+        });
+      });
+
+      // configure the number of contact fields to show
+      var featuredMax = 4;
+      var featuredCount = $('.featured').size()
+      if (featuredCount < featuredMax) {
+        $('.normal').slice(0, featuredMax-featuredCount).removeClass('normal').addClass('featured')
+      }
+
+      if ($('.normal').size() == 0) {
+        $('.contact-fields').removeClass('clickable')
+      }
+
+      // wire up expanding the contact field list
+      $('.contact-fields').live('click', function() {
+        if ($(this).hasClass('expanded')) {
+          $('.normal').hide();
+          $(this).removeClass('expanded');
+        } else {
+          $(this).addClass('expanded');
+          $('.normal').css('display', 'inline-block').show();
+        }
+      })
+
+      // update messages every 30s
+      scheduledReresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
+    });
+
+    function fetchRecentMessages(){
+      clearTimeout(scheduledRefresh);
+      $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_seconds}}', function(data){
+          $('.history tr.recent').remove();
+          $('.history').prepend(data);
+          scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
+      });
+    }
+
+    // plays the audio recording for a message
     function playMessage (messageId) {
       var audio = $('audio#message-' + messageId)
       var parent = audio.parent();
@@ -462,7 +606,7 @@
     $(".contact-send-button").on('click', function() {
       {% if contact_sendable_urns %}
       $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.id}}");
+      showComposeInitialized("c={{object.id}}", null, fetchRecentMessages);
       {% else %}
       modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
       modal.addClass('alert');

@@ -69,8 +69,8 @@
     };
 
     // show the compose dialog with some contacts prepopulated
-    function showComposeInitialized(queryString, url) {
-      showCompose(true, url);
+    function showComposeInitialized(queryString, url, onComplete) {
+      showCompose(true, url, onComplete);
       $.get("{% url 'contacts.contact_omnibox' %}?" + queryString, function(data, textStatus){
         initializeOmnibox(data.results);
         $('.select2-input').attr('tabindex', 2);
@@ -78,7 +78,7 @@
     }
 
     
-    function showCompose(loading, url) {
+    function showCompose(loading, url, onComplete) {
       // make sure any previous errors are removed
       $("#send-message .error").remove();
 
@@ -123,9 +123,11 @@
       // store our post location in the form
       $('#send-form').attr("action", url);
 
-      $("#send-message .ok").unbind('click').unbind('keypress').click(function(e) {sendMessage(e) }).keypress(function(e) {
+      $("#send-message .ok").unbind('click').unbind('keypress').click(function(e) {
+        sendMessage(e, null, onComplete)
+      }).keypress(function(e) {
         if(e.which == 13){
-          sendMessage(e);
+          sendMessage(e, null, onComplete);
         }
       });
 
@@ -145,7 +147,7 @@
       sendMessage(this, true);
     });
 
-    function sendMessage(e, scheduled) {
+    function sendMessage(e, scheduled, onComplete) {
       if ($("#send-message .ok").hasClass("disabled")) {
         e.preventDefault();
         return;
@@ -189,6 +191,10 @@
           hideCompose();
         }
         fetchPJAXContent(".", "#pjax", { forceReload:true });
+
+        if (onComplete) {
+          onComplete();
+        }
 
 
       }).fail(function(data, textStatus) {

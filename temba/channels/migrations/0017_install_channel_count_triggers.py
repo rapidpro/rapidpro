@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             ChannelCount.objects.filter(channel=channel, count_type__in=['IM', 'OM', 'IV', 'OV']).delete()
 
             # incoming msgs
-            daily_counts = Msg.objects.filter(channel=channel, contact__is_test=False, direction='I')\
+            daily_counts = Msg.all_messages.filter(channel=channel, contact__is_test=False, direction='I')\
                                       .exclude(msg_type='V')\
                                       .extra({'created': "date(msgs_msg.created_on)"})\
                                       .values('created')\
@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
             add_daily_counts(channel, 'IM', daily_counts)
 
             # outgoing msgs
-            daily_counts = Msg.objects.filter(channel=channel, contact__is_test=False, direction='O')\
+            daily_counts = Msg.all_messages.filter(channel=channel, contact__is_test=False, direction='O')\
                                       .exclude(msg_type='V')\
                                       .extra({'created': "date(msgs_msg.created_on)"})\
                                       .values('created')\
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
             add_daily_counts(channel, 'OM', daily_counts)
 
             # incoming voice
-            daily_counts = Msg.objects.filter(channel=channel, contact__is_test=False, direction='I')\
+            daily_counts = Msg.all_messages.filter(channel=channel, contact__is_test=False, direction='I')\
                                       .filter(msg_type='V')\
                                       .extra({'created': "date(msgs_msg.created_on)"})\
                                       .values('created')\
@@ -58,7 +58,7 @@ class Migration(migrations.Migration):
             add_daily_counts(channel, 'IV', daily_counts)
 
             # outgoing voice
-            daily_counts = Msg.objects.filter(channel=channel, contact__is_test=False, direction='O')\
+            daily_counts = Msg.all_messages.filter(channel=channel, contact__is_test=False, direction='O')\
                                       .filter(msg_type='V')\
                                       .extra({'created': "date(msgs_msg.created_on)"})\
                                       .values('created')\

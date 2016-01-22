@@ -26,9 +26,6 @@ class APITokenAuthentication(TokenAuthentication):
             # set the org on this user
             token.user.set_org(token.org)
 
-            return (token.user, token)
+            return token.user, token
 
         raise exceptions.AuthenticationFailed('User inactive or deleted')
-
-    def authenticate_header(self, request):
-        return 'Token'

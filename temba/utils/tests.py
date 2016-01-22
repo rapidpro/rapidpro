@@ -5,6 +5,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import pytz
 
+from django.test.testcases import TestCase
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
@@ -20,6 +21,7 @@ from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
 from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
+from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
@@ -170,6 +172,38 @@ class InitTest(TembaTest):
         self.assertEquals(0, percentage(100, 0))
         self.assertEquals(75, percentage(75, 100))
         self.assertEquals(76, percentage(759, 1000))
+
+
+class TemplateTagTest(TembaTest):
+
+    def test_icon(self):
+        from temba.campaigns.models import Campaign
+        from temba.triggers.models import Trigger
+        from temba.flows.models import Flow
+        from temba.utils.templatetags.temba import icon
+
+        campaign = Campaign.create(self.org, self.admin, 'Test Campaign', self.create_group('Test group', []))
+        flow = Flow.create(self.org, self.admin, 'Test Flow')
+        trigger = Trigger.objects.create(org=self.org, keyword='trigger', flow=flow, created_by=self.admin, modified_by=self.admin)
+
+        self.assertEquals('icon-instant', icon(campaign))
+        self.assertEquals('icon-feed', icon(trigger))
+        self.assertEquals('icon-tree', icon(flow))
+        self.assertEquals("", icon(None))
+
+    def test_format_seconds(self):
+        from temba.utils.templatetags.temba import format_seconds
+
+        self.assertIsNone(format_seconds(None))
+
+        # less than a minute
+        self.assertEquals("30 sec", format_seconds(30))
+
+        # round down
+        self.assertEquals("1 min", format_seconds(89))
+
+        # round up
+        self.assertEquals("2 min", format_seconds(100))
 
 
 class CacheTest(TembaTest):
@@ -589,7 +623,56 @@ class ExpressionsTest(TembaTest):
 
     def test_get_function_listing(self):
         listing = get_function_listing()
-        self.assertEqual(listing[0], {'name': 'ABS', 'display': "Returns the absolute value of a number"})
+        self.assertEqual(listing[0], {'signature':'ABS(number)', 'name': 'ABS', 'display': "Returns the absolute value of a number"})
+
+    def test_build_function_signature(self):
+        self.assertEqual('ABS()',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[])))
+
+        self.assertEqual('ABS(number)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=False)])))
+
+        self.assertEqual('ABS(number, ...)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=True)])))
+
+        self.assertEqual('ABS([number])',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=True,
+                                                                     name='number',
+                                                                     vararg=False)])))
+
+        self.assertEqual('ABS([number], ...)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=True,
+                                                                     name='number',
+                                                                     vararg=True)])))
+
+        self.assertEqual('MOD(number, divisor)',
+                         _build_function_signature(dict(name='MOD',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=False),
+                                                                dict(optional=False,
+                                                                     name='divisor',
+                                                                     vararg=False)])))
+
+        self.assertEqual('MOD(number, ..., divisor)',
+                         _build_function_signature(dict(name='MOD',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=True),
+                                                                dict(optional=False,
+                                                                     name='divisor',
+                                                                     vararg=False)])))
+
+
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))

@@ -26,6 +26,7 @@ module.exports = (config) ->
       'static/js/dom.jsPlumb-1.7.5.js',
       'static/angular/sortable.js',
       'static/js/jasmine-jquery.js',
+      'static/js/omnibox.js',
       'static/js/uuid.js',
       'static/js/excellent.js',
       'static/scripts/bootstrap/js/bootstrap.js',

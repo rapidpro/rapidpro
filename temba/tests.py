@@ -1,29 +1,58 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import json
+from itertools import izip
+
 import os
 import redis
 import shutil
 import string
 import time
+import re
 
 from datetime import datetime
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.db import DEFAULT_DB_ALIAS
+from django.db.models import Manager
 from django.db import connection
 from django.test import LiveServerTestCase
+from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, RULE_SET, ACTION_SET
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
+from xlrd import xldate_as_tuple
+from xlrd.sheet import XL_CELL_DATE
+import inspect
+
+
+class ExcludeTestRunner(DiscoverRunner):
+    def __init__(self, *args, **kwargs):
+        from django.conf import settings
+        settings.TESTING = True
+        super(ExcludeTestRunner, self).__init__(*args, **kwargs)
+
+    def build_suite(self, *args, **kwargs):
+        suite = super(ExcludeTestRunner, self).build_suite(*args, **kwargs)
+        excluded = getattr(settings, 'TEST_EXCLUDE', [])
+        if not getattr(settings, 'RUN_ALL_TESTS', False):
+            tests = []
+            for case in suite:
+                pkg = case.__class__.__module__.split('.')[0]
+                if pkg not in excluded:
+                    tests.append(case)
+            suite._tests = tests
+        return suite
+
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -36,6 +65,11 @@ def uuid(val):
 class TembaTest(SmartminTest):
 
     def setUp(self):
+
+        # if we are super verbose, turn on debug for sql queries
+        if self.get_verbosity() > 2:
+            settings.DEBUG = True
+
         self.clear_cache()
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
@@ -59,7 +93,7 @@ class TembaTest(SmartminTest):
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country,
+        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand='rapidpro.io',
                                       created_by=self.user, modified_by=self.user)
         self.org.initialize()
 
@@ -88,6 +122,47 @@ class TembaTest(SmartminTest):
         # reset our simulation to False
         Contact.set_simulation(False)
 
+    def get_verbosity(self):
+        for s in reversed(inspect.stack()):
+            options = s[0].f_locals.get('options')
+            if isinstance(options, dict):
+                return int(options['verbosity'])
+        return 1
+
+    def explain(self, query):
+        cursor = connection.cursor()
+        cursor.execute('explain %s' % query)
+        plan = cursor.fetchall()
+        indexes = []
+        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', unicode(plan), re.DOTALL):
+            index = match.group(1).strip()
+            table = match.group(2).strip()
+            indexes.append((table, index))
+
+        indexes = sorted(indexes, key=lambda i: i[0])
+        return indexes
+
+    def tearDown(self):
+
+        if self.get_verbosity() > 2:
+            details = []
+            for query in connection.queries:
+                query = query['sql']
+                if 'SAVEPOINT' not in query:
+                    indexes = self.explain(query)
+                    details.append(dict(query=query, indexes=indexes))
+
+            for stat in details:
+                print
+                print stat['query']
+                for table, index in stat['indexes']:
+                    print '  Index Used: %s.%s' % (table, index)
+
+                if not len(stat['indexes']):
+                    print '  No Index Used'
+
+            settings.DEBUG = False
+
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and actually hard-code redis to 'localhost' and '10'
@@ -102,19 +177,21 @@ class TembaTest(SmartminTest):
         """
         shutil.rmtree('media/test_orgs', ignore_errors=True)
 
-    def import_file(self, file, site='http://rapidpro.io', substitutions=None):
+    def import_file(self, filename, site='http://rapidpro.io', substitutions=None):
+        data = self.get_import_json(filename, substitutions=substitutions)
+        self.org.import_app(json.loads(data), self.admin, site=site)
 
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+    def get_import_json(self, filename, substitutions=None):
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename), 'r+')
         data = handle.read()
         handle.close()
 
         if substitutions:
-            for k,v in substitutions.iteritems():
-                print 'Replacing "%s" with "%s"' % (k,v)
+            for k, v in substitutions.iteritems():
+                print 'Replacing "%s" with "%s"' % (k, v)
                 data = data.replace(k, str(v))
 
-        # import all our bits
-        self.org.import_app(json.loads(data), self.admin, site=site)
+        return data
 
     def get_flow(self, filename, substitutions=None):
         last_flow = Flow.objects.all().order_by('-pk').first()
@@ -125,15 +202,14 @@ class TembaTest(SmartminTest):
 
         return Flow.objects.all().order_by('-created_on').first()
 
-    def get_flow_json(self, file):
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
-        data = handle.read()
-        handle.close()
+    def get_flow_json(self, filename, substitutions=None):
+        data = self.get_import_json(filename, substitutions=substitutions)
         return json.loads(data)['flows'][0]
 
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
-        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", created_by=self.admin2, modified_by=self.admin2)
+        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
+                                       created_by=self.admin2, modified_by=self.admin2)
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
 
@@ -172,7 +248,7 @@ class TembaTest(SmartminTest):
         if not kwargs['contact'].is_test:
             kwargs['topup_id'] = kwargs['org'].decrement_credit()
 
-        return Msg.objects.create(**kwargs)
+        return Msg.all_messages.create(**kwargs)
 
     def create_flow(self, uuid_start=None):
         flow = Flow.create(self.org, self.admin, "Color Flow")
@@ -190,11 +266,11 @@ class TembaTest(SmartminTest):
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
                                       actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
                                       actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
-                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])],
+                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
+                                      actions=[dict(type='reply', msg=dict(base='That is a funny color. Try again.'))])],
                     rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                     label='color',
                                     finished_key=None,
@@ -228,7 +304,7 @@ class TembaTest(SmartminTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
-    def update_destination_no_check(self, flow, node, destination, rule=None):
+    def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
         destination_type = ACTION_SET
@@ -256,6 +332,29 @@ class TembaTest(SmartminTest):
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
 
+    def assertExcelRow(self, sheet, row_num, values, tz=None):
+        """
+        Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
+        """
+        actual_values = []
+        expected_values = []
+        for c in range(0, len(values)):
+            cell = sheet.cell(row_num, c)
+            actual = cell.value
+            expected = values[c]
+
+            if cell.ctype == XL_CELL_DATE:
+                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+
+            # if expected value is datetime, localize and remove microseconds
+            if isinstance(expected, datetime):
+                expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
+
+            actual_values.append(actual)
+            expected_values.append(expected)
+
+        self.assertEqual(actual_values, expected_values)
+
 
 class FlowFileTest(TembaTest):
 
@@ -264,7 +363,7 @@ class FlowFileTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
 
     def assertLastResponse(self, message):
-        response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
+        response = Msg.all_messages.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
@@ -297,7 +396,7 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
@@ -309,7 +408,7 @@ class FlowFileTest(TembaTest):
 
             else:
                 # assert we got no reply
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
                 self.assertFalse(replies)
 
             return None
@@ -321,7 +420,8 @@ class FlowFileTest(TembaTest):
 from selenium.webdriver.firefox.webdriver import WebDriver
 from HTMLParser import HTMLParser
 
-class MLStripper(HTMLParser):
+
+class MLStripper(HTMLParser):  # pragma: no cover
     def __init__(self):
         self.reset()
         self.fed = []
@@ -342,7 +442,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         try:
             import os
             os.mkdir('screenshots')
-        except:
+        except Exception:
             pass
 
         super(BrowserTest, cls).setUpClass()
@@ -509,7 +609,7 @@ class MockRequestValidator(RequestValidator):
         return True
 
 
-class MockTwilioClient(TwilioClient):
+class MockTwilioClient(TwilioClient):  # pragma: no cover
 
     def __init__(self, sid, token):
         self.applications = MockTwilioClient.MockApplications()

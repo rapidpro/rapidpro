@@ -400,11 +400,11 @@
                         Categorized as {{category}}
 
 
-              -if not run.is_active
+              -if run.exited_on
                 .ilog.from
-                  -if run.expired_on
-                    - blocktrans with expired_on=run.expired_on
-                      This run expired {{ expired_on }}
+                  -if run.exit_type == 'E'
+                    - blocktrans with exited_on=run.exited_on
+                      This run expired {{ exited_on }}
                   -else
                     - blocktrans with name=contact|name_or_urn:user_org
                       {{name}} exited from this flow

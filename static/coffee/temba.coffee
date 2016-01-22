@@ -62,7 +62,7 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
 
   checkboxes.each ->
     input = $(this)
-    controlGroup = input.parents('.form-group')
+    controlGroup = input.parents('.control-group')
     label = controlGroup.children("label").text()
     help = input.parent().children(".help-block")
 

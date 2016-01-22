@@ -1,0 +1,63 @@
+{% extends "email_base.html" %}
+
+{% load tz %}
+{% load i18n %}
+{% block body %}
+
+{% blocktrans with customer=customer.first_name  %}
+
+<br/>
+Hi {{ customer }},
+
+<br/>
+{% endblocktrans %}
+<br/>
+
+{% if alert.alert_type == 'O' %}
+
+{% blocktrans with org=alert.org.name brand=branding.name %}
+
+Your {{ brand }} account for {{ org }} is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.
+
+<br/>
+To resume your service please visit your account page to purchase a top up.
+<br/>
+{% endblocktrans %}
+
+{% elif alert.alert_type == 'E' %}
+
+{% blocktrans with org=alert.org.name brand=branding.name expiring=org.get_credits_expiring_soon %}
+
+Your {{ brand }} account for {{ org }} has {{ expiring }} expiring credits in less than one month.
+<br/>
+Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.
+<br/>
+{% endblocktrans %}
+
+{% else %}
+
+
+{% blocktrans with org=alert.org.name brand=branding.name remaining=org.get_credits_remaining %}
+Your {{ brand }} account for {{ org }} is running low on credits, you currently only have {{ remaining }} credits remaining.
+<br/>
+Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.
+<br/>
+{% endblocktrans %}
+
+{% endif %}
+
+
+
+{% blocktrans with brand=branding.name %}
+
+<br/>
+Thanks!
+<br/>
+The {{ brand }} Team
+<br/>
+{% endblocktrans %}
+
+</p>
+
+
+{% endblock body %}

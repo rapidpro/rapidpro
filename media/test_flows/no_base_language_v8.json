@@ -1,0 +1,50 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": null, 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "f614e8c9-eeb6-4c94-bd07-b4bbe8a95b47", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "A New Group", 
+                  "id": 44899
+                }
+              ]
+            }, 
+            {
+              "field": "location", 
+              "type": "save", 
+              "value": "Seattle, WA", 
+              "label": "Location"
+            }, 
+            {
+              "lang": "eng", 
+              "type": "lang", 
+              "name": "English"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "f614e8c9-eeb6-4c94-bd07-b4bbe8a95b47", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 720, 
+        "saved_on": "2015-11-19T00:30:09.477009Z", 
+        "id": 42104, 
+        "name": "Join New Group", 
+        "revision": 6
+      }
+    }
+  ], 
+  "triggers": []
+}
