@@ -2550,6 +2550,24 @@ class ContactFieldTest(TembaTest):
 
             self.assertEqual(sheet.nrows, 5)  # no other contacts
 
+        with AnonymousOrg(self.org):
+            self.client.get(reverse('contacts.contact_export'), dict())
+            task = ExportContactsTask.objects.all().order_by('-id').first()
+
+            filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = open_workbook(filename, 'rb')
+            sheet = workbook.sheets()[0]
+
+            # check our headers have 2 phone columns and Twitter
+            self.assertExcelRow(sheet, 0, ["UUID", "Name", "First", "Second", "Third"])
+
+            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "", "", ""])
+            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "One", "", ""])
+            self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "", ""])
+            self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
+
+            self.assertEqual(sheet.nrows, 5)  # no other contacts
+
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 

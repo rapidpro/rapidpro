@@ -1697,20 +1697,22 @@ class ExportContactsTask(SmartModel):
         fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
-        active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
+        scheme_counts = dict()
+        if not self.org.is_anon:
+            active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
 
-        scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
+            scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
-        schemes = scheme_counts.keys()
-        schemes.sort()
+            schemes = scheme_counts.keys()
+            schemes.sort()
 
-        for scheme in schemes:
-            count = scheme_counts[scheme]
-            if count is not None:
-                for i in range(count):
-                    field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
-                    field_dict['position'] = i
-                    fields.append(field_dict)
+            for scheme in schemes:
+                count = scheme_counts[scheme]
+                if count is not None:
+                    for i in range(count):
+                        field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
+                        field_dict['position'] = i
+                        fields.append(field_dict)
 
         with SegmentProfiler("building up contact fields"):
             contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
