@@ -771,7 +771,7 @@ class Contact(TembaModel):
         return field_dict
 
     @classmethod
-    def get_import_file_headers(cls, csv_file):
+    def get_org_import_file_headers(cls, csv_file, org):
         csv_file.open()
 
         # this file isn't good enough, lets write it to local disk
@@ -796,17 +796,21 @@ class Contact(TembaModel):
         finally:
             os.remove(tmp_file)
 
-        Contact.validate_import_header(headers)
+        Contact.validate_org_import_header(headers, org)
 
         # return the column headers which can become contact fields
         return [header for header in headers if header.strip().lower() and header.strip().lower() not in Contact.RESERVED_FIELDS]
 
     @classmethod
-    def validate_import_header(cls, header):
+    def validate_org_import_header(cls, header, org):
         possible_urn_fields = [Contact.PHONE, 'twitter', 'external']
         header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
+
+        if org.is_anon:
+            if 'uuid' in header and 'name' in header:
+                return
 
         if 'name' not in header and not header_urn_fields:
             raise Exception(ugettext('The file you provided is missing required headers called "Name" and one of "%s".'
