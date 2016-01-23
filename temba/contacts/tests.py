@@ -186,10 +186,21 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertNoFormErrors(response)
         group = ContactGroup.user_groups.get(org=self.org, name="first")
 
+        # create a group with preselected contacts
+        self.client.post(create_url, dict(name="Joe and Frank", preselected_contacts=','.join([unicode(self.joe.pk),
+                                                                                               unicode(self.frank.pk)])))
+        group = ContactGroup.user_groups.get(org=self.org, name="Joe and Frank")
+        self.assertEquals(group.count, 2)
+
+        # now one with a query
+        self.client.post(create_url, dict(name="Frank", group_query='frank'))
+        group = ContactGroup.user_groups.get(org=self.org, name="Frank")
+        self.assertEquals(group.count, 1)
+
         # try to create another with the same name, nothing happens
         response = self.client.post(create_url, dict(name="First"))
         self.assertNoFormErrors(response)
-        self.assertEquals(1, ContactGroup.user_groups.filter(org=self.org).count())
+        self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
 
         # direct calls are the same thing
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
@@ -212,6 +223,18 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="new name")
+
+        # create a dynamic group based on frank
+        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Frank", group_query='frank'))
+        group = ContactGroup.user_groups.get(org=self.org, name='Frank')
+        self.assertEquals(1, group.count)
+
+        # now update that group to joe
+        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Joe', query='joe'))
+        self.assertIsNone(ContactGroup.user_groups.filter(org=self.org, name='Frank').first())
+        group = ContactGroup.user_groups.filter(org=self.org, name='Joe').first()
+        self.assertEquals(1, group.count)
+        self.assertIsNotNone(group.contacts.filter(name='Joe Blow').first())
 
 
 class ContactGroupTest(TembaTest):
@@ -1047,6 +1070,15 @@ class ContactTest(TembaTest):
         # with our recent flag on, should not see the 5 older messages
         self.assertEquals(60, len(activity))
 
+        # can view history as super user as well
+        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.superuser)
+        activity = response.context['activity']
+        self.assertEquals(65, len(activity))
+
+        self.login(self.admin)
+        response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
+        self.assertEquals(response.status_code, 404)
+
     def test_event_times(self):
 
         self.create_campaign()
@@ -1555,6 +1587,46 @@ class ContactTest(TembaTest):
         self.assertEquals(self.joe.name, "Joe Bloggs")
 
         self.joe.unblock()
+
+        # add new urn for joe
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
+                                 dict(name='Joey', __urn__tel__0="12345",
+                                      new_scheme="ext", new_path="EXT123"))
+
+        urn = ContactURN.objects.filter(contact=self.joe, scheme='ext').first()
+        self.assertIsNotNone(urn)
+        self.assertEquals('EXT123', urn.path)
+
+        # now try adding one that is invalid
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
+                                 dict(name='Joey', __urn__tel__0="12345",
+                                      new_scheme="mailto", new_path="malformed"))
+        self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme='mailto').first())
+
+        # update our language to something not on the org
+        self.joe.refresh_from_db()
+        self.joe.language = 'fre'
+        self.joe.save()
+
+        # add some languages to our org, but not french
+        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='hat', languages='arc,spa'))
+        response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
+
+        self.assertContains(response, 'French (Missing)')
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
+                                 dict(name='Joey', __urn__tel__0="12345",
+                                      new_scheme="mailto", new_path="malformed"))
+
+        # update our contact with some locations
+        ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
+
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                         dict(__field__state='eastern province', __field__home='rwamagana'))
+
+        response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+        self.assertContains(response, 'Eastern Province')
+        self.assertContains(response, 'Rwamagana')
 
         # check updating when org is anon
         self.org.is_anon = True
@@ -2385,6 +2457,12 @@ class ContactTest(TembaTest):
             self.assertEquals([self.frank, self.joe], list(men_group.contacts.order_by('name')))
             self.assertEquals([self.mary], list(women_group.contacts.order_by('name')))
             self.assertEquals([self.joe], list(joes_group.contacts.order_by('name')))
+
+            # try removing frank from dynamic group (shouldnt happen, ui doesnt allow this)
+            with self.assertRaises(ValueError):
+                self.login(self.admin)
+                self.client.post(reverse('contacts.contact_read', args=[self.frank.uuid]),
+                                 dict(contact=self.frank.pk, group=men_group.pk))
 
             # check event fire initialized correctly
             joe_fires = EventFire.objects.filter(event=joes_event)

@@ -564,7 +564,7 @@ class ContactCRUDL(SmartCRUDL):
                     if groups:
                         context['group'] = groups[0]
 
-                    elif not task.status() in ['PENDING', 'RUNNING', 'STARTED']:
+                    elif not task.status() in ['PENDING', 'RUNNING', 'STARTED']:  # pragma: no cover
                         context['show_form'] = True
 
             return context
@@ -573,7 +573,7 @@ class ContactCRUDL(SmartCRUDL):
             task_id = self.request.REQUEST.get('task', None)
             if task_id:
                 tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
-                if tasks and tasks[0].status() in ['PENDING', 'RUNNING', 'STARTED']:
+                if tasks and tasks[0].status() in ['PENDING', 'RUNNING', 'STARTED']:  # pragma: no cover
                     return 3000
             return 0
 
@@ -769,7 +769,7 @@ class ContactCRUDL(SmartCRUDL):
                 if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
                     b.created_on = b.fired
 
-                if a.created_on == b.created_on:
+                if a.created_on == b.created_on:  # pragma: no cover
                     return 0
                 elif a.created_on < b.created_on:
                     return -1
@@ -1039,23 +1039,6 @@ class ContactCRUDL(SmartCRUDL):
 
                 obj.update_urns(urns)
 
-            fields_to_save_later = dict()
-            for field_key, value in self.form.cleaned_data.iteritems():
-                if field_key.startswith('__field__'):
-                    key = field_key[9:]
-                    contact_field = ContactField.objects.filter(org=self.org, key=key).first()
-                    contact_field_type = contact_field.value_type
-
-                    # district values are saved last to validate the states
-                    if contact_field_type == DISTRICT:
-                        fields_to_save_later[key] = value
-                    else:
-                        obj.set_field(key, value)
-
-            # now save our district fields
-            for key, value in fields_to_save_later.iteritems():
-                obj.set_field(key, value)
-
             return obj
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
@@ -1086,6 +1069,10 @@ class ContactCRUDL(SmartCRUDL):
                         fields_to_save_later[key] = value
                     else:
                         obj.set_field(key, value)
+
+            # now save our district fields
+            for key, value in fields_to_save_later.iteritems():
+                obj.set_field(key, value)
 
             return obj
 
