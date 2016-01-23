@@ -2801,6 +2801,8 @@ class FlowRun(models.Model):
     expires_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run will expire"))
 
+    responded = models.BooleanField(default=False, help_text='Whether contact has responded in this run')
+
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
@@ -3576,6 +3578,11 @@ class FlowStep(models.Model):
         if not msg.msg_type or msg.msg_type == INBOX:
             msg.msg_type = FLOW
             msg.save(update_fields=['msg_type'])
+
+        # if message is from contact, mark run as responded
+        if not self.run.responded and msg.direction == INCOMING:
+            self.run.responded = True
+            self.run.save(update_fields=('responded',))
 
     def get_step(self):
         """

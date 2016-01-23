@@ -728,40 +728,48 @@ class TriggerTest(TembaTest):
         self.assertTrue(group in updated_trigger.groups.all())
 
     def test_trigger_handle(self):
-
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
+        # create an incoming message with no text
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="")
 
+        # check not handled
         self.assertFalse(Trigger.find_and_handle(incoming))
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="some text")
 
+        # check not handled (no trigger or flow)
         self.assertFalse(Trigger.find_and_handle(incoming))
 
+        # setup a flow and keyword trigger
         flow = self.create_flow()
-
         Trigger.objects.create(org=self.org, keyword='when', flow=flow,
                                created_by=self.admin, modified_by=self.admin)
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when is it?")
 
+        # check message was handled
         self.assertTrue(Trigger.find_and_handle(incoming))
 
-        group = self.create_group("first", [self.contact2])
+        # should also have a flow run
+        run = FlowRun.objects.get()
+        self.assertTrue(run.responded)
 
+        # create trigger for specific contact group
+        group = self.create_group("first", [self.contact2])
         trigger = Trigger.objects.create(org=self.org, keyword='where', flow=flow, 
                                          created_by=self.admin, modified_by=self.admin)
-
         trigger.groups.add(group)
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="where do you go?")
 
+        # check not handled (contact not in the group)
         self.assertFalse(Trigger.find_and_handle(incoming))
 
         incoming2 = self.create_msg(direction=INCOMING, contact=self.contact2, text="where do I find it?")
 
+        # check was handled (this contact is in the group)
         self.assertTrue(Trigger.find_and_handle(incoming2))
 
     def test_trigger_handle_priority(self):
