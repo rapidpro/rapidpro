@@ -40,6 +40,7 @@ EXTERNAL_SCHEME = 'ext'
 
 # schemes that we actually support
 URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
+                      (EMAIL_SCHEME, _("Email address")),
                       (TWITTER_SCHEME, _("Twitter handle")),
                       (EXTERNAL_SCHEME, _("External identifier")))
 
@@ -1336,6 +1337,14 @@ class ContactURN(models.Model):
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
             return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+        elif scheme == EMAIL_SCHEME:
+            from django.core.validators import validate_email
+            try:
+                validate_email(path)
+                return True
+            except Exception:
+                return False
 
         # anything goes for external schemes
         elif scheme == EXTERNAL_SCHEME:

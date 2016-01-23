@@ -1477,9 +1477,11 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', 'loc', '__urn__tel__0', '__field__state'])
+        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', '__urn__tel__0', '__urn__twitter__0', 'loc'])
         self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
         self.assertEqual(response.context['form'].fields['__urn__tel__0'].initial, "123")
+
+        response = self.client.get(reverse('contacts.contact_update_fields', args=[self.joe.id]))
         self.assertEqual(response.context['form'].fields['__field__state'].initial, "Kigali City")  # parsed name
 
         # update it to something else
@@ -1489,9 +1491,12 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, "Eastern Province")
 
-        # update joe - change his tel URN and state field (to something invalid)
-        data = dict(name="Joe Blow", __urn__tel__0="12345", __field__state="newyork")
+        # update joe - change his tel URN
+        data = dict(name="Joe Blow", __urn__tel__0="12345")
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), data)
+
+        # update the state contact field to something invalid
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(__field__state='newyork'))
 
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
@@ -1874,7 +1879,7 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1,
                                                             error_messages=[dict(line=3,
                                                                                  error="Missing any valid URNs; at "
-                                                                                       "least one among 'twitter, ext "
+                                                                                       "least one among 'mailto, twitter, ext "
                                                                                        "or phone' should be provided"),
                                                                             dict(line=4,
                                                                                  error="Invalid Phone number 12345")]))
@@ -1955,7 +1960,7 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'twitter, ext "
+                                                                                     "least one among 'mailto, twitter, ext "
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
@@ -2600,7 +2605,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(33):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -2624,7 +2629,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
 
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(33):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
