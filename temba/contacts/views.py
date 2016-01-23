@@ -369,7 +369,6 @@ class ContactCRUDL(SmartCRUDL):
             """
 
             org = self.derive_org()
-
             column_controls = []
             for header in column_headers:
                 header_key = slugify_with(header)
@@ -428,7 +427,7 @@ class ContactCRUDL(SmartCRUDL):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
             form.fields.clear()
             
-            self.headers = Contact.get_import_file_headers(self.get_object().csv_file.file)
+            self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
             self.column_controls = self.create_column_controls(self.headers)
 
             return form
@@ -479,10 +478,14 @@ class ContactCRUDL(SmartCRUDL):
 
     class Import(OrgPermsMixin, SmartCSVImportView):
         class ImportForm(forms.ModelForm):
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs['org']
+                del kwargs['org']
+                super(ContactCRUDL.Import.ImportForm, self).__init__(*args, **kwargs)
 
             def clean_csv_file(self):
                 try:
-                    Contact.get_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()))
+                    Contact.get_org_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()), self.org)
                 except Exception as e:
                     raise forms.ValidationError(str(e))
 
@@ -504,10 +507,15 @@ class ContactCRUDL(SmartCRUDL):
             task.import_params = json.dumps(params)
             task.save()
 
-            headers = Contact.get_import_file_headers(task.csv_file.file)
+            headers = Contact.get_org_import_file_headers(task.csv_file.file, org)
             if not headers and not task.done():
                 task.start()
             return task
+
+        def get_form_kwargs(self):
+            kwargs = super(ContactCRUDL.Import, self).get_form_kwargs()
+            kwargs['org'] = self.derive_org()
+            return kwargs
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Import, self).get_context_data(**kwargs)
@@ -549,7 +557,7 @@ class ContactCRUDL(SmartCRUDL):
             return None
 
         def get_success_url(self):
-            if Contact.get_import_file_headers(self.object.csv_file):
+            if Contact.get_org_import_file_headers(self.object.csv_file, self.derive_org()):
                 return reverse("contacts.contact_customize", args=[self.object.pk])
 
             return reverse("contacts.contact_import") + "?task=%d" % self.object.pk
