@@ -1548,7 +1548,7 @@ class ContactGroup(TembaModel):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
-        if self.group_type != self.TYPE_USER_DEFINED:
+        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
             raise ValueError("Can't add or remove test contacts from system groups")
 
         changed = set()
@@ -1626,7 +1626,7 @@ class ContactGroup(TembaModel):
 
     @classmethod
     def get_system_group_queryset(cls, org, group_type):
-        if group_type == cls.TYPE_USER_DEFINED:
+        if group_type == cls.TYPE_USER_DEFINED:  # pragma: no cover
             raise ValueError("Can only get system group querysets")
 
         return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
@@ -1807,7 +1807,7 @@ class ExportContactsTask(SmartModel):
                     current_contact += 1
 
                     # output some status information every 10,000 contacts
-                    if current_contact % 10000 == 0:
+                    if current_contact % 10000 == 0:  # pragma: no cover
                         elapsed = time.time() - start
                         predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 

@@ -204,7 +204,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
 
         # direct calls are the same thing
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
-        self.assertEquals(group, existing_group)
+        self.assertEquals('first', existing_group.name)
 
     def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
@@ -2725,6 +2725,19 @@ class ContactFieldTest(TembaTest):
 
             self.assertEqual(sheet.nrows, 5)  # no other contacts
 
+        # export a specified group of contacts
+        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Poppin Tags", group_query='Haggerty'))
+        group = ContactGroup.user_groups.get(name='Poppin Tags')
+        self.client.get(reverse('contacts.contact_export'), dict(g=group.id))
+        task = ExportContactsTask.objects.all().order_by('-id').first()
+        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        # just the header and a single contact
+        self.assertEqual(sheet.nrows, 2)
+
+        # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
