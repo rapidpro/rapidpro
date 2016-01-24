@@ -506,6 +506,7 @@ class Contact(TembaModel):
             existing_orphan_urns = dict()
             urns_to_create = dict()
             for scheme, path in urns:
+
                 if not scheme or not path:
                     raise ValueError(_("URN cannot have empty scheme or path"))
 
@@ -679,7 +680,7 @@ class Contact(TembaModel):
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
                     value = str(int(float(value)))
-                except ValueError:
+                except ValueError:  # pragma: no cover
                     # oh well, neither of those, stick to the plan, maybe we can make sense of it below
                     pass
 
@@ -1208,8 +1209,6 @@ class Contact(TembaModel):
         tel = self.get_urn(TEL_SCHEME)
         if tel:
             return tel.path
-        else:
-            return None
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
         from temba.msgs.models import Broadcast
@@ -1440,12 +1439,12 @@ class ContactURN(models.Model):
                 if self.path and self.path[0] == '+':
                     return phonenumbers.format_number(phonenumbers.parse(self.path, None),
                                                       phonenumbers.PhoneNumberFormat.NATIONAL)
-            except Exception: # pragma: no cover
+            except Exception:  # pragma: no cover
                 pass
 
         return self.path
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return self.urn
 
     class Meta:
@@ -1562,9 +1561,6 @@ class ContactGroup(TembaModel):
 
             # if we are adding the contact to the group, and this contact is not in this group
             if add:
-                if contact.is_blocked:
-                    raise ValueError("Can't add or remove groups on blocked contact")
-
                 if not group_contacts.filter(id=contact.id):
                     self.contacts.add(contact)
                     contact_changed = True

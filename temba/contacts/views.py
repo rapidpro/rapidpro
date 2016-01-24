@@ -335,7 +335,7 @@ class ContactCRUDL(SmartCRUDL):
                                                            group=group, host=host)
                 export_contacts_task.delay(export.pk)
 
-                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
                     messages.info(self.request,
                                   _("We are preparing your export. We will e-mail you at %s when it is ready.")
                                   % self.request.user.username)
@@ -638,8 +638,6 @@ class ContactCRUDL(SmartCRUDL):
             context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
 
             contact = self.object
-            if not contact.is_active:
-                raise Http404("No active contact with that id")
 
             # the users group membership
             context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')

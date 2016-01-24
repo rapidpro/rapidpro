@@ -118,7 +118,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertContains(response, delete_url)
 
         self.client.post(delete_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_active=False))
+        self.assertIsNotNone(Contact.objects.get(pk=self.joe.id, is_active=False))
 
         # can no longer access
         response = self.client.get(read_url)
@@ -444,6 +444,45 @@ class ContactTest(TembaTest):
                                            relative_to=self.planting_date, offset=7, unit='D',
                                            message='Sent 7 days after planting date')
 
+    def test_get_or_create(self):
+
+        # can't create without org or user
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(None, None, name='Joe', urns=[(TEL_SCHEME, '123')])
+
+        # incoming channel with no urns
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=None)
+
+        # incoming channel with two urns
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=[(TEL_SCHEME, '123'),
+                                                                                                        (TEL_SCHEME ,'456')])
+
+        # missing scheme
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, name='Joe', urns=[(None, '123')])
+
+        # missing path
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, None)])
+
+        # create a contact with a language
+        contact = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')], language='fre')
+        self.assertEquals(contact.language, 'fre')
+
+        # create another contact with the same urn as Joe
+        snoop = Contact.get_or_create(self.org, self.user, name='Snoop')
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=[(TEL_SCHEME, '123')])
+
+        # now give snoop his own urn
+        Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=[(TEL_SCHEME, '456')])
+
+        self.assertIsNone(snoop.urns.all().first().channel)
+        snoop = Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, urns=[(TEL_SCHEME, '456')])
+        self.assertEquals(1, snoop.urns.all().count())
+        self.assertEqual(snoop.urns.all().first().channel, self.channel)
 
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
@@ -1628,6 +1667,17 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Eastern Province')
         self.assertContains(response, 'Rwamagana')
 
+        # try to push into a dynamic group
+        with self.assertRaises(ValueError):
+            self.login(self.admin)
+            group = ContactGroup.create(self.org, self.admin, 'Dynamo', query='dynamo')
+            post_data = dict()
+            post_data['action'] = 'label'
+            post_data['label'] = group.pk
+            post_data['objects'] = self.frank.pk
+            post_data['add'] = True
+            self.client.post(list_url, post_data)
+
         # check updating when org is anon
         self.org.is_anon = True
         self.org.save()
@@ -1636,6 +1686,19 @@ class ContactTest(TembaTest):
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
         self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345"), self.joe)  # ensure Joe still has tel 12345
         self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345").name, "Joe X")
+
+        # try delete action
+        call = Call.create_call(self.channel, self.frank.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
+        post_data['action'] = 'delete'
+        post_data['objects'] = self.frank.pk
+
+        self.client.post(list_url, post_data)
+        self.frank.refresh_from_db()
+        self.assertFalse(self.frank.is_active)
+        call.refresh_from_db()
+
+        # the call should be inactive now too
+        self.assertFalse(call.is_active)
 
     def test_contact_model(self):
         contact1 = self.create_contact(name=None, number="123456")
@@ -1662,7 +1725,7 @@ class ContactTest(TembaTest):
         normalized = contact3.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEquals(normalized.path, "+250788111222")
 
-        contact4 = self.create_contact(name=None, number="+250788333444")
+        contact4 = self.create_contact(name=None, number="0788333444")
         normalized = contact4.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEquals(normalized.path, "+250788333444")
 
@@ -1695,6 +1758,7 @@ class ContactTest(TembaTest):
     def test_from_urn(self):
         self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel', '123'))  # URN with contact
         self.assertIsNone(Contact.from_urn(self.org, 'tel', '8888'))  # URN with no contact
+        self.assertIsNone(Contact.from_urn(self.org, None, 'snoop@dogg.com'))
 
     def test_validate_import_header(self):
         with self.assertRaises(Exception):
@@ -2243,6 +2307,14 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
 
+        # invalid import params
+        with self.assertRaises(Exception):
+            task = ImportTask.objects.create(
+                created_by=user, modified_by=user,
+                csv_file='test_imports/filename',
+                model_class="Contact", import_params='bogus!', import_log="", task_id="A")
+            Contact.import_csv(task, log=None)
+
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
@@ -2284,6 +2356,10 @@ class ContactTest(TembaTest):
         self.assertNotIn('nick name', field_dict)
         self.assertEquals(field_dict['nick_name'], 'bob')
         self.assertEquals(field_dict['org'], self.org)
+
+        # missing important import params
+        with self.assertRaises(Exception):
+            Contact.prepare_fields(field_dict, dict())
 
         # check that trying to save an extra field with a reserved name throws an exception
         with self.assertRaises(Exception):
@@ -2583,6 +2659,11 @@ class ContactURNTest(TembaTest):
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEquals('billy_bob', urn.get_display(self.org))
 
+    def test_get_or_create(self):
+        urn = ContactURN.get_or_create(self.org, TEL_SCHEME, '1234')
+        urn2 = ContactURN.get_or_create(self.org, TEL_SCHEME, '1234')
+        self.assertEquals(urn.pk, urn2.pk)
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
@@ -2621,6 +2702,9 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "Updated Label")
         self.assertEqual(another.value_type, DATETIME)
+
+        another = ContactField.get_or_create(self.org, "another", "Updated Label", show_in_table=True, value_type=DATETIME)
+        self.assertTrue(another.show_in_table)
 
         for elt in Contact.RESERVED_FIELDS:
             with self.assertRaises(ValueError):
