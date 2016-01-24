@@ -67,8 +67,9 @@ class Schedule(SmartModel):
         """
         Get the next point in the future when our schedule should expire again
         """
+
         hour_of_day = self.repeat_hour_of_day if self.repeat_hour_of_day else trigger_date.hour
-        trigger_date = datetime(trigger_date.year, trigger_date.month, trigger_date.day, hour_of_day).replace(tzinfo=self.get_org_timezone())
+        trigger_date = trigger_date.replace(hour=hour_of_day, minute=0, second=0, microsecond=0)
 
         if self.repeat_period == "O":
             return trigger_date
@@ -95,19 +96,15 @@ class Schedule(SmartModel):
                     if bitmask & self.repeat_days == bitmask:
                         return trigger_date + timedelta(days=i + 1)
         if self.repeat_period == "D":
-            trigger_date += timedelta(days=1)
-            return datetime(trigger_date.year, trigger_date.month,
-                            trigger_date.day, hour=self.repeat_hour_of_day).replace(tzinfo=self.get_org_timezone())
+            return trigger_date + timedelta(days=1)
 
     def update_schedule(self, now=None):
         """
         Updates our schedule for the next date, returns true if it was expired
         """
+
         if not now:
             now = timezone.now()
-
-        # convert to local timezone so hours are correct
-        now = now.astimezone(self.get_org_timezone())
 
         if self.is_expired() and now:
             self.next_fire = self.get_next_fire(now)

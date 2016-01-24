@@ -38,7 +38,10 @@ class Campaign(SmartModel):
         return qs
 
     @classmethod
-    def get_unique_name(cls, base_name, org, ignore=None):
+    def get_unique_name(cls, org, base_name, ignore=None):
+        """
+        Generates a unique campaign name based on the given base name
+        """
         name = base_name[:255].strip()
 
         count = 2
@@ -46,8 +49,10 @@ class Campaign(SmartModel):
             campaigns = Campaign.objects.filter(name=name, org=org, is_active=True)
             if ignore:
                 campaigns = campaigns.exclude(pk=ignore.pk)
-            if campaigns.first() is None:
+
+            if not campaigns.exists():
                 break
+
             name = '%s %d' % (base_name[:255].strip(), count)
             count += 1
 
@@ -77,7 +82,7 @@ class Campaign(SmartModel):
 
                     campaign = Campaign.objects.filter(org=org, id=campaign_spec['id']).first()
                     if campaign:
-                        campaign.name = Campaign.get_unique_name(name, org, ignore=campaign)
+                        campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                         campaign.save()
 
                 # fall back to lookups by name
@@ -92,7 +97,7 @@ class Campaign(SmartModel):
                     group = ContactGroup.create(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
-                    campaign_name = Campaign.get_unique_name(name, org)
+                    campaign_name = Campaign.get_unique_name(org, name)
                     campaign = Campaign.create(org, user, campaign_name, group)
                 else:
                     campaign.group = group
@@ -337,7 +342,7 @@ class CampaignEvent(SmartModel):
                 if scheduled > now:
                     return scheduled
 
-        except Exception as e:
+        except Exception:  # pragma: no cover
             pass
 
         return None

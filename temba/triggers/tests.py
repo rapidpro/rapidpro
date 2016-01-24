@@ -569,7 +569,7 @@ class TriggerTest(TembaTest):
         self.assertFalse(catch_all_trigger)
 
         Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
-        self.assertEquals(1, Msg.objects.all().count())
+        self.assertEquals(1, Msg.all_messages.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
         trigger_url = reverse("triggers.trigger_catchall")
@@ -592,37 +592,92 @@ class TriggerTest(TembaTest):
         incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
-        reply = Msg.objects.get(response_to=incoming)
+        reply = Msg.all_messages.get(response_to=incoming)
         self.assertEquals('Echo: Hi', reply.text)
 
         other_flow = Flow.copy(flow, self.admin)
         post_data = dict(flow=other_flow.pk)
 
-        response = self.client.post(reverse("triggers.trigger_update", args=[trigger.pk]), post_data)
+        self.client.post(reverse("triggers.trigger_update", args=[trigger.pk]), post_data)
         trigger = Trigger.objects.get(pk=trigger.pk)
         self.assertEquals(trigger.flow.pk, other_flow.pk)
 
-        # create a bunch of catch all triggers
-        for i in range(3):
-            response = self.client.get(trigger_url)
-            self.assertEquals(response.status_code, 200)
+        # try to create another catch all trigger
+        response = self.client.post(trigger_url, post_data)
 
-            post_data = dict(flow=flow.pk)
-            response = self.client.post(trigger_url, post_data)
-            self.assertEquals(i+2, Trigger.objects.all().count())
-            self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
+        # shouldn't have succeeded as we already have a catch-all trigger
+        self.assertTrue(len(response.context['form'].errors))
 
-        # even unarchiving we only have one acive trigger at a time
-        triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, is_archived=True)
-        active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_CATCH_ALL, is_archived=False)
+        # archive the previous one
+        trigger.is_archived = True
+        trigger.save()
+        old_catch_all = trigger
+
+        # try again
+        self.client.post(trigger_url, post_data)
+
+        # this time we are a go
+        new_catch_all = Trigger.objects.get(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL)
+
+        # now add a new trigger based on a group
+        group = self.create_group("Trigger Group", [])
+        post_data['groups'] = [group.pk]
+        response = self.client.post(trigger_url, post_data)
+
+        # should now have two catch all triggers
+        self.assertEquals(2, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
+
+        group_catch_all = Trigger.objects.get(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL, groups=group)
+
+        # try to add another catchall trigger with a few different groups
+        group2 = self.create_group("Trigger Group 2", [])
+        post_data['groups'] = [group.pk, group2.pk]
+        response = self.client.post(trigger_url, post_data)
+
+        # should have failed
+        self.assertTrue(len(response.context['form'].errors))
 
         post_data = dict()
         post_data['action'] = 'restore'
-        post_data['objects'] = [_.pk for _ in triggers]
+        post_data['objects'] = [old_catch_all.pk]
 
         response = self.client.post(reverse("triggers.trigger_archived"), post_data)
-        self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
-        self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL)[0].pk)
+        old_catch_all.refresh_from_db()
+        new_catch_all.refresh_from_db()
+
+        # our new triggers should have been auto-archived, our old one is now active
+        self.assertEquals(2, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
+        self.assertTrue(new_catch_all.is_archived)
+        self.assertFalse(old_catch_all.is_archived)
+
+        # ok, archive our old one too, leaving only our group specific trigger
+        old_catch_all.is_archived = True
+        old_catch_all.save()
+
+        # try a message again, this shouldn't cause anything since the contact isn't part of our group
+        FlowRun.objects.all().delete()
+        Msg.all_messages.all().delete()
+
+        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        self.assertEquals(0, FlowRun.objects.all().count())
+        self.assertFalse(Msg.all_messages.filter(response_to=incoming))
+
+        # now add the contact to the group
+        group.contacts.add(contact)
+
+        # this time should trigger the flow
+        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        self.assertEquals(1, FlowRun.objects.all().count())
+        self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
+        reply = Msg.all_messages.get(response_to=incoming)
+        self.assertEquals('Echo: Hi', reply.text)
+
+        # delete the group
+        group.release()
+
+        # trigger should no longer be active
+        group_catch_all.refresh_from_db()
+        self.assertFalse(group_catch_all.is_active)
 
     def test_update(self):
 

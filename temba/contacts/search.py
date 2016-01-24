@@ -190,6 +190,11 @@ def generate_datetime_field_comparison(field, comparator, value, org):
     # parse as localized date and then convert to UTC
     tz = pytz.timezone(org.timezone)
     local_date = str_to_datetime(value, tz, org.get_dayfirst(), fill_time=False)
+
+    # passed date wasn't parseable so don't match any contact
+    if not local_date:
+        return Q(pk=-1)
+
     value = local_date.astimezone(pytz.utc)
 
     if lookup == '<equal>':  # check if datetime is between date and date + 1d, i.e. anytime in that 24 hour period

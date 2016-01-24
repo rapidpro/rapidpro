@@ -6,14 +6,15 @@ from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet
 from temba.tests import TembaTest
 from temba.campaigns.tasks import check_campaigns_task
-from .models import Campaign, CampaignEvent, EventFire, DAYS
+from .models import Campaign, CampaignEvent, EventFire
 from django.utils import timezone
 from datetime import timedelta
 
-class ScheduleTest(TembaTest):
+
+class CampaignTest(TembaTest):
 
     def setUp(self):
-        super(ScheduleTest, self).setUp()
+        super(CampaignTest, self).setUp()
 
         self.farmer1 = self.create_contact("Rob Jasper", "+250788111111")
         self.farmer2 = self.create_contact("Mike Gordon", "+250788222222")
@@ -35,6 +36,19 @@ class ScheduleTest(TembaTest):
         self.planting_date = ContactField.get_or_create(self.org, 'planting_date', "Planting Date")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
+
+    def test_get_unique_name(self):
+        flow1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(flow1.name, "Reminders")
+
+        flow2 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(flow2.name, "Reminders 2")
+
+        flow3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(flow3.name, "Reminders 3")
+
+        self.create_secondary_org()
+        self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
 
     def test_get_sorted_events(self):
         # create a campaign
@@ -164,7 +178,19 @@ class ScheduleTest(TembaTest):
         self.assertContains(response, self.voice_flow.name)
         self.assertEquals(200, response.status_code)
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=1, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
+        response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
+
+        self.assertTrue(response.context['form'].errors)
+        self.assertTrue('Please enter a message' in response.context['form'].errors['message'])
+
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='F')
+        response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
+
+        self.assertTrue(response.context['form'].errors)
+        self.assertTrue('Please select a flow' in response.context['form'].errors['flow_to_start'])
+
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         # should be redirected back to our campaign read page
@@ -174,7 +200,7 @@ class ScheduleTest(TembaTest):
         event = CampaignEvent.objects.get()
         self.assertEquals(self.reminder_flow, event.flow)
         self.assertEquals(self.planting_date, event.relative_to)
-        self.assertEquals(1, event.offset)
+        self.assertEquals(2, event.offset)
 
         # read the campaign read page
         response = self.client.get(reverse('campaigns.campaign_read', args=[campaign.pk]))
@@ -182,6 +208,26 @@ class ScheduleTest(TembaTest):
         self.assertContains(response, "1")
 
         # should also have event fires scheduled for our contacts
+        fire = EventFire.objects.get()
+        self.assertEquals(13, fire.scheduled.hour)
+        self.assertEquals(3, fire.scheduled.day)
+        self.assertEquals(10, fire.scheduled.month)
+        self.assertEquals(2020, fire.scheduled.year)
+        self.assertEquals(event, fire.event)
+
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=1, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
+        response = self.client.post(reverse('campaigns.campaignevent_update', args=[event.pk]), post_data)
+
+        # should be redirected back to our campaign event read page
+        self.assertRedirect(response, reverse('campaigns.campaignevent_read', args=[event.pk]))
+
+        # should now have update the campaign event
+        event = CampaignEvent.objects.get()
+        self.assertEquals(self.reminder_flow, event.flow)
+        self.assertEquals(self.planting_date, event.relative_to)
+        self.assertEquals(1, event.offset)
+
+        # should also event fires rescheduled for our contacts
         fire = EventFire.objects.get()
         self.assertEquals(13, fire.scheduled.hour)
         self.assertEquals(2, fire.scheduled.day)

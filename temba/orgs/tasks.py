@@ -11,6 +11,12 @@ def send_invitation_email_task(invitation_id):
     invitation.send_email()
 
 
+@task(track_started=True, name='send_alert_email_task')
+def send_alert_email_task(alert_id):
+    alert = CreditAlert.objects.get(pk=alert_id)
+    alert.send_email()
+
+
 @task(track_started=True, name='check_credits_task')
 def check_credits_task():
     CreditAlert.check_org_credits()

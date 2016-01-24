@@ -74,53 +74,53 @@
   %span.attn= object.name
   -trans "has"
 
-  -if org.administrators.all|length == 1
-    %span.attn= org.administrators.all|length
+  -if org.administrators.count == 1
+    %span.attn= org.administrators.count
       -trans "Administrator"
     -trans ","
-  -elif org.admnistrators.all|length == 0
+  -elif org.admnistrators.count == 0
     %span.attn
       -trans "No Administrator"
     -trans ","
   -else
-    %span.attn= org.administrators.all|length
+    %span.attn= org.administrators.count
       -trans "Administrators"
     -trans ","
 
-  -if org.editors.all|length == 1
-    %span.attn= org.editors.all|length
+  -if org.editors.count == 1
+    %span.attn= org.editors.count
       -trans "Editor"
     -trans ","
-  -elif org.editors.all|length == 0
+  -elif org.editors.count == 0
     %span.attn
       -trans "No Editors"
     -trans ","
   -else
-    %span.attn= org.editors.all|length
+    %span.attn= org.editors.count
       -trans "Editors"
     -trans ","
 
-  -if org.viewers.all|length == 1
-    %span.attn= org.viewers.all|length
+  -if org.viewers.count == 1
+    %span.attn= org.viewers.count
       -trans "Viewer"
     -trans "and"
-  -elif org.viewers.all|length == 0
+  -elif org.viewers.count == 0
     %span.attn
       -trans "No Viewers"
     -trans "and"
   -else
-    %span.attn= org.viewers.all|length
+    %span.attn= org.viewers.count
       -trans "Viewers"
     -trans "and"
 
-  -if org.surveyors.all|length == 1
-    %span.attn= org.surveyors.all|length
+  -if org.surveyors.count == 1
+    %span.attn= org.surveyors.count
       -trans "Surveyor."
-  -elif org.surveyors.all|length == 0
+  -elif org.surveyors.count == 0
     %span.attn
       -trans "No Surveyors."
   -else
-    %span.attn= org.surveyors.all|length
+    %span.attn= org.surveyors.count
       -trans "Surveyors."
 
 - block extra-script

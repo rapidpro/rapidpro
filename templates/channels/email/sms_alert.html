@@ -40,7 +40,7 @@
       {% blocktrans with channel_name=channel.get_name %}
         You can check the current status of your {{ channel_name }} by visiting its
       {% endblocktrans %}
-      <a href="{{ branding.link }}/channels/channel/read/{{ channel.id }}/">
+      <a href="{{ branding.link }}/channels/channel/read/{{ channel.uuid }}/">
         {% trans "status page." %}
       </a>
     </p>

@@ -10,7 +10,7 @@
     -trans "Recent Channel Events"
   %h5.header-margin
     -trans "Channel:"
-      %a{ href:"{% url 'channels.channel_read' channel.id %}" }
+      %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
         {{ channel }}
 
 -block table

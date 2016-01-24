@@ -2,10 +2,12 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import plivo
-import pycountry
 import regex
+import logging
 
 from collections import OrderedDict
+from datetime import datetime
+from decimal import Decimal
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -22,15 +24,20 @@ from django.utils import timezone
 from django.utils.http import urlquote
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
+from django.views.generic import View
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from datetime import timedelta
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient
-from temba.utils import analytics, build_json_response
+from temba.orgs.models import get_stripe_credentials
+from temba.utils import analytics, build_json_response, languages
+from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
+from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
@@ -386,10 +393,9 @@ class PhoneRequiredForm(forms.ModelForm):
                 normalized = phonenumbers.parse(tel, None)
                 if not phonenumbers.is_possible_number(normalized):
                     raise forms.ValidationError(_("Invalid phone number, try again."))
-            except:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
-        return None
 
     class Meta:
         model = UserSettings
@@ -425,31 +431,50 @@ class OrgCRUDL(SmartCRUDL):
 
     class Import(InferOrgMixin, OrgPermsMixin, SmartFormView):
 
-        success_message = _("Import successful")
-
-        def get_success_url(self):
-            return reverse('orgs.org_home')
-
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_('The import file'))
             update = forms.BooleanField(help_text=_('Update all flows and campaigns'), required=False)
 
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs['org']
+                del kwargs['org']
+                super(OrgCRUDL.Import.FlowImportForm, self).__init__(*args, **kwargs)
+
+            def clean_import_file(self):
+                from temba.orgs.models import EARLIEST_IMPORT_VERSION
+
+                # make sure they have purchased credits
+                if not self.org.has_added_credits():
+                    raise ValidationError("Sorry, import is a premium feature")
+
+                # check that it isn't too old
+                data = self.cleaned_data['import_file'].read()
+                json_data = json.loads(data)
+                if json_data.get('version', 0) < EARLIEST_IMPORT_VERSION:
+                    raise ValidationError('This file is no longer valid. Please export a new version and try again.')
+
+                return data
+
+        success_message = _("Import successful")
         form_class = FlowImportForm
+
+        def get_success_url(self):
+            return reverse('orgs.org_home')
+
+        def get_form_kwargs(self):
+            kwargs = super(OrgCRUDL.Import, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
 
         def form_valid(self, form):
             try:
-                # block import based on number of credits
                 org = self.request.user.get_org()
-                if not org.has_added_credits():
-                    form._errors['import_file'] = form.error_class([_("Sorry, import is a premium feature")])
-                    return self.form_invalid(form)
-
-                data = json.loads(form['import_file'].value().read())
+                data = json.loads(form.cleaned_data['import_file'])
                 org.import_app(data, self.request.user, self.request.branding['link'])
-            except ValueError as e:
-                form._errors['import_file'] = form.error_class([_("This file is no longer valid. Please export a new version and try again.")])
-                return self.form_invalid(form)
             except Exception as e:
+                # this is an unexpected error, report it to sentry
+                logger = logging.getLogger(__name__)
+                logger.error('Exception on app import: %s' % unicode(e), exc_info=True)
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 
@@ -550,26 +575,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class TwilioAccount(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        fields = ()
-        success_url = '@channels.channel_claim'
-        submit_button_name = "Disconnect Twilio"
-        success_message = "Twilio Account successfully disconnected."
-
-        def save(self, obj):
-            obj.remove_twilio_account()
-
-        def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.TwilioAccount, self).get_context_data(**kwargs)
-
-            org = self.get_object()
-            config = org.config_json()
-
-            context['config'] = config
-
-            return context
-
-
     class TwilioConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
         class TwilioConnectForm(forms.Form):
@@ -593,7 +598,7 @@ class OrgCRUDL(SmartCRUDL):
                     account = client.accounts.get(account_sid)
                     self.cleaned_data['account_sid'] = account.sid
                     self.cleaned_data['account_token'] = account.auth_token
-                except:
+                except Exception:
                     raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -654,7 +659,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = NexmoClient(api_key, api_secret)
                     client.get_numbers()
-                except:
+                except Exception:
                     raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -695,7 +700,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = plivo.RestAPI(auth_id, auth_token)
                     validation_response = client.get_account()
-                except:
+                except Exception:
                     raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
 
                 if validation_response[0] != 200:
@@ -1038,7 +1043,6 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('orgs.org_choose'))
 
             if org.get_org_surveyors().filter(username=self.request.user.username):
-                print reverse('orgs.org_surveyor')
                 return HttpResponseRedirect(reverse('orgs.org_surveyor'))
 
             return HttpResponseRedirect(self.get_success_url())
@@ -1199,7 +1203,6 @@ class OrgCRUDL(SmartCRUDL):
             invitation = self.get_invitation()
             if invitation:
                 return invitation.org
-            return None
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Join, self).get_context_data(**kwargs)
@@ -1253,6 +1256,7 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data['name'])
             obj.slug = slug
+            obj.brand = self.request.get_host()
 
             return obj
 
@@ -1266,7 +1270,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous():
                 obj.administrators.add(self.request.user.pk)
 
-            brand = BrandingMiddleware.get_branding_for_host(self.request.get_host())
+            brand = BrandingMiddleware.get_branding_for_host(obj.brand)
             obj.initialize(brand=brand, topup_size=self.get_welcome_size())
 
             return obj
@@ -1398,7 +1402,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm('channels.channel_read'):
                 from temba.channels.views import get_channel_icon
                 icon = get_channel_icon(channel.channel_type)
-                formax.add_section('channel', reverse('channels.channel_read', args=[channel.pk]), icon=icon, action='link')
+                formax.add_section('channel', reverse('channels.channel_read', args=[channel.uuid]), icon=icon, action='link')
 
         def derive_formax_sections(self, formax, context):
 
@@ -1414,6 +1418,10 @@ class OrgCRUDL(SmartCRUDL):
                 channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by('-role')
                 for channel in channels:
                     self.add_channel_section(formax, channel)
+
+                client = org.get_twilio_client()
+                if client:
+                    formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
 
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
@@ -1433,6 +1441,79 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
                 formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users', action='redirect')
+
+    class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        success_message = ''
+
+        class TwilioKeys(forms.ModelForm):
+            account_sid = forms.CharField(max_length=128, label=_("Account SID"), required=False)
+            account_token = forms.CharField(max_length=128, label=_("Account Token"), required=False)
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.TwilioAccount.TwilioKeys, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    account_sid = self.cleaned_data.get('account_sid', None)
+                    account_token = self.cleaned_data.get('account_token', None)
+
+                    if not account_sid:
+                        raise ValidationError(_("You must enter your Twilio Account SID"))
+
+                    if not account_token:
+                        raise ValidationError(_("You must enter your Twilio Account Token"))
+
+                    try:
+                        client = TwilioRestClient(account_sid, account_token)
+
+                        # get the actual primary auth tokens from twilio and use them
+                        account = client.accounts.get(account_sid)
+                        self.cleaned_data['account_sid'] = account.sid
+                        self.cleaned_data['account_token'] = account.auth_token
+                    except Exception:
+                        raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('account_sid', 'account_token', 'disconnect')
+
+        form_class = TwilioKeys
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.TwilioAccount, self).get_context_data(**kwargs)
+            client = self.object.get_twilio_client()
+            if client:
+                account_sid = client.auth[0]
+                sid_length = len(account_sid)
+                context['account_sid'] = '%s%s' % ('\u066D' * (sid_length - 16), account_sid[-16:])
+            return context
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
+            config = json.loads(self.object.config)
+            initial['account_sid'] = config['ACCOUNT_SID']
+            initial['account_token'] = config['ACCOUNT_TOKEN']
+            initial['disconnect'] = 'false'
+            return initial
+
+        def form_valid(self, form):
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+            if disconnect:
+                user = self.request.user
+                org = user.get_org()
+                org.remove_twilio_account()
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            else:
+
+                user = self.request.user
+                org = user.get_org()
+                account_sid = form.cleaned_data['account_sid']
+                account_token = form.cleaned_data['account_token']
+
+                org.connect_twilio(account_sid, account_token)
+                return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -1481,19 +1562,6 @@ class OrgCRUDL(SmartCRUDL):
                 del kwargs['org']
                 super(OrgCRUDL.Languages.LanguagesForm, self).__init__(*args, **kwargs)
 
-            def clean(self):
-
-                # don't allow them to remove languages which are a base_language for a flow
-                old_languages = [lang.iso_code for lang in self.org.languages.all()]
-
-                new_languages = set(self.cleaned_data.get('languages', '').split(',') + self.cleaned_data.get('primary_lang', '').split(','))
-
-                for new_lang in new_languages:
-                    if new_lang in old_languages:
-                        old_languages.remove(new_lang)
-
-                return super(OrgCRUDL.Languages.LanguagesForm, self).clean()
-
             class Meta:
                 model = Org
                 fields = ('primary_lang', 'languages')
@@ -1531,26 +1599,22 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get(self, request, *args, **kwargs):
-            if 'search' in self.request.REQUEST or 'initial' in self.request.REQUEST:
 
+            if 'search' in self.request.REQUEST or 'initial' in self.request.REQUEST:
                 initial = self.request.REQUEST.get('initial', '').split(',')
                 matches = []
 
                 if len(initial) > 0:
                     for iso_code in initial:
                         if iso_code:
-                            lang = pycountry.languages.get(bibliographic=iso_code)
-                            name = lang.name.split(';')[0]
-                            matches.append(dict(id=lang.bibliographic, text=name))
+                            lang = languages.get_language_name(iso_code)
+                            matches.append(dict(id=iso_code, text=lang))
 
                 if len(matches) == 0:
                     search = self.request.REQUEST.get('search', '').strip().lower()
-                    for lang in pycountry.languages:
-                        if len(search) == 0 or search in lang.name.lower():
-                            matches.append(dict(id=lang.bibliographic, text=lang.name))
+                    matches += languages.search_language_names(search)
+                return build_json_response(dict(results=matches))
 
-                results = dict(results=matches)
-                return build_json_response(results)
             return super(OrgCRUDL.Languages, self).get(request, *args, **kwargs)
 
         def form_valid(self, form):
@@ -1566,12 +1630,11 @@ class OrgCRUDL(SmartCRUDL):
             # create new languages
             for iso_code in iso_codes:
                 if iso_code:
-                    lang = pycountry.languages.get(bibliographic=iso_code)
+                    name = languages.get_language_name(iso_code)
                     language = org.languages.filter(iso_code=iso_code).first()
-                    if lang and not language:
-                        # store up to the first semicolon as the name
-                        name = lang.name.split(';')[0]
 
+                    # if it doesn't exist yet, create it
+                    if name and not language:
                         language = org.languages.create(created_by=user, modified_by=user, iso_code=iso_code, name=name)
 
                     # store our primary language
@@ -1593,7 +1656,7 @@ class OrgCRUDL(SmartCRUDL):
             self.org = self.derive_org()
             return self.request.user.has_perm('orgs.org_country') or self.has_org_perm('orgs.org_country')
 
-    class ClearCache(SmartUpdateView):
+    class ClearCache(SmartUpdateView): # pragma: no cover
         fields = ('id',)
         success_message = None
         success_url = 'id@orgs.org_update'
@@ -1641,7 +1704,10 @@ class TopUpCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
             context['org'] = self.request.user.get_org()
-            context['now'] = timezone.now()
+
+            now = timezone.now()
+            context['now'] = now
+            context['expiration_period'] = now + timedelta(days=30)
             return context
 
         def get_template_names(self):
@@ -1705,3 +1771,78 @@ class TopUpCRUDL(SmartCRUDL):
         def derive_queryset(self):
             self.org = Org.objects.get(pk=self.request.REQUEST['org'])
             return self.org.topups.all()
+
+
+class StripeHandler(View):  # pragma: no cover
+    """
+    Handles WebHook events from Stripe.  We are interested as to when invoices are
+    charged by Stripe so we can send the user an invoice email.
+    """
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(StripeHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ILLEGAL METHOD")
+
+    def post(self, request, *args, **kwargs):
+        import stripe
+        from temba.orgs.models import Org, TopUp
+
+        # stripe delivers a JSON payload
+        stripe_data = json.loads(request.body)
+
+        # but we can't trust just any response, so lets go look up this event
+        stripe.api_key = get_stripe_credentials()[1]
+        event = stripe.Event.retrieve(stripe_data['id'])
+
+        if not event:
+            return HttpResponse("Ignored, no event")
+
+        if not event.livemode:
+            return HttpResponse("Ignored, test event")
+
+        # we only care about invoices being paid or failing
+        if event.type == 'charge.succeeded' or event.type == 'charge.failed':
+            charge = event.data.object
+            charge_date = datetime.fromtimestamp(charge.created)
+            description = charge.description
+            amount = "$%s" % (Decimal(charge.amount) / Decimal(100)).quantize(Decimal(".01"))
+
+            # look up our customer
+            customer = stripe.Customer.retrieve(charge.customer)
+
+            # and our org
+            org = Org.objects.filter(stripe_customer=customer.id).first()
+            if not org:
+                return HttpResponse("Ignored, no org for customer")
+
+            # look up the topup that matches this charge
+            topup = TopUp.objects.filter(stripe_charge=charge.id).first()
+            if topup and event.type == 'charge.failed':
+                topup.rollback()
+                topup.save()
+
+            # we know this org, trigger an event for a payment succeeding
+            if org.administrators.all():
+                if event.type == 'charge_succeeded':
+                    track = "temba.charge_succeeded"
+                else:
+                    track = "temba.charge_failed"
+
+                context = dict(description=description,
+                               invoice_id=charge.id,
+                               invoice_date=charge_date.strftime("%b %e, %Y"),
+                               amount=amount,
+                               org=org.name,
+                               cc_last4=charge.card.last4,
+                               cc_type=charge.card.type,
+                               cc_name=charge.card.name)
+
+                admin_email = org.administrators.all().first().email
+
+                analytics.track(admin_email, track, context)
+                return HttpResponse("Event '%s': %s" % (track, context))
+
+        # empty response, 200 lets Stripe know we handled it
+        return HttpResponse("Ignored, uninteresting event")
