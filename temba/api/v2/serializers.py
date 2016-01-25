@@ -94,10 +94,10 @@ class FlowRunReadSerializer(ReadSerializer):
     exit_type = serializers.SerializerMethodField()
 
     def get_flow(self, obj):
-        return obj.flow.uuid
+        return {'uuid': obj.flow.uuid, 'name': obj.flow.name}
 
     def get_contact(self, obj):
-        return obj.contact.uuid
+        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
 
     def get_steps(self, obj):
         steps = []
@@ -157,7 +157,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.broadcast_id
 
     def get_contact(self, obj):
-        return obj.contact.uuid
+        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
 
     def get_urn(self, obj):
         if obj.org.is_anon:

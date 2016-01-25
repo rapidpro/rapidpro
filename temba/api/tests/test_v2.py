@@ -175,7 +175,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'id': joe_msg4.pk,
             'broadcast': None,
-            'contact': self.joe.uuid,
+            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'urn': None,
             'channel': None,
             'direction': "out",
@@ -191,7 +191,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][5], {
             'id': frank_msg1.pk,
             'broadcast': None,
-            'contact': self.frank.uuid,
+            'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'urn': "twitter:franky",
             'channel': self.twitter.uuid,
             'direction': "in",
@@ -295,8 +295,8 @@ class APITest(TembaTest):
 
         self.assertEqual(response.json['results'][1], {
             'id': frank_run2.pk,
-            'flow': flow1.uuid,
-            'contact': self.frank.uuid,
+            'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
+            'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
             'steps': [
                 {
@@ -325,8 +325,8 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.json['results'][4], {
             'id': joe_run1.pk,
-            'flow': flow1.uuid,
-            'contact': self.joe.uuid,
+            'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
+            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
             'steps': [
                 {

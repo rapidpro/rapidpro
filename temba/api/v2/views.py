@@ -261,7 +261,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
      * **id** - the id of the message (int), filterable as `id`.
      * **broadcast** - the id of the broadcast (int), filterable as `broadcast`.
-     * **contact** - the UUID of the contact (string), filterable as `contact`.
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **urn** - the URN of the sender or receiver, depending on direction (string).
      * **channel** - the UUID of the channel that handled this message (string).
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
@@ -289,7 +289,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             {
                 "id": 4105426,
                 "broadcast": 2690007,
-                "contact": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d",
+                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "urn": "twitter:textitin",
                 "channel": "9a8b001e-a913-486c-80f4-1356e23f582e",
                 "direction": "out",
@@ -369,7 +369,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch('org', queryset=Org.objects.only('is_anon')),
-            Prefetch('contact', queryset=Contact.objects.only('uuid')),
+            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
             Prefetch('channel', queryset=Channel.objects.only('uuid')),
             Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
@@ -407,8 +407,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     run has the following attributes:
 
      * **id** - the id of the run (int), filterable as `id`.
-     * **flow** - the UUID of the flow (string), filterable as `flow`.
-     * **contact** - the UUID of the contact (string), filterable as `contact`.
+     * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
      * **steps** - steps visited by the contact on the flow (array of objects).
      * **created_on** - the datetime when this run was started (datetime).
@@ -428,8 +428,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "id": 12345678,
-                "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
-                "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Specials"},
+                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "responded": true,
                 "steps": [
                     {
@@ -502,9 +502,9 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
+            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
+            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('flow', queryset=Flow.objects.only('uuid')),
-            Prefetch('contact', queryset=Contact.objects.only('uuid')),
             Prefetch('steps__messages', queryset=Msg.all_messages.only('text')),
         )
 
