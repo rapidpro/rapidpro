@@ -103,7 +103,9 @@ class APITest(TembaTest):
         group.update_contacts([self.joe, contact1], add=True)
 
         # no filtering
-        response = self.fetchJSON(url)
+        with self.assertNumQueries(13):
+            response = self.fetchJSON(url)
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
         self.assertResultsByUUID(response, [contact1, self.joe, contact4, contact2, self.frank])
@@ -168,7 +170,9 @@ class APITest(TembaTest):
         label.toggle_label([frank_msg1, joe_msg3], add=True)
 
         # no filtering
-        response = self.fetchJSON(url)
+        with self.assertNumQueries(13):
+            response = self.fetchJSON(url)
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
         self.assertResultsById(response, [joe_msg4, frank_msg3, joe_msg3, frank_msg2, joe_msg2, frank_msg1, joe_msg1])
@@ -285,7 +289,9 @@ class APITest(TembaTest):
         frank_run1.refresh_from_db()
 
         # no filtering
-        response = self.fetchJSON(url)
+        with self.assertNumQueries(12):
+            response = self.fetchJSON(url)
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
         self.assertResultsById(response, [joe_run3, frank_run2, frank_run1, joe_run2, joe_run1])
