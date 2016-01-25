@@ -649,6 +649,10 @@ class Contact(TembaModel):
 
         possible_urn_headers = ['phone', 'external'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
+        # prevent urns update on anon org
+        if uuid and org.is_anon:
+            possible_urn_headers = []
+
         for urn_header in possible_urn_headers:
 
             value = None
@@ -694,7 +698,7 @@ class Contact(TembaModel):
 
             urns.append((urn_scheme, value))
 
-        if not urns:
+        if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
             error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[2:])
 
@@ -767,7 +771,7 @@ class Contact(TembaModel):
         return field_dict
 
     @classmethod
-    def get_import_file_headers(cls, csv_file):
+    def get_org_import_file_headers(cls, csv_file, org):
         csv_file.open()
 
         # this file isn't good enough, lets write it to local disk
@@ -792,17 +796,20 @@ class Contact(TembaModel):
         finally:
             os.remove(tmp_file)
 
-        Contact.validate_import_header(headers)
+        Contact.validate_org_import_header(headers, org)
 
         # return the column headers which can become contact fields
-        return [header for header in headers if header.strip().lower() not in Contact.RESERVED_FIELDS]
+        return [header for header in headers if header.strip().lower() and header.strip().lower() not in Contact.RESERVED_FIELDS]
 
     @classmethod
-    def validate_import_header(cls, header):
+    def validate_org_import_header(cls, header, org):
         possible_urn_fields = [Contact.PHONE, 'twitter', 'external']
         header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
+
+        if 'uuid' in header and len(header) > 1:
+            return
 
         if 'name' not in header and not header_urn_fields:
             raise Exception(ugettext('The file you provided is missing required headers called "Name" and one of "%s".'
@@ -1693,20 +1700,22 @@ class ExportContactsTask(SmartModel):
         fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
-        active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
+        scheme_counts = dict()
+        if not self.org.is_anon:
+            active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
 
-        scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
+            scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
-        schemes = scheme_counts.keys()
-        schemes.sort()
+            schemes = scheme_counts.keys()
+            schemes.sort()
 
-        for scheme in schemes:
-            count = scheme_counts[scheme]
-            if count is not None:
-                for i in range(count):
-                    field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
-                    field_dict['position'] = i
-                    fields.append(field_dict)
+            for scheme in schemes:
+                count = scheme_counts[scheme]
+                if count is not None:
+                    for i in range(count):
+                        field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
+                        field_dict['position'] = i
+                        fields.append(field_dict)
 
         with SegmentProfiler("building up contact fields"):
             contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
