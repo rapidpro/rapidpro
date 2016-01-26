@@ -60,6 +60,7 @@ VUMI = 'VM'
 ZENVIA = 'ZV'
 YO = 'YO'
 START = 'ST'
+TELEGRAM = 'TG'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -112,7 +113,8 @@ CHANNEL_SETTINGS = {
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
-    START: dict(scheme='tel', max_length=1600)
+    START: dict(scheme='tel', max_length=1600),
+    TELEGRAM: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -151,6 +153,7 @@ class Channel(TembaModel):
                     (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
                     (START, "Start Mobile"),
+                    (TELEGRAM, "Telegram"),
                     (YO, "Yo!"),
                     (M3TECH, "M3 Tech"))
 
