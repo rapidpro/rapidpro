@@ -34,7 +34,7 @@ from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_co
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
+from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGE_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
@@ -46,6 +46,7 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       NEXMO: "icon-channel-nexmo",
                       VERBOICE: "icon-channel-external",
                       TWILIO: "icon-channel-twilio",
+                      TWILIO_MESSAGE_SERVICE: "icon-channel-twilio",
                       PLIVO: "icon-channel-plivo",
                       CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter"}
