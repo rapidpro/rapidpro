@@ -2,10 +2,8 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import phonenumbers
-import pytz
 
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -16,6 +14,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
+from temba.utils import datetime_to_json_date
 from temba.values.models import VALUE_TYPE_CHOICES
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
@@ -23,15 +22,11 @@ from temba.values.models import VALUE_TYPE_CHOICES
 MAX_BULK_ACTION_ITEMS = 100
 
 
-def format_v1_datetime(value):
+def format_datetime(value):
     """
     Datetime fields are limited to millisecond accuracy for v1
     """
-    if not value:
-        return None
-
-    as_utc = value.astimezone(pytz.UTC)
-    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+    return datetime_to_json_date(value, micros=False) if value else None
 
 
 def validate_bulk_fetch(fetched, uuids):
@@ -54,7 +49,7 @@ class DateTimeField(serializers.DateTimeField):
     For backward compatibility, datetime fields are limited to millisecond accuracy
     """
     def to_representation(self, value):
-        return format_v1_datetime(value)
+        return format_datetime(value)
 
 
 class StringArrayField(serializers.ListField):
@@ -1144,7 +1139,7 @@ class FlowRunReadSerializer(ReadSerializer):
         return steps
 
     def get_expired_on(self, obj):
-        return format_v1_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+        return format_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
     class Meta:
         model = FlowRun

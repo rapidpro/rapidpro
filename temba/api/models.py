@@ -82,7 +82,7 @@ class ApiPermission(BasePermission):
             return True
 
 
-class SSLPermission(BasePermission): # pragma: no cover
+class SSLPermission(BasePermission):  # pragma: no cover
     def has_permission(self, request, view):
         if getattr(settings, 'SESSION_COOKIE_SECURE', False):
             return request.is_secure()
