@@ -1,0 +1,27 @@
+{% load i18n %}
+
+{% blocktrans with brand_name=brand.name brand_support=branding.support_email customer=customer.first_name %}
+
+Hi {{ customer }},
+
+This is a receipt for your {{ brand_name }} purchase for {{ credits }} credits.  This is only a receipt, no payment is due. If you have any questions, please contact us anytime at {{ brand_support }}.  You can view your top ups at any time by visiting your top up page.
+
+Thanks again for your support!
+
+-----------------------------------------------------------------------------------------------
+{{ brand_name }} Receipt
+-----------------------------------------------------------------------------------------------
+
+Invoice Details
+Id: {{ charge_id }}
+Date: {{ charge_date }}
+Organization: {{ org }}
+Description: {{ description }}
+Credits: {{ credits }}
+Amount: USD ${{ amount }}
+
+Charge Details
+Name: {{ cc_name }}
+Credit Card: {{ cc_type }} X{{ cc_last4 }}
+
+{% endblocktrans %}

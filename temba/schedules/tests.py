@@ -220,3 +220,67 @@ class ScheduleTest(TembaTest):
 
         schedule = Schedule.objects.get(pk=sched.pk)
         self.assertEquals(schedule.repeat_period, 'D')
+
+    def test_calculating_next_fire(self):
+
+        self.org.timezone = 'US/Eastern'
+        self.org.save()
+
+        tz = self.org.get_tzinfo()
+        eleven_pm_est = datetime(2013, 1, 3, hour=23, minute=0, second=0, microsecond=0).replace(tzinfo=tz)
+
+        # Test date is 10am on a Thursday, Jan 3rd
+        schedule = self.create_schedule('D', start_date=eleven_pm_est)
+        schedule.save()
+
+        Broadcast.create(self.org, self.admin, 'Message', [], schedule=schedule)
+        schedule = Schedule.objects.get(pk=schedule.pk)
+
+        # when is the next fire once our first one passes
+        sched_date = datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0).replace(tzinfo=tz)
+        schedule.update_schedule(sched_date)
+        self.assertEquals('2013-01-04 23:00:00-05:00', unicode(schedule.next_fire))
+
+    def test_update_near_day_boundary(self):
+
+        self.org.timezone = 'US/Eastern'
+        self.org.save()
+        tz = self.org.get_tzinfo()
+
+        sched = self.create_schedule('D')
+        Broadcast.create(self.org, self.admin, 'Message', [], schedule=sched)
+        sched = Schedule.objects.get(pk=sched.pk)
+
+        update_url = reverse('schedules.schedule_update', args=[sched.pk])
+
+        self.login(self.admin)
+
+        # way off into the future
+        start_date = datetime(2050, 1, 3, 23, 0, 0, 0, tzinfo=tz)
+        start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
+
+        post_data = dict()
+        post_data['repeat_period'] = 'D'
+        post_data['start'] = 'later'
+        post_data['start_datetime_value'] = "%d" % time.mktime(start_date.timetuple())
+        self.client.post(update_url, post_data)
+        sched = Schedule.objects.get(pk=sched.pk)
+
+        # 11pm in NY should be 4am UTC the next day
+        self.assertEquals('2050-01-04 04:00:00+00:00', unicode(sched.next_fire))
+
+        # a time in the past
+        start_date = datetime(2010, 1, 3, 23, 0, 0, 0, tzinfo=tz)
+        start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
+
+        post_data = dict()
+        post_data['repeat_period'] = 'D'
+        post_data['start'] = 'later'
+        post_data['start_datetime_value'] = "%d" % time.mktime(start_date.timetuple())
+        self.client.post(update_url, post_data)
+        sched = Schedule.objects.get(pk=sched.pk)
+
+        # next fire should fall at the same hour
+        self.assertIn('04:00:00+00:00', unicode(sched.next_fire))
+
+

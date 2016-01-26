@@ -111,7 +111,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             text = '%s %d' % (base_text, m + 1)
             contact = contacts[m % len(contacts)]
             contact_urn = contact.urn_objects.values()[0]
-            msg = Msg.objects.create(contact=contact, contact_urn=contact_urn, org=self.org, channel=channel, text=text,
+            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn, org=self.org, channel=channel, text=text,
                                      direction=INCOMING, status=PENDING, created_on=date, queued_on=date)
             messages.append(msg)
         return messages
@@ -130,7 +130,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
             assign_to = messages[(g % num_bases)::num_bases]
             for msg in assign_to:
-                Msg.objects.get(pk=msg.pk).labels.add(label)
+                Msg.all_messages.get(pk=msg.pk).labels.add(label)
         return labels
 
     def _create_calls(self, count, channel, contacts):
@@ -205,9 +205,9 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         # check messages for each channel
         incoming_total = 2 * num_contacts
-        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.tel_mtn).count())
-        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.tel_tigo).count())
-        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.twitter).count())
+        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.tel_mtn).count())
+        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.tel_tigo).count())
+        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.twitter).count())
 
     def test_message_outgoing(self):
         num_contacts = 3000
@@ -241,9 +241,9 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         # check messages for each channel
         outgoing_total = 3 * num_contacts
-        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.tel_mtn).count())
-        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.tel_bulk).count())
-        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.twitter).count())
+        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.tel_mtn).count())
+        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.tel_bulk).count())
+        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.twitter).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_mtn).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
@@ -270,7 +270,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         with SegmentProfiler("Starting a flow", self, True, force_profile=True):
             flow.start(groups, [])
 
-        self.assertEqual(10000, Msg.objects.all().count())
+        self.assertEqual(10000, Msg.all_messages.all().count())
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 
@@ -283,13 +283,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of contacts from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.contacts'))
+            self._fetch_json('%s.json' % reverse('api.v1.contacts'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of contacts from API", self,
                              assert_queries=API_REQUEST_QUERIES+6, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json?page=2' % reverse('api.contacts'))
+            self._fetch_json('%s.json?page=2' % reverse('api.v1.contacts'))
 
     def test_api_groups(self):
         contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
@@ -300,7 +300,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of groups from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.contactgroups'))
+            self._fetch_json('%s.json' % reverse('api.v1.contactgroups'))
 
     def test_api_messages(self):
         contacts = self._create_contacts(300, ["Bobby", "Jimmy", "Mary"])
@@ -314,13 +314,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of messages from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.messages'))
+            self._fetch_json('%s.json' % reverse('api.v1.messages'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of messages from API", self,
                              assert_queries=API_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json?page=2' % reverse('api.messages'))
+            self._fetch_json('%s.json?page=2' % reverse('api.v1.messages'))
 
     def test_api_runs(self):
         flow = self.create_flow()
@@ -332,17 +332,17 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         with SegmentProfiler("Fetch first page of flow runs from API", self,
                              assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json' % reverse('api.runs'))
+            self._fetch_json('%s.json' % reverse('api.v1.runs'))
 
         # query count, terminal nodes and category nodes for the flow all now cached
 
         with SegmentProfiler("Fetch second page of flow runs from API", self,
                              assert_queries=API_REQUEST_QUERIES+4, assert_tx=0, force_profile=True):
-            self._fetch_json('%s.json?page=2' % reverse('api.runs'))
+            self._fetch_json('%s.json?page=2' % reverse('api.v1.runs'))
 
         with SegmentProfiler("Create new flow runs via API endpoint", self, assert_tx=1, force_profile=True):
             data = {'flow': flow.pk, 'contact': [c.uuid for c in contacts]}
-            self._post_json('%s.json' % reverse('api.runs'), data)
+            self._post_json('%s.json' % reverse('api.v1.runs'), data)
 
     def test_omnibox(self):
         contacts = self._create_contacts(10000, ["Bobby", "Jimmy", "Mary"])
@@ -418,7 +418,6 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         contact = self.create_contact("Test", "+250788383383")
         msg = Msg.create_outgoing(self.org, self.admin, contact, "This is a test message")
         msg = dict_to_struct('MockMsg', msg.as_task_json())
-
 
         with SegmentProfiler("Channel Log inserts (10,000)", self, force_profile=True):
             for i in range(10000):
