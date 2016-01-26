@@ -512,7 +512,8 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo')
+               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo',
+               'claim_twilio_message_service')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1444,6 +1445,53 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAfricasTalking, self).form_valid(form)
 
+    class ClaimTwilioMessageService(OrgPermsMixin, SmartFormView):
+        class TwilioMessageServiceForm(forms.Form):
+            country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
+            message_service_sid = forms.CharField(help_text=_("The Twilio Message Service SID"))
+
+        title = _("Add Twilio Message Service Channel")
+        fields = ('country', 'message_service_sid')
+        form_class = TwilioMessageServiceForm
+        success_url = "id@channels.channel_configuration"
+
+        def __init__(self, *args):
+            super(ChannelCRUDL.ClaimTwilioMessageService, self).__init__(*args)
+            self.account = None
+            self.client = None
+            self.object = None
+
+        def pre_process(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            try:
+                self.client = org.get_twilio_client()
+                if not self.client:
+                    return HttpResponseRedirect(reverse('channels.channel_claim'))
+                self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
+            except TwilioRestException:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimTwilioMessageService, self).get_context_data(**kwargs)
+            context['account_trial'] = self.account.type.lower() == 'trial'
+            return context
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org: # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+            self.object = Channel.add_twilio_message_service_channel(org, self.request.user,
+                                                                     message_service_sid=data['message_service_sid'],
+                                                                     country=data['country'])
+
+            # make sure all contacts added before the channel are normalized
+            self.object.ensure_normalized_contacts()
+
+            return super(ChannelCRUDL.ClaimTwilioMessageService, self).form_valid(form)
+
     class Configuration(OrgPermsMixin, SmartReadView):
 
         def get_context_data(self, **kwargs):
@@ -1839,6 +1887,8 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             try:
                 self.client = org.get_twilio_client()
+                if not self.client:
+                    return HttpResponseRedirect(reverse('channels.channel_claim'))
                 self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
             except TwilioRestException:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))

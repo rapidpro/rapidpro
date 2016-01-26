@@ -60,6 +60,7 @@ VUMI = 'VM'
 ZENVIA = 'ZV'
 YO = 'YO'
 START = 'ST'
+TWILIO_MESSAGE_SERVICE = 'TMS'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -112,7 +113,8 @@ CHANNEL_SETTINGS = {
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
-    START: dict(scheme='tel', max_length=1600)
+    START: dict(scheme='tel', max_length=1600),
+    TWILIO_MESSAGE_SERVICE: dict(scheme='tel', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -134,6 +136,7 @@ YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
                     (TWILIO, "Twilio"),
+                    (TWILIO_MESSAGE_SERVICE, "Twilio Message Service"),
                     (AFRICAS_TALKING, "Africa's Talking"),
                     (ZENVIA, "Zenvia"),
                     (NEXMO, "Nexmo"),
@@ -424,6 +427,13 @@ class Channel(TembaModel):
             twilio_sid = twilio_phone.sid
 
         return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
+
+    @classmethod
+    def add_twilio_message_service_channel(cls, org, user, message_service_sid, country):
+        config = dict(message_service_sid=message_service_sid)
+
+        return Channel.create(org, user, country, TWILIO_MESSAGE_SERVICE,
+                              name="Twilio Message Service: %s" % message_service_sid, address=None, config=config)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
@@ -1729,10 +1739,17 @@ class Channel(TembaModel):
         client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
         start = time.time()
 
-        message = client.messages.create(to=msg.urn_path,
-                                         from_=channel.address,
-                                         body=text,
-                                         status_callback=callback_url)
+        if channel.channel_type == TWILIO_MESSAGE_SERVICE:
+            message_service_sid = channel.config['message_service_sid']
+            message = client.messages.create(to=msg.urn_path,
+                                             message_service_sid=message_service_sid,
+                                             body=text,
+                                             status_callback=callback_url)
+        else:
+            message = client.messages.create(to=msg.urn_path,
+                                             from_=channel.address,
+                                             body=text,
+                                             status_callback=callback_url)
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
         ChannelLog.log_success(msg, "Successfully delivered message")
@@ -2012,6 +2029,7 @@ class Channel(TembaModel):
                       KANNEL: Channel.send_kannel_message,
                       NEXMO: Channel.send_nexmo_message,
                       TWILIO: Channel.send_twilio_message,
+                      TWILIO_MESSAGE_SERVICE: Channel.send_twilio_message,
                       CLICKATELL: Channel.send_clickatell_message,
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,

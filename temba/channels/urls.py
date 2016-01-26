@@ -4,7 +4,7 @@ from django.conf.urls import url, include
 from .handlers import TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler, M3TechHandler
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
-from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler
+from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TwilioMessageServiceHandler
 from .views import ChannelCRUDL, ChannelLogCRUDL
 
 
@@ -13,6 +13,7 @@ urlpatterns = [
 
     url(r'^handlers', include([
         url(r'^/twilio/$', TwilioHandler.as_view(), name='handlers.twilio_handler'),
+        url(r'^/twilio_message_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', TwilioMessageServiceHandler.as_view(), name='handlers.twilio_message_service_handler'),
         url(r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VerboiceHandler.as_view(), name='handlers.verboice_handler'),
         url(r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$', AfricasTalkingHandler.as_view(), name='handlers.africas_talking_handler'),
         url(r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$', ZenviaHandler.as_view(), name='handlers.zenvia_handler'),

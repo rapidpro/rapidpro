@@ -232,6 +232,25 @@
     %code
       https://{{ domain }}{% url 'handlers.blackmyna_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'TMS'
+    %h4
+      -blocktrans
+        To finish configuring your Twilio Message Service connection you'll need to add the following URL your Message Service Inbound Settings.
+
+    %hr
+
+    %h4
+      -trans "Request URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Twilio when new messages are received to your Message Service.
+
+    %code
+      https://{{ domain }}{% url 'handlers.twilio_message_service_handler' 'receive' object.uuid %}
+
+    %hr
+
   -elif object.channel_type == 'SC'
     %h4
       -blocktrans
