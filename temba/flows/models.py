@@ -3007,6 +3007,41 @@ class FlowRun(models.Model):
         return msg
 
 
+class FlowRunCount(models.Model):
+    """
+    Maintains counts of different states of exit types of flow runs on a flow. These are calculated
+    via triggers on the database.
+    """
+    flow = models.ForeignKey(Flow, related_name='counts')
+    exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
+    count = models.IntegerField(default=1)
+
+    @classmethod
+    def count_for_type(cls, flow, exit_type=None):
+        count = FlowRunCount.objects.filter(flow=flow).aggregate(Sum('count')).get('count__sum', 0)
+
+        if exit_type:
+            count = count.filter(exit_type=exit_type)
+
+        return 0 if count is None else count
+
+    @classmethod
+    def populate_for_flow(cls, flow):
+        # calculate actual sums
+        counts = FlowRun.objects.filter(flow=flow).order_by('exit_type').aggregate(Count('exit_count'))
+
+        # remove old ones
+        FlowRunCount.objects.filter(flow=flow).delete()
+
+        # insert updated counts for each
+        for count in counts:
+            if count['count'] > 0:
+                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
+
+    class Meta:
+        index_together = ('flow', 'exit_type')
+
+
 class ExportFlowResultsTask(SmartModel):
     """
     Container for managing our export requests
