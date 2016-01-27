@@ -1493,8 +1493,15 @@ class ContactGroup(TembaModel):
     user_groups = UserContactGroupManager()
 
     @classmethod
+    def get_user_group(cls, org, name):
+        """
+        Returns the user group with the passed in name
+        """
+        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
+
+    @classmethod
     def get_or_create(cls, org, user, name):
-        existing = ContactGroup.user_groups.filter(name__iexact=name.strip()[:64], org=org, is_active=True).first()
+        existing = ContactGroup.get_user_group(org, name)
         if existing:
             return existing
         else:
@@ -1502,18 +1509,18 @@ class ContactGroup(TembaModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()[:cls.MAX_NAME_LEN]
+        full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
 
         # look for name collision and append count if necessary
-        existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
+        existing = cls.get_user_group(org, full_group_name)
 
         count = 2
         while existing:
             full_group_name = "%s %d" % (name, count)
-            existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
+            existing = cls.get_user_group(org, full_group_name)
             count += 1
 
         group = ContactGroup.user_groups.create(name=full_group_name, org=org, import_task=task,
@@ -1522,6 +1529,13 @@ class ContactGroup(TembaModel):
             group.update_query(query)
 
         return group
+
+    @classmethod
+    def clean_name(cls, name):
+        """
+        Returns a normalized name for the passed in group name
+        """
+        return None if not name else name.strip()[:cls.MAX_NAME_LEN]
 
     @classmethod
     def is_valid_name(cls, name):

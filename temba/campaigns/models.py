@@ -87,7 +87,7 @@ class Campaign(SmartModel):
 
                 # fall back to lookups by name
                 if not group:
-                    group = ContactGroup.user_groups.filter(name=campaign_spec['group']['name'], org=org).first()
+                    group = ContactGroup.get_user_group(org=org, name=campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign = Campaign.objects.filter(org=org, name=name).first()

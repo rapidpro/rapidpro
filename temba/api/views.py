@@ -48,7 +48,7 @@ class WebHookEventMixin(OrgPermsMixin):
 class WebHookEventListView(WebHookEventMixin, SmartListView):
     model = WebHookEvent
     fields = ('event', 'status', 'channel', 'tries', 'created_on')
-    title = "Recent WebHook Events"
+    title = _("Recent WebHook Events")
     template_name = 'api/webhookevent_list.html'
     default_order = ('-created_on',)
     permission = 'api.webhookevent_list'
@@ -64,19 +64,19 @@ class WebHookEventReadView(WebHookEventMixin, SmartReadView):
     fields = ('event', 'status', 'channel', 'tries', 'next_attempt')
     template_name = 'api/webhookevent_read.html'
     permission = 'api.webhookevent_read'
-    field_config = { 'next_attempt': dict(label="Next Delivery"), 'tries': dict(label="Attempts") }
+    field_config = {'next_attempt': dict(label=_("Next Delivery")), 'tries': dict(label=_("Attempts"))}
 
     def get_next_attempt(self, obj): # pragma: no cover
         if obj.next_attempt:
-            return "Around %s" % obj.next_attempt
+            return _("Around %s") % obj.next_attempt
         else:
             if obj.try_count == 3:
-                return "Never, three attempts errored, failed permanently"
+                return _("Never, three attempts errored, failed permanently")
             else:
                 if obj.status == 'C':
-                    return "Never, event delivered successfully"
+                    return _("Never, event delivered successfully")
                 else:
-                    return "Never, event deliverey failed permanently"
+                    return _("Never, event delivery failed permanently")
 
     def get_context_data(self, *args, **kwargs):
         context = super(WebHookEventReadView, self).get_context_data(*args, **kwargs)
@@ -91,7 +91,7 @@ class WebHookTunnelView(View):
     def post(self, request):
         try:
             if not 'url' in request.POST or not 'data' in request.POST:
-                return HttpResponse("Must include both 'url' and 'data' parameters.", status=400)
+                return HttpResponse(_("Must include both 'url' and 'data' parameters."), status=400)
 
             url = request.POST['url']
             data = request.POST['data']
