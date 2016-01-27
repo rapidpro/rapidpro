@@ -1629,9 +1629,7 @@ class ContactTest(TembaTest):
         with self.assertRaises(Exception):
             Contact.validate_org_import_header(['phone', 'twitter', 'external'], self.org)  # missing name
 
-        with self.assertRaises(Exception):
-            Contact.validate_org_import_header(['uuid'], self.org)  # missing other field to update
-
+        Contact.validate_org_import_header(['uuid'], self.org)
         Contact.validate_org_import_header(['uuid', 'age'], self.org)
         Contact.validate_org_import_header(['uuid', 'name'], self.org)
         Contact.validate_org_import_header(['name', 'phone', 'twitter', 'external'], self.org)
@@ -1640,6 +1638,7 @@ class ContactTest(TembaTest):
         Contact.validate_org_import_header(['name', 'external'], self.org)
 
         with AnonymousOrg(self.org):
+            Contact.validate_org_import_header(['uuid'], self.org)
             Contact.validate_org_import_header(['uuid', 'age'], self.org)
             Contact.validate_org_import_header(['uuid', 'name'], self.org)
             Contact.validate_org_import_header(['name', 'phone', 'twitter', 'external'], self.org)
@@ -1959,6 +1958,7 @@ class ContactTest(TembaTest):
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
+            # lock for creates only
             self.assertEquals(mock_lock.call_count, 1)
 
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
@@ -1988,7 +1988,7 @@ class ContactTest(TembaTest):
                 self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
                                                                     creates=2, updates=2))
 
-                # we ignore urns so 1 less lock
+                # lock for creates only
                 self.assertEquals(mock_lock.call_count, 2)
 
             self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
@@ -2009,6 +2009,137 @@ class ContactTest(TembaTest):
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
             self.assertEqual(list(michael.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+        contact = self.create_contact(name="Bob", number='+250788111111')
+        contact.uuid = 'uuid-1111'
+        contact.save()
+
+        contact2 = self.create_contact(name='Kobe', number='+250788383396')
+        contact2.uuid = 'uuid-4444'
+        contact2.save()
+
+        self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
+        self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+            # import contact with uuid will force update if existing contact for the uuid
+            csv_file = open('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT, 'rb')
+            post_data = dict(csv_file=csv_file)
+            response = self.client.post(import_url, post_data, follow=True)
+            self.assertIsNotNone(response.context['task'])
+            self.assertIsNotNone(response.context['group'])
+            self.assertFalse(response.context['show_form'])
+            self.assertEquals(response.context['results'], dict(records=3, errors=1,
+                                                                error_messages=[dict(line=3,
+                                                                                     error="Missing any valid URNs; at "
+                                                                                     "least one among 'twitter, ext "
+                                                                                     "or phone' should be provided")],
+                                                                creates=1, updates=2))
+
+            # only lock for create
+            self.assertEquals(mock_lock.call_count, 1)
+
+        self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+        self.assertEquals(0, Contact.objects.filter(name='Bob').count())
+        self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
+        eric = Contact.objects.filter(name='Eric Newcomer').first()
+        michael = Contact.objects.filter(name='Michael').first()
+        self.assertEqual(eric.pk, contact.pk)
+        self.assertEqual(michael.pk, contact2.pk)
+        self.assertEquals('uuid-1111', eric.uuid)
+        self.assertEquals('uuid-4444', michael.uuid)
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+
+        # new urn added for eric
+        self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
+        self.assertEqual(list(michael.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        with AnonymousOrg(self.org):
+            with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+                # import contact with uuid will force update if existing contact for the uuid
+                csv_file = open('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT, 'rb')
+                post_data = dict(csv_file=csv_file)
+                response = self.client.post(import_url, post_data, follow=True)
+                self.assertIsNotNone(response.context['task'])
+                self.assertIsNotNone(response.context['group'])
+                self.assertFalse(response.context['show_form'])
+                self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
+                                                                    creates=2, updates=2))
+
+                # only lock for creates
+                self.assertEquals(mock_lock.call_count, 2)
+
+            self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+            self.assertEquals(0, Contact.objects.filter(name='Bob').count())
+            self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
+            self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
+            self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+
+            eric = Contact.objects.filter(name='Eric Newcomer').first()
+            michael = Contact.objects.filter(name='Michael').first()
+            self.assertEqual(eric.pk, contact.pk)
+            self.assertEqual(michael.pk, contact2.pk)
+            self.assertEquals('uuid-1111', eric.uuid)
+            self.assertEquals('uuid-4444', michael.uuid)
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+
+            # new urn ignored for eric
+            self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
+            self.assertEqual(list(michael.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+        contact = self.create_contact(name="Bob", number='+250788111111')
+        contact.uuid = 'uuid-1111'
+        contact.save()
+
+        contact2 = self.create_contact(name='Kobe', number='+250788383396')
+        contact2.uuid = 'uuid-4444'
+        contact2.save()
+
+        self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788111111'])
+        self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+            # import contact with uuid will force update if existing contact for the uuid
+            csv_file = open('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT, 'rb')
+            post_data = dict(csv_file=csv_file)
+            response = self.client.post(import_url, post_data, follow=True)
+            self.assertIsNotNone(response.context['task'])
+            self.assertIsNotNone(response.context['group'])
+            self.assertFalse(response.context['show_form'])
+            self.assertEquals(response.context['results'], dict(records=3, errors=0,
+                                                                error_messages=[],
+                                                                creates=1, updates=2))
+
+            # one lock for the create
+            self.assertEquals(mock_lock.call_count, 1)
+
+        self.assertEquals(1, Contact.objects.filter(name='Bob').count())
+        self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+
+        with AnonymousOrg(self.org):
+            with patch('temba.orgs.models.Org.lock_on') as mock_lock:
+                # import contact with uuid will force update if existing contact for the uuid
+                csv_file = open('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT, 'rb')
+                post_data = dict(csv_file=csv_file)
+                response = self.client.post(import_url, post_data, follow=True)
+                self.assertIsNotNone(response.context['task'])
+                self.assertIsNotNone(response.context['group'])
+                self.assertFalse(response.context['show_form'])
+                self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
+                                                                    creates=1, updates=2))
+
+                # one lock for the create
+                self.assertEquals(mock_lock.call_count, 1)
+
+            self.assertEquals(1, Contact.objects.filter(name='Bob').count())
+            self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()

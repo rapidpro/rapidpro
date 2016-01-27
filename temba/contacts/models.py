@@ -808,7 +808,7 @@ class Contact(TembaModel):
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
 
-        if 'uuid' in header and len(header) > 1:
+        if 'uuid' in header:
             return
 
         if 'name' not in header and not header_urn_fields:
