@@ -10,7 +10,7 @@ from django.views.generic import View
 from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.orgs.views import OrgPermsMixin
-
+from django.utils.translation import ugettext, ugettext_lazy as _
 
 def webhook_status_processor(request):
     status = dict()
