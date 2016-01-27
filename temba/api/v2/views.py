@@ -275,7 +275,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
      * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime).
 
-    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`.
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`. Note that
+    the `folder`, `label` and `broadcast` parameters cannot be used together.
 
     Example:
 
