@@ -1128,22 +1128,36 @@ class Contact(TembaModel):
 
         # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
         # to prevent conflicts with get_or_create which uses an org-level lock.
+
         with self.org.lock_on(OrgLock.contacts):
+
+            # urns are submitted in order of priority
+            priority = HIGHEST_PRIORITY
+
             for scheme, path in urns:
                 norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
                 norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
 
                 urn = ContactURN.objects.filter(org=self.org, urn=norm_urn).first()
                 if not urn:
-                    urn = ContactURN.create(self.org, self, norm_scheme, norm_path)
+                    urn = ContactURN.create(self.org, self, norm_scheme, norm_path, priority=priority)
                     urns_created.append(urn)
-                # unassigned URN or assinged to someone else
+
+                # unassigned URN or assigned to someone else
                 elif not urn.contact or urn.contact != self:
                     urn.contact = self
+                    urn.priority = priority
                     urn.save()
                     urns_attached.append(urn)
+
                 else:
+                    if urn.priority != priority:
+                        urn.priority = priority
+                        urn.save()
                     urns_retained.append(urn)
+
+                # step down our priority
+                priority -= 1
 
         # detach any existing URNs that weren't included
         urn_ids = [urn.pk for urn in (urns_created + urns_attached + urns_retained)]
@@ -1268,9 +1282,11 @@ class ContactURN(models.Model):
                                 help_text="The preferred channel for this URN")
 
     @classmethod
-    def create(cls, org, contact, scheme, path, channel=None):
+    def create(cls, org, contact, scheme, path, channel=None, priority=None):
         urn = cls.format_urn(scheme, path)
-        priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
+
+        if not priority:
+            priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
                                   scheme=scheme, path=path, urn=urn)

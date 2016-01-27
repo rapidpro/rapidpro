@@ -214,24 +214,36 @@ class ContactForm(forms.ModelForm):
         # add all URN scheme fields if org is not anon
         extra_fields = []
         if not self.org.is_anon:
-            # always include phone but other schemes only if they're supported
-            supported_urn_choices = [c[0] for c in URN_SCHEME_CHOICES if c[0] in self.org.get_schemes(SEND) or c[0] == TEL_SCHEME]
+            urns = self.instance.get_urns()
 
-            for scheme, label in URN_SCHEME_CHOICES:
-                help_text = '%s for this contact (@contact.%s)' % (label, scheme)
+            idx = 0
+
+            last_urn = None
+            for urn in urns:
+
+                first_urn = last_urn is None or urn.scheme != last_urn.scheme
+
+                urn_choice = None
+                for choice in URN_SCHEME_CHOICES:
+                    if choice[0] == urn.scheme:
+                        urn_choice = choice
+
+                scheme = urn.scheme
+                label = urn.scheme
+
+                if urn_choice:
+                    label = urn_choice[1]
+
+                help_text = '%s for this contact' % label
+                if first_urn:
+                    help_text = '%s for this contact (@contact.%s)' % (label, scheme)
 
                 # get all the urns for this scheme
-                urns = self.instance.get_urns_for_scheme(scheme)
-                if urns:
-                    for i, urn in enumerate(urns):
-                        ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
-                        extra_fields.append(('__urn__%s__%d' % (scheme, i), ctrl))
-                        help_text = '%s for this contact' % label
+                ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
+                extra_fields.append(('urn__%s__%d' % (scheme, idx), ctrl))
+                idx += 1
 
-                else:
-                    if scheme in supported_urn_choices:
-                        ctrl = forms.CharField(required=False, label=label, initial=None, help_text=help_text)
-                        extra_fields.append(('__urn__%s__%d' % (scheme, 0), ctrl))
+                last_urn = urn
 
         self.fields = OrderedDict(self.fields.items() + extra_fields)
 
@@ -251,9 +263,9 @@ class ContactForm(forms.ModelForm):
             return True
 
         # validate URN fields
-        for field_key, value in self.cleaned_data.iteritems():
-            if field_key.startswith('__urn__') and value:
-                scheme = field_key[7:field_key.rfind('__')]
+        for field_key, value in self.data.iteritems():
+            if field_key.startswith('urn__') and value:
+                scheme = field_key.split('__')[1]
                 validate_urn(field_key, scheme, value)
 
         # validate new URN if provided
@@ -662,15 +674,15 @@ class ContactCRUDL(SmartCRUDL):
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import SEND
             sendable_schemes = contact.org.get_schemes(SEND)
-            sendable_urns = []
-            unsendable_urns = []
-            for urn in contact.urns.order_by('-priority'):
+
+            urns = contact.get_urns()
+            for urn in urns:
                 if urn.scheme in sendable_schemes:
-                    sendable_urns.append(urn)
-                else:
-                    unsendable_urns.append(urn)
-            context['contact_sendable_urns'] = sendable_urns
-            context['contact_unsendable_urns'] = unsendable_urns
+                    urn.sendable = True
+
+            context['contact_urns'] = urns
+
+            print urns
 
             # load our contacts values
             Contact.bulk_cache_initialize(contact.org, [contact])
@@ -968,8 +980,9 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             urns = []
             for field_key, value in self.form.cleaned_data.iteritems():
-                if field_key.startswith('__urn__') and value:
-                    scheme = field_key[7:field_key.rfind('__')]
+                if field_key.startswith('urn__') and value:
+                    scheme = field_key.split('__')[1]
+                    # scheme = field_key[7:field_key.rfind('__')]
                     urns.append((scheme, value))
 
             Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
@@ -1024,17 +1037,23 @@ class ContactCRUDL(SmartCRUDL):
 
             if not self.org.is_anon:
                 urns = []
-                for field_key, value in self.form.cleaned_data.iteritems():
-                    if field_key.startswith('__urn__') and value:
-                        scheme = field_key[7:field_key.rfind('__')]
-                        urns.append((scheme, value))
+
+                print self.form.data
+                for field_key, value in self.form.data.iteritems():
+                    if field_key.startswith('urn__') and value:
+                        parts = field_key.split('__')
+                        scheme = parts[1]
+                        order = int(self.form.data.get('order__' + field_key))
+                        urns.append((order, (scheme, value)))
 
                 new_scheme = self.form.cleaned_data.get('new_scheme', None)
                 new_path = self.form.cleaned_data.get('new_path', None)
 
                 if new_scheme and new_path:
-                    urns.append((new_scheme, new_path))
+                    urns.append((len(urns), (new_scheme, new_path)))
 
+                # sort our urns by the supplied order
+                urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
                 obj.update_urns(urns)
 
             return obj

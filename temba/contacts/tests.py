@@ -2475,6 +2475,43 @@ class ContactTest(TembaTest):
         self.assertEquals("123", message_context['tel'])
         self.assertEquals("Reporters", message_context['groups'])
 
+    def test_urn_priority(self):
+        bob = self.create_contact("Bob")
+
+        bob.update_urns([('tel', '456'), ('tel', '789')])
+        urns = bob.urns.all().order_by('-priority')
+        self.assertEquals(2, len(urns))
+        self.assertEquals('456', urns[0].path)
+        self.assertEquals('789', urns[1].path)
+        self.assertEquals(99, urns[0].priority)
+        self.assertEquals(98, urns[1].priority)
+
+        bob.update_urns([('tel', '789'), ('tel', '456')])
+        urns = bob.urns.all().order_by('-priority')
+        self.assertEquals(2, len(urns))
+        self.assertEquals('789', urns[0].path)
+        self.assertEquals('456', urns[1].path)
+
+        # add an email urn
+        bob.update_urns([('email', 'bob@marley.com'), ('tel', '789'), ('tel', '456')])
+        urns = bob.urns.all().order_by('-priority')
+        self.assertEquals(3, len(urns))
+        self.assertEquals(99, urns[0].priority)
+        self.assertEquals(98, urns[1].priority)
+        self.assertEquals(97, urns[2].priority)
+
+        # it'll come back as the highest priority
+        self.assertEquals('bob@marley.com', urns[0].path)
+
+        # but not the highest 'sendable' urn
+        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
+        self.assertEquals(urn.path, '789')
+
+        # swap our phone numbers
+        bob.update_urns([('email', 'bob@marley.com'), ('tel', '456'), ('tel', '789')])
+        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
+        self.assertEquals(urn.path, '456')
+
     def test_update_handling(self):
         from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 
