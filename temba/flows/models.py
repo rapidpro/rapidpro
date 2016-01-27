@@ -3941,7 +3941,7 @@ class AddToGroupAction(Action):
                 else:
                     group = ContactGroup.get_user_group(org, g)
                     if group:
-                        groups.append(group[0])
+                        groups.append(group)
                     else:
                         groups.append(ContactGroup.create(org, org.get_user(), g))
         return groups
