@@ -1118,7 +1118,8 @@ class Contact(TembaModel):
 
     def update_urns(self, urns):
         """
-        Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included
+        Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included.
+        The URNs are supplied in order of priority, most preferred URN first.
         """
         country = self.org.get_country_code()
 

@@ -1478,7 +1478,7 @@ class APITest(TembaTest):
         self.assertEqual(len(response.json['results']), 2)
 
         self.assertEqual(response.json['results'][1]['name'], "Dr Dre")
-        self.assertEqual(response.json['results'][1]['urns'], ['twitter:drdre', 'tel:+250788123456'])
+        self.assertEqual(response.json['results'][1]['urns'], ['tel:+250788123456', 'twitter:drdre'])
         self.assertEqual(response.json['results'][1]['fields'], {'real_name': "Andre", 'registration_date': None})
         self.assertEqual(response.json['results'][1]['group_uuids'], [artists.uuid])
         self.assertEqual(response.json['results'][1]['groups'], ["Music Artists"])

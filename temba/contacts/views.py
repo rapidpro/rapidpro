@@ -219,6 +219,11 @@ class ContactForm(forms.ModelForm):
             idx = 0
 
             last_urn = None
+
+            if not urns:
+                urn = ContactURN()
+                urn.scheme = 'tel'
+                urns = [urn]
             for urn in urns:
 
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
@@ -682,8 +687,6 @@ class ContactCRUDL(SmartCRUDL):
 
             context['contact_urns'] = urns
 
-            print urns
-
             # load our contacts values
             Contact.bulk_cache_initialize(contact.org, [contact])
 
@@ -1038,12 +1041,12 @@ class ContactCRUDL(SmartCRUDL):
             if not self.org.is_anon:
                 urns = []
 
-                print self.form.data
                 for field_key, value in self.form.data.iteritems():
                     if field_key.startswith('urn__') and value:
                         parts = field_key.split('__')
                         scheme = parts[1]
-                        order = int(self.form.data.get('order__' + field_key))
+
+                        order = int(self.form.data.get('order__' + field_key, "0"))
                         urns.append((order, (scheme, value)))
 
                 new_scheme = self.form.cleaned_data.get('new_scheme', None)
