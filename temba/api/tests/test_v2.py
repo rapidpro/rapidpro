@@ -83,6 +83,16 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([r['uuid'] for r in response.json['results']], [o.uuid for o in expected])
 
+    def assertResponseError(self, response, field, expected_message, status_code=400):
+        self.assertEqual(status_code, response.status_code)
+        if field:
+            self.assertIn(field, response.json)
+            self.assertIsInstance(response.json[field], list)
+            self.assertIn(expected_message, response.json[field])
+        else:
+            self.assertIsInstance(response.json, list)
+            self.assertIn(expected_message, response.json)
+
     def test_api_contacts(self):
         url = reverse('api.v2.contacts')
 
@@ -197,7 +207,7 @@ class APITest(TembaTest):
             'broadcast': None,
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'urn': "twitter:franky",
-            'channel': self.twitter.uuid,
+            'channel': {'uuid': self.twitter.uuid, 'name': "Twitter Channel"},
             'direction': "in",
             'type': "inbox",
             'status': "queued",
@@ -256,6 +266,11 @@ class APITest(TembaTest):
         # filter by invalid label
         response = self.fetchJSON(url, 'label=invalid')
         self.assertResultsById(response, [])
+
+        # can't filter by more than one of folder, label or broadcast
+        for query in ('label=Spam&folder=inbox', 'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
+            response = self.fetchJSON(url, query)
+            self.assertResponseError(response, None, "Can only specify one of folder, label or broadcast parameters")
 
     def test_api_runs(self):
         url = reverse('api.v2.runs')
