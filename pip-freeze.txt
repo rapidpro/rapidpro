@@ -1,4 +1,4 @@
--e git+https://github.com/nyaruka/smartmin.git@bac100b19a5eff164a09a148af116608ab9d5537#egg=smartmin
+-e git+https://github.com/nyaruka/smartmin.git@744fe7d04f0a3212bf8eb158399b341021cc9952#egg=smartmin
 Django==1.8.5
 coverage==4.0.3
 django-celery==3.1.16
