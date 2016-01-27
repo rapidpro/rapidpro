@@ -264,7 +264,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **broadcast** - the id of the broadcast (int), filterable as `broadcast`.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **urn** - the URN of the sender or receiver, depending on direction (string).
-     * **channel** - the UUID of the channel that handled this message (string).
+     * **channel** - the UUID of the channel that handled this message (object).
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
@@ -293,7 +293,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "broadcast": 2690007,
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "urn": "twitter:textitin",
-                "channel": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
                 "direction": "out",
                 "type": "inbox",
                 "status": "wired",
@@ -379,7 +379,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('org', queryset=Org.objects.only('is_anon')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
-            Prefetch('channel', queryset=Channel.objects.only('uuid')),
+            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
             Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
         )
 

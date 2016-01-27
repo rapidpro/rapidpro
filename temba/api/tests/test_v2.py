@@ -207,7 +207,7 @@ class APITest(TembaTest):
             'broadcast': None,
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'urn': "twitter:franky",
-            'channel': self.twitter.uuid,
+            'channel': {'uuid': self.twitter.uuid, 'name': "Twitter Channel"},
             'direction': "in",
             'type': "inbox",
             'status': "queued",

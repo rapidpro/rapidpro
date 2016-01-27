@@ -168,7 +168,7 @@ class MsgReadSerializer(ReadSerializer):
             return None
 
     def get_channel(self, obj):
-        return obj.channel.uuid if obj.channel_id else None
+        return {'uuid': obj.channel.uuid, 'name': obj.channel.name} if obj.channel_id else None
 
     def get_direction(self, obj):
         return self.DIRECTIONS.get(obj.direction)
