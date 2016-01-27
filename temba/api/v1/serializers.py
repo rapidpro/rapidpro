@@ -582,7 +582,7 @@ class ContactBulkActionSerializer(WriteSerializer):
 
     def validate_group(self, value):
         if value:
-            self.group_obj = ContactGroup.get_user_group(org=self.org, name=value)
+            self.group_obj = ContactGroup.get_user_group(self.org, value)
             if not self.group_obj:
                 raise serializers.ValidationError("No such group: %s" % value)
         return value

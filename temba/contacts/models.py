@@ -1535,7 +1535,7 @@ class ContactGroup(TembaModel):
         """
         Returns a normalized name for the passed in group name
         """
-        return None if not name else name.strip()[:cls.MAX_NAME_LEN]
+        return None if name is None else name.strip()[:cls.MAX_NAME_LEN]
 
     @classmethod
     def is_valid_name(cls, name):
