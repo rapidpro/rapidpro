@@ -4,6 +4,7 @@ from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, pagination
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -318,7 +319,13 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                       'sent': SystemLabel.TYPE_SENT}
 
     def get_queryset(self):
-        folder = self.request.query_params.get('folder')
+        params = self.request.query_params
+        folder = params.get('folder')
+
+        # only allowed to filter by one of broadcast, filter or label
+        if sum([1 for f in [folder, params.get('label'), params.get('broadcast')] if f]) > 1:
+            raise ValidationError("Can only specify one of folder, label or broadcast parameters")
+
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
