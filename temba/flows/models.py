@@ -3928,8 +3928,8 @@ class AddToGroupAction(Action):
                     if not group.is_active:
                         group.is_active = True
                         group.save(update_fields=['is_active'])
-                elif ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True).first():
-                    group = ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True).first()
+                elif ContactGroup.get_user_group(org, group_name):
+                    group = ContactGroup.get_user_group(org, group_name)
                 else:
                     group = ContactGroup.create(org, org.created_by, group_name)
 
@@ -3939,9 +3939,9 @@ class AddToGroupAction(Action):
                 if g and g[0] == '@':
                     groups.append(g)
                 else:
-                    group = ContactGroup.user_groups.filter(org=org, name=g, is_active=True)
+                    group = ContactGroup.get_user_group(org, g)
                     if group:
-                        groups.append(group[0])
+                        groups.append(group)
                     else:
                         groups.append(ContactGroup.create(org, org.get_user(), g))
         return groups
@@ -3966,15 +3966,15 @@ class AddToGroupAction(Action):
         if contact:
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
+
                     contact = run.contact
                     message_context = run.flow.build_message_context(contact, msg)
                     (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     group = None
 
                     if not errors:
-                        try:
-                            group = ContactGroup.user_groups.get(org=contact.org, name=value, is_active=True)
-                        except ContactGroup.DoesNotExist:
+                        group = ContactGroup.get_user_group(contact.org, value)
+                        if not group:
                             user = get_flow_user()
                             try:
                                 group = ContactGroup.create(contact.org, user, name=value)
@@ -4266,8 +4266,8 @@ class VariableContactAction(Action):
 
             if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
                 group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
-            elif ContactGroup.user_groups.filter(org=org, name=group_name, is_active=True):
-                group = ContactGroup.user_groups.get(org=org, name=group_name, is_active=True)
+            elif ContactGroup.get_user_group(org, group_name):
+                group = ContactGroup.get_user_group(org, group_name)
             else:
                 group = ContactGroup.create(org, org.get_user(), group_name)
 
@@ -4326,7 +4326,7 @@ class VariableContactAction(Action):
                 (variable, errors) = Msg.substitute_variables(variable, contact=run.contact,
                                                               message_context=message_context, org=run.flow.org)
 
-                variable_group = ContactGroup.user_groups.filter(org=run.flow.org, is_active=True, name=variable).first()
+                variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
                 if variable_group:
                     groups.append(variable_group)
                 else:
