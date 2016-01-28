@@ -253,6 +253,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': "uuid", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "urn", 'required': False, 'help': "A contact URN to filter by. ex: tel:+250788123123"},
                 {'name': "group", 'required': False, 'help': "A group name or UUID to filter by. ex: Customers"},
+                {'name': "deleted", 'required': False, 'help': "Whether to return only deleted contacts. ex: false"},
                 {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
             ]
