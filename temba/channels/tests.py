@@ -1181,7 +1181,7 @@ class ChannelTest(TembaTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_claim_twilio_message_service(self):
+    def test_claim_twilio_messaging_service(self):
 
         self.login(self.admin)
 
@@ -1201,7 +1201,7 @@ class ChannelTest(TembaTest):
         self.org.config = json.dumps(twilio_config)
         self.org.save()
 
-        claim_twilio_ms = reverse('channels.channel_claim_twilio_message_service')
+        claim_twilio_ms = reverse('channels.channel_claim_twilio_messaging_service')
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, claim_twilio_ms)
 
@@ -1223,11 +1223,11 @@ class ChannelTest(TembaTest):
         response = self.client.post(claim_twilio_ms, dict())
         self.assertTrue(response.context['form'].errors)
 
-        response = self.client.post(claim_twilio_ms, dict(country='US', message_service_sid='MSG-SERVICE-SID'))
+        response = self.client.post(claim_twilio_ms, dict(country='US', messaging_service_sid='MSG-SERVICE-SID'))
         channel = self.org.channels.get()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
-        self.assertEqual(channel.config_json(), dict(message_service_sid="MSG-SERVICE-SID"))
+        self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
 
     def test_claim_nexmo(self):
         self.login(self.admin)
@@ -4297,14 +4297,14 @@ class TwilioTest(TembaTest):
             settings.SEND_MESSAGES = False
 
 
-class TwilioMessageServiceTest(TembaTest):
+class TwilioMessagingServiceTest(TembaTest):
 
     def setUp(self):
-        super(TwilioMessageServiceTest, self).setUp()
+        super(TwilioMessagingServiceTest, self).setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'US', 'TMS', None, None,
-                                      config=dict(message_service_sid="MSG-SERVICE-SID"),
+                                      config=dict(messaging_service_sid="MSG-SERVICE-SID"),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
@@ -4314,13 +4314,13 @@ class TwilioMessageServiceTest(TembaTest):
         application_sid = "AP6fe2069df7f9482a8031cb61dc155de2"
 
         self.channel.org.config = json.dumps({ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token,
-                                              APPLICATION_SID:application_sid})
+                                              APPLICATION_SID: application_sid})
         self.channel.org.save()
 
-        msg_service_sid = self.channel.config_json()['message_service_sid']
+        messaging_service_sid = self.channel.config_json()['messaging_service_sid']
 
-        post_data = dict(message_service_sid=msg_service_sid, From='+250788383383', Body="Hello World")
-        twilio_url = reverse('handlers.twilio_message_service_handler', args=['receive', self.channel.uuid])
+        post_data = dict(message_service_sid=messaging_service_sid, From='+250788383383', Body="Hello World")
+        twilio_url = reverse('handlers.twilio_messaging_service_handler', args=['receive', self.channel.uuid])
 
         try:
             response = self.client.post(twilio_url, post_data)
@@ -4332,7 +4332,7 @@ class TwilioMessageServiceTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
-                'https://' + settings.TEMBA_HOST + '/handlers/twilio_message_service/receive/' + self.channel.uuid,
+                'https://' + settings.TEMBA_HOST + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
                 post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 

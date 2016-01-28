@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGE_SERVICE
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
@@ -154,10 +154,10 @@ class TwilioHandler(View):
         return HttpResponse("Not Handled, unknown action", status=400)
 
 
-class TwilioMessageServiceHandler(View):
+class TwilioMessagingServiceHandler(View):
     @disable_middleware
     def dispatch(self, *args, **kwargs):
-        return super(TwilioMessageServiceHandler, self).dispatch(*args, **kwargs)
+        return super(TwilioMessagingServiceHandler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -172,7 +172,7 @@ class TwilioMessageServiceHandler(View):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWILIO_MESSAGE_SERVICE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWILIO_MESSAGING_SERVICE).exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
