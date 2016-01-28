@@ -351,6 +351,7 @@ PERMISSIONS = {
                          'import',
                          'omnibox',
                          'unblock',
+                         'update_fields'
                          ),
 
     'contacts.contactfield': ('api',
@@ -554,6 +555,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_unblock',
         'contacts.contact_update',
+        'contacts.contact_update_fields',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -676,6 +678,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_unblock',
         'contacts.contact_update',
+        'contacts.contact_update_fields',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
