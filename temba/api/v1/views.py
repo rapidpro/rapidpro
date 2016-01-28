@@ -145,8 +145,6 @@ class AuthenticateEndpoint(SmartFormView):
 @permission_classes((SSLPermission, IsAuthenticated))
 def api(request, format=None):
     """
-    ## REST API
-
     We provide a simple REST API for you to interact with your data from outside applications.
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:

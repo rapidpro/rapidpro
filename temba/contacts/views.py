@@ -181,6 +181,29 @@ class ContactActionMixin(SmartListView):
         return self.get(request, *args, **kwargs)
 
 
+class ContactFieldForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs['user']
+        self.org = self.user.get_org()
+        del kwargs['user']
+        super(ContactFieldForm, self).__init__(*args, **kwargs)
+
+        extra_fields = []
+        for field in ContactField.objects.filter(org=self.org, is_active=True).order_by('label'):
+            initial = self.instance.get_field_display(field.key) if self.instance else None
+            help_text = 'Custom field (@contact.%s)' % field.key
+
+            ctrl = forms.CharField(required=False, label=field.label, initial=initial, help_text=help_text)
+            extra_fields.append(('__field__' + field.key, ctrl))
+
+        self.fields = OrderedDict(extra_fields)
+
+    class Meta:
+        model = Contact
+        fields = '__all__'
+
+
 class ContactForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs['user']
@@ -188,55 +211,73 @@ class ContactForm(forms.ModelForm):
         del kwargs['user']
         super(ContactForm, self).__init__(*args, **kwargs)
 
-    def add_extra_fields(self, inc_contact_fields):
-        extra_fields = []
-
         # add all URN scheme fields if org is not anon
+        extra_fields = []
         if not self.org.is_anon:
-            # always include phone but other schemes only if they're supported
-            supported_urn_choices = [c for c in URN_SCHEME_CHOICES if c[0] in self.org.get_schemes(SEND) or c[0] == TEL_SCHEME]
+            urns = self.instance.get_urns()
 
-            for scheme, label in supported_urn_choices:
-                help_text = '%s for this contact (@contact.%s)' % (label, scheme)
+            idx = 0
+
+            last_urn = None
+
+            if not urns:
+                urn = ContactURN()
+                urn.scheme = 'tel'
+                urns = [urn]
+            for urn in urns:
+
+                first_urn = last_urn is None or urn.scheme != last_urn.scheme
+
+                urn_choice = None
+                for choice in URN_SCHEME_CHOICES:
+                    if choice[0] == urn.scheme:
+                        urn_choice = choice
+
+                scheme = urn.scheme
+                label = urn.scheme
+
+                if urn_choice:
+                    label = urn_choice[1]
+
+                help_text = '%s for this contact' % label
+                if first_urn:
+                    help_text = '%s for this contact (@contact.%s)' % (label, scheme)
 
                 # get all the urns for this scheme
-                urns = self.instance.get_urns_for_scheme(scheme)
-                if urns:
-                    for i, urn in enumerate(urns):
-                        ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
-                        extra_fields.append(('__urn__%s__%d' % (scheme, i), ctrl))
-                        help_text = '%s for this contact' % label
+                ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
+                extra_fields.append(('urn__%s__%d' % (scheme, idx), ctrl))
+                idx += 1
 
-                else:
-                    ctrl = forms.CharField(required=False, label=label, initial=None, help_text=help_text)
-                    extra_fields.append(('__urn__%s__%d' % (scheme, 0), ctrl))
-
-        # add all contact fields
-        if inc_contact_fields:
-            for field in ContactField.objects.filter(org=self.org, is_active=True).order_by('label'):
-                initial = self.instance.get_field_display(field.key) if self.instance else None
-                help_text = 'Custom field (@contact.%s)' % field.key
-
-                ctrl = forms.CharField(required=False, label=field.label, initial=initial, help_text=help_text)
-                extra_fields.append(('__field__' + field.key, ctrl))
+                last_urn = urn
 
         self.fields = OrderedDict(self.fields.items() + extra_fields)
 
     def clean(self):
         country = self.org.get_country_code()
 
+        def validate_urn(key, urn_scheme, urn_path):
+            norm_scheme, norm_path = ContactURN.normalize_urn(urn_scheme, urn_path, country)
+            existing = Contact.from_urn(self.org, norm_scheme, norm_path)
+
+            if existing and existing != self.instance:
+                self._errors[key] = _("Used by another contact")
+                return False
+            elif not ContactURN.validate_urn(norm_scheme, norm_path):
+                self._errors[key] = _("Invalid format")
+                return False
+            return True
+
         # validate URN fields
-        for field_key, value in self.cleaned_data.iteritems():
-            if field_key.startswith('__urn__') and value:
-                scheme = field_key[7:field_key.rfind('__')]
+        for field_key, value in self.data.iteritems():
+            if field_key.startswith('urn__') and value:
+                scheme = field_key.split('__')[1]
+                validate_urn(field_key, scheme, value)
 
-                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, value, country)
-                existing = Contact.from_urn(self.org, norm_scheme, norm_path)
-
-                if existing and existing != self.instance:
-                    self._errors[field_key] = _("Used by another contact")
-                elif not ContactURN.validate_urn(norm_scheme, norm_path):
-                    self._errors[field_key] = _("Invalid format")
+        # validate new URN if provided
+        if self.data.get('new_path', None):
+            if validate_urn('new_path', self.data['new_scheme'], self.data['new_path']):
+                self.cleaned_data['new_scheme'] = self.data['new_scheme']
+                self.cleaned_data['new_path'] = self.data['new_path']
 
         return self.cleaned_data
 
@@ -273,7 +314,7 @@ class UpdateContactForm(ContactForm):
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
-               'customize', 'export', 'block', 'unblock', 'delete', 'history')
+               'customize', 'update_fields', 'export', 'block', 'unblock', 'delete', 'history')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -311,7 +352,7 @@ class ContactCRUDL(SmartCRUDL):
                                                            group=group, host=host)
                 export_contacts_task.delay(export.pk)
 
-                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
                     messages.info(self.request,
                                   _("We are preparing your export. We will e-mail you at %s when it is ready.")
                                   % self.request.user.username)
@@ -540,7 +581,7 @@ class ContactCRUDL(SmartCRUDL):
                     if groups:
                         context['group'] = groups[0]
 
-                    elif not task.status() in ['PENDING', 'RUNNING', 'STARTED']:
+                    elif not task.status() in ['PENDING', 'RUNNING', 'STARTED']:  # pragma: no cover
                         context['show_form'] = True
 
             return context
@@ -549,7 +590,7 @@ class ContactCRUDL(SmartCRUDL):
             task_id = self.request.REQUEST.get('task', None)
             if task_id:
                 tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
-                if tasks and tasks[0].status() in ['PENDING', 'RUNNING', 'STARTED']:
+                if tasks and tasks[0].status() in ['PENDING', 'RUNNING', 'STARTED']:  # pragma: no cover
                     return 3000
             return 0
 
@@ -614,8 +655,6 @@ class ContactCRUDL(SmartCRUDL):
             context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
 
             contact = self.object
-            if not contact.is_active:
-                raise Http404("No active contact with that id")
 
             # the users group membership
             context['contact_groups'] = contact.user_groups.extra(select={'lower_name': 'lower(name)'}).order_by('lower_name')
@@ -640,15 +679,13 @@ class ContactCRUDL(SmartCRUDL):
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import SEND
             sendable_schemes = contact.org.get_schemes(SEND)
-            sendable_urns = []
-            unsendable_urns = []
-            for urn in contact.urns.order_by('-priority'):
+
+            urns = contact.get_urns()
+            for urn in urns:
                 if urn.scheme in sendable_schemes:
-                    sendable_urns.append(urn)
-                else:
-                    unsendable_urns.append(urn)
-            context['contact_sendable_urns'] = sendable_urns
-            context['contact_unsendable_urns'] = unsendable_urns
+                    urn.sendable = True
+
+            context['contact_urns'] = urns
 
             # load our contacts values
             Contact.bulk_cache_initialize(contact.org, [contact])
@@ -695,6 +732,8 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contact_update"):
 
                 links.append(dict(title=_('Edit'), style='btn-primary', js_class='update-contact', href="#"))
+
+                links.append(dict(title=_('Custom Fields'), style='btn-primary', js_class='update-contact-fields', href="#"))
 
                 if self.has_org_perm("contacts.contact_block") and not self.object.is_blocked:
                     links.append(dict(title=_('Block'), style='btn-primary', js_class='posterize',
@@ -743,7 +782,7 @@ class ContactCRUDL(SmartCRUDL):
                 if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
                     b.created_on = b.fired
 
-                if a.created_on == b.created_on:
+                if a.created_on == b.created_on:  # pragma: no cover
                     return 0
                 elif a.created_on < b.created_on:
                     return -1
@@ -934,9 +973,7 @@ class ContactCRUDL(SmartCRUDL):
             return form_kwargs
 
         def get_form(self, form_class):
-            form = super(ContactCRUDL.Create, self).get_form(form_class)
-            form.add_extra_fields(False)
-            return form
+            return super(ContactCRUDL.Create, self).get_form(form_class)
 
         def pre_save(self, obj):
             obj = super(ContactCRUDL.Create, self).pre_save(obj)
@@ -946,8 +983,9 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             urns = []
             for field_key, value in self.form.cleaned_data.iteritems():
-                if field_key.startswith('__urn__') and value:
-                    scheme = field_key[7:field_key.rfind('__')]
+                if field_key.startswith('urn__') and value:
+                    scheme = field_key.split('__')[1]
+                    # scheme = field_key[7:field_key.rfind('__')]
                     urns.append((scheme, value))
 
             Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
@@ -983,9 +1021,7 @@ class ContactCRUDL(SmartCRUDL):
             return form_kwargs
 
         def get_form(self, form_class):
-            form = super(ContactCRUDL.Update, self).get_form(form_class)
-            form.add_extra_fields(True)
-            return form
+            return super(ContactCRUDL.Update, self).get_form(form_class)
 
         def save(self, obj):
             super(ContactCRUDL.Update, self).save(obj)
@@ -994,20 +1030,52 @@ class ContactCRUDL(SmartCRUDL):
             if new_groups is not None:
                 obj.update_groups(new_groups)
 
-            # TODO replace the contact edit dialog with something more substantial that will support multiple URNs with
-            # the same scheme
+        def get_context_data(self, **kwargs):
+            context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
+            context['schemes'] = URN_SCHEME_CHOICES
+            return context
 
         def post_save(self, obj):
             obj = super(ContactCRUDL.Update, self).post_save(obj)
 
             if not self.org.is_anon:
                 urns = []
-                for field_key, value in self.form.cleaned_data.iteritems():
-                    if field_key.startswith('__urn__') and value:
-                        scheme = field_key[7:field_key.rfind('__')]
-                        urns.append((scheme, value))
 
+                for field_key, value in self.form.data.iteritems():
+                    if field_key.startswith('urn__') and value:
+                        parts = field_key.split('__')
+                        scheme = parts[1]
+
+                        order = int(self.form.data.get('order__' + field_key, "0"))
+                        urns.append((order, (scheme, value)))
+
+                new_scheme = self.form.cleaned_data.get('new_scheme', None)
+                new_path = self.form.cleaned_data.get('new_path', None)
+
+                if new_scheme and new_path:
+                    urns.append((len(urns), (new_scheme, new_path)))
+
+                # sort our urns by the supplied order
+                urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
                 obj.update_urns(urns)
+
+            return obj
+
+    class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        form_class = ContactFieldForm
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_failed',
+                   'created_by', 'modified_by', 'is_test', 'channel')
+        success_url = 'uuid@contacts.contact_read'
+        success_message = ''
+        submit_button_name = _("Save Changes")
+
+        def get_form_kwargs(self, *args, **kwargs):
+            form_kwargs = super(ContactCRUDL.UpdateFields, self).get_form_kwargs(*args, **kwargs)
+            form_kwargs['user'] = self.request.user
+            return form_kwargs
+
+        def post_save(self, obj):
+            obj = super(ContactCRUDL.UpdateFields, self).post_save(obj)
 
             fields_to_save_later = dict()
             for field_key, value in self.form.cleaned_data.iteritems():

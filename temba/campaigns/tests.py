@@ -289,9 +289,11 @@ class CampaignTest(TembaTest):
         # but if we add him back in, should be updated
         post_data = dict(name=self.farmer1.name,
                          groups=[self.farmers.id],
-                         __urn__tel=self.farmer1.get_urn('tel').path,
-                         __field__planting_date=['4/8/2020'])
-        response = self.client.post(reverse('contacts.contact_update', args=[self.farmer1.id]), post_data)
+                         __urn__tel=self.farmer1.get_urn('tel').path)
+
+        self.client.post(reverse('contacts.contact_update', args=[self.farmer1.id]), post_data)
+        response = self.client.post(reverse('contacts.contact_update_fields', args=[self.farmer1.id]),
+                                    dict(__field__planting_date=['4/8/2020']))
         self.assertRedirect(response, reverse('contacts.contact_read', args=[self.farmer1.uuid]))
 
         fires = EventFire.objects.all()
