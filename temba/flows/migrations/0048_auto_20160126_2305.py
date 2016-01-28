@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('exit_type', models.CharField(max_length=1, null=True, choices=[('C', 'Completed'), ('I', 'Interrupted'), ('E', 'Expired')])),
-                ('count', models.IntegerField(default=1)),
+                ('count', models.IntegerField(default=0)),
                 ('flow', models.ForeignKey(related_name='counts', to='flows.Flow')),
             ],
         ),

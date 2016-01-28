@@ -10,6 +10,13 @@ class Migration(migrations.Migration):
         ('flows', '0048_auto_20160126_2305'),
     ]
 
+    def clear_flowrun_counts(apps, schema_editor):
+        """
+        Clears all flowrun counts
+        """
+        FlowRunCount = apps.get_model('flows', 'FlowRunCount')
+        FlowRunCount.objects.all().delete()
+
     def backfill_flowrun_counts(apps, schema_editor):
         """
         Backfills our counts for all flows
@@ -17,21 +24,28 @@ class Migration(migrations.Migration):
         Flow = apps.get_model('flows', 'Flow')
         FlowRun = apps.get_model('flows', 'FlowRun')
         FlowRunCount = apps.get_model('flows', 'FlowRunCount')
+        Contact = apps.get_model('contacts', 'Contact')
 
-        # for each flow
-        for flow in Flow.objects.all():
+        # for each flow that has at least one run
+        for flow in Flow.objects.exclude(runs=None):
+            # get test contacts on this org
+            test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
+
             # calculate our count for each exit type
-            counts = FlowRun.objects.filter(flow=flow).order_by('exit_type').aggregate(Count('exit_count'))
+            counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
+                                    .values('exit_type').annotate(Count('exit_type'))
 
             # remove old ones
             FlowRunCount.objects.filter(flow=flow).delete()
 
             # insert updated counts for each
             for count in counts:
-                if count['count'] > 0:
-                    FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
+                if count['exit_type__count'] > 0:
+                    FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['exit_type__count'])
 
-    def install_flowruncount_trigger(apps, schema_editor):
+            print "%s - %s" % (flow.name, counts)
+
+    def install_flowruncount_triggers(apps, schema_editor):
         """
         Installs a Postgres triggers to manage our flowrun counts.
         """
@@ -68,7 +82,8 @@ class Migration(migrations.Migration):
               temba_insert_flowruncount(_flow_id INT, _exit_type CHAR(1), _count INT)
             RETURNS VOID AS $$
             BEGIN
-              INSERT INTO flows_flowruncount VALUES(NULL, _flow_id, _exit_type, _count);
+              INSERT INTO flows_flowruncount("flow_id", "exit_type", "count")
+              VALUES(_flow_id, _exit_type, _count);
             END;
             $$ LANGUAGE plpgsql;
 
@@ -95,7 +110,7 @@ class Migration(migrations.Migration):
 
               -- FlowRun being removed
               ELSIF TG_OP = 'DELETE' THEN
-                PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.exit_type, 1);
+                PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.exit_type, -1);
 
               -- Updating exit type
               ELSIF TG_OP = 'UPDATE' THEN
@@ -125,8 +140,19 @@ class Migration(migrations.Migration):
         cursor = connection.cursor()
         cursor.execute(install_trigger)
 
+    def uninstall_flowruncount_triggers(apps, schema_editor):
+        cursor = connection.cursor()
+        #language=SQL
+        cursor.execute("""
+        DROP TRIGGER IF EXISTS temba_flowrun_update_flowruncount on flows_flowrun;
+        DROP TRIGGER IF EXISTS temba_flowrun_truncate_flowruncount on flows_flowrun;
+        """)
+
     operations = [
         migrations.RunPython(
-            install_flowruncount_trigger,
+            install_flowruncount_triggers, uninstall_flowruncount_triggers
         ),
+        #migrations.RunPython(
+        #        backfill_flowrun_counts, clear_flowrun_counts
+        #)
     ]

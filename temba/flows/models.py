@@ -20,7 +20,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models
-from django.db.models import Q, Count, QuerySet
+from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -3014,29 +3014,36 @@ class FlowRunCount(models.Model):
     """
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
-    count = models.IntegerField(default=1)
+    count = models.IntegerField(default=0)
 
     @classmethod
-    def count_for_type(cls, flow, exit_type=None):
-        count = FlowRunCount.objects.filter(flow=flow).aggregate(Sum('count')).get('count__sum', 0)
+    def run_count(cls, flow):
+        count = FlowRunCount.objects.filter(flow=flow)
+        count = count.aggregate(Sum('count')).get('count__sum', 0)
+        return 0 if count is None else count
 
-        if exit_type:
-            count = count.filter(exit_type=exit_type)
-
+    @classmethod
+    def run_count_for_type(cls, flow, exit_type=None):
+        count = FlowRunCount.objects.filter(flow=flow).filter(exit_type=exit_type)
+        count = count.aggregate(Sum('count')).get('count__sum', 0)
         return 0 if count is None else count
 
     @classmethod
     def populate_for_flow(cls, flow):
-        # calculate actual sums
-        counts = FlowRun.objects.filter(flow=flow).order_by('exit_type').aggregate(Count('exit_count'))
+        # get test contacts on this org
+        test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
+
+        # calculate our count for each exit type
+        counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
+                                .values('exit_type').annotate(Count('exit_type'))
 
         # remove old ones
         FlowRunCount.objects.filter(flow=flow).delete()
 
         # insert updated counts for each
         for count in counts:
-            if count['count'] > 0:
-                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
+            if count['exit_type__count'] > 0:
+                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
 
     class Meta:
         index_together = ('flow', 'exit_type')
