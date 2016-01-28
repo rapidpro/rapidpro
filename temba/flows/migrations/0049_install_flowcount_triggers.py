@@ -149,7 +149,7 @@ class Migration(migrations.Migration):
         migrations.RunPython(
             install_flowruncount_triggers, uninstall_flowruncount_triggers
         ),
-        #migrations.RunPython(
-        #        backfill_flowrun_counts, clear_flowrun_counts
-        #)
+        migrations.RunPython(
+                backfill_flowrun_counts, clear_flowrun_counts
+        )
     ]
