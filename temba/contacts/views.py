@@ -681,11 +681,15 @@ class ContactCRUDL(SmartCRUDL):
             sendable_schemes = contact.org.get_schemes(SEND)
 
             urns = contact.get_urns()
+            has_sendable_urn = False
+
             for urn in urns:
                 if urn.scheme in sendable_schemes:
                     urn.sendable = True
+                    has_sendable_urn = True
 
             context['contact_urns'] = urns
+            context['has_sendable_urn'] = has_sendable_urn
 
             # load our contacts values
             Contact.bulk_cache_initialize(contact.org, [contact])
