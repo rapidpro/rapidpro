@@ -2261,18 +2261,30 @@ class ActionTest(TembaTest):
 
         # user should now be in the group
         self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(1, group.contacts.all().count())
+        self.assertEqual(1, group.contacts.all().count())
 
-        # we should have acreated a group with the name of the contact
+        # we should have created a group with the name of the contact
         replace_group = ContactGroup.user_groups.get(name=self.contact.name)
         self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(1, replace_group.contacts.all().count())
+        self.assertEqual(1, replace_group.contacts.all().count())
 
         # passing through twice doesn't change anything
         action.execute(run, None, sms)
 
         self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(1, group.contacts.all().count())
+        self.assertEqual(group.contacts.all().count(), 1)
+        self.assertEqual(self.contact.user_groups.all().count(), 2)
+
+        # having the group name containing a space doesn't change anything
+        self.contact.name += " "
+        self.contact.save()
+        run.contact = self.contact
+
+        action.execute(run, None, sms)
+
+        self.assertTrue(group.contacts.filter(id=self.contact.pk))
+        self.assertEqual(group.contacts.all().count(), 1)
+        self.assertEqual(self.contact.user_groups.all().count(), 2)
 
         action = DeleteFromGroupAction([group, "@step.contact"])
         action_json = action.as_json()
@@ -2282,14 +2294,14 @@ class ActionTest(TembaTest):
 
         # user should be gone now
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(0, group.contacts.all().count())
+        self.assertEqual(0, group.contacts.all().count())
         self.assertFalse(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(0, replace_group.contacts.all().count())
+        self.assertEqual(0, replace_group.contacts.all().count())
 
         action.execute(run, None, sms)
 
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEquals(0, group.contacts.all().count())
+        self.assertEqual(0, group.contacts.all().count())
 
     def test_add_label_action(self):
         flow = self.flow

@@ -40,6 +40,7 @@ EXTERNAL_SCHEME = 'ext'
 
 # schemes that we actually support
 URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
+                      (EMAIL_SCHEME, _("Email address")),
                       (TWITTER_SCHEME, _("Twitter handle")),
                       (EXTERNAL_SCHEME, _("External identifier")))
 
@@ -505,6 +506,7 @@ class Contact(TembaModel):
             existing_orphan_urns = dict()
             urns_to_create = dict()
             for scheme, path in urns:
+
                 if not scheme or not path:
                     raise ValueError(_("URN cannot have empty scheme or path"))
 
@@ -678,7 +680,7 @@ class Contact(TembaModel):
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
                     value = str(int(float(value)))
-                except ValueError:
+                except ValueError:  # pragma: no cover
                     # oh well, neither of those, stick to the plan, maybe we can make sense of it below
                     pass
 
@@ -808,7 +810,7 @@ class Contact(TembaModel):
 
         possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
 
-        if 'uuid' in header and len(header) > 1:
+        if 'uuid' in header:
             return
 
         if 'name' not in header and not header_urn_fields:
@@ -1116,7 +1118,8 @@ class Contact(TembaModel):
 
     def update_urns(self, urns):
         """
-        Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included
+        Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included.
+        The URNs are supplied in order of priority, most preferred URN first.
         """
         country = self.org.get_country_code()
 
@@ -1126,22 +1129,36 @@ class Contact(TembaModel):
 
         # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
         # to prevent conflicts with get_or_create which uses an org-level lock.
+
         with self.org.lock_on(OrgLock.contacts):
+
+            # urns are submitted in order of priority
+            priority = HIGHEST_PRIORITY
+
             for scheme, path in urns:
                 norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
                 norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
 
                 urn = ContactURN.objects.filter(org=self.org, urn=norm_urn).first()
                 if not urn:
-                    urn = ContactURN.create(self.org, self, norm_scheme, norm_path)
+                    urn = ContactURN.create(self.org, self, norm_scheme, norm_path, priority=priority)
                     urns_created.append(urn)
-                # unassigned URN or assinged to someone else
+
+                # unassigned URN or assigned to someone else
                 elif not urn.contact or urn.contact != self:
                     urn.contact = self
+                    urn.priority = priority
                     urn.save()
                     urns_attached.append(urn)
+
                 else:
+                    if urn.priority != priority:
+                        urn.priority = priority
+                        urn.save()
                     urns_retained.append(urn)
+
+                # step down our priority
+                priority -= 1
 
         # detach any existing URNs that weren't included
         urn_ids = [urn.pk for urn in (urns_created + urns_attached + urns_retained)]
@@ -1207,8 +1224,6 @@ class Contact(TembaModel):
         tel = self.get_urn(TEL_SCHEME)
         if tel:
             return tel.path
-        else:
-            return None
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
         from temba.msgs.models import Broadcast
@@ -1268,9 +1283,11 @@ class ContactURN(models.Model):
                                 help_text="The preferred channel for this URN")
 
     @classmethod
-    def create(cls, org, contact, scheme, path, channel=None):
+    def create(cls, org, contact, scheme, path, channel=None, priority=None):
         urn = cls.format_urn(scheme, path)
-        priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
+
+        if not priority:
+            priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
                                   scheme=scheme, path=path, urn=urn)
@@ -1336,6 +1353,14 @@ class ContactURN(models.Model):
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
             return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+        elif scheme == EMAIL_SCHEME:
+            from django.core.validators import validate_email
+            try:
+                validate_email(path)
+                return True
+            except Exception:
+                return False
 
         # anything goes for external schemes
         elif scheme == EXTERNAL_SCHEME:
@@ -1431,12 +1456,12 @@ class ContactURN(models.Model):
                 if self.path and self.path[0] == '+':
                     return phonenumbers.format_number(phonenumbers.parse(self.path, None),
                                                       phonenumbers.PhoneNumberFormat.NATIONAL)
-            except Exception: # pragma: no cover
+            except Exception:  # pragma: no cover
                 pass
 
         return self.path
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return self.urn
 
     class Meta:
@@ -1493,8 +1518,15 @@ class ContactGroup(TembaModel):
     user_groups = UserContactGroupManager()
 
     @classmethod
+    def get_user_group(cls, org, name):
+        """
+        Returns the user group with the passed in name
+        """
+        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
+
+    @classmethod
     def get_or_create(cls, org, user, name):
-        existing = ContactGroup.user_groups.filter(name__iexact=name.strip()[:64], org=org, is_active=True).first()
+        existing = ContactGroup.get_user_group(org, name)
         if existing:
             return existing
         else:
@@ -1502,18 +1534,18 @@ class ContactGroup(TembaModel):
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):
-        full_group_name = name.strip()[:cls.MAX_NAME_LEN]
+        full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
 
         # look for name collision and append count if necessary
-        existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
+        existing = cls.get_user_group(org, full_group_name)
 
         count = 2
         while existing:
             full_group_name = "%s %d" % (name, count)
-            existing = ContactGroup.user_groups.filter(name=full_group_name, org=org, is_active=True).count() > 0
+            existing = cls.get_user_group(org, full_group_name)
             count += 1
 
         group = ContactGroup.user_groups.create(name=full_group_name, org=org, import_task=task,
@@ -1522,6 +1554,13 @@ class ContactGroup(TembaModel):
             group.update_query(query)
 
         return group
+
+    @classmethod
+    def clean_name(cls, name):
+        """
+        Returns a normalized name for the passed in group name
+        """
+        return None if name is None else name.strip()[:cls.MAX_NAME_LEN]
 
     @classmethod
     def is_valid_name(cls, name):
@@ -1539,7 +1578,7 @@ class ContactGroup(TembaModel):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
-        if self.group_type != self.TYPE_USER_DEFINED:
+        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
             raise ValueError("Can't add or remove test contacts from system groups")
 
         changed = set()
@@ -1553,9 +1592,6 @@ class ContactGroup(TembaModel):
 
             # if we are adding the contact to the group, and this contact is not in this group
             if add:
-                if contact.is_blocked:
-                    raise ValueError("Can't add or remove groups on blocked contact")
-
                 if not group_contacts.filter(id=contact.id):
                     self.contacts.add(contact)
                     contact_changed = True
@@ -1617,7 +1653,7 @@ class ContactGroup(TembaModel):
 
     @classmethod
     def get_system_group_queryset(cls, org, group_type):
-        if group_type == cls.TYPE_USER_DEFINED:
+        if group_type == cls.TYPE_USER_DEFINED:  # pragma: no cover
             raise ValueError("Can only get system group querysets")
 
         return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
@@ -1798,7 +1834,7 @@ class ExportContactsTask(SmartModel):
                     current_contact += 1
 
                     # output some status information every 10,000 contacts
-                    if current_contact % 10000 == 0:
+                    if current_contact % 10000 == 0:  # pragma: no cover
                         elapsed = time.time() - start
                         predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
