@@ -244,6 +244,9 @@ class APITest(TembaTest):
         joe_msg4 = self.create_msg(direction='O', msg_type='F', text="Surveys!", contact=self.joe, contact_urn=None,
                                    status='S', channel=None, sent_on=timezone.now())
 
+        # add a deleted message
+        self.create_msg(direction='I', msg_type='I', text="!@$!%", contact=self.frank, visibility='D')
+
         # add a test contact message
         self.create_msg(direction='I', msg_type='F', text="Hello", contact=self.test_contact)
 
@@ -294,9 +297,9 @@ class APITest(TembaTest):
             'delivered_on': None
         })
 
-        # filter by folder (inbox)
-        response = self.fetchJSON(url, 'folder=INBOX')
-        self.assertResultsById(response, [frank_msg1])
+        with self.assertNumQueries(13):  # filter by folder (inbox)
+            response = self.fetchJSON(url, 'folder=INBOX')
+            self.assertResultsById(response, [frank_msg1])
 
         # filter by folder (flow)
         response = self.fetchJSON(url, 'folder=flows')
@@ -342,10 +345,12 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'label=invalid')
         self.assertResultsById(response, [])
 
-        # can't filter by more than one of folder, label or broadcast
-        for query in ('label=Spam&folder=inbox', 'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
+        # can't filter by more than one of contact, folder, label or broadcast together
+        for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
+                      'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
             response = self.fetchJSON(url, query)
-            self.assertResponseError(response, None, "Can only specify one of folder, label or broadcast parameters")
+            self.assertResponseError(response, None,
+                                     "Can only specify one of contact, folder, label or broadcast parameters")
 
     def test_runs(self):
         url = reverse('api.v2.runs')

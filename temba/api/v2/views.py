@@ -277,7 +277,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime).
 
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`. Note that
-    the `folder`, `label` and `broadcast` parameters cannot be used together.
+    the `contact`, `folder`, `label` and `broadcast` parameters cannot be used together.
 
     Example:
 
@@ -310,7 +310,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     """
     permission = 'msgs.msg_api'
     model = Msg
-    model_manager = 'current_messages'
     serializer_class = MsgReadSerializer
     pagination_class = CreatedOnCursorPagination
 
@@ -321,27 +320,26 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                       'sent': SystemLabel.TYPE_SENT}
 
     def get_queryset(self):
+        org = self.request.user.get_org()
         params = self.request.query_params
         folder = params.get('folder')
 
-        # only allowed to filter by one of broadcast, filter or label
-        if sum([1 for f in [folder, params.get('label'), params.get('broadcast')] if f]) > 1:
-            raise InvalidQueryError("Can only specify one of folder, label or broadcast parameters")
+        # only allowed to filter by one of contact, broadcast, filter or label
+        if sum([1 for f in [params.get('contact'), folder, params.get('label'), params.get('broadcast')] if f]) > 1:
+            raise InvalidQueryError("Can only specify one of contact, folder, label or broadcast parameters")
 
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
-                return SystemLabel.get_queryset(self.request.user.get_org(), sys_label)
+                return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
             else:
-                return Msg.current_messages.filter(pk=-1)
+                return self.model.current_messages.filter(pk=-1)
         else:
-            return super(MessagesEndpoint, self).get_queryset()
+            return self.model.current_messages.filter(org=org).exclude(visibility=DELETED).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
         org = self.request.user.get_org()
-
-        queryset = queryset.exclude(visibility=DELETED).exclude(msg_type=None)
 
         # filter by id (optional)
         msg_id = params.get('id')
