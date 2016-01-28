@@ -2175,7 +2175,7 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'twitter, ext "
+                                                                                     "least one among 'mailto, twitter, ext "
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
