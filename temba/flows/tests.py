@@ -570,6 +570,9 @@ class FlowTest(TembaTest):
         self.flow.update(self.definition)
         run = self.flow.start([], [self.contact])[0]
 
+        run.submitted_by = self.admin
+        run.save()
+
         # no urn or channel
         in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
@@ -582,7 +585,7 @@ class FlowTest(TembaTest):
         run1_first = run1_rs.order_by('pk').first().arrived_on
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 1, ["+250788382382", "Eric", "", run1_first, run1_last,
+        self.assertExcelRow(sheet_runs, 1, ["Administrator", "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
 
         out1 = Msg.all_messages.get(steps__run=run, text="What is your favorite color?")
@@ -605,7 +608,7 @@ class FlowTest(TembaTest):
         # every sheet has only the head row
         for entries in workbook.sheets():
             self.assertEqual(entries.nrows, 1)
-            self.assertEqual(entries.ncols, 8)
+            self.assertEqual(entries.ncols, 9)
 
     def test_copy(self):
         # save our original flow
