@@ -1270,6 +1270,23 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
+
+        with patch('temba.orgs.models.Org.get_schemes') as mock_get_schemes:
+            mock_get_schemes.return_value = []
+
+            response = self.fetch_protected(read_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertFalse(response.context['has_sendable_urn'])
+
+            mock_get_schemes.return_value = ['tel']
+
+            response = self.fetch_protected(read_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertTrue(response.context['has_sendable_urn'])
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        self.assertTrue(response.context['has_sendable_urn'])
         upcoming = response.context['upcoming_events']
 
         # should show the next seven events to fire in reverse order
@@ -2189,7 +2206,7 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'twitter, ext "
+                                                                                     "least one among 'mailto, twitter, ext "
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
