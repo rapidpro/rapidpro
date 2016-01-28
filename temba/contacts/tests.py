@@ -785,6 +785,8 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
         state_field = ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, 'isureporter', "Is UReporter", value_type='T')
+        ContactField.get_or_create(self.org, 'hasbirth', "Has Birth", value_type='T')
 
         africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
         rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
@@ -814,6 +816,9 @@ class ContactTest(TembaTest):
                 mock_parse_location.return_value = locations_boundaries[index]
                 contact.set_field('home', locations[index])
 
+        contact.set_field('isureporter', 'yes')
+        contact.set_field('hasbirth', 'no')
+
         q = lambda query: Contact.search(self.org, query)[0].count()
 
         # non-complex queries
@@ -822,6 +827,15 @@ class ContactTest(TembaTest):
         self.assertEquals(22, q('  paige  '))
         self.assertEquals(22, q('fish'))
         self.assertEquals(1, q('0788382011'))  # does a contains
+
+        # test prefixes with 'is' or 'has'
+        self.assertEqual(q('isureporter = "yes"'), 1)
+        self.assertEqual(q('isureporter = yes'), 1)
+        self.assertEqual(q('isureporter = no'), 0)
+
+        self.assertEqual(q('hasbirth = "no"'), 1)
+        self.assertEqual(q('hasbirth = no'), 1)
+        self.assertEqual(q('hasbirth = yes'), 0)
 
         # name as property
         self.assertEquals(23, q('name is "trey"'))
@@ -1256,6 +1270,23 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
+
+        with patch('temba.orgs.models.Org.get_schemes') as mock_get_schemes:
+            mock_get_schemes.return_value = []
+
+            response = self.fetch_protected(read_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertFalse(response.context['has_sendable_urn'])
+
+            mock_get_schemes.return_value = ['tel']
+
+            response = self.fetch_protected(read_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertTrue(response.context['has_sendable_urn'])
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        self.assertTrue(response.context['has_sendable_urn'])
         upcoming = response.context['upcoming_events']
 
         # should show the next seven events to fire in reverse order
@@ -2175,7 +2206,7 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'twitter, ext "
+                                                                                     "least one among 'mailto, twitter, ext "
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
