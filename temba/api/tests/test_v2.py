@@ -350,7 +350,7 @@ class APITest(TembaTest):
                       'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
             response = self.fetchJSON(url, query)
             self.assertResponseError(response, None,
-                                     "Can only specify one of contact, folder, label or broadcast parameters")
+                                     "You may only specify one of the contact, folder, label, broadcast parameters")
 
     def test_runs(self):
         url = reverse('api.v2.runs')
@@ -503,3 +503,8 @@ class APITest(TembaTest):
         # filter by invalid before
         response = self.fetchJSON(url, 'before=longago')
         self.assertResultsById(response, [])
+
+        # can't filter by both contact and flow together
+        response = self.fetchJSON(url, 'contact=%s&flow=%s' % (self.joe.uuid, flow1.uuid))
+        self.assertResponseError(response, None,
+                                 "You may only specify one of the contact, flow parameters")

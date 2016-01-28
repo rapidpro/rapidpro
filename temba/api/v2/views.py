@@ -4,7 +4,6 @@ from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, pagination
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -84,16 +83,24 @@ class ListAPIMixin(mixins.ListModelMixin):
     throttle_scope = 'v2'
     model = None
     model_manager = 'objects'
+    exclusive_params = ()
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
+        self.check_query(self.request.query_params)
+
         if not kwargs.get('format', None):
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
             return super(ListAPIMixin, self).list(request, *args, **kwargs)
+
+    def check_query(self, params):
+        # check user hasn't provided values for more than one of any exclusive params
+        if sum([(1 if params.get(p) else 0) for p in self.exclusive_params]) > 1:
+            raise InvalidQueryError("You may only specify one of the %s parameters" % ", ".join(self.exclusive_params))
 
     def get_queryset(self):
         org = self.request.user.get_org()
@@ -277,7 +284,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime).
 
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`. Note that
-    the `contact`, `folder`, `label` and `broadcast` parameters cannot be used together.
+    you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
     Example:
 
@@ -312,6 +319,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     model = Msg
     serializer_class = MsgReadSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('contact', 'folder', 'label', 'broadcast')
 
     FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
                       'flows': SystemLabel.TYPE_FLOWS,
@@ -321,12 +329,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        params = self.request.query_params
-        folder = params.get('folder')
-
-        # only allowed to filter by one of contact, broadcast, filter or label
-        if sum([1 for f in [params.get('contact'), folder, params.get('label'), params.get('broadcast')] if f]) > 1:
-            raise InvalidQueryError("Can only specify one of contact, folder, label or broadcast parameters")
+        folder = self.request.query_params.get('folder')
 
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
@@ -393,6 +396,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'msg-list',
             'request': "after=2014-01-01T00:00:00.000",
             'fields': [
+                {'name': 'id', 'required': False, 'help': "A message ID to filter by, ex: 123456"},
                 {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': 'folder', 'required': False, 'help': "A folder name to filter by, one of: inbox, flows, archived, outbox, sent"},
@@ -422,6 +426,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
      * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
      * **exited_on** - the datetime when this run exited or null if it is still active (datetime).
      * **exit_type** - how the run ended (one of "interrupted", "completed", "expired").
+
+    Note that you cannot filter by `flow` and `contact` at the same time.
 
     Example:
 
@@ -471,6 +477,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
+    exclusive_params = ('contact', 'flow')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -526,6 +533,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'run-list',
             'request': "after=2014-01-01T00:00:00.000",
             'fields': [
+                {'name': 'id', 'required': False, 'help': "A run ID to filter by, ex: 123456"},
                 {'name': 'flow', 'required': False, 'help': "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': 'responded', 'required': False, 'help': "Whether to only return runs with contact responses"},
