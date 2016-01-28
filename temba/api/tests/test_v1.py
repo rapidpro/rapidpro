@@ -556,8 +556,6 @@ class APITest(TembaTest):
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
 
-
-
     def test_api_steps(self):
         url = reverse('api.v1.steps')
 
@@ -590,6 +588,7 @@ class APITest(TembaTest):
         data = dict(flow=flow.uuid,
                     revision=2,
                     contact=self.joe.uuid,
+                    submitted_by=self.admin.pk,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
                         dict(node='00000000-00000000-00000000-00000001',
@@ -643,6 +642,7 @@ class APITest(TembaTest):
                     revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
+                    submitted_by=self.admin.pk,
                     steps=[
                         dict(node='00000000-00000000-00000000-00000005',
                              arrived_on='2015-08-25T11:11:30.088Z',
@@ -668,6 +668,8 @@ class APITest(TembaTest):
 
         # run should be complete now
         run = FlowRun.objects.get()
+
+        self.assertEqual(run.submitted_by, self.admin)
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
@@ -758,6 +760,7 @@ class APITest(TembaTest):
                     ],
                     completed=True)
 
+
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
 
             # this version doesn't have our node
@@ -777,6 +780,9 @@ class APITest(TembaTest):
             response = self.postJSON(url, data)
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
+
+            # submitted_by is optional
+            self.assertEqual(FlowRun.objects.filter(submitted_by=None).count(), 1)
 
             # test with old name
             del data['revision']

@@ -2806,9 +2806,15 @@ class FlowRun(models.Model):
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+                                     help_text="The user which submitted this flow run")
+
     @classmethod
-    def create(cls, flow, contact, start=None, call=None, fields=None, created_on=None, db_insert=True):
-        args = dict(org=flow.org, flow=flow, contact=contact, start=start, call=call, fields=fields)
+    def create(cls, flow, contact, start=None, call=None, fields=None, created_on=None,
+               db_insert=True, submitted_by=None):
+
+        args = dict(org=flow.org, flow=flow, contact=contact, start=start, call=call,
+                    fields=fields, submitted_by=submitted_by)
 
         if created_on:
             args['created_on'] = created_on
@@ -3070,7 +3076,7 @@ class ExportFlowResultsTask(SmartModel):
         # create a mapping of column id to index
         column_map = dict()
         for col in range(len(columns)):
-            column_map[columns[col].uuid] = 5+col*3
+            column_map[columns[col].uuid] = 6+col*3
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -3122,26 +3128,28 @@ class ExportFlowResultsTask(SmartModel):
         # then populate their header columns
         for sheet in run_sheets:
             # build up our header row
-            sheet.write(0, 0, "Phone")
-            sheet.write(0, 1, "Name")
-            sheet.write(0, 2, "Groups")
-            sheet.write(0, 3, "First Seen")
-            sheet.write(0, 4, "Last Seen")
+            sheet.write(0, 0, "Surveyor")
+            sheet.write(0, 1, "Phone")
+            sheet.write(0, 2, "Name")
+            sheet.write(0, 3, "Groups")
+            sheet.write(0, 4, "First Seen")
+            sheet.write(0, 5, "Last Seen")
 
             sheet.col(0).width = small_width
-            sheet.col(1).width = medium_width
+            sheet.col(1).width = small_width
             sheet.col(2).width = medium_width
             sheet.col(3).width = medium_width
             sheet.col(4).width = medium_width
+            sheet.col(5).width = medium_width
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                sheet.write(0, 5+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, 5+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, 5+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.col(5+col*3).width = 15 * 256
-                sheet.col(5+col*3+1).width = 15 * 256
-                sheet.col(5+col*3+2).width = 15 * 256
+                sheet.write(0, 6+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, 6+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, 6+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.col(6+col*3).width = 15 * 256
+                sheet.col(6+col*3+1).width = 15 * 256
+                sheet.col(6+col*3+2).width = 15 * 256
 
         run_row = 0
         merged_row = 0
@@ -3245,13 +3253,20 @@ class ExportFlowResultsTask(SmartModel):
                     group_names.sort()
                     groups = ", ".join(group_names)
 
-                    runs.write(run_row, 0, contact_urn_display)
-                    runs.write(run_row, 1, run_step.contact.name)
-                    runs.write(run_row, 2, groups)
+                    # use the login as the submission user
+                    submitted_by = run_step.run.submitted_by
+                    if submitted_by:
+                        submitted_by = submitted_by.username
 
-                    merged_runs.write(merged_row, 0, contact_urn_display)
-                    merged_runs.write(merged_row, 1, run_step.contact.name)
-                    merged_runs.write(merged_row, 2, groups)
+                    runs.write(run_row, 0, submitted_by)
+                    runs.write(run_row, 1, contact_urn_display)
+                    runs.write(run_row, 2, run_step.contact.name)
+                    runs.write(run_row, 3, groups)
+
+                    merged_runs.write(merged_row, 0, submitted_by)
+                    merged_runs.write(merged_row, 1, contact_urn_display)
+                    merged_runs.write(merged_row, 2, run_step.contact.name)
+                    merged_runs.write(merged_row, 3, groups)
 
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
@@ -3259,11 +3274,11 @@ class ExportFlowResultsTask(SmartModel):
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
 
-                runs.write(run_row, 3, as_org_tz(earliest), date_format)
-                runs.write(run_row, 4, as_org_tz(latest), date_format)
+                runs.write(run_row, 4, as_org_tz(earliest), date_format)
+                runs.write(run_row, 5, as_org_tz(latest), date_format)
 
-                merged_runs.write(merged_row, 3, as_org_tz(merged_earliest), date_format)
-                merged_runs.write(merged_row, 4, as_org_tz(merged_latest), date_format)
+                merged_runs.write(merged_row, 4, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, 5, as_org_tz(merged_latest), date_format)
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0)

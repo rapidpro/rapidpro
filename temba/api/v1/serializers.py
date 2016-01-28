@@ -5,6 +5,7 @@ import phonenumbers
 
 from django.conf import settings
 from django.utils import timezone
+from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
@@ -1153,6 +1154,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     started = serializers.DateTimeField(required=True)
     completed = serializers.BooleanField(required=False)
     steps = serializers.ListField()
+    submitted_by = serializers.IntegerField(required=False)
 
     revision = serializers.IntegerField(required=False)  # for backwards compatibility
     version = serializers.IntegerField(required=False)  # for backwards compatibility
@@ -1161,6 +1163,15 @@ class FlowRunWriteSerializer(WriteSerializer):
         super(FlowRunWriteSerializer, self).__init__(*args, **kwargs)
         self.contact_obj = None
         self.flow_obj = None
+        self.submitted_by_obj = None
+
+    def validate_submitted_by(self, value):
+        if value:
+            user = User.objects.filter(pk=value).first()
+            if user and self.org in user.get_user_orgs():
+                self.submitted_by_obj = user
+            else:
+                raise serializers.ValidationError("Invalid submitter id, user doesn't exist")
 
     def validate_flow(self, value):
         if value:
@@ -1237,11 +1248,13 @@ class FlowRunWriteSerializer(WriteSerializer):
         completed = self.validated_data.get('completed', False)
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj,
+        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj, submitted_by=self.submitted_by_obj,
                                      flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
 
         if not run:
-            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started)
+            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started,
+                                 submitted_by=self.submitted_by_obj)
+
             self.flow_obj.update_start_counts([self.contact_obj])
 
         step_objs = []
