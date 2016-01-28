@@ -110,10 +110,7 @@ def contact_search_complex(org, query, base_queryset):
     search_lexer.base_queryset = base_queryset
 
     # combining results from multiple joins can lead to duplicates
-    parsed = search_parser.parse(query, lexer=search_lexer)
-
-    return parsed.distinct()
-
+    return search_parser.parse(query, lexer=search_lexer).distinct()
 
 def generate_queryset(lexer, identifier, comparator, value):
     """
