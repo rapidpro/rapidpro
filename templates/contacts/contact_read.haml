@@ -624,7 +624,7 @@
 
     {% if org_perms.msgs.broadcast_send %}
     $(".contact-send-button").on('click', function() {
-      {% if contact_sendable_urns %}
+      {% if contact_urns %}
       $(".gear-menu").removeClass("open");
       showComposeInitialized("c={{object.id}}", null, fetchRecentMessages);
       {% else %}
