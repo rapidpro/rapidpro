@@ -2993,7 +2993,41 @@ class FlowsTest(FlowFileTest):
 
         self.assertEqual(6, FlowRun.objects.filter(is_active=False, exit_type='I').exclude(exited_on=None).count())
         self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
         self.assertEqual(FlowRunCount.run_count(flow), 12)
+
+        # squash our counts
+        FlowRunCount.squash_counts()
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 12)
+
+    def test_squash_run_counts(self):
+        from temba.flows.tasks import squash_flowruncounts
+
+        flow = self.get_flow('favorites')
+        flow2 = self.get_flow('pick_a_number')
+
+        FlowRunCount.objects.create(flow=flow, count=2, exit_type=None)
+        FlowRunCount.objects.create(flow=flow, count=1, exit_type=None)
+        FlowRunCount.objects.create(flow=flow, count=3, exit_type='E')
+        FlowRunCount.objects.create(flow=flow2, count=10, exit_type='I')
+        FlowRunCount.objects.create(flow=flow2, count=-1, exit_type='I')
+
+        squash_flowruncounts()
+        self.assertEqual(FlowRunCount.objects.all().count(), 3)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow2, 'I'), 9)
+        self.assertEqual(FlowRunCount.run_count(flow2), 9)
+
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
+        self.assertEqual(FlowRunCount.run_count(flow), 6)
+
+        max_id = FlowRunCount.objects.all().order_by('-id').first().id
+
+        # no-op this time
+        squash_flowruncounts()
+        self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
 
     def test_activity(self):
 

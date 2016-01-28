@@ -58,9 +58,6 @@ class Migration(migrations.Migration):
               temba_squash_flowruncount(_flow_id INT, _exit_type CHAR(1))
             RETURNS VOID AS $$
             BEGIN
-              -- Obtain a lock on the flow so that two threads don't enter this update at once
-              PERFORM "id" FROM flows_flow WHERE "id" = _flow_id FOR UPDATE;
-
               IF _exit_type IS NULL THEN
                 WITH removed as (DELETE FROM flows_flowruncount
                   WHERE "flow_id" = _flow_id AND "exit_type" IS NULL RETURNING "count")

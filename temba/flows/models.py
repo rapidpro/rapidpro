@@ -19,7 +19,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models
+from django.db import models, connection
 from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -3015,6 +3015,35 @@ class FlowRunCount(models.Model):
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
+
+    LAST_SQUASH_KEY = 'last_flowruncount_squash'
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(FlowRunCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique flow ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
+            print "Squashing: %d %s" % (count.flow_id, count.exit_type)
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = FlowRunCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(FlowRunCount.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
     @classmethod
     def run_count(cls, flow):
