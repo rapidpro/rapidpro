@@ -17,6 +17,7 @@ from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import ContactReadSerializer, FlowRunReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
+from ..support import InvalidQueryError
 
 
 @api_view(['GET'])
@@ -325,7 +326,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         # only allowed to filter by one of broadcast, filter or label
         if sum([1 for f in [folder, params.get('label'), params.get('broadcast')] if f]) > 1:
-            raise ValidationError("Can only specify one of folder, label or broadcast parameters")
+            raise InvalidQueryError("Can only specify one of folder, label or broadcast parameters")
 
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
