@@ -588,7 +588,7 @@ class APITest(TembaTest):
         data = dict(flow=flow.uuid,
                     revision=2,
                     contact=self.joe.uuid,
-                    submitted_by=self.admin.pk,
+                    submitted_by=self.admin.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
                         dict(node='00000000-00000000-00000000-00000001',
@@ -642,7 +642,7 @@ class APITest(TembaTest):
                     revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
-                    submitted_by=self.admin.pk,
+                    submitted_by=self.admin.username,
                     steps=[
                         dict(node='00000000-00000000-00000000-00000005',
                              arrived_on='2015-08-25T11:11:30.088Z',

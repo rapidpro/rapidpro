@@ -1154,7 +1154,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     started = serializers.DateTimeField(required=True)
     completed = serializers.BooleanField(required=False)
     steps = serializers.ListField()
-    submitted_by = serializers.IntegerField(required=False)
+    submitted_by = serializers.CharField(required=False)
 
     revision = serializers.IntegerField(required=False)  # for backwards compatibility
     version = serializers.IntegerField(required=False)  # for backwards compatibility
@@ -1167,7 +1167,7 @@ class FlowRunWriteSerializer(WriteSerializer):
 
     def validate_submitted_by(self, value):
         if value:
-            user = User.objects.filter(pk=value).first()
+            user = User.objects.filter(username=value).first()
             if user and self.org in user.get_user_orgs():
                 self.submitted_by_obj = user
             else:
