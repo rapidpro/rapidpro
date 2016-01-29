@@ -512,7 +512,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo')
+               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1206,6 +1206,30 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
+
+    class ClaimTelegram(OrgPermsMixin, SmartFormView):
+        class TelegramForm(forms.Form):
+            auth_token = forms.CharField(label=_("Telegram Bot Authentication Token"),
+                                         help_text=_("The Authentication token for your Telegram Bot"))
+
+            def clean(self):
+                try:
+                    import telegram
+                    bot = telegram.Bot(token=self.cleaned_data['auth_token'])
+                    bot.getMe()
+                except telegram.TelegramError as e:
+                    raise ValidationError(_("Your authentication token is invalid, please check and try again"))
+
+                return self.cleaned_data
+
+        title = _("Claim Telegram")
+        form_class = TelegramForm
+
+        def form_valid(self, form):
+            self.object = Channel.add_telegram_channel(self.request.user.get_org(), self.request.user,
+                                                       self.form.cleaned_data['auth_token'])
+
+            return super(ChannelCRUDL.ClaimTelegram, self).form_valid(form)
 
     class ClaimYo(ClaimAuthenticatedExternal):
         class YoClaimForm(forms.Form):

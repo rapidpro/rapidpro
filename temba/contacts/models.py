@@ -35,6 +35,7 @@ TEL_SCHEME = 'tel'
 TWITTER_SCHEME = 'twitter'
 TWILIO_SCHEME = 'twilio'
 FACEBOOK_SCHEME = 'facebook'
+TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
@@ -42,6 +43,7 @@ EXTERNAL_SCHEME = 'ext'
 URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
                       (EMAIL_SCHEME, _("Email address")),
                       (TWITTER_SCHEME, _("Twitter handle")),
+                      (TELEGRAM_SCHEME, _("Telegram identifier")),
                       (EXTERNAL_SCHEME, _("External identifier")))
 
 

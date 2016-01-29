@@ -8,6 +8,7 @@ import phonenumbers
 import plivo
 import regex
 import requests
+import telegram
 
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -114,7 +115,7 @@ CHANNEL_SETTINGS = {
     M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
     START: dict(scheme='tel', max_length=1600),
-    TELEGRAM: dict(scheme='tel', max_length=1600)
+    TELEGRAM: dict(scheme='telegram', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -251,6 +252,22 @@ class Channel(TembaModel):
             return phonenumbers.region_code_for_number(parsed)
         except Exception:
             return None
+
+    @classmethod
+    def add_telegram_channel(cls, org, user, auth_token):
+        """
+        Creates a new telegram channel from the passed in auth token
+        """
+        from temba.contacts.models import TELEGRAM_SCHEME
+        bot = telegram.Bot(auth_token)
+        me = bot.getMe()
+
+        channel = Channel.create(org, user, None, TELEGRAM, name=me.username, address=me.username,
+                                 config=dict(auth_token=auth_token), scheme=TELEGRAM_SCHEME)
+
+        bot.setWebhook("https://" + settings.TEMBA_HOST +
+                       "%s" % reverse('handlers.telegram_handler', args=[channel.uuid]))
+        return channel
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type):
@@ -1741,6 +1758,29 @@ class Channel(TembaModel):
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
+    def send_telegram_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        start = time.time()
+
+        auth_token = channel.config['auth_token']
+        send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
+        post_body = dict(chat_id=msg.urn_path, text=text)
+
+        try:
+            response = requests.post(send_url, post_body)
+            external_id = response.json()['result']['message_id']
+        except Exception as e:
+            raise SendException(str(e),
+                                send_url,
+                                'POST',
+                                urlencode(post_body),
+                                response.content,
+                                505)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        ChannelLog.log_success(msg, "Successfully delivered message")
+
+    @classmethod
     def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
@@ -2025,6 +2065,7 @@ class Channel(TembaModel):
                       BLACKMYNA: Channel.send_blackmyna_message,
                       SMSCENTRAL: Channel.send_smscentral_message,
                       START: Channel.send_start_message,
+                      TELEGRAM: Channel.send_telegram_message,
                       M3TECH: Channel.send_m3tech_message,
                       YO: Channel.send_yo_message}
 
