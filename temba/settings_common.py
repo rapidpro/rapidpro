@@ -919,6 +919,10 @@ CELERYBEAT_SCHEDULE = {
     "calculate-credit-caches": {
         'task': 'calculate_credit_caches',
         'schedule': timedelta(days=3),
+    },
+    "squash-flowruncounts": {
+        'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
     }
 }
 

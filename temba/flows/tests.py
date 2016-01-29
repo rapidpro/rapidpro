@@ -31,7 +31,7 @@ from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE
-from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET
+from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET, FlowRunCount
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest, HasStateTest, HasDistrictTest
@@ -2975,6 +2975,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, flow.get_total_runs())
         self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(6, active[color.uuid])
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
 
         # expire them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
@@ -2987,16 +2988,65 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(0, len(active))
 
+        # assert our flowrun counts
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 6)
+
         # start all contacts in the flow again
         for contact in contacts:
             self.send_message(flow, 'chartreuse', contact=contact, restart_participants=True)
 
         self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 12)
 
         # stop them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertEqual(6, FlowRun.objects.filter(is_active=False, exit_type='I').exclude(exited_on=None).count())
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 12)
+
+        # squash our counts
+        FlowRunCount.squash_counts()
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 12)
+
+    def test_squash_run_counts(self):
+        from temba.flows.tasks import squash_flowruncounts
+
+        flow = self.get_flow('favorites')
+        flow2 = self.get_flow('pick_a_number')
+
+        FlowRunCount.objects.create(flow=flow, count=2, exit_type=None)
+        FlowRunCount.objects.create(flow=flow, count=1, exit_type=None)
+        FlowRunCount.objects.create(flow=flow, count=3, exit_type='E')
+        FlowRunCount.objects.create(flow=flow2, count=10, exit_type='I')
+        FlowRunCount.objects.create(flow=flow2, count=-1, exit_type='I')
+
+        squash_flowruncounts()
+        self.assertEqual(FlowRunCount.objects.all().count(), 3)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow2, 'I'), 9)
+        self.assertEqual(FlowRunCount.run_count(flow2), 9)
+
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
+        self.assertEqual(FlowRunCount.run_count(flow), 6)
+
+        max_id = FlowRunCount.objects.all().order_by('-id').first().id
+
+        # no-op this time
+        squash_flowruncounts()
+        self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
+
+        # assert a rebuild leads to same results
+        FlowRunCount.populate_for_flow(flow)
+
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
+        self.assertEqual(FlowRunCount.run_count(flow), 6)
 
     def test_activity(self):
 

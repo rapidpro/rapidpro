@@ -19,8 +19,8 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models
-from django.db.models import Q, Count, QuerySet
+from django.db import models, connection
+from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -3005,6 +3005,77 @@ class FlowRun(models.Model):
                 self.voice_response.say(text)
 
         return msg
+
+
+class FlowRunCount(models.Model):
+    """
+    Maintains counts of different states of exit types of flow runs on a flow. These are calculated
+    via triggers on the database.
+    """
+    flow = models.ForeignKey(Flow, related_name='counts')
+    exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
+    count = models.IntegerField(default=0)
+
+    LAST_SQUASH_KEY = 'last_flowruncount_squash'
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(FlowRunCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique flow ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
+            print "Squashing: %d %s" % (count.flow_id, count.exit_type)
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = FlowRunCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(FlowRunCount.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+
+    @classmethod
+    def run_count(cls, flow):
+        count = FlowRunCount.objects.filter(flow=flow)
+        count = count.aggregate(Sum('count')).get('count__sum', 0)
+        return 0 if count is None else count
+
+    @classmethod
+    def run_count_for_type(cls, flow, exit_type=None):
+        count = FlowRunCount.objects.filter(flow=flow).filter(exit_type=exit_type)
+        count = count.aggregate(Sum('count')).get('count__sum', 0)
+        return 0 if count is None else count
+
+    @classmethod
+    def populate_for_flow(cls, flow):
+        # get test contacts on this org
+        test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
+
+        # calculate our count for each exit type
+        counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
+                                .values('exit_type').annotate(Count('exit_type'))
+
+        # insert updated counts for each
+        for count in counts:
+            # remove old ones
+            FlowRunCount.objects.filter(flow=flow, exit_type=count['exit_type']).delete()
+
+            if count['exit_type__count'] > 0:
+                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
+
+    class Meta:
+        index_together = ('flow', 'exit_type')
 
 
 class ExportFlowResultsTask(SmartModel):

@@ -8,7 +8,7 @@ from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
 from temba.utils.email import send_simple_email
 from redis_cache import get_redis_connection
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -117,3 +117,12 @@ def calculate_flow_stats_task(flow_id):
     if runs_started != runs_started_cached:
         logger = start_flow_task.get_logger()
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+
+@task(track_started=True, name="squash_flowruncounts")
+def squash_flowruncounts():
+    r = get_redis_connection()
+
+    key = 'squash_flowruncounts'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            FlowRunCount.squash_counts()
