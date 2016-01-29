@@ -154,7 +154,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         runs = []
         for c in range(0, count):
             contact = contacts[c % len(contacts)]
-            runs.append(FlowRun.create(flow, contact, db_insert=False))
+            runs.append(FlowRun.create(flow, contact.pk, db_insert=False))
         FlowRun.objects.bulk_create(runs)
 
         # add a step to each run

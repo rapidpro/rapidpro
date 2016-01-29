@@ -83,7 +83,7 @@ class TwilioHandler(View):
                 call.save()
 
                 if flow:
-                    FlowRun.create(flow, contact, call=call)
+                    FlowRun.create(flow, contact.pk, call=call)
                     response = Flow.handle_call(call, {})
                     return HttpResponse(unicode(response))
                 else:
