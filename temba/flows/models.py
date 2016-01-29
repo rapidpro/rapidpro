@@ -1404,7 +1404,7 @@ class Flow(TembaModel):
 
         if not restart_participants:
             # exclude anybody who has already participated in the flow
-            already_started = [c['contact_id'] for c in self.runs.all().values('contact_id')]
+            already_started = {c['contact_id'] for c in self.runs.all().values('contact_id')}
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
 
         else:
