@@ -3041,6 +3041,13 @@ class FlowsTest(FlowFileTest):
         squash_flowruncounts()
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
 
+        # assert a rebuild leads to same results
+        FlowRunCount.populate_for_flow(flow)
+
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
+        self.assertEqual(FlowRunCount.run_count(flow), 6)
+
     def test_activity(self):
 
         flow = self.get_flow('favorites')

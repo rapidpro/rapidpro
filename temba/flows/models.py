@@ -3066,11 +3066,11 @@ class FlowRunCount(models.Model):
         counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
                                 .values('exit_type').annotate(Count('exit_type'))
 
-        # remove old ones
-        FlowRunCount.objects.filter(flow=flow).delete()
-
         # insert updated counts for each
         for count in counts:
+            # remove old ones
+            FlowRunCount.objects.filter(flow=flow, exit_type=count['exit_type']).delete()
+
             if count['exit_type__count'] > 0:
                 FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
 
