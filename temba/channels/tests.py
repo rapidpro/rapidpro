@@ -4328,7 +4328,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(INCOMING, msg1.direction)
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
-        self.assertEquals(u'Artwell S\xecbbnda', msg1.text)
+        self.assertEquals("Artwell Sìbbnda", msg1.text)
         self.assertEquals(2012, msg1.created_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
@@ -4348,7 +4348,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(INCOMING, msg1.direction)
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
-        self.assertEquals(u'a? \xa3irvine stinta?\xa5.  ', msg1.text)
+        self.assertEquals("a? £irvine stinta?¥.  ", msg1.text)
         self.assertEquals(2012, msg1.created_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
@@ -4369,7 +4369,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(INCOMING, msg1.direction)
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
-        self.assertEquals(u'when? or What? is this ', msg1.text)
+        self.assertEquals("when? or What? is this ", msg1.text)
         self.assertEquals(2012, msg1.created_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
