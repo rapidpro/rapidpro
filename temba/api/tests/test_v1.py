@@ -19,7 +19,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
 from temba.channels.models import Channel, SyncEvent
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
 from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED, VISIBLE, ARCHIVED, DELETED
 from temba.orgs.models import Org, Language
@@ -1484,7 +1484,7 @@ class APITest(TembaTest):
         self.assertEqual(len(response.json['results']), 2)
 
         self.assertEqual(response.json['results'][1]['name'], "Dr Dre")
-        self.assertEqual(response.json['results'][1]['urns'], ['twitter:drdre', 'tel:+250788123456'])
+        self.assertEqual(response.json['results'][1]['urns'], ['tel:+250788123456', 'twitter:drdre'])
         self.assertEqual(response.json['results'][1]['fields'], {'real_name': "Andre", 'registration_date': None})
         self.assertEqual(response.json['results'][1]['group_uuids'], [artists.uuid])
         self.assertEqual(response.json['results'][1]['groups'], ["Music Artists"])
@@ -1637,6 +1637,20 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict())
         self.assertIsNotNone(json.loads(response.content)['uuid'])
         self.assertEquals(201, response.status_code)
+
+        # create a contact with an email urn
+        response = self.postJSON(url, dict(name='Snoop Dogg', urns=['mailto:snoop@foshizzle.com']))
+        self.assertEquals(201, response.status_code)
+
+        # lookup that contact from an urn
+        contact = Contact.from_urn(self.org, EMAIL_SCHEME, 'snoop@foshizzle.com')
+        self.assertEquals('Snoop', contact.first_name(self.org))
+
+        # find it via the api
+        response = self.fetchJSON(url, 'urns=%s' % (urlquote_plus("mailto:snoop@foshizzle.com")))
+        self.assertResultCount(response, 1)
+        results = json.loads(response.content)['results']
+        self.assertEquals('Snoop Dogg', results[0]['name'])
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.v1.contacts')

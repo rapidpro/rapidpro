@@ -48,10 +48,10 @@ class ContactCRUDLTest(_CRUDLTest):
         ContactField.get_or_create(self.org, 'home', "Home", value_type='S')
 
     def getCreatePostData(self):
-        return dict(name="Joe Brady", __urn__tel__0="+250785551212")
+        return dict(name="Joe Brady", urn__tel__0="+250785551212")
 
     def getUpdatePostData(self):
-        return dict(name="Joe Brady", __urn__tel__0="+250785551212")
+        return dict(name="Joe Brady", urn__tel__0="+250785551212")
 
     def getTestObject(self):
         if self.object:
@@ -66,7 +66,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.client.post(create_page, data=post_data)
 
         # find our created object
-        self.object = Contact.objects.get(org=self.org, urns__path=post_data['__urn__tel__0'], name=post_data['name'])
+        self.object = Contact.objects.get(org=self.org, urns__path=post_data['urn__tel__0'], name=post_data['name'])
         return self.object
 
     def testList(self):
@@ -118,7 +118,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertContains(response, delete_url)
 
         self.client.post(delete_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_active=False))
+        self.assertIsNotNone(Contact.objects.get(pk=self.joe.id, is_active=False))
 
         # can no longer access
         response = self.client.get(read_url)
@@ -186,14 +186,25 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertNoFormErrors(response)
         group = ContactGroup.user_groups.get(org=self.org, name="first")
 
+        # create a group with preselected contacts
+        self.client.post(create_url, dict(name="Joe and Frank", preselected_contacts=','.join([unicode(self.joe.pk),
+                                                                                               unicode(self.frank.pk)])))
+        group = ContactGroup.user_groups.get(org=self.org, name="Joe and Frank")
+        self.assertEquals(group.count, 2)
+
+        # now one with a query
+        self.client.post(create_url, dict(name="Frank", group_query='frank'))
+        group = ContactGroup.user_groups.get(org=self.org, name="Frank")
+        self.assertEquals(group.count, 1)
+
         # try to create another with the same name, nothing happens
         response = self.client.post(create_url, dict(name="First"))
         self.assertNoFormErrors(response)
-        self.assertEquals(1, ContactGroup.user_groups.filter(org=self.org).count())
+        self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
 
         # direct calls are the same thing
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
-        self.assertEquals(group, existing_group)
+        self.assertEquals('first', existing_group.name)
 
     def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
@@ -212,6 +223,18 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         response = self.client.post(update_url, dict(name="new name   "))
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="new name")
+
+        # create a dynamic group based on frank
+        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Frank", group_query='frank'))
+        group = ContactGroup.user_groups.get(org=self.org, name='Frank')
+        self.assertEquals(1, group.count)
+
+        # now update that group to joe
+        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Joe', query='joe'))
+        self.assertIsNone(ContactGroup.user_groups.filter(org=self.org, name='Frank').first())
+        group = ContactGroup.user_groups.filter(org=self.org, name='Joe').first()
+        self.assertEquals(1, group.count)
+        self.assertIsNotNone(group.contacts.filter(name='Joe Blow').first())
 
 
 class ContactGroupTest(TembaTest):
@@ -421,6 +444,45 @@ class ContactTest(TembaTest):
                                            relative_to=self.planting_date, offset=7, unit='D',
                                            message='Sent 7 days after planting date')
 
+    def test_get_or_create(self):
+
+        # can't create without org or user
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(None, None, name='Joe', urns=[(TEL_SCHEME, '123')])
+
+        # incoming channel with no urns
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=None)
+
+        # incoming channel with two urns
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=[(TEL_SCHEME, '123'),
+                                                                                                        (TEL_SCHEME ,'456')])
+
+        # missing scheme
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, name='Joe', urns=[(None, '123')])
+
+        # missing path
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, None)])
+
+        # create a contact with a language
+        contact = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')], language='fre')
+        self.assertEquals(contact.language, 'fre')
+
+        # create another contact with the same urn as Joe
+        snoop = Contact.get_or_create(self.org, self.user, name='Snoop')
+        with self.assertRaises(ValueError):
+            Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=[(TEL_SCHEME, '123')])
+
+        # now give snoop his own urn
+        Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=[(TEL_SCHEME, '456')])
+
+        self.assertIsNone(snoop.urns.all().first().channel)
+        snoop = Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, urns=[(TEL_SCHEME, '456')])
+        self.assertEquals(1, snoop.urns.all().count())
+        self.assertEqual(snoop.urns.all().first().channel, self.channel)
 
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
@@ -451,15 +513,15 @@ class ContactTest(TembaTest):
         self.login(self.admin)
 
         # try creating a contact with a number that belongs to another contact
-        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', __urn__tel__0="123"))
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', urn__tel__0="123"))
         self.assertEquals(1, len(response.context['form'].errors))
 
         # now repost with a unique phone number
-        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', __urn__tel__0="123-456"))
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', urn__tel__0="123-456"))
         self.assertNoFormErrors(response)
 
         # repost with the phone number of an orphaned URN
-        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', __urn__tel__0="8888"))
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', urn__tel__0="8888"))
         self.assertNoFormErrors(response)
 
         # check that the orphaned URN has been associated with the contact
@@ -723,6 +785,8 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
         state_field = ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, 'isureporter', "Is UReporter", value_type='T')
+        ContactField.get_or_create(self.org, 'hasbirth', "Has Birth", value_type='T')
 
         africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
         rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
@@ -752,6 +816,9 @@ class ContactTest(TembaTest):
                 mock_parse_location.return_value = locations_boundaries[index]
                 contact.set_field('home', locations[index])
 
+        contact.set_field('isureporter', 'yes')
+        contact.set_field('hasbirth', 'no')
+
         q = lambda query: Contact.search(self.org, query)[0].count()
 
         # non-complex queries
@@ -760,6 +827,15 @@ class ContactTest(TembaTest):
         self.assertEquals(22, q('  paige  '))
         self.assertEquals(22, q('fish'))
         self.assertEquals(1, q('0788382011'))  # does a contains
+
+        # test prefixes with 'is' or 'has'
+        self.assertEqual(q('isureporter = "yes"'), 1)
+        self.assertEqual(q('isureporter = yes'), 1)
+        self.assertEqual(q('isureporter = no'), 0)
+
+        self.assertEqual(q('hasbirth = "no"'), 1)
+        self.assertEqual(q('hasbirth = no'), 1)
+        self.assertEqual(q('hasbirth = yes'), 0)
 
         # name as property
         self.assertEquals(23, q('name is "trey"'))
@@ -1047,6 +1123,15 @@ class ContactTest(TembaTest):
         # with our recent flag on, should not see the 5 older messages
         self.assertEquals(60, len(activity))
 
+        # can view history as super user as well
+        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.superuser)
+        activity = response.context['activity']
+        self.assertEquals(65, len(activity))
+
+        self.login(self.admin)
+        response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
+        self.assertEquals(response.status_code, 404)
+
     def test_event_times(self):
 
         self.create_campaign()
@@ -1185,6 +1270,23 @@ class ContactTest(TembaTest):
         # visit a contact detail page as a manager within the organization
         response = self.fetch_protected(read_url, self.admin)
         self.assertEquals(self.joe, response.context['object'])
+
+        with patch('temba.orgs.models.Org.get_schemes') as mock_get_schemes:
+            mock_get_schemes.return_value = []
+
+            response = self.fetch_protected(read_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertFalse(response.context['has_sendable_urn'])
+
+            mock_get_schemes.return_value = ['tel']
+
+            response = self.fetch_protected(read_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertTrue(response.context['has_sendable_urn'])
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        self.assertTrue(response.context['has_sendable_urn'])
         upcoming = response.context['upcoming_events']
 
         # should show the next seven events to fire in reverse order
@@ -1477,9 +1579,11 @@ class ContactTest(TembaTest):
 
         # check that the field appears on the update form
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', 'loc', '__urn__tel__0', '__field__state'])
+        self.assertEqual(response.context['form'].fields.keys(), ['name', 'groups', 'urn__twitter__0', 'urn__tel__1', 'loc'])
         self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
-        self.assertEqual(response.context['form'].fields['__urn__tel__0'].initial, "123")
+        self.assertEqual(response.context['form'].fields['urn__tel__1'].initial, "123")
+
+        response = self.client.get(reverse('contacts.contact_update_fields', args=[self.joe.id]))
         self.assertEqual(response.context['form'].fields['__field__state'].initial, "Kigali City")  # parsed name
 
         # update it to something else
@@ -1489,9 +1593,12 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, "Eastern Province")
 
-        # update joe - change his tel URN and state field (to something invalid)
-        data = dict(name="Joe Blow", __urn__tel__0="12345", __field__state="newyork")
+        # update joe - change his tel URN
+        data = dict(name="Joe Blow", urn__tel__1="12345", order__urn__tel__1="0")
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), data)
+
+        # update the state contact field to something invalid
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(__field__state='newyork'))
 
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
@@ -1500,7 +1607,7 @@ class ContactTest(TembaTest):
         self.assertFalse(Contact.from_urn(self.org, TEL_SCHEME, "123"))  # tel 123 is nobody now
 
         # update joe, change his number back
-        data = dict(name="Joe Blow", __urn__tel__0="123", __field__location="Kigali")
+        data = dict(name="Joe Blow", urn__tel__0="123", order__urn__tel__0="0", __field__location="Kigali")
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), data)
 
         # check that old URN is re-attached
@@ -1512,12 +1619,12 @@ class ContactTest(TembaTest):
 
         # assert that our update form has the extra URN
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals("123", response.context['form'].fields['__urn__tel__0'].initial)
-        self.assertEquals("67890", response.context['form'].fields['__urn__tel__1'].initial)
+        self.assertEquals("123", response.context['form'].fields['urn__tel__0'].initial)
+        self.assertEquals("67890", response.context['form'].fields['urn__tel__1'].initial)
 
         # update joe, add him to "Just Joe" group
         post_data = dict(name="Joe Gashyantare", groups=[self.just_joe.id],
-                         __urn__tel__0="123", __urn__tel__1="67890")
+                         urn__tel__0="123", urn__tel__1="67890")
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
         self.assertEqual(response.context['contact'].name, "Joe Gashyantare")
         self.assertEqual(set(self.joe.user_groups.all()), {self.just_joe})
@@ -1525,7 +1632,7 @@ class ContactTest(TembaTest):
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="67890"))
 
         # remove him from this group "Just joe", and his second number
-        post_data = dict(name="Joe Gashyantare", __urn__tel__0="12345", groups=[])
+        post_data = dict(name="Joe Gashyantare", urn__tel__0="12345", groups=[])
         response = self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
         self.assertEqual(set(self.joe.user_groups.all()), set())
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="12345"))
@@ -1534,8 +1641,8 @@ class ContactTest(TembaTest):
 
         # should no longer be in our update form either
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
-        self.assertEquals("12345", response.context['form'].fields['__urn__tel__0'].initial)
-        self.assertFalse('__urn__tel__1' in response.context['form'].fields)
+        self.assertEquals("12345", response.context['form'].fields['urn__tel__0'].initial)
+        self.assertFalse('urn__tel__1' in response.context['form'].fields)
 
         # check that groups field isn't displayed when contact is blocked
         self.joe.block()
@@ -1543,13 +1650,64 @@ class ContactTest(TembaTest):
         self.assertNotIn('groups', response.context['form'].fields)
 
         # and that we can still update the contact
-        post_data = dict(name="Joe Bloggs", __urn__tel__0="12345")
+        post_data = dict(name="Joe Bloggs", urn__tel__0="12345")
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
 
         self.joe = Contact.objects.get(pk=self.joe.pk)
         self.assertEquals(self.joe.name, "Joe Bloggs")
 
         self.joe.unblock()
+
+        # add new urn for joe
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
+                                 dict(name='Joey', urn__tel__0="12345",
+                                      new_scheme="ext", new_path="EXT123"))
+
+        urn = ContactURN.objects.filter(contact=self.joe, scheme='ext').first()
+        self.assertIsNotNone(urn)
+        self.assertEquals('EXT123', urn.path)
+
+        # now try adding one that is invalid
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
+                                 dict(name='Joey', urn__tel__0="12345",
+                                      new_scheme="mailto", new_path="malformed"))
+        self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme='mailto').first())
+
+        # update our language to something not on the org
+        self.joe.refresh_from_db()
+        self.joe.language = 'fre'
+        self.joe.save()
+
+        # add some languages to our org, but not french
+        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='hat', languages='arc,spa'))
+        response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
+
+        self.assertContains(response, 'French (Missing)')
+        self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
+                                 dict(name='Joey', urn__tel__0="12345",
+                                      new_scheme="mailto", new_path="malformed"))
+
+        # update our contact with some locations
+        ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
+
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                         dict(__field__state='eastern province', __field__home='rwamagana'))
+
+        response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+        self.assertContains(response, 'Eastern Province')
+        self.assertContains(response, 'Rwamagana')
+
+        # try to push into a dynamic group
+        with self.assertRaises(ValueError):
+            self.login(self.admin)
+            group = ContactGroup.create(self.org, self.admin, 'Dynamo', query='dynamo')
+            post_data = dict()
+            post_data['action'] = 'label'
+            post_data['label'] = group.pk
+            post_data['objects'] = self.frank.pk
+            post_data['add'] = True
+            self.client.post(list_url, post_data)
 
         # check updating when org is anon
         self.org.is_anon = True
@@ -1559,6 +1717,19 @@ class ContactTest(TembaTest):
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
         self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345"), self.joe)  # ensure Joe still has tel 12345
         self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345").name, "Joe X")
+
+        # try delete action
+        call = Call.create_call(self.channel, self.frank.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
+        post_data['action'] = 'delete'
+        post_data['objects'] = self.frank.pk
+
+        self.client.post(list_url, post_data)
+        self.frank.refresh_from_db()
+        self.assertFalse(self.frank.is_active)
+        call.refresh_from_db()
+
+        # the call should be inactive now too
+        self.assertFalse(call.is_active)
 
     def test_contact_model(self):
         contact1 = self.create_contact(name=None, number="123456")
@@ -1585,7 +1756,7 @@ class ContactTest(TembaTest):
         normalized = contact3.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEquals(normalized.path, "+250788111222")
 
-        contact4 = self.create_contact(name=None, number="+250788333444")
+        contact4 = self.create_contact(name=None, number="0788333444")
         normalized = contact4.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEquals(normalized.path, "+250788333444")
 
@@ -1594,7 +1765,7 @@ class ContactTest(TembaTest):
         contact6 = self.create_contact(name='James', number="0788333555")
         self.assertEquals(contact5.pk, contact6.pk)
 
-        contact5.update_urns([(TEL_SCHEME, '0788333666'), (TWITTER_SCHEME, 'jimmy_woot')])
+        contact5.update_urns([(TWITTER_SCHEME, 'jimmy_woot'), (TEL_SCHEME, '0788333666')])
 
         # check old phone URN still existing but was detached
         self.assertIsNone(ContactURN.objects.get(urn='tel:+250788333555').contact)
@@ -1604,7 +1775,7 @@ class ContactTest(TembaTest):
         self.assertEquals(contact5, ContactURN.objects.get(urn='twitter:jimmy_woot').contact)
 
         # check twitter URN takes priority if you don't specify scheme
-        self.assertEquals('twitter:jimmy_woot', contact5.get_urn().urn)
+        self.assertEqual('twitter:jimmy_woot', contact5.get_urn().urn)
         self.assertEquals('twitter:jimmy_woot', contact5.get_urn(schemes=[TWITTER_SCHEME]).urn)
         self.assertEquals('tel:+250788333666', contact5.get_urn(schemes=[TEL_SCHEME]).urn)
         self.assertIsNone(contact5.get_urn(schemes=['email']))
@@ -1618,6 +1789,7 @@ class ContactTest(TembaTest):
     def test_from_urn(self):
         self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel', '123'))  # URN with contact
         self.assertIsNone(Contact.from_urn(self.org, 'tel', '8888'))  # URN with no contact
+        self.assertIsNone(Contact.from_urn(self.org, None, 'snoop@dogg.com'))
 
     def test_validate_import_header(self):
         with self.assertRaises(Exception):
@@ -1873,7 +2045,7 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1,
                                                             error_messages=[dict(line=3,
                                                                                  error="Missing any valid URNs; at "
-                                                                                       "least one among 'twitter, ext "
+                                                                                       "least one among 'mailto, twitter, ext "
                                                                                        "or phone' should be provided"),
                                                                             dict(line=4,
                                                                                  error="Invalid Phone number 12345")]))
@@ -1954,7 +2126,7 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'twitter, ext "
+                                                                                     "least one among 'mailto, twitter, ext "
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
@@ -2034,7 +2206,7 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'twitter, ext "
+                                                                                     "least one among 'mailto, twitter, ext "
                                                                                      "or phone' should be provided")],
                                                                 creates=1, updates=2))
 
@@ -2297,6 +2469,14 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
 
+        # invalid import params
+        with self.assertRaises(Exception):
+            task = ImportTask.objects.create(
+                created_by=user, modified_by=user,
+                csv_file='test_imports/filename',
+                model_class="Contact", import_params='bogus!', import_log="", task_id="A")
+            Contact.import_csv(task, log=None)
+
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
@@ -2338,6 +2518,10 @@ class ContactTest(TembaTest):
         self.assertNotIn('nick name', field_dict)
         self.assertEquals(field_dict['nick_name'], 'bob')
         self.assertEquals(field_dict['org'], self.org)
+
+        # missing important import params
+        with self.assertRaises(Exception):
+            Contact.prepare_fields(field_dict, dict())
 
         # check that trying to save an extra field with a reserved name throws an exception
         with self.assertRaises(Exception):
@@ -2453,6 +2637,43 @@ class ContactTest(TembaTest):
         self.assertEquals("123", message_context['tel'])
         self.assertEquals("Reporters", message_context['groups'])
 
+    def test_urn_priority(self):
+        bob = self.create_contact("Bob")
+
+        bob.update_urns([('tel', '456'), ('tel', '789')])
+        urns = bob.urns.all().order_by('-priority')
+        self.assertEquals(2, len(urns))
+        self.assertEquals('456', urns[0].path)
+        self.assertEquals('789', urns[1].path)
+        self.assertEquals(99, urns[0].priority)
+        self.assertEquals(98, urns[1].priority)
+
+        bob.update_urns([('tel', '789'), ('tel', '456')])
+        urns = bob.urns.all().order_by('-priority')
+        self.assertEquals(2, len(urns))
+        self.assertEquals('789', urns[0].path)
+        self.assertEquals('456', urns[1].path)
+
+        # add an email urn
+        bob.update_urns([('email', 'bob@marley.com'), ('tel', '789'), ('tel', '456')])
+        urns = bob.urns.all().order_by('-priority')
+        self.assertEquals(3, len(urns))
+        self.assertEquals(99, urns[0].priority)
+        self.assertEquals(98, urns[1].priority)
+        self.assertEquals(97, urns[2].priority)
+
+        # it'll come back as the highest priority
+        self.assertEquals('bob@marley.com', urns[0].path)
+
+        # but not the highest 'sendable' urn
+        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
+        self.assertEquals(urn.path, '789')
+
+        # swap our phone numbers
+        bob.update_urns([('email', 'bob@marley.com'), ('tel', '456'), ('tel', '789')])
+        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
+        self.assertEquals(urn.path, '456')
+
     def test_update_handling(self):
         from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 
@@ -2511,6 +2732,12 @@ class ContactTest(TembaTest):
             self.assertEquals([self.frank, self.joe], list(men_group.contacts.order_by('name')))
             self.assertEquals([self.mary], list(women_group.contacts.order_by('name')))
             self.assertEquals([self.joe], list(joes_group.contacts.order_by('name')))
+
+            # try removing frank from dynamic group (shouldnt happen, ui doesnt allow this)
+            with self.assertRaises(ValueError):
+                self.login(self.admin)
+                self.client.post(reverse('contacts.contact_read', args=[self.frank.uuid]),
+                                 dict(contact=self.frank.pk, group=men_group.pk))
 
             # check event fire initialized correctly
             joe_fires = EventFire.objects.filter(event=joes_event)
@@ -2631,6 +2858,11 @@ class ContactURNTest(TembaTest):
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEquals('billy_bob', urn.get_display(self.org))
 
+    def test_get_or_create(self):
+        urn = ContactURN.get_or_create(self.org, TEL_SCHEME, '1234')
+        urn2 = ContactURN.get_or_create(self.org, TEL_SCHEME, '1234')
+        self.assertEquals(urn.pk, urn2.pk)
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
@@ -2669,6 +2901,9 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "Updated Label")
         self.assertEqual(another.value_type, DATETIME)
+
+        another = ContactField.get_or_create(self.org, "another", "Updated Label", show_in_table=True, value_type=DATETIME)
+        self.assertTrue(another.show_in_table)
 
         for elt in Contact.RESERVED_FIELDS:
             with self.assertRaises(ValueError):
@@ -2731,7 +2966,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(33):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -2755,7 +2990,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
 
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(33):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -2773,6 +3008,19 @@ class ContactFieldTest(TembaTest):
 
             self.assertEqual(sheet.nrows, 5)  # no other contacts
 
+        # export a specified group of contacts
+        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Poppin Tags", group_query='Haggerty'))
+        group = ContactGroup.user_groups.get(name='Poppin Tags')
+        self.client.get(reverse('contacts.contact_export'), dict(g=group.id))
+        task = ExportContactsTask.objects.all().order_by('-id').first()
+        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        workbook = open_workbook(filename, 'rb')
+        sheet = workbook.sheets()[0]
+
+        # just the header and a single contact
+        self.assertEqual(sheet.nrows, 2)
+
+        # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()

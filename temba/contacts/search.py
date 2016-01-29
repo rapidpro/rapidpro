@@ -99,7 +99,6 @@ def contact_search_simple(org, query, base_queryset):
 
     return base_queryset.filter(q).distinct()
 
-
 def contact_search_complex(org, query, base_queryset):
     """
     Performs a complex query based search, e.g. 'name = "Bob" AND age > 18'
@@ -112,7 +111,6 @@ def contact_search_complex(org, query, base_queryset):
 
     # combining results from multiple joins can lead to duplicates
     return search_parser.parse(query, lexer=search_lexer).distinct()
-
 
 def generate_queryset(lexer, identifier, comparator, value):
     """
@@ -230,16 +228,20 @@ tokens = ('BINOP', 'COMPARATOR', 'TEXT', 'STRING')
 
 literals = '()'
 
+# treat reserved words specially
+# http://www.dabeaz.com/ply/ply.html#ply_nn4
+reserved = {
+   'or': 'BINOP',
+   'and': 'BINOP',
+   'has': 'COMPARATOR',
+   'is': 'COMPARATOR',
+}
+
 t_ignore = ' \t'  # ignore tabs and spaces
 
 
-def t_BINOP(t):
-    r"""(?i)OR|AND"""
-    return t
-
-
 def t_COMPARATOR(t):
-    r"""(?i)~|has|is|=|[<>]=?|~~?"""
+    r"""(?i)~|=|[<>]=?|~~?"""
     return t
 
 
@@ -251,6 +253,7 @@ def t_STRING(t):
 
 def t_TEXT(t):
     r"""[\w_\.\+\-\/]+"""
+    t.type = reserved.get(t.value.lower(), 'TEXT')
     return t
 
 

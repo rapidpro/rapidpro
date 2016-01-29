@@ -6,7 +6,7 @@ import pytz
 from django import template
 from django.utils import timezone
 from django.utils.safestring import mark_safe
-from temba.contacts.models import Contact, ContactURN, FACEBOOK_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, URN_ANON_MASK
+from temba.contacts.models import Contact, ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, URN_ANON_MASK
 from django.utils.translation import ugettext_lazy as _
 
 register = template.Library()
@@ -14,7 +14,9 @@ register = template.Library()
 URN_SCHEME_ICONS = {TEL_SCHEME: 'icon-mobile-2',
                     TWITTER_SCHEME: 'icon-twitter',
                     TWILIO_SCHEME: 'icon-twilio_original',
-                    FACEBOOK_SCHEME: 'icon-facebook'}
+                    EMAIL_SCHEME: 'icon-envelop',
+                    FACEBOOK_SCHEME: 'icon-facebook',
+                    EXTERNAL_SCHEME: 'icon-channel-external'}
 
 ACTIVITY_ICONS = {
     'EventFire': 'icon-clock',

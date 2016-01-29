@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
 import json
@@ -1048,16 +1049,19 @@ class ClickatellHandler(View):
             # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
             gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
             text = request.REQUEST['text']
+            charset = request.REQUEST.get('charset', 'utf-8')
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
             # this into utf-8 through the insane process below, Python is retarded about encodings
-            if request.REQUEST.get('charset', 'utf-8') == 'UTF-16BE':
+            if charset == 'UTF-16BE':
                 text_bytes = bytearray()
                 for text_byte in text:
                     text_bytes.append(ord(text_byte))
 
                 # now encode back into utf-8
                 text = text_bytes.decode('utf-16be').encode('utf-8')
+            elif charset == 'ISO-8859-1':
+                text = text.encode('iso-8859-1', 'ignore')
 
             sms = Msg.create_incoming(channel,
                                       (TEL_SCHEME, request.REQUEST['from']),
