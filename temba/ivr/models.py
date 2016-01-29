@@ -75,7 +75,12 @@ class IVRCall(SmartModel):
 
 
     @classmethod
-    def create_outgoing(cls, channel, contact, flow, user, call_type=FLOW):
+    def create_outgoing(cls, channel, contact_id, flow, user, call_type=FLOW):
+        contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
+
+        if not contact:
+            raise ValueError("Invalid contact, cannot initiate call")
+
         contact_urn = contact.get_urn(TEL_SCHEME)
         if not contact_urn:
             raise ValueError("Can't call contact with no tel URN")

@@ -95,9 +95,9 @@ class ResultTest(FlowFileTest):
         self.assertNotEqual(new_value.string_value, original_value.string_value)
 
     def run_color_gender_flow(self, contact, color, gender, age):
-        self.assertEquals("What is your gender?", self.send_message(self.flow, color, contact=contact, restart_participants=True))
-        self.assertEquals("What is your age?", self.send_message(self.flow, gender, contact=contact))
-        self.assertEquals("Thanks.", self.send_message(self.flow, age, contact=contact))
+        self.assertEqual(self.send_message(self.flow, color, contact=contact, restart_participants=True), "What is your gender?")
+        self.assertEqual(self.send_message(self.flow, gender, contact=contact), "What is your age?")
+        self.assertEqual(self.send_message(self.flow, age, contact=contact), "Thanks.")
 
     def setup_color_gender_flow(self):
         self.flow = self.get_flow('color_gender_age')
