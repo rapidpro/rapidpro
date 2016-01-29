@@ -173,10 +173,8 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                groups = ContactGroup.user_groups.filter(name=value, org=self.user.get_org())
-                if groups:
-                    group = groups[0]
-                else:
+                group = ContactGroup.get_user_group(self.user.get_org(), value)
+                if not group:
                     group = ContactGroup.create(self.user.get_org(), self.user, name=value)
                 return group
 

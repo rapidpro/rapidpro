@@ -582,7 +582,7 @@ class ContactBulkActionSerializer(WriteSerializer):
 
     def validate_group(self, value):
         if value:
-            self.group_obj = ContactGroup.user_groups.filter(org=self.org, name=value, is_active=True).first()
+            self.group_obj = ContactGroup.get_user_group(self.org, value)
             if not self.group_obj:
                 raise serializers.ValidationError("No such group: %s" % value)
         return value
@@ -1241,8 +1241,8 @@ class FlowRunWriteSerializer(WriteSerializer):
                                      flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
 
         if not run:
-            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started)
-            self.flow_obj.update_start_counts([self.contact_obj])
+            run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started)
+            self.flow_obj.update_start_counts([self.contact_obj.pk])
 
         step_objs = []
         previous_rule = None

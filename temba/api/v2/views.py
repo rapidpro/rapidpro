@@ -4,6 +4,7 @@ from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, pagination
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -263,7 +264,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **broadcast** - the id of the broadcast (int), filterable as `broadcast`.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **urn** - the URN of the sender or receiver, depending on direction (string).
-     * **channel** - the UUID of the channel that handled this message (string).
+     * **channel** - the UUID of the channel that handled this message (object).
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
@@ -274,7 +275,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
      * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime).
 
-    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`.
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`. Note that
+    the `folder`, `label` and `broadcast` parameters cannot be used together.
 
     Example:
 
@@ -291,7 +293,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "broadcast": 2690007,
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "urn": "twitter:textitin",
-                "channel": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
                 "direction": "out",
                 "type": "inbox",
                 "status": "wired",
@@ -318,7 +320,13 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                       'sent': SystemLabel.TYPE_SENT}
 
     def get_queryset(self):
-        folder = self.request.query_params.get('folder')
+        params = self.request.query_params
+        folder = params.get('folder')
+
+        # only allowed to filter by one of broadcast, filter or label
+        if sum([1 for f in [folder, params.get('label'), params.get('broadcast')] if f]) > 1:
+            raise ValidationError("Can only specify one of folder, label or broadcast parameters")
+
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
@@ -371,7 +379,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('org', queryset=Org.objects.only('is_anon')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
-            Prefetch('channel', queryset=Channel.objects.only('uuid')),
+            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
             Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
         )
 
