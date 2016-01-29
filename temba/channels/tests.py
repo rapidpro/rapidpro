@@ -4312,6 +4312,27 @@ class ClickatellTest(TembaTest):
         self.assertEquals(2012, msg1.created_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
+        Msg.all_messages.all().delete()
+
+        encoded_message = urlencode(data)
+        encoded_message += "&text=Artwell+S%ECbbnda"
+        encoded_message += "&charset=ISO-8859-1"
+        receive_url = reverse('handlers.clickatell_handler', args=['receive', self.channel.uuid]) + '?' + encoded_message
+
+        response = self.client.get(receive_url)
+
+        self.assertEquals(200, response.status_code)
+        # and we should have a new message
+        msg1 = Msg.all_messages.get()
+        self.assertEquals("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals(u'Artwell S\xecbbnda', msg1.text)
+        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals('id1234', msg1.external_id)
+
+
     def test_receive(self):
         self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
         self.channel.org.save()
