@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models import Count, Max, Q
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
+from guardian.utils import get_anonymous_user
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
@@ -324,7 +325,7 @@ class Contact(TembaModel):
         else:
             return value.string_value
 
-    def set_field(self, key, value, label=None):
+    def set_field(self, user, key, value, label=None):
         from temba.values.models import Value
 
         # make sure this field exists
@@ -377,6 +378,10 @@ class Contact(TembaModel):
         # cache
         setattr(self, '__field__%s' % key, existing)
 
+        self.modified_by = user
+        self.modified_on = timezone.now()
+        self.save(update_fields=('modified_by', 'modified_on'))
+
         # update any groups or campaigns for this contact
         self.handle_update(field=field)
 
@@ -404,9 +409,6 @@ class Contact(TembaModel):
         if groups_changed or group:
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
-
-        self.save(update_fields=('modified_on',))
-
 
     @classmethod
     def from_urn(cls, org, scheme, path, country=None):
@@ -481,21 +483,23 @@ class Contact(TembaModel):
 
                     if contact_has_all_urns:
                         # update contact name if provided
-                        updated_attrs = dict()
+                        updated_attrs = []
                         if name:
                             contact.name = name
-                            updated_attrs[Contact.NAME] = name
+                            updated_attrs.append(Contact.NAME)
                         if language:
                             contact.language = language
-                            updated_attrs[Contact.LANGUAGE] = language
+                            updated_attrs.append(Contact.LANGUAGE)
 
                         if updated_attrs:
-                            contact.save(update_fields=updated_attrs)
+                            contact.modified_on = timezone.now()
+                            contact.modified_by = user
+                            contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
 
                         contact.urn_objects = contact_urns
 
                         # handle group and campaign updates
-                        contact.handle_update(attrs=updated_attrs.keys())
+                        contact.handle_update(attrs=updated_attrs)
                         return contact
 
         # perform everything in a org-level lock to prevent duplication by different instances
@@ -536,22 +540,25 @@ class Contact(TembaModel):
             # URNs correspond to one contact so update and return that
             if contact:
                 # update contact name if provided
-                updated_attrs = dict()
+                updated_attrs = []
                 if name:
                     contact.name = name
-                    updated_attrs[Contact.NAME] = name
+                    updated_attrs.append(Contact.NAME)
                 if language:
                     contact.language = language
-                    updated_attrs[Contact.LANGUAGE] = language
+                    updated_attrs.append(Contact.LANGUAGE)
 
                 if updated_attrs:
-                    contact.save(update_fields=updated_attrs)
+                    contact.modified_by = user
+                    contact.modified_on = timezone.now()
+                    contact.save(update_fields=updated_attrs + ['modified_by', 'modified_on'])
 
             # otherwise create new contact with all URNs
             else:
-                updated_attrs = dict(org=org, name=name, language=language, is_test=is_test,
-                                     created_by=user, modified_by=user)
-                contact = Contact.objects.create(**updated_attrs)
+                kwargs = dict(org=org, name=name, language=language, is_test=is_test,
+                              created_by=user, modified_by=user)
+                contact = Contact.objects.create(**kwargs)
+                updated_attrs = kwargs.keys()
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
@@ -590,7 +597,7 @@ class Contact(TembaModel):
             analytics.gauge('temba.contact_created')
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs.keys(), urns=updated_urns)
+        contact.handle_update(attrs=updated_attrs, urns=updated_urns)
         return contact
 
     @classmethod
@@ -607,7 +614,7 @@ class Contact(TembaModel):
 
             # no URN, let's start over
             if not test_urn:
-                test_contact.release()
+                test_contact.release(user)
                 test_contact = None
 
         if not test_contact:
@@ -641,6 +648,7 @@ class Contact(TembaModel):
         """
         org = field_dict['org']
         del field_dict['org']
+        user = field_dict['created_by']
 
         uuid = field_dict.get('uuid', None)
         if uuid:
@@ -716,11 +724,11 @@ class Contact(TembaModel):
             language = None  # ignore anything that's not a 3-letter code
 
         # create new contact or fetch existing one
-        contact = Contact.get_or_create(org, field_dict['created_by'], name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
+        contact = Contact.get_or_create(org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True)
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
-            contact.unblock()
+            contact.unblock(user)
 
         for key in field_dict.keys():
             # ignore any reserved fields
@@ -733,7 +741,7 @@ class Contact(TembaModel):
             if isinstance(value, datetime.date):
                 value = org.format_date(value, True)
 
-            contact.set_field(key, value)
+            contact.set_field(user, key, value)
 
         return contact
                 
@@ -891,40 +899,40 @@ class Contact(TembaModel):
         return contacts
 
     @classmethod
-    def apply_action_label(cls, contacts, group, add):
+    def apply_action_label(cls, user, contacts, group, add):
         if group.is_dynamic:
             raise ValueError("Can't manually add/remove contacts for a dynamic group")  # should never happen
 
-        return group.update_contacts(contacts, add)
+        return group.update_contacts(user, contacts, add)
 
     @classmethod
-    def apply_action_block(cls, contacts):
+    def apply_action_block(cls, user, contacts):
         changed = []
 
         for contact in contacts:
-            contact.block()
+            contact.block(user)
             changed.append(contact.pk)
         return changed
 
     @classmethod
-    def apply_action_unblock(cls, contacts):
+    def apply_action_unblock(cls, user, contacts):
         changed = []
 
         for contact in contacts:
-            contact.unblock()
+            contact.unblock(user)
             changed.append(contact.pk)
         return changed
 
     @classmethod
-    def apply_action_delete(cls, contacts):
+    def apply_action_delete(cls, user, contacts):
         changed = []
 
         for contact in contacts:
-            contact.release()
+            contact.release(user)
             changed.append(contact.pk)
         return changed
 
-    def block(self):
+    def block(self, user):
         """
         Blocks this contact removing it from all groups
         """
@@ -932,16 +940,18 @@ class Contact(TembaModel):
             raise ValueError("Can't block a test contact")
 
         self.is_blocked = True
-        self.save(update_fields=['is_blocked'])
+        self.modified_by = user
+        self.save(update_fields=('is_blocked', 'modified_on', 'modified_by'))
 
-        self.update_groups([])
+        self.update_groups(user, [])
 
-    def unblock(self):
+    def unblock(self, user):
         """
         Unlocks this contact and marking it as not archived
         """
         self.is_blocked = False
-        self.save(update_fields=['is_blocked'])
+        self.modified_by = user
+        self.save(update_fields=('is_blocked', 'modified_on', 'modified_by'))
 
     def fail(self, permanently=False):
         """
@@ -963,18 +973,19 @@ class Contact(TembaModel):
         self.is_failed = False
         self.save(update_fields=['is_failed'])
 
-    def release(self):
+    def release(self, user):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
         """
         self.is_active = False
-        self.save(update_fields=['is_active'])
+        self.modified_by = user
+        self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
 
         # detach all contact's URNs
-        self.update_urns([])
+        self.update_urns(user, [])
 
         # remove contact from all groups
-        self.update_groups([])
+        self.update_groups(user, [])
 
         # release all messages with this contact
         for msg in self.msgs.all():
@@ -1116,7 +1127,7 @@ class Contact(TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
-    def update_urns(self, urns):
+    def update_urns(self, user, urns):
         """
         Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included.
         The URNs are supplied in order of priority, most preferred URN first.
@@ -1166,6 +1177,9 @@ class Contact(TembaModel):
         urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
 
+        self.modified_by = user
+        self.save(update_fields=('modified_on', 'modified_by'))
+
         # trigger updates based all urns created or detached
         self.handle_update(urns=[(urn.scheme, urn.path) for urn in (urns_created + urns_attached + urns_detached)])
 
@@ -1173,7 +1187,7 @@ class Contact(TembaModel):
         if hasattr(self, '__urns'):
             delattr(self, '__urns')
 
-    def update_groups(self, groups):
+    def update_groups(self, user, groups):
         """
         Updates the groups for this contact to match the provided list, i.e. leaves any existing not included
         """
@@ -1184,10 +1198,10 @@ class Contact(TembaModel):
         add_groups = [g for g in groups if g not in current_groups]
 
         for group in remove_groups:
-            group.update_contacts([self], False)
+            group.update_contacts(user, [self], False)
 
         for group in add_groups:
-            group.update_contacts([self], True)
+            group.update_contacts(user, [self], True)
 
     def get_display(self, org=None, full=False, short=False):
         """
@@ -1574,7 +1588,7 @@ class ContactGroup(TembaModel):
         # first character must be a word char
         return regex.match('\w', name[0], flags=regex.UNICODE)
 
-    def update_contacts(self, contacts, add):
+    def update_contacts(self, user, contacts, add):
         """
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
@@ -1608,6 +1622,8 @@ class ContactGroup(TembaModel):
         if changed:
             Value.invalidate_cache(group=self)
 
+            Contact.objects.update(modified_by=user, modified_on=timezone.now())
+
         return changed
 
     def update_query(self, query):
@@ -1640,11 +1656,12 @@ class ContactGroup(TembaModel):
             qs_args['query_fields__pk'] = field.id
 
         group_change = False
+        user = get_anonymous_user()
 
         for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None):
             qs, is_complex = Contact.search(group.org, group.query)  # re-run group query
             qualifies = qs.filter(pk=contact.id).count() == 1        # should contact now be in group?
-            changed = group.update_contacts([contact], qualifies)
+            changed = group.update_contacts(user, [contact], qualifies)
 
             if changed:
                 group_change = True

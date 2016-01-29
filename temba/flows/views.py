@@ -1154,7 +1154,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # reset the groups for test contact
                 for group in test_contact.all_groups.all():
-                    group.update_contacts([test_contact], False)
+                    group.update_contacts(request.user, [test_contact], False)
 
                 flow.start([], [test_contact], restart_participants=True)
 

@@ -1338,11 +1338,11 @@ class Msg(models.Model):
         self.labels.clear()
 
     @classmethod
-    def apply_action_label(cls, msgs, label, add):
+    def apply_action_label(cls, user, msgs, label, add):
         return label.toggle_label(msgs, add)
 
     @classmethod
-    def apply_action_archive(cls, msgs):
+    def apply_action_archive(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1351,7 +1351,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_restore(cls, msgs):
+    def apply_action_restore(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1360,7 +1360,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_delete(cls, msgs):
+    def apply_action_delete(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1369,7 +1369,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_resend(cls, msgs):
+    def apply_action_resend(cls, user, msgs):
         changed = []
 
         for msg in msgs:

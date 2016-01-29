@@ -712,11 +712,11 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, step=step)
 
     @classmethod
-    def apply_action_label(cls, flows, label, add):
+    def apply_action_label(cls, user, flows, label, add):
         return label.toggle_label(flows, add)
 
     @classmethod
-    def apply_action_archive(cls, flows):
+    def apply_action_archive(cls, user, flows):
         changed = []
 
         for flow in flows:
@@ -726,7 +726,7 @@ class Flow(TembaModel):
         return changed
 
     @classmethod
-    def apply_action_restore(cls, flows):
+    def apply_action_restore(cls, user, flows):
         changed = []
         for flow in flows:
             try:
@@ -4044,6 +4044,7 @@ class AddToGroupAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
+        user = get_flow_user()
 
         if contact:
             for group in self.groups:
@@ -4057,7 +4058,7 @@ class AddToGroupAction(Action):
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
                         if not group:
-                            user = get_flow_user()
+
                             try:
                                 group = ContactGroup.create(contact.org, user, name=value)
                                 if run.contact.is_test:
@@ -4068,7 +4069,7 @@ class AddToGroupAction(Action):
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
                 if group:
-                    group.update_contacts([contact], add)
+                    group.update_contacts(user, [contact], add)
                     if run.contact.is_test:
                         if add:
                             ActionLog.info(run, _("Added %s to %s") % (run.contact.name, group.name))
@@ -4644,6 +4645,7 @@ class SaveToContactAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # evaluate our value
         contact = run.contact
+        user = get_flow_user()
         message_context = run.flow.build_message_context(contact, msg)
         (value, errors) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
 
@@ -4655,12 +4657,14 @@ class SaveToContactAction(Action):
         if self.field == 'name':
             new_value = value[:128]
             contact.name = new_value
-            contact.save(update_fields=['name'])
+            contact.modified_by = user
+            contact.save(update_fields=('name', 'modified_by', 'modified_on'))
 
         elif self.field == 'first_name':
             new_value = value[:128]
             contact.set_first_name(new_value)
-            contact.save(update_fields=['name'])
+            contact.modified_by = user
+            contact.save(update_fields=('name', 'modified_by', 'modified_on'))
 
         elif self.field == 'tel_e164':
             new_value = value[:128]
@@ -4671,10 +4675,10 @@ class SaveToContactAction(Action):
 
                 # add in our new phone number
                 urns += [('tel', new_value)]
-                contact.update_urns(urns)
+                contact.update_urns(user, urns)
         else:
             new_value = value[:640]
-            contact.set_field(self.field, new_value)
+            contact.set_field(user, self.field, new_value)
 
         self.logger(run, new_value)
 

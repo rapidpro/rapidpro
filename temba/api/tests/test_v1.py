@@ -1464,7 +1464,7 @@ class APITest(TembaTest):
         # add another contact
         jay_z = self.create_contact("Jay-Z", number="123555")
         ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
-        jay_z.set_field('registration_date', "2014-12-31 03:04:00")
+        jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
         response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123555']))

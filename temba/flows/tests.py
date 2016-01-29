@@ -1969,8 +1969,8 @@ class ActionTest(TembaTest):
     def test_send_action(self):
         msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
 
-        self.contact.set_field('state', "WA", label="State")
-        self.contact2.set_field('state', "GA", label="State")
+        self.contact.set_field(self.user, 'state', "WA", label="State")
+        self.contact2.set_field(self.user, 'state', "GA", label="State")
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = SendAction(dict(base=msg_body),
@@ -1996,9 +1996,9 @@ class ActionTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         test_contact.name = "Mr Test"
         test_contact.save()
-        test_contact.set_field('state', "IN", label="State")
+        test_contact.set_field(self.user, 'state', "IN", label="State")
 
-        self.other_group.update_contacts([self.contact2], True)
+        self.other_group.update_contacts(self.user, [self.contact2], True)
 
         action = SendAction(dict(base=msg_body), [self.other_group], [self.contact], [])
         run = FlowRun.create(self.flow, test_contact.pk)
@@ -3333,7 +3333,7 @@ class FlowsTest(FlowFileTest):
         group_ruleset.ruleset_type = RuleSet.TYPE_CONTACT_FIELD
         group_ruleset.save()
 
-        self.contact.set_field("beer", "Mutzig")
+        self.contact.set_field(self.user, "beer", "Mutzig")
 
         # and send our last message with our name, we should:
         # 1) get fast forwarded to the next waiting ruleset about our name and have our message applied to that
@@ -3412,7 +3412,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow('numeric-rule-allows-variables')
 
         zinedine = self.create_contact('Zinedine', '+123456')
-        zinedine.set_field('age', 25)
+        zinedine.set_field(self.user, 'age', 25)
 
         self.assertEquals('Good count', self.send_message(flow, "35", contact=zinedine))
 
@@ -3779,7 +3779,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('You are not in the enrolled group.', self.contact.msgs.all()[0].text)
 
         enrolled_group = ContactGroup.create(self.org, self.user, "Enrolled")
-        enrolled_group.update_contacts([self.contact], True)
+        enrolled_group.update_contacts(self.user, [self.contact], True)
 
         runs_started = flow.start_msg_flow([self.contact.id])
         self.assertEquals(1, len(runs_started))

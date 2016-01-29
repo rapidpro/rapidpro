@@ -42,7 +42,9 @@ class RemoveContactForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         org = kwargs['org']
+        self.user = kwargs['user']
         del kwargs['org']
+        del kwargs['user']
 
         super(RemoveContactForm, self).__init__(*args, **kwargs)
 
@@ -61,7 +63,7 @@ class RemoveContactForm(forms.Form):
             raise ValueError("Can't manually add/remove contacts for a dynamic group")  # should never happen
 
         # remove contact from group
-        group.update_contacts([contact], False)
+        group.update_contacts(self.user, [contact], False)
         return dict(group_id=group.id, contact_id=contact.id)
 
 
@@ -715,7 +717,7 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
-            form = RemoveContactForm(self.request.POST, org=request.user.get_org())
+            form = RemoveContactForm(self.request.POST, org=request.user.get_org(), user=request.user)
             if form.is_valid():
                 result = form.execute()
                 return HttpResponse(json.dumps(result))
@@ -1032,7 +1034,7 @@ class ContactCRUDL(SmartCRUDL):
 
             new_groups = self.form.cleaned_data.get('groups')
             if new_groups is not None:
-                obj.update_groups(new_groups)
+                obj.update_groups(self.request.user, new_groups)
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
@@ -1061,7 +1063,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 # sort our urns by the supplied order
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
-                obj.update_urns(urns)
+                obj.update_urns(self.request.user, urns)
 
             return obj
 
@@ -1092,11 +1094,11 @@ class ContactCRUDL(SmartCRUDL):
                     if contact_field_type == DISTRICT:
                         fields_to_save_later[key] = value
                     else:
-                        obj.set_field(key, value)
+                        obj.set_field(self.request.user, key, value)
 
             # now save our district fields
             for key, value in fields_to_save_later.iteritems():
-                obj.set_field(key, value)
+                obj.set_field(self.request.user, key, value)
 
             return obj
 
@@ -1109,7 +1111,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact blocked")
 
         def save(self, obj):
-            obj.block()
+            obj.block(self.request.user)
             return obj
 
     class Unblock(OrgPermsMixin, SmartUpdateView):
@@ -1121,7 +1123,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact unblocked")
 
         def save(self, obj):
-            obj.unblock()
+            obj.unblock(self.request.user)
             return obj
 
     class Delete(OrgPermsMixin, SmartUpdateView):
@@ -1133,7 +1135,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ''
 
         def save(self, obj):
-            obj.release()
+            obj.release(self.request.user)
             return obj
 
 
@@ -1175,7 +1177,7 @@ class ContactGroupCRUDL(SmartCRUDL):
                 preselected_contacts = Contact.objects.filter(pk__in=preselected_ids, org=obj.org, is_active=True)
 
                 if preselected_contacts:
-                    obj.update_contacts(preselected_contacts, True)
+                    obj.update_contacts(self.request.user, preselected_contacts, True)
 
             # dynamic group with a query
             elif data['group_query']:

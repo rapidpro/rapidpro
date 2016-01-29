@@ -110,7 +110,7 @@ class APITest(TembaTest):
 
         # put some contacts in a group
         group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        group.update_contacts([self.joe, contact1], add=True)
+        group.update_contacts(self.user, [self.joe, contact1], add=True)
 
         # no filtering
         with self.assertNumQueries(13):
