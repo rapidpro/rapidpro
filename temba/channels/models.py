@@ -433,7 +433,7 @@ class Channel(TembaModel):
         config = dict(messaging_service_sid=messaging_service_sid)
 
         return Channel.create(org, user, country, TWILIO_MESSAGING_SERVICE,
-                              name="Twilio Messaging Service: %s" % messaging_service_sid, address=None, config=config)
+                              name=messaging_service_sid, address=None, config=config)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
