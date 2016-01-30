@@ -212,7 +212,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize()
 
-    def create_contact(self, name=None, number=None, twitter=None, is_test=False, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
         """
         Create a contact in the master test org
         """
@@ -221,6 +221,8 @@ class TembaTest(SmartminTest):
             urns.append((TEL_SCHEME, number))
         if twitter:
             urns.append((TWITTER_SCHEME, twitter))
+        if urn:
+            urns.append(urn)
 
         if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")

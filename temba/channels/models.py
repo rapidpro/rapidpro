@@ -126,6 +126,7 @@ OUTGOING_PROXIES = settings.OUTGOING_PROXIES
 PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
+AUTH_TOKEN = 'auth_token'
 
 TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
                       "users who are not following you")  # handle no longer follows us
@@ -262,8 +263,8 @@ class Channel(TembaModel):
         bot = telegram.Bot(auth_token)
         me = bot.getMe()
 
-        channel = Channel.create(org, user, None, TELEGRAM, name=me.username, address=me.username,
-                                 config=dict(auth_token=auth_token), scheme=TELEGRAM_SCHEME)
+        channel = Channel.create(org, user, None, TELEGRAM, name=me.first_name, address=me.username,
+                                 config={AUTH_TOKEN: auth_token}, scheme=TELEGRAM_SCHEME)
 
         bot.setWebhook("https://" + settings.TEMBA_HOST +
                        "%s" % reverse('handlers.telegram_handler', args=[channel.uuid]))
@@ -552,13 +553,13 @@ class Channel(TembaModel):
         return random_string(64)
 
     def has_sending_log(self):
-        return self.channel_type != 'A'
+        return self.channel_type != ANDROID
 
     def has_configuration_page(self):
         """
         Whether or not this channel supports a configuration/settings page
         """
-        return self.channel_type not in ('T', 'A', 'TT')
+        return self.channel_type not in (TWILIO, ANDROID, TWITTER, TELEGRAM)
 
     def get_delegate_channels(self):
         if not self.org:  # detached channels can't have delegates
@@ -859,8 +860,9 @@ class Channel(TembaModel):
         self.save()
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg
-        Msg.current_messages.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
+        from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
+        Msg.current_messages.filter(channel=self, direction=OUTGOING,
+                                    status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == ANDROID:  # pragma: no cover
@@ -1762,7 +1764,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         start = time.time()
 
-        auth_token = channel.config['auth_token']
+        auth_token = channel.config[AUTH_TOKEN]
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = dict(chat_id=msg.urn_path, text=text)
 

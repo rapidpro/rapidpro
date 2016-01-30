@@ -1368,6 +1368,14 @@ class ContactURN(models.Model):
         elif scheme == EXTERNAL_SCHEME:
             return True
 
+        # telegram uses integer ids
+        elif scheme == TELEGRAM_SCHEME:
+            try:
+                int(path)
+                return True
+            except Exception:
+                return False
+
         else:
             return False  # only tel and twitter currently supported
 
