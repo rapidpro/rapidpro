@@ -1845,6 +1845,8 @@ class ContactTest(TembaTest):
         return Contact.import_csv(task, log=None)
 
     def test_contact_import(self):
+        from temba.contacts.models import IMPORT_HEADERS
+
         # first import brings in 3 contacts
         user = self.user
         records = self.do_import(user, 'sample_contacts.xls')
@@ -2042,11 +2044,13 @@ class ContactTest(TembaTest):
                         'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data, follow=True)
+        self.maxDiff = None
         self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1,
                                                             error_messages=[dict(line=3,
-                                                                                 error="Missing any valid URNs; at "
-                                                                                       "least one among 'mailto, twitter, ext "
-                                                                                       "or phone' should be provided"),
+                                                                            error="Missing any valid URNs; at "
+                                                                                   "least one among %s "
+                                                                                   "should be provided" %
+                                                                            ", ".join([s[0] for s in IMPORT_HEADERS])),
                                                                             dict(line=4,
                                                                                  error="Invalid Phone number 12345")]))
 
@@ -2126,8 +2130,8 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'mailto, twitter, ext "
-                                                                                     "or phone' should be provided")],
+                                                                                     "least one among %s should be provided"
+                                                                                     % ", ". join([s[0] for s in IMPORT_HEADERS]))],
                                                                 creates=1, updates=2))
 
             # lock for creates only
@@ -2206,8 +2210,8 @@ class ContactTest(TembaTest):
             self.assertEquals(response.context['results'], dict(records=3, errors=1,
                                                                 error_messages=[dict(line=3,
                                                                                      error="Missing any valid URNs; at "
-                                                                                     "least one among 'mailto, twitter, ext "
-                                                                                     "or phone' should be provided")],
+                                                                                     "least one among %s should be provided"
+                                                                                     % ", ".join(s[0] for s in IMPORT_HEADERS))],
                                                                 creates=1, updates=2))
 
             # only lock for create
@@ -2328,14 +2332,14 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of '
-                             '"Phone", "Twitter", "External" should be included.')
+                             '"Phone", "Twitter", "Telegram", "External" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing required headers called "Name" and one of '
-                             '"Phone", "Twitter", "External".')
+                             '"Phone", "Twitter", "Telegram", "External".')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)

@@ -46,6 +46,13 @@ URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
                       (TELEGRAM_SCHEME, _("Telegram identifier")),
                       (EXTERNAL_SCHEME, _("External identifier")))
 
+IMPORT_HEADERS = (('phone', TEL_SCHEME),
+                  ('twitter', TWITTER_SCHEME),
+                  ('telegram', TELEGRAM_SCHEME),
+                  ('email', EMAIL_SCHEME),
+                  ('external', EXTERNAL_SCHEME))
+
+IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
 class ContactField(models.Model):
     """
@@ -651,7 +658,7 @@ class Contact(TembaModel):
         country = org.get_country_code()
         urns = []
 
-        possible_urn_headers = ['phone', 'external'] + [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
 
         # prevent urns update on anon org
         if uuid and org.is_anon:
@@ -667,12 +674,7 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            urn_scheme = urn_header
-            if urn_header == 'phone':
-                urn_scheme = TEL_SCHEME
-
-            if urn_header == 'external':
-                urn_scheme = EXTERNAL_SCHEME
+            urn_scheme = IMPORT_HEADER_TO_SCHEME[urn_header]
 
             if urn_scheme == TEL_SCHEME:
 
@@ -704,7 +706,7 @@ class Contact(TembaModel):
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among '%s or phone' should be provided" % ", ".join(possible_urn_headers[2:])
+            error_str += "; at least one among %s should be provided" % ", ".join(possible_urn_headers)
 
             raise SmartImportRowError(error_str)
 
@@ -806,23 +808,24 @@ class Contact(TembaModel):
         return [header for header in headers if header.strip().lower() and header.strip().lower() not in Contact.RESERVED_FIELDS]
 
     @classmethod
-    def validate_org_import_header(cls, header, org):
-        possible_urn_fields = [Contact.PHONE, 'twitter', 'external']
-        header_urn_fields = [elt for elt in header if elt in possible_urn_fields]
+    def validate_org_import_header(cls, headers, org):
+        possible_headers = [h[0] for h in IMPORT_HEADERS]
+        found_headers = [h for h in headers if h in possible_headers]
 
-        possible_urn_fields_text = '", "'.join([elt.capitalize() for elt in possible_urn_fields])
+        capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
 
-        if 'uuid' in header:
+        if 'uuid' in headers:
             return
 
-        if 'name' not in header and not header_urn_fields:
+        if 'name' not in headers and not found_headers:
             raise Exception(ugettext('The file you provided is missing required headers called "Name" and one of "%s".'
-                                     % possible_urn_fields_text))
-        if 'name' not in header:
+                                     % capitalized_possible_headers))
+        if 'name' not in headers:
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
-        if not header_urn_fields:
+
+        if not found_headers:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
-                                     'should be included.' % possible_urn_fields_text))
+                                     'should be included.' % capitalized_possible_headers))
     
     @classmethod
     def import_csv(cls, task, log=None):
