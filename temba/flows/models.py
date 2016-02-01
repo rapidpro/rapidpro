@@ -271,7 +271,9 @@ class Flow(TembaModel):
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
 
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
-        flow.update(dict(entry=uuid, rulesets=[], action_sets=action_sets))
+        flow.update(dict(entry=uuid, base_language=base_language,
+                         rulesets=[], action_sets=action_sets))
+
         return flow
 
     @classmethod

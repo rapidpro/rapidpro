@@ -366,7 +366,6 @@ class TriggerTest(TembaTest):
     def test_join_group_trigger(self):
 
         self.login(self.admin)
-
         group = self.create_group(name='Chat', contacts=[])
 
         # create a trigger that sets up a group join flow
@@ -378,7 +377,10 @@ class TriggerTest(TembaTest):
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword='join', flow=flow)
-        self.assertEquals('Join Chat', trigger.flow.name)
+        self.assertEqual(trigger.flow.name, 'Join Chat')
+
+        # the org has no language, so it should be a 'base' flow
+        self.assertEqual(flow.base_language, 'base')
 
         # now let's try it out
         contact = self.create_contact('Ben', '+250788382382')
@@ -391,10 +393,10 @@ class TriggerTest(TembaTest):
         self.assertEqual(Trigger.objects.get(pk=trigger.pk).trigger_count, 1)
 
         # we should be in the group now
-        self.assertEqual(set(contact.user_groups.all()), {group})
+        self.assertEqual({group}, set(contact.user_groups.all()))
 
         # and have one incoming and one outgoing message
-        self.assertEquals(2, contact.msgs.count())
+        self.assertEqual(2, contact.msgs.count())
 
         # deleting our contact group should leave our triggers and flows since the group can be recreated
         self.client.post(reverse("contacts.contactgroup_delete", args=[group.pk]))
@@ -409,12 +411,16 @@ class TriggerTest(TembaTest):
         group = self.create_group(name='Lang Group', contacts=[])
         post_data = dict(keyword='join_lang', action_join_group=group.pk, response='Thanks for joining')
         response = self.client.post(reverse("triggers.trigger_register"), data=post_data)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(response.status_code, 200)
 
         # confirm our objects
         flow = Flow.objects.filter(flow_type=Flow.FLOW).order_by('-pk').first()
         trigger = Trigger.objects.get(keyword='join_lang', flow=flow)
-        self.assertEquals('Join Lang Group', trigger.flow.name)
+        self.assertEqual(trigger.flow.name, 'Join Lang Group')
+
+        # the flow should be created with the primary language for the org
+        self.assertEqual(flow.base_language, 'kli')
+
 
     def test_trigger_form(self):
 
