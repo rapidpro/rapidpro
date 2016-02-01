@@ -1061,7 +1061,7 @@ class ClickatellHandler(View):
                 # now encode back into utf-8
                 text = text_bytes.decode('utf-16be').encode('utf-8')
             elif charset == 'ISO-8859-1':
-                text = text.encode('iso-8859-1', 'ignore')
+                text = text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
 
             sms = Msg.create_incoming(channel,
                                       (TEL_SCHEME, request.REQUEST['from']),

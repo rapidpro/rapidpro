@@ -68,7 +68,7 @@ class APITest(TembaTest):
 
         # 403 for JSON request too
         response = self.fetchJSON(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
         # 200 for administrator
         self.login(self.admin)
@@ -84,16 +84,91 @@ class APITest(TembaTest):
         self.assertEqual([r['uuid'] for r in response.json['results']], [o.uuid for o in expected])
 
     def assertResponseError(self, response, field, expected_message, status_code=400):
-        self.assertEqual(status_code, response.status_code)
+        self.assertEqual(response.status_code, status_code)
         if field:
             self.assertIn(field, response.json)
             self.assertIsInstance(response.json[field], list)
             self.assertIn(expected_message, response.json[field])
         else:
-            self.assertIsInstance(response.json, list)
-            self.assertIn(expected_message, response.json)
+            self.assertIsInstance(response.json, dict)
+            self.assertIn('detail', response.json)
+            self.assertEqual(response.json['detail'], expected_message)
 
-    def test_api_contacts(self):
+    def test_authentication(self):
+        url = reverse('api.v2.contacts') + '.json'
+
+        # can't fetch endpoint with invalid token
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token 1234567890")
+        response.json = json.loads(response.content)
+
+        self.assertResponseError(response, None, "Invalid token", status_code=403)
+
+        # can fetch endpoint with valid token
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+
+        self.assertEqual(response.status_code, 200)
+
+        # but not if user is inactive
+        self.admin.is_active = False
+        self.admin.save()
+
+        response = self.client.get(url, content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        response.json = json.loads(response.content)
+
+        self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
+
+    def test_root(self):
+        url = reverse('api.v2')
+
+        # browse as HTML anonymously (should still show docs)
+        response = self.fetchHTML(url)
+        self.assertContains(response, "This is the <strong>under-development</strong> API v2", status_code=403)
+
+        # try to browse as JSON anonymously
+        response = self.fetchJSON(url)
+        self.assertResponseError(response, None, "Authentication credentials were not provided.", status_code=403)
+
+        # login as administrator
+        self.login(self.admin)
+        token = self.admin.api_token  # generates token for the user
+        self.assertIsInstance(token, basestring)
+        self.assertEqual(len(token), 40)
+
+        with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
+            self.assertEqual(self.admin.api_token, token)
+
+        # browse as HTML
+        response = self.fetchHTML(url)
+        self.assertContains(response, token, status_code=200)  # displays their API token
+
+        # browse as JSON
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['runs'], 'https://testserver:80/api/v2/runs')  # endpoints are listed
+
+    def test_explorer(self):
+        url = reverse('api.v2.explorer')
+
+        response = self.fetchHTML(url)
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, "Log in to use the Explorer")
+
+        # login as non-org user
+        self.login(self.non_org_user)
+        response = self.fetchHTML(url)
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, "Log in to use the Explorer")
+
+        # login as administrator
+        self.login(self.admin)
+        response = self.fetchHTML(url)
+        self.assertEquals(200, response.status_code)
+        self.assertNotContains(response, "Log in to use the Explorer")
+
+    def test_contacts(self):
         url = reverse('api.v2.contacts')
 
         self.assertEndpointAccess(url)
@@ -157,7 +232,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'group=invalid')
         self.assertResultsByUUID(response, [])
 
-    def test_api_messages(self):
+    def test_messages(self):
         url = reverse('api.v2.messages')
 
         self.assertEndpointAccess(url)
@@ -173,6 +248,9 @@ class APITest(TembaTest):
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_msg(direction='O', msg_type='F', text="Surveys!", contact=self.joe, contact_urn=None,
                                    status='S', channel=None, sent_on=timezone.now())
+
+        # add a deleted message
+        self.create_msg(direction='I', msg_type='I', text="!@$!%", contact=self.frank, visibility='D')
 
         # add a test contact message
         self.create_msg(direction='I', msg_type='F', text="Hello", contact=self.test_contact)
@@ -224,9 +302,9 @@ class APITest(TembaTest):
             'delivered_on': None
         })
 
-        # filter by folder (inbox)
-        response = self.fetchJSON(url, 'folder=INBOX')
-        self.assertResultsById(response, [frank_msg1])
+        with self.assertNumQueries(13):  # filter by folder (inbox)
+            response = self.fetchJSON(url, 'folder=INBOX')
+            self.assertResultsById(response, [frank_msg1])
 
         # filter by folder (flow)
         response = self.fetchJSON(url, 'folder=flows')
@@ -272,12 +350,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'label=invalid')
         self.assertResultsById(response, [])
 
-        # can't filter by more than one of folder, label or broadcast
-        for query in ('label=Spam&folder=inbox', 'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
+        # can't filter by more than one of contact, folder, label or broadcast together
+        for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
+                      'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
             response = self.fetchJSON(url, query)
-            self.assertResponseError(response, None, "Can only specify one of folder, label or broadcast parameters")
+            self.assertResponseError(response, None,
+                                     "You may only specify one of the contact, folder, label, broadcast parameters")
 
-    def test_api_runs(self):
+    def test_runs(self):
         url = reverse('api.v2.runs')
 
         self.assertEndpointAccess(url)
@@ -428,3 +508,8 @@ class APITest(TembaTest):
         # filter by invalid before
         response = self.fetchJSON(url, 'before=longago')
         self.assertResultsById(response, [])
+
+        # can't filter by both contact and flow together
+        response = self.fetchJSON(url, 'contact=%s&flow=%s' % (self.joe.uuid, flow1.uuid))
+        self.assertResponseError(response, None,
+                                 "You may only specify one of the contact, flow parameters")
