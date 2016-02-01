@@ -1847,7 +1847,7 @@ class ContactTest(TembaTest):
         self.assertRaises(ValueError, Contact.create_instance, dict(org=self.org))
 
         # or without a number (exception type that goes back to the user)
-        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, user=self.admin))
+        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, created_by=self.admin))
 
         contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
@@ -2703,6 +2703,8 @@ class ContactTest(TembaTest):
 
         old_modified_on = bob.modified_on
         bob.update_groups(self.user, [group])
+
+        bob.refresh_from_db()
         self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
