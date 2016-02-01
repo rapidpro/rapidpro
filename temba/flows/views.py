@@ -29,10 +29,10 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING, ACTION_SET, RULE_SET
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
-from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.views import BaseActionForm
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
@@ -94,15 +94,13 @@ class BaseFlowForm(forms.ModelForm):
 
 
 class FlowActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('archive', _("Archive Flows")),
+    allowed_actions = (('archive', _("Archive Flows")),
                        ('label', _("Label Messages")),
                        ('restore', _("Restore Flows")))
 
-    OBJECT_CLASS = Flow
-    OBJECT_CLASS_MANAGER = 'objects'
-    LABEL_CLASS = FlowLabel
-    LABEL_CLASS_MANAGER = 'objects'
-    HAS_IS_ACTIVE = True
+    model = Flow
+    label_model = FlowLabel
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'objects', 'label', 'add')

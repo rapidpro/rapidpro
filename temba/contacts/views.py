@@ -24,15 +24,15 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.channels.models import SEND
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
-from temba.msgs.views import SendMessageForm, BaseActionForm
+from temba.msgs.views import SendMessageForm
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
 from temba.utils import analytics, slugify_with, languages
+from temba.utils.views import BaseActionForm
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
 
@@ -149,17 +149,16 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
 
 class ContactActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('label', _("Add to Group")),
+    allowed_actions = (('label', _("Add to Group")),
                        ('unlabel', _("Remove from Group")),
                        ('unblock', _("Unblock Contacts")),
                        ('block', _("Block Contacts")),
                        ('delete', _("Delete Contacts")))
 
-    OBJECT_CLASS = Contact
-    OBJECT_CLASS_MANAGER = 'objects'
-    LABEL_CLASS = ContactGroup
-    LABEL_CLASS_MANAGER = 'user_groups'
-    HAS_IS_ACTIVE = True
+    model = Contact
+    label_model = ContactGroup
+    label_model_manager = 'user_groups'
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'label', 'objects', 'add')
