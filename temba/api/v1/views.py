@@ -578,7 +578,8 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
-        queryset = Msg.current_messages.filter(org=self.request.user.get_org())
+        org = self.request.user.get_org()
+        queryset = Msg.current_messages.filter(org=org, contact__is_test=False)
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
