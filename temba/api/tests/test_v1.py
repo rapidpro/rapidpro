@@ -1462,14 +1462,21 @@ class APITest(TembaTest):
         drdre = Contact.objects.get()
 
         # add another contact
-        jay_z = self.create_contact("Jay-Z", number="123555")
+        jay_z = self.create_contact("Jay-Z", number="123444")
         ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
         jay_z.set_field('registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
-        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123555']))
+        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123444']))
         self.assertEqual(response.status_code, 400)
         self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
+
+        # update URN using UUID
+        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:123555']))
+        self.assertEqual(response.status_code, 201)
+
+        jay_z = Contact.objects.get(pk=jay_z.pk)
+        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:123555'])
 
         # fetch all with blank query
         self.clear_cache()
