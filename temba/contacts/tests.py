@@ -667,7 +667,7 @@ class ContactTest(TembaTest):
 
         # don't allow blocking or failing of test contacts
         test_contact = Contact.get_test_contact(self.user)
-        self.assertRaises(ValueError, test_contact.block)
+        self.assertRaises(ValueError, test_contact.block, self.user)
         self.assertRaises(ValueError, test_contact.fail)
 
     def test_update_groups(self):
@@ -1645,7 +1645,7 @@ class ContactTest(TembaTest):
         self.assertFalse('urn__tel__1' in response.context['form'].fields)
 
         # check that groups field isn't displayed when contact is blocked
-        self.joe.block()
+        self.joe.block(self.user)
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
         self.assertNotIn('groups', response.context['form'].fields)
 
@@ -1738,16 +1738,14 @@ class ContactTest(TembaTest):
         self.assertEquals(contact1.name, "Ludacris")
 
         first_modified_on = contact1.modified_on
-        contact1.set_field(self.user, 'occupation', 'Musician')
-        self.assertTrue(Contact.objects.get(pk=contact1.pk).modified_on > first_modified_on)
+        contact1.set_field(self.editor, 'occupation', 'Musician')
+
+        contact1.refresh_from_db()
+        self.assertTrue(contact1.modified_on > first_modified_on)
+        self.assertEqual(contact1.modified_by, self.editor)
 
         contact2 = self.create_contact(name="Boy", number="12345")
         self.assertEquals(contact2.get_display(), "Boy")
-
-        # try to create an instance contact without number, the contact object is not created
-        fields = dict(org=self.org, name="Paul Chris")
-        with self.assertRaises(SmartImportRowError):
-            Contact.create_instance(fields)
 
         contact3 = self.create_contact(name=None, number="0788111222")
         self.channel.country = 'RW'
@@ -1843,6 +1841,19 @@ class ContactTest(TembaTest):
             model_class="Contact", import_params=json.dumps(import_params), import_log="", task_id="A")
 
         return Contact.import_csv(task, log=None)
+
+    def test_create_instance(self):
+        # can't import contact without a user
+        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org))
+
+        # or without a number
+        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, created_by=self.admin))
+
+        contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", number="+250788111111"))
+        self.assertEqual(contact.org, self.org)
+        self.assertEqual(contact.name, "Bob")
+        self.assertEqual([u.urn for u in contact.urns.all()], ["+250788111111"])
+        self.assertEqual(contact.created_by, self.admin)
 
     def test_contact_import(self):
         # first import brings in 3 contacts

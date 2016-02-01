@@ -646,6 +646,9 @@ class Contact(TembaModel):
         """
         Creates or updates a contact from the given field values during an import
         """
+        if 'org' not in field_dict or 'created_by' not in field_dict:
+            raise ValueError("Imported values dictionary must include org and created_by")
+
         org = field_dict['org']
         del field_dict['org']
         user = field_dict['created_by']
@@ -1622,7 +1625,10 @@ class ContactGroup(TembaModel):
         if changed:
             Value.invalidate_cache(group=self)
 
-            Contact.objects.update(modified_by=user, modified_on=timezone.now())
+            # update modified on in small batches to avoid long table lock, and having too many non-unique values for
+            # modified_on which is the primary ordering for the API
+            for batch in chunk_list(changed, 100):
+                Contact.objects.filter(org=self.org, pk__in=batch).update(modified_by=user, modified_on=timezone.now())
 
         return changed
 

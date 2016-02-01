@@ -348,13 +348,14 @@ class BaseActionForm(forms.Form):
         if self.HAS_IS_ACTIVE:
             objects_qs = objects_qs.filter(is_active=True)
 
-        label_qs = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
-
         self.fields['action'] = forms.ChoiceField(choices=self.ALLOWED_ACTIONS)
-        self.fields['label'] = forms.ModelChoiceField(label_qs, required=False)
         self.fields['objects'] = forms.ModelMultipleChoiceField(objects_qs)
         self.fields['add'] = forms.BooleanField(required=False)
         self.fields['number'] = forms.BooleanField(required=False)
+
+        if self.LABEL_CLASS:
+            label_qs = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
+            self.fields['label'] = forms.ModelChoiceField(label_qs, required=False)
 
     def clean(self):
         data = self.cleaned_data

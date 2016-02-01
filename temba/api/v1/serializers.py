@@ -549,7 +549,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our contact's groups
         if self.group_objs is not None:
-            self.instance.update_groups(self.group_objs)
+            self.instance.update_groups(self.user, self.group_objs)
 
         return self.instance
 
@@ -624,11 +624,11 @@ class ContactBulkActionSerializer(WriteSerializer):
         else:
             for contact in contacts:
                 if action == 'block':
-                    contact.block()
+                    contact.block(self.user)
                 elif action == 'unblock':
-                    contact.unblock()
+                    contact.unblock(self.user)
                 elif action == 'delete':
-                    contact.release()
+                    contact.release(self.user)
 
     class Meta:
         fields = ('contacts', 'action', 'group', 'group_uuid')

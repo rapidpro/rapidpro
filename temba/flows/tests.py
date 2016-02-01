@@ -3163,7 +3163,7 @@ class FlowsTest(FlowFileTest):
 
         # now let's delete our contact, we'll still have one active node, but
         # our visit path counts will go down by two since he went there twice
-        self.contact.release()
+        self.contact.release(self.user)
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
         self.assertEquals(1, visited[msg_to_color_step])
