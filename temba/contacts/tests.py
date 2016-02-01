@@ -1844,9 +1844,37 @@ class ContactTest(TembaTest):
 
         return Contact.import_csv(task, log=None)
 
-    def test_contact_import(self):
-        from temba.contacts.models import IMPORT_HEADERS
+    def assertContactImport(self, filepath, expected_results=None, task_customize=None, custom_fields_number=None):
+        csv_file = open(filepath, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(reverse('contacts.contact_import'), post_data, follow=True)
 
+        if not response.context['task']:
+            import pdb; pdb.set_trace()
+
+        self.assertIsNotNone(response.context['task'])
+
+        if task_customize:
+            self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_customize',
+                                                                     args=[response.context['task'].pk]))
+            if custom_fields_number:
+                self.assertEquals(len(response.context['form'].fields.keys()), custom_fields_number)
+
+        else:
+            self.assertEquals(response.context['results'], expected_results)
+
+            # no errors so hide the import form
+            if not expected_results.get('error_messages', []):
+                self.assertFalse(response.context['show_form'])
+
+            # we have records and added them to a group
+            if not expected_results.get('records', 0):
+                self.assertIsNotNone(response.context['group'])
+
+        return response
+
+    def test_contact_import(self):
+        #
         # first import brings in 3 contacts
         user = self.user
         records = self.do_import(user, 'sample_contacts.xls')
@@ -1939,15 +1967,8 @@ class ContactTest(TembaTest):
 
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
             # import contact with uuid will force update if existing contact for the uuid
-            csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
-            post_data = dict(csv_file=csv_file)
-            response = self.client.post(import_url, post_data, follow=True)
-            self.assertIsNotNone(response.context['task'])
-            self.assertIsNotNone(response.context['group'])
-            self.assertFalse(response.context['show_form'])
-            self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
-                                                                creates=2, updates=2))
-
+            self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
+                                     dict(records=4, errors=0, error_messages=[],creates=2, updates=2))
             self.assertEquals(mock_lock.call_count, 3)
 
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
@@ -1981,14 +2002,8 @@ class ContactTest(TembaTest):
         with AnonymousOrg(self.org):
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
                 # import contact with uuid will force update if existing contact for the uuid
-                csv_file = open('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT, 'rb')
-                post_data = dict(csv_file=csv_file)
-                response = self.client.post(import_url, post_data, follow=True)
-                self.assertIsNotNone(response.context['task'])
-                self.assertIsNotNone(response.context['group'])
-                self.assertFalse(response.context['show_form'])
-                self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
-                                                                    creates=2, updates=2))
+                self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
+                                         dict(records=4, errors=0, error_messages=[], creates=2, updates=2))
 
                 # we ignore urns so 1 less lock
                 self.assertEquals(mock_lock.call_count, 2)
@@ -2016,64 +2031,38 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
 
         # import sample contact spreadsheet with valid headers
-        csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertIsNotNone(response.context['task'])
-        self.assertIsNotNone(response.context['group'])
-        self.assertFalse(response.context['show_form'])
-        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
-                                                            creates=3, updates=0))
+        self.assertContactImport('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT,
+                                 dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
 
         # import again to check contacts are updated
-        csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
-                                                            creates=0, updates=3))
+        self.assertContactImport('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT,
+                                 dict(records=3, errors=0, error_messages=[], creates=0, updates=3))
 
         # import a spreadsheet that includes the test contact
-        csv_file = open('%s/test_imports/sample_contacts_inc_test.xls' % settings.MEDIA_ROOT, 'rb')
-        response = self.client.post(import_url, dict(csv_file=csv_file), follow=True)
-        self.assertEquals(response.context['results'], dict(records=2, errors=1, creates=0, updates=2,
-                                                            error_messages=[dict(line=4,
-                                                                                 error="Ignored test contact")]))
+        self.assertContactImport('%s/test_imports/sample_contacts_inc_test.xls' % settings.MEDIA_ROOT,
+                                 dict(records=2, errors=1, creates=0, updates=2,
+                                      error_messages=[dict(line=4, error="Ignored test contact")]))
+
+        self.maxDiff = None
 
         # import a spreadsheet where a contact has a missing phone number and another has an invalid number
-        csv_file = open('%s/test_imports/sample_contacts_with_missing_and_invalid_phones.xls' % settings.MEDIA_ROOT,
-                        'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.maxDiff = None
-        self.assertEquals(response.context['results'], dict(records=1, errors=2, creates=0, updates=1,
-                                                            error_messages=[dict(line=3,
-                                                                            error="Missing any valid URNs; at "
-                                                                                   "least one among %s "
-                                                                                   "should be provided" %
-                                                                            ", ".join([s[0] for s in IMPORT_HEADERS])),
-                                                                            dict(line=4,
-                                                                                 error="Invalid Phone number 12345")]))
+        self.assertContactImport('%s/test_imports/sample_contacts_with_missing_and_invalid_phones.xls' % settings.MEDIA_ROOT,
+                                 dict(records=1, errors=2, creates=0, updates=1,
+                                      error_messages=[dict(line=3,
+                                                           error="Missing any valid URNs; at least one among phone, "
+                                                                 "twitter, telegram, email, external should be provided"),
+                                                      dict(line=4, error="Invalid Phone number 12345")]))
 
-        csv_file = open('%s/test_imports/sample_contacts_twitter.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertIsNotNone(response.context['task'])
-        self.assertIsNotNone(response.context['group'])
-        self.assertFalse(response.context['show_form'])
-        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
-                                                            creates=3, updates=0))
+        # import a spreadsheet with a name and a twitter columns only
+        self.assertContactImport('%s/test_imports/sample_contacts_twitter.xls' % settings.MEDIA_ROOT,
+                                 dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertIsNotNone(response.context['task'])
-        self.assertIsNotNone(response.context['group'])
-        self.assertFalse(response.context['show_form'])
-        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
-                                                            creates=3, updates=0))
+        # import a spreadsheet with phone, name and twitter columns
+        self.assertContactImport('%s/test_imports/sample_contacts_twitter_and_phone.xls' % settings.MEDIA_ROOT,
+                                 dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
 
         self.assertEquals(3, Contact.objects.all().count())
         self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
@@ -2081,11 +2070,8 @@ class ContactTest(TembaTest):
         self.assertEquals(1, Contact.objects.filter(name='Nyaruka').count())
 
         # import file with row different urn on different existing contacts should ignore those lines
-        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_conflicts.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertEquals(response.context['results'], dict(records=2, errors=0, creates=0, updates=2,
-                                                            error_messages=[]))
+        self.assertContactImport('%s/test_imports/sample_contacts_twitter_and_phone_conflicts.xls' % settings.MEDIA_ROOT,
+                                 dict(records=2, errors=0, creates=0, updates=2, error_messages=[]))
 
         self.assertEquals(3, Contact.objects.all().count())
         self.assertEquals(1, Contact.objects.filter(name='Rapidpro').count())
@@ -2097,14 +2083,9 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
-        csv_file = open('%s/test_imports/sample_contacts_twitter_and_phone_optional.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertIsNotNone(response.context['task'])
-        self.assertIsNotNone(response.context['group'])
-        self.assertFalse(response.context['show_form'])
-        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
-                                                            creates=3, updates=0))
+        # some columns have either twitter or phone
+        self.assertContactImport('%s/test_imports/sample_contacts_twitter_and_phone_optional.xls' % settings.MEDIA_ROOT,
+                                 dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -2121,18 +2102,11 @@ class ContactTest(TembaTest):
 
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
             # import contact with uuid will force update if existing contact for the uuid
-            csv_file = open('%s/test_imports/sample_contacts_uuid_no_urns.xls' % settings.MEDIA_ROOT, 'rb')
-            post_data = dict(csv_file=csv_file)
-            response = self.client.post(import_url, post_data, follow=True)
-            self.assertIsNotNone(response.context['task'])
-            self.assertIsNotNone(response.context['group'])
-            self.assertFalse(response.context['show_form'])
-            self.assertEquals(response.context['results'], dict(records=3, errors=1,
-                                                                error_messages=[dict(line=3,
-                                                                                     error="Missing any valid URNs; at "
-                                                                                     "least one among %s should be provided"
-                                                                                     % ", ". join([s[0] for s in IMPORT_HEADERS]))],
-                                                                creates=1, updates=2))
+            self.assertContactImport('%s/test_imports/sample_contacts_uuid_no_urns.xls' % settings.MEDIA_ROOT,
+                                     dict(records=3, errors=1, creates=1, updates=2,
+                                          error_messages=[dict(line=3,
+                                                          error="Missing any valid URNs; at least one among phone, "
+                                                                "twitter, telegram, email, external should be provided")]))
 
             # lock for creates only
             self.assertEquals(mock_lock.call_count, 1)
@@ -2154,15 +2128,9 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-                # import contact with uuid will force update if existing contact for the uuid
-                csv_file = open('%s/test_imports/sample_contacts_uuid_no_urns.xls' % settings.MEDIA_ROOT, 'rb')
-                post_data = dict(csv_file=csv_file)
-                response = self.client.post(import_url, post_data, follow=True)
-                self.assertIsNotNone(response.context['task'])
-                self.assertIsNotNone(response.context['group'])
-                self.assertFalse(response.context['show_form'])
-                self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
-                                                                    creates=2, updates=2))
+                # import contact with uuid will force update if existing contact for the uuid for anoa orrg as well
+                self.assertContactImport('%s/test_imports/sample_contacts_uuid_no_urns.xls' % settings.MEDIA_ROOT,
+                                         dict(records=4, errors=0, error_messages=[], creates=2, updates=2))
 
                 # lock for creates only
                 self.assertEquals(mock_lock.call_count, 2)
@@ -2200,19 +2168,12 @@ class ContactTest(TembaTest):
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
 
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-            # import contact with uuid will force update if existing contact for the uuid
-            csv_file = open('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT, 'rb')
-            post_data = dict(csv_file=csv_file)
-            response = self.client.post(import_url, post_data, follow=True)
-            self.assertIsNotNone(response.context['task'])
-            self.assertIsNotNone(response.context['group'])
-            self.assertFalse(response.context['show_form'])
-            self.assertEquals(response.context['results'], dict(records=3, errors=1,
-                                                                error_messages=[dict(line=3,
-                                                                                     error="Missing any valid URNs; at "
-                                                                                     "least one among %s should be provided"
-                                                                                     % ", ".join(s[0] for s in IMPORT_HEADERS))],
-                                                                creates=1, updates=2))
+            # import contact with uuid will force update if existing contact for the uuid, csv file
+            self.assertContactImport('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT,
+                                     dict(records=3, errors=1, creates=1, updates=2,
+                                          error_messages=[dict(line=3,
+                                                          error="Missing any valid URNs; at least one among phone, "
+                                                                "twitter, telegram, email, external should be provided")]))
 
             # only lock for create
             self.assertEquals(mock_lock.call_count, 1)
@@ -2234,15 +2195,9 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-                # import contact with uuid will force update if existing contact for the uuid
-                csv_file = open('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT, 'rb')
-                post_data = dict(csv_file=csv_file)
-                response = self.client.post(import_url, post_data, follow=True)
-                self.assertIsNotNone(response.context['task'])
-                self.assertIsNotNone(response.context['group'])
-                self.assertFalse(response.context['show_form'])
-                self.assertEquals(response.context['results'], dict(records=4, errors=0, error_messages=[],
-                                                                    creates=2, updates=2))
+                # import contact with uuid will force update if existing contact for the uuid,csv file for anon org
+                self.assertContactImport('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT,
+                                         dict(records=4, errors=0, error_messages=[], creates=2, updates=2))
 
                 # only lock for creates
                 self.assertEquals(mock_lock.call_count, 2)
@@ -2280,16 +2235,9 @@ class ContactTest(TembaTest):
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
 
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-            # import contact with uuid will force update if existing contact for the uuid
-            csv_file = open('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT, 'rb')
-            post_data = dict(csv_file=csv_file)
-            response = self.client.post(import_url, post_data, follow=True)
-            self.assertIsNotNone(response.context['task'])
-            self.assertIsNotNone(response.context['group'])
-            self.assertFalse(response.context['show_form'])
-            self.assertEquals(response.context['results'], dict(records=3, errors=0,
-                                                                error_messages=[],
-                                                                creates=1, updates=2))
+            # import contact with uuid column to group the contacts
+            self.assertContactImport('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT,
+                                     dict(records=3, errors=0, error_messages=[], creates=1, updates=2))
 
             # one lock for the create
             self.assertEquals(mock_lock.call_count, 1)
@@ -2300,15 +2248,9 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-                # import contact with uuid will force update if existing contact for the uuid
-                csv_file = open('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT, 'rb')
-                post_data = dict(csv_file=csv_file)
-                response = self.client.post(import_url, post_data, follow=True)
-                self.assertIsNotNone(response.context['task'])
-                self.assertIsNotNone(response.context['group'])
-                self.assertFalse(response.context['show_form'])
-                self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[],
-                                                                    creates=1, updates=2))
+                # import contact with uuid column to group the contacts for anon org
+                self.assertContactImport('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT,
+                                         dict(records=3, errors=0, error_messages=[], creates=1, updates=2))
 
                 # one lock for the create
                 self.assertEquals(mock_lock.call_count, 1)
@@ -2331,15 +2273,15 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing a required header. At least one of '
-                             '"Phone", "Twitter", "Telegram", "External" should be included.')
+                             'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
+                             '"Telegram", "Email", "External" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing required headers called "Name" and one of '
-                             '"Phone", "Twitter", "Telegram", "External".')
+                             'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
+                             '"Telegram", "Email", "External" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -2349,15 +2291,9 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, 'ride_or_drive', 'Vehicle')
         ContactField.get_or_create(self.org, 'wears', 'Shoes')  # has trailing spaces on excel files as " Shoes  "
 
-
         # import spreadsheet with extra columns
-        csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
-        self.assertIsNotNone(response.context['task'])
-        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_customize',
-                                                                 args=[response.context['task'].pk]))
-        self.assertEquals(len(response.context['form'].fields.keys()), 21)
+        response = self.assertContactImport('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT,
+                                            None, task_customize=True, custom_fields_number=21)
 
         # all checkboxes should default to True
         for key in response.context['form'].fields.keys():
@@ -2432,9 +2368,8 @@ class ContactTest(TembaTest):
 
         # import spreadsheet with extra columns again but check that giving column a reserved name
         # gives validation error
-        csv_file = open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data, follow=True)
+        response = self.assertContactImport('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT,
+                                            None, task_customize=True)
         customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
         post_data = dict()
         post_data['column_country_include'] = 'on'

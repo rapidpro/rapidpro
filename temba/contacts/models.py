@@ -817,16 +817,13 @@ class Contact(TembaModel):
         if 'uuid' in headers:
             return
 
-        if 'name' not in headers and not found_headers:
-            raise Exception(ugettext('The file you provided is missing required headers called "Name" and one of "%s".'
-                                     % capitalized_possible_headers))
-        if 'name' not in headers:
-            raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
-
         if not found_headers:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
                                      'should be included.' % capitalized_possible_headers))
-    
+
+        if 'name' not in headers:
+            raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
+
     @classmethod
     def import_csv(cls, task, log=None):
         from xlrd import XLRDError
