@@ -1423,7 +1423,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             return Response(status=status.HTTP_404_NOT_FOUND)
         else:
             for contact in queryset:
-                contact.release()
+                contact.release(request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_base_queryset(self, request):
@@ -1479,7 +1479,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         # can't prefetch a custom manager directly, so here we prefetch user groups as new attribute
         user_groups_prefetch = Prefetch('all_groups', queryset=ContactGroup.user_groups.all(), to_attr='prefetched_user_groups')
 
-        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on')
+        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on', 'pk')
 
     def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs

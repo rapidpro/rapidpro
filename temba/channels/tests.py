@@ -4700,7 +4700,7 @@ class TwitterTest(TembaTest):
 
             joe.is_failed = False
             joe.save()
-            testers.update_contacts([joe], add=True)
+            testers.update_contacts(self.user, [joe], add=True)
 
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("There was an error sending your message: You can't send direct messages to this user right now.",
@@ -4723,7 +4723,7 @@ class TwitterTest(TembaTest):
 
             joe.is_failed = False
             joe.save()
-            testers.update_contacts([joe], add=True)
+            testers.update_contacts(self.user, [joe], add=True)
 
             with patch('twython.Twython.send_direct_message') as mock:
                 mock.side_effect = TwythonError("Sorry, that page does not exist.", error_code=404)

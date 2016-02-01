@@ -179,28 +179,33 @@ class APITest(TembaTest):
         contact3 = self.create_contact("Cat", "0788000003")
         contact4 = self.create_contact("Don", "0788000004")
 
+        contact1.set_field(self.user, 'nickname', "Annie", label="Nick name")
+
         contact1.fail()
-        contact2.block()
-        contact3.release()
+        contact2.block(self.user)
+        contact3.release(self.user)
 
         # put some contacts in a group
         group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        group.update_contacts([self.joe, contact1], add=True)
+        group.update_contacts(self.user, [self.joe], add=True)  # add contacts separately for predictable modified_on
+        group.update_contacts(self.user, [contact1], add=True)  # ordering
+
+        contact1.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsByUUID(response, [contact1, self.joe, contact4, contact2, self.frank])
+        self.assertResultsByUUID(response, [contact1, self.joe, contact2, contact4, self.frank])
         self.assertEqual(response.json['results'][0], {
             'uuid': contact1.uuid,
             'name': "Ann",
             'language': "fre",
             'urns': ["tel:+250788000001"],
             'groups': [{'uuid': group.uuid, 'name': group.name}],
-            'fields': {},
+            'fields': {'nickname': "Annie"},
             'blocked': False,
             'failed': True,
             'created_on': format_datetime(contact1.created_on),

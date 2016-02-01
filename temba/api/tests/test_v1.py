@@ -1419,12 +1419,12 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'group_uuids', "Unable to find contact group with uuid: nope")
 
         # can't add a contact to a group if they're blocked
-        contact.block()
+        contact.block(self.user)
         response = self.postJSON(url, dict(phone='+250788123456', groups=["Dancers"]))
         self.assertEqual(response.status_code, 400)
         self.assertResponseError(response, 'non_field_errors', "Cannot add blocked contact to groups")
 
-        contact.unblock()
+        contact.unblock(self.user)
         artists.contacts.add(contact)
 
         # try updating a non-existent field
@@ -1464,7 +1464,7 @@ class APITest(TembaTest):
         # add another contact
         jay_z = self.create_contact("Jay-Z", number="123555")
         ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
-        jay_z.set_field('registration_date', "2014-12-31 03:04:00")
+        jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
         response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123555']))
@@ -1792,8 +1792,8 @@ class APITest(TembaTest):
         contact3 = self.create_contact("Cat", '+250788000003')
         contact4 = self.create_contact("Don", '+250788000004')  # a blocked contact
         contact5 = self.create_contact("Eve", '+250788000005')  # a deleted contact
-        contact4.block()
-        contact5.release()
+        contact4.block(self.user)
+        contact5.release(self.user)
         test_contact = Contact.get_test_contact(self.user)
 
         group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
