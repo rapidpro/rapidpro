@@ -16,10 +16,8 @@ class BaseActionForm(forms.Form):
     allowed_actions = ()
 
     def __init__(self, *args, **kwargs):
-        org = kwargs['org']
-        self.user = kwargs['user']
-        del kwargs['org']
-        del kwargs['user']
+        org = kwargs.pop('org')
+        self.user = kwargs.pop('user')
 
         super(BaseActionForm, self).__init__(*args, **kwargs)
 
@@ -41,7 +39,6 @@ class BaseActionForm(forms.Form):
         action = data['action']
         user_permissions = self.user.get_org_group().permissions
 
-        update_perm_codename = self.model.__name__.lower() + "_update"
         update_perm_codename = self.model.__name__.lower() + "_update"
 
         update_allowed = user_permissions.filter(codename=update_perm_codename)

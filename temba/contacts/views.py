@@ -41,10 +41,8 @@ class RemoveContactForm(forms.Form):
     group = forms.ModelChoiceField(ContactGroup.user_groups.all())
 
     def __init__(self, *args, **kwargs):
-        org = kwargs['org']
-        self.user = kwargs['user']
-        del kwargs['org']
-        del kwargs['user']
+        org = kwargs.pop('org')
+        self.user = kwargs.pop('user')
 
         super(RemoveContactForm, self).__init__(*args, **kwargs)
 
