@@ -647,15 +647,11 @@ class Contact(TembaModel):
         Creates or updates a contact from the given field values during an import
         """
         if 'org' not in field_dict or 'created_by' not in field_dict:
-            raise ValueError("Imported values dictionary must include org and created_by")
+            raise ValueError("Import fields dictionary must include org and created_by")
 
-        org = field_dict['org']
-        del field_dict['org']
-        user = field_dict['created_by']
-
-        uuid = field_dict.get('uuid', None)
-        if uuid:
-            del field_dict['uuid']
+        org = field_dict.pop('org')
+        user = field_dict.pop('created_by')
+        uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
         urns = []
@@ -750,7 +746,7 @@ class Contact(TembaModel):
                 
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
-        if not import_params or not 'org_id' in import_params or not 'extra_fields' in import_params:
+        if not import_params or 'org_id' not in import_params or 'extra_fields' not in import_params:
             raise Exception('Import params must include org_id and extra_fields')
 
         field_dict['created_by'] = user
@@ -967,7 +963,7 @@ class Contact(TembaModel):
         self.save(update_fields=['is_failed'])
 
         if permanently:
-            self.update_groups([])
+            self.update_groups(get_anonymous_user(), [])
 
     def unfail(self):
         """

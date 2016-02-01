@@ -3210,7 +3210,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(2, visited[other_rule_to_msg])
 
         # delete our last contact to make sure activity is gone without first expiring, zeros abound
-        ryan.release()
+        ryan.release(self.admin)
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEquals(0, visited[msg_to_color_step])

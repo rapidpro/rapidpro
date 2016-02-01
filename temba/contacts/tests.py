@@ -1656,7 +1656,7 @@ class ContactTest(TembaTest):
         self.joe = Contact.objects.get(pk=self.joe.pk)
         self.assertEquals(self.joe.name, "Joe Bloggs")
 
-        self.joe.unblock()
+        self.joe.unblock(self.user)
 
         # add new urn for joe
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
@@ -1844,15 +1844,15 @@ class ContactTest(TembaTest):
 
     def test_create_instance(self):
         # can't import contact without a user
-        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org))
+        self.assertRaises(ValueError, Contact.create_instance, dict(org=self.org))
 
-        # or without a number
-        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, created_by=self.admin))
+        # or without a number (exception type that goes back to the user)
+        self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, user=self.admin))
 
-        contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", number="+250788111111"))
+        contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
         self.assertEqual(contact.name, "Bob")
-        self.assertEqual([u.urn for u in contact.urns.all()], ["+250788111111"])
+        self.assertEqual([u.urn for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
 
     def test_contact_import(self):
