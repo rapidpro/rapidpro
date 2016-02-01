@@ -491,7 +491,7 @@ class ContactWriteSerializer(WriteSerializer):
 
             contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
 
-            if self.instance and contact_by_urns != self.instance:
+            if self.instance and contact_by_urns and contact_by_urns != self.instance:
                 raise serializers.ValidationError(_("URNs are used by other contacts"))
         else:
             contact_by_urns = None
