@@ -1314,7 +1314,11 @@ class StartHandler(View):
         if external_id is None or sender_el is None or text_el is None:
             return HttpResponse("Missing parameters, must have 'request_id', 'to' and 'body'", status=400)
 
-        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text_el.text)
+        text = text_el.text
+        if text is None:
+            text = ""
+
+        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text)
 
         # Start expects an XML response
         xml_response = """<answer type="async"><state>Accepted</state></answer>"""

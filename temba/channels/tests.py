@@ -5114,6 +5114,29 @@ class StartMobileTest(TembaTest):
         # should get a 400, as the body is invalid
         self.assertEquals(400, response.status_code)
 
+        Msg.all_messages.all().delete()
+
+        # empty text element from Start Mobile we create "" message
+        body = """
+        <message>
+        <service type="sms" timestamp="1450450974" auth="asdfasdf" request_id="msg1"/>
+        <from>+250788123123</from>
+        <to>1515</to>
+        <body content-type="content-type" encoding="utf8"></body>
+        </message>
+        """
+        response = self.client.post(callback_url, content_type='application/xml', data=body)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.all_messages.get()
+        self.assertEquals('+250788123123', sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("", sms.text)
+
         # try it with an invalid channel
         callback_url = reverse('handlers.start_handler', args=['receive', '1234-asdf'])
         response = self.client.post(callback_url, content_type='application/xml', data=body)
