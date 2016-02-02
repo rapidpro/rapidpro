@@ -6,6 +6,29 @@ from django.db import migrations
 from django.db.models import Func, F
 
 
+def get_chosen_one(urns):
+    """
+    Selects the chosen Twitter URN out of a set with the same handle
+    """
+    chosen_urn = None
+
+    # first try to find one with the last message
+    last_msg_time = None
+    for urn in urns:
+        last_msg = urn.msgs.first()
+        if last_msg and (last_msg_time is None or last_msg.created_on > last_msg_time):
+            last_msg_time = last_msg.created_on
+            chosen_urn = urn
+
+    # possible they don't have messages so then use any
+    if not chosen_urn:
+        chosen_urn = urns[0]
+
+    other_urns = [u for u in urns if u != chosen_urn]
+
+    return chosen_urn, other_urns
+
+
 def normalize_twitter_urns(apps, schema_editor):
     """
     Twitter URNs are case-insensitive so ContactURN.normalize_urn(..) converts URNs to lowercase - and this migration
@@ -13,6 +36,7 @@ def normalize_twitter_urns(apps, schema_editor):
     """
     Org = apps.get_model('orgs', 'Org')
     ContactURN = apps.get_model('contacts', 'ContactURN')
+    Broadcast = apps.get_model('msgs', 'Broadcast')
 
     for org in Org.objects.all():
         # fetch and organize all Twitter URNs by lowercase handle
@@ -34,25 +58,22 @@ def normalize_twitter_urns(apps, schema_editor):
         for handle, urn_ids in duplicates.iteritems():
             urns = list(ContactURN.objects.filter(pk__in=urn_ids).select_related('contact').prefetch_related('msgs'))
 
-            # calculate last used URN by looking at last message created
-            last_used_urn = None
-            last_msg_time = None
-            for urn in urns:
-                last_msg = urn.msgs.first()
-                if last_msg and (last_msg_time is None or last_msg.created_on > last_msg_time):
-                    last_msg_time = last_msg.created_on
-                    last_used_urn = urn
+            chosen_urn, other_urns = get_chosen_one(urns)
 
-            # possible they don't have messages so then use any
-            if not last_used_urn:
-                last_used_urn = urns[0]
-
-            other_urns = [u for u in urns if u != last_used_urn]
-
-            # attach messages for the other URNs to the last used URN
             for other_urn in other_urns:
-                num_msgs_moved = other_urn.msgs.update(contact_urn_id=last_used_urn.pk)
-                print " > Moved %d messages from handle %s to handle %s" % (num_msgs_moved, other_urn.path, last_used_urn.path)
+                # attach messages for the other URNs to the last used URN
+                num_msgs_moved = other_urn.msgs.update(contact_urn_id=chosen_urn.pk)
+                if num_msgs_moved:
+                    print " > Moved %d messages from handle %s to handle %s" % (num_msgs_moved, other_urn.path, chosen_urn.path)
+
+                # remove in broadcasts with chosen URN
+                broadcasts = Broadcast.objects.filter(urns=other_urn)
+                for broadcast in broadcasts:
+                    broadcast.urns.remove(other_urn)
+                    broadcast.urns.add(chosen_urn)
+
+                if broadcasts:
+                    print " > Replaced URN in %d broadcasts from handle %s to handle %s" % (len(broadcasts), other_urn.path, chosen_urn.path)
 
                 # delete this URN
                 print " > Deleting URN #%d (%s)" % (other_urn.pk, other_urn.path)
