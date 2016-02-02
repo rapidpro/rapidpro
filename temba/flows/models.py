@@ -2058,9 +2058,6 @@ class Flow(TembaModel):
         Updates a definition for a flow.
         """
 
-        # validate the definition before saving
-        FlowRevision.validate_flow_definition(json_dict)
-
         def get_step_type(dest, rulesets, actionsets):
             if dest:
                 if rulesets.get(dest, None):
