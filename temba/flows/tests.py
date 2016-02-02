@@ -156,6 +156,19 @@ class FlowTest(TembaTest):
         self.assertEquals(CURRENT_EXPORT_VERSION, revisions[0].as_json()['version'])
         self.assertEquals('base', revisions[0].get_definition_json()['base_language'])
 
+        # now make one revision invalid
+        revision = revisions[1]
+        definition = revision.get_definition_json()
+        del definition['base_language']
+        revision.definition = json.dumps(definition)
+        revision.save()
+
+        # should be back to one valid flow
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_revisions', args=[self.flow.pk]))
+        revisions = json.loads(response.content)
+        self.assertEquals(1, len(revisions))
+
     def test_get_localized_text(self):
 
         text_translations = dict(eng="Hello", esp="Hola", fre="Salut")
@@ -1809,6 +1822,17 @@ class FlowTest(TembaTest):
 
         self.assertEquals(400, response.status_code)
         self.assertEquals('Invalid label name: @badlabel', json.loads(response.content)['description'])
+
+        # try submitting a flow def without a language
+        json_dict = flow.as_json()
+        del json_dict['base_language']
+        response = self.client.post(reverse('flows.flow_json', args=[flow.pk]),
+                                    json.dumps(json_dict),
+                                    content_type="application/json")
+
+        self.assertEquals(400, response.status_code)
+        self.assertEquals('Malformed flow, encountered non-localized definition', json.loads(response.content)['description'])
+
 
     def test_flow_start_with_start_msg(self):
         # set our flow
@@ -4146,16 +4170,16 @@ class FlowMigrationTest(FlowFileTest):
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
         self.assertTrue('base' in poll.action_sets.all().order_by('y').first().get_actions()[0].msg)
-        self.assertEquals('base', poll.base_language)
+        self.assertEqual('base', poll.base_language)
 
         # check replacement
         order_checker = self.org.flows.filter(name='Sample Flow - Order Status Checker').first()
         ruleset = order_checker.rule_sets.filter(y=298).first()
-        self.assertEquals('https://app.rapidpro.io/demo/status/', ruleset.webhook_url)
+        self.assertEqual('https://app.rapidpro.io/demo/status/', ruleset.webhook_url)
 
         # our test user doesn't use an email address, check for Administrator for the email
         actionset = order_checker.action_sets.filter(y=991).first()
-        self.assertEquals('Administrator', actionset.get_actions()[1].emails[0])
+        self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
 
 
     def test_flow_results(self):

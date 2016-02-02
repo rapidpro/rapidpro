@@ -383,14 +383,17 @@ class TriggerTest(TembaTest):
         self.assertEqual(flow.base_language, 'base')
 
         # now let's try it out
-        contact = self.create_contact('Ben', '+250788382382')
-        msg = self.create_msg(direction=INCOMING, contact=contact, text="join")
+        contact = self.create_contact('macklemore', '+250788382382')
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="join ben haggerty")
         self.assertIsNone(msg.msg_type)
 
         self.assertTrue(Trigger.find_and_handle(msg))
 
         self.assertEqual(msg.msg_type, 'F')
         self.assertEqual(Trigger.objects.get(pk=trigger.pk).trigger_count, 1)
+
+        contact.refresh_from_db()
+        self.assertEqual('Ben Haggerty', contact.name)
 
         # we should be in the group now
         self.assertEqual({group}, set(contact.user_groups.all()))

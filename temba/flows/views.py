@@ -371,7 +371,15 @@ class FlowCRUDL(SmartCRUDL):
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
                 return build_json_response(revision.get_definition_json())
             else:
-                revisions = [revision.as_json() for revision in flow.revisions.all().order_by('-created_on')[:25]]
+                revisions = []
+                for revision in flow.revisions.all().order_by('-created_on')[:25]:
+                    # validate the flow defintion before presenting it to the user
+                    try:
+                        FlowRevision.validate_flow_definition(revision.get_definition_json())
+                        revisions.append(revision.as_json())
+                    except ValueError as e:
+                        pass
+
                 return build_json_response(revisions)
 
     class OrgQuerysetMixin(object):

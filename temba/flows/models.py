@@ -262,7 +262,7 @@ class Flow(TembaModel):
 
         uuid = unicode(uuid4())
         actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
-                   dict(type='save', field='name', label='Contact Name', value='@step.value|remove_first_word|title_case')]
+                   dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
             actions += [dict(type='reply', msg={base_language:response})]
@@ -272,7 +272,7 @@ class Flow(TembaModel):
 
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
         flow.update(dict(entry=uuid, base_language=base_language,
-                         rulesets=[], action_sets=action_sets))
+                         rule_sets=[], action_sets=action_sets))
 
         return flow
 
@@ -2058,6 +2058,9 @@ class Flow(TembaModel):
         Updates a definition for a flow.
         """
 
+        # validate the definition before saving
+        FlowRevision.validate_flow_definition(json_dict)
+
         def get_step_type(dest, rulesets, actionsets):
             if dest:
                 if rulesets.get(dest, None):
@@ -2710,7 +2713,7 @@ class FlowRevision(SmartModel):
 
         non_localized_error = _('Malformed flow, encountered non-localized definition')
 
-        # should always have a base_language after migration
+        # should always have a base_language
         if 'base_language' not in flow_spec or not flow_spec['base_language']:
             raise ValueError(non_localized_error)
 
