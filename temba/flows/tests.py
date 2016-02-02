@@ -1823,17 +1823,6 @@ class FlowTest(TembaTest):
         self.assertEquals(400, response.status_code)
         self.assertEquals('Invalid label name: @badlabel', json.loads(response.content)['description'])
 
-        # try submitting a flow def without a language
-        json_dict = flow.as_json()
-        del json_dict['base_language']
-        response = self.client.post(reverse('flows.flow_json', args=[flow.pk]),
-                                    json.dumps(json_dict),
-                                    content_type="application/json")
-
-        self.assertEquals(400, response.status_code)
-        self.assertEquals('Malformed flow, encountered non-localized definition', json.loads(response.content)['description'])
-
-
     def test_flow_start_with_start_msg(self):
         # set our flow
         self.flow.update(self.definition)
