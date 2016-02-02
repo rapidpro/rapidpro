@@ -1849,9 +1849,6 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(reverse('contacts.contact_import'), post_data, follow=True)
 
-        if not response.context['task']:
-            import pdb; pdb.set_trace()
-
         self.assertIsNotNone(response.context['task'])
 
         if task_customize:
@@ -2905,7 +2902,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(34):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
