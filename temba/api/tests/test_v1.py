@@ -550,7 +550,6 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_total_contacts(), 1)
         self.assertEqual(flow.get_completed_runs(), 0)
 
         # check flow activity
@@ -633,7 +632,6 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_total_contacts(), 1)
         self.assertEqual(flow.get_completed_runs(), 0)
 
         # check flow activity
@@ -730,7 +728,6 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_total_contacts(), 1)
         self.assertEqual(flow.get_completed_runs(), 1)
 
         # check flow activity

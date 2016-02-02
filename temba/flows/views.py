@@ -259,7 +259,7 @@ class RuleCRUDL(SmartCRUDL):
                     current_flow = dict(id=flow.id,
                                         text=flow.name,
                                         rules=[],
-                                        stats=dict(contacts=flow.get_total_contacts(),
+                                        stats=dict(runs=flow.get_total_runs(),
                                                    created_on=flow.created_on))
 
                 current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
@@ -1261,7 +1261,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)
-            context['participant_count'] = self.object.get_total_contacts()
+            context['run_count'] = self.object.get_total_runs()
             context['complete_count'] = self.object.get_completed_runs()
             return context
 

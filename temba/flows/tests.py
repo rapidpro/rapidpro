@@ -239,14 +239,14 @@ class FlowTest(TembaTest):
         entry = ActionSet.objects.filter(uuid=self.flow.entry_uuid)[0]
 
         # how many people in the flow?
-        self.assertEquals(0, self.flow.get_total_contacts())
+        self.assertEquals(0, self.flow.get_total_runs())
         self.assertEquals(0, self.flow.get_completed_percentage())
 
         # start the flow
         self.flow.start([], [self.contact, self.contact2])
 
         # test our stats again
-        self.assertEquals(2, self.flow.get_total_contacts())
+        self.assertEquals(2, self.flow.get_total_runs())
         self.assertEquals(0, self.flow.get_completed_percentage())
 
         # should have created a single broadcast
@@ -421,7 +421,7 @@ class FlowTest(TembaTest):
         self.assertFalse(step.next_uuid)
 
         # check our completion percentages
-        self.assertEquals(2, self.flow.get_total_contacts())
+        self.assertEquals(2, self.flow.get_total_runs())
         self.assertEquals(50, self.flow.get_completed_percentage())
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
@@ -595,7 +595,7 @@ class FlowTest(TembaTest):
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
 
-        self.assertEqual(self.flow.get_total_contacts(), 0)
+        self.assertEqual(self.flow.get_total_runs(), 0)
         self.assertEqual(self.flow.get_completed_percentage(), 0)
 
         workbook = self.export_flow_results(self.flow)
@@ -2973,7 +2973,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, FlowRun.objects.filter(is_active=True).count())
         self.assertEquals(0, FlowRun.objects.filter(is_active=False).count())
         self.assertEquals(6, flow.get_total_runs())
-        self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(6, active[color.uuid])
         self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
 
@@ -2985,7 +2984,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
         self.assertEquals(6, FlowRun.objects.filter(is_active=False, exit_type='E').exclude(exited_on=None).count())
         self.assertEquals(6, flow.get_total_runs())
-        self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(0, len(active))
 
         # assert our flowrun counts
@@ -3072,7 +3070,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
         self.assertEquals(0, flow.get_completed_runs())
         self.assertEquals(0, flow.get_completed_percentage())
 
@@ -3102,7 +3099,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(3, visited[msg_to_color_step])
         self.assertEquals(2, flow.get_total_runs())
-        self.assertEquals(2, flow.get_total_contacts())
 
         # now let's have them land in the same place
         self.send_message(flow, 'blue', contact=ryan)
@@ -3149,13 +3145,11 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(3, visited[other_rule_to_msg])
 
-        # our completion stats should remain the same
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(50, flow.get_completed_percentage())
-
-        # our completion stats should remain the same
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(50, flow.get_completed_percentage())
+        # no completed runs but one expired run
+        self.assertEquals(2, flow.get_total_runs())
+        self.assertEquals(0, flow.get_completed_runs())
+        self.assertEquals(0, flow.get_completed_percentage())
+        self.assertEquals(1, flow.get_expired_runs())
 
         # check that we have the right number of steps and runs
         self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
@@ -3169,7 +3163,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
 
         # he was also accounting for our completion rate, back to nothing
         self.assertEquals(0, flow.get_completed_runs())
@@ -3199,7 +3192,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
@@ -3216,7 +3208,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, visited[msg_to_color_step])
         self.assertEquals(0, visited[other_rule_to_msg])
         self.assertEquals(0, flow.get_total_runs())
-        self.assertEquals(0, flow.get_total_contacts())
         self.assertEquals(0, flow.get_completed_runs())
         self.assertEquals(0, flow.get_completed_percentage())
 
@@ -3233,7 +3224,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
 
         # set the run to be ready for expiration
         run = tupac.runs.first()
@@ -3246,7 +3236,6 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
