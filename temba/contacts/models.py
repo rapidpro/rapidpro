@@ -1395,7 +1395,7 @@ class ContactURN(models.Model):
     @classmethod
     def normalize_urn(cls, scheme, path, country_code=None):
         """
-        Normalizes a URN scheme and path
+        Normalizes a URN scheme and path. Should be called anytime looking for a URN match.
         """
         norm_scheme = scheme.strip().lower()
         norm_path = path.strip()
@@ -1405,6 +1405,7 @@ class ContactURN(models.Model):
         elif norm_scheme == TWITTER_SCHEME:
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
+            norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
 
         return norm_scheme, norm_path
 
