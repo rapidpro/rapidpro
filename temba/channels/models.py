@@ -8,6 +8,7 @@ import phonenumbers
 import plivo
 import regex
 import requests
+import telegram
 
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -60,6 +61,7 @@ VUMI = 'VM'
 ZENVIA = 'ZV'
 YO = 'YO'
 START = 'ST'
+TELEGRAM = 'TG'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -112,7 +114,8 @@ CHANNEL_SETTINGS = {
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
-    START: dict(scheme='tel', max_length=1600)
+    START: dict(scheme='tel', max_length=1600),
+    TELEGRAM: dict(scheme='telegram', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -123,6 +126,7 @@ OUTGOING_PROXIES = settings.OUTGOING_PROXIES
 PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
+AUTH_TOKEN = 'auth_token'
 
 TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
                       "users who are not following you")  # handle no longer follows us
@@ -151,6 +155,7 @@ class Channel(TembaModel):
                     (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
                     (START, "Start Mobile"),
+                    (TELEGRAM, "Telegram"),
                     (YO, "Yo!"),
                     (M3TECH, "M3 Tech"))
 
@@ -248,6 +253,22 @@ class Channel(TembaModel):
             return phonenumbers.region_code_for_number(parsed)
         except Exception:
             return None
+
+    @classmethod
+    def add_telegram_channel(cls, org, user, auth_token):
+        """
+        Creates a new telegram channel from the passed in auth token
+        """
+        from temba.contacts.models import TELEGRAM_SCHEME
+        bot = telegram.Bot(auth_token)
+        me = bot.getMe()
+
+        channel = Channel.create(org, user, None, TELEGRAM, name=me.first_name, address=me.username,
+                                 config={AUTH_TOKEN: auth_token}, scheme=TELEGRAM_SCHEME)
+
+        bot.setWebhook("https://" + settings.TEMBA_HOST +
+                       "%s" % reverse('handlers.telegram_handler', args=[channel.uuid]))
+        return channel
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type):
@@ -532,13 +553,13 @@ class Channel(TembaModel):
         return random_string(64)
 
     def has_sending_log(self):
-        return self.channel_type != 'A'
+        return self.channel_type != ANDROID
 
     def has_configuration_page(self):
         """
         Whether or not this channel supports a configuration/settings page
         """
-        return self.channel_type not in ('T', 'A', 'TT')
+        return self.channel_type not in (TWILIO, ANDROID, TWITTER, TELEGRAM)
 
     def get_delegate_channels(self):
         if not self.org:  # detached channels can't have delegates
@@ -839,8 +860,9 @@ class Channel(TembaModel):
         self.save()
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg
-        Msg.current_messages.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
+        from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
+        Msg.current_messages.filter(channel=self, direction=OUTGOING,
+                                    status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == ANDROID:  # pragma: no cover
@@ -1738,6 +1760,29 @@ class Channel(TembaModel):
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
+    def send_telegram_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        start = time.time()
+
+        auth_token = channel.config[AUTH_TOKEN]
+        send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
+        post_body = dict(chat_id=msg.urn_path, text=text)
+
+        try:
+            response = requests.post(send_url, post_body)
+            external_id = response.json()['result']['message_id']
+        except Exception as e:
+            raise SendException(str(e),
+                                send_url,
+                                'POST',
+                                urlencode(post_body),
+                                response.content,
+                                505)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        ChannelLog.log_success(msg, "Successfully delivered message")
+
+    @classmethod
     def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
@@ -2022,6 +2067,7 @@ class Channel(TembaModel):
                       BLACKMYNA: Channel.send_blackmyna_message,
                       SMSCENTRAL: Channel.send_smscentral_message,
                       START: Channel.send_start_message,
+                      TELEGRAM: Channel.send_telegram_message,
                       M3TECH: Channel.send_m3tech_message,
                       YO: Channel.send_yo_message}
 

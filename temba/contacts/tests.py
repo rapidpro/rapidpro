@@ -1859,6 +1859,7 @@ class ContactTest(TembaTest):
         csv_file = open(filepath, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(reverse('contacts.contact_import'), post_data, follow=True)
+
         self.assertIsNotNone(response.context['task'])
 
         if task_customize:
@@ -1874,13 +1875,14 @@ class ContactTest(TembaTest):
             if not expected_results.get('error_messages', []):
                 self.assertFalse(response.context['show_form'])
 
-            # we have records and addede them to a group
+            # we have records and added them to a group
             if not expected_results.get('records', 0):
                 self.assertIsNotNone(response.context['group'])
 
         return response
 
     def test_contact_import(self):
+        #
         # first import brings in 3 contacts
         user = self.user
         records = self.do_import(user, 'sample_contacts.xls')
@@ -2049,12 +2051,14 @@ class ContactTest(TembaTest):
                                  dict(records=2, errors=1, creates=0, updates=2,
                                       error_messages=[dict(line=4, error="Ignored test contact")]))
 
+        self.maxDiff = None
+
         # import a spreadsheet where a contact has a missing phone number and another has an invalid number
         self.assertContactImport('%s/test_imports/sample_contacts_with_missing_and_invalid_phones.xls' % settings.MEDIA_ROOT,
                                  dict(records=1, errors=2, creates=0, updates=1,
                                       error_messages=[dict(line=3,
-                                                           error="Missing any valid URNs; at least one among "
-                                                                 "'mailto, twitter, ext or phone' should be provided"),
+                                                           error="Missing any valid URNs; at least one among phone, "
+                                                                 "twitter, telegram, email, external should be provided"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
         # import a spreadsheet with a name and a twitter columns only
@@ -2109,9 +2113,8 @@ class ContactTest(TembaTest):
             self.assertContactImport('%s/test_imports/sample_contacts_uuid_no_urns.xls' % settings.MEDIA_ROOT,
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
-                                                               error="Missing any valid URNs; at least one among "
-                                                                     "'mailto, twitter, ext or phone' should be "
-                                                                     "provided")]))
+                                                          error="Missing any valid URNs; at least one among phone, "
+                                                                "twitter, telegram, email, external should be provided")]))
 
             # lock for creates only
             self.assertEquals(mock_lock.call_count, 1)
@@ -2177,9 +2180,8 @@ class ContactTest(TembaTest):
             self.assertContactImport('%s/test_imports/sample_contacts_uuid_no_urns.csv' % settings.MEDIA_ROOT,
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
-                                                               error="Missing any valid URNs; at least one among "
-                                                                     "'mailto, twitter, ext or phone' should be "
-                                                                     "provided")]))
+                                                          error="Missing any valid URNs; at least one among phone, "
+                                                                "twitter, telegram, email, external should be provided")]))
 
             # only lock for create
             self.assertEquals(mock_lock.call_count, 1)
@@ -2279,15 +2281,15 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing a required header. At least one of '
-                             '"Phone", "Twitter", "External" should be included.')
+                             'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
+                             '"Telegram", "Email", "External" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
-                             'The file you provided is missing required headers called "Name" and one of '
-                             '"Phone", "Twitter", "External".')
+                             'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
+                             '"Telegram", "Email", "External" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -2920,7 +2922,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(34):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -2944,7 +2946,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
 
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(34):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
