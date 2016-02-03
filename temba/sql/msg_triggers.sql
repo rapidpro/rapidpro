@@ -4,7 +4,6 @@
 DROP FUNCTION IF EXISTS temba_increment_system_label();
 DROP FUNCTION IF EXISTS temba_maybe_squash_systemlabel();
 
-
 -- no longer used
 DROP TRIGGER IF EXISTS when_msg_updated_then_update_label_counts_trg ON msgs_msg;
 DROP TRIGGER IF EXISTS when_label_inserted_or_deleted_then_update_count_trg ON msgs_msg_labels;
@@ -378,7 +377,7 @@ CREATE TRIGGER temba_msg_on_truncate_trg
   EXECUTE PROCEDURE temba_msg_on_change();
 
 ----------------------------------------------------------------------------------
--- Every 100 inserts or so this will squash the label by gathering the counts
+-- Squash the label by gathering the counts into a single row
 ----------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_squash_systemlabel(_org_id INTEGER, _label_type CHAR(1))
 RETURNS VOID AS $$
