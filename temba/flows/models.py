@@ -491,9 +491,6 @@ class Flow(TembaModel):
             voice_response.hangup()
             run.set_completed(final_step=step)
 
-            # if we hangup then the run is no longer active
-            run.expire()
-
         return voice_response
 
     @classmethod

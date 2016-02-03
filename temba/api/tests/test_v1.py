@@ -366,7 +366,6 @@ class APITest(TembaTest):
                                                                           response_type='C',
                                                                           ruleset_type='wait_message',
                                                                           label='color')],
-                                                           participants=0,
                                                            created_on=datetime_to_json_date(flow.created_on),
                                                            expires=flow.expires_after_minutes,
                                                            archived=False))
