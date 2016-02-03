@@ -1380,23 +1380,6 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
-
-  # Saving a USSD message in the flow
-  $scope.saveUssd = (message, menu, type='ussd') ->
-
-    if typeof($scope.action.msg) != "object"
-      $scope.action.msg = {}
-
-    $scope.action.msg.message = message
-    for item in menu
-      message += '\n' + item.number + ': ' + item.label
-    $scope.action.msg.menu = menu if menu
-    $scope.action.msg[$scope.base_language] = message
-
-    $scope.action.type = type
-    Flow.saveAction(actionset, $scope.action)
-    $modalInstance.close()
-
   # Saving an SMS to somebody else
   $scope.saveSend = (omnibox, message) ->
     $scope.action.groups = omnibox.groups
