@@ -82,6 +82,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
   # inject into our gear menu
   $rootScope.gearLinks = []
   $rootScope.ivr = window.ivr
+  $rootScope.ussd = window.ussd
 
   $scope.getContactFieldName = (ruleset) ->
     return Flow.getContactField(ruleset)
@@ -283,6 +284,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       return false
     return true
 
+  $rootScope.defaultRuleSetType = ->
+    if window.ivr
+      rulesetType = 'wait_digit'
+    else if window.ussd
+      rulesetType = 'wait_ussd'
+    else
+      rulesetType = 'wait_message'
+
   $scope.onConnectorDrop = (connection) ->
 
     $(connection.sourceId).parent().removeClass('reconnecting')
@@ -326,7 +335,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             label: "Response " + (Flow.flow.rule_sets.length + 1)
             operand: "@step.value"
             webhook_action: null,
-            ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
+            ruleset_type: $rootScope.defaultRuleSetType(),
             rules: [
               test:
                 test: "true"
@@ -795,6 +804,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   # let our template know our editor type
   $scope.nodeType = options.nodeType
   $scope.ivr = window.ivr
+  $scope.ussd = window.ussd
   $scope.options = options
 
   $scope.contactFields = Flow.contactFieldSearch
@@ -854,7 +864,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       label: "Response " + (Flow.flow.rule_sets.length + 1)
       operand: "@step.value"
       webhook_action: null,
-      ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
+      ruleset_type: $rootScope.defaultRuleSetType(),
       rules: [
         test:
           test: "true"
