@@ -2822,7 +2822,7 @@ class FlowRun(models.Model):
 
     @classmethod
     def create(cls, flow, contact_id, start=None, call=None, fields=None,
-               created_on=None, db_insert=True, submitted_by=submitted_by):
+               created_on=None, db_insert=True, submitted_by=None):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
                     call=call, fields=fields, submitted_by=submitted_by)

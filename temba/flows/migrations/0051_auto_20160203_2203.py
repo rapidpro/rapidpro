@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('flows', '0049_install_flowcount_triggers'),
+        ('flows', '0050_auto_20160202_1931'),
     ]
 
     operations = [
