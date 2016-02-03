@@ -2337,6 +2337,7 @@ class Flow(TembaModel, SmartModel):
 class RuleSet(models.Model):
 
     TYPE_WAIT_MESSAGE = 'wait_message'
+    TYPE_WAIT_USSD = 'wait_ussd'
     TYPE_WAIT_RECORDING = 'wait_recording'
     TYPE_WAIT_DIGIT = 'wait_digit'
     TYPE_WAIT_DIGITS = 'wait_digits'
@@ -2346,9 +2347,10 @@ class RuleSet(models.Model):
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS)
+    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
+                    (TYPE_WAIT_USSD, "Wait for USSD message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
