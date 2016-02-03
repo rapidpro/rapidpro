@@ -477,6 +477,12 @@
             background: @color-bg-translate;
             border-color: @color-bg-translate - #222;
           }
+
+          // USSD rule interrupted (Other)
+          &.interrupted {
+            color: #8B2A2A;
+            background-color: #FFFBC5;
+          }
         }
       }
     }
@@ -1037,6 +1043,11 @@
     }
 
   }
+
+  .split-header-inner {
+     padding: 10px 20px 0px;
+  }
+
   .split-margin {
     padding: 0 20px;
   }
@@ -1070,7 +1081,7 @@
     padding-top: 5px;
     padding-bottom: 0px;
     background: #fff;
-    border: 1 px solid #eee;
+    //border: 1 px solid #eee;
 
     &.ui-sortable-helper {
       border: 1px solid @flat-white - #111 !important;
@@ -1087,11 +1098,28 @@
       height: 30px;
     }
 
+    .ordinals {
+      display: inline-block;
+      width: 45px;
+
+       .number {
+          width: 30px;
+          text-align: center;
+       }
+    }
+
     .operation {
       display: inline-block;
       width: 160px;
       padding: 0 8px;
 
+      &.wide {
+        width: 305px;
+
+        .operand {
+          width: 290px;
+        }
+      }
       .operand {
         width: 145px;
       }
@@ -1261,8 +1289,8 @@
 
   #split-on {
     padding-top:2px;
-    margin-top:5px;
-    font-size:13px;
+    margin-top:10px;
+    font-size:15px;
     margin-bottom:9px;
     margin-left:20px;
 
@@ -1694,49 +1722,38 @@
       margin-left:4px;
     }
   }
-}
 
-// USSD
+  // USSD add text
 
-.ussd-directive {
-  textarea.ussd {
-    height: 100px;
-    padding: 10px;
-    width: 498px;
-  }
-
-  .counter {
-    font-size: 12px;
-    float: right;
-  }
-
-  .warning {
-    color: @flat-darkgrey;
+  textarea.ussd-add-text {
+    width: 595px;
+    height: 40px;
+    resize: vertical;
   }
 }
 
-.ussd {
-  .title {
-    text-shadow: 0px 1px @color-ussd - #222;
-    .bg-gradient(@color-ussd, @color-ussd - #101010);
-  }
-
-  .missing {
-    color: @flat-darkwhite;
-  }
-}
+// USSD flow split view
 
 .ussd-flow-items-wrapper {
+  position: relative;
   display: block;
   padding: 6px 6px 0;
+  border: solid rgba(0,0,0,.15);
+  border-width: 0 0 1px;
 }
+
+// set width to 'ruleset' table by js
+
+.ussd-flow-text {
+  display: block;
+  padding: 0 0 6px;
+}
+
+// set width to 'ruleset' table by js
 
 .ussd-flow-items {
   display: table;
-  width: 100%;
-  padding: 6px 3px;
-  border: 1px solid rgba(0,0,0,.15);
-  .box-sizing();
+  padding: 0 0 6px;
 
   .ussd-flow-item {
     display: table-row;
@@ -1752,7 +1769,7 @@
       display: table-cell;
       min-width: 19px;
       height: 25px;
-      padding: 0 3px;
+      padding: 0 3px 0 0;
       color: #bdc3c7;
 
       > span {
@@ -1770,7 +1787,7 @@
 
     .ussd-label {
       display: table-cell;
-      width: 100%;
+      width: auto;
       height: 25px;
       padding: 0 6px;
       line-height: 16px;
