@@ -29,10 +29,10 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING, ACTION_SET, RULE_SET
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
-from temba.msgs.views import BaseActionForm
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.views import BaseActionForm
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
@@ -94,15 +94,13 @@ class BaseFlowForm(forms.ModelForm):
 
 
 class FlowActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('archive', _("Archive Flows")),
+    allowed_actions = (('archive', _("Archive Flows")),
                        ('label', _("Label Messages")),
                        ('restore', _("Restore Flows")))
 
-    OBJECT_CLASS = Flow
-    OBJECT_CLASS_MANAGER = 'objects'
-    LABEL_CLASS = FlowLabel
-    LABEL_CLASS_MANAGER = 'objects'
-    HAS_IS_ACTIVE = True
+    model = Flow
+    label_model = FlowLabel
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'objects', 'label', 'add')
@@ -371,7 +369,15 @@ class FlowCRUDL(SmartCRUDL):
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
                 return build_json_response(revision.get_definition_json())
             else:
-                revisions = [revision.as_json() for revision in flow.revisions.all().order_by('-created_on')[:25]]
+                revisions = []
+                for revision in flow.revisions.all().order_by('-created_on')[:25]:
+                    # validate the flow defintion before presenting it to the user
+                    try:
+                        FlowRevision.validate_flow_definition(revision.get_definition_json())
+                        revisions.append(revision.as_json())
+                    except ValueError as e:
+                        pass
+
                 return build_json_response(revisions)
 
     class OrgQuerysetMixin(object):
@@ -1154,7 +1160,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # reset the groups for test contact
                 for group in test_contact.all_groups.all():
-                    group.update_contacts([test_contact], False)
+                    group.update_contacts(request.user, [test_contact], False)
 
                 flow.start([], [test_contact], restart_participants=True)
 

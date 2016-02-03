@@ -1338,11 +1338,11 @@ class Msg(models.Model):
         self.labels.clear()
 
     @classmethod
-    def apply_action_label(cls, msgs, label, add):
+    def apply_action_label(cls, user, msgs, label, add):
         return label.toggle_label(msgs, add)
 
     @classmethod
-    def apply_action_archive(cls, msgs):
+    def apply_action_archive(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1351,7 +1351,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_restore(cls, msgs):
+    def apply_action_restore(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1360,7 +1360,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_delete(cls, msgs):
+    def apply_action_delete(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1369,7 +1369,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_resend(cls, msgs):
+    def apply_action_resend(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1500,13 +1500,13 @@ class SystemLabel(models.Model):
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.current_messages.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.current_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
             qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:

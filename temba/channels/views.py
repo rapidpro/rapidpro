@@ -25,7 +25,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN_SCHEME_CHOICES
+from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, URN_SCHEME_CHOICES
 from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -38,7 +38,7 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH,
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       EXTERNAL: "icon-channel-external",
@@ -49,7 +49,8 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
                       PLIVO: "icon-channel-plivo",
                       CLICKATELL: "icon-channel-clickatell",
-                      TWITTER: "icon-twitter"}
+                      TWITTER: "icon-twitter",
+                      TELEGRAM: "icon-telegram"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
 SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
@@ -188,6 +189,10 @@ def channel_status_processor(request):
         # twitter is a suitable sender
         if not send_channel:
             send_channel = org.get_send_channel(scheme=TWITTER_SCHEME)
+
+        # as is telegram
+        if not send_channel:
+            send_channel = org.get_send_channel(scheme=TELEGRAM_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
@@ -513,7 +518,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo',
+               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
                'claim_twilio_messaging_service')
     permissions = True
 
@@ -748,7 +753,7 @@ class ChannelCRUDL(SmartCRUDL):
             return context
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = "id@channels.channel_read"
+        cancel_url = 'id@channels.channel_read'
         title = _("Remove Android")
         success_message = ''
         form = []
@@ -760,7 +765,6 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.get_object()
 
             try:
-
                 channel.release(trigger_sync=self.request.META['SERVER_NAME'] != "testserver")
 
                 if channel.channel_type == TWILIO and not channel.is_delegate_sender():
@@ -1208,6 +1212,47 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
+
+    class ClaimTelegram(OrgPermsMixin, SmartFormView):
+        class TelegramForm(forms.Form):
+            auth_token = forms.CharField(label=_("Authentication Token"),
+                                         help_text=_("The Authentication token for your Telegram Bot"))
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs.pop('org')
+                super(ChannelCRUDL.ClaimTelegram.TelegramForm, self).__init__(*args, **kwargs)
+
+            def clean_auth_token(self):
+                auth_token = self.cleaned_data['auth_token']
+
+                # does a bot already exist on this account with that auth token
+                for channel in Channel.objects.filter(org=self.org, is_active=True, channel_type=TELEGRAM):
+                    if channel.config_json()[AUTH_TOKEN] == auth_token:
+                        raise ValidationError(_("A telegram channel for this bot already exists on your account."))
+
+                try:
+                    import telegram
+                    bot = telegram.Bot(token=auth_token)
+                    bot.getMe()
+                except telegram.TelegramError as e:
+                    raise ValidationError(_("Your authentication token is invalid, please check and try again"))
+
+                return self.cleaned_data['auth_token']
+
+        title = _("Claim Telegram")
+        form_class = TelegramForm
+        success_url = 'uuid@channels.channel_read'
+        submit_button_name = _("Connect Telegram Bot")
+
+        def form_valid(self, form):
+            auth_token = self.form.cleaned_data['auth_token']
+            self.object = Channel.add_telegram_channel(self.request.user.get_org(), self.request.user, auth_token)
+            return super(ChannelCRUDL.ClaimTelegram, self).form_valid(form)
+
+        def get_form_kwargs(self):
+            kwargs = super(ChannelCRUDL.ClaimTelegram, self).get_form_kwargs()
+            kwargs['org'] = self.request.user.get_org()
+            return kwargs
 
     class ClaimYo(ClaimAuthenticatedExternal):
         class YoClaimForm(forms.Form):

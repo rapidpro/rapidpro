@@ -8,7 +8,7 @@ from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
 from temba.utils.email import send_simple_email
 from redis_cache import get_redis_connection
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -75,7 +75,6 @@ def start_msg_flow_batch_task():
 
     # instantiate all the objects we need that were serialized as JSON
     flow = Flow.objects.get(pk=task['flow'])
-    batch_contacts = list(Contact.objects.filter(pk__in=task['contacts']))
     broadcasts = [] if not task['broadcasts'] else Broadcast.objects.filter(pk__in=task['broadcasts'])
     started_flows = [] if not task['started_flows'] else task['started_flows']
     start_msg = None if not task['start_msg'] else Msg.all_messages.filter(pk=task['start_msg']).first()
@@ -83,7 +82,7 @@ def start_msg_flow_batch_task():
     flow_start = None if not task['flow_start'] else FlowStart.objects.filter(pk=task['flow_start']).first()
 
     # and go do our work
-    flow.start_msg_flow_batch(batch_contacts, broadcasts=broadcasts,
+    flow.start_msg_flow_batch(task['contacts'], broadcasts=broadcasts,
                               started_flows=started_flows, start_msg=start_msg,
                               extra=extra, flow_start=flow_start)
 
@@ -117,3 +116,12 @@ def calculate_flow_stats_task(flow_id):
     if runs_started != runs_started_cached:
         logger = start_flow_task.get_logger()
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+
+@task(track_started=True, name="squash_flowruncounts")
+def squash_flowruncounts():
+    r = get_redis_connection()
+
+    key = 'squash_flowruncounts'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            FlowRunCount.squash_counts()

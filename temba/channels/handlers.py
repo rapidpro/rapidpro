@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
 import json
@@ -15,7 +16,7 @@ from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
-from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
+from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
@@ -82,7 +83,7 @@ class TwilioHandler(View):
                 call.save()
 
                 if flow:
-                    FlowRun.create(flow, contact, call=call)
+                    FlowRun.create(flow, contact.pk, call=call)
                     response = Flow.handle_call(call, {})
                     return HttpResponse(unicode(response))
                 else:
@@ -409,6 +410,55 @@ class YoHandler(ExternalHandler):
     """
     def get_channel_type(self):
         return YO
+
+
+class TelegramHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(TelegramHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import TELEGRAM
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TELEGRAM).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        body = json.loads(request.body)
+
+        # skip if there is no message block (could be a sticker or voice)
+        if not 'text' in body['message']:
+            return HttpResponse("No message text, ignored.")
+
+        # look up the contact
+        telegram_id = str(body['message']['from']['id'])
+        existing_contact = Contact.from_urn(channel.org, TELEGRAM_SCHEME, telegram_id)
+
+        # if the contact doesn't exist, try to create one
+        if not existing_contact and not channel.org.is_anon:
+            # "from": {
+            # "id": 25028612,
+            # "first_name": "Eric",
+            # "last_name": "Newcomer",
+            # "username": "ericn" }
+            name = " ".join((body['message']['from'].get('first_name', ''), body['message']['from'].get('last_name', '')))
+            name = name.strip()
+
+            username = body['message']['from'].get('username', '')
+            if not name and username:
+                name = username
+
+            if name:
+                Contact.get_or_create(channel.org, channel.created_by, name, [(TELEGRAM_SCHEME, telegram_id)])
+
+        msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
+        sms = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), body['message']['text'],
+                                  date=msg_date)
+
+        return HttpResponse("SMS Accepted: %d" % sms.id)
 
 class InfobipHandler(View):
 
@@ -1087,16 +1137,19 @@ class ClickatellHandler(View):
             # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
             gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
             text = request.REQUEST['text']
+            charset = request.REQUEST.get('charset', 'utf-8')
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
             # this into utf-8 through the insane process below, Python is retarded about encodings
-            if request.REQUEST.get('charset', 'utf-8') == 'UTF-16BE':
+            if charset == 'UTF-16BE':
                 text_bytes = bytearray()
                 for text_byte in text:
                     text_bytes.append(ord(text_byte))
 
                 # now encode back into utf-8
                 text = text_bytes.decode('utf-16be').encode('utf-8')
+            elif charset == 'ISO-8859-1':
+                text = text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
 
             sms = Msg.create_incoming(channel,
                                       (TEL_SCHEME, request.REQUEST['from']),
@@ -1300,7 +1353,11 @@ class StartHandler(View):
         if external_id is None or sender_el is None or text_el is None:
             return HttpResponse("Missing parameters, must have 'request_id', 'to' and 'body'", status=400)
 
-        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text_el.text)
+        text = text_el.text
+        if text is None:
+            text = ""
+
+        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text)
 
         # Start expects an XML response
         xml_response = """<answer type="async"><state>Accepted</state></answer>"""

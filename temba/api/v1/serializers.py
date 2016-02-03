@@ -491,7 +491,7 @@ class ContactWriteSerializer(WriteSerializer):
 
             contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
 
-            if self.instance and contact_by_urns != self.instance:
+            if self.instance and contact_by_urns and contact_by_urns != self.instance:
                 raise serializers.ValidationError(_("URNs are used by other contacts"))
         else:
             contact_by_urns = None
@@ -516,7 +516,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         if self.instance:
             if self.urn_tuples is not None:
-                self.instance.update_urns(self.urn_tuples)
+                self.instance.update_urns(self.user, self.urn_tuples)
 
             # update our name and language
             if name != self.instance.name:
@@ -539,17 +539,17 @@ class ContactWriteSerializer(WriteSerializer):
             for key, value in fields.items():
                 existing_by_key = ContactField.objects.filter(org=self.org, key__iexact=key, is_active=True).first()
                 if existing_by_key:
-                    self.instance.set_field(existing_by_key.key, value)
+                    self.instance.set_field(self.user, existing_by_key.key, value)
                     continue
 
                 # TODO as above, need to get users to stop updating via label
                 existing_by_label = ContactField.get_by_label(self.org, key)
                 if existing_by_label:
-                    self.instance.set_field(existing_by_label.key, value)
+                    self.instance.set_field(self.user, existing_by_label.key, value)
 
         # update our contact's groups
         if self.group_objs is not None:
-            self.instance.update_groups(self.group_objs)
+            self.instance.update_groups(self.user, self.group_objs)
 
         return self.instance
 
@@ -616,19 +616,19 @@ class ContactBulkActionSerializer(WriteSerializer):
         action = self.validated_data['action']
 
         if action == 'add':
-            self.group_obj.update_contacts(contacts, add=True)
+            self.group_obj.update_contacts(self.user, contacts, add=True)
         elif action == 'remove':
-            self.group_obj.update_contacts(contacts, add=False)
+            self.group_obj.update_contacts(self.user, contacts, add=False)
         elif action == 'expire':
             FlowRun.expire_all_for_contacts(contacts)
         else:
             for contact in contacts:
                 if action == 'block':
-                    contact.block()
+                    contact.block(self.user)
                 elif action == 'unblock':
-                    contact.unblock()
+                    contact.unblock(self.user)
                 elif action == 'delete':
-                    contact.release()
+                    contact.release(self.user)
 
     class Meta:
         fields = ('contacts', 'action', 'group', 'group_uuid')
@@ -1241,8 +1241,8 @@ class FlowRunWriteSerializer(WriteSerializer):
                                      flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
 
         if not run:
-            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started)
-            self.flow_obj.update_start_counts([self.contact_obj])
+            run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started)
+            self.flow_obj.update_start_counts([self.contact_obj.pk])
 
         step_objs = []
         previous_rule = None

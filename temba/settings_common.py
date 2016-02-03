@@ -415,6 +415,7 @@ PERMISSIONS = {
                          'claim_shaqodoon',
                          'claim_smscentral',
                          'claim_start',
+                         'claim_telegram',
                          'claim_twilio',
                          'claim_twilio_messaging_service',
                          'claim_twitter',
@@ -608,6 +609,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
         'channels.channel_claim_start',
+        'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
@@ -722,6 +724,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
         'channels.channel_claim_start',
+        'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
@@ -922,6 +925,10 @@ CELERYBEAT_SCHEDULE = {
     "calculate-credit-caches": {
         'task': 'calculate_credit_caches',
         'schedule': timedelta(days=3),
+    },
+    "squash-flowruncounts": {
+        'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
     }
 }
 

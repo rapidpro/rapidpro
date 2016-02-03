@@ -4,8 +4,9 @@ import logging
 
 from django.conf import settings
 from django.http import HttpResponseServerError
-from rest_framework import exceptions
+from rest_framework import exceptions, status
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import exception_handler
@@ -89,6 +90,13 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         self.template = 'api/v%d/api_root.html' % api_version
 
         return super(DocumentationRenderer, self).render(data, accepted_media_type, renderer_context)
+
+
+class InvalidQueryError(APIException):
+    """
+    Exception class for invalid queries in list endpoints
+    """
+    status_code = status.HTTP_400_BAD_REQUEST
 
 
 def temba_exception_handler(exc, context):

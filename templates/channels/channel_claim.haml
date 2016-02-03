@@ -472,23 +472,41 @@
             %div
               -trans "Use our pluggable API to connect an external service you already have."
 
-    -if org_perms.channels.channel_claim_twitter
+    -if org_perms.channels.channel_claim_twitter or org_perms.channels.channel_claim_telegram
       %h3
         -trans "Social Network Channels"
 
-      .claim-row.twitter-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter' %}"}
-              .claim-glyph.icon-twitter
-              %p.claim-text
-                -trans "Twitter"
+      -if org_perms.channels.channel_claim_twitter
+        .claim-row.twitter-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter' %}"}
+                .claim-glyph.icon-twitter
+                %p.claim-text
+                  -trans "Twitter"
 
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.
+
+      -if org_perms.channels.channel_claim_telegram
+        .claim-row.twitter-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_telegram' %}"}
+                .claim-glyph.icon-telegram
+                %p.claim-text
+                  -trans "Telegram"
+
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="https://telegram.org">Telegram</a> bot to send and receive messages to Telegram users
+                    for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
+                    and receive messages.
 
 
 

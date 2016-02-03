@@ -24,15 +24,15 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.channels.models import SEND
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
-from temba.msgs.views import SendMessageForm, BaseActionForm
+from temba.msgs.views import SendMessageForm
 from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
 from temba.utils import analytics, slugify_with, languages
+from temba.utils.views import BaseActionForm
 from .omnibox import omnibox_query, omnibox_results_to_dict
 
 
@@ -41,8 +41,8 @@ class RemoveContactForm(forms.Form):
     group = forms.ModelChoiceField(ContactGroup.user_groups.all())
 
     def __init__(self, *args, **kwargs):
-        org = kwargs['org']
-        del kwargs['org']
+        org = kwargs.pop('org')
+        self.user = kwargs.pop('user')
 
         super(RemoveContactForm, self).__init__(*args, **kwargs)
 
@@ -61,7 +61,7 @@ class RemoveContactForm(forms.Form):
             raise ValueError("Can't manually add/remove contacts for a dynamic group")  # should never happen
 
         # remove contact from group
-        group.update_contacts([contact], False)
+        group.update_contacts(self.user, [contact], False)
         return dict(group_id=group.id, contact_id=contact.id)
 
 
@@ -147,17 +147,16 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
 
 class ContactActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('label', _("Add to Group")),
+    allowed_actions = (('label', _("Add to Group")),
                        ('unlabel', _("Remove from Group")),
                        ('unblock', _("Unblock Contacts")),
                        ('block', _("Block Contacts")),
                        ('delete', _("Delete Contacts")))
 
-    OBJECT_CLASS = Contact
-    OBJECT_CLASS_MANAGER = 'objects'
-    LABEL_CLASS = ContactGroup
-    LABEL_CLASS_MANAGER = 'user_groups'
-    HAS_IS_ACTIVE = True
+    model = Contact
+    label_model = ContactGroup
+    label_model_manager = 'user_groups'
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'label', 'objects', 'add')
@@ -681,11 +680,15 @@ class ContactCRUDL(SmartCRUDL):
             sendable_schemes = contact.org.get_schemes(SEND)
 
             urns = contact.get_urns()
+            has_sendable_urn = False
+
             for urn in urns:
                 if urn.scheme in sendable_schemes:
                     urn.sendable = True
+                    has_sendable_urn = True
 
             context['contact_urns'] = urns
+            context['has_sendable_urn'] = has_sendable_urn
 
             # load our contacts values
             Contact.bulk_cache_initialize(contact.org, [contact])
@@ -711,7 +714,7 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
-            form = RemoveContactForm(self.request.POST, org=request.user.get_org())
+            form = RemoveContactForm(self.request.POST, org=request.user.get_org(), user=request.user)
             if form.is_valid():
                 result = form.execute()
                 return HttpResponse(json.dumps(result))
@@ -1028,7 +1031,7 @@ class ContactCRUDL(SmartCRUDL):
 
             new_groups = self.form.cleaned_data.get('groups')
             if new_groups is not None:
-                obj.update_groups(new_groups)
+                obj.update_groups(self.request.user, new_groups)
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
@@ -1057,7 +1060,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 # sort our urns by the supplied order
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
-                obj.update_urns(urns)
+                obj.update_urns(self.request.user, urns)
 
             return obj
 
@@ -1088,11 +1091,11 @@ class ContactCRUDL(SmartCRUDL):
                     if contact_field_type == DISTRICT:
                         fields_to_save_later[key] = value
                     else:
-                        obj.set_field(key, value)
+                        obj.set_field(self.request.user, key, value)
 
             # now save our district fields
             for key, value in fields_to_save_later.iteritems():
-                obj.set_field(key, value)
+                obj.set_field(self.request.user, key, value)
 
             return obj
 
@@ -1105,7 +1108,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact blocked")
 
         def save(self, obj):
-            obj.block()
+            obj.block(self.request.user)
             return obj
 
     class Unblock(OrgPermsMixin, SmartUpdateView):
@@ -1117,7 +1120,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact unblocked")
 
         def save(self, obj):
-            obj.unblock()
+            obj.unblock(self.request.user)
             return obj
 
     class Delete(OrgPermsMixin, SmartUpdateView):
@@ -1129,7 +1132,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ''
 
         def save(self, obj):
-            obj.release()
+            obj.release(self.request.user)
             return obj
 
 
@@ -1171,7 +1174,7 @@ class ContactGroupCRUDL(SmartCRUDL):
                 preselected_contacts = Contact.objects.filter(pk__in=preselected_ids, org=obj.org, is_active=True)
 
                 if preselected_contacts:
-                    obj.update_contacts(preselected_contacts, True)
+                    obj.update_contacts(self.request.user, preselected_contacts, True)
 
             # dynamic group with a query
             elif data['group_query']:
