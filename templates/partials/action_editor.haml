@@ -12,9 +12,6 @@
     %span{ng-if:'config.type == "reply"'}
       %span{auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
-    %span{ng-if:'config.type == "ussd"'}
-      %span{auto-complete:"",ussd:"action.msg",data-message:"message",data-menu:"menu"}
-      %button{ng-click:'saveUssd(message, menu, "ussd")',class:"submit hide"}
     %span{ng-if:'config.type == "say"'}
       %span{show-counter:"false",auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}
@@ -155,8 +152,3 @@
     -trans "Cancel"
   %button{ng-disabled:"action_editor.$invalid",ng-click:"ok()",class:"btn btn-primary",ng-model:"message"}
     -trans "Ok"
-  .ussd-counter{ng-class:"{warning: characters < 20}"}
-    Characters left:
-    .pill
-      %b
-        [[characters]]
