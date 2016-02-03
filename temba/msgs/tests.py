@@ -25,7 +25,7 @@ from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
 from xlrd import open_workbook
 from .management.commands.msg_console import MessageConsole
-
+from temba.msgs.tasks import squash_systemlabels
 
 class MsgTest(TembaTest):
 
@@ -1718,7 +1718,15 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
+        self.assertTrue(SystemLabel.objects.all().count() > 8)
+
+        # squash our counts
+        squash_systemlabels()
+
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,
                                                             SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 0,
                                                             SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
+
+        # we should only have one system label per type
+        self.assertEqual(SystemLabel.objects.all().count(), 8)
