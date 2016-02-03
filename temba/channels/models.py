@@ -116,7 +116,7 @@ CHANNEL_SETTINGS = {
     M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
     START: dict(scheme='tel', max_length=1600),
-    TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600)
+    TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
     TELEGRAM: dict(scheme='telegram', max_length=1600)
 }
 
