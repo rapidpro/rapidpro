@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0028_test_contact_index'),
+        ('contacts', '0029_norm_twitter_urns'),
     ]
 
     operations = [
