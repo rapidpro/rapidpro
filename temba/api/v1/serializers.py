@@ -1238,7 +1238,6 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         if not run:
             run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started)
-            self.flow_obj.update_start_counts([self.contact_obj.pk])
 
         step_objs = []
         previous_rule = None

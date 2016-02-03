@@ -1398,9 +1398,6 @@ class Flow(TembaModel):
             if extra:
                 run.update_fields(extra)
 
-            # keep track of all runs we are starting in redis for faster calcs later
-            self.update_start_counts([contact_id])
-
             # create our call objects
             call = IVRCall.create_outgoing(channel, contact_id, self, self.created_by)
 
