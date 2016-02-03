@@ -678,8 +678,10 @@ class Flow(TembaModel):
             run.set_completed(final_step=step)
             step = None
 
-        # sync our channels to trigger any messages
-        run.flow.org.trigger_send(msgs)
+        # sync our channels to trigger any messages if we have any
+        if msgs:
+            run.flow.org.trigger_send(msgs)
+
         return dict(handled=True, destination=destination, step=step)
 
     @classmethod
