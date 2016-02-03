@@ -337,9 +337,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
             else:
-                return self.model.current_messages.filter(pk=-1)
+                return self.model.all_messages.filter(pk=-1)
         else:
-            return self.model.current_messages.filter(org=org).exclude(visibility=DELETED).exclude(msg_type=None)
+            return self.model.all_messages.filter(org=org).exclude(visibility=DELETED).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
