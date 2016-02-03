@@ -9,69 +9,93 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", ($rootScope, $log, Flow) -
   link = (scope, element, attrs) ->
     scope.menu = []
 
-    # find out how many sms messages this will be
-    scope.countCharacters = ->
-      sum = (items) ->
-          items.reduce (prev, current) ->
-            current.number ?= ""
-            current.label ?= ""
-            prev + current.number.length + current.label.length
-          ,0
-      $rootScope.characters = MESSAGE_LENGTH - scope.message.length - sum(scope.menu)
+    scope.ruleset.config.ussdMenu = [
+      {
+        number: 1
+        label: "test1"
+        category:
+          _base: "T1"
+          _autoName: true
+      },
+      {
+        number: 2
+        label: "test2"
+        category:
+          _base: "T2"
+          _autoName: true
+      }
+    ]
 
-    # update our counter every time the message changes
-    scope.$watch (->scope.message), scope.countCharacters
+    scope.updateCategory = (item) ->
+      words = item.label.trim().split(/\b/)
+      if words
+        categoryName = words[0].toUpperCase()
+        item.category._base = categoryName
+        if categoryName.length > 1
+          item.category._base = categoryName.charAt(0) + categoryName.substr(1).toLowerCase()
 
-    # determine the initial message based on the current language
-    if scope.ussd
-      content = scope.ussd[Flow.flow.base_language].split(/\n/g)
-      # search for first menu item
-      for item, index in content
-        if item.indexOf(": ") isnt -1
-          menuIndex = index
-          break
-
-      if menuIndex
-        # build menu
-        scope.message = content[0..menuIndex-1].join("\n")
-        for item in content[menuIndex..]
-          menuItem = item.split(": ")
-          scope.menu.push
-            number: menuItem[0]
-            label: menuItem[1]
-      else
-        scope.message = scope.ussd[Flow.flow.base_language]
-      if not scope.message
-        scope.message = ""
-
-      # set new menu item number
-      scope.$watch (->scope.menu.length), ->
-        if scope.menu.length < 9
-          scope.newNumber = scope.menu.length + 1
-        else
-          scope.newNumber = 0
-        scope.newLabel = ""
-
-      isPositiveInteger = (n) ->
-        n >>> 0 is parseFloat(n)
-
-    scope.addMenuItem = (number, label) ->
-      scope.menu.push
-        number: number
-        label: label
-
-    scope.removeMenuItem = (index) ->
-      scope.menu.splice(index, 1)
+#    scope.countCharacters = ->
+#      sum = (items) ->
+#          items.reduce (prev, current) ->
+#            current.number ?= ""
+#            current.label ?= ""
+#            prev + current.number.length + current.label.length
+#          ,0
+#      $rootScope.characters = MESSAGE_LENGTH - scope.message.length - sum(scope.menu)
+#
+#    # update our counter every time the message changes
+#    scope.$watch (->scope.message), scope.countCharacters
+#
+#    # determine the initial message based on the current language
+#    if scope.ussd
+#      content = scope.ussd[Flow.flow.base_language].split(/\n/g)
+#      # search for first menu item
+#      for item, index in content
+#        if item.indexOf(": ") isnt -1
+#          menuIndex = index
+#          break
+#
+#      if menuIndex
+#        # build menu
+#        scope.message = content[0..menuIndex-1].join("\n")
+#        for item in content[menuIndex..]
+#          menuItem = item.split(": ")
+#          scope.menu.push
+#            number: menuItem[0]
+#            label: menuItem[1]
+#      else
+#        scope.message = scope.ussd[Flow.flow.base_language]
+#      if not scope.message
+#        scope.message = ""
+#
+#      # set new menu item number
+#      scope.$watch (->scope.menu.length), ->
+#        if scope.menu.length < 9
+#          scope.newNumber = scope.menu.length + 1
+#        else
+#          scope.newNumber = 0
+#        scope.newLabel = ""
+#
+#      isPositiveInteger = (n) ->
+#        n >>> 0 is parseFloat(n)
+#
+#    scope.addMenuItem = (number, label) ->
+#      scope.menu.push
+#        number: number
+#        label: label
+#
+#    scope.removeMenuItem = (index) ->
+#      scope.menu.splice(index, 1)
 
   return {
     templateUrl: "/partials/ussd_directive"
     restrict: "A"
     link: link
-    scope: {
-      ussd: '='
-      message: '='
-      menu: '='
-    }
+#    scope: {
+#      ussd: '='
+#      message: '='
+#      menu: '='
+#    }
   }
 ]
 
