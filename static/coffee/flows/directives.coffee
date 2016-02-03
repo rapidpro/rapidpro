@@ -153,12 +153,8 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       if currentLanguage
         iso_code = currentLanguage.iso_code
 
-      if action.type in ['send', 'reply', 'say', 'ussd']
-        # TODO: check this for translation
-        if action.type is 'ussd'
-          action._translation = action.msg.message
-        else
-          action._translation = action.msg[iso_code]
+      if action.type in ['send', 'reply', 'say']
+        action._translation = action.msg[iso_code]
 
         # translated recording for IVR
         if action.recording
