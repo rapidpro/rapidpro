@@ -17,13 +17,13 @@ from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.views import BaseActionForm
 from temba.schedules.models import Schedule, repeat_choices
 from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel, RECEIVE, ANSWER
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics
+from temba.utils.views import BaseActionForm
 from .models import Trigger
 
 
@@ -261,12 +261,11 @@ class FollowTriggerForm(BaseTriggerForm):
 
 
 class TriggerActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('archive', _("Archive Triggers")),
+    allowed_actions = (('archive', _("Archive Triggers")),
                        ('restore', _("Restore Triggers")))
 
-    OBJECT_CLASS = Trigger
-    OBJECT_CLASS_MANAGER = 'objects'
-    HAS_IS_ACTIVE = True
+    model = Trigger
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'objects')

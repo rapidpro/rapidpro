@@ -268,12 +268,12 @@ class Trigger(SmartModel):
         return trigger.flow
 
     @classmethod
-    def apply_action_archive(cls, triggers):
+    def apply_action_archive(cls, user, triggers):
         triggers.update(is_archived=True)
         return [each_trigger.pk for each_trigger in triggers]
 
     @classmethod
-    def apply_action_restore(cls, triggers):
+    def apply_action_restore(cls, user, triggers):
         m_last_triggered = triggers.filter(trigger_type=Trigger.TYPE_MISSED_CALL).order_by('-last_triggered', '-modified_on')
         c_last_triggered = triggers.filter(trigger_type=Trigger.TYPE_CATCH_ALL).order_by('-last_triggered', '-modified_on')
 

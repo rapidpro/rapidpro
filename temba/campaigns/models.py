@@ -138,8 +138,8 @@ class Campaign(SmartModel):
                 EventFire.update_campaign_events(campaign)
 
     @classmethod
-    def apply_action_archive(cls, campaigns):
-        campaigns.update(is_archived=True)
+    def apply_action_archive(cls, user, campaigns):
+        campaigns.update(is_archived=True, modified_by=user, modified_on=timezone.now())
 
         # update the events for each campaign
         for campaign in campaigns:
@@ -148,8 +148,8 @@ class Campaign(SmartModel):
         return [each_campaign.pk for each_campaign in campaigns]
 
     @classmethod
-    def apply_action_restore(cls, campaigns):
-        campaigns.update(is_archived=False)
+    def apply_action_restore(cls, user, campaigns):
+        campaigns.update(is_archived=False, modified_by=user, modified_on=timezone.now())
 
         # update the events for each campaign
         for campaign in campaigns:

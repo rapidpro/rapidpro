@@ -441,7 +441,7 @@ class MsgTest(TembaTest):
         self.assertEqual(response.context['object_list'].count(), 5)
 
         # archiving a message removes it from the inbox
-        Msg.apply_action_archive([msg1])
+        Msg.apply_action_archive(self.user, [msg1])
 
         response = self.client.get(inbox_url)
         self.assertEqual(response.context['object_list'].count(), 4)
@@ -998,9 +998,9 @@ class BroadcastTest(TembaTest):
 
     def test_substitute_variables(self):
         ContactField.get_or_create(self.org, 'goats', "Goats", False, DECIMAL)
-        self.joe.set_field('goats', "3 ")
+        self.joe.set_field(self.user, 'goats', "3 ")
         ContactField.get_or_create(self.org, 'dob', "Date of birth", False, DATETIME)
-        self.joe.set_field('dob', "28/5/1981")
+        self.joe.set_field(self.user, 'dob', "28/5/1981")
 
         self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))
         self.assertEquals(("Hello World Joe", []), Msg.substitute_variables("Hello World @contact.first_name", self.joe, dict()))
@@ -1076,7 +1076,7 @@ class BroadcastTest(TembaTest):
         ContactField.objects.create(org=self.org, label="Superhero Name", key="superhero_name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
-        self.joe.set_field('superhero_name', 'batman')
+        self.joe.set_field(self.user, 'superhero_name', 'batman')
         self.joe.save()
 
         msg = Msg.all_messages.get()
@@ -1095,12 +1095,12 @@ class BroadcastTest(TembaTest):
         ContactField.get_or_create(self.org, "sector", "sector")
         ContactField.get_or_create(self.org, "team", "team")
 
-        self.joe.set_field("sector", "Kacyiru")
-        self.frank.set_field("sector", "Remera")
-        self.kevin.set_field("sector", "Kanombe")
+        self.joe.set_field(self.user, "sector", "Kacyiru")
+        self.frank.set_field(self.user, "sector", "Remera")
+        self.kevin.set_field(self.user, "sector", "Kanombe")
 
-        self.joe.set_field("team", "Amavubi")
-        self.kevin.set_field("team", "Junior")
+        self.joe.set_field(self.user, "team", "Amavubi")
+        self.kevin.set_field(self.user, "team", "Junior")
 
         self.broadcast = Broadcast.create(self.org, self.user,
                                           "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",

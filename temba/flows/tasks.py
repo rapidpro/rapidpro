@@ -75,7 +75,6 @@ def start_msg_flow_batch_task():
 
     # instantiate all the objects we need that were serialized as JSON
     flow = Flow.objects.get(pk=task['flow'])
-    batch_contacts = list(Contact.objects.filter(pk__in=task['contacts']))
     broadcasts = [] if not task['broadcasts'] else Broadcast.objects.filter(pk__in=task['broadcasts'])
     started_flows = [] if not task['started_flows'] else task['started_flows']
     start_msg = None if not task['start_msg'] else Msg.all_messages.filter(pk=task['start_msg']).first()
@@ -83,7 +82,7 @@ def start_msg_flow_batch_task():
     flow_start = None if not task['flow_start'] else FlowStart.objects.filter(pk=task['flow_start']).first()
 
     # and go do our work
-    flow.start_msg_flow_batch(batch_contacts, broadcasts=broadcasts,
+    flow.start_msg_flow_batch(task['contacts'], broadcasts=broadcasts,
                               started_flows=started_flows, start_msg=start_msg,
                               extra=extra, flow_start=flow_start)
 

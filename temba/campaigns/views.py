@@ -1,24 +1,25 @@
-from uuid import uuid4
-from django.core.exceptions import ValidationError
-from django.forms import ModelForm
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.models import Group
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.contacts.models import ContactGroup, ContactField
-from temba.msgs.views import BaseActionForm
-from temba.flows.models import Flow
-from smartmin.views import *
+from __future__ import unicode_literals
 
-from .models import Campaign, CampaignEvent, EventFire, UNIT_CHOICES, HOURS
+from django import forms
+from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
+from django.views.decorators.csrf import csrf_exempt
+from smartmin.views import SmartCRUDL, SmartListView, SmartUpdateView, SmartCreateView, SmartReadView, SmartDeleteView
+from temba.contacts.models import ContactGroup, ContactField
+from temba.flows.models import Flow
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.utils.views import BaseActionForm
+
+from .models import Campaign, CampaignEvent, EventFire, UNIT_CHOICES
 
 
 class CampaignActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('archive', "Archive Campaigns"),
+    allowed_actions = (('archive', "Archive Campaigns"),
                        ('restore', "Restore Campaigns"))
 
-    OBJECT_CLASS = Campaign
-    OBJECT_CLASS_MANAGER = 'objects'
-    HAS_IS_ACTIVE = True
+    model = Campaign
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'objects')
@@ -40,7 +41,7 @@ class CampaignActionMixin(SmartListView):
         return self.get(request, *args, **kwargs)
 
 
-class UpdateCampaignForm(ModelForm):
+class UpdateCampaignForm(forms.ModelForm):
     group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                    required=True, label="Group",
                                    help_text="Which group this campaign operates on")
