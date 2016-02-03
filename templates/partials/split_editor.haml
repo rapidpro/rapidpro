@@ -22,10 +22,11 @@
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
 
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_ussd"', ussd:""}
 
     .response{ng-if:'formData.rulesetConfig.type == "wait_message"'}><
       #split-on
-        -trans "If the message response.."
+        -trans "If the message response..."
 
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on
@@ -107,7 +108,7 @@
 
     // RULE EDITOR
     %form{name:'ruleForm'}
-      %span{ng-if:'hasRules()'}><
+      %span{ng-if:'hasRules()'}
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
           .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.type != "true"'}
             <ng-form name="inner">
@@ -143,9 +144,8 @@
                 -trans "Please enter a value for evaluating this rule."
               .error.ng-hide{ng-show:'inner.category.$error.required'}
                 -trans "Please enter a category name."
-            </ng-form>
+  </ng-form>
 .modal-footer
-  <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
   %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules()",class:"btn btn-primary"}
