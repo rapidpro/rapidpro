@@ -421,12 +421,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       @rulesets = [
 
-        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY,USSD] },
+        { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
+        { type: 'wait_ussd', name:'Wait for USSD Response', verbose_name: 'Wait for USSD response', split:'USSD response', filter:USSD },
 
         # voice flows only
         { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', filter:VOICE },
-        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', filter:[VOICE,USSD] },
-        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:[VOICE,USSD] },
+        { type: 'wait_digit', name:'Get Menu Selection', verbose_name: 'Wait for menu selection', filter:VOICE },
+        { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
 
         # online flows
         { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE,USSD] },
@@ -443,7 +444,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # { type: 'pause', verbose_name: 'Pause the flow', ivr:true, text:true},
       ]
 
-      @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
+      @supportsRules = ['wait_message', 'wait_ussd', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
 
       @operators = [
         { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
@@ -617,7 +618,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     isPausingRuleset: (node) ->
       if not node?.actions
-        return node.ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
+        return node.ruleset_type in ['wait_ussd', 'wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
       return false
 
     # check if a potential connection would result in an invalid loop
