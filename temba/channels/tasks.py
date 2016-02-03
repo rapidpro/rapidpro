@@ -43,7 +43,9 @@ def send_msg_task():
                          'queued_on', 'next_attempt'])
 
     # send it off
-    Channel.send_message(msg)
+    r = get_redis_connection()
+    with r.lock('send_msg_%d' % msg.id, timeout=300):
+        Channel.send_message(msg)
 
 
 @task(track_started=True, name='check_channels_task')
