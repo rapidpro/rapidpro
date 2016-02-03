@@ -994,7 +994,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         missing = 0
         for actionset in flow.action_sets
           for action in actionset.actions
-            if action.type in ['send', 'reply', 'say', 'ussd']
+            if action.type in ['send', 'reply', 'say']
               items++
               if action._missingTranslation
                 missing++
