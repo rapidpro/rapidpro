@@ -966,6 +966,7 @@ class FlowReadSerializer(ReadSerializer):
     rulesets = serializers.SerializerMethodField()
     runs = serializers.SerializerMethodField()
     completed_runs = serializers.SerializerMethodField()
+    participants = serializers.SerializerMethodField()
     created_on = DateTimeField()
     flow = serializers.ReadOnlyField(source='id')  # deprecated, use uuid
 
@@ -977,6 +978,9 @@ class FlowReadSerializer(ReadSerializer):
 
     def get_completed_runs(self, obj):
         return obj.get_completed_runs()
+
+    def get_participants(self, obj):
+        return None
 
     def get_rulesets(self, obj):
         rulesets = list()
@@ -1005,7 +1009,7 @@ class FlowReadSerializer(ReadSerializer):
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'runs', 'completed_runs', 'rulesets',
+        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'runs', 'completed_runs', 'participants', 'rulesets',
                   'created_on', 'flow')
 
 

@@ -361,6 +361,7 @@ class APITest(TembaTest):
                                                            labels=[],
                                                            runs=0,
                                                            completed_runs=0,
+                                                           participants=None,
                                                            rulesets=[dict(node=flow_ruleset1.uuid,
                                                                           id=flow_ruleset1.pk,
                                                                           response_type='C',
