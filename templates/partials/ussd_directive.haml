@@ -1,25 +1,30 @@
-.ussd-directive
-  %label
+-load i18n
+
+.split-header-inner
+  %p
     Add text:
-    %textarea{ng-model:"message",name:"ussd",auto-complete:"",required:"",flow:"[[$parent.flowId]]",ng-required:"true",class:"ussd"}
-  %label
-    Add menu item(s):
 
-  .ng-form{name:"add_new_item",isolate-form:""}
-    %div.ussd-item.ussd-item-addnew
-      %span
-        %input.styled.ussd-number{type:"text",placeholder:"#",name:"number",ng-model:"newNumber",ng-required:"true",number:"true"}
-      %span
-        %input.styled.ussd-label.invalid{type:"text",placeholder:"Label title",name:"label",ng-model:"newLabel",ng-required:"true"}
-      %span
-        %button.ussd-add{ng-click:'addMenuItem(newNumber, newLabel)',ng-disabled:"add_new_item.$invalid"}
-          +
+.split-margin
+  %textarea{ng-model:"ruleset.config.ussdText",name:"ussd",auto-complete:"",flow:"[[flowId]]",class:"ussd-add-text"}
 
-  %div.ussd-item.ussd-item-added{ng-repeat:"item in menu"}
-    %span
-      %input.styled.ussd-number{ng-model:"item.number",type:"text",ng-required:"true",number:"true",ng-change:"countCharacters()"}
-    %span
-      %input.styled.ussd-label{ng-model:"item.label",type:"text",ng-required:"true",ng-change:"countCharacters()"}
-    %span
-      %button.ussd-remove{ng-click:'removeMenuItem($index)'}
-        &minus;
+.split-header-inner
+  %p
+    Add menu:
+
+%form{name:'menuForm'}
+  %span
+    %div{ui-sortable:"sortableOptions",ng-model:"ruleset.config.ussdMenu"}
+      .rule{ng-repeat:"item in ruleset.config.ussdMenu"}
+        .ng-form{name:"menuItem"}
+          .icon.icon-menu
+          .ordinals
+            %input{ng-model:"item.number",type:"text",class:"number",placeholder:"#"}
+          .operation.wide
+            %input{ng-model:"item.label",name:"operand",flow:"[[flowId]]",ng-required:"rule.category._base",ng-change:"updateCategory(item)",type:"text",class:"operand",uuid:"[[ruleset.uuid]]"}
+
+          .categorize
+            -trans "categorize as"
+            %input{ng-model:"item.category._base",name:"category",ng-required:"rule._config.operands==0 || (rule._config.operands==1 && rule.test._base) || (rule._config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"item.category._autoName = false",type:"text",class:"category"}
+          .icon.icon-close{ng-click:"remove(item)"}
+#split-on
+  -trans "If the message response..."
