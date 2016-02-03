@@ -81,3 +81,23 @@ class AssetTest(TembaTest):
         user = response.context_data['view'].request.user
         self.assertEquals(user, self.admin)
         self.assertEquals(user.get_org(), self.org)
+
+    def test_stream(self):
+        # create a message export
+        message_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
+                                                                created_by=self.admin, modified_by=self.admin)
+
+        # create asset and request again with correct type
+        message_export_task.do_export()
+
+        response = self.client.get(reverse('assets.stream',
+                                           kwargs=dict(type='message_export', pk=message_export_task.pk)))
+
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        # check direct download stream
+        response = self.client.get(reverse('assets.stream',
+                                           kwargs=dict(type='message_export', pk=message_export_task.pk)))
+        self.assertEqual(response.status_code, 200)
