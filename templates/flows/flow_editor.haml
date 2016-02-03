@@ -355,7 +355,7 @@
 
 
                 // messages with translations
-                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say" || action.type == "ussd"'}
+                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
 
                   [[action._translation]]
 
@@ -372,16 +372,6 @@
                     .uploading{ng-show:'action.uploading'}
                       %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
                       .cancel.icon-cancel-circle{ng-click:"upload.abort(); action.uploading=false; action.dirty=true; $event.stopPropagation();"}
-
-                  // USSD menu items start
-                  .ussd-flow-items-wrapper{ng-show:'action.msg.menu.length > 0'}
-                    .ussd-flow-items
-                      .ussd-flow-item{ng-repeat:'item in action.msg.menu'}
-                        %span.ussd-number
-                          %span
-                            [[item.number]]
-                        %span.ussd-label
-                          [[item.label]]
 
                 // updating contacts
                 %span{ng-show:'action.type == "play"'}
@@ -511,9 +501,6 @@
                 .visited{ng-show:'category._visited && category.target'}
                   .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
                     [[category._visited|number]]
-
-
-
 
         .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}
           %a.close{ng-click:'removeNote(note);'}
