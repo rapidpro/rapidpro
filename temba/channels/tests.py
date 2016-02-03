@@ -1340,6 +1340,10 @@ class ChannelTest(TembaTest):
                         self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
     def test_claim_telegram(self):
+
+        # disassociate all of our channels
+        self.org.channels.all().update(org=None, is_active=False)
+
         self.login(self.admin)
         claim_url = reverse('channels.channel_claim_telegram')
 
@@ -1376,6 +1380,14 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
+                contact = self.create_contact('Telgram User', urn=(TELEGRAM_SCHEME, '1234'))
+
+                # make sure we our telegram channel satisfies as a send channel
+                self.login(self.admin)
+                response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
+                send_channel = response.context['send_channel']
+                self.assertIsNotNone(send_channel)
+                self.assertEqual(TELEGRAM, send_channel.channel_type)
 
     def test_claim_twitter(self):
         self.login(self.admin)
