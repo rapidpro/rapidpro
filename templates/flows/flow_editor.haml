@@ -47,6 +47,7 @@
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
+    window.ussd = '{{object.flow_type}}' == 'U';
     window.flow_type = '{{object.flow_type}}';
     window.recordingURL = '{{recording_url}}';
 
