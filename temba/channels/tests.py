@@ -1097,6 +1097,17 @@ class ChannelTest(TembaTest):
         self.assertTrue('account_trial' in response.context)
         self.assertFalse(response.context['account_trial'])
 
+        with patch('temba.orgs.models.Org.get_twilio_client') as mock_get_twilio_client:
+            mock_get_twilio_client.return_value = None
+
+            response = self.client.get(claim_twilio)
+            self.assertRedirects(response, reverse('channels.channel_claim'))
+
+            mock_get_twilio_client.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
+
+            response = self.client.get(claim_twilio)
+            self.assertRedirects(response, reverse('channels.channel_claim'))
+
         with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
 
@@ -1210,6 +1221,17 @@ class ChannelTest(TembaTest):
         response = self.client.get(claim_twilio_ms)
         self.assertTrue('account_trial' in response.context)
         self.assertFalse(response.context['account_trial'])
+
+        with patch('temba.orgs.models.Org.get_twilio_client') as mock_get_twilio_client:
+            mock_get_twilio_client.return_value = None
+
+            response = self.client.get(claim_twilio_ms)
+            self.assertRedirects(response, reverse('channels.channel_claim'))
+
+            mock_get_twilio_client.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
+
+            response = self.client.get(claim_twilio_ms)
+            self.assertRedirects(response, reverse('channels.channel_claim'))
 
         with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
