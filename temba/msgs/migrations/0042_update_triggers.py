@@ -12,5 +12,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        InstallSQL('msg_triggers')
+        InstallSQL('0001_msgs')
     ]

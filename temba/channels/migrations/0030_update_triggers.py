@@ -11,5 +11,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        InstallSQL('channel_triggers')
+        InstallSQL('0001_channels')
     ]
