@@ -5,6 +5,7 @@ import json
 
 from django.core.urlresolvers import reverse
 from django.db import connection
+from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
@@ -120,6 +121,7 @@ class APITest(TembaTest):
 
         self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
 
+    @override_settings(SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_HTTPS', 'https'))
     def test_root(self):
         url = reverse('api.v2')
 
