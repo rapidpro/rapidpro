@@ -1781,7 +1781,7 @@ class ExportMessagesTask(SmartModel):
         date_style = XFStyle()
         date_style.num_format_str = 'DD-MM-YYYY HH:MM:SS'
 
-        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
+        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels']
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1828,6 +1828,7 @@ class ExportMessagesTask(SmartModel):
                 row = 1
 
             contact_name = msg.contact.name if msg.contact.name else ''
+            contact_uuid = msg.contact.uuid
             created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
             msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
 
@@ -1845,9 +1846,10 @@ class ExportMessagesTask(SmartModel):
             current_messages_sheet.write(row, 1, urn_path)
             current_messages_sheet.write(row, 2, urn_scheme)
             current_messages_sheet.write(row, 3, contact_name)
-            current_messages_sheet.write(row, 4, msg.get_direction_display())
-            current_messages_sheet.write(row, 5, msg.text)
-            current_messages_sheet.write(row, 6, msg_labels)
+            current_messages_sheet.write(row, 4, contact_uuid)
+            current_messages_sheet.write(row, 5, msg.get_direction_display())
+            current_messages_sheet.write(row, 6, msg.text)
+            current_messages_sheet.write(row, 7, msg_labels)
             row += 1
             processed += 1
 
