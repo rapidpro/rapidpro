@@ -94,9 +94,9 @@ class FlowStatsCache(Enum):
     """
     Stats we calculate and cache for flows
     """
-    runs_started_count = 1
-    runs_completed_count = 2
-    contacts_started_set = 3
+    runs_started_count = 1    # deprecated, no longer used
+    runs_completed_count = 2  # deprecated, no longer used
+    contacts_started_set = 3  # deprecated, no longer used
     visit_count_map = 4
     step_active_set = 5
     cache_check = 6
@@ -493,9 +493,6 @@ class Flow(TembaModel):
             voice_response.hangup()
             run.set_completed(final_step=step)
 
-            # if we hangup then the run is no longer active
-            run.expire()
-
         return voice_response
 
     @classmethod
@@ -792,34 +789,7 @@ class Flow(TembaModel):
         return r.lock(lock_key, lock_ttl)
 
     def do_calculate_flow_stats(self, lock_ttl=None):
-
         r = get_redis_connection()
-        with self.lock_on(FlowLock.participation, lock_ttl=lock_ttl):
-
-            # all the runs that were started
-            runs_started = self.runs.filter(contact__is_test=False).count()
-            r.set(self.get_stats_cache_key(FlowStatsCache.runs_started_count), runs_started)
-
-            # find all the completed runs
-            terminal_nodes = [node.uuid for node in self.action_sets.filter(destination=None)]
-            category_nodes = [node.uuid for node in self.rule_sets.all()]
-
-            stopped_at_rule = Q(step_uuid__in=category_nodes, left_on=None) & ~Q(rule_uuid=None)
-            completed = FlowStep.objects.values('run__pk').filter(run__flow=self).filter(
-                Q(step_uuid__in=terminal_nodes) | stopped_at_rule).filter(run__contact__is_test=False).distinct('run')
-
-            run_ids = [value['run__pk'] for value in completed]
-            if run_ids:
-                completed_key = self.get_stats_cache_key(FlowStatsCache.runs_completed_count)
-                r.delete(completed_key)
-                r.sadd(completed_key, *run_ids)
-
-            # unique contacts
-            contact_ids = [value['contact_id'] for value in self.runs.values('contact_id').filter(contact__is_test=False).distinct('contact_id')]
-            contacts_key = self.get_stats_cache_key(FlowStatsCache.contacts_started_set)
-            r.delete(contacts_key)
-            if contact_ids:
-                r.sadd(contacts_key, *contact_ids)
 
         # activity
         with self.lock_on(FlowLock.activity, lock_ttl=lock_ttl):
@@ -845,7 +815,6 @@ class Flow(TembaModel):
         Calculate our activity stats from the database. This is expensive. It should only be run
         for simulation or in an async task to rebuild the activity cache
         """
-
         # who is actively at each step
         steps = FlowStep.objects.values('run__pk', 'step_uuid').filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=simulation).annotate(count=Count('run_id'))
 
@@ -885,11 +854,6 @@ class Flow(TembaModel):
 
         r = get_redis_connection()
 
-        # if there's no key for our run count, we definitely need to build it
-        if not r.exists(self.get_stats_cache_key(FlowStatsCache.runs_started_count)):
-            calculate_flow_stats_task.delay(self.pk)
-            return
-
         # don't do the more expensive check if it was performed recently
         cache_check = self.get_stats_cache_key(FlowStatsCache.cache_check)
         if r.exists(cache_check):
@@ -903,12 +867,12 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
+
     def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-
         if simulation:
             (active, visits) = self._calculate_activity(simulation=True)
             # we want counts not actual run ids
@@ -940,38 +904,7 @@ class Flow(TembaModel):
         return (active, visited)
 
     def get_total_runs(self):
-        self._check_for_cache_update()
-        r = get_redis_connection()
-        runs = r.get(self.get_stats_cache_key(FlowStatsCache.runs_started_count))
-        if runs:
-            return int(runs)
-        return 0
-
-    def get_total_contacts(self):
-        self._check_for_cache_update()
-        r = get_redis_connection()
-        return r.scard(self.get_stats_cache_key(FlowStatsCache.contacts_started_set))
-
-    def update_start_counts(self, contact_ids, simulation=False):
-        """
-        Track who and how many people just started our flow
-        """
-
-        if len(contact_ids) == 1:
-            contact = Contact.objects.filter(pk=contact_ids[0]).first()
-            if contact:
-                simulation = contact.is_test
-
-        if not simulation:
-            r = get_redis_connection()
-            contact_count = len(contact_ids)
-
-            # total number of runs as an int
-            r.incrby(self.get_stats_cache_key(FlowStatsCache.runs_started_count), contact_count)
-
-            # distinct participants as a set
-            if contact_count:
-                r.sadd(self.get_stats_cache_key(FlowStatsCache.contacts_started_set), *contact_ids)
+        return FlowRunCount.run_count(self)
 
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):
@@ -1108,17 +1041,18 @@ class Flow(TembaModel):
         return FlowStep.objects.filter(run__flow=self)
 
     def get_completed_runs(self):
-        self._check_for_cache_update()
-        r = get_redis_connection()
-        return r.scard(self.get_stats_cache_key(FlowStatsCache.runs_completed_count))
+        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
+
+    def get_expired_runs(self):
+        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_EXPIRED)
 
     def get_completed_percentage(self):
-        total_runs = self.get_total_runs()
-        if total_runs > 0:
-            completed_percentage = int((self.get_completed_runs() * 100) / total_runs)
+        total_runs = FlowRunCount.run_count(self)
+
+        if not total_runs:
+            return 0
         else:
-            completed_percentage = 0
-        return completed_percentage
+            return int(self.get_completed_runs() * 100 / total_runs)
 
     def get_and_clear_unread_responses(self):
         """
@@ -1463,9 +1397,6 @@ class Flow(TembaModel):
             if extra:
                 run.update_fields(extra)
 
-            # keep track of all runs we are starting in redis for faster calcs later
-            self.update_start_counts([contact_id])
-
             # create our call objects
             call = IVRCall.create_outgoing(channel, contact_id, self, self.created_by)
 
@@ -1570,9 +1501,6 @@ class Flow(TembaModel):
             run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now, db_insert=False)
             batch.append(run)
         FlowRun.objects.bulk_create(batch)
-
-        # keep track of all runs we are starting in redis for faster calcs later
-        self.update_start_counts(batch_contact_ids)
 
         # build a map of contact to flow run
         run_map = dict()
@@ -2916,17 +2844,6 @@ class FlowRun(models.Model):
         # decrement our total flow count
         r = get_redis_connection()
 
-        with self.flow.lock_on(FlowLock.participation):
-
-            r.incrby(self.flow.get_stats_cache_key(FlowStatsCache.runs_started_count), -1)
-
-            # remove ourselves from the completed runs
-            r.srem(self.flow.get_stats_cache_key(FlowStatsCache.runs_completed_count), self.pk)
-
-            # if we are the last run for our contact, remove our contact from the start set
-            if FlowRun.objects.filter(flow=self.flow, contact=self.contact).exclude(pk=self.pk).count() == 0:
-                r.srem(self.flow.get_stats_cache_key(FlowStatsCache.contacts_started_set), self.contact.pk)
-
         # lastly delete ourselves
         self.delete()
 
@@ -2954,12 +2871,6 @@ class FlowRun(models.Model):
         self.modified_on = now
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
-
-        r = get_redis_connection()
-        if not self.contact.is_test:
-            with self.flow.lock_on(FlowLock.participation):
-                key = self.flow.get_stats_cache_key(FlowStatsCache.runs_completed_count)
-                r.sadd(key, self.pk)
 
     def update_expiration(self, point_in_time):
         """
@@ -3088,6 +2999,10 @@ class FlowRunCount(models.Model):
 
             if count['exit_type__count'] > 0:
                 FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
+
+    def __unicode__(self):
+        return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
+
 
     class Meta:
         index_together = ('flow', 'exit_type')

@@ -357,12 +357,12 @@ class APITest(TembaTest):
                                                            labels=[],
                                                            runs=0,
                                                            completed_runs=0,
+                                                           participants=None,
                                                            rulesets=[dict(node=flow_ruleset1.uuid,
                                                                           id=flow_ruleset1.pk,
                                                                           response_type='C',
                                                                           ruleset_type='wait_message',
                                                                           label='color')],
-                                                           participants=0,
                                                            created_on=datetime_to_json_date(flow.created_on),
                                                            expires=flow.expires_after_minutes,
                                                            archived=False))
@@ -546,7 +546,6 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_total_contacts(), 1)
         self.assertEqual(flow.get_completed_runs(), 0)
 
         # check flow activity
@@ -629,7 +628,6 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_total_contacts(), 1)
         self.assertEqual(flow.get_completed_runs(), 0)
 
         # check flow activity
@@ -726,7 +724,6 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_total_contacts(), 1)
         self.assertEqual(flow.get_completed_runs(), 1)
 
         # check flow activity

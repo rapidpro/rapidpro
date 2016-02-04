@@ -60,7 +60,6 @@ class CallHandler(View):
                     run = FlowRun.objects.filter(call=call).first()
                     if run:
                         run.set_completed()
-                        run.expire()
                 return build_json_response(dict(message="Updated call status"))
 
         else:  # pragma: no cover

@@ -980,7 +980,7 @@ class FlowReadSerializer(ReadSerializer):
         return obj.get_completed_runs()
 
     def get_participants(self, obj):
-        return obj.get_total_contacts()
+        return None
 
     def get_rulesets(self, obj):
         rulesets = list()
@@ -1009,7 +1009,7 @@ class FlowReadSerializer(ReadSerializer):
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
+        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'runs', 'completed_runs', 'participants', 'rulesets',
                   'created_on', 'flow')
 
 
@@ -1242,7 +1242,6 @@ class FlowRunWriteSerializer(WriteSerializer):
 
         if not run:
             run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started)
-            self.flow_obj.update_start_counts([self.contact_obj.pk])
 
         step_objs = []
         previous_rule = None
