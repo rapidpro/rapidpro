@@ -42,7 +42,7 @@ from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS, ALERT_DISCONNECTED, ALERT_SMS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
-from .tasks import check_channels_task
+from .tasks import check_channels_task, squash_channelcounts
 
 
 class ChannelTest(TembaTest):
@@ -2425,9 +2425,22 @@ class CountTest(TembaTest):
         msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
-        # delete it, back to 0
+        # insert another
+        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+
+        # squash our counts
+        squash_channelcounts()
+
+        # same count
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+
+        # and only one channel count
+        self.assertEquals(ChannelCount.objects.all().count(), 1)
+
+        # delete it, back to 1
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
