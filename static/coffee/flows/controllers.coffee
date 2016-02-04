@@ -5,6 +5,14 @@ app = angular.module('temba.controllers', ['ui.bootstrap', 'temba.services', 'ng
 
 version = new Date().getTime()
 
+defaultRuleSetType = ->
+  if window.ivr
+    'wait_digit'
+  else if window.ussd
+    'wait_ussd'
+  else
+    'wait_message'
+
 app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout', 'Flow', 'Revisions', ($scope, $rootScope, $log, $timeout, Flow, Revisions) ->
 
   $scope.revisions = ->
@@ -284,14 +292,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
       return false
     return true
 
-  $rootScope.defaultRuleSetType = ->
-    if window.ivr
-      rulesetType = 'wait_digit'
-    else if window.ussd
-      rulesetType = 'wait_ussd'
-    else
-      rulesetType = 'wait_message'
-
   $scope.onConnectorDrop = (connection) ->
 
     $(connection.sourceId).parent().removeClass('reconnecting')
@@ -335,7 +335,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
             label: "Response " + (Flow.flow.rule_sets.length + 1)
             operand: "@step.value"
             webhook_action: null,
-            ruleset_type: $rootScope.defaultRuleSetType(),
+            ruleset_type: defaultRuleSetType(),
             rules: [
               test:
                 test: "true"
@@ -864,7 +864,7 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       label: "Response " + (Flow.flow.rule_sets.length + 1)
       operand: "@step.value"
       webhook_action: null,
-      ruleset_type: $rootScope.defaultRuleSetType(),
+      ruleset_type: defaultRuleSetType(),
       rules: [
         test:
           test: "true"
