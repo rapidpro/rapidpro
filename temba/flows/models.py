@@ -1054,8 +1054,6 @@ class Flow(TembaModel):
         else:
             return int(self.get_completed_runs() * 100 / total_runs)
 
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
-
     def get_and_clear_unread_responses(self):
         """
         Gets the number of new responses since the last clearing for this flow.
