@@ -7,7 +7,7 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
-from smartmin.views import SmartTemplateView
+from smartmin.views import SmartTemplateView, SmartView
 from .models import AssetType, AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound
 
 
@@ -74,10 +74,13 @@ class AssetDownloadView(SmartTemplateView):
         return context
 
 
-class AssetStreamView(View):
+class AssetStreamView(SmartView, View):
     """
     Provides a direct download stream to an asset, e.g. /assets/stream/contact_export/123/
     """
+    def has_permission(self, request, *args, **kwargs):
+        return self.request.user.is_authenticated()
+
     def get(self, request, *args, **kwargs):
         asset_type = AssetType[kwargs.pop('type')]
         pk = kwargs.pop('pk')
