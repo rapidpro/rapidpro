@@ -262,7 +262,7 @@ class Flow(TembaModel):
 
         uuid = unicode(uuid4())
         actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
-                   dict(type='save', field='name', label='Contact Name', value='@step.value|remove_first_word|title_case')]
+                   dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
             actions += [dict(type='reply', msg={base_language:response})]
@@ -271,7 +271,9 @@ class Flow(TembaModel):
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
 
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
-        flow.update(dict(entry=uuid, rulesets=[], action_sets=action_sets))
+        flow.update(dict(entry=uuid, base_language=base_language,
+                         rule_sets=[], action_sets=action_sets))
+
         return flow
 
     @classmethod
@@ -675,8 +677,10 @@ class Flow(TembaModel):
             run.set_completed(final_step=step)
             step = None
 
-        # sync our channels to trigger any messages
-        run.flow.org.trigger_send(msgs)
+        # sync our channels to trigger any messages if we have any
+        if msgs:
+            run.flow.org.trigger_send(msgs)
+
         return dict(handled=True, destination=destination, step=step)
 
     @classmethod
@@ -2638,7 +2642,7 @@ class FlowRevision(SmartModel):
 
         non_localized_error = _('Malformed flow, encountered non-localized definition')
 
-        # should always have a base_language after migration
+        # should always have a base_language
         if 'base_language' not in flow_spec or not flow_spec['base_language']:
             raise ValueError(non_localized_error)
 

@@ -1340,6 +1340,10 @@ class ChannelTest(TembaTest):
                         self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
     def test_claim_telegram(self):
+
+        # disassociate all of our channels
+        self.org.channels.all().update(org=None, is_active=False)
+
         self.login(self.admin)
         claim_url = reverse('channels.channel_claim_telegram')
 
@@ -1376,6 +1380,14 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
+                contact = self.create_contact('Telgram User', urn=(TELEGRAM_SCHEME, '1234'))
+
+                # make sure we our telegram channel satisfies as a send channel
+                self.login(self.admin)
+                response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
+                send_channel = response.context['send_channel']
+                self.assertIsNotNone(send_channel)
+                self.assertEqual(TELEGRAM, send_channel.channel_type)
 
     def test_claim_twitter(self):
         self.login(self.admin)
@@ -5113,6 +5125,29 @@ class StartMobileTest(TembaTest):
 
         # should get a 400, as the body is invalid
         self.assertEquals(400, response.status_code)
+
+        Msg.all_messages.all().delete()
+
+        # empty text element from Start Mobile we create "" message
+        body = """
+        <message>
+        <service type="sms" timestamp="1450450974" auth="asdfasdf" request_id="msg1"/>
+        <from>+250788123123</from>
+        <to>1515</to>
+        <body content-type="content-type" encoding="utf8"></body>
+        </message>
+        """
+        response = self.client.post(callback_url, content_type='application/xml', data=body)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.all_messages.get()
+        self.assertEquals('+250788123123', sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("", sms.text)
 
         # try it with an invalid channel
         callback_url = reverse('handlers.start_handler', args=['receive', '1234-asdf'])

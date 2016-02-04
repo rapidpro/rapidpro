@@ -2782,8 +2782,8 @@ class ContactURNTest(TembaTest):
         self.assertEquals(('tel', "mtn"), ContactURN.normalize_urn(TEL_SCHEME, "MTN", "RW"))
 
         # twitter handles
-        self.assertEquals(('twitter', "jimmyjo"), ContactURN.normalize_urn('TWITTER', "jimmyjo"))
-        self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @billy_bob "))
+        self.assertEquals(('twitter', "jimmyjo"), ContactURN.normalize_urn('TWITTER', "jimmyJO"))
+        self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @Billy_bob "))
 
     def test_validate_urn(self):
         # valid tel numbers

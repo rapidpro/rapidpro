@@ -579,7 +579,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        queryset = Msg.current_messages.filter(org=org, contact__is_test=False)
+        queryset = Msg.all_messages.filter(org=org, contact__is_test=False)
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
