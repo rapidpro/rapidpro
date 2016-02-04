@@ -6,7 +6,6 @@ import pytz
 import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
-from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.db import connection
@@ -48,15 +47,11 @@ class APITest(TembaTest):
                                          created_by=self.admin,
                                          modified_by=self.admin)
 
-        settings.SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_HTTPS', 'https')
-        settings.SESSION_COOKIE_SECURE = True
-
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict['ATOMIC_REQUESTS'] = False
 
     def tearDown(self):
         super(APITest, self).tearDown()
-        settings.SESSION_COOKIE_SECURE = False
 
         connection.settings_dict['ATOMIC_REQUESTS'] = True
 
@@ -168,6 +163,7 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
+    @override_settings(SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_HTTPS', 'https'))
     def test_api_root(self):
         url = reverse('api.v1')
 
@@ -2405,9 +2401,6 @@ class APITest(TembaTest):
 
         # the keys should be different
         self.assertNotEqual(admin[0]['token'], surveyor[0]['token'])
-
-        # don't do ssl auth check
-        settings.SESSION_COOKIE_SECURE = False
 
         # configure our api client
         client = APIClient()
