@@ -507,9 +507,9 @@ class FlowTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(sheet_runs.nrows, 5)  # header + 4 runs
-        self.assertEqual(sheet_runs.ncols, 8)
+        self.assertEqual(sheet_runs.ncols, 9)
 
-        self.assertExcelRow(sheet_runs, 0, ["Phone", "Name", "Groups", "First Seen", "Last Seen",
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                             "color (Category) - Color Flow",
                                             "color (Value) - Color Flow",
                                             "color (Text) - Color Flow"])
@@ -522,11 +522,11 @@ class FlowTest(TembaTest):
         c1_run2_first = contact1_run2_rs.order_by('pk').first().arrived_on
         c1_run2_last = contact1_run2_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 1, ["+250788382382", "Eric", "", c1_run1_first, c1_run1_last,
-                                            "Orange", "orange", "orange"], tz)
+        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "", c1_run1_first,
+                                            c1_run1_last, "Orange", "orange", "orange"], tz)
 
-        self.assertExcelRow(sheet_runs, 2, ["+250788382382", "Eric", "", c1_run2_first, c1_run2_last,
-                                            "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_runs, 2, [contact1_run2.contact.uuid, "+250788382382", "Eric", "", c1_run2_first,
+                                            c1_run2_last, "Blue", "blue", " blue "], tz)
 
         contact2_run1_rs = FlowStep.objects.filter(run=contact2_run1, step_type='R')
         c2_run1_first = contact2_run1_rs.order_by('pk').first().arrived_on
@@ -536,45 +536,49 @@ class FlowTest(TembaTest):
         c2_run2_first = contact2_run2_rs.order_by('pk').first().arrived_on
         c2_run2_last = contact2_run2_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 3, ["+250788383383", "Nic", "", c2_run1_first, c2_run1_last,
-                                            "Other", "green", "green"], tz)
+        self.assertExcelRow(sheet_runs, 3, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", c2_run1_first,
+                                            c2_run1_last, "Other", "green", "green"], tz)
 
-        self.assertExcelRow(sheet_runs, 4, ["+250788383383", "Nic", "", c2_run2_first, c2_run2_last, "", "", ""], tz)
+        self.assertExcelRow(sheet_runs, 4, [contact2_run2.contact.uuid, "+250788383383", "Nic", "", c2_run2_first,
+                                            c2_run2_last, "", "", ""], tz)
 
         # check contacts sheet...
         self.assertEqual(sheet_contacts.nrows, 3)  # header + 2 contacts
-        self.assertEqual(sheet_contacts.ncols, 8)
+        self.assertEqual(sheet_contacts.ncols, 9)
 
-        self.assertExcelRow(sheet_contacts, 0, ["Phone", "Name", "Groups", "First Seen", "Last Seen",
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
                                                 "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_contacts, 1, ["+250788382382", "Eric", "", c1_run1_first, c1_run2_last,
-                                                "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "", c1_run1_first,
+                                                c1_run2_last, "Blue", "blue", " blue "], tz)
 
-        self.assertExcelRow(sheet_contacts, 2, ["+250788383383", "Nic", "", c2_run1_first, c2_run2_last,
-                                                "Other", "green", "green"], tz)
+        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", c2_run1_first,
+                                                c2_run2_last, "Other", "green", "green"], tz)
 
         # check messages sheet...
         self.assertEqual(sheet_msgs.nrows, 13)  # header + 12 messages
-        self.assertEqual(sheet_msgs.ncols, 6)
+        self.assertEqual(sheet_msgs.ncols, 7)
 
-        self.assertExcelRow(sheet_msgs, 0, ["Phone", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "Phone", "Name", "Date", "Direction", "Message", "Channel"])
 
         contact1_out1 = Msg.all_messages.get(steps__run=contact1_run1, text="What is your favorite color?")
         contact1_out2 = Msg.all_messages.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
         contact1_out3 = Msg.all_messages.get(steps__run=contact1_run1, text__startswith="I love orange too")
 
-        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", contact1_out1.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out1.created_on, "OUT",
                                             "What is your favorite color?", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 2, ["+250788382382", "Eric", contact1_in1.created_on, "IN",
-                                            "light beige", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 3, ["+250788382382", "Eric", contact1_out2.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 2, [contact1_in1.contact.uuid, "+250788382382", "Eric", contact1_in1.created_on,
+                                            "IN", "light beige", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 3, [contact1_out2.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out2.created_on, "OUT",
                                             "That is a funny color. Try again.", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 4, ["+250788382382", "Eric", contact1_in2.created_on, "IN",
-                                            "orange", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 5, ["+250788382382", "Eric", contact1_out3.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 4, [contact1_in2.contact.uuid, "+250788382382", "Eric", contact1_in2.created_on,
+                                            "IN", "orange", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 5, [contact1_out3.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out3.created_on, "OUT",
                                             "I love orange too! You said: orange which is category: Orange You are: "
                                             "0788 382 382 SMS: orange Flow: color: light beige\ncolor: orange",
                                             "Test Channel"], tz)
@@ -595,15 +599,16 @@ class FlowTest(TembaTest):
         run1_first = run1_rs.order_by('pk').first().arrived_on
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 1, ["+250788382382", "Eric", "", run1_first, run1_last,
+        self.assertExcelRow(sheet_runs, 1, [run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
 
         out1 = Msg.all_messages.get(steps__run=run, text="What is your favorite color?")
 
-        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", out1.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 1, [run.contact.uuid, "+250788382382", "Eric", out1.created_on, "OUT",
                                             "What is your favorite color?", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 2, ["", "Eric", in1.created_on, "IN", "blue", ""], tz)  # no channel or phone
+        # no channel or phone
+        self.assertExcelRow(sheet_msgs, 2, [run.contact.uuid, "", "Eric", in1.created_on, "IN", "blue", ""], tz)
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
@@ -618,7 +623,7 @@ class FlowTest(TembaTest):
         # every sheet has only the head row
         for entries in workbook.sheets():
             self.assertEqual(entries.nrows, 1)
-            self.assertEqual(entries.ncols, 8)
+            self.assertEqual(entries.ncols, 9)
 
     def test_copy(self):
         # save our original flow

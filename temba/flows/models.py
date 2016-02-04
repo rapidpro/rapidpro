@@ -3156,7 +3156,7 @@ class ExportFlowResultsTask(SmartModel):
         # create a mapping of column id to index
         column_map = dict()
         for col in range(len(columns)):
-            column_map[columns[col].uuid] = 5+col*3
+            column_map[columns[col].uuid] = 6+col*3
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -3208,26 +3208,28 @@ class ExportFlowResultsTask(SmartModel):
         # then populate their header columns
         for sheet in run_sheets:
             # build up our header row
-            sheet.write(0, 0, "Phone")
-            sheet.write(0, 1, "Name")
-            sheet.write(0, 2, "Groups")
-            sheet.write(0, 3, "First Seen")
-            sheet.write(0, 4, "Last Seen")
+            sheet.write(0, 0, "Contact UUID")
+            sheet.write(0, 1, "Phone")
+            sheet.write(0, 2, "Name")
+            sheet.write(0, 3, "Groups")
+            sheet.write(0, 4, "First Seen")
+            sheet.write(0, 5, "Last Seen")
 
-            sheet.col(0).width = small_width
-            sheet.col(1).width = medium_width
+            sheet.col(0).width = medium_width
+            sheet.col(1).width = small_width
             sheet.col(2).width = medium_width
             sheet.col(3).width = medium_width
             sheet.col(4).width = medium_width
+            sheet.col(5).width = medium_width
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                sheet.write(0, 5+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, 5+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, 5+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.col(5+col*3).width = 15 * 256
-                sheet.col(5+col*3+1).width = 15 * 256
-                sheet.col(5+col*3+2).width = 15 * 256
+                sheet.write(0, 6+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, 6+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, 6+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.col(6+col*3).width = 15 * 256
+                sheet.col(6+col*3+1).width = 15 * 256
+                sheet.col(6+col*3+2).width = 15 * 256
 
         run_row = 0
         merged_row = 0
@@ -3286,6 +3288,7 @@ class ExportFlowResultsTask(SmartModel):
                 continue
 
             contact_urn_display = get_contact_urn_display(run_step.contact)
+            contact_uuid = run_step.contact.uuid
 
             # if this is a rule step, write out the value collected
             if run_step.step_type == RULE_SET:
@@ -3331,13 +3334,15 @@ class ExportFlowResultsTask(SmartModel):
                     group_names.sort()
                     groups = ", ".join(group_names)
 
-                    runs.write(run_row, 0, contact_urn_display)
-                    runs.write(run_row, 1, run_step.contact.name)
-                    runs.write(run_row, 2, groups)
+                    runs.write(run_row, 0, contact_uuid)
+                    runs.write(run_row, 1, contact_urn_display)
+                    runs.write(run_row, 2, run_step.contact.name)
+                    runs.write(run_row, 3, groups)
 
-                    merged_runs.write(merged_row, 0, contact_urn_display)
-                    merged_runs.write(merged_row, 1, run_step.contact.name)
-                    merged_runs.write(merged_row, 2, groups)
+                    merged_runs.write(merged_row, 0, contact_uuid)
+                    merged_runs.write(merged_row, 1, contact_urn_display)
+                    merged_runs.write(merged_row, 2, run_step.contact.name)
+                    merged_runs.write(merged_row, 3, groups)
 
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
@@ -3345,11 +3350,11 @@ class ExportFlowResultsTask(SmartModel):
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
 
-                runs.write(run_row, 3, as_org_tz(earliest), date_format)
-                runs.write(run_row, 4, as_org_tz(latest), date_format)
+                runs.write(run_row, 4, as_org_tz(earliest), date_format)
+                runs.write(run_row, 5, as_org_tz(latest), date_format)
 
-                merged_runs.write(merged_row, 3, as_org_tz(merged_earliest), date_format)
-                merged_runs.write(merged_row, 4, as_org_tz(merged_latest), date_format)
+                merged_runs.write(merged_row, 4, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, 5, as_org_tz(merged_latest), date_format)
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0)
@@ -3392,29 +3397,32 @@ class ExportFlowResultsTask(SmartModel):
                     name = "Messages" if (msg_sheet_index+1) <= 1 else "Messages (%d)" % (msg_sheet_index+1)
                     msgs = book.add_sheet(name)
 
-                    msgs.write(0, 0, "Phone")
-                    msgs.write(0, 1, "Name")
-                    msgs.write(0, 2, "Date")
-                    msgs.write(0, 3, "Direction")
-                    msgs.write(0, 4, "Message")
-                    msgs.write(0, 5, "Channel")
+                    msgs.write(0, 0, "Contact UUID")
+                    msgs.write(0, 1, "Phone")
+                    msgs.write(0, 2, "Name")
+                    msgs.write(0, 3, "Date")
+                    msgs.write(0, 4, "Direction")
+                    msgs.write(0, 5, "Message")
+                    msgs.write(0, 6, "Channel")
 
-                    msgs.col(0).width = small_width
-                    msgs.col(1).width = medium_width
+                    msgs.col(0).width = medium_width
+                    msgs.col(1).width = small_width
                     msgs.col(2).width = medium_width
-                    msgs.col(3).width = small_width
-                    msgs.col(4).width = large_width
-                    msgs.col(5).width = small_width
+                    msgs.col(3).width = medium_width
+                    msgs.col(4).width = small_width
+                    msgs.col(5).width = large_width
+                    msgs.col(6).width = small_width
 
                 msg_urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
                 channel_name = msg.channel.name if msg.channel else ''
 
-                msgs.write(msg_row, 0, msg_urn_display)
-                msgs.write(msg_row, 1, run_step.contact.name)
-                msgs.write(msg_row, 2, as_org_tz(msg.created_on), date_format)
-                msgs.write(msg_row, 3, "IN" if msg.direction == INCOMING else "OUT")
-                msgs.write(msg_row, 4, msg.text)
-                msgs.write(msg_row, 5, channel_name)
+                msgs.write(msg_row, 0, run_step.contact.uuid)
+                msgs.write(msg_row, 1, msg_urn_display)
+                msgs.write(msg_row, 2, run_step.contact.name)
+                msgs.write(msg_row, 3, as_org_tz(msg.created_on), date_format)
+                msgs.write(msg_row, 4, "IN" if msg.direction == INCOMING else "OUT")
+                msgs.write(msg_row, 5, msg.text)
+                msgs.write(msg_row, 6, channel_name)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
