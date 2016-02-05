@@ -252,14 +252,14 @@ class FlowTest(TembaTest):
         entry = ActionSet.objects.filter(uuid=self.flow.entry_uuid)[0]
 
         # how many people in the flow?
-        self.assertEquals(0, self.flow.get_total_contacts())
+        self.assertEquals(0, self.flow.get_total_runs())
         self.assertEquals(0, self.flow.get_completed_percentage())
 
         # start the flow
         self.flow.start([], [self.contact, self.contact2])
 
         # test our stats again
-        self.assertEquals(2, self.flow.get_total_contacts())
+        self.assertEquals(2, self.flow.get_total_runs())
         self.assertEquals(0, self.flow.get_completed_percentage())
 
         # should have created a single broadcast
@@ -434,7 +434,7 @@ class FlowTest(TembaTest):
         self.assertFalse(step.next_uuid)
 
         # check our completion percentages
-        self.assertEquals(2, self.flow.get_total_contacts())
+        self.assertEquals(2, self.flow.get_total_runs())
         self.assertEquals(50, self.flow.get_completed_percentage())
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
@@ -509,7 +509,7 @@ class FlowTest(TembaTest):
         self.assertEqual(sheet_runs.nrows, 5)  # header + 4 runs
         self.assertEqual(sheet_runs.ncols, 9)
 
-        self.assertExcelRow(sheet_runs, 0, ["Surveyor", "Phone", "Name", "Groups", "First Seen", "Last Seen",
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                             "color (Category) - Color Flow",
                                             "color (Value) - Color Flow",
                                             "color (Text) - Color Flow"])
@@ -522,11 +522,11 @@ class FlowTest(TembaTest):
         c1_run2_first = contact1_run2_rs.order_by('pk').first().arrived_on
         c1_run2_last = contact1_run2_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 1, ['', "+250788382382", "Eric", "", c1_run1_first, c1_run1_last,
-                                            "Orange", "orange", "orange"], tz)
+        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "", c1_run1_first,
+                                            c1_run1_last, "Orange", "orange", "orange"], tz)
 
-        self.assertExcelRow(sheet_runs, 2, ['', "+250788382382", "Eric", "", c1_run2_first, c1_run2_last,
-                                            "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_runs, 2, [contact1_run2.contact.uuid, "+250788382382", "Eric", "", c1_run2_first,
+                                            c1_run2_last, "Blue", "blue", " blue "], tz)
 
         contact2_run1_rs = FlowStep.objects.filter(run=contact2_run1, step_type='R')
         c2_run1_first = contact2_run1_rs.order_by('pk').first().arrived_on
@@ -536,51 +536,58 @@ class FlowTest(TembaTest):
         c2_run2_first = contact2_run2_rs.order_by('pk').first().arrived_on
         c2_run2_last = contact2_run2_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 3, ['', "+250788383383", "Nic", "", c2_run1_first, c2_run1_last,
-                                            "Other", "green", "green"], tz)
+        self.assertExcelRow(sheet_runs, 3, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", c2_run1_first,
+                                            c2_run1_last, "Other", "green", "green"], tz)
 
-        self.assertExcelRow(sheet_runs, 4, ['', "+250788383383", "Nic", "", c2_run2_first, c2_run2_last, "", "", ""], tz)
+        self.assertExcelRow(sheet_runs, 4, [contact2_run2.contact.uuid, "+250788383383", "Nic", "", c2_run2_first,
+                                            c2_run2_last, "", "", ""], tz)
 
         # check contacts sheet...
         self.assertEqual(sheet_contacts.nrows, 3)  # header + 2 contacts
         self.assertEqual(sheet_contacts.ncols, 9)
 
-        self.assertExcelRow(sheet_contacts, 0, ["Surveyor", "Phone", "Name", "Groups", "First Seen", "Last Seen",
+
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
                                                 "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_contacts, 1, ["", "+250788382382", "Eric", "", c1_run1_first, c1_run2_last,
-                                                "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "", c1_run1_first,
+                                                c1_run2_last, "Blue", "blue", " blue "], tz)
 
-        self.assertExcelRow(sheet_contacts, 2, ["", "+250788383383", "Nic", "", c2_run1_first, c2_run2_last,
-                                                "Other", "green", "green"], tz)
+        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", c2_run1_first,
+                                                c2_run2_last, "Other", "green", "green"], tz)
 
         # check messages sheet...
         self.assertEqual(sheet_msgs.nrows, 13)  # header + 12 messages
-        self.assertEqual(sheet_msgs.ncols, 6)
+        self.assertEqual(sheet_msgs.ncols, 7)
 
-        self.assertExcelRow(sheet_msgs, 0, ["Phone", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "Phone", "Name", "Date", "Direction", "Message", "Channel"])
 
         contact1_out1 = Msg.all_messages.get(steps__run=contact1_run1, text="What is your favorite color?")
         contact1_out2 = Msg.all_messages.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
         contact1_out3 = Msg.all_messages.get(steps__run=contact1_run1, text__startswith="I love orange too")
 
-        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", contact1_out1.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out1.created_on, "OUT",
                                             "What is your favorite color?", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 2, ["+250788382382", "Eric", contact1_in1.created_on, "IN",
-                                            "light beige", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 3, ["+250788382382", "Eric", contact1_out2.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 2, [contact1_in1.contact.uuid, "+250788382382", "Eric", contact1_in1.created_on,
+                                            "IN", "light beige", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 3, [contact1_out2.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out2.created_on, "OUT",
                                             "That is a funny color. Try again.", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 4, ["+250788382382", "Eric", contact1_in2.created_on, "IN",
-                                            "orange", "Test Channel"], tz)
-        self.assertExcelRow(sheet_msgs, 5, ["+250788382382", "Eric", contact1_out3.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 4, [contact1_in2.contact.uuid, "+250788382382", "Eric", contact1_in2.created_on,
+                                            "IN", "orange", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 5, [contact1_out3.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out3.created_on, "OUT",
                                             "I love orange too! You said: orange which is category: Orange You are: "
                                             "0788 382 382 SMS: orange Flow: color: light beige\ncolor: orange",
                                             "Test Channel"], tz)
 
     def test_export_results_with_surveyor_msgs(self):
         self.flow.update(self.definition)
+        self.flow.flow_type = Flow.SURVEY
+        self.flow.save()
         run = self.flow.start([], [self.contact])[0]
 
         run.submitted_by = self.admin
@@ -598,20 +605,22 @@ class FlowTest(TembaTest):
         run1_first = run1_rs.order_by('pk').first().arrived_on
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-        self.assertExcelRow(sheet_runs, 1, ["Administrator", "+250788382382", "Eric", "", run1_first, run1_last,
+
+        self.assertExcelRow(sheet_runs, 1, ["Administrator", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
 
         out1 = Msg.all_messages.get(steps__run=run, text="What is your favorite color?")
 
-        self.assertExcelRow(sheet_msgs, 1, ["+250788382382", "Eric", out1.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 1, [run.contact.uuid, "+250788382382", "Eric", out1.created_on, "OUT",
                                             "What is your favorite color?", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 2, ["", "Eric", in1.created_on, "IN", "blue", ""], tz)  # no channel or phone
+        # no channel or phone
+        self.assertExcelRow(sheet_msgs, 2, [run.contact.uuid, "", "Eric", in1.created_on, "IN", "blue", ""], tz)
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
 
-        self.assertEqual(self.flow.get_total_contacts(), 0)
+        self.assertEqual(self.flow.get_total_runs(), 0)
         self.assertEqual(self.flow.get_completed_percentage(), 0)
 
         workbook = self.export_flow_results(self.flow)
@@ -2989,7 +2998,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(6, FlowRun.objects.filter(is_active=True).count())
         self.assertEquals(0, FlowRun.objects.filter(is_active=False).count())
         self.assertEquals(6, flow.get_total_runs())
-        self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(6, active[color.uuid])
         self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
 
@@ -3001,7 +3009,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
         self.assertEquals(6, FlowRun.objects.filter(is_active=False, exit_type='E').exclude(exited_on=None).count())
         self.assertEquals(6, flow.get_total_runs())
-        self.assertEquals(6, flow.get_total_contacts())
         self.assertEquals(0, len(active))
 
         # assert our flowrun counts
@@ -3088,7 +3095,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
         self.assertEquals(0, flow.get_completed_runs())
         self.assertEquals(0, flow.get_completed_percentage())
 
@@ -3118,7 +3124,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(3, visited[msg_to_color_step])
         self.assertEquals(2, flow.get_total_runs())
-        self.assertEquals(2, flow.get_total_contacts())
 
         # now let's have them land in the same place
         self.send_message(flow, 'blue', contact=ryan)
@@ -3165,13 +3170,11 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(3, visited[other_rule_to_msg])
 
-        # our completion stats should remain the same
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(50, flow.get_completed_percentage())
-
-        # our completion stats should remain the same
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(50, flow.get_completed_percentage())
+        # no completed runs but one expired run
+        self.assertEquals(2, flow.get_total_runs())
+        self.assertEquals(0, flow.get_completed_runs())
+        self.assertEquals(0, flow.get_completed_percentage())
+        self.assertEquals(1, flow.get_expired_runs())
 
         # check that we have the right number of steps and runs
         self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
@@ -3185,7 +3188,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
 
         # he was also accounting for our completion rate, back to nothing
         self.assertEquals(0, flow.get_completed_runs())
@@ -3215,7 +3217,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
@@ -3232,7 +3233,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, visited[msg_to_color_step])
         self.assertEquals(0, visited[other_rule_to_msg])
         self.assertEquals(0, flow.get_total_runs())
-        self.assertEquals(0, flow.get_total_contacts())
         self.assertEquals(0, flow.get_completed_runs())
         self.assertEquals(0, flow.get_completed_percentage())
 
@@ -3249,7 +3249,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
 
         # set the run to be ready for expiration
         run = tupac.runs.first()
@@ -3262,7 +3261,6 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_total_contacts())
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')

@@ -13,7 +13,7 @@ import telegram
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
-from django.db import models
+from django.db import models, connection
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
@@ -2208,6 +2208,8 @@ class ChannelCount(models.Model):
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
+    LAST_SQUASH_KEY = 'last_channelcount_squash'
+
     INCOMING_MSG_TYPE = 'IM'  # Incoming message
     OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
     INCOMING_IVR_TYPE = 'IV'  # Incoming IVR step
@@ -2236,6 +2238,34 @@ class ChannelCount(models.Model):
           order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
 
         return 0 if not count else count['count_sum']
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(ChannelCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
+                                                                    .distinct('channel_id', 'count_type', 'day'):
+            print "Squashing: %d %s %s" % (count.channel_id, count.count_type, count.day)
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_channelcount(%s, %s, %s);", (count.channel_id, count.count_type, count.day))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = ChannelCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(ChannelCount.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
     def __unicode__(self):
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
