@@ -590,7 +590,7 @@ class FlowTest(TembaTest):
         self.flow.save()
         run = self.flow.start([], [self.contact])[0]
 
-        run.submitted_by = self.admin
+        # run.submitted_by = self.admin
         run.save()
 
         # no urn or channel
@@ -606,7 +606,8 @@ class FlowTest(TembaTest):
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
 
-        self.assertExcelRow(sheet_runs, 1, ["Administrator", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
+        # no submitter for our run
+        self.assertExcelRow(sheet_runs, 1, ["", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
 
         out1 = Msg.all_messages.get(steps__run=run, text="What is your favorite color?")
@@ -616,6 +617,20 @@ class FlowTest(TembaTest):
 
         # no channel or phone
         self.assertExcelRow(sheet_msgs, 2, [run.contact.uuid, "", "Eric", in1.created_on, "IN", "blue", ""], tz)
+
+        # now try setting a submitted by on our run
+        run.submitted_by = self.admin
+        run.save()
+
+        workbook = self.export_flow_results(self.flow)
+        tz = pytz.timezone(self.org.timezone)
+
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.sheets()
+
+        # now the Administrator should show up
+        self.assertExcelRow(sheet_runs, 1, ["Administrator", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
+                                            "Blue", "blue", "blue"], tz)
+
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)

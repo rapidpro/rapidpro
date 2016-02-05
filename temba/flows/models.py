@@ -3278,12 +3278,15 @@ class ExportFlowResultsTask(SmartModel):
 
 
                     index = 0
-                    submitted_by = None
-                    if show_submitted_by and run_step.run.submitted_by:
+                    if show_submitted_by:
+                        submitted_by = ''
                         # use the login as the submission user
-                        submitted_by = run_step.run.submitted_by.username
+                        if run_step.run.submitted_by:
+                            submitted_by = run_step.run.submitted_by.username
+
                         runs.write(run_row, index, submitted_by)
                         merged_runs.write(merged_row, index, submitted_by)
+
                         index += 1
 
                     runs.write(run_row, index, contact_uuid)
