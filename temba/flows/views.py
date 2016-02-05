@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import regex
+import logging
 
 from collections import Counter
 from datetime import datetime, timedelta
@@ -36,6 +37,7 @@ from temba.utils.views import BaseActionForm
 from temba.values.models import Value, STATE, DISTRICT
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
+logger = logging.getLogger(__name__)
 
 class BaseFlowForm(forms.ModelForm):
     expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
@@ -375,7 +377,14 @@ class FlowCRUDL(SmartCRUDL):
                     try:
                         FlowRevision.validate_flow_definition(revision.get_definition_json())
                         revisions.append(revision.as_json())
+
                     except ValueError as e:
+                        # "expected" error in the def, silently cull it
+                        pass
+
+                    except Exception as e:
+                        # something else, we still cull, but report it to sentry
+                        logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
                         pass
 
                 return build_json_response(revisions)
