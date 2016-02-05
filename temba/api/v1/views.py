@@ -2710,7 +2710,6 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
       * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
-      * **participants** - the number of contacts who have participated in this flow (integer)
       * **runs** - the total number of runs for this flow (integer)
       * **completed_runs** - the number of completed runs for this flow (integer)
       * **rulesets** - the rulesets on this flow, including their node UUID, ruleset type, and label
@@ -2732,7 +2731,6 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
                 "expires": 720,
                 "name": "Thrift Shop Status",
                 "labels": [ "Polls" ],
-                "participants": 1,
                 "runs": 3,
                 "completed_runs": 0,
                 "rulesets": [

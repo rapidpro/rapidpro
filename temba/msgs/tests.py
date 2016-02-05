@@ -25,7 +25,7 @@ from temba.values.models import DATETIME, DECIMAL
 from redis_cache import get_redis_connection
 from xlrd import open_workbook
 from .management.commands.msg_console import MessageConsole
-
+from temba.msgs.tasks import squash_systemlabels
 
 class MsgTest(TembaTest):
 
@@ -596,10 +596,10 @@ class MsgTest(TembaTest):
 
         self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
 
-        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Direction", "Text", "Labels"])
-        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", "Incoming", "hello 4", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", "Incoming", "hello 2", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 3, [msg1.created_on, "123", "tel", "Joe Blow", "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels"])
+        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid,  "Incoming", "hello 4", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid,  "Incoming", "hello 2", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 3, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -623,7 +623,7 @@ class MsgTest(TembaTest):
         sheet = workbook.sheets()[0]
 
         self.assertEquals(sheet.nrows, 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
         ExportMessagesTask.objects.all().delete()
 
@@ -637,9 +637,9 @@ class MsgTest(TembaTest):
             sheet = workbook.sheets()[0]
 
             self.assertEquals(sheet.nrows, 4)
-            self.assertExcelRow(sheet, 1, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", "Incoming", "hello 4", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 2, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", "Incoming", "hello 2", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 3, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", "Incoming", "hello 1", "label1"], pytz.UTC)
+            self.assertExcelRow(sheet, 1, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
+            self.assertExcelRow(sheet, 2, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
+            self.assertExcelRow(sheet, 3, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
@@ -1718,7 +1718,15 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
+        self.assertTrue(SystemLabel.objects.all().count() > 8)
+
+        # squash our counts
+        squash_systemlabels()
+
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,
                                                             SystemLabel.TYPE_SENT: 1, SystemLabel.TYPE_FAILED: 0,
                                                             SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
+
+        # we should only have one system label per type
+        self.assertEqual(SystemLabel.objects.all().count(), 8)

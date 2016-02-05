@@ -1269,6 +1269,8 @@ URN_SCHEMES_EXPORT_FIELDS = {
     TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
     TWITTER_SCHEME: dict(label='Twitter', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
     EXTERNAL_SCHEME: dict(label='External', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+    EMAIL_SCHEME: dict(label='Email', key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
+    TELEGRAM_SCHEME: dict(label='Telegram', key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME)
 }
 
 
