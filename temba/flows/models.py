@@ -281,7 +281,6 @@ class Flow(TembaModel):
         """
         Builds a json definition fit for export
         """
-
         exported_triggers = []
         exported_flows = []
 
@@ -1744,7 +1743,6 @@ class Flow(TembaModel):
 
         flows = set()
         groups = set()
-        # flows.add(self)
 
         # find all the flows we reference, note this won't include archived flows
         for action_set in self.action_sets.all():
@@ -1754,7 +1752,7 @@ class Flow(TembaModel):
                 if hasattr(action, 'groups'):
                     for group in action.groups:
                         if not isinstance(group, unicode):
-                            groups.update(action.groups)
+                            groups.add(group)
 
         # add any campaigns that use our groups
         from temba.campaigns.models import Campaign

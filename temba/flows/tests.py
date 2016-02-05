@@ -3527,6 +3527,32 @@ class FlowsTest(FlowFileTest):
         sms = Msg.all_messages.filter(contact=chw).order_by('-created_on')[0]
         self.assertEquals("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
 
+    def test_flow_export_dynamic_group(self):
+        flow = self.get_flow('favorites')
+
+        # get one of our flow actionsets, change it to an AddToGroupAction
+        actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
+
+        # replace the actions
+        actionset.set_actions_dict([AddToGroupAction([dict(id=1, name="Other Group"), '@contact.name']).as_json()])
+        actionset.save()
+
+        # now try to export it
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_export', args=[flow.pk]))
+        self.assertEquals(200, response.status_code)
+
+        # try to import the flow
+        flow.delete()
+        definition = json.loads(response.content)
+        Flow.import_flows(definition, self.org, self.admin)
+
+        # make sure the created flow has the same action set
+        flow = Flow.objects.filter(name="%s" % flow.name).first()
+        actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
+
+        self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
+
     def test_flow_export(self):
         flow = self.get_flow('favorites')
 
