@@ -1824,6 +1824,8 @@ class ContactTest(TembaTest):
                                                                          'professional status', 'joined', 'vehicle',
                                                                          'shoes'])
 
+            self.assertFalse('email' in Contact.get_org_import_file_headers(csv_file, self.org))
+
         with open('%s/test_imports/sample_contacts_with_extra_fields_and_empty_headers.xls' % settings.MEDIA_ROOT,
                   'rb') as open_file:
             csv_file = ContentFile(open_file.read())
@@ -2350,6 +2352,7 @@ class ContactTest(TembaTest):
 
         self.assertEquals(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
         self.assertEquals(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
+        self.assertEquals(contact1.get_urn(schemes=[EMAIL_SCHEME]).path, 'eric@example.com')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
         ContactField.objects.filter(key='location').update(value_type=DATETIME)
