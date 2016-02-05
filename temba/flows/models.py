@@ -1970,7 +1970,7 @@ class Flow(TembaModel):
     def ensure_current_version(self):
         """
         Makes sure the flow is at the current version. If it isn't it will
-        migrate the defintion forward updating the flow accordingly.
+        migrate the definition forward updating the flow accordingly.
         """
         if self.version_number < CURRENT_EXPORT_VERSION:
             with self.lock_on(FlowLock.definition):

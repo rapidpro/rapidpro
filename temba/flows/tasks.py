@@ -64,8 +64,6 @@ def start_flow_task(id):
 
 @task(track_started=True, name='start_msg_flow_batch')
 def start_msg_flow_batch_task():
-    logger = start_msg_flow_batch_task.get_logger()
-
     # pop off the next task
     task = pop_task('start_msg_flow_batch')
 
@@ -88,7 +86,7 @@ def start_msg_flow_batch_task():
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")
 def check_flow_stats_accuracy_task(flow_id):
-    logger = start_flow_task.get_logger()
+    logger = check_flow_stats_accuracy_task.get_logger()
 
     flow = Flow.objects.get(pk=flow_id)
 
@@ -114,7 +112,7 @@ def calculate_flow_stats_task(flow_id):
     runs_started = flow.runs.filter(contact__is_test=False).count()
 
     if runs_started != runs_started_cached:
-        logger = start_flow_task.get_logger()
+        logger = calculate_flow_stats_task.get_logger()
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
 
 @task(track_started=True, name="squash_flowruncounts")

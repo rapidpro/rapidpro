@@ -166,8 +166,18 @@ class FlowTest(TembaTest):
         # should be back to one valid flow
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_revisions', args=[self.flow.pk]))
-        revisions = json.loads(response.content)
-        self.assertEquals(1, len(revisions))
+        self.assertEquals(1, len(json.loads(response.content)))
+
+        # make the last revision even more invalid (missing ruleset)
+        revision = revisions[0]
+        definition = revision.get_definition_json()
+        del definition['rule_sets']
+        revision.definition = json.dumps(definition)
+        revision.save()
+
+        # no valid revisions (but we didn't throw!)
+        response = self.client.get(reverse('flows.flow_revisions', args=[self.flow.pk]))
+        self.assertEquals(0, len(json.loads(response.content)))
 
     def test_get_localized_text(self):
 
