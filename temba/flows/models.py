@@ -3081,7 +3081,7 @@ class ExportFlowResultsTask(SmartModel):
         # create a mapping of column id to index
         column_map = dict()
         for col in range(len(columns)):
-            column_map[columns[col].uuid] = col*3
+            column_map[columns[col].uuid] = 6+col*3
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -3136,7 +3136,7 @@ class ExportFlowResultsTask(SmartModel):
 
             index = 0
             if show_submitted_by:
-                sheet.write(0, 0, "Surveyor")
+                sheet.write(0, index, "Surveyor")
                 sheet.col(0).width = medium_width
                 index += 1
 
@@ -3276,34 +3276,28 @@ class ExportFlowResultsTask(SmartModel):
                     group_names.sort()
                     groups = ", ".join(group_names)
 
-
-                    index = 0
+                    padding = 0
                     if show_submitted_by:
                         submitted_by = ''
                         # use the login as the submission user
                         if run_step.run.submitted_by:
                             submitted_by = run_step.run.submitted_by.username
 
-                        runs.write(run_row, index, submitted_by)
-                        merged_runs.write(merged_row, index, submitted_by)
+                        runs.write(run_row, 0, submitted_by)
+                        merged_runs.write(merged_row, 0, submitted_by)
+                        padding = 1
 
-                        index += 1
+                    runs.write(run_row, padding+0, contact_uuid)
+                    runs.write(run_row, padding+1, contact_urn_display)
+                    runs.write(run_row, padding+2, run_step.contact.name)
+                    runs.write(run_row, padding+3, groups)
 
-                    runs.write(run_row, index, contact_uuid)
-                    merged_runs.write(merged_row, index, contact_uuid)
-                    index += 1
+                    merged_runs.write(merged_row, padding+0, contact_uuid)
+                    merged_runs.write(merged_row, padding+1, contact_urn_display)
+                    merged_runs.write(merged_row, padding+2, run_step.contact.name)
+                    merged_runs.write(merged_row, padding+3, groups)
 
-                    runs.write(run_row, index, contact_urn_display)
-                    merged_runs.write(merged_row, index, contact_urn_display)
-                    index += 1
 
-                    runs.write(run_row, index, run_step.contact.name)
-                    merged_runs.write(merged_row, index, run_step.contact.name)
-                    index += 1
-
-                    runs.write(run_row, index, groups)
-                    merged_runs.write(merged_row, index, groups)
-                    index += 1
 
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
@@ -3311,16 +3305,15 @@ class ExportFlowResultsTask(SmartModel):
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
 
-                runs.write(run_row, index, as_org_tz(earliest), date_format)
-                merged_runs.write(merged_row, index, as_org_tz(merged_earliest), date_format)
-                index += 1
 
-                runs.write(run_row, index, as_org_tz(latest), date_format)
-                merged_runs.write(merged_row, index, as_org_tz(merged_latest), date_format)
-                index += 1
+                runs.write(run_row, padding+4, as_org_tz(earliest), date_format)
+                runs.write(run_row, padding+5, as_org_tz(latest), date_format)
+
+                merged_runs.write(merged_row, padding+4, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, padding+5, as_org_tz(merged_latest), date_format)
 
                 # write the step data
-                col = column_map.get(run_step.step_uuid, 0) + index
+                col = column_map.get(run_step.step_uuid, 0) + padding
                 if col:
                     category = category_map.get(run_step.rule_uuid, None)
                     if category:
